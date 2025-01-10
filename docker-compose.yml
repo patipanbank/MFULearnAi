@@ -17,6 +17,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     environment:
+      - PORT=3000:80
       - VITE_API_URL=http://mfulearnai.mfu.ac.th
       - VITE_GOOGLE_CLIENT_ID=564967665191-fg9odbpmmhr0ojm04kr5ljm6lku64gce.apps.googleusercontent.com
     restart: always
