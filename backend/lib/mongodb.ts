@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // เพิ่ม default URI
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mfu_chatbot';
+// const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mfu_chatbot';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mfu_chatbot';
 
 export const connectDB = async () => {
   try {
@@ -15,4 +16,4 @@ export const connectDB = async () => {
     console.error('Error connecting to MongoDB:', error);
     process.exit(1);
   }
-}; 
+};
