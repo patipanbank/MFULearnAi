@@ -15,9 +15,9 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="bg-white h-screen flex flex-col border-r border-gray-200">
+    <aside className="bg-red-800 h-screen flex flex-col border-r border-gray-200">
       <div className="p-6">
-        <h2 className="text-2xl font-bold text-gray-800">MFU</h2>
+        <h2 className="text-2xl font-bold text-white">MFU</h2>
       </div>
 
       <nav className="mt-2 flex-1">
@@ -25,8 +25,8 @@ const Sidebar = () => {
           <li>
             <Link
               to="/chatbot"
-              className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
-                location.pathname === '/chatbot' ? 'bg-blue-50 text-blue-600' : ''
+              className={`flex items-center px-6 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors ${
+                location.pathname === '/chatbot' ? 'bg-red-800 text-white border-y' : ''
               }`}
             >
               <FaRobot className="mr-3" />
@@ -39,7 +39,7 @@ const Sidebar = () => {
       <div className="mt-auto border-t border-gray-200">
         <button 
           onClick={handleLogout}
-          className="flex items-center w-full px-6 py-4 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+          className="flex items-center w-full px-6 py-4 text-white hover:bg-red-50 hover:text-red-600 transition-colors"
         >
           <svg 
             width="16" 

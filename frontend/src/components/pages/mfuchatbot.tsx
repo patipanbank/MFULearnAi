@@ -67,7 +67,7 @@ const MFUChatbot: React.FC = () => {
               <div
                 className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 ${
                   message.sender === 'user'
-                    ? 'bg-blue-600 text-white rounded-tr-none'
+                    ? 'bg-gradient-to-b from-blue-500 to-violet-500 text-white rounded-tr-none'
                     : 'bg-gray-100 text-gray-800 rounded-tl-none'
                 }`}
               >
