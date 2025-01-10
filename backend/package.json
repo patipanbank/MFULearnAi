@@ -13,11 +13,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/debug": "^4.1.12",
     "@types/formidable": "^3.4.5",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.5",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.0.0"
   },
   "dependencies": {
     "@types/cors": "^2.8.17",
