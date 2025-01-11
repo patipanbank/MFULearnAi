@@ -15,18 +15,16 @@ if (!cert) {
 const samlStrategy = new SamlStrategy(
   {
     // Service Provider (SP) configuration
-    callbackUrl: 'http://localhost:5000/api/auth/saml/callback',
-    entryPoint: 'https://authsso.mfu.ac.th/adfs/ls/',
-    logoutUrl: 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0',
+    callbackUrl: `${process.env.FRONTEND_URL}/api/auth/saml/callback`,
+    entryPoint: process.env.SAML_IDP_SSO_URL,
+    logoutUrl: process.env.SAML_IDP_SLO_URL,
     issuer: 'https://accounts.google.com/samlrp/02r452co1fwsveo',
     
     // Identity Provider (IdP) configuration
-    idpIssuer: 'https://authsso.mfu.ac.th/adfs/services/trust',
+    idpIssuer: process.env.SAML_IDP_ENTITY_ID,
     cert: cert,
     
     // Additional settings
-    wantAuthnResponseSigned: true,
-    acceptedClockSkewMs: -1,
     disableRequestedAuthnContext: true,
     forceAuthn: true,
     identifierFormat: null
@@ -47,9 +45,6 @@ const samlStrategy = new SamlStrategy(
         .then(user => done(null, user))
         .catch(error => done(error));
     });
-  },
-   (profile: any, done: any) => {  // ถูก: มีแค่ 2 arguments (profile, done)
-    return done(null, profile);
   }
 );
 
