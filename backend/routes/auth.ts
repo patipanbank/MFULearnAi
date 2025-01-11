@@ -15,10 +15,10 @@ if (!cert) {
 const samlStrategy = new SamlStrategy(
   {
     // Service Provider (SP) configuration
-    callbackUrl: `${process.env.FRONTEND_URL}/api/auth/saml/callback`,
+    issuer: process.env.SAML_SP_ENTITY_ID,
+    callbackUrl: process.env.SAML_SP_ACS_URL,
     entryPoint: process.env.SAML_IDP_SSO_URL,
     logoutUrl: process.env.SAML_IDP_SLO_URL,
-    issuer: 'https://accounts.google.com/samlrp/02r452co1fwsveo',
     
     // Identity Provider (IdP) configuration
     idpIssuer: process.env.SAML_IDP_ENTITY_ID,
@@ -27,7 +27,9 @@ const samlStrategy = new SamlStrategy(
     // Additional settings
     disableRequestedAuthnContext: true,
     forceAuthn: true,
-    identifierFormat: null
+    identifierFormat: null,
+    wantAssertionsSigned: true,
+    acceptedClockSkewMs: -1
   },
   (req: any, profile: any, done: any) => {
     connectDB().then(() => {
@@ -78,7 +80,7 @@ router.post('/saml/callback',
         { expiresIn: '7d' }
       );
       
-      res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${token}`);
+      res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${token}&redirect=/chatbot`);
     } catch (error) {
       res.redirect('/login?error=authentication_failed');
     }

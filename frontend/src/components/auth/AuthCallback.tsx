@@ -7,9 +7,11 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const token = searchParams.get('token');
+    const redirectPath = searchParams.get('redirect') || '/chatbot';
+
     if (token) {
       localStorage.setItem('auth_token', token);
-      navigate('/chatbot');
+      navigate(redirectPath);
     } else {
       navigate('/login');
     }
