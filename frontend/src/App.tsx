@@ -4,6 +4,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import MainLayout from './components/layouts/MainLayout';
 import MFUChatbot from './components/pages/mfuchatbot';
 import Login from './components/login/Login';
+import AuthCallback from './components/auth/AuthCallback';
 import './index.css';
 
 const App: React.FC = () => {
@@ -17,6 +18,7 @@ const App: React.FC = () => {
             path="/login" 
             element={isAuthenticated ? <Navigate to="/chatbot" /> : <Login />} 
           />
+          <Route path="/auth-callback" element={<AuthCallback />} />
           <Route
             path="/*"
             element={

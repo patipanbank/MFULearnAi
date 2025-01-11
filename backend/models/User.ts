@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
   name: String,
   picture: String,
   googleId: String,
+  samlId: String,
   createdAt: {
     type: Date,
     default: Date.now

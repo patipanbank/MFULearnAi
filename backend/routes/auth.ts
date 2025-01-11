@@ -1,111 +1,107 @@
-import { Router, RequestHandler } from 'express';
+import { Router } from 'express';
+import passport from 'passport';
+import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
 import { connectDB } from '../lib/mongodb';
 import User from '../models/User';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: { userId: string };
-    }
-  }
-}
-
 const router = Router();
 
-const googleAuthHandler: RequestHandler = async (req, res): Promise<void> => {
-  try {
-    const { token } = req.body;
-    // ตรวจสอบ�้อมูลผู้ใช้จาก Google
-    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+const cert = process.env.SAML_CERTIFICATE;
+if (!cert) {
+  throw new Error('SAML_CERTIFICATE is required in .env file');
+}
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch user');
-    }
-
-    const userData = await response.json();
-
-    const allowedDomains = process.env.GOOGLE_ALLOWED_DOMAINS?.split(',') || [];
-    const isAllowedDomain = (email: string) => {
-      return allowedDomains.some(domain => email.endsWith('@' + domain));
-    };
-    if (!isAllowedDomain(userData.email)) {
-      res.status(401).json({ 
-        message: 'Please use your MFU email to login' 
-      });
-      return;
-    }
-
-    await connectDB();
-
-    let user = await User.findOne({ email: userData.email });
-    if (!user) {
-      user = await User.create({
-        email: userData.email,
-        name: userData.name,
-        picture: userData.picture,
-        googleId: userData.sub,
-      });
-    }
-
-    const authToken = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET!,
-      { expiresIn: '7d' }
-    );
-
-    res.status(200).json({ token: authToken });
-  } catch (error) {
-    console.error('Authentication error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-// เพิ่ม middleware สำหรับตรวจสอบ token
-const authenticateToken: RequestHandler = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    res.status(401).json({ message: 'Authentication required' });
-    return;
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Invalid token' });
-    return;
-  }
-};
-
-// เพิ่ม endpoint สำหรับดึงข้อมูลผู้ใช้
-router.get('/profile', authenticateToken, (async (req, res): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ message: 'User not authenticated' });
-      return;
-    }
-    const user = await User.findById(req.user.userId);
-    if (!user) {
-      res.status(404).json({ message: 'User not found' });
-      return;
-    }
+const samlStrategy = new SamlStrategy(
+  {
+    // Service Provider (SP) configuration
+    callbackUrl: 'http://localhost:5000/api/auth/saml/callback',
+    entryPoint: 'https://authsso.mfu.ac.th/adfs/ls/',
+    logoutUrl: 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0',
+    issuer: 'https://accounts.google.com/samlrp/02r452co1fwsveo',
     
-    res.json({
-      name: user.name,
-      email: user.email,
-      picture: user.picture
+    // Identity Provider (IdP) configuration
+    idpIssuer: 'https://authsso.mfu.ac.th/adfs/services/trust',
+    cert: cert,
+    
+    // Additional settings
+    wantAuthnResponseSigned: true,
+    acceptedClockSkewMs: -1,
+    disableRequestedAuthnContext: true,
+    forceAuthn: true,
+    identifierFormat: null
+  },
+  (req: any, profile: any, done: any) => {
+    connectDB().then(() => {
+      User.findOne({ email: profile.email })
+        .then(user => {
+          if (!user) {
+            return User.create({
+              email: profile.email,
+              name: profile.displayName || profile.email,
+              samlId: profile.nameID
+            });
+          }
+          return user;
+        })
+        .then(user => done(null, user))
+        .catch(error => done(error));
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+  },
+   (profile: any, done: any) => {  // ถูก: มีแค่ 2 arguments (profile, done)
+    return done(null, profile);
   }
-}) as RequestHandler);
+);
 
-router.post('/google/callback', googleAuthHandler);
+passport.use('saml', samlStrategy);
+
+// Serialize & Deserialize User
+passport.serializeUser((user: any, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id: string, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
+});
+
+// SAML Login route
+router.get('/login/saml', passport.authenticate('saml'));
+
+// SAML Callback route
+router.post('/saml/callback',
+  passport.authenticate('saml', { failureRedirect: '/login', session: false }),
+  async (req: any, res) => {
+    try {
+      const token = jwt.sign(
+        { userId: req.user._id, email: req.user.email },
+        process.env.JWT_SECRET!,
+        { expiresIn: '7d' }
+      );
+      
+      res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${token}`);
+    } catch (error) {
+      res.redirect('/login?error=authentication_failed');
+    }
+  }
+);
+
+// Logout route
+router.get('/logout', (req, res) => {
+  req.logout(() => {
+    res.redirect('https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0');
+  });
+});
+
+// Metadata route
+router.get('/metadata', (req, res) => {
+  const metadata = samlStrategy.generateServiceProviderMetadata(null, cert);
+  res.type('application/xml');
+  res.send(metadata);
+});
 
 export default router;

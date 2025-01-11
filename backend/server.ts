@@ -1,28 +1,46 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import passport from 'passport';
+import session from 'express-session';
 import authRoutes from './routes/auth';
-import chatRoutes from './routes/chat';
-import { connectDB } from './lib/mongodb';
 
-dotenv.config();
 const app = express();
 
-// CORS configuration
+// เพิ่ม middleware ตามลำดับ
 app.use(cors({
-  origin: true,
+  origin: ['http://localhost:5173', 'https://authsso.mfu.ac.th'],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
 app.use(express.json());
 
-app.use('/api/chat', chatRoutes);
-// Connect to MongoDB
-connectDB();
+// เพิ่ม session middleware
+app.use(session({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: false
+}));
 
+// เพิ่ม passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
+// เพิ่ม passport serialize/deserialize
+passport.serializeUser((user: any, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user: any, done) => {
+  done(null, user);
+});
+
+// mount routes
 app.use('/api/auth', authRoutes);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 
+app.listen(process.env.PORT, () => {
+  console.log(`Server running on port ${process.env.PORT}`);
+}); 
