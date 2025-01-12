@@ -1,8 +1,9 @@
 import React from 'react';
+import { config } from '../../config/config';
 
 const Login: React.FC = () => {
   const handleMFUSSOLogin = () => {
-    window.location.href = 'http://localhost:5000/api/auth/login/saml';
+    window.location.href = `${config.apiUrl}/api/auth/login/saml`;
   };
 
   return (
