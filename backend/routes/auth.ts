@@ -80,9 +80,11 @@ router.post('/saml/callback',
         { expiresIn: '7d' }
       );
       
-      res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${token}&redirect=/chatbot`);
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}&redirect=/chatbot`;
+      res.redirect(redirectUrl);
     } catch (error) {
-      res.redirect('/login?error=authentication_failed');
+      console.error('SAML Callback error:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=authentication_failed`);
     }
   }
 );

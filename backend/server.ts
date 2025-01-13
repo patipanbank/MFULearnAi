@@ -9,9 +9,16 @@ import authRoutes from './routes/auth';
 
 const app = express();
 
-// เพิ่ม middleware ตามลำดับ
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://authsso.mfu.ac.th'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
