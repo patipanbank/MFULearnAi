@@ -7,12 +7,19 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const redirectPath = searchParams.get('redirect') || '/chatbot';
+    console.log('Received token:', token);
 
     if (token) {
-      localStorage.setItem('auth_token', token);
-      navigate(redirectPath);
+      try {
+        localStorage.setItem('auth_token', token);
+        console.log('Token stored successfully');
+        navigate('/chatbot');
+      } catch (error) {
+        console.error('Error storing token:', error);
+        navigate('/login');
+      }
     } else {
+      console.log('No token received');
       navigate('/login');
     }
   }, [navigate, searchParams]);

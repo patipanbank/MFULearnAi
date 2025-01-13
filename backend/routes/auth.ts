@@ -93,12 +93,10 @@ router.get('/login/saml', (req, res, next) => {
 router.post('/saml/callback',
   urlencoded({ extended: false }),
   (req: any, res, next) => {
-    console.log('Received SAML callback with headers:', {
-      host: req.headers.host,
-      origin: req.headers.origin,
-      referer: req.headers.referer
+    console.log('SAML Callback received:', {
+      body: req.body,
+      headers: req.headers
     });
-    console.log('SAMLResponse exists:', !!req.body.SAMLResponse);
     next();
   },
   passport.authenticate('saml', { 
@@ -107,9 +105,6 @@ router.post('/saml/callback',
   }),
   async (req: any, res) => {
     try {
-      console.log('Authentication successful, user:', req.user);
-      console.log('User data:', req.user);
-      
       const user = req.user;
       const token = jwt.sign(
         { 
@@ -122,9 +117,9 @@ router.post('/saml/callback',
         { expiresIn: '7d' }
       );
       
-      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${token}&redirect=/chatbot`;
+      // แก้ไข URL ให้ถูกต้อง
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${token}`;
       console.log('Redirecting to:', redirectUrl);
-      
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('Callback error:', error);
