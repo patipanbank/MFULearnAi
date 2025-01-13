@@ -29,9 +29,11 @@ const samlStrategy = new SamlStrategy(
     forceAuthn: true,
     identifierFormat: null,
     wantAssertionsSigned: true,
-    acceptedClockSkewMs: -1
+    acceptedClockSkewMs: -1,
+    validateInResponseTo: false
   },
   async (profile: any, done: any) => {
+    console.log('SAML Profile:', profile);
     try {
       await connectDB();
       
@@ -90,6 +92,7 @@ router.get('/login/saml', (req, res, next) => {
 router.post('/saml/callback',
   (req, res, next) => {
     console.log('Received SAML callback request');
+    console.log('Request headers:', req.headers);
     console.log('Request body:', req.body);
     next();
   },
