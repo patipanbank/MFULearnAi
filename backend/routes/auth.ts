@@ -117,7 +117,11 @@ router.get('/logout', (req, res) => {
 
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
-    res.redirect(process.env.SAML_IDP_SLO_URL || 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0');
+    const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
+    const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
+    
+    res.redirect(logoutUrl);
   });
 });
 

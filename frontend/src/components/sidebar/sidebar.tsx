@@ -8,15 +8,11 @@ const Sidebar = () => {
     try {
       localStorage.clear();
       
-      await fetch(`${import.meta.env.VITE_API_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      window.location.href = '/login';
+      const returnUrl = encodeURIComponent(`${window.location.origin}/login`);
+      
+      window.location.href = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
     } catch (error) {
       console.error('Logout error:', error);
-      localStorage.clear();
       window.location.href = '/login';
     }
   };
