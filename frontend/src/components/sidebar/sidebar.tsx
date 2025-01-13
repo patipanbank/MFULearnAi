@@ -8,9 +8,9 @@ const Sidebar = () => {
     try {
       localStorage.clear();
       
-      const returnUrl = encodeURIComponent(`${window.location.origin}/login`);
+      const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th/login');
       
-      window.location.href = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
+      window.location.href = `https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0&wreply=${returnUrl}`;
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
