@@ -104,26 +104,22 @@ router.get('/login/saml', (req, res, next) => {
 
 // Callback route
 router.post('/saml/callback',
-  urlencoded({ extended: false, limit: '10mb' }),
+  urlencoded({ extended: false }),
   (req: any, res, next) => {
-    console.log('=== SAML Callback Debug ===');
-    console.log('Request received at:', new Date().toISOString());
-    console.log('Headers:', req.headers);
-    console.log('Body size:', req.headers['content-length']);
-    console.log('SAMLResponse exists:', !!req.body?.SAMLResponse);
+    console.log('1. Received SAML callback');
+    console.log('2. Processing SAML response');
     next();
   },
-  (req: any, res, next) => {
-    passport.authenticate('saml', {
-      failureRedirect: `${process.env.FRONTEND_URL}/login`,
-      failureFlash: true,
-      session: false
-    })(req, res, next);
-  },
+  passport.authenticate('saml', { 
+    failureRedirect: `${process.env.FRONTEND_URL}/login`,
+    failureFlash: true,
+    session: false
+  }),
   async (req: any, res) => {
     try {
+      console.log('3. SAML authentication successful');
       const user = req.user;
-      console.log('User authenticated:', user?.email);
+      console.log('4. Creating JWT token');
       
       const token = jwt.sign(
         { 
@@ -135,11 +131,12 @@ router.post('/saml/callback',
         process.env.JWT_SECRET!,
         { expiresIn: '7d' }
       );
-
+      
+      console.log('5. Redirecting to frontend with token');
       res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`);
     } catch (error) {
-      console.error('Callback processing error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=processing_error`);
+      console.error('Error in callback processing:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=callback_error`);
     }
   }
 );
