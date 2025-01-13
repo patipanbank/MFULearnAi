@@ -6,17 +6,36 @@ import cors from 'cors';
 import passport from 'passport';
 import session from 'express-session';
 import authRoutes from './routes/auth';
+import bodyParser from 'body-parser';
 
 const app = express();
 
-// เพิ่ม middleware ตามลำดับ
+// เพิ่ม body parser ก่อน routes
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+// เพิ่ม raw body parser สำหรับ SAML
+app.use((req, res, next) => {
+  if (req.url === '/api/auth/saml/callback') {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', chunk => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      req.rawBody = data;
+      next();
+    });
+  } else {
+    next();
+  }
+});
+
+// CORS configuration
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://authsso.mfu.ac.th'],
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: process.env.FRONTEND_URL,
+  credentials: true
 }));
-app.use(express.json());
 
 // เพิ่ม session middleware
 app.use(session({

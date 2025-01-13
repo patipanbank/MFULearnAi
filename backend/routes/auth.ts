@@ -90,10 +90,11 @@ router.get('/login/saml', (req, res, next) => {
 
 // SAML Callback route
 router.post('/saml/callback',
-  (req, res, next) => {
+  (req: any, res, next) => {
     console.log('Received SAML callback request');
     console.log('Request headers:', req.headers);
     console.log('Request body:', req.body);
+    console.log('Raw body:', req.rawBody);
     next();
   },
   passport.authenticate('saml', { 
