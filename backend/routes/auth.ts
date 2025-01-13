@@ -12,27 +12,34 @@ if (!cert) {
   throw new Error('SAML_CERTIFICATE is required in .env file');
 }
 
+// เพิ่ม logging middleware
+router.use('/saml/callback', (req, res, next) => {
+  console.log('SAML Callback Request:', {
+    body: req.body,
+    method: req.method,
+    headers: req.headers
+  });
+  next();
+});
+
 const samlStrategy = new SamlStrategy(
   {
-    // Service Provider (SP) configuration
     issuer: process.env.SAML_SP_ENTITY_ID,
     callbackUrl: process.env.SAML_SP_ACS_URL,
     entryPoint: process.env.SAML_IDP_SSO_URL,
     logoutUrl: process.env.SAML_IDP_SLO_URL,
-    
-    // Identity Provider (IdP) configuration
     idpIssuer: process.env.SAML_IDP_ENTITY_ID,
     cert: cert,
-    
-    // Additional settings
     disableRequestedAuthnContext: true,
     forceAuthn: false,
     identifierFormat: null,
     wantAssertionsSigned: true,
     acceptedClockSkewMs: -1,
-    validateInResponseTo: false
+    validateInResponseTo: false,
+    passReqToCallback: true
   },
   (req: any, profile: any, done: any) => {
+    console.log('SAML Profile:', profile);
     connectDB().then(() => {
       User.findOne({ email: profile.email })
         .then(user => {
@@ -72,17 +79,13 @@ router.get('/login/saml', passport.authenticate('saml'));
 
 // SAML Callback route
 router.post('/saml/callback',
-  (req, res, next) => {
-    console.log('SAML Callback received:', req.body);
-    next();
-  },
   passport.authenticate('saml', { 
     failureRedirect: '/login',
     failureFlash: true,
     session: false 
   }),
-  async (req: any, res) => {
-    console.log('Authentication successful, user:', req.user);
+  (req: any, res) => {
+    console.log('Authentication Success, User:', req.user);
     try {
       const token = jwt.sign(
         { userId: req.user._id, email: req.user.email },
@@ -90,16 +93,12 @@ router.post('/saml/callback',
         { expiresIn: '7d' }
       );
       
-      const redirectUrl = new URL('/auth-callback', process.env.FRONTEND_URL);
-      redirectUrl.searchParams.append('token', token);
-      redirectUrl.searchParams.append('redirect', '/chatbot');
-      
-      res.redirect(redirectUrl.toString());
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`;
+      console.log('Redirecting to:', redirectUrl);
+      res.redirect(redirectUrl);
     } catch (error) {
-      console.error('SAML Callback error:', error);
-      const errorUrl = new URL('/login', process.env.FRONTEND_URL);
-      errorUrl.searchParams.append('error', 'authentication_failed');
-      res.redirect(errorUrl.toString());
+      console.error('Token Generation Error:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
     }
   }
 );
