@@ -95,10 +95,20 @@ router.post('/saml/callback',
         { expiresIn: '7d' }
       );
       
-      res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`);
+      const userData = {
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        email: req.user.email
+      };
+
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?` + 
+        `token=${token}&` +
+        `user_data=${encodeURIComponent(JSON.stringify(userData))}`;
+
+      res.redirect(redirectUrl);
     } catch (error) {
-      console.error('Token Generation Error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
+      console.error('SAML callback error:', error);
+      res.redirect('/login?error=auth_failed');
     }
   }
 );

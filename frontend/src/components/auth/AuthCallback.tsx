@@ -7,8 +7,16 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    if (token) {
+    const userData = searchParams.get('user_data');
+
+    if (token && userData) {
+      // เก็บ token
       localStorage.setItem('auth_token', token);
+      
+      // เก็บข้อมูลผู้ใช้
+      localStorage.setItem('user_data', userData);
+      
+      // redirect ไปที่หน้า MFUChatbot
       navigate('/mfuchatbot');
     } else {
       navigate('/login');

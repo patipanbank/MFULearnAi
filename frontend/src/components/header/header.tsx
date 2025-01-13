@@ -1,46 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { User } from '../../types/user';
 
-const Header: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) return;
-
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/profile`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-      }
-    };
-
-    fetchUserProfile();
-  }, []);
+const Header = () => {
+  // ดึงข้อมูลผู้ใช้จาก localStorage
+  const userDataString = localStorage.getItem('user_data');
+  const userData = userDataString ? JSON.parse(userDataString) : null;
 
   return (
-    <header className="w-full h-16 bg-white shadow-sm">
-      <div className="h-full flex items-center px-4">
-        <h1 className="text-xl font-semibold text-gray-800">MFU Chatbot</h1>
+    <header className="bg-white border-b border-gray-200">
+      <div className="flex justify-between items-center px-6 py-4">
+        <h1 className="text-xl font-semibold text-gray-800">MFU Learn AI</h1>
         
-        {user && (
-          <div className="flex items-center space-x-3 ml-auto">
-            <span className="text-sm text-gray-700">{user.name}</span>
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
-              {user.name.charAt(0)}
-            </div>
-          </div>
-        )}
+        {/* แสดงชื่อ-นามสกุลผู้ใช้ */}
+        <div className="flex items-center">
+          {userData && (
+            <span className="text-gray-600">
+              {userData.firstName} {userData.lastName}
+            </span>
+          )}
+        </div>
       </div>
     </header>
   );
