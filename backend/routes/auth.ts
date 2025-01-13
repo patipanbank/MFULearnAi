@@ -81,13 +81,28 @@ passport.deserializeUser(async (id: string, done) => {
 });
 
 // SAML Login route
-router.get('/login/saml', passport.authenticate('saml'));
+router.get('/login/saml', (req, res, next) => {
+  console.log('Starting SAML login');
+  passport.authenticate('saml')(req, res, next);
+});
 
 // SAML Callback route
 router.post('/saml/callback',
-  passport.authenticate('saml', { failureRedirect: '/login', session: false }),
+  (req, res, next) => {
+    console.log('Received SAML callback request');
+    console.log('Request body:', req.body);
+    next();
+  },
+  passport.authenticate('saml', { 
+    failureRedirect: '/login', 
+    failureFlash: true,
+    session: false 
+  }),
   async (req: any, res) => {
     try {
+      console.log('Authentication successful');
+      console.log('User data:', req.user);
+      
       const user = req.user;
       const token = jwt.sign(
         { 
@@ -100,8 +115,12 @@ router.post('/saml/callback',
         { expiresIn: '7d' }
       );
       
-      res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${token}&redirect=/chatbot`);
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${token}&redirect=/chatbot`;
+      console.log('Redirecting to:', redirectUrl);
+      
+      res.redirect(redirectUrl);
     } catch (error) {
+      console.error('Callback error:', error);
       res.redirect('/login?error=authentication_failed');
     }
   }
