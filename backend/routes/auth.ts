@@ -24,8 +24,9 @@ const samlStrategy = new SamlStrategy(
     disableRequestedAuthnContext: true,
     forceAuthn: false,
     validateInResponseTo: false,
-    identifierFormat: process.env.SAML_IDENTIFIER_FORMAT || 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
-    wantAssertionsSigned: false
+    identifierFormat: null,
+    wantAssertionsSigned: false,
+    signatureAlgorithm: 'sha256'
   },
   async (profile: any, done: any) => {
     console.log('SAML Profile received:', profile);
@@ -61,6 +62,10 @@ const samlStrategy = new SamlStrategy(
     }
   }
 );
+
+samlStrategy.error = (err: any) => {
+  console.error('SAML Strategy Error:', err);
+};
 
 passport.use('saml', samlStrategy);
 
