@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, urlencoded } from 'express';
 import passport from 'passport';
 import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
@@ -7,30 +7,23 @@ import User from '../models/User';
 
 const router = Router();
 
-const cert = process.env.SAML_CERTIFICATE;
-if (!cert) {
-  throw new Error('SAML_CERTIFICATE is required in .env file');
+if (!process.env.SAML_CERTIFICATE || !process.env.SAML_IDP_SSO_URL || !process.env.SAML_SP_ENTITY_ID || !process.env.SAML_SP_ACS_URL) {
+  throw new Error('Missing required SAML environment variables');
 }
 
 const samlStrategy = new SamlStrategy(
   {
-    // Service Provider (SP) configuration
+    entryPoint: process.env.SAML_IDP_SSO_URL,
     issuer: process.env.SAML_SP_ENTITY_ID,
     callbackUrl: process.env.SAML_SP_ACS_URL,
-    entryPoint: process.env.SAML_IDP_SSO_URL,
-    logoutUrl: process.env.SAML_IDP_SLO_URL,
-    
-    // Identity Provider (IdP) configuration
-    idpIssuer: process.env.SAML_IDP_ENTITY_ID,
-    cert: cert,
-    
-    // Additional settings
+    cert: process.env.SAML_CERTIFICATE,
+    acceptedClockSkewMs: -1,
     disableRequestedAuthnContext: true,
-    forceAuthn: true,
+    forceAuthn: false,
+    validateInResponseTo: false,
     identifierFormat: null,
     wantAssertionsSigned: true,
-    acceptedClockSkewMs: -1,
-    validateInResponseTo: false
+    signatureAlgorithm: 'sha256'
   },
   async (profile: any, done: any) => {
     console.log('SAML Profile:', profile);
@@ -61,6 +54,7 @@ const samlStrategy = new SamlStrategy(
 
       done(null, user);
     } catch (error) {
+      console.error('SAML Strategy Error:', error);
       done(error);
     }
   }
@@ -90,17 +84,15 @@ router.get('/login/saml', (req, res, next) => {
 
 // SAML Callback route
 router.post('/saml/callback',
+  urlencoded({ extended: false }),
   (req: any, res, next) => {
     console.log('Received SAML callback request');
-    console.log('Request headers:', req.headers);
-    console.log('Request body:', req.body);
-    console.log('Raw body:', req.rawBody);
+    console.log('SAMLResponse:', req.body.SAMLResponse);
     next();
   },
   passport.authenticate('saml', { 
-    failureRedirect: '/login', 
-    failureFlash: true,
-    session: false 
+    failureRedirect: '/login',
+    failureFlash: true
   }),
   async (req: any, res) => {
     try {
@@ -139,7 +131,7 @@ router.get('/logout', (req, res) => {
 
 // Metadata route
 router.get('/metadata', (req, res) => {
-  const metadata = samlStrategy.generateServiceProviderMetadata(null, cert);
+  const metadata = samlStrategy.generateServiceProviderMetadata(null, process.env.SAML_CERTIFICATE);
   res.type('application/xml');
   res.send(metadata);
 });
