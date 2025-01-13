@@ -24,20 +24,17 @@ const samlStrategy = new SamlStrategy(
     issuer: process.env.SAML_SP_ENTITY_ID,
     callbackUrl: process.env.SAML_SP_ACS_URL,
     cert: process.env.SAML_CERTIFICATE,
-    acceptedClockSkewMs: 300000,
+    acceptedClockSkewMs: -1,
     disableRequestedAuthnContext: true,
-    forceAuthn: true,
+    forceAuthn: false,
     validateInResponseTo: false,
-    identifierFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified',
-    wantAssertionsSigned: true,
-    signatureAlgorithm: 'sha256',
-    additionalParams: {
-      RelayState: process.env.FRONTEND_URL
-    }
+    identifierFormat: null,
+    wantAssertionsSigned: false,
+    logoutUrl: 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0'
   },
   async (profile: any, done: any) => {
-    console.log('SAML Profile received:', profile);
     try {
+      console.log('SAML Profile:', profile);
       await connectDB();
       
       // รับค่าจาก SAML attributes
@@ -64,7 +61,7 @@ const samlStrategy = new SamlStrategy(
 
       done(null, user);
     } catch (error) {
-      console.error('SAML Strategy Error:', error);
+      console.error('SAML Error:', error);
       done(error);
     }
   }
@@ -93,10 +90,16 @@ passport.deserializeUser(async (id: string, done) => {
 // Login route
 router.get('/login/saml', (req, res, next) => {
   console.log('Starting SAML login...');
-  passport.authenticate('saml', {
-    failureRedirect: `${process.env.FRONTEND_URL}/login`,
-    failureFlash: true
-  })(req, res, next);
+  try {
+    passport.authenticate('saml', {
+      failureRedirect: `${process.env.FRONTEND_URL}/login`,
+      failureFlash: true,
+      keepSessionInfo: true
+    })(req, res, next);
+  } catch (error) {
+    console.error('SAML Login Error:', error);
+    res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_error`);
+  }
 });
 
 // Callback route
