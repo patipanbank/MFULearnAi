@@ -7,7 +7,10 @@ import User from '../models/User';
 
 const router = Router();
 
-if (!process.env.SAML_CERTIFICATE || !process.env.SAML_IDP_SSO_URL || !process.env.SAML_SP_ENTITY_ID || !process.env.SAML_SP_ACS_URL) {
+if (!process.env.SAML_CERTIFICATE || 
+    !process.env.SAML_IDP_SSO_URL || 
+    !process.env.SAML_SP_ENTITY_ID || 
+    !process.env.SAML_SP_ACS_URL) {
   throw new Error('Missing required SAML environment variables');
 }
 
@@ -15,16 +18,14 @@ const samlStrategy = new SamlStrategy(
   {
     entryPoint: process.env.SAML_IDP_SSO_URL,
     issuer: process.env.SAML_SP_ENTITY_ID,
-    callbackUrl: `${process.env.FRONTEND_URL}/api/auth/saml/callback`,
+    callbackUrl: process.env.SAML_SP_ACS_URL,
     cert: process.env.SAML_CERTIFICATE,
     acceptedClockSkewMs: -1,
     disableRequestedAuthnContext: true,
     forceAuthn: false,
     validateInResponseTo: false,
-    identifierFormat: null,
-    wantAssertionsSigned: false,
-    signatureAlgorithm: 'sha256',
-    digestAlgorithm: 'sha256'
+    identifierFormat: process.env.SAML_IDENTIFIER_FORMAT || 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
+    wantAssertionsSigned: false
   },
   async (profile: any, done: any) => {
     console.log('SAML Profile received:', profile);
@@ -86,7 +87,7 @@ router.get('/login/saml', (req, res, next) => {
   });
   
   passport.authenticate('saml', {
-    failureRedirect: '/login',
+    failureRedirect: `${process.env.FRONTEND_URL}/login`,
     failureFlash: true
   })(req, res, next);
 });
@@ -95,13 +96,12 @@ router.get('/login/saml', (req, res, next) => {
 router.post('/saml/callback',
   urlencoded({ extended: false }),
   (req: any, res, next) => {
-    console.log('Raw SAML Response:', req.body.SAMLResponse);
+    console.log('Received SAML callback');
     next();
   },
   passport.authenticate('saml', { 
-    failureRedirect: '/login',
-    failureFlash: true,
-    failWithError: true
+    failureRedirect: `${process.env.FRONTEND_URL}/login`,
+    failureFlash: true
   }),
   async (req: any, res) => {
     try {
@@ -117,14 +117,12 @@ router.post('/saml/callback',
         { expiresIn: '7d' }
       );
       
-      const redirectUrl = new URL('/auth-callback', process.env.FRONTEND_URL);
-      redirectUrl.searchParams.append('token', token);
-      
-      console.log('Redirecting to:', redirectUrl.toString());
-      res.redirect(redirectUrl.toString());
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`;
+      console.log('Redirecting to:', redirectUrl);
+      res.redirect(redirectUrl);
     } catch (error) {
       console.error('Callback error:', error);
-      res.redirect('/login?error=authentication_failed');
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=authentication_failed`);
     }
   }
 );
