@@ -96,16 +96,35 @@ router.get('/login/saml', (req, res, next) => {
 router.post('/saml/callback',
   urlencoded({ extended: false }),
   (req: any, res, next) => {
-    console.log('Received SAML callback');
+    console.log('=== SAML Callback Debug ===');
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    console.log('SAMLResponse:', req.body?.SAMLResponse ? 'Present' : 'Missing');
+    console.log('========================');
     next();
   },
   passport.authenticate('saml', { 
     failureRedirect: `${process.env.FRONTEND_URL}/login`,
-    failureFlash: true
+    failureFlash: true,
+    failWithError: true
+  }, (err: any, user: any, info: any, res: any, next: any) => {
+    if (err) {
+      console.error('SAML Authentication Error:', err);
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_error`);
+    }
+    if (!user) {
+      console.error('No user found:', info);
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_user`);
+    }
+    
+    console.log('Authentication successful for user:', user.email);
+    return next();
   }),
   async (req: any, res) => {
     try {
       const user = req.user;
+      console.log('Generating token for user:', user.email);
+      
       const token = jwt.sign(
         { 
           userId: user._id,
@@ -121,8 +140,8 @@ router.post('/saml/callback',
       console.log('Redirecting to:', redirectUrl);
       res.redirect(redirectUrl);
     } catch (error) {
-      console.error('Callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=authentication_failed`);
+      console.error('Token generation/redirect error:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=token_error`);
     }
   }
 );
