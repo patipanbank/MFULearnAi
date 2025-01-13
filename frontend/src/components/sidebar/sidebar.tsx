@@ -25,9 +25,9 @@ const Sidebar = () => {
         <ul className="space-y-1">
           <li>
             <Link
-              to="/chatbot"
+              to="/mfuchatbot"
               className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
-                location.pathname === '/chatbot' ? 'bg-blue-50 text-blue-600' : ''
+                location.pathname === '/mfuchatbot' ? 'bg-blue-50 text-blue-600' : ''
               }`}
             >
               <FaRobot className="mr-3" />
