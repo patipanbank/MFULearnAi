@@ -109,6 +109,12 @@ router.get('/logout', (req, res) => {
   });
 });
 
+router.get('/logout/saml', (req, res) => {
+  req.logout(() => {
+    res.redirect(process.env.SAML_IDP_SLO_URL || 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0');
+  });
+});
+
 router.get('/metadata', (req, res) => {
   const metadata = samlStrategy.generateServiceProviderMetadata(null, process.env.SAML_CERTIFICATE);
   res.type('application/xml');

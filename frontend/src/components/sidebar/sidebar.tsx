@@ -6,11 +6,12 @@ const Sidebar = () => {
 
   const handleLogout = async () => {
     try {
-      localStorage.removeItem('auth_token');
-      await Promise.resolve();
-      window.location.href = '/login';
+      localStorage.clear();
+      window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/logout/saml`;
     } catch (error) {
       console.error('Logout error:', error);
+      localStorage.clear();
+      window.location.href = '/login';
     }
   };
 
