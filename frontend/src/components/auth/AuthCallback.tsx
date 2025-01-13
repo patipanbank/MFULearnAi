@@ -7,18 +7,16 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const redirectPath = searchParams.get('redirect') || '/chatbot';
-
     if (token) {
       localStorage.setItem('auth_token', token);
-      navigate(redirectPath);
+      navigate('/mfuchatbot');
     } else {
       navigate('/login');
     }
   }, [navigate, searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="flex items-center justify-center h-screen">
       <div className="text-center">
         <p className="text-gray-600">กำลังเข้าสู่ระบบ...</p>
       </div>
