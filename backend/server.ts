@@ -1,65 +1,33 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import express from 'express';
 import cors from 'cors';
+import mongoose from 'mongoose';
 import passport from 'passport';
-import session from 'express-session';
 import authRoutes from './routes/auth';
-import bodyParser from 'body-parser';
 
 const app = express();
 
-// เพิ่ม body parser ก่อน routes
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
-// เพิ่ม raw body parser สำหรับ SAML
-app.use((req, res, next) => {
-  if (req.url === '/api/auth/saml/callback') {
-    let data = '';
-    req.setEncoding('utf8');
-    req.on('data', chunk => {
-      data += chunk;
-    });
-    req.on('end', () => {
-      req.rawBody = data;
-      next();
-    });
-  } else {
-    next();
-  }
-});
-
-// CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL,
-  credentials: true
-}));
-
-// เพิ่ม session middleware
-app.use(session({
-  secret: 'your-secret-key',
-  resave: false,
-  saveUninitialized: false
-}));
-
-// เพิ่ม passport middleware
+// Middleware
+app.use(cors());
+app.use(express.json());
 app.use(passport.initialize());
-app.use(passport.session());
 
-// เพิ่ม passport serialize/deserialize
-passport.serializeUser((user: any, done) => {
-  done(null, user);
+// Routes
+app.use('/auth', authRoutes);  // เปลี่ยนจาก /api/auth เป็น /auth
+
+// Test route
+app.get('/', (req, res) => {
+  res.send('Server is running');
 });
 
-passport.deserializeUser((user: any, done) => {
-  done(null, user);
+// Error handling
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
 });
 
-// mount routes
-app.use('/api/auth', authRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server running on port ${process.env.PORT}`);
-}); 
+export default app; 

@@ -1,9 +1,10 @@
 import React from 'react';
-import { config } from '../../config/config';
+// import { config } from '../../config/config';
 
 const Login: React.FC = () => {
-  const handleMFUSSOLogin = () => {
-    window.location.href = `${config.apiUrl}/auth/login/saml`;
+  const handleSAMLLogin = () => {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    window.location.href = `${apiUrl}/auth/login/saml`;
   };
 
   return (
@@ -19,7 +20,7 @@ const Login: React.FC = () => {
         </div>
         <div className="mt-8">
           <button
-            onClick={handleMFUSSOLogin}
+            onClick={handleSAMLLogin}
             className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Login with MFU SSO
