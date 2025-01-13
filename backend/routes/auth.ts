@@ -14,19 +14,26 @@ if (!process.env.SAML_CERTIFICATE ||
   throw new Error('Missing required SAML environment variables');
 }
 
+if (!process.env.FRONTEND_URL) {
+  throw new Error('FRONTEND_URL is required');
+}
+
 const samlStrategy = new SamlStrategy(
   {
     entryPoint: process.env.SAML_IDP_SSO_URL,
     issuer: process.env.SAML_SP_ENTITY_ID,
     callbackUrl: process.env.SAML_SP_ACS_URL,
     cert: process.env.SAML_CERTIFICATE,
-    acceptedClockSkewMs: -1,
+    acceptedClockSkewMs: 300000,
     disableRequestedAuthnContext: true,
-    forceAuthn: false,
+    forceAuthn: true,
     validateInResponseTo: false,
-    identifierFormat: null,
-    wantAssertionsSigned: false,
-    signatureAlgorithm: 'sha256'
+    identifierFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified',
+    wantAssertionsSigned: true,
+    signatureAlgorithm: 'sha256',
+    additionalParams: {
+      RelayState: process.env.FRONTEND_URL
+    }
   },
   async (profile: any, done: any) => {
     console.log('SAML Profile received:', profile);
@@ -86,23 +93,10 @@ passport.deserializeUser(async (id: string, done) => {
 // Login route
 router.get('/login/saml', (req, res, next) => {
   console.log('Starting SAML login...');
-  console.log('SAML Strategy Options:', {
-    entryPoint: process.env.SAML_IDP_SSO_URL,
-    issuer: process.env.SAML_SP_ENTITY_ID,
-    callbackUrl: process.env.SAML_SP_ACS_URL
-  });
-  
   passport.authenticate('saml', {
     failureRedirect: `${process.env.FRONTEND_URL}/login`,
-    failureFlash: true,
-    failWithError: true
-  })(req, res, (err: any) => {
-    if (err) {
-      console.error('SAML Authentication Error:', err);
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_error`);
-    }
-    next();
-  });
+    failureFlash: true
+  })(req, res, next);
 });
 
 // Callback route
