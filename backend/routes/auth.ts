@@ -39,23 +39,31 @@ const samlStrategy = new SamlStrategy(
     validateInResponseTo: false,
     passReqToCallback: true
   },
-  (req: any, profile: any, done: any) => {
-    console.log('SAML Profile:', profile);
-    connectDB().then(() => {
-      User.findOne({ email: profile.email })
-        .then(user => {
-          if (!user) {
-            return User.create({
-              email: profile.email,
-              name: profile.displayName || profile.email,
-              samlId: profile.nameID
-            });
-          }
-          return user;
-        })
-        .then(user => done(null, user))
-        .catch(error => done(error));
-    });
+  async (req: any, profile: any, done: any) => {
+    try {
+      console.log('SAML Profile:', profile);
+      
+      // แก้ไขการดึงค่า email จาก SAML response
+      const email = profile['User.Enmail'] || profile.nameID;
+      const firstName = profile.first_name;
+      const lastName = profile.last_name;
+      
+      let user = await User.findOne({ email });
+      
+      if (!user) {
+        user = await User.create({
+          email,
+          firstName,
+          lastName,
+          username: profile['User.Username']
+        });
+      }
+
+      return done(null, user);
+    } catch (error) {
+      console.error('SAML Strategy Error:', error);
+      return done(error);
+    }
   }
 );
 
@@ -81,25 +89,29 @@ router.get('/login/saml', passport.authenticate('saml'));
 // SAML Callback route
 router.post('/saml/callback',
   express.urlencoded({ extended: false }),
-  (req, res, next) => {
-    console.log('SAML Response:', req.body.SAMLResponse);
-    next();
-  },
   passport.authenticate('saml', { 
     failureRedirect: '/login',
     failureFlash: true,
     session: false 
   }),
-  (req: any, res) => {
+  async (req: any, res) => {
     try {
+      console.log('Authentication Success, User:', req.user);
+      
       const token = jwt.sign(
-        { userId: req.user._id, email: req.user.email },
+        { 
+          userId: req.user._id, 
+          email: req.user.email,
+          firstName: req.user.firstName,
+          lastName: req.user.lastName
+        },
         process.env.JWT_SECRET!,
         { expiresIn: '7d' }
       );
+      
       res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`);
     } catch (error) {
-      console.error('Token Error:', error);
+      console.error('Token Generation Error:', error);
       res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
     }
   }
