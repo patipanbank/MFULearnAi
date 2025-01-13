@@ -1,156 +1,96 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FaPaperPlane } from 'react-icons/fa';
-import { BiLoaderAlt } from 'react-icons/bi';
+import React, { useState } from 'react';
 
 interface Message {
-  id: number;
-  text: string;
-  sender: 'user' | 'bot';
-  timestamp: Date;
+  role: 'user' | 'assistant';
+  content: string;
 }
 
-const MFUChatbot: React.FC = () => {
+const MFUChatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // ฟังก์ชันเลื่อนไปยังข้อความล่าสุด
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  // เรียกใช้ scrollToBottom เมื่อมีข้อความใหม่หรือกำลังโหลด
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: messages.length + 1,
-      text: inputMessage,
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsLoading(true);
+    if (!input.trim()) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/chat`, {
+      setIsLoading(true);
+      const userMessage: Message = { role: 'user', content: input };
+      setMessages(prev => [...prev, userMessage]);
+      setInput('');
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
-        body: JSON.stringify({ message: inputMessage }),
+        body: JSON.stringify({ message: input })
       });
 
+      if (!response.ok) throw new Error('Failed to get response');
+
       const data = await response.json();
+      const aiMessage: Message = { role: 'assistant', content: data.response };
+      setMessages(prev => [...prev, aiMessage]);
 
-      const botMessage: Message = {
-        id: messages.length + 2,
-        text: data.response,
-        sender: 'bot',
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error('Error:', error);
-      const errorMessage: Message = {
-        id: messages.length + 2,
-        text: 'Sorry, an error occurred. Please try again.',
-        sender: 'bot',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      console.error('Chat error:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-gray-50">
-      <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full space-y-4 p-4">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-blue-100 flex items-center justify-center">
-              <FaPaperPlane className="w-6 h-6 md:w-8 md:h-8 text-blue-500" />
+    <div className="flex flex-col h-screen">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`flex ${
+              message.role === 'user' ? 'justify-end' : 'justify-start'
+            }`}
+          >
+            <div
+              className={`max-w-[70%] rounded-lg p-3 ${
+                message.role === 'user'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              {message.content}
             </div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-700 text-center">
-              Welcome to MFU Chatbot
-            </h2>
-            <p className="text-sm md:text-base text-gray-500 text-center max-w-sm">
-              How can I help you today?
-            </p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 ${
-                    message.sender === 'user'
-                      ? 'bg-blue-600 text-white rounded-tr-none'
-                      : 'bg-gray-100 text-gray-800 rounded-tl-none'
-                  }`}
-                >
-                  <p className="text-sm md:text-base whitespace-pre-wrap">{message.text}</p>
-                  <span className="text-xs opacity-75 mt-1 block">
-                    {message.timestamp.toLocaleTimeString()}
-                  </span>
-                </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-2xl p-4 rounded-tl-none max-w-[85%] md:max-w-[80%]">
-                  <div className="flex items-center space-x-2">
-                    <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
-                    <span className="text-sm text-gray-500">Typing...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} /> {/* จุดอ้างอิงสำหรับ auto scroll */}
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-200 text-gray-800 rounded-lg p-3">
+              กำลังคิดคำตอบ...
+            </div>
           </div>
         )}
       </div>
 
-      <div className="border-t p-3 md:p-4 bg-white sticky bottom-0">
-        <form onSubmit={handleSendMessage} className="flex space-x-2 md:space-x-4">
+      <form onSubmit={handleSubmit} className="p-4 border-t">
+        <div className="flex space-x-2">
           <input
             type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Type your message here..."
-            className="flex-1 px-3 md:px-4 py-2 md:py-3 border rounded-full text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="พิมพ์ข้อความของคุณ..."
+            className="flex-1 p-2 border rounded-lg focus:outline-none focus:border-blue-500"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading}
-            className={`px-4 md:px-6 py-2 md:py-3 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center
-              ${isLoading 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50"
           >
-            {isLoading ? (
-              <BiLoaderAlt className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-            ) : (
-              <FaPaperPlane className="w-4 h-4 md:w-5 md:h-5" />
-            )}
+            ส่ง
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 };

@@ -1,27 +1,29 @@
 import express from 'express';
-import axios from 'axios';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
-router.post('/chat', async (req, res) => {
+router.post('/chat', authenticateToken, async (req, res) => {
   try {
     const { message } = req.body;
-    
-    const response = await axios.post('http://localhost:11434/api/generate', {
-      model: "mistral",
-      prompt: message,
-      stream: false
+
+    const response = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'mistral',
+        prompt: message,
+        stream: false
+      }),
     });
 
-    res.json({ response: response.data.response });
-
+    const data = await response.json();
+    res.json({ response: data.response });
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      res.status(499).json({ error: 'Request cancelled' });
-    } else {
-      console.error('Error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
+    console.error('Chat error:', error);
+    res.status(500).json({ error: 'Failed to get response from AI' });
   }
 });
 
