@@ -65,11 +65,10 @@ const MFUChatbot: React.FC = () => {
               className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 ${
-                  message.sender === 'user'
-                    ? 'bg-gradient-to-b from-blue-500 to-violet-500 text-white rounded-tr-none'
-                    : 'bg-gray-100 text-gray-800 rounded-tl-none'
-                }`}
+                className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 ${message.sender === 'user'
+                  ? 'bg-gradient-to-b from-blue-500 to-violet-500 text-white rounded-tr-none'
+                  : 'bg-gray-100 text-gray-800 rounded-tl-none'
+                  }`}
               >
                 <p className="text-sm md:text-base">{message.text}</p>
                 <span className="text-xs opacity-75 mt-1 block">
