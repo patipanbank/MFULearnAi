@@ -80,12 +80,7 @@ passport.deserializeUser(async (id: string, done) => {
 
 // Login route
 router.get('/login/saml', (req, res, next) => {
-  console.log('Starting SAML login with options:', {
-    entryPoint: process.env.SAML_IDP_SSO_URL,
-    issuer: process.env.SAML_SP_ENTITY_ID,
-    callbackUrl: process.env.SAML_SP_ACS_URL
-  });
-  
+  console.log('Starting SAML login...');
   passport.authenticate('saml', {
     failureRedirect: `${process.env.FRONTEND_URL}/login`,
     failureFlash: true
@@ -97,18 +92,23 @@ router.post('/saml/callback',
   urlencoded({ extended: false, limit: '10mb' }),
   (req: any, res, next) => {
     console.log('=== SAML Callback Debug ===');
+    console.log('Request received at:', new Date().toISOString());
     console.log('Headers:', req.headers);
+    console.log('Body size:', req.headers['content-length']);
     console.log('SAMLResponse exists:', !!req.body?.SAMLResponse);
     next();
   },
-  passport.authenticate('saml', {
-    failureRedirect: `${process.env.FRONTEND_URL}/login`,
-    failureFlash: true
-  }),
+  (req: any, res, next) => {
+    passport.authenticate('saml', {
+      failureRedirect: `${process.env.FRONTEND_URL}/login`,
+      failureFlash: true,
+      session: false
+    })(req, res, next);
+  },
   async (req: any, res) => {
     try {
       const user = req.user;
-      console.log('Generating token for user:', user.email);
+      console.log('User authenticated:', user?.email);
       
       const token = jwt.sign(
         { 
@@ -120,13 +120,11 @@ router.post('/saml/callback',
         process.env.JWT_SECRET!,
         { expiresIn: '7d' }
       );
-      
-      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`;
-      console.log('Redirecting to:', redirectUrl);
-      res.redirect(redirectUrl);
+
+      res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`);
     } catch (error) {
-      console.error('Token generation/redirect error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=token_error`);
+      console.error('Callback processing error:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=processing_error`);
     }
   }
 );
