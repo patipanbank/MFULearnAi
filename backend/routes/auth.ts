@@ -94,31 +94,16 @@ router.get('/login/saml', (req, res, next) => {
 
 // Callback route
 router.post('/saml/callback',
-  urlencoded({ extended: false }),
+  urlencoded({ extended: false, limit: '10mb' }),
   (req: any, res, next) => {
     console.log('=== SAML Callback Debug ===');
     console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
-    console.log('SAMLResponse:', req.body?.SAMLResponse ? 'Present' : 'Missing');
-    console.log('========================');
+    console.log('SAMLResponse exists:', !!req.body?.SAMLResponse);
     next();
   },
-  passport.authenticate('saml', { 
+  passport.authenticate('saml', {
     failureRedirect: `${process.env.FRONTEND_URL}/login`,
-    failureFlash: true,
-    failWithError: true
-  }, (err: any, user: any, info: any, res: any, next: any) => {
-    if (err) {
-      console.error('SAML Authentication Error:', err);
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_error`);
-    }
-    if (!user) {
-      console.error('No user found:', info);
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_user`);
-    }
-    
-    console.log('Authentication successful for user:', user.email);
-    return next();
+    failureFlash: true
   }),
   async (req: any, res) => {
     try {
