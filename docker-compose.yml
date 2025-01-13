@@ -23,8 +23,10 @@ services:
       - 5000:5000
     environment:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
+      - OLLAMA_HOST=http://ollama:11434
     depends_on:
       - db
+      - ollama
     networks:
       - mfulearnai
     restart: unless-stopped
@@ -52,8 +54,25 @@ services:
       - mfulearnai
     restart: unless-stopped
 
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - mfulearnai
+
 volumes:
   data:
+  ollama_data:
 networks:
   mfulearnai:
     driver: bridge
