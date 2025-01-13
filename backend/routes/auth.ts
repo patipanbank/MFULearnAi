@@ -22,8 +22,7 @@ const samlStrategy = new SamlStrategy(
     forceAuthn: false,
     validateInResponseTo: false,
     identifierFormat: null,
-    wantAssertionsSigned: false,
-    authnRequestsSigned: false
+    wantAssertionsSigned: false
   },
   async (profile: any, done: any) => {
     console.log('SAML Profile received:', profile);
