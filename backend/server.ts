@@ -24,6 +24,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.enable('trust proxy');
 
 // เพิ่ม session middleware
 app.use(session({

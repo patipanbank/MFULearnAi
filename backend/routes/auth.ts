@@ -4,6 +4,7 @@ import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
 import { connectDB } from '../lib/mongodb';
 import User from '../models/User';
+import express from 'express';
 
 const router = Router();
 
@@ -79,25 +80,26 @@ router.get('/login/saml', passport.authenticate('saml'));
 
 // SAML Callback route
 router.post('/saml/callback',
+  express.urlencoded({ extended: false }),
+  (req, res, next) => {
+    console.log('SAML Response:', req.body.SAMLResponse);
+    next();
+  },
   passport.authenticate('saml', { 
     failureRedirect: '/login',
     failureFlash: true,
     session: false 
   }),
   (req: any, res) => {
-    console.log('Authentication Success, User:', req.user);
     try {
       const token = jwt.sign(
         { userId: req.user._id, email: req.user.email },
         process.env.JWT_SECRET!,
         { expiresIn: '7d' }
       );
-      
-      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`;
-      console.log('Redirecting to:', redirectUrl);
-      res.redirect(redirectUrl);
+      res.redirect(`${process.env.FRONTEND_URL}/auth-callback?token=${encodeURIComponent(token)}`);
     } catch (error) {
-      console.error('Token Generation Error:', error);
+      console.error('Token Error:', error);
       res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
     }
   }
