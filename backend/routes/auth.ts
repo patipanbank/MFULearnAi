@@ -15,14 +15,16 @@ const samlStrategy = new SamlStrategy(
   {
     entryPoint: process.env.SAML_IDP_SSO_URL,
     issuer: process.env.SAML_SP_ENTITY_ID,
-    callbackUrl: process.env.SAML_SP_ACS_URL,
+    callbackUrl: `${process.env.FRONTEND_URL}/api/auth/saml/callback`,
     cert: process.env.SAML_CERTIFICATE,
     acceptedClockSkewMs: -1,
     disableRequestedAuthnContext: true,
     forceAuthn: false,
     validateInResponseTo: false,
     identifierFormat: null,
-    wantAssertionsSigned: false
+    wantAssertionsSigned: false,
+    signatureAlgorithm: 'sha256',
+    digestAlgorithm: 'sha256'
   },
   async (profile: any, done: any) => {
     console.log('SAML Profile received:', profile);
@@ -93,15 +95,13 @@ router.get('/login/saml', (req, res, next) => {
 router.post('/saml/callback',
   urlencoded({ extended: false }),
   (req: any, res, next) => {
-    console.log('SAML Callback received:', {
-      body: req.body,
-      headers: req.headers
-    });
+    console.log('Raw SAML Response:', req.body.SAMLResponse);
     next();
   },
   passport.authenticate('saml', { 
     failureRedirect: '/login',
-    failureFlash: true
+    failureFlash: true,
+    failWithError: true
   }),
   async (req: any, res) => {
     try {
@@ -117,10 +117,11 @@ router.post('/saml/callback',
         { expiresIn: '7d' }
       );
       
-      // แก้ไข URL ให้ถูกต้อง
-      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${token}`;
-      console.log('Redirecting to:', redirectUrl);
-      res.redirect(redirectUrl);
+      const redirectUrl = new URL('/auth-callback', process.env.FRONTEND_URL);
+      redirectUrl.searchParams.append('token', token);
+      
+      console.log('Redirecting to:', redirectUrl.toString());
+      res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('Callback error:', error);
       res.redirect('/login?error=authentication_failed');
