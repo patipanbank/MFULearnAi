@@ -4,22 +4,12 @@ import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
 import { connectDB } from '../lib/mongodb';
 import User from '../models/User';
-import express from 'express';
 
 const router = Router();
 
-const cert = process.env.SAML_CERTIFICATE;
-if (!cert) {
-  throw new Error('SAML_CERTIFICATE is required in .env file');
-}
-
 // เพิ่ม logging middleware
 router.use('/saml/callback', (req, res, next) => {
-  console.log('SAML Callback Request:', {
-    body: req.body,
-    method: req.method,
-    headers: req.headers
-  });
+  console.log('SAML Callback Request:', req.body);
   next();
 });
 
@@ -29,8 +19,7 @@ const samlStrategy = new SamlStrategy(
     callbackUrl: process.env.SAML_SP_ACS_URL,
     entryPoint: process.env.SAML_IDP_SSO_URL,
     logoutUrl: process.env.SAML_IDP_SLO_URL,
-    idpIssuer: process.env.SAML_IDP_ENTITY_ID,
-    cert: cert,
+    cert: process.env.SAML_CERTIFICATE || '',
     disableRequestedAuthnContext: true,
     forceAuthn: false,
     identifierFormat: null,
@@ -39,23 +28,33 @@ const samlStrategy = new SamlStrategy(
     validateInResponseTo: false,
     passReqToCallback: true
   },
-  async (req: any, profile: any, done: any) => {
+  async function(req: any, profile: any, done: any) {
     try {
-      console.log('SAML Profile:', profile);
+      await connectDB();
       
-      // แก้ไขการดึงค่า email จาก SAML response
-      const email = profile['User.Enmail'] || profile.nameID;
-      const firstName = profile.first_name;
-      const lastName = profile.last_name;
-      
-      let user = await User.findOne({ email });
+      const nameID = profile['User.Username'];
+      const email = profile['User.Enmail'];
+      const firstName = profile['first_name'];
+      const lastName = profile['last_name'];
+
+      console.log('SAML Profile:', {
+        raw: profile,
+        mapped: { nameID, email, firstName, lastName }
+      });
+
+      if (!nameID || !email) {
+        console.error('Missing required user information:', { nameID, email });
+        return done(new Error('Missing required user information'));
+      }
+
+      let user = await User.findOne({ nameID });
       
       if (!user) {
         user = await User.create({
+          nameID,
           email,
           firstName,
-          lastName,
-          username: profile['User.Username']
+          lastName
         });
       }
 
@@ -67,40 +66,27 @@ const samlStrategy = new SamlStrategy(
   }
 );
 
-passport.use('saml', samlStrategy);
+passport.use(samlStrategy);
 
-// Serialize & Deserialize User
 passport.serializeUser((user: any, done) => {
-  done(null, user.id);
+  done(null, user);
 });
 
-passport.deserializeUser(async (id: string, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (error) {
-    done(error);
-  }
+passport.deserializeUser((user: any, done) => {
+  done(null, user);
 });
 
-// SAML Login route
 router.get('/login/saml', passport.authenticate('saml'));
 
-// SAML Callback route
 router.post('/saml/callback',
-  express.urlencoded({ extended: false }),
-  passport.authenticate('saml', { 
-    failureRedirect: '/login',
-    failureFlash: true,
-    session: false 
-  }),
+  passport.authenticate('saml', { session: false }),
   async (req: any, res) => {
     try {
       console.log('Authentication Success, User:', req.user);
       
       const token = jwt.sign(
         { 
-          userId: req.user._id, 
+          userId: req.user._id,
           email: req.user.email,
           firstName: req.user.firstName,
           lastName: req.user.lastName
@@ -117,16 +103,14 @@ router.post('/saml/callback',
   }
 );
 
-// Logout route
 router.get('/logout', (req, res) => {
   req.logout(() => {
-    res.redirect('https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0');
+    res.redirect(process.env.SAML_IDP_SLO_URL || '/');
   });
 });
 
-// Metadata route
 router.get('/metadata', (req, res) => {
-  const metadata = samlStrategy.generateServiceProviderMetadata(null, cert);
+  const metadata = samlStrategy.generateServiceProviderMetadata(null, process.env.SAML_CERTIFICATE);
   res.type('application/xml');
   res.send(metadata);
 });
