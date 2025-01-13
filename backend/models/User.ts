@@ -6,9 +6,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  name: String,
-  picture: String,
-  googleId: String,
+  username: String,
+  firstName: String,
+  lastName: String,
+  displayName: String,
   samlId: String,
   createdAt: {
     type: Date,

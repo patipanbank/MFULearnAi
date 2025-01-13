@@ -5,40 +5,25 @@ const Header: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) return;
-
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/profile`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-      }
-    };
-
-    fetchUserProfile();
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      // แกะข้อมูลจาก JWT token
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      setUser({
+        email: payload.email,
+        name: payload.displayName,
+        username: payload.username
+      });
+    }
   }, []);
 
   return (
-    <header className="w-full h-16 bg-white shadow-sm">
-      <div className="h-full flex items-center px-4">
-        <h1 className="text-xl font-semibold text-gray-800">MFU Chatbot</h1>
-        
+    <header className="bg-white shadow">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">MFU Chatbot</h1>
         {user && (
-          <div className="flex items-center space-x-3 ml-auto">
-            <span className="text-sm text-gray-700">{user.name}</span>
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
-              {user.name.charAt(0)}
-            </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-gray-700">Welcome, {user.name}</span>
           </div>
         )}
       </div>

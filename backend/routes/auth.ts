@@ -31,22 +31,36 @@ const samlStrategy = new SamlStrategy(
     wantAssertionsSigned: true,
     acceptedClockSkewMs: -1
   },
-  (req: any, profile: any, done: any) => {
-    connectDB().then(() => {
-      User.findOne({ email: profile.email })
-        .then(user => {
-          if (!user) {
-            return User.create({
-              email: profile.email,
-              name: profile.displayName || profile.email,
-              samlId: profile.nameID
-            });
-          }
-          return user;
-        })
-        .then(user => done(null, user))
-        .catch(error => done(error));
-    });
+  async (profile: any, done: any) => {
+    try {
+      await connectDB();
+      
+      // รับค่าจาก SAML attributes
+      const userData = {
+        email: profile['User.Email'],
+        username: profile['User.Username'],
+        firstName: profile['first_name'],
+        lastName: profile['last_name'],
+        displayName: `${profile['first_name']} ${profile['last_name']}`
+      };
+
+      // ค้นหาหรือสร้าง user
+      let user = await User.findOne({ email: userData.email });
+      if (!user) {
+        user = await User.create({
+          email: userData.email,
+          username: userData.username,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          displayName: userData.displayName,
+          samlId: profile.nameID
+        });
+      }
+
+      done(null, user);
+    } catch (error) {
+      done(error);
+    }
   }
 );
 
@@ -74,8 +88,14 @@ router.post('/saml/callback',
   passport.authenticate('saml', { failureRedirect: '/login', session: false }),
   async (req: any, res) => {
     try {
+      const user = req.user;
       const token = jwt.sign(
-        { userId: req.user._id, email: req.user.email },
+        { 
+          userId: user._id,
+          email: user.email,
+          username: user.username,
+          displayName: user.displayName
+        },
         process.env.JWT_SECRET!,
         { expiresIn: '7d' }
       );
