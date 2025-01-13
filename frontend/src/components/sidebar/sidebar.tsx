@@ -18,7 +18,7 @@ const Sidebar = () => {
   return (
     <aside className="bg-white h-screen flex flex-col border-r border-gray-200">
       <div className="p-6">
-        <h2 className="text-2xl font-bold text-gray-800">MFU</h2>
+        <h2 className="text-2xl font-bold text-gray-800">MFU LEARN AI</h2>
       </div>
 
       <nav className="mt-2 flex-1">
