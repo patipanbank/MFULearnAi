@@ -3,7 +3,7 @@ import { config } from '../../config/config';
 
 const Login: React.FC = () => {
   const handleMFUSSOLogin = () => {
-    window.location.href = `${config.apiUrl}/api/auth/login/saml`;
+    window.location.href = `${config.apiUrl}/auth/login/saml`;
   };
 
   return (
