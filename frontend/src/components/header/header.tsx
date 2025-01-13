@@ -1,4 +1,5 @@
 
+
 const Header = () => {
   // ดึงข้อมูลผู้ใช้จาก localStorage
   const userDataString = localStorage.getItem('user_data');
@@ -9,17 +10,15 @@ const Header = () => {
       <div className="flex justify-between items-center px-6 py-4">
         <h1 className="text-xl font-semibold text-gray-800">MFU Learn AI</h1>
         
-        {/* แสดงชื่อ-นามสกุลผู้ใช้ */}
-        <div className="flex justify-end items-center">
+        {/* แสดงชื่อ-นามสกุลผู้ใช้ทางขวา */}
+        <div className="flex justify-end">
           {userData && (
-            <span className="text-gray-600">
+            <span className="text-gray-600 text-sm">
               {userData.firstName} {userData.lastName}
             </span>
           )}
         </div>
-
       </div>
-
     </header>
   );
 };
