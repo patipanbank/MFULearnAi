@@ -7,7 +7,13 @@ const Sidebar = () => {
   const handleLogout = async () => {
     try {
       localStorage.clear();
-      window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/logout/saml`;
+      
+      await fetch(`${import.meta.env.VITE_API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
       localStorage.clear();

@@ -103,6 +103,12 @@ router.post('/saml/callback',
   }
 );
 
+router.post('/logout', (req, res) => {
+  req.logout(() => {
+    res.status(200).json({ message: 'Logged out successfully' });
+  });
+});
+
 router.get('/logout', (req, res) => {
   req.logout(() => {
     res.redirect(process.env.SAML_IDP_SLO_URL || '/');
