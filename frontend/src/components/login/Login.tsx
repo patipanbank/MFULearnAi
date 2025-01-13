@@ -37,19 +37,19 @@
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-[url('https://f.ptcdn.info/189/027/000/1420546040-1416744403-o.jpg')] bg-cover bg-center">
-        <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
+        <div className="max-w-md w-full space-y-9 p-8 bg-white/70 rounded-xl shadow-lg">
           <div className="text-center">
-            <h2 className="mt-6 text-3xl font-bold text-gray-900">
+            <h2 className="mt-2 text-3xl font-bold text-gray-900">
               Login to MFU Chatbot
             </h2>
             <p className="mt-2 text-sm text-gray-600">
               Please login with your MFU email
             </p>
           </div>
-          <div className="mt-8">
+          <div className="mt-7">
             <button
               onClick={() => login()}
-              className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-lg font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <FaGoogle className="w-5 h-5 mr-2" />
               Login with Google
