@@ -4,8 +4,8 @@ const Header = () => {
   const userData = userDataString ? JSON.parse(userDataString) : null;
 
   return (
-    <header className="bg-white border-b border-gray-200">
-      <nav className="flex items-center justify-between px-6 py-4">
+    <header className="bg-white border-b border-gray-200 w-full text-right">
+      <nav className="flex items-center justify-between px-6 py-4 w-fulltext-right">
         {/* Right Side: User Name */}
         <div className="ml-auto text-gray-600">
           {userData && (
