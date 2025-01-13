@@ -22,11 +22,11 @@ const samlStrategy = new SamlStrategy(
     forceAuthn: false,
     validateInResponseTo: false,
     identifierFormat: null,
-    wantAssertionsSigned: true,
-    signatureAlgorithm: 'sha256'
+    wantAssertionsSigned: false,
+    authnRequestsSigned: false
   },
   async (profile: any, done: any) => {
-    console.log('SAML Profile:', profile);
+    console.log('SAML Profile received:', profile);
     try {
       await connectDB();
       
