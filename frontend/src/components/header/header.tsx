@@ -14,13 +14,14 @@ const Header = () => {
           </div>
 
           {/* ชื่อผู้ใช้ทางขวา */}
-          <div>
+          <div className="text-right">
             {userData && (
               <span className="text-gray-600">
                 {userData.firstName} {userData.lastName}
               </span>
             )}
           </div>
+              
         </div>
       </div>
     </header>
