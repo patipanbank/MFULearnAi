@@ -76,18 +76,30 @@ passport.deserializeUser(async (id: string, done) => {
   }
 });
 
-// SAML Login route
+// Login route
 router.get('/login/saml', (req, res, next) => {
-  console.log('Starting SAML login');
-  passport.authenticate('saml')(req, res, next);
+  console.log('Starting SAML login with options:', {
+    entryPoint: process.env.SAML_IDP_SSO_URL,
+    issuer: process.env.SAML_SP_ENTITY_ID,
+    callbackUrl: process.env.SAML_SP_ACS_URL
+  });
+  
+  passport.authenticate('saml', {
+    failureRedirect: '/login',
+    failureFlash: true
+  })(req, res, next);
 });
 
-// SAML Callback route
+// Callback route
 router.post('/saml/callback',
   urlencoded({ extended: false }),
   (req: any, res, next) => {
-    console.log('Received SAML callback request');
-    console.log('SAMLResponse:', req.body.SAMLResponse);
+    console.log('Received SAML callback with headers:', {
+      host: req.headers.host,
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    });
+    console.log('SAMLResponse exists:', !!req.body.SAMLResponse);
     next();
   },
   passport.authenticate('saml', { 
@@ -96,7 +108,7 @@ router.post('/saml/callback',
   }),
   async (req: any, res) => {
     try {
-      console.log('Authentication successful');
+      console.log('Authentication successful, user:', req.user);
       console.log('User data:', req.user);
       
       const user = req.user;
