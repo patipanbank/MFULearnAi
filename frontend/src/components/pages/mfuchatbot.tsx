@@ -53,9 +53,9 @@ const MFUChatbot = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="relative h-screen flex flex-col">
       {/* ส่วนแสดงข้อความ */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
         {messages.map((message, index) => (
           <div
             key={index}
@@ -78,11 +78,11 @@ const MFUChatbot = () => {
         {/* ตัวแสดงการโหลด */}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white shadow-md text-gray-800 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+            <div className="bg-white shadow-md rounded-lg p-4">
+              <div className="flex space-x-2">
+                <div className="h-3 w-3 bg-blue-500 rounded-full animate-bounce"></div>
+                <div className="h-3 w-3 bg-blue-500 rounded-full animate-bounce [animation-delay:-.3s]"></div>
+                <div className="h-3 w-3 bg-blue-500 rounded-full animate-bounce [animation-delay:-.5s]"></div>
               </div>
             </div>
           </div>
@@ -92,8 +92,8 @@ const MFUChatbot = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ส่วน input */}
-      <div className="border-t bg-white p-4">
+      {/* ส่วน input ที่อยู่ fixed ด้านล่าง */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4">
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
           <div className="flex space-x-2">
             <input
@@ -107,7 +107,7 @@ const MFUChatbot = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
+              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50"
             >
               ส่ง
             </button>
