@@ -10,13 +10,14 @@ const Header = () => {
         <h1 className="text-xl font-semibold text-gray-800">MFU Learn AI</h1>
         
         {/* แสดงชื่อ-นามสกุลผู้ใช้ */}
-        <div className="ml-auto flex items-center">
+        <div className="flex justify-end items-center">
           {userData && (
             <span className="text-gray-600">
               {userData.firstName} {userData.lastName}
             </span>
           )}
         </div>
+
       </div>
 
     </header>
