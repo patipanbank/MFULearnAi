@@ -6,15 +6,42 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  username: String,
-  firstName: String,
-  lastName: String,
-  displayName: String,
-  samlId: String,
+  username: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  firstName: {
+    type: String,
+    required: false
+  },
+  lastName: {
+    type: String,
+    required: false
+  },
+  displayName: {
+    type: String,
+    required: false
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
   createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
     type: Date,
     default: Date.now
   }
 });
 
-export default mongoose.models.User || mongoose.model('User', userSchema); 
+// อัพเดท updatedAt เมื่อมีการแก้ไขข้อมูล
+userSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
+export default mongoose.model('User', userSchema); 

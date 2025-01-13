@@ -13,7 +13,7 @@ const AuthCallback = () => {
       try {
         localStorage.setItem('auth_token', token);
         console.log('Token stored successfully');
-        navigate('/chatbot');
+        navigate('/dashboard');
       } catch (error) {
         console.error('Error storing token:', error);
         navigate('/login');
