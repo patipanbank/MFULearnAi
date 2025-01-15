@@ -30,40 +30,16 @@ const samlStrategy = new SamlStrategy(
   },
   async function(req: any, profile: any, done: any) {
     try {
-      // Debug full profile
       console.log('=== SAML Profile Debug ===');
       console.log(JSON.stringify(profile, null, 2));
 
-      // อ่านค่าจากหลายๆ possible attributes
-      const nameID = 
-        profile['nameID'] ||
-        profile['nameId'] ||
-        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
-        profile['SAM-Account-Name'];
+      // ปรับการอ่านค่าให้ตรงกับ SAML response
+      const nameID = profile.nameID;
+      const email = profile['User.Email'];
+      const firstName = profile['first_name'];
+      const lastName = profile['last_name'];
+      const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
-      const email = 
-        profile['E-Mail-Addresses'] ||
-        profile['mail'] ||
-        profile['email'] ||
-        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
-
-      const firstName = 
-        profile['Given-Name'] ||
-        profile['givenName'] ||
-        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'];
-
-      const lastName = 
-        profile['Surname'] ||
-        profile['sn'] ||
-        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'];
-
-      const groups = 
-        profile['Token-Groups as SIDs'] ||
-        profile['memberOf'] ||
-        profile['groups'] ||
-        [];
-
-      // Debug extracted values
       console.log('=== Extracted Values ===');
       console.log({
         nameID,
@@ -73,24 +49,16 @@ const samlStrategy = new SamlStrategy(
         groups
       });
 
-      // ถ้าไม่มี nameID หรือ email ให้ลองใช้ค่าอื่นแทน
-      const finalNameID = nameID || email;
-      const finalEmail = email || nameID;
-
-      if (!finalNameID || !finalEmail) {
-        console.error('Missing required fields after fallback:', { 
-          finalNameID, 
-          finalEmail,
-          originalProfile: profile 
-        });
+      if (!nameID || !email) {
+        console.error('Missing required fields:', { nameID, email });
         return done(new Error('Missing required user information'));
       }
 
       const user = await User.findOneAndUpdate(
-        { nameID: finalNameID },
+        { nameID },
         {
-          nameID: finalNameID,
-          email: finalEmail,
+          nameID,
+          email,
           firstName,
           lastName,
           groups: Array.isArray(groups) ? groups : [groups],
