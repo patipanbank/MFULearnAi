@@ -5,18 +5,23 @@ const Header = () => {
   
   try {
     userData = userDataString ? JSON.parse(userDataString) : null;
+    console.log('Parsed user data:', userData);
   } catch (error) {
     console.error('Error parsing user data:', error);
   }
 
   return (
-    <header className="w-full text-right">
-      <nav className="flex items-center justify-between px-6 py-4 w-full text-right">
+    <header className="bg-white shadow">
+      <nav className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center">
+          <h1 className="text-xl font-bold text-gray-800">MFU LEARN AI</h1>
+        </div>
+        
         {/* Right Side: User Name */}
-        <div className="ml-auto text-gray-600">
+        <div className="text-gray-600">
           {userData && (
             <span>
-              {userData.firstName} {userData.lastName}
+              {userData.first_name} {userData.last_name}
             </span>
           )}
         </div>
