@@ -33,27 +33,21 @@ const samlStrategy = new SamlStrategy(
       console.log('=== SAML Profile Debug ===');
       console.log(JSON.stringify(profile, null, 2));
 
-      // ค่าพื้นฐาน
-      const nameID = profile.nameID || profile['NameID'];
-      const email = profile.email || profile['E-Mail-Addresses'];
-      const firstName = profile['Given-Name'];
-      const lastName = profile.Surname;
+      // ปรับการอ่านค่าให้ตรงกับ SAML response
+      const nameID = profile.nameID;
+      const email = profile['User.Email'];
+      const firstName = profile['first_name'];
+      const lastName = profile['last_name'];
+      const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
-      // ปรับการอ่านค่า groups
-      let groups = [];
-      if (profile['Token-Groups as SIDs']) {
-        groups = Array.isArray(profile['Token-Groups as SIDs']) 
-          ? profile['Token-Groups as SIDs'] 
-          : [profile['Token-Groups as SIDs']];
-      } else if (profile.Group) {
-        groups = Array.isArray(profile.Group) 
-          ? profile.Group 
-          : [profile.Group];
-      }
-
-      console.log('=== Extracted Groups ===');
-      console.log('Raw Groups:', profile['Token-Groups as SIDs'] || profile.Group);
-      console.log('Processed Groups:', groups);
+      console.log('=== Extracted Values ===');
+      console.log({
+        nameID,
+        email,
+        firstName,
+        lastName,
+        groups
+      });
 
       if (!nameID || !email) {
         console.error('Missing required fields:', { nameID, email });
@@ -67,14 +61,11 @@ const samlStrategy = new SamlStrategy(
           email,
           firstName,
           lastName,
-          groups, // บันทึก groups ที่ได้
+          groups: Array.isArray(groups) ? groups : [groups],
           updated: new Date()
         },
         { upsert: true, new: true }
       );
-
-      console.log('=== Saved User Data ===');
-      console.log(user);
 
       const token = jwt.sign(
         { userId: user._id },
@@ -86,7 +77,7 @@ const samlStrategy = new SamlStrategy(
         email: user.email,
         first_name: user.firstName,
         last_name: user.lastName,
-        groups: user.groups // ส่งกลับ groups ด้วย
+        groups: user.groups
       };
 
       return done(null, { token, userData });
