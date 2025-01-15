@@ -1,8 +1,8 @@
 # Build stage
-FROM node:20-alpine as build
+FROM node:20-alpine as builder
 
 # Set working directory
-WORKDIR /app/frontend
+WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
@@ -19,14 +19,11 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
-# Copy the Nginx configuration file
+# Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy the build output from build stage
-COPY --from=build /app/frontend/dist /usr/share/nginx/html
+# Copy static assets from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port 80
 EXPOSE 80
-
-# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
