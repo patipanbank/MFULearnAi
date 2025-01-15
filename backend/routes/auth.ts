@@ -107,9 +107,9 @@ router.post('/saml/callback',
     try {
       const mapGroupToRole = (groups: string[]) => {
         const isStudent = groups.some(group => 
-          group === 'S-1-5-21-893890582-1041674030-1199480097-109130'
+          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
         );
-        return isStudent ? 'Students' : 'Admin';
+        return isStudent ? 'Students' : 'Staffs';
       };
 
       const userData = {

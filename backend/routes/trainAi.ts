@@ -3,7 +3,7 @@ import { roleGuard } from '../middleware/roleGuard';
 
 const router = Router();
 
-router.post('/train', roleGuard(['Admin']), async (req: Request, res: Response): Promise<void> => {
+router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     // ... logic สำหรับการ train AI ...
     res.status(200).json({ message: 'Training started successfully' });
