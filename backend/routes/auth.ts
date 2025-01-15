@@ -33,7 +33,7 @@ const samlStrategy = new SamlStrategy(
       await connectDB();
       
       const nameID = profile['User.Username'];
-      const email = profile['User.Email'];
+      const email = profile['User.Enmail'];
       const firstName = profile['first_name'];
       const lastName = profile['last_name'];
 
