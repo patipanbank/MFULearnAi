@@ -12,7 +12,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="fixed top-0 left-0 right-0 bg-white border-b z-40 lg:pl-64">
+      <div className="fixed top-0 left-0 right-0 bg-white border-b z-40">
         <div className="flex items-center px-4">
           <button
             className="p-2 lg:hidden"
@@ -27,7 +27,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <div className="flex flex-1 overflow-hidden pt-14">
         <div 
           className={`
-            fixed top-0 left-0 z-50 w-64 h-screen bg-white transform transition-transform duration-300 ease-in-out border-r
+            fixed top-0 left-0 z-50 w-64 h-screen bg-white transform transition-transform duration-300 ease-in-out border-r shadow-lg
             lg:translate-x-0 lg:relative lg:flex-shrink-0
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           `}
@@ -42,7 +42,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           />
         )}
 
-        <main className="flex-1 flex flex-col overflow-hidden w-full">
+        <main className="flex-1 flex flex-col overflow-hidden w-full lg:pl-64">
           {children}
         </main>
       </div>
