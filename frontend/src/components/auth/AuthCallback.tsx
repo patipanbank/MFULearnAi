@@ -7,19 +7,13 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-
-        if (!code) {
-          throw new Error('No code provided');
-        }
-
+        // SAML response จะถูกส่งมาโดยตรงผ่าน POST
         const response = await fetch('/api/auth/saml/callback', {
           method: 'POST',
+          credentials: 'include', // สำคัญ! เพื่อให้ส่ง cookies ไปด้วย
           headers: {
             'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ code }),
+          }
         });
 
         if (!response.ok) {
@@ -27,24 +21,31 @@ const AuthCallback = () => {
         }
 
         const data = await response.json();
-        
+        console.log('Response data:', data); // Debug log
+
         // บันทึกข้อมูล token
-        localStorage.setItem('auth_token', data.token);
+        if (data.token) {
+          localStorage.setItem('auth_token', data.token);
+        }
         
         // บันทึกข้อมูลผู้ใช้
-        localStorage.setItem('user_data', JSON.stringify({
-          email: data.userData.email,
-          first_name: data.userData.first_name,
-          last_name: data.userData.last_name,
-          groups: data.userData.groups
-        }));
-
-        console.log('Saved user data:', data.userData); // เพิ่ม log เพื่อตรวจสอบ
+        if (data.userData) {
+          localStorage.setItem('user_data', JSON.stringify({
+            email: data.userData.email,
+            first_name: data.userData.first_name,
+            last_name: data.userData.last_name,
+            groups: data.userData.groups
+          }));
+          console.log('Saved user data:', data.userData);
+        }
 
         navigate('/mfuchatbot');
       } catch (error) {
         console.error('Callback error:', error);
-        navigate('/login');
+        // เพิ่ม delay ก่อน redirect เพื่อให้เห็น error
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
       }
     };
 
