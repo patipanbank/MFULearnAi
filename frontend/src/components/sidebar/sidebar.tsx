@@ -20,20 +20,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   return (
-    <aside className="flex flex-col h-full bg-white border-r border-gray-200">
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-2">
+    <aside className="flex flex-col h-full">
+      <div className="flex-none p-4 border-b">
+        <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-800">MFU LEARN AI</h2>
+          <button 
+            onClick={onClose}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+          >
+            <FaBars className="w-6 h-6 text-gray-600" />
+          </button>
         </div>
-        <button 
-          onClick={onClose}
-          className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
-        >
-          <FaBars className="w-6 h-6 text-gray-600" />
-        </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto">
+      <nav className="flex-1 overflow-y-auto py-4">
         <ul className="space-y-1">
           <li>
             <Link
@@ -49,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </ul>
       </nav>
 
-      <div className="flex-none border-t border-gray-200">
+      <div className="flex-none border-t">
         <button 
           onClick={handleLogout}
           className="flex items-center w-full px-6 py-4 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
