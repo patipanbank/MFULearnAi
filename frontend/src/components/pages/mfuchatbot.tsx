@@ -75,7 +75,7 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="flex-1 overflow-y-auto p-3 md:p-4 pb-24 max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-3 md:p-4 pb-24">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full space-y-4 p-4">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-blue-100 flex items-center justify-center">
@@ -89,7 +89,7 @@ const MFUChatbot: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4 max-w-3xl mx-auto">
+          <div className="space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -124,37 +124,35 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t bg-white z-10">
-        <div className="max-w-5xl mx-auto w-full">
-          <form onSubmit={handleSendMessage} className="p-3 md:p-4">
-            <div className="flex space-x-2 md:space-x-4 max-w-3xl mx-auto">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Type your message here..."
-                className="flex-1 px-3 md:px-4 py-2 md:py-3 border rounded-full text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                disabled={isLoading}
-                style={{ fontSize: '16px' }}
-              />
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={`px-4 md:px-6 py-2 md:py-3 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center
-                  ${isLoading 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
-              >
-                {isLoading ? (
-                  <BiLoaderAlt className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-                ) : (
-                  <FaPaperPlane className="w-4 h-4 md:w-5 md:h-5" />
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+      <div className="fixed bottom-0 left-0 right-0 border-t p-3 md:p-4 bg-white z-10">
+        <form onSubmit={handleSendMessage} className="container mx-auto max-w-screen-lg px-4">
+          <div className="flex space-x-2 md:space-x-4">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type your message here..."
+              className="flex-1 px-3 md:px-4 py-2 md:py-3 border rounded-full text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              disabled={isLoading}
+              style={{ fontSize: '16px' }}
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`px-4 md:px-6 py-2 md:py-3 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center
+                ${isLoading 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+            >
+              {isLoading ? (
+                <BiLoaderAlt className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+              ) : (
+                <FaPaperPlane className="w-4 h-4 md:w-5 md:h-5" />
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
