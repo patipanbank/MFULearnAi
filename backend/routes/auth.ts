@@ -101,53 +101,40 @@ passport.deserializeUser((user: any, done) => {
 
 router.get('/login/saml', passport.authenticate('saml'));
 
-router.post('/saml/callback', async (req, res) => {
-  passport.authenticate('saml', { session: false }, async (err: any, profile: any) => {
-    if (err) {
-      console.error('SAML Authentication Error:', err);
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
-    }
-
+router.post('/saml/callback',
+  passport.authenticate('saml', { session: false }),
+  async (req: any, res) => {
     try {
-      // สร้าง user data object
-      const userData = {
-        email: profile['User.Email'],
-        firstName: profile.first_name,
-        lastName: profile.last_name,
-        username: profile['User.Userrname'],
-        groups: profile['http://schemas.xmlsoap.org/claims/Group'] || []
-      };
-
+      console.log('Authentication Success, User:', req.user);
+      
       const token = jwt.sign(
         { 
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName
+          userId: req.user._id,
+          email: req.user.email,
+          firstName: req.user.firstName,
+          lastName: req.user.lastName
         },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
+        process.env.JWT_SECRET!,
+        { expiresIn: '7d' }
       );
-
-      // เข้ารหัส user data เป็น base64 แบบถูกต้อง
-      const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
-
-      // สร้าง URL สำหรับ redirect
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`);
-      redirectUrl.searchParams.append('token', token);
-      redirectUrl.searchParams.append('user_data', encodedUserData);
-      redirectUrl.searchParams.append('redirect', '/mfuchatbot');
-
-      console.log('User Data:', userData);
-      console.log('Encoded User Data:', encodedUserData);
-      console.log('Redirecting to:', redirectUrl.toString());
       
-      return res.redirect(redirectUrl.toString());
+      const userData = {
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        email: req.user.email
+      };
+
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?` + 
+        `token=${token}&` +
+        `user_data=${encodeURIComponent(JSON.stringify(userData))}`;
+
+      res.redirect(redirectUrl);
     } catch (error) {
-      console.error('Error in SAML callback:', error);
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=server_error`);
+      console.error('SAML callback error:', error);
+      res.redirect('/login?error=auth_failed');
     }
-  })(req, res);
-});
+  }
+);
 
 router.post('/logout', (req, res) => {
   req.logout(() => {

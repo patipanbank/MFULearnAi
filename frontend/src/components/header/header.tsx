@@ -1,23 +1,16 @@
 const Header = () => {
-  // ดึงข้อมูลผู้ใช้จาก localStorage และแปลงเป็น object
+  // ดึงข้อมูลผู้ใช้จาก localStorage
   const userDataString = localStorage.getItem('user_data');
-  let userData = null;
-  
-  try {
-    userData = userDataString ? JSON.parse(userDataString) : null;
-    console.log('Parsed user data:', userData);
-  } catch (error) {
-    console.error('Error parsing user data:', error);
-  }
+  const userData = userDataString ? JSON.parse(userDataString) : null;
 
   return (
-    <header className="bg-white shadow">
-      <nav className="flex items-center justify-between px-6 py-4"> 
+    <header className="w-full text-right">
+      <nav className="flex items-center justify-between px-6 py-4 w-fulltext-right">
         {/* Right Side: User Name */}
-        <div className="text-gray-600">
+        <div className="ml-auto text-gray-600">
           {userData && (
             <span>
-              {userData.first_name} {userData.last_name}
+              {userData.firstName} {userData.lastName}
             </span>
           )}
         </div>

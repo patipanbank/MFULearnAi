@@ -34,7 +34,6 @@ const App = () => {
             </AuthGuard>
           }
         />
-        <Route path="/auth/callback" element={<AuthCallback />} />
       </Routes>
     </Router>
   );
