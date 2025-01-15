@@ -12,7 +12,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="fixed top-0 left-0 right-0 bg-white border-b z-50">
+      <div className="fixed top-0 left-0 right-0 bg-white border-b z-40">
         <div className="flex items-center px-4">
           <button
             className="p-2 lg:hidden"
@@ -27,7 +27,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <div className="flex flex-1 overflow-hidden pt-14">
         <div 
           className={`
-            fixed inset-y-0 left-0 z-30 w-64 h-full bg-white transform transition-transform duration-300 ease-in-out
+            fixed inset-y-0 left-0 z-50 w-64 h-full bg-white transform transition-transform duration-300 ease-in-out
             lg:relative lg:translate-x-0 lg:flex-shrink-0 lg:h-screen
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           `}
@@ -37,7 +37,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
         {isSidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden pt-14"
+            className="fixed inset-0 bg-black bg-opacity-50 z-45 lg:hidden pt-14"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
