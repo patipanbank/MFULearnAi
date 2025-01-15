@@ -107,17 +107,6 @@ router.post('/saml/callback',
     try {
       console.log('Authentication Success, User:', req.user);
       
-      // สร้าง token โดยใช้ข้อมูลที่จำเป็น
-      const token = jwt.sign(
-        { 
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName
-        },
-        process.env.JWT_SECRET!,
-        { expiresIn: '7d' }
-      );
-      
       // เตรียมข้อมูลผู้ใช้
       const userData = {
         email: req.user.email,
@@ -125,6 +114,17 @@ router.post('/saml/callback',
         lastName: req.user.lastName,
         groups: req.user.groups || []
       };
+
+      // สร้าง token
+      const token = jwt.sign(
+        { 
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
 
       // encode ข้อมูลเป็น base64
       const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
@@ -134,7 +134,9 @@ router.post('/saml/callback',
       redirectUrl.searchParams.append('token', token);
       redirectUrl.searchParams.append('user_data', encodedUserData);
 
+      console.log('User data being sent:', userData);
       console.log('Redirecting to:', redirectUrl.toString());
+      
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('SAML callback error:', error);

@@ -3,6 +3,8 @@ const Header = () => {
   const userDataString = localStorage.getItem('user_data');
   const userData = userDataString ? JSON.parse(userDataString) : null;
 
+  console.log('User data from localStorage:', userData); // เพิ่ม log เพื่อตรวจสอบข้อมูล
+
   return (
     <header className="w-full text-right">
       <nav className="flex items-center justify-between px-6 py-4 w-full text-right">
