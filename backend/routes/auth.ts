@@ -109,12 +109,12 @@ router.post('/saml/callback', async (req, res) => {
     }
 
     try {
-      // สร้าง user data object จาก profile ที่ได้จาก SAML
+      // สร้าง user data object จาก profile.userData
       const userData = {
-        email: profile.nameID || profile['User.Email'],
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        groups: profile['http://schemas.xmlsoap.org/claims/Group'] || []
+        email: profile.userData?.email,
+        first_name: profile.userData?.first_name,
+        last_name: profile.userData?.last_name,
+        groups: profile.userData?.groups || []
       };
 
       // Log เพื่อตรวจสอบข้อมูล
