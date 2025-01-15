@@ -28,7 +28,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <div 
           className={`
             fixed inset-y-0 left-0 z-30 w-64 h-full bg-white transform transition-transform duration-300 ease-in-out
-            lg:relative lg:translate-x-0 lg:flex-shrink-0 lg:h-screen
+            lg:relative lg:translate-x-0 lg:flex-shrink-0 lg:h-[calc(100vh-3.5rem)] pt-14
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           `}
         >
