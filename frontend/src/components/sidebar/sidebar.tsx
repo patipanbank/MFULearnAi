@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FaRobot, FaBars } from 'react-icons/fa';
+import { FaRobot, FaBars, FaBrain } from 'react-icons/fa';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -44,6 +44,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             >
               <FaRobot className="mr-3" />
               Chatbot
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/train-ai"
+              className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
+                location.pathname === '/train-ai' ? 'bg-blue-50 text-blue-600' : ''
+              }`}
+            >
+              <FaBrain className="mr-3" />
+              Train AI
             </Link>
           </li>
         </ul>
