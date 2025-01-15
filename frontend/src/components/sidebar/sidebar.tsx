@@ -1,7 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { FaRobot } from 'react-icons/fa';
 
-const Sidebar = () => {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
 
   const handleLogout = async () => {
@@ -17,8 +21,27 @@ const Sidebar = () => {
 
   return (
     <aside className="flex flex-col h-full bg-white border-r border-gray-200">
-      <div className="flex-none p-6">
+      <div className="flex items-center justify-between p-6">
         <h2 className="text-2xl font-bold text-gray-800">MFU LEARN AI</h2>
+        <button 
+          onClick={onClose}
+          className="lg:hidden p-2 hover:bg-gray-100 rounded-full"
+        >
+          <svg 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto">

@@ -27,12 +27,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <div className="flex flex-1 overflow-hidden">
         <div 
           className={`
-            fixed inset-y-0 left-0 z-30 w-64 bg-white transform transition-transform duration-300 ease-in-out
-            lg:relative lg:translate-x-0 lg:flex-shrink-0
+            fixed top-0 left-0 z-50 w-64 h-screen bg-white transform transition-transform duration-300 ease-in-out
+            lg:translate-x-0 lg:relative lg:flex-shrink-0
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           `}
         >
-          <Sidebar />
+          <Sidebar onClose={() => setIsSidebarOpen(false)} />
         </div>
 
         {isSidebarOpen && (
