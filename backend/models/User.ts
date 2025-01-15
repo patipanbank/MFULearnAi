@@ -13,7 +13,12 @@ const userSchema = new mongoose.Schema({
   },
   firstName: String,
   lastName: String,
+  groups: [String],
   created: {
+    type: Date,
+    default: Date.now
+  },
+  updated: {
     type: Date,
     default: Date.now
   }

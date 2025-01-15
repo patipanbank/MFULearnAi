@@ -1,5 +1,6 @@
-export interface User {
-  name: string;
+export interface UserData {
   email: string;
-  picture: string;
+  first_name: string;
+  last_name: string;
+  groups: string[];
 } 

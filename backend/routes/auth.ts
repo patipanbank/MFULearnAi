@@ -32,10 +32,11 @@ const samlStrategy = new SamlStrategy(
     try {
       await connectDB();
       
-      const nameID = profile['User.Username'];
-      const email = profile['User.Email'];
-      const firstName = profile['first_name'];
-      const lastName = profile['last_name'];
+      const nameID = profile['SAM-Account-Name'] || profile['User.Username'];
+      const email = profile['E-Mail-Addresses'] || profile['User.Email'];
+      const firstName = profile['Given-Name'] || profile['first_name'];
+      const lastName = profile['Surname'] || profile['last_name'];
+      const groups = profile['Token-Groups - Unqualified Names'] || profile['Group'] || [];
 
       console.log('SAML Profile:', {
         raw: profile,
@@ -43,22 +44,37 @@ const samlStrategy = new SamlStrategy(
       });
 
       if (!nameID || !email) {
-        console.error('Missing required user information:', { nameID, email });
+        console.error('Missing required fields:', { nameID, email });
         return done(new Error('Missing required user information'));
       }
 
-      let user = await User.findOne({ nameID });
-      
-      if (!user) {
-        user = await User.create({
+      const user = await User.findOneAndUpdate(
+        { nameID },
+        {
           nameID,
           email,
           firstName,
-          lastName
-        });
-      }
+          lastName,
+          groups: Array.isArray(groups) ? groups : [groups],
+          updated: new Date()
+        },
+        { upsert: true, new: true }
+      );
 
-      return done(null, user);
+      const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+      );
+
+      const userData = {
+        email: user.email,
+        first_name: user.firstName,
+        last_name: user.lastName,
+        groups: user.groups
+      };
+
+      return done(null, { token, userData });
     } catch (error) {
       console.error('SAML Strategy Error:', error);
       return done(error);
