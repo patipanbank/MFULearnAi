@@ -10,7 +10,7 @@ const Header = () => {
         <div className="ml-auto text-gray-600">
           {userData && (
             <span>
-              {userData.firstName} {userData.lastName}
+              {userData.first_name} {userData.last_name}
             </span>
           )}
         </div>
