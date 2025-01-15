@@ -12,7 +12,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="fixed top-0 left-0 right-0 bg-white border-b z-50">
+      <div className="fixed top-0 left-0 right-0 bg-white border-b">
         <div className="flex items-center px-4">
           <button
             className="p-2 lg:hidden"
