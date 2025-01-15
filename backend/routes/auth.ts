@@ -109,34 +109,27 @@ router.post('/saml/callback', async (req, res) => {
     }
 
     try {
-      // สร้าง user data object จาก profile.userData
+      // สร้าง user data object จากข้อมูลที่ได้จาก SAML โดยตรง
       const userData = {
-        email: profile.userData?.email,
-        first_name: profile.userData?.first_name,
-        last_name: profile.userData?.last_name,
-        groups: profile.userData?.groups || []
+        email: profile['User.Email'],
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        groups: profile['http://schemas.xmlsoap.org/claims/Group'] || []
       };
-
-      // Log เพื่อตรวจสอบข้อมูล
-      console.log('Profile from SAML:', profile);
-      console.log('User data being sent:', userData);
-
-      // ตรวจสอบว่าข้อมูลครบถ้วน
-      if (!userData.email || !userData.first_name || !userData.last_name) {
-        console.error('Missing required user data');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=missing_data`);
-      }
 
       // สร้าง token
       const token = jwt.sign(
-        { iat: Date.now(), exp: Date.now() + (7 * 24 * 60 * 60 * 1000) }, // 7 วัน
+        { userId: userData.email, iat: Date.now(), exp: Date.now() + (7 * 24 * 60 * 60 * 1000) },
         process.env.JWT_SECRET || 'your-secret-key'
       );
 
-      // ส่งข้อมูลกลับไปที่ frontend
+      // เข้ารหัส user data เป็น base64
+      const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
+
+      // สร้าง URL สำหรับ redirect พร้อมข้อมูล
       const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`);
       redirectUrl.searchParams.append('token', token);
-      redirectUrl.searchParams.append('user_data', JSON.stringify(userData));
+      redirectUrl.searchParams.append('user_data', encodedUserData);
 
       return res.redirect(redirectUrl.toString());
     } catch (error) {
