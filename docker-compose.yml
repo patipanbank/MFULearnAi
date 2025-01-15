@@ -1,14 +1,17 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+  db:
+    image: mongo
+    container_name: mfulearnai
     ports:
-      - "80:80"
-    depends_on:
-      - backend
+      - 27017:27017
+    volumes:
+      - data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=1234
+    restart: always
     networks:
       - mfulearnai
 
@@ -17,24 +20,40 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - 5000:5000
+    environment:
+      - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
     depends_on:
       - db
     networks:
       - mfulearnai
+    restart: unless-stopped
 
-  db:
-    image: mongo
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
+      - 3000:80
+    depends_on:
+      - backend
     networks:
       - mfulearnai
+    restart: unless-stopped
+
+  nginx:
+    build: ./nginx/
+    image: nginx:alpine
+    ports:
+      - 80:80
+    depends_on:
+      - frontend
+    networks:
+      - mfulearnai
+    restart: unless-stopped
 
 volumes:
-  mongodb_data:
-
+  data:
 networks:
   mfulearnai:
     driver: bridge
