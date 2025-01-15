@@ -9,21 +9,29 @@ const AuthCallback = () => {
     const token = searchParams.get('token');
     const userData = searchParams.get('user_data');
 
+    console.log('Received token:', token);
+    console.log('Received user_data:', userData);
+
     if (token && userData) {
       // เก็บ token
       localStorage.setItem('auth_token', token);
       
-      // แปลง user_data จาก string เป็น object ก่อนเก็บ
       try {
-        const parsedUserData = JSON.parse(userData);
+        // ถ้า userData เป็น string ที่ถูก encode มา ต้อง decode ก่อน
+        const decodedUserData = decodeURIComponent(userData);
+        const parsedUserData = JSON.parse(decodedUserData);
+        console.log('Parsed user data before saving:', parsedUserData);
+        
         localStorage.setItem('user_data', JSON.stringify(parsedUserData));
       } catch (error) {
-        console.error('Error parsing user data:', error);
+        console.error('Error processing user data:', error);
+        // ถ้าไม่สามารถ parse ได้ ให้เก็บข้อมูลดิบไว้ก่อน
         localStorage.setItem('user_data', userData);
       }
       
       navigate('/mfuchatbot');
     } else {
+      console.error('Missing token or user data');
       navigate('/login');
     }
   }, [navigate, searchParams]);
