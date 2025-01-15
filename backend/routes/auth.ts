@@ -109,7 +109,6 @@ router.post('/saml/callback', async (req, res) => {
     }
 
     try {
-      // สร้าง user data object จากข้อมูลที่ได้จาก SAML
       const userData = {
         email: profile['User.Email'],
         first_name: profile.first_name,
@@ -117,9 +116,12 @@ router.post('/saml/callback', async (req, res) => {
         groups: profile['http://schemas.xmlsoap.org/claims/Group'] || []
       };
 
-      // สร้าง token
       const token = jwt.sign(
-        { userId: userData.email },
+        { 
+          email: userData.email,
+          firstName: userData.first_name,
+          lastName: userData.last_name
+        },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
@@ -127,10 +129,11 @@ router.post('/saml/callback', async (req, res) => {
       // เข้ารหัส user data เป็น base64
       const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
 
-      // สร้าง URL สำหรับ redirect พร้อมข้อมูล
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/mfuchatbot`);
+      // สร้าง URL สำหรับ redirect
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`);
       redirectUrl.searchParams.append('token', token);
       redirectUrl.searchParams.append('user_data', encodedUserData);
+      redirectUrl.searchParams.append('redirect', '/mfuchatbot');
 
       console.log('Redirecting to:', redirectUrl.toString());
       return res.redirect(redirectUrl.toString());
