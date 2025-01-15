@@ -7,17 +7,24 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const userData = searchParams.get('user_data');
+    const userDataString = searchParams.get('user_data');
 
-    if (token && userData) {
-      // เก็บ token
-      localStorage.setItem('auth_token', token);
-      
-      // เก็บข้อมูลผู้ใช้
-      localStorage.setItem('user_data', userData);
-      
-      // redirect ไปที่หน้า MFUChatbot
-      navigate('/mfuchatbot');
+    if (token && userDataString) {
+      try {
+        // decode และแปลงกลับเป็น object
+        const userData = JSON.parse(decodeURIComponent(userDataString));
+        
+        // เก็บ token
+        localStorage.setItem('auth_token', token);
+        
+        // เก็บข้อมูลผู้ใช้
+        localStorage.setItem('user_data', JSON.stringify(userData));
+        
+        navigate('/mfuchatbot');
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        navigate('/login');
+      }
     } else {
       navigate('/login');
     }

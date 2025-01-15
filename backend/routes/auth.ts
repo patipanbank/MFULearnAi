@@ -101,40 +101,31 @@ passport.deserializeUser((user: any, done) => {
 
 router.get('/login/saml', passport.authenticate('saml'));
 
-router.post('/saml/callback',
-  passport.authenticate('saml', { session: false }),
-  async (req: any, res) => {
-    try {
-      console.log('Authentication Success, User:', req.user);
-      
-      const token = jwt.sign(
-        { 
-          userId: req.user._id,
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName
-        },
-        process.env.JWT_SECRET!,
-        { expiresIn: '7d' }
-      );
-      
-      const userData = {
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        email: req.user.email
-      };
-
-      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?` + 
-        `token=${token}&` +
-        `user_data=${encodeURIComponent(JSON.stringify(userData))}`;
-
-      res.redirect(redirectUrl);
-    } catch (error) {
-      console.error('SAML callback error:', error);
-      res.redirect('/login?error=auth_failed');
+router.post('/saml/callback', (req, res, next) => {
+  passport.authenticate('saml', (err: Error | null, data: any) => {
+    if (err) {
+      console.error('SAML Callback Error:', err);
+      return res.redirect('/login?error=auth_failed');
     }
-  }
-);
+    if (!data) {
+      return res.redirect('/login?error=no_data');
+    }
+
+    // สร้าง userData object
+    const userData = {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      groups: data.groups
+    };
+
+    // แปลงเป็น JSON string และ encode
+    const userDataString = encodeURIComponent(JSON.stringify(userData));
+    
+    // ส่ง token และ userData กลับไป frontend
+    res.redirect(`/auth/callback?token=${data.token}&user_data=${userDataString}`);
+  })(req, res, next);
+});
 
 router.post('/logout', (req, res) => {
   req.logout(() => {
