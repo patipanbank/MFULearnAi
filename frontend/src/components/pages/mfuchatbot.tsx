@@ -124,31 +124,33 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 border-t p-3 md:p-4 bg-white">
-        <form onSubmit={handleSendMessage} className="flex space-x-2 md:space-x-4">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Type your message here..."
-            className="flex-1 px-3 md:px-4 py-2 md:py-3 border rounded-full text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`px-4 md:px-6 py-2 md:py-3 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center
-              ${isLoading 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-          >
-            {isLoading ? (
-              <BiLoaderAlt className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-            ) : (
-              <FaPaperPlane className="w-4 h-4 md:w-5 md:h-5" />
-            )}
-          </button>
+      <div className="fixed bottom-0 left-0 right-0 border-t p-3 md:p-4 bg-white z-10">
+        <form onSubmit={handleSendMessage} className="container mx-auto max-w-screen-lg px-4">
+          <div className="flex space-x-2 md:space-x-4">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type your message here..."
+              className="flex-1 px-3 md:px-4 py-2 md:py-3 border rounded-full text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`px-4 md:px-6 py-2 md:py-3 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center
+                ${isLoading 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+            >
+              {isLoading ? (
+                <BiLoaderAlt className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+              ) : (
+                <FaPaperPlane className="w-4 h-4 md:w-5 md:h-5" />
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </div>
