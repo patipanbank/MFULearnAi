@@ -107,28 +107,36 @@ router.post('/saml/callback',
     try {
       console.log('Authentication Success, User:', req.user);
       
+      // สร้าง token
       const token = jwt.sign(
         { 
-          userId: req.user._id,
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName
+          userId: req.user.token.userData._id,
+          email: req.user.token.userData.email,
+          firstName: req.user.token.userData.first_name,
+          lastName: req.user.token.userData.last_name
         },
         process.env.JWT_SECRET!,
         { expiresIn: '7d' }
       );
       
+      // เตรียมข้อมูลผู้ใช้
       const userData = {
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        email: req.user.email
+        email: req.user.token.userData.email,
+        firstName: req.user.token.userData.first_name,
+        lastName: req.user.token.userData.last_name,
+        groups: req.user.token.userData.groups || []
       };
 
-      const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?` + 
-        `token=${token}&` +
-        `user_data=${encodeURIComponent(JSON.stringify(userData))}`;
+      // encode ข้อมูลเป็น base64
+      const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
 
-      res.redirect(redirectUrl);
+      // สร้าง URL สำหรับ redirect
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth-callback`);
+      redirectUrl.searchParams.append('token', token);
+      redirectUrl.searchParams.append('user_data', encodedUserData);
+
+      console.log('Redirecting to:', redirectUrl.toString());
+      res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('SAML callback error:', error);
       res.redirect('/login?error=auth_failed');
