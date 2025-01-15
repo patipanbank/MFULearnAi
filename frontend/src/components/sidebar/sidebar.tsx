@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FaRobot, FaBars } from 'react-icons/fa';
+import { FaRobot } from 'react-icons/fa';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -21,15 +21,26 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   return (
     <aside className="flex flex-col h-full bg-white border-r border-gray-200">
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-bold text-gray-800">MFU LEARN AI</h2>
-        </div>
+      <div className="flex items-center justify-between p-6">
+        <h2 className="text-2xl font-bold text-gray-800">MFU LEARN AI</h2>
         <button 
           onClick={onClose}
-          className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+          className="lg:hidden p-2 hover:bg-gray-100 rounded-full"
         >
-          <FaBars className="w-6 h-6 text-gray-600" />
+          <svg 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
         </button>
       </div>
 
