@@ -9,35 +9,16 @@ const AuthCallback = () => {
     const token = searchParams.get('token');
     const userData = searchParams.get('user_data');
 
-    console.log('Received token:', token);
-    console.log('Received user_data:', userData);
-
     if (token && userData) {
+      // เก็บ token
       localStorage.setItem('auth_token', token);
       
-      try {
-        let parsedUserData;
-        if (typeof userData === 'string') {
-          // ถ้าเป็น string ให้แปลงเป็น object
-          parsedUserData = JSON.parse(userData);
-        } else {
-          parsedUserData = userData;
-        }
-        
-        console.log('Parsed user data before saving:', parsedUserData);
-        
-        if (Object.keys(parsedUserData).length === 0) {
-          throw new Error('User data is empty');
-        }
-        
-        localStorage.setItem('user_data', JSON.stringify(parsedUserData));
-        navigate('/mfuchatbot');
-      } catch (error) {
-        console.error('Error processing user data:', error);
-        navigate('/login?error=invalid_data');
-      }
+      // เก็บข้อมูลผู้ใช้
+      localStorage.setItem('user_data', userData);
+      
+      // redirect ไปที่หน้า MFUChatbot
+      navigate('/mfuchatbot');
     } else {
-      console.error('Missing token or user data');
       navigate('/login');
     }
   }, [navigate, searchParams]);
