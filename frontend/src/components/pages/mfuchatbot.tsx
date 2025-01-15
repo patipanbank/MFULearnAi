@@ -74,8 +74,8 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-3 md:p-4">
+    <div className="flex flex-col h-full relative">
+      <div className="flex-1 overflow-y-auto p-3 md:p-4 pb-24">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full space-y-4 p-4">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-blue-100 flex items-center justify-center">
@@ -124,7 +124,7 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="flex-none border-t p-3 md:p-4 bg-white">
+      <div className="absolute bottom-0 left-0 right-0 border-t p-3 md:p-4 bg-white">
         <form onSubmit={handleSendMessage} className="flex space-x-2 md:space-x-4">
           <input
             type="text"
