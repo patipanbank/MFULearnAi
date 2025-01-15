@@ -30,19 +30,42 @@ const samlStrategy = new SamlStrategy(
   },
   async function(req: any, profile: any, done: any) {
     try {
-      console.log('Raw SAML Profile:', profile);
-      console.log('Profile Keys:', Object.keys(profile));
-      console.log('Profile nameID:', profile.nameID);
-      
-      await connectDB();
-      
-      const nameID = profile.nameID;
-      const email = profile.email || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
-      const firstName = profile.firstName || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'];
-      const lastName = profile.lastName || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'];
-      const groups = profile.groups || profile['http://schemas.microsoft.com/ws/2008/06/identity/claims/groups'] || [];
+      // Debug full profile
+      console.log('=== SAML Profile Debug ===');
+      console.log(JSON.stringify(profile, null, 2));
 
-      console.log('Parsed Data:', {
+      // อ่านค่าจากหลายๆ possible attributes
+      const nameID = 
+        profile['nameID'] ||
+        profile['nameId'] ||
+        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
+        profile['SAM-Account-Name'];
+
+      const email = 
+        profile['E-Mail-Addresses'] ||
+        profile['mail'] ||
+        profile['email'] ||
+        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
+
+      const firstName = 
+        profile['Given-Name'] ||
+        profile['givenName'] ||
+        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'];
+
+      const lastName = 
+        profile['Surname'] ||
+        profile['sn'] ||
+        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'];
+
+      const groups = 
+        profile['Token-Groups as SIDs'] ||
+        profile['memberOf'] ||
+        profile['groups'] ||
+        [];
+
+      // Debug extracted values
+      console.log('=== Extracted Values ===');
+      console.log({
         nameID,
         email,
         firstName,
@@ -50,23 +73,24 @@ const samlStrategy = new SamlStrategy(
         groups
       });
 
-      if (!nameID) {
-        console.error('nameID is missing');
-      }
-      if (!email) {
-        console.error('email is missing');
-      }
+      // ถ้าไม่มี nameID หรือ email ให้ลองใช้ค่าอื่นแทน
+      const finalNameID = nameID || email;
+      const finalEmail = email || nameID;
 
-      if (!nameID || !email) {
-        console.error('Missing required fields:', { nameID, email });
+      if (!finalNameID || !finalEmail) {
+        console.error('Missing required fields after fallback:', { 
+          finalNameID, 
+          finalEmail,
+          originalProfile: profile 
+        });
         return done(new Error('Missing required user information'));
       }
 
       const user = await User.findOneAndUpdate(
-        { nameID },
+        { nameID: finalNameID },
         {
-          nameID,
-          email,
+          nameID: finalNameID,
+          email: finalEmail,
           firstName,
           lastName,
           groups: Array.isArray(groups) ? groups : [groups],
@@ -89,6 +113,7 @@ const samlStrategy = new SamlStrategy(
       };
 
       return done(null, { token, userData });
+
     } catch (error) {
       console.error('SAML Strategy Error:', error);
       return done(error);
