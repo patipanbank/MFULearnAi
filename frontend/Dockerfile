@@ -1,26 +1,32 @@
 # Build stage
-FROM node:20-alpine as builder
+FROM node:20-alpine as build
 
-WORKDIR /app
+# Set working directory
+WORKDIR /app/frontend
+
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
+
+# Copy source code
 COPY . .
+
+# Build the application
 RUN npm run build
 
 # Production stage
 FROM nginx:alpine
 
-# Remove default nginx static assets
-RUN rm -rf /usr/share/nginx/html/*
-
-# Copy nginx configuration
+# Copy the Nginx configuration file
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy static assets from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy the build output from build stage
+COPY --from=build /app/frontend/dist /usr/share/nginx/html
 
-# Expose port
+# Expose port 80
 EXPOSE 80
 
-# Start nginx
+# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
