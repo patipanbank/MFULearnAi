@@ -13,10 +13,15 @@ const AuthCallback = () => {
       // เก็บ token
       localStorage.setItem('auth_token', token);
       
-      // เก็บข้อมูลผู้ใช้
-      localStorage.setItem('user_data', userData);
+      // แปลง user_data จาก string เป็น object ก่อนเก็บ
+      try {
+        const parsedUserData = JSON.parse(userData);
+        localStorage.setItem('user_data', JSON.stringify(parsedUserData));
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        localStorage.setItem('user_data', userData);
+      }
       
-      // redirect ไปที่หน้า MFUChatbot
       navigate('/mfuchatbot');
     } else {
       navigate('/login');
