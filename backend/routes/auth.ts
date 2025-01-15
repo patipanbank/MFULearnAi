@@ -109,13 +109,23 @@ router.post('/saml/callback', async (req, res) => {
     }
 
     try {
-      // สร้าง user data object
+      // สร้าง user data object จาก profile ที่ได้จาก SAML
       const userData = {
-        email: profile.email,
-        first_name: profile.firstName,
-        last_name: profile.lastName,
-        groups: profile.groups
+        email: profile.nameID || profile['User.Email'],
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        groups: profile['http://schemas.xmlsoap.org/claims/Group'] || []
       };
+
+      // Log เพื่อตรวจสอบข้อมูล
+      console.log('Profile from SAML:', profile);
+      console.log('User data being sent:', userData);
+
+      // ตรวจสอบว่าข้อมูลครบถ้วน
+      if (!userData.email || !userData.first_name || !userData.last_name) {
+        console.error('Missing required user data');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=missing_data`);
+      }
 
       // สร้าง token
       const token = jwt.sign(
@@ -123,14 +133,11 @@ router.post('/saml/callback', async (req, res) => {
         process.env.JWT_SECRET || 'your-secret-key'
       );
 
-      // Log เพื่อตรวจสอบข้อมูล
-      console.log('User data being sent:', userData);
-      
       // ส่งข้อมูลกลับไปที่ frontend
       const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`);
       redirectUrl.searchParams.append('token', token);
       redirectUrl.searchParams.append('user_data', JSON.stringify(userData));
-      
+
       return res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('Error in SAML callback:', error);
