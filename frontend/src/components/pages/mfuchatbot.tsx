@@ -132,8 +132,9 @@ const MFUChatbot: React.FC = () => {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Type your message here..."
-              className="flex-1 px-3 md:px-4 py-2 md:py-3 border rounded-full text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              className="flex-1 px-3 md:px-4 py-2 md:py-3 border rounded-full text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
               disabled={isLoading}
+              style={{ fontSize: '16px' }}
             />
             <button
               type="submit"
