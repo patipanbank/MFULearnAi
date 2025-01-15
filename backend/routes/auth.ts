@@ -30,23 +30,32 @@ const samlStrategy = new SamlStrategy(
   },
   async function(req: any, profile: any, done: any) {
     try {
-      console.log('SAML Profile:', JSON.stringify(profile, null, 2));
+      console.log('Raw SAML Profile:', profile);
+      console.log('Profile Keys:', Object.keys(profile));
+      console.log('Profile nameID:', profile.nameID);
       
       await connectDB();
       
-      const nameID = profile['SAM-Account-Name'] || profile['User.Username'];
-      const email = profile['E-Mail-Addresses'] || profile['User.Email'];
-      const firstName = profile['Given-Name'] || profile['first_name'];
-      const lastName = profile['Surname'] || profile['last_name'];
-      const groups = profile['Token-Groups as SIDs'] || profile['Group'] || [];
+      const nameID = profile.nameID;
+      const email = profile.email || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
+      const firstName = profile.firstName || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'];
+      const lastName = profile.lastName || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'];
+      const groups = profile.groups || profile['http://schemas.microsoft.com/ws/2008/06/identity/claims/groups'] || [];
 
-      console.log('Parsed User Data:', {
+      console.log('Parsed Data:', {
         nameID,
         email,
         firstName,
         lastName,
         groups
       });
+
+      if (!nameID) {
+        console.error('nameID is missing');
+      }
+      if (!email) {
+        console.error('email is missing');
+      }
 
       if (!nameID || !email) {
         console.error('Missing required fields:', { nameID, email });
@@ -163,8 +172,10 @@ router.get('/metadata', (req, res) => {
 });
 
 router.post('/saml/callback', (req, res, next) => {
-  console.log('SAML Callback Headers:', req.headers);
-  console.log('SAML Callback Body:', req.body);
+  console.log('=== SAML Callback Debug ===');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('=========================');
   next();
 });
 
