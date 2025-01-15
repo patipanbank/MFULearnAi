@@ -15,14 +15,14 @@ const MFUChatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // ฟังก์ชันเลื่อนไปยังข้อความล่าสุด
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   // เรียกใช้ scrollToBottom เมื่อมีข้อความใหม่หรือกำลังโหลด
   useEffect(() => {
-    // เพิ่มการหน่วงเวลาเล็กน้อยเพื่อให้ DOM อัพเดทก่อน scroll
-    const timeoutId = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
+    scrollToBottom();
   }, [messages, isLoading]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -89,7 +89,7 @@ const MFUChatbot: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4 pb-4">
+          <div className="space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -119,12 +119,12 @@ const MFUChatbot: React.FC = () => {
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} className="h-1" />
+            <div ref={messagesEndRef} /> {/* จุดอ้างอิงสำหรับ auto scroll */}
           </div>
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t p-3 md:p-4 bg-white z-10 lg:left-64">
+      <div className="fixed bottom-0 left-0 right-0 border-t p-3 md:p-4 bg-white z-10">
         <form onSubmit={handleSendMessage} className="container mx-auto max-w-screen-lg px-4">
           <div className="flex space-x-2 md:space-x-4">
             <input
