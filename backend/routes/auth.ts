@@ -107,12 +107,12 @@ router.post('/saml/callback',
     try {
       console.log('Authentication Success, User:', req.user);
       
-      // เตรียมข้อมูลผู้ใช้
+      // เตรียมข้อมูลผู้ใช้จาก req.user.userData แทน req.user โดยตรง
       const userData = {
-        email: req.user.email,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        groups: req.user.groups || []
+        email: req.user.userData.email,
+        firstName: req.user.userData.first_name,
+        lastName: req.user.userData.last_name,
+        groups: req.user.userData.groups || []
       };
 
       // สร้าง token
