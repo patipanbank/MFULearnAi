@@ -34,28 +34,11 @@ const samlStrategy = new SamlStrategy(
       
       await connectDB();
       
-      const nameID = profile.nameID || 
-                    profile['SAM-Account-Name'] || 
-                    profile['User.Username'] ||
-                    profile.username;
-                    
-      const email = profile['E-Mail-Addresses'] || 
-                   profile['User.Email'] ||
-                   profile.email ||
-                   profile.mail;
-                   
-      const firstName = profile['Given-Name'] || 
-                       profile['first_name'] ||
-                       profile.givenName;
-                       
-      const lastName = profile['Surname'] || 
-                      profile['last_name'] ||
-                      profile.surname;
-                      
-      const groups = profile['Token-Groups - Unqualified Names'] || 
-                    profile['Group'] ||
-                    profile.groups || 
-                    [];
+      const nameID = profile['SAM-Account-Name'] || profile['User.Username'];
+      const email = profile['E-Mail-Addresses'] || profile['User.Email'];
+      const firstName = profile['Given-Name'] || profile['first_name'];
+      const lastName = profile['Surname'] || profile['last_name'];
+      const groups = profile['Token-Groups as SIDs'] || profile['Group'] || [];
 
       console.log('Parsed User Data:', {
         nameID,
