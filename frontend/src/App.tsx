@@ -5,6 +5,7 @@ import Login from './components/login/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
 import TrainAI from './components/pages/trainAi';
+import RoleGuard from './components/guards/RoleGuard';
 import './index.css';
 
 const App = () => {
@@ -28,9 +29,11 @@ const App = () => {
           path="/train-ai"
           element={
             <AuthGuard>
-              <MainLayout>
-                <TrainAI />
-              </MainLayout>
+              <RoleGuard allowedGroups={['Admin']}>
+                <MainLayout>
+                  <TrainAI />
+                </MainLayout>
+              </RoleGuard>
             </AuthGuard>
           }
         />

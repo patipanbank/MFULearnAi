@@ -4,16 +4,22 @@ const userSchema = new mongoose.Schema({
   nameID: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    index: true
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    index: true
   },
   firstName: String,
   lastName: String,
-  groups: [String],
+  groups: {
+    type: [String],
+    default: ['Students'],
+    index: true
+  },
   created: {
     type: Date,
     default: Date.now
@@ -23,5 +29,9 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+userSchema.methods.hasRole = function(roles: string[]) {
+  return this.groups.some((group: string) => roles.includes(group));
+};
 
 export default mongoose.models.User || mongoose.model('User', userSchema);

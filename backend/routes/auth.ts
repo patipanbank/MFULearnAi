@@ -105,38 +105,37 @@ router.post('/saml/callback',
   passport.authenticate('saml', { session: false }),
   async (req: any, res) => {
     try {
-      console.log('Authentication Success, User:', req.user);
-      
-      // เตรียมข้อมูลผู้ใช้จาก req.user.userData แทน req.user โดยตรง
+      const mapGroupToRole = (groups: string[]) => {
+        const isStudent = groups.some(group => 
+          group === 'S-1-5-21-893890582-1041674030-1199480097-109130'
+        );
+        return isStudent ? 'Students' : 'Admin';
+      };
+
       const userData = {
         email: req.user.userData.email,
         firstName: req.user.userData.first_name,
         lastName: req.user.userData.last_name,
-        groups: req.user.userData.groups || []
+        groups: [mapGroupToRole(req.user.userData.groups || [])]
       };
 
-      // สร้าง token
       const token = jwt.sign(
         { 
           email: userData.email,
           firstName: userData.firstName,
-          lastName: userData.lastName
+          lastName: userData.lastName,
+          groups: userData.groups
         },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '7d' }
       );
 
-      // encode ข้อมูลเป็น base64
       const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
-
-      // สร้าง URL สำหรับ redirect
+      
       const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth-callback`);
       redirectUrl.searchParams.append('token', token);
       redirectUrl.searchParams.append('user_data', encodedUserData);
 
-      console.log('User data being sent:', userData);
-      console.log('Redirecting to:', redirectUrl.toString());
-      
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('SAML callback error:', error);

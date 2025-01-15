@@ -7,6 +7,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
+  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const isStudent = userData.Groups === 'Students';
 
   const handleLogout = async () => {
     try {
@@ -46,17 +48,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               Chatbot
             </Link>
           </li>
-          <li>
-            <Link
-              to="/train-ai"
-              className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
-                location.pathname === '/train-ai' ? 'bg-blue-50 text-blue-600' : ''
-              }`}
-            >
-              <FaBrain className="mr-3" />
-              Train AI
-            </Link>
-          </li>
+          {!isStudent && (
+            <li>
+              <Link
+                to="/train-ai"
+                className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
+                  location.pathname === '/train-ai' ? 'bg-blue-50 text-blue-600' : ''
+                }`}
+              >
+                <FaBrain className="mr-3" />
+                Train AI
+              </Link>
+            </li>
+          )}
         </ul>
       </nav>
 
