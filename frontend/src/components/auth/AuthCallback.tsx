@@ -13,23 +13,29 @@ const AuthCallback = () => {
     console.log('Received user_data:', userData);
 
     if (token && userData) {
-      // เก็บ token
       localStorage.setItem('auth_token', token);
       
       try {
-        // ถ้า userData เป็น string ที่ถูก encode มา ต้อง decode ก่อน
-        const decodedUserData = decodeURIComponent(userData);
-        const parsedUserData = JSON.parse(decodedUserData);
+        let parsedUserData;
+        if (typeof userData === 'string') {
+          // ถ้าเป็น string ให้แปลงเป็น object
+          parsedUserData = JSON.parse(userData);
+        } else {
+          parsedUserData = userData;
+        }
+        
         console.log('Parsed user data before saving:', parsedUserData);
         
+        if (Object.keys(parsedUserData).length === 0) {
+          throw new Error('User data is empty');
+        }
+        
         localStorage.setItem('user_data', JSON.stringify(parsedUserData));
+        navigate('/mfuchatbot');
       } catch (error) {
         console.error('Error processing user data:', error);
-        // ถ้าไม่สามารถ parse ได้ ให้เก็บข้อมูลดิบไว้ก่อน
-        localStorage.setItem('user_data', userData);
+        navigate('/login?error=invalid_data');
       }
-      
-      navigate('/mfuchatbot');
     } else {
       console.error('Missing token or user data');
       navigate('/login');
