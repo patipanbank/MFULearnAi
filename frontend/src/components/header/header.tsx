@@ -12,11 +12,7 @@ const Header = () => {
 
   return (
     <header className="bg-white shadow">
-      <nav className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center">
-          <h1 className="text-xl font-bold text-gray-800">MFU LEARN AI</h1>
-        </div>
-        
+      <nav className="flex items-center justify-between px-6 py-4"> 
         {/* Right Side: User Name */}
         <div className="text-gray-600">
           {userData && (
