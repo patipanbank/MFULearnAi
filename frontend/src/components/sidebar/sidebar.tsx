@@ -16,7 +16,7 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="flex flex-col h-full bg-white">
+    <aside className="flex flex-col h-full bg-white border-r border-gray-200">
       <div className="flex-none p-6">
         <h2 className="text-2xl font-bold text-gray-800">MFU LEARN AI</h2>
       </div>
@@ -37,7 +37,7 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      <div className="flex-none mt-auto border-t border-gray-200">
+      <div className="flex-none border-t border-gray-200">
         <button 
           onClick={handleLogout}
           className="flex items-center w-full px-6 py-4 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
