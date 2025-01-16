@@ -106,9 +106,8 @@ router.post('/saml/callback',
   async (req: any, res) => {
     try {
       const mapGroupToRole = (groups: string[]) => {
-        const isStudent = groups.some(group => 
-          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
-        );
+        const studentGroupId = 'S-1-5-21-893890582-1041674030-1199480097-43779';
+        const isStudent = groups.includes(studentGroupId);
         return isStudent ? 'Students' : 'Staffs';
       };
 
@@ -116,7 +115,7 @@ router.post('/saml/callback',
         email: req.user.userData.email,
         firstName: req.user.userData.first_name,
         lastName: req.user.userData.last_name,
-        groups: [mapGroupToRole(req.user.userData.groups || [])]
+        groups: [mapGroupToRole(req.user.userData['http://schemas.xmlsoap.org/claims/Group'] || [])]
       };
 
       const token = jwt.sign(
