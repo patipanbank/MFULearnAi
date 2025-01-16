@@ -7,7 +7,7 @@ router.post('/chat', async (req, res) => {
   try {
     const { message } = req.body;
     
-    const response = await axios.post('http://localhost:11434/api/generate', {
+    const response = await axios.post('http://ollama:11434/api/generate', {
       model: "llama2",
       prompt: message,
       stream: false
