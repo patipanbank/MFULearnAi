@@ -46,7 +46,7 @@ app.use(passport.session());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/train-ai', trainAiRouter);
-app.use('/api', chatRoutes);
+app.use('/api/chat', chatRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
