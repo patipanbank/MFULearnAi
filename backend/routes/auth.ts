@@ -105,26 +105,18 @@ router.post('/saml/callback',
   passport.authenticate('saml', { session: false }),
   async (req: any, res) => {
     try {
-      const mapGroupToRole = (groups: string[]) => {
-        const studentGroupId = 'S-1-5-21-893890582-1041674030-1199480097-43779';
-        const isStudent = groups.includes(studentGroupId);
-        return isStudent ? 'Students' : 'Staffs';
-      };
-
       const userData = {
         email: req.user.userData.email,
         firstName: req.user.userData.first_name,
         lastName: req.user.userData.last_name,
-        groups: [mapGroupToRole(req.user.userData['http://schemas.xmlsoap.org/claims/Group'] || [])]
+        groups: [req.user.userData.Groups]
       };
 
-      const token = jwt.sign(
-        { 
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          groups: userData.groups
-        },
+      console.log('=== Debug User Data ===');
+      console.log('SAML Groups:', req.user.userData.Groups);
+      console.log('Mapped userData:', userData);
+
+      const token = jwt.sign(userData, 
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '7d' }
       );
