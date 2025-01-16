@@ -20,7 +20,7 @@ class LlamaService {
   private startLlamaProcess() {
     try {
       const modelPath = '/home/mfulearnai/MFULearnAi/ai_service/models/llama-2-7b.Q4_K_M.gguf';
-      const llamaPath = '/home/mfulearnai/MFULearnAi/ai_service/llama.cpp/build/bin/main';
+      const llamaPath = '/home/mfulearnai/MFULearnAi/ai_service/llama.cpp/build/examples/main';
       
       // ตรวจสอบว่าไฟล์มีอยู่จริง
       if (!fs.existsSync(modelPath)) {
