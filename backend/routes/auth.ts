@@ -54,6 +54,13 @@ const samlStrategy = new SamlStrategy(
         return done(new Error('Missing required user information'));
       }
 
+       // เพิ่มฟังก์ชันแปลง group เป็น role
+       const mapGroupToRole = (groups: string[]) => {
+        const isStudent = groups.some(group => 
+          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
+        );
+        return isStudent ? 'Students' : 'Staffs';
+      };
       const user = await User.findOneAndUpdate(
         { nameID },
         {
@@ -62,6 +69,7 @@ const samlStrategy = new SamlStrategy(
           firstName,
           lastName,
           groups: Array.isArray(groups) ? groups : [groups],
+          role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]), // เพิ่ม role
           updated: new Date()
         },
         { upsert: true, new: true }
