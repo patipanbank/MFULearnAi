@@ -1,30 +1,27 @@
 import express from 'express';
-import LlamaService from '../services/llama';
+import axios from 'axios';
 
 const router = express.Router();
-const llama = LlamaService.getInstance();
 
 router.post('/chat', async (req, res) => {
   try {
     const { message } = req.body;
-    console.log('Received message:', message);
     
-    const llama = LlamaService.getInstance();
-    console.log('LLaMA service initialized');
-    
-    const prompt = `Human: ${message}\nAssistant:`;
-    console.log('Sending prompt to LLaMA:', prompt);
-    
-    const response = await llama.generateResponse(prompt);
-    console.log('LLaMA response:', response);
-    
-    res.json({ response });
-  } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({ 
-      error: 'Error generating response',
-      details: error instanceof Error ? error.message : 'Unknown error'
+    const response = await axios.post('http://localhost:11434/api/generate', {
+      model: "mistral",
+      prompt: message,
+      stream: false
     });
+
+    res.json({ response: response.data.response });
+
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      res.status(499).json({ error: 'Request cancelled' });
+    } else {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 });
 
