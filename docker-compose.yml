@@ -52,8 +52,20 @@ services:
       - mfulearnai
     restart: unless-stopped
 
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    networks:
+      - mfulearnai
+    restart: unless-stopped
+
 volumes:
   data:
+  ollama:
 networks:
   mfulearnai:
     driver: bridge
