@@ -106,14 +106,14 @@ router.post('/saml/callback',
   async (req: any, res) => {
     try {
       const userData = {
-        email: req.user.userData.email,
-        firstName: req.user.userData.first_name,
-        lastName: req.user.userData.last_name,
-        groups: [req.user.userData.Groups]
+        email: req.user.email,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        groups: [req.user.Groups]
       };
 
       console.log('=== Debug User Data ===');
-      console.log('SAML Groups:', req.user.userData.Groups);
+      console.log('SAML Groups:', req.user.Groups);
       console.log('Mapped userData:', userData);
 
       const token = jwt.sign(userData, 
