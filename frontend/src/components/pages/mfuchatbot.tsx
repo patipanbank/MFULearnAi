@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
+import { config } from '../../config/config';
 
 interface Message {
   id: number;
@@ -29,19 +30,10 @@ const MFUChatbot: React.FC = () => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: messages.length + 1,
-      text: inputMessage,
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsLoading(true);
-
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/chat`, {
+      setIsLoading(true);
+      
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,7 +41,22 @@ const MFUChatbot: React.FC = () => {
         body: JSON.stringify({ message: inputMessage }),
       });
 
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
       const data = await response.json();
+      console.log('API response:', data);
+
+      const userMessage: Message = {
+        id: messages.length + 1,
+        text: inputMessage,
+        sender: 'user',
+        timestamp: new Date(),
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+      setInputMessage('');
 
       const botMessage: Message = {
         id: messages.length + 2,
