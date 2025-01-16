@@ -14,6 +14,7 @@ const MFUChatbot: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // ฟังก์ชันเลื่อนไปยังข้อความล่าสุด
   const scrollToBottom = () => {
@@ -29,6 +30,7 @@ const MFUChatbot: React.FC = () => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
+    setError(null); // reset error state
     const userMessage: Message = {
       id: messages.length + 1,
       text: inputMessage,
@@ -47,9 +49,18 @@ const MFUChatbot: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ message: inputMessage }),
+        signal: AbortSignal.timeout(30000) // 30 วินาที
       });
 
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
       const data = await response.json();
+
+      if (!data.response) {
+        throw new Error('Invalid response from server');
+      }
 
       const botMessage: Message = {
         id: messages.length + 2,
@@ -61,9 +72,11 @@ const MFUChatbot: React.FC = () => {
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error('Error:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      
       const errorMessage: Message = {
         id: messages.length + 2,
-        text: 'Sorry, an error occurred. Please try again.',
+        text: 'Sorry, I encountered an error. Please try again or rephrase your question.',
         sender: 'bot',
         timestamp: new Date(),
       };
@@ -75,14 +88,29 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+          <p>{error}</p>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 pb-32">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="bg-blue-100 rounded-full p-4 mb-4">
               <svg className="w-8 h-8 text-blue-500" /* ... */ />
             </div>
-            <h2 className="text-2xl font-semibold mb-2">Welcome to MFU Chatbot</h2>
-            <p className="text-gray-600">How can I help you today?</p>
+            <h2 className="text-2xl font-semibold mb-2">Welcome to MFU AI Assistant</h2>
+            <p className="text-gray-600">Ask me anything! I'll do my best to help.</p>
+            <div className="mt-4 space-y-2">
+              <p className="text-sm text-gray-500">Example questions:</p>
+              <button 
+                onClick={() => setInputMessage("What can you help me with?")}
+                className="text-blue-600 hover:underline text-sm"
+              >
+                • What can you help me with?
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
