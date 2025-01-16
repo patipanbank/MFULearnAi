@@ -105,19 +105,27 @@ router.post('/saml/callback',
   passport.authenticate('saml', { session: false }),
   async (req: any, res) => {
     try {
-      const userData = {
-        email: req.user.attributes['User.Email'],
-        firstName: req.user.attributes['first_name'],
-        lastName: req.user.attributes['last_name'],
-        groups: [req.user.attributes['Groups']]
+      const mapGroupToRole = (groups: string[]) => {
+        const isStudent = groups.some(group => 
+          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
+        );
+        return isStudent ? 'Students' : 'Staffs';
       };
 
-      console.log('=== Debug User Data ===');
-      console.log('SAML Profile:', req.user);
-      console.log('SAML Groups:', req.user.attributes['Groups']);
-      console.log('Mapped userData:', userData);
+      const userData = {
+        email: req.user.userData.email,
+        firstName: req.user.userData.first_name,
+        lastName: req.user.userData.last_name,
+        groups: [mapGroupToRole(req.user.userData.groups || [])]
+      };
 
-      const token = jwt.sign(userData, 
+      const token = jwt.sign(
+        { 
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          groups: userData.groups
+        },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '7d' }
       );
