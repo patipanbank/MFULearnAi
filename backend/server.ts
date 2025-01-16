@@ -7,7 +7,7 @@ import passport from 'passport';
 import session from 'express-session';
 import { connectDB } from './lib/mongodb';
 import authRoutes from './routes/auth';
-import chatRouter from './routes/chat';
+import chatRoutes from './routes/chat';
 import trainAiRouter from './routes/trainAi';
 
 const app = express();
@@ -46,7 +46,7 @@ app.use(passport.session());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/train-ai', trainAiRouter);
-app.use('/api', chatRouter);
+app.use('/api/chat', chatRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
