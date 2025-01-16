@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 
 class LlamaService {
   private static instance: LlamaService;
@@ -17,25 +18,49 @@ class LlamaService {
   }
 
   private startLlamaProcess() {
-    // ปรับ path ให้เป็น Linux style
-    const modelPath = '/home/mfulearnai/MFULearnAi/ai_service/models/llama-2-7b.Q4_K_M.gguf';
-    
-    this.llamaProcess = spawn('./build/bin/main', [
-      '-m', modelPath,
-      '--ctx_size', '2048',
-      '-t', '4',
-      '-ngl', '0'
-    ], {
-      cwd: '/home/mfulearnai/MFULearnAi/ai_service/llama.cpp'
-    });
+    try {
+      const modelPath = '/home/mfulearnai/MFULearnAi/ai_service/models/llama-2-7b.Q4_K_M.gguf';
+      const llamaPath = '/home/mfulearnai/MFULearnAi/ai_service/llama.cpp/build/bin/main';
+      
+      // ตรวจสอบว่าไฟล์มีอยู่จริง
+      if (!fs.existsSync(modelPath)) {
+        throw new Error(`Model not found at: ${modelPath}`);
+      }
+      if (!fs.existsSync(llamaPath)) {
+        throw new Error(`LLaMA executable not found at: ${llamaPath}`);
+      }
 
-    this.llamaProcess.stdout.on('data', (data: Buffer) => {
-      console.log(`LLaMA output: ${data}`);
-    });
+      console.log('Starting LLaMA process...');
+      console.log('Model path:', modelPath);
+      console.log('LLaMA path:', llamaPath);
 
-    this.llamaProcess.stderr.on('data', (data: Buffer) => {
-      console.error(`LLaMA error: ${data}`);
-    });
+      this.llamaProcess = spawn(llamaPath, [
+        '-m', modelPath,
+        '--ctx_size', '2048',
+        '-t', '4',
+        '-ngl', '0'
+      ]);
+
+      // Log process events
+      this.llamaProcess.on('error', (err: Error) => {
+        console.error('LLaMA process error:', err);
+      });
+
+      this.llamaProcess.on('exit', (code: number | null) => {
+        console.log('LLaMA process exited with code:', code);
+      });
+
+      this.llamaProcess.stdout.on('data', (data: Buffer) => {
+        console.log(`LLaMA output: ${data}`);
+      });
+
+      this.llamaProcess.stderr.on('data', (data: Buffer) => {
+        console.error(`LLaMA error: ${data}`);
+      });
+    } catch (error) {
+      console.error('Error starting LLaMA:', error);
+      throw error;
+    }
   }
 
   public async generateResponse(prompt: string): Promise<string> {
