@@ -1,6 +1,61 @@
-import React from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
+import { config } from '../../config/config';
 
 const TrainAI: React.FC = () => {
+  const [file, setFile] = useState<File | null>(null);
+  const [isTraining, setIsTraining] = useState(false);
+  const [status, setStatus] = useState<string>('');
+  const [progress, setProgress] = useState<number>(0);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setFile(event.target.files[0]);
+    }
+  };
+
+  const handleTraining = async () => {
+    if (!file) {
+      setStatus('กรุณาเลือกไฟล์');
+      return;
+    }
+
+    setIsTraining(true);
+    setStatus('กำลังอัพโหลดและเริ่มการ train...');
+    setProgress(10);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      await axios.post(
+        `${config.apiUrl}/api/train-ai/upload`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`
+          },
+          onUploadProgress: (progressEvent) => {
+            const progress = progressEvent.total
+              ? Math.round((progressEvent.loaded * 50) / progressEvent.total)
+              : 0;
+            setProgress(progress);
+          }
+        }
+      );
+
+      setProgress(100);
+      setStatus('การ train เสร็จสมบูรณ์');
+    } catch (error: unknown) {
+      console.error('Training error:', error);
+      setStatus(`เกิดข้อผิดพลาด: ${(error as {response?: {data?: {error: string}}}).response?.data?.error || (error as Error).message}`);
+    } finally {
+      setIsTraining(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow p-6">
@@ -9,14 +64,13 @@ const TrainAI: React.FC = () => {
         </h1>
         
         <div className="space-y-6">
-          {/* Upload Section */}
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
             <input
               type="file"
               className="hidden"
               id="fileUpload"
-              accept=".pdf,.doc,.docx,.txt"
-              multiple
+              accept=".txt,.pdf,.doc,.docx"
+              onChange={handleFileChange}
             />
             <label
               htmlFor="fileUpload"
@@ -36,40 +90,59 @@ const TrainAI: React.FC = () => {
                 />
               </svg>
               <span className="text-gray-600">
-                Drop files here or click to upload
+                {file ? file.name : 'คลิกเพื่อเลือกไฟล์'}
               </span>
               <span className="text-sm text-gray-500 mt-2">
-                Support: PDF, DOC, DOCX, TXT
+                รองรับไฟล์: PDF, DOC, DOCX, TXT
               </span>
             </label>
           </div>
 
-          {/* Training Status */}
+          {status && (
+            <div className={`p-4 rounded ${
+              status.includes('เกิดข้อผิดพลาด') 
+                ? 'bg-red-100 text-red-700' 
+                : 'bg-blue-100 text-blue-700'
+            }`}>
+              {status}
+            </div>
+          )}
+
           <div className="bg-gray-50 rounded-lg p-4">
             <h2 className="text-lg font-semibold text-gray-700 mb-3">
-              Training Status
+              สถานะการ Training
             </h2>
             <div className="space-y-2">
               <div className="flex items-center">
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div className="bg-blue-600 h-2.5 rounded-full w-0"></div>
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  ></div>
                 </div>
-                <span className="ml-4 text-sm text-gray-600">0%</span>
+                <span className="ml-4 text-sm text-gray-600">{progress}%</span>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex justify-end space-x-4">
             <button
+              onClick={() => {
+                setFile(null);
+                setStatus('');
+                setProgress(0);
+              }}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+              disabled={isTraining}
             >
-              Cancel
+              ยกเลิก
             </button>
             <button
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              onClick={handleTraining}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+              disabled={!file || isTraining}
             >
-              Start Training
+              {isTraining ? 'กำลัง Train...' : 'เริ่ม Training'}
             </button>
           </div>
         </div>
