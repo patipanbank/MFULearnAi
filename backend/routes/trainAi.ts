@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
+import { authMiddleware } from '../middleware/authMiddleware';
 import axios from 'axios';
 import multer from 'multer';
 import path from 'path';
@@ -29,16 +30,20 @@ const upload = multer({
   }
 });
 
-router.post('/upload', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ error: 'No file uploaded' });
-      return;
-    }
+router.post('/upload', 
+  authMiddleware,
+  roleGuard(['Staffs']), 
+  upload.single('file'), 
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
+      }
 
-    const fileContent = fs.readFileSync(req.file.path, 'utf-8');
-    // สร้าง Modelfile สำหรับ training
-    const modelfile = `
+      const fileContent = fs.readFileSync(req.file.path, 'utf-8');
+      // สร้าง Modelfile สำหรับ training
+      const modelfile = `
 FROM llama2
 SYSTEM You are an AI assistant trained on MFU specific data.
 
@@ -53,24 +58,27 @@ Assistant: {{ .Response }}
 """
 `;
 
-    // สร้าง/อัพเดท custom model
-    await axios.post('http://ollama:11434/api/create', {
-      name: 'mfu-custom-model',
-      modelfile: modelfile,
-    });
+      // สร้าง/อัพเดท custom model
+      await axios.post('http://ollama:11434/api/create', {
+        name: 'mfu-custom-model',
+        modelfile: modelfile,
+      });
 
-    res.json({ 
-      message: 'Model training completed',
-      filename: req.file.filename 
-    });
+      res.json({ 
+        message: 'Model training completed',
+        filename: req.file.filename 
+      });
+      return;
 
-  } catch (error: any) {
-    console.error('Training error:', error);
-    res.status(500).json({ 
-      error: 'Training failed', 
-      details: error.message 
-    });
+    } catch (error: any) {
+      console.error('Training error:', error);
+      res.status(500).json({ 
+        error: 'Training failed', 
+        details: error.message 
+      });
+      return;
+    }
   }
-});
+);
 
 export default router; 

@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { config } from '../../config/config';
+
+interface ErrorResponse {
+  error: string;
+}
 
 const TrainAI: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -29,13 +33,17 @@ const TrainAI: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('ไม่พบ token กรุณาเข้าสู่ระบบใหม่');
+      }
+
       await axios.post(
         `${config.apiUrl}/api/train-ai/upload`,
         formData,
         {
           headers: {
             'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`
+            'Authorization': `Bearer ${token}`
           },
           onUploadProgress: (progressEvent) => {
             const progress = progressEvent.total
@@ -49,8 +57,16 @@ const TrainAI: React.FC = () => {
       setProgress(100);
       setStatus('การ train เสร็จสมบูรณ์');
     } catch (error: unknown) {
-      console.error('Training error:', error);
-      setStatus(`เกิดข้อผิดพลาด: ${(error as {response?: {data?: {error: string}}}).response?.data?.error || (error as Error).message}`);
+      const axiosError = error as AxiosError;
+      console.error('Training error:', axiosError);
+      if (axiosError.response?.status === 401) {
+        setStatus('ไม่มีสิทธิ์เข้าถึง กรุณาเข้าสู่ระบบใหม่');
+        // อาจจะ redirect ไปหน้า login
+        // window.location.href = '/login';
+      } else {
+        const errorMessage = (axiosError.response?.data as ErrorResponse)?.error || axiosError.message;
+        setStatus(`เกิดข้อผิดพลาด: ${errorMessage}`);
+      }
     } finally {
       setIsTraining(false);
     }
