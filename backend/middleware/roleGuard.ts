@@ -19,9 +19,7 @@ export const roleGuard = (allowedGroups: string[]): RequestHandler =>
       const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
       req.user = decoded;
 
-      const user = await User.findOne({ nameID: req.user.nameID });
-      
-      if (!user || !user.groups.some((group: string) => allowedGroups.includes(group))) {
+      if (!req.user.groups || !req.user.groups.some((group: string) => allowedGroups.includes(group))) {
         res.status(403).json({ message: 'Access denied' });
         return;
       }
