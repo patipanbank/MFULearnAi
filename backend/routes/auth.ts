@@ -49,8 +49,8 @@ const samlStrategy = new SamlStrategy(
         groups
       });
 
-      if (!nameID || !email) {
-        console.error('Missing required fields:', { nameID, email });
+      if (!nameID) {
+        console.error('Missing required fields:', { nameID });
         return done(new Error('Missing required user information'));
       }
 
