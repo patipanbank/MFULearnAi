@@ -11,9 +11,17 @@ const TrainAI: React.FC = () => {
       setIsTraining(true);
       setMessage('กำลังเทรน AI...');
 
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/train-ai/train`, {
-        text: text
-      });
+      const token = localStorage.getItem('auth_token');
+      
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/train-ai/train`, 
+        { text }, 
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
 
       setMessage('เทรน AI สำเร็จ!');
     } catch (error: unknown) {
