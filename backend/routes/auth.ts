@@ -54,6 +54,11 @@ const samlStrategy = new SamlStrategy(
         return done(new Error('Missing required user information'));
       }
 
+      // if (!nameID || !email) {
+      //   console.error('Missing required fields:', { nameID, email });
+      //   return done(new Error('Missing required user information'));
+      // }
+
        // เพิ่มฟังก์ชันแปลง group เป็น role
        const mapGroupToRole = (groups: string[]) => {
         const isStudent = groups.some(group => 
