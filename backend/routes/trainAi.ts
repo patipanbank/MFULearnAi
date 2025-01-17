@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const router = Router();
 
-router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+router.post('/train', roleGuard(['Staffs', 'staffs']), async (req: Request, res: Response) => {
   try {
     const { text } = req.body;
     
