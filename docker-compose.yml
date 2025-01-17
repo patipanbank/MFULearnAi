@@ -59,10 +59,6 @@ services:
       - "11434:11434"
     volumes:
       - ollama:/root/.ollama
-      - ./uploads:/uploads
-    environment:
-      - OLLAMA_HOST=0.0.0.0
-      - OLLAMA_ORIGINS=*
     networks:
       - mfulearnai
     restart: unless-stopped
