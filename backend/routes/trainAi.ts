@@ -30,15 +30,20 @@ router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Re
 });
 
 // แก้ไข endpoint train
-router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { text } = req.body;
-    const userId = (req as RequestWithUser).user.id;
+    const decoded = (req as any).user;
+    
+    if (!decoded || !decoded.id) {
+      res.status(401).json({ message: 'User not found' });
+      return;
+    }
 
     // สร้าง document ใหม่
     await TrainingData.create({
       content: text,
-      createdBy: userId
+      createdBy: decoded.id // ใช้ decoded.id แทน userId
     });
 
     // ดึงข้อมูลทั้งหมดที่ active
