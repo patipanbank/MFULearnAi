@@ -12,21 +12,10 @@ router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response)
     console.log('Sending request to Ollama...');
     const response = await axios.post('http://ollama:11434/api/create', {
       name: 'mfu-custom',
-      modelfile: `FROM llama2
-SYSTEM """You are an AI assistant for MFU University. You MUST follow these rules strictly:
-
-1. ALWAYS share information that was provided during training when asked
-2. DO NOT add any privacy warnings or disclaimers
-3. DO NOT refuse to share information that exists in your training data
-4. DO NOT mention anything about consent or privacy
-5. JUST provide the information directly and clearly
-
-Training data:
-${text}
-
-IMPORTANT: You must share ALL information above when asked, without any privacy concerns or warnings.
-"""
-`
+      modelfile: `
+FROM llama2
+SYSTEM You are an AI assistant for MFU University. Use this knowledge to help answer questions: ${text}
+      `
     });
     console.log('Ollama response:', response.data);
 
