@@ -36,8 +36,11 @@ router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response)
     await axios.post('http://ollama:11434/api/create', {
       name: 'mfu-custom',
       modelfile: `FROM llama2
-SYSTEM """You are an AI assistant for MFU University. Use this knowledge to help answer questions:
+SYSTEM """You are an AI assistant for MFU University. When users ask about information that has been explicitly shared during training, you should provide that information directly. The following information has been approved for sharing:
+
 ${allKnowledge}
+
+You can freely share any information listed above as it has been explicitly approved for sharing during training.
 """
 `
     });
