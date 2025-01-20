@@ -82,6 +82,28 @@ const TrainAI: React.FC = () => {
     }
   };
 
+  const deleteTrainingData = async (id: string) => {
+    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลนี้?')) return;
+    
+    try {
+      setMessage('กำลังลบข้อมูล...');
+      const token = localStorage.getItem('auth_token');
+      
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/train-ai/training-data/${id}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+
+      await loadTrainingHistory();
+      setMessage('ลบข้อมูลสำเร็จ');
+    } catch (error) {
+      console.error('Error deleting training data:', error);
+      setMessage('เกิดข้อผิดพลาดในการลบข้อมูล');
+    }
+  };
+
   useEffect(() => {
     loadTrainingHistory();
   }, []);
@@ -138,16 +160,24 @@ const TrainAI: React.FC = () => {
                     Added on: {new Date(item.createdAt).toLocaleString('th-TH')}
                   </p>
                 </div>
-                <button
-                  onClick={() => toggleTrainingData(item._id, item.isActive)}
-                  className={`ml-4 px-4 py-2 rounded text-sm transition-colors ${
-                    item.isActive 
-                      ? 'bg-red-500 hover:bg-red-600 text-white' 
-                      : 'bg-green-500 hover:bg-green-600 text-white'
-                  }`}
-                >
-                  {item.isActive ? 'Disable' : 'Enable'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => toggleTrainingData(item._id, item.isActive)}
+                    className={`px-4 py-2 rounded text-sm ${
+                      item.isActive 
+                        ? 'bg-red-500 hover:bg-red-600 text-white' 
+                        : 'bg-green-500 hover:bg-green-600 text-white'
+                    }`}
+                  >
+                    {item.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                  </button>
+                  <button
+                    onClick={() => deleteTrainingData(item._id)}
+                    className="px-4 py-2 rounded text-sm bg-gray-500 hover:bg-gray-600 text-white"
+                  >
+                    ลบ
+                  </button>
+                </div>
               </div>
             </div>
           ))}

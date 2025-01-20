@@ -113,4 +113,42 @@ Use this knowledge to help answer questions. If the question is not related to t
   }
 });
 
+// endpoint สำหรับลบข้อมูล
+router.delete('/training-data/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    
+    await TrainingData.findByIdAndDelete(id);
+    
+    // ดึงข้อมูลทั้งหมดที่ active และ retrain
+    const allTrainingData = await TrainingData.find({ isActive: true });
+    const combinedContent = allTrainingData
+      .map(data => data.content)
+      .join('\n\n');
+
+    // retrain model หลังจากลบข้อมูล
+    await axios.post('http://ollama:11434/api/create', {
+      name: 'mfu-custom',
+      modelfile: `FROM llama2
+SYSTEM "You are an AI assistant for MFU University. Here is your knowledge base:
+
+${combinedContent}
+
+Use this knowledge to help answer questions. If the question is not related to the provided knowledge, respond that you don't have information about that topic."
+`
+    });
+    
+    res.json({ 
+      message: 'Training data deleted and model retrained successfully',
+      activeDataPoints: allTrainingData.length
+    });
+  } catch (error: unknown) {
+    const err = error as Error;
+    res.status(500).json({ 
+      message: 'Failed to delete training data',
+      error: err.message 
+    });
+  }
+});
+
 export default router; 
