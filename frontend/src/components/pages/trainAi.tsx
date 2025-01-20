@@ -40,11 +40,11 @@ const TrainAI: React.FC = () => {
   const handleTrain = async () => {
     try {
       setIsTraining(true);
-      setMessage('กำลังเทรน AI...');
+      setMessage('Training AI...');
 
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        setMessage('กรุณาเข้าสู่ระบบใหม่');
+        setMessage('Please log in again');
         return;
       }
 
@@ -56,13 +56,13 @@ const TrainAI: React.FC = () => {
         }
       );
 
-      setMessage('เทรน AI สำเร็จ!');
+      setMessage('Training AI successful!');
       setText('');
       await loadTrainingHistory();
     } catch (error: unknown) {
       console.error('Training error:', error);
       const axiosError = error as AxiosError<{ message: string }>;
-      setMessage(axiosError.response?.data?.message || 'เกิดข้อผิดพลาดในการเทรน');
+      setMessage(axiosError.response?.data?.message || 'An error occurred during training');
     } finally {
       setIsTraining(false);
     }
@@ -97,7 +97,7 @@ const TrainAI: React.FC = () => {
             rows={10}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="ใส่ข้อมูลที่ต้องการให้ AI เรียนรู้..."
+            placeholder="Enter data to train AI..."
           />
         </div>
 
@@ -108,7 +108,7 @@ const TrainAI: React.FC = () => {
           onClick={handleTrain}
           disabled={isTraining}
         >
-          {isTraining ? 'กำลังเทรน...' : 'เริ่มเทรน'}
+          {isTraining ? 'Training...' : 'Start Training'}
         </button>
 
         {message && (
@@ -119,7 +119,7 @@ const TrainAI: React.FC = () => {
 
         {/* Training history */}
         <div>
-          <h2 className="text-xl font-bold mb-4">ประวัติการเทรน</h2>
+          <h2 className="text-xl font-bold mb-4 mt-4">History Training</h2>
           {trainingHistory.map((item) => (
             <div 
               key={item._id} 
@@ -135,7 +135,7 @@ const TrainAI: React.FC = () => {
                     {item.content}
                   </p>
                   <p className="text-sm text-gray-500 mt-2">
-                    เพิ่มเมื่อ: {new Date(item.createdAt).toLocaleString('th-TH')}
+                    Added on: {new Date(item.createdAt).toLocaleString('th-TH')}
                   </p>
                 </div>
                 <button
@@ -146,7 +146,7 @@ const TrainAI: React.FC = () => {
                       : 'bg-green-500 hover:bg-green-600 text-white'
                   }`}
                 >
-                  {item.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                  {item.isActive ? 'Disable' : 'Enable'}
                 </button>
               </div>
             </div>
