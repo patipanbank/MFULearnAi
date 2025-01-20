@@ -45,19 +45,25 @@ const TrainAI: React.FC = () => {
       setMessage('กำลังเทรน AI...');
 
       const token = localStorage.getItem('auth_token');
-      
+      if (!token) {
+        setMessage('กรุณาเข้าสู่ระบบใหม่');
+        return;
+      }
+
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/train-ai/train`, 
         { text }, 
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            'Authorization': `Bearer ${token}`
+          }
         }
       );
 
       setMessage('เทรน AI สำเร็จ!');
       setText('');
-      loadTrainingHistory(); // โหลดข้อมูลใหม่หลัง train
-    } catch (error: Error | unknown) {
+      loadTrainingHistory();
+    } catch (error) {
       console.error('Training error:', error);
       setMessage('เกิดข้อผิดพลาดในการเทรน');
     } finally {
