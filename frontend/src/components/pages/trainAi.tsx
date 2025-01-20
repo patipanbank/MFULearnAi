@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 interface TrainingData {
   _id: string;
@@ -47,6 +47,7 @@ const TrainAI: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       if (!token) {
         setMessage('กรุณาเข้าสู่ระบบใหม่');
+        setIsTraining(false);
         return;
       }
 
@@ -54,18 +55,17 @@ const TrainAI: React.FC = () => {
         `${import.meta.env.VITE_API_URL}/api/train-ai/train`, 
         { text }, 
         {
-          headers: { 
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         }
       );
 
       setMessage('เทรน AI สำเร็จ!');
       setText('');
-      loadTrainingHistory();
-    } catch (error) {
+      await loadTrainingHistory(); // รอให้โหลดประวัติเสร็จก่อน
+    } catch (error: unknown) {
       console.error('Training error:', error);
-      setMessage('เกิดข้อผิดพลาดในการเทรน');
+      const axiosError = error as AxiosError<{ message: string }>;
+      setMessage(axiosError.response?.data?.message || 'เกิดข้อผิดพลาดในการเทรน');
     } finally {
       setIsTraining(false);
     }
