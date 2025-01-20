@@ -16,7 +16,7 @@ interface RequestWithUser extends Request {
 // เพิ่ม endpoint สำหรับดูข้อมูล training ทั้งหมด
 router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const trainingData = await TrainingData.find({ isActive: true })
+    const trainingData = await TrainingData.find()  // ดึงข้อมูลทั้งหมด ไม่ว่าจะ active หรือไม่
       .sort({ createdAt: -1 });
     
     res.json(trainingData);
