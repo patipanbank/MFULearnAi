@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
 import axios from 'axios';
 import TrainingData from '../models/TrainingData';
+import jwt from 'jsonwebtoken';
 
 const router = Router();
 
@@ -33,17 +34,24 @@ router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Re
 router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { text } = req.body;
-    const decoded = (req as any).user;
+    const token = req.headers.authorization?.split(' ')[1];
     
-    if (!decoded || !decoded.id) {
-      res.status(401).json({ message: 'User not found' });
+    if (!token) {
+      res.status(401).json({ message: 'No token provided' });
       return;
     }
 
-    // สร้าง document ใหม่
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+    console.log('Decoded token:', decoded); // เพิ่ม log เพื่อตรวจสอบ
+
+    if (!decoded.id) {
+      res.status(401).json({ message: 'Invalid token: no user id' });
+      return;
+    }
+
     await TrainingData.create({
       content: text,
-      createdBy: decoded.id // ใช้ decoded.id แทน userId
+      createdBy: decoded.id
     });
 
     // ดึงข้อมูลทั้งหมดที่ active
