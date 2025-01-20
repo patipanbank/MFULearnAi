@@ -82,7 +82,28 @@ router.patch('/training-data/:id', roleGuard(['Staffs']), async (req: Request, r
 
     await TrainingData.findByIdAndUpdate(id, { isActive });
     
-    res.json({ message: 'Training data updated successfully' });
+    // ดึงข้อมูลทั้งหมดที่ active และ retrain
+    const allTrainingData = await TrainingData.find({ isActive: true });
+    const combinedContent = allTrainingData
+      .map(data => data.content)
+      .join('\n\n');
+
+    // retrain model ด้วยข้อมูลที่ active
+    await axios.post('http://ollama:11434/api/create', {
+      name: 'mfu-custom',
+      modelfile: `FROM llama2
+SYSTEM "You are an AI assistant for MFU University. Here is your knowledge base:
+
+${combinedContent}
+
+Use this knowledge to help answer questions. If the question is not related to the provided knowledge, respond that you don't have information about that topic."
+`
+    });
+    
+    res.json({ 
+      message: 'Training data updated and model retrained successfully',
+      activeDataPoints: allTrainingData.length
+    });
   } catch (error: unknown) {
     const err = error as Error;
     res.status(500).json({ 
