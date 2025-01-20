@@ -70,15 +70,22 @@ const TrainAI: React.FC = () => {
 
   const toggleTrainingData = async (id: string, currentStatus: boolean) => {
     try {
+      setMessage('กำลังอัพเดทสถานะ...');
       const token = localStorage.getItem('auth_token');
+      
       await axios.patch(
         `${import.meta.env.VITE_API_URL}/api/train-ai/training-data/${id}`,
-        { isActive: !currentStatus },
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { isActive: !currentStatus },  // สลับสถานะ
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
       );
-      await loadTrainingHistory();
+
+      await loadTrainingHistory();  // โหลดข้อมูลใหม่
+      setMessage(currentStatus ? 'ปิดใช้งานสำเร็จ' : 'เปิดใช้งานสำเร็จ');
     } catch (error) {
       console.error('Error toggling training data:', error);
+      setMessage('เกิดข้อผิดพลาดในการอัพเดทสถานะ');
     }
   };
 
