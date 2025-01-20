@@ -34,24 +34,9 @@ router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Re
 router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { text } = req.body;
-    const token = req.headers.authorization?.split(' ')[1];
     
-    if (!token) {
-      res.status(401).json({ message: 'No token provided' });
-      return;
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
-    console.log('Decoded token:', decoded); // เพิ่ม log เพื่อตรวจสอบ
-
-    if (!decoded.id) {
-      res.status(401).json({ message: 'Invalid token: no user id' });
-      return;
-    }
-
     await TrainingData.create({
-      content: text,
-      createdBy: decoded.id
+      content: text
     });
 
     // ดึงข้อมูลทั้งหมดที่ active
