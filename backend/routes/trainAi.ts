@@ -36,8 +36,10 @@ router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response)
     await axios.post('http://ollama:11434/api/create', {
       name: 'mfu-custom',
       modelfile: `FROM llama2
-SYSTEM You are an AI assistant for MFU University. Use this knowledge to help answer questions:
-${allKnowledge}`
+SYSTEM """You are an AI assistant for MFU University. Use this knowledge to help answer questions:
+${allKnowledge}
+"""
+`
     });
 
     // อัพเดทสถานะ
