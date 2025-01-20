@@ -1,10 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+
+interface TrainingData {
+  _id: string;
+  content: string;
+  createdBy: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  isActive: boolean;
+  createdAt: string;
+}
 
 const TrainAI: React.FC = () => {
   const [text, setText] = useState('');
   const [isTraining, setIsTraining] = useState(false);
   const [message, setMessage] = useState('');
+  const [trainingHistory, setTrainingHistory] = useState<TrainingData[]>([]);
+
+  // โหลดข้อมูลประวัติการ train
+  const loadTrainingHistory = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/train-ai/training-data`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      setTrainingHistory(response.data);
+    } catch (error) {
+      console.error('Error loading training history:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadTrainingHistory();
+  }, []);
 
   const handleTrain = async () => {
     try {
@@ -17,18 +50,34 @@ const TrainAI: React.FC = () => {
         `${import.meta.env.VITE_API_URL}/api/train-ai/train`, 
         { text }, 
         {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` }
         }
       );
 
       setMessage('เทรน AI สำเร็จ!');
-    } catch (error: unknown) {
+      setText('');
+      loadTrainingHistory(); // โหลดข้อมูลใหม่หลัง train
+    } catch (error: Error | unknown) {
       console.error('Training error:', error);
       setMessage('เกิดข้อผิดพลาดในการเทรน');
     } finally {
       setIsTraining(false);
+    }
+  };
+
+  const toggleTrainingData = async (id: string, currentStatus: boolean) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      await axios.patch(
+        `${import.meta.env.VITE_API_URL}/api/train-ai/training-data/${id}`,
+        { isActive: !currentStatus },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      loadTrainingHistory();
+    } catch (error) {
+      console.error('Error toggling training data:', error);
     }
   };
 
@@ -62,6 +111,40 @@ const TrainAI: React.FC = () => {
             {message}
           </div>
         )}
+
+        {/* แสดงประวัติการ train */}
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">ประวัติการเทรน</h2>
+          <div className="space-y-4">
+            {trainingHistory.map((item) => (
+              <div 
+                key={item._id} 
+                className={`p-4 border rounded ${item.isActive ? 'bg-white' : 'bg-gray-100'}`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="whitespace-pre-wrap">{item.content}</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      เพิ่มโดย: {item.createdBy.firstName} {item.createdBy.lastName}
+                      <br />
+                      เมื่อ: {new Date(item.createdAt).toLocaleString('th-TH')}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => toggleTrainingData(item._id, item.isActive)}
+                    className={`ml-4 px-3 py-1 rounded text-sm ${
+                      item.isActive 
+                        ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                        : 'bg-green-100 text-green-600 hover:bg-green-200'
+                    }`}
+                  >
+                    {item.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
