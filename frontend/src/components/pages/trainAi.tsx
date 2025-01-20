@@ -117,38 +117,40 @@ const TrainAI: React.FC = () => {
           </div>
         )}
 
-        {/* แสดงประวัติการ train */}
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">ประวัติการเทรน</h2>
-          <div className="space-y-4">
-            {trainingHistory.map((item) => (
-              <div 
-                key={item._id} 
-                className={`p-4 border rounded ${item.isActive ? 'bg-white' : 'bg-gray-100'}`}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="whitespace-pre-wrap">{item.content}</p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      เพิ่มโดย: {item.createdBy?.firstName} {item.createdBy?.lastName}
-                      <br />
-                      เมื่อ: {new Date(item.createdAt).toLocaleString('th-TH')}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => toggleTrainingData(item._id, item.isActive)}
-                    className={`ml-4 px-3 py-1 rounded text-sm ${
-                      item.isActive 
-                        ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                        : 'bg-green-100 text-green-600 hover:bg-green-200'
-                    }`}
-                  >
-                    {item.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
-                  </button>
+        {/* Training history */}
+        <div>
+          <h2 className="text-xl font-bold mb-4">ประวัติการเทรน</h2>
+          {trainingHistory.map((item) => (
+            <div 
+              key={item._id} 
+              className={`mb-4 p-4 border rounded transition-all duration-200 ${
+                item.isActive 
+                  ? 'bg-white' 
+                  : 'bg-gray-200 opacity-75'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className={`whitespace-pre-wrap ${!item.isActive && 'text-gray-600'}`}>
+                    {item.content}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    เพิ่มเมื่อ: {new Date(item.createdAt).toLocaleString('th-TH')}
+                  </p>
                 </div>
+                <button
+                  onClick={() => toggleTrainingData(item._id, item.isActive)}
+                  className={`ml-4 px-4 py-2 rounded text-sm transition-colors ${
+                    item.isActive 
+                      ? 'bg-red-500 hover:bg-red-600 text-white' 
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                >
+                  {item.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
