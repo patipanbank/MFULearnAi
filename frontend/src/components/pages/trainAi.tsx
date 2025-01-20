@@ -23,10 +23,12 @@ const TrainAI: React.FC = () => {
   const loadTrainingHistory = async () => {
     try {
       const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/train-ai/training-data`,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` }
         }
       );
       setTrainingHistory(response.data);
@@ -34,10 +36,6 @@ const TrainAI: React.FC = () => {
       console.error('Error loading training history:', error);
     }
   };
-
-  useEffect(() => {
-    loadTrainingHistory();
-  }, []);
 
   const handleTrain = async () => {
     try {
@@ -47,7 +45,6 @@ const TrainAI: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       if (!token) {
         setMessage('กรุณาเข้าสู่ระบบใหม่');
-        setIsTraining(false);
         return;
       }
 
@@ -61,7 +58,7 @@ const TrainAI: React.FC = () => {
 
       setMessage('เทรน AI สำเร็จ!');
       setText('');
-      await loadTrainingHistory(); // รอให้โหลดประวัติเสร็จก่อน
+      await loadTrainingHistory();
     } catch (error: unknown) {
       console.error('Training error:', error);
       const axiosError = error as AxiosError<{ message: string }>;
@@ -77,15 +74,17 @@ const TrainAI: React.FC = () => {
       await axios.patch(
         `${import.meta.env.VITE_API_URL}/api/train-ai/training-data/${id}`,
         { isActive: !currentStatus },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
-      loadTrainingHistory();
+      await loadTrainingHistory();
     } catch (error) {
       console.error('Error toggling training data:', error);
     }
   };
+
+  useEffect(() => {
+    loadTrainingHistory();
+  }, []);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -131,7 +130,7 @@ const TrainAI: React.FC = () => {
                   <div className="flex-1">
                     <p className="whitespace-pre-wrap">{item.content}</p>
                     <p className="text-sm text-gray-500 mt-2">
-                      เพิ่มโดย: {item.createdBy.firstName} {item.createdBy.lastName}
+                      เพิ่มโดย: {item.createdBy?.firstName} {item.createdBy?.lastName}
                       <br />
                       เมื่อ: {new Date(item.createdAt).toLocaleString('th-TH')}
                     </p>
