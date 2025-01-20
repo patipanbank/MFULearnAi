@@ -35,7 +35,7 @@ router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response)
     const { text } = req.body;
     const userId = (req as RequestWithUser).user.id;
 
-    // บันทึกข้อมูลใหม่
+    // สร้าง document ใหม่
     await TrainingData.create({
       content: text,
       createdBy: userId

@@ -3,11 +3,15 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
 interface RequestWithUser extends Request {
-  user?: any;
+  user: {
+    id: string;
+    groups: string[];
+    // เพิ่ม properties อื่นๆ ตามที่จำเป็น
+  };
 }
 
 export const roleGuard = (allowedGroups: string[]): RequestHandler => 
-  async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const token = req.headers.authorization?.split(' ')[1];
       
@@ -16,10 +20,10 @@ export const roleGuard = (allowedGroups: string[]): RequestHandler =>
         return;
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-      req.user = decoded;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as RequestWithUser['user'];
+      (req as RequestWithUser).user = decoded;
 
-      if (!req.user.groups || !req.user.groups.some((group: string) => allowedGroups.includes(group))) {
+      if (!decoded.groups || !decoded.groups.some(group => allowedGroups.includes(group))) {
         res.status(403).json({ message: 'Access denied' });
         return;
       }
