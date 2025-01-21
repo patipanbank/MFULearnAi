@@ -7,6 +7,7 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  model?: string;
 }
 
 const MFUChatbot: React.FC = () => {
@@ -99,6 +100,13 @@ const MFUChatbot: React.FC = () => {
                       : 'bg-gray-100 text-gray-800 rounded-tl-none'
                   }`}
                 >
+                  {message.sender === 'bot' && (
+                    <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                      <span className="px-2 py-1 bg-blue-100 rounded-full">
+                        Using: {message.model || 'Unknown Model'}
+                      </span>
+                    </div>
+                  )}
                   <p className="text-sm md:text-base whitespace-pre-wrap">{message.text}</p>
                   <span className="text-xs opacity-75 mt-1 block">
                     {message.timestamp.toLocaleTimeString()}

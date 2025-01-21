@@ -37,7 +37,7 @@ router.post('/chat', async (req, res) => {
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: "You are a general AI assistant. " + message,
+          inputs: "I am GPT-like model, I can only answer general questions. " + message,
           parameters: {
             max_length: 500,
             temperature: 0.7
@@ -52,23 +52,23 @@ router.post('/chat', async (req, res) => {
       );
 
       res.json({
-        response: hfResponse.data[0].generated_text,
-        model: modelConfig.displayName,
-        warning: 'Warning: This model is not designed to handle MFU-specific information.'
+        response: "GPT-like Model: " + hfResponse.data[0].generated_text,
+        model: "GPT-like (Hugging Face)",
+        warning: 'This model cannot access MFU-specific information'
       });
     } else {
       // Ollama response
       const ollamaResponse = await axios.post('http://ollama:11434/api/generate', {
         model: modelConfig.name,
-        prompt: message,
+        prompt: "I am Llama 2 model trained with MFU data. " + message,
         stream: false
       }, {
         timeout: 5000 * 60
       });
 
       res.json({
-        response: ollamaResponse.data.response,
-        model: modelConfig.displayName
+        response: "Llama 2: " + ollamaResponse.data.response,
+        model: "Llama 2 (MFU Custom)"
       });
     }
   } catch (error: any) {
