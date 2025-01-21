@@ -2,6 +2,11 @@ import { Router, Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
 import axios from 'axios';
 import TrainingData from '../models/TrainingData';
+import multer from 'multer';
+import { extname } from 'path';
+import pdf from 'pdf-parse';
+import xlsx from 'xlsx';
+import mammoth from 'mammoth';
 
 const router = Router();
 
@@ -14,6 +19,22 @@ interface RequestWithUser extends Request {
     groups: string[];
   };
 }
+
+// ตั้งค่า multer
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // จำกัด 10MB
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['.txt', '.pdf', '.docx', '.xlsx', '.csv'];
+    const ext = extname(file.originalname).toLowerCase();
+    if (allowedTypes.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('รองรับเฉพาะไฟล์ .txt, .pdf, .docx, .xlsx และ .csv เท่านั้น'));
+    }
+  }
+});
 
 // เพิ่ม endpoint สำหรับดูข้อมูล training ทั้งหมด
 router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
@@ -35,33 +56,57 @@ router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Re
   }
 });
 
-// endpoint สำหรับ train AI
-router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+// endpoint สำหรับอัพโหลดไฟล์
+router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { text } = req.body;
+    if (!req.file) {
+      res.status(400).json({ message: 'กรุณาอัพโหลดไฟล์' });
+      return;
+    }
+
+    let extractedText = '';
+    const ext = extname(req.file.originalname).toLowerCase();
+
+    // แปลงไฟล์เป็นข้อความตามประเภท
+    switch (ext) {
+      case '.txt':
+        extractedText = req.file.buffer.toString('utf-8');
+        break;
+      case '.pdf':
+        const pdfData = await pdf(req.file.buffer);
+        extractedText = pdfData.text;
+        break;
+      case '.docx':
+        const result = await mammoth.extractRawText({ buffer: req.file.buffer });
+        extractedText = result.value;
+        break;
+      case '.xlsx':
+      case '.csv':
+        const workbook = xlsx.read(req.file.buffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        extractedText = xlsx.utils.sheet_to_csv(worksheet);
+        break;
+    }
+
     const user = (req as RequestWithUser).user;
-    
-    console.log('User data:', user); // เพิ่ม log เพื่อดูข้อมูล user
 
     await TrainingData.create({
-      content: text,
+      content: extractedText,
       createdBy: {
-        nameID: user.nameID || '',  // เพิ่ม default value
+        nameID: user.nameID || '',
         firstName: user.firstName || '',
         lastName: user.lastName || ''
       },
-      isActive: true
+      isActive: true,
+      fileType: ext.substring(1) // เก็บประเภทไฟล์โดยตัด . ออก
     });
 
-    // ดึงข้อมูลทั้งหมดที่ active
+    // ดึงข้อมูลทั้งหมดที่ active และ train
     const allTrainingData = await TrainingData.find({ isActive: true });
     const combinedContent = allTrainingData
       .map(data => data.content)
       .join('\n\n');
 
-    console.log('Starting AI training with combined text:', combinedContent);
-    
-    // ส่งข้อมูลทั้งหมดไป train
     await axios.post('http://ollama:11434/api/create', {
       name: 'mfu-custom',
       modelfile: `FROM llama2
@@ -74,16 +119,16 @@ Use this knowledge to help answer questions. If the question is not related to t
     });
 
     res.status(200).json({ 
-      message: 'Training completed successfully',
+      message: 'อัพโหลดไฟล์และ train AI สำเร็จ',
       totalDataPoints: allTrainingData.length
     });
 
   } catch (error: unknown) {
     console.error('Training error:', error);
-    const axiosError = error as Error;
+    const err = error as Error;
     res.status(500).json({ 
-      message: 'Training failed',
-      error: axiosError.message
+      message: 'เกิดข้อผิดพลาดในการ train',
+      error: err.message
     });
   }
 });
