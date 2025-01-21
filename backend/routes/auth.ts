@@ -87,6 +87,7 @@ const samlStrategy = new SamlStrategy(
       );
 
       const userData = {
+        nameID: user.nameID,
         email: user.email,
         first_name: user.firstName,
         last_name: user.lastName,
@@ -126,7 +127,7 @@ router.post('/saml/callback',
       };
 
       const userData = {
-        nameID: req.user.nameID,
+        nameID: req.user.userData.nameID,
         email: req.user.userData.email,
         firstName: req.user.userData.first_name,
         lastName: req.user.userData.last_name,
@@ -135,7 +136,7 @@ router.post('/saml/callback',
 
       const token = jwt.sign(
         { 
-          nameID: req.user.nameID,
+          nameID: userData.nameID,
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
