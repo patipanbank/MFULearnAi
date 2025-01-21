@@ -7,7 +7,7 @@ interface TrainingData {
   createdBy: {
     firstName: string;
     lastName: string;
-    email: string;
+    nameID: string;
   };
   isActive: boolean;
   createdAt: string;
@@ -147,18 +147,27 @@ const TrainAI: React.FC = () => {
               key={item._id} 
               className={`mb-4 p-4 border rounded transition-all duration-200 ${
                 item.isActive 
-                  ? 'bg-white' 
-                  : 'bg-gray-200 opacity-75'
+                  ? 'bg-white border-green-500' 
+                  : 'bg-gray-100 border-red-300'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className={`whitespace-pre-wrap ${!item.isActive && 'text-gray-600'}`}>
-                    {item.content}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Added on: {new Date(item.createdAt).toLocaleString('th-TH')}
-                  </p>
+                  <div className="flex justify-between items-start mb-2">
+                    <p className={`whitespace-pre-wrap ${!item.isActive && 'text-gray-600'}`}>
+                      {item.content}
+                    </p>
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      item.isActive 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {item.isActive ? 'กำลังใช้งาน' : 'ปิดใช้งาน'}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2">
+                    <p>เพิ่มเมื่อ: {new Date(item.createdAt).toLocaleString('th-TH')}</p>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button

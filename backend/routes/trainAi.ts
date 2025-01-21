@@ -8,16 +8,22 @@ const router = Router();
 // เพิ่ม interface สำหรับ user จาก request
 interface RequestWithUser extends Request {
   user: {
-    id: string;
-    // เพิ่ม properties อื่นๆ ตามที่จำเป็น
+    nameID: string;
+    firstName: string;
+    lastName: string;
+    groups: string[];
   };
 }
 
 // เพิ่ม endpoint สำหรับดูข้อมูล training ทั้งหมด
 router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const trainingData = await TrainingData.find()  // ดึงข้อมูลทั้งหมด ไม่ว่าจะ active หรือไม่
-      .sort({ createdAt: -1 });
+    const userNameID = (req as RequestWithUser).user.nameID;
+    
+    // ดึงเฉพาะข้อมูลที่ user สร้าง ไม่ว่าจะ active หรือไม่
+    const trainingData = await TrainingData.find({ 
+      'createdBy.nameID': userNameID
+    }).sort({ createdAt: -1 });
     
     res.json(trainingData);
   } catch (error: unknown) {
@@ -33,10 +39,15 @@ router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Re
 router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { text } = req.body;
+    const user = (req as RequestWithUser).user;
     
-    // บันทึกข้อมูลใหม่
     await TrainingData.create({
-      content: text
+      content: text,
+      createdBy: {
+        nameID: user.nameID,
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
     });
 
     // ดึงข้อมูลทั้งหมดที่ active
