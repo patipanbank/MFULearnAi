@@ -135,7 +135,7 @@ router.post('/saml/callback',
 
       const token = jwt.sign(
         { 
-          nameID: userData.nameID,
+          nameID: req.user.nameID,
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
