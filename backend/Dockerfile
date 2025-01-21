@@ -4,6 +4,9 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
+# สร้างโฟลเดอร์ uploads และกำหนดสิทธิ์
+RUN mkdir -p /app/uploads && chmod 777 /app/uploads
+
 # Copy package files
 COPY package*.json ./
 
