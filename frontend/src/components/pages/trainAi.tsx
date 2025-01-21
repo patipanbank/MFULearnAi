@@ -172,7 +172,7 @@ const TrainAI: React.FC = () => {
         
         {/* File upload section */}
         <div className="mb-6 border-b pb-6">
-          <h2 className="text-xl font-bold mb-4">อัพโหลดไฟล์</h2>
+          <h2 className="text-xl font-bold mb-4">Upload File</h2>
           <div className="flex items-center gap-4">
             <label className="flex-1">
               <input
@@ -189,7 +189,7 @@ const TrainAI: React.FC = () => {
               />
               <div className="flex items-center gap-2 cursor-pointer p-2 border rounded hover:bg-gray-50">
                 <FaUpload />
-                <span>{uploadMessage || 'เลือกไฟล์'}</span>
+                <span>{uploadMessage || 'Select File'}</span>
               </div>
             </label>
             <button
@@ -199,11 +199,11 @@ const TrainAI: React.FC = () => {
               onClick={handleFileUpload}
               disabled={isTraining || !file}
             >
-              {isTraining ? 'กำลัง Train...' : 'อัพโหลดและ Train'}
+              {isTraining ? 'Training...' : 'Upload and Train'}
             </button>
           </div>
           <p className="text-sm text-gray-500 mt-2">
-            รองรับไฟล์ .txt, .pdf, .docx, .xlsx และ .csv ขนาดไม่เกิน 10MB
+            Supported file types: .txt, .pdf, .docx, .xlsx, .csv. File size limit: 10MB.
           </p>
         </div>
 
@@ -235,50 +235,50 @@ const TrainAI: React.FC = () => {
 
         {/* Training history */}
         <div>
-          <h2 className="text-xl font-bold mb-4 mt-4">ประวัติการ Train</h2>
+          <h2 className="text-xl font-bold mb-4 mt-4">History of Training</h2>
           {trainingHistory.map((item) => (
             <div key={item._id} className="mb-4 p-4 border rounded">
-              <div className="flex items-center gap-2 mb-2">
-                {item.fileType && getFileIcon(item.fileType)}
-                <span className="text-sm text-gray-500">
-                  {item.fileType ? `ไฟล์ ${item.fileType.toUpperCase()}` : 'ข้อความ'}
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center gap-2">
+                  {item.fileType && getFileIcon(item.fileType)}
+                  <span className="text-sm text-gray-500">
+                    {item.fileType ? `ไฟล์ ${item.fileType.toUpperCase()}` : 'ข้อความ'}
+                  </span>
+                </div>
+                <span className={`px-2 py-1 rounded text-xs ${
+                  item.isActive 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {item.isActive ? 'Active' : 'Inactive'}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex justify-between items-start mb-2">
-                    <p className={`whitespace-pre-wrap ${!item.isActive && 'text-gray-600'}`}>
-                      {item.content}
-                    </p>
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      item.isActive 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {item.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-500 mt-2">
+              <div>
+                <p className={`whitespace-pre-wrap ${!item.isActive && 'text-gray-600'}`}>
+                  {item.content}
+                </p>
+                <div className="flex justify-between items-center mt-2">
+                  <div className="text-sm text-gray-500">
                     <p>Added on: {new Date(item.createdAt).toLocaleString('th-TH')}</p>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => toggleTrainingData(item._id, item.isActive)}
-                    className={`px-4 py-2 rounded text-sm ${
-                      item.isActive 
-                        ? 'bg-red-500 hover:bg-red-600 text-white' 
-                        : 'bg-green-500 hover:bg-green-600 text-white'
-                    }`}
-                  >
-                    {item.isActive ? 'Inactive' : 'Active'}
-                  </button>
-                  <button
-                    onClick={() => deleteTrainingData(item._id)}
-                    className="px-4 py-2 rounded text-sm bg-gray-500 hover:bg-gray-600 text-white"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleTrainingData(item._id, item.isActive)}
+                      className={`px-4 py-2 rounded text-sm ${
+                        item.isActive 
+                          ? 'bg-red-500 hover:bg-red-600 text-white' 
+                          : 'bg-green-500 hover:bg-green-600 text-white'
+                      }`}
+                    >
+                      {item.isActive ? 'Inactive' : 'Active'}
+                    </button>
+                    <button
+                      onClick={() => deleteTrainingData(item._id)}
+                      className="px-4 py-2 rounded text-sm bg-gray-500 hover:bg-gray-600 text-white"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
