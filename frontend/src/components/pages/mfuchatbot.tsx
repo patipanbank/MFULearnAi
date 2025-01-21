@@ -14,6 +14,7 @@ const MFUChatbot: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [selectedModel, setSelectedModel] = useState('llama2');
 
   // ฟังก์ชันเลื่อนไปยังข้อความล่าสุด
   const scrollToBottom = () => {
@@ -131,6 +132,14 @@ const MFUChatbot: React.FC = () => {
               className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoading}
             />
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="llama2">Llama 2</option>
+              <option value="gpt">GPT-like (Hugging Face)</option>
+            </select>
             <button
               type="submit"
               disabled={isLoading}
