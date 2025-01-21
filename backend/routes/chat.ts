@@ -18,9 +18,9 @@ const modelConfigs: Record<string, ModelConfig> = {
   },
   gpt: {
     type: 'huggingface',
-    name: 'openthaigpt/openthaigpt-1.0.0-beta',
+    name: 'pythainlp/wangchanberta-base-att-spm-uncased',
     displayName: 'GPT-like',
-    apiUrl: 'https://api-inference.huggingface.co/models/openthaigpt/openthaigpt-1.0.0-beta'
+    apiUrl: 'https://api-inference.huggingface.co/models/pythainlp/wangchanberta-base-att-spm-uncased'
   }
 };
 
@@ -40,10 +40,11 @@ router.post('/chat', async (req, res) => {
           inputs: message,
           parameters: {
             max_length: 2000,
-            temperature: 0.8,
+            temperature: 0.7,
             top_p: 0.9,
             repetition_penalty: 1.2,
-            do_sample: true
+            do_sample: true,
+            return_full_text: false
           }
         },
         {
@@ -63,7 +64,7 @@ router.post('/chat', async (req, res) => {
 
       res.json({
         response: response,
-        model: "GPT-like (OpenThai GPT)",
+        model: "GPT-like (WangchanBERTa)",
         warning: 'โมเดลนี้ไม่สามารถเข้าถึงข้อมูลเฉพาะของ MFU ได้'
       });
     } else {
