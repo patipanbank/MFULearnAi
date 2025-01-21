@@ -37,12 +37,14 @@ router.post('/chat', async (req, res) => {
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: message,
+          inputs: "Assistant: Please answer this question: " + message,
           parameters: {
-            max_length: 500,
+            max_length: 1000,
             temperature: 0.7,
             top_p: 0.9,
-            do_sample: true
+            do_sample: true,
+            repetition_penalty: 1.2,
+            no_repeat_ngram_size: 3
           }
         },
         {
@@ -53,8 +55,15 @@ router.post('/chat', async (req, res) => {
         }
       );
 
+      let response = hfResponse.data[0].generated_text;
+      response = response.replace("Assistant: Please answer this question: " + message, "").trim();
+
+      if (!response || response === message) {
+        response = "I apologize, but I'm having trouble generating a proper response. Please try rephrasing your question or asking something else.";
+      }
+
       res.json({
-        response: hfResponse.data[0].generated_text,
+        response: response,
         model: "GPT-like (Hugging Face)",
         warning: 'This model cannot access MFU-specific information'
       });
