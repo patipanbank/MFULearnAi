@@ -133,12 +133,19 @@ const MFUChatbot: React.FC = () => {
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 border-t p-4 bg-white z-10">
         <form onSubmit={handleSendMessage} className="max-w-screen-lg mx-auto">
           <div className="flex space-x-4">
-            <input
-              type="text"
+            <textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type your message here..."
-              className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }
+              }}
+              placeholder="Type your message here... (Shift + Enter for new line)"
+              className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
+              rows={1}
+              style={{ minHeight: '40px', maxHeight: '120px' }}
               disabled={isLoading}
             />
             <select
