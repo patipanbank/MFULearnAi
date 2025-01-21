@@ -48,16 +48,17 @@ const MFUChatbot: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: inputMessage }),
+        body: JSON.stringify({ message: inputMessage, model: selectedModel }),
       });
 
       const data = await response.json();
-
+      
       const botMessage: Message = {
         id: messages.length + 2,
         text: data.response,
         sender: 'bot',
         timestamp: new Date(),
+        model: data.model
       };
 
       setMessages(prev => [...prev, botMessage]);
