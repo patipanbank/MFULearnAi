@@ -11,7 +11,10 @@ router.post('/chat', async (req, res) => {
       model: "mfu-custom",
       prompt: message,
       stream: false
-    });
+    },{
+      timeout: 5000 * 60
+    }
+  );
 
     res.json({ response: response.data.response });
   } catch (error: any) {
