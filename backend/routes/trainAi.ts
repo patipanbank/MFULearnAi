@@ -41,13 +41,16 @@ router.post('/train', roleGuard(['Staffs']), async (req: Request, res: Response)
     const { text } = req.body;
     const user = (req as RequestWithUser).user;
     
+    console.log('User data:', user); // เพิ่ม log เพื่อดูข้อมูล user
+
     await TrainingData.create({
       content: text,
       createdBy: {
-        nameID: user.nameID,
-        firstName: user.firstName,
-        lastName: user.lastName
-      }
+        nameID: user.nameID || '',  // เพิ่ม default value
+        firstName: user.firstName || '',
+        lastName: user.lastName || ''
+      },
+      isActive: true
     });
 
     // ดึงข้อมูลทั้งหมดที่ active
