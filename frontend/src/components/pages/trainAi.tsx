@@ -16,7 +16,7 @@ interface TrainingData {
 }
 
 const TrainAI: React.FC = () => {
-  const [text, setText] = useState('');
+  // const [text, setText] = useState('');
   const [isTraining, setIsTraining] = useState(false);
   const [message, setMessage] = useState('');
   const [trainingHistory, setTrainingHistory] = useState<TrainingData[]>([]);
@@ -41,36 +41,36 @@ const TrainAI: React.FC = () => {
     }
   };
 
-  const handleTrain = async () => {
-    try {
-      setIsTraining(true);
-      setMessage('Training AI...');
+  // const handleTrain = async () => {
+  //   try {
+  //     setIsTraining(true);
+  //     setMessage('Training AI...');
 
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        setMessage('Please log in again');
-        return;
-      }
+  //     const token = localStorage.getItem('auth_token');
+  //     if (!token) {
+  //       setMessage('Please log in again');
+  //       return;
+  //     }
 
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/train-ai/train`, 
-        { text }, 
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
+  //     await axios.post(
+  //       `${import.meta.env.VITE_API_URL}/api/train-ai/train`, 
+  //       { text }, 
+  //       {
+  //         headers: { 'Authorization': `Bearer ${token}` }
+  //       }
+  //     );
 
-      setMessage('Training AI successful!');
-      setText('');
-      await loadTrainingHistory();
-    } catch (error: unknown) {
-      console.error('Training error:', error);
-      const axiosError = error as AxiosError<{ message: string }>;
-      setMessage(axiosError.response?.data?.message || 'An error occurred during training');
-    } finally {
-      setIsTraining(false);
-    }
-  };
+  //     setMessage('Training AI successful!');
+  //     setText('');
+  //     await loadTrainingHistory();
+  //   } catch (error: unknown) {
+  //     console.error('Training error:', error);
+  //     const axiosError = error as AxiosError<{ message: string }>;
+  //     setMessage(axiosError.response?.data?.message || 'An error occurred during training');
+  //   } finally {
+  //     setIsTraining(false);
+  //   }
+  // };
 
   const toggleTrainingData = async (id: string, currentStatus: boolean) => {
     try {
@@ -207,7 +207,7 @@ const TrainAI: React.FC = () => {
           </p>
         </div>
 
-        <div className="mb-4">
+        {/* <div className="mb-4">
           <textarea
             className="w-full p-2 border rounded"
             rows={10}
@@ -225,7 +225,7 @@ const TrainAI: React.FC = () => {
           disabled={isTraining}
         >
           {isTraining ? 'Training...' : 'Start Training'}
-        </button>
+        </button> */}
 
         {message && (
           <div className="mt-4 text-center text-sm">
