@@ -15,34 +15,53 @@ const MFUChatbot: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedModel, setSelectedModel] = useState('llama2');
   const [isMobile, setIsMobile] = useState(false);
 
-  // ฟังก์ชันเลื่อนไปยังข้อความล่าสุด
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // เรียกใช้ scrollToBottom เมื่อมีข้อความใหม่หรือกำลังโหลด
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  // เพิ่ม useEffect สำหรับตรวจจับขนาดหน้าจอ
   useEffect(() => {
     const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768); // 768px คือจุดแบ่ง mobile/desktop
+      setIsMobile(window.innerWidth < 768);
     };
-
-    // เช็คครั้งแรก
     checkIfMobile();
-
-    // เช็คทุกครั้งที่มีการ resize หน้าจอ
     window.addEventListener('resize', checkIfMobile);
-
-    // Cleanup
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
+
+  // เพิ่มฟังก์ชัน autoResize สำหรับปรับขนาด textarea
+  const autoResize = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // รีเซ็ตความสูงก่อน เพื่อคำนวณความสูงที่ต้องการใหม่
+      textarea.style.height = 'auto';
+      
+      // คำนวณจำนวนบรรทัด
+      const lineHeight = 20; // ความสูงต่อบรรทัดโดยประมาณ
+      const maxLines = 12;
+      const maxHeight = lineHeight * maxLines;
+      
+      // กำหนดความสูงใหม่
+      const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = `${newHeight}px`;
+    }
+  };
+
+  // เรียกใช้ autoResize เมื่อข้อความเปลี่ยน
+  useEffect(() => {
+    autoResize();
+  }, [inputMessage]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputMessage(e.target.value);
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,15 +112,11 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  // ปรับฟังก์ชัน handle keydown
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       if (isMobile) {
-        // ในโหมด mobile: ทั้ง Enter และ Shift+Enter ใช้สำหรับขึ้นบรรทัดใหม่
-        // ไม่ต้องทำอะไร ปล่อยให้เป็นพฤติกรรมปกติของ textarea
         return;
       } else {
-        // ในโหมด desktop: Enter = send, Shift+Enter = new line
         if (!e.shiftKey) {
           e.preventDefault();
           handleSendMessage(e);
@@ -177,16 +192,20 @@ const MFUChatbot: React.FC = () => {
             </select>
             <div className="flex gap-2 flex-1">
               <textarea
+                ref={textareaRef}
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder={isMobile 
                   ? "Type your message here... (Use send button to submit)" 
                   : "Type your message here... (Shift + Enter for new line)"
                 }
-                className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
-                rows={1}
-                style={{ minHeight: '40px', maxHeight: '120px' }}
+                className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                style={{
+                  minHeight: '40px',
+                  maxHeight: '240px', // 12 บรรทัด * 20px ต่อบรรทัด
+                  overflowY: 'auto'
+                }}
                 disabled={isLoading}
               />
               <button
