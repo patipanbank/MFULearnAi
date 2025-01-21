@@ -132,42 +132,44 @@ const MFUChatbot: React.FC = () => {
 
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 border-t p-4 bg-white z-10">
         <form onSubmit={handleSendMessage} className="max-w-screen-lg mx-auto">
-          <div className="flex space-x-4">
-            <textarea
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage(e);
-                }
-              }}
-              placeholder="Type your message here... (Shift + Enter for new line)"
-              className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
-              rows={1}
-              style={{ minHeight: '40px', maxHeight: '120px' }}
-              disabled={isLoading}
-            />
+          <div className="flex flex-col md:flex-row gap-2 md:gap-4">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:max-w-[200px] text-sm"
             >
               <option value="llama2">Llama 2</option>
-              <option value="gpt">GPT-like (Hugging Face)</option>
+              <option value="gpt">GPT-like</option>
             </select>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`px-4 py-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
-                ${isLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
-            >
-              {isLoading ? (
-                <BiLoaderAlt className="w-5 h-5 animate-spin" />
-              ) : (
-                <FaPaperPlane className="w-5 h-5" />
-              )}
-            </button>
+            <div className="flex gap-2 flex-1">
+              <textarea
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+                placeholder="Type your message here... (Shift + Enter for new line)"
+                className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
+                rows={1}
+                style={{ minHeight: '40px', maxHeight: '120px' }}
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`px-4 py-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
+                  ${isLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
+              >
+                {isLoading ? (
+                  <BiLoaderAlt className="w-5 h-5 animate-spin" />
+                ) : (
+                  <FaPaperPlane className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
