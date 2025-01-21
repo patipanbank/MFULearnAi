@@ -37,10 +37,12 @@ router.post('/chat', async (req, res) => {
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: "I am GPT-like model, I can only answer general questions. " + message,
+          inputs: message,
           parameters: {
             max_length: 500,
-            temperature: 0.7
+            temperature: 0.7,
+            top_p: 0.9,
+            do_sample: true
           }
         },
         {
@@ -52,7 +54,7 @@ router.post('/chat', async (req, res) => {
       );
 
       res.json({
-        response: "GPT-like Model: " + hfResponse.data[0].generated_text,
+        response: hfResponse.data[0].generated_text,
         model: "GPT-like (Hugging Face)",
         warning: 'This model cannot access MFU-specific information'
       });
