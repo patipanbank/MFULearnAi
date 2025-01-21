@@ -18,9 +18,9 @@ const modelConfigs: Record<string, ModelConfig> = {
   },
   gpt: {
     type: 'huggingface',
-    name: 'microsoft/DialoGPT-large',
+    name: 'facebook/blenderbot-400M-distill',
     displayName: 'GPT-like',
-    apiUrl: 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large'
+    apiUrl: 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill'
   }
 };
 
@@ -37,14 +37,16 @@ router.post('/chat', async (req, res) => {
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: "Assistant: Please answer this question: " + message,
+          inputs: {
+            past_user_inputs: [],
+            generated_responses: [],
+            text: message
+          },
           parameters: {
-            max_length: 1000,
             temperature: 0.7,
+            max_length: 1000,
             top_p: 0.9,
-            do_sample: true,
-            repetition_penalty: 1.2,
-            no_repeat_ngram_size: 3
+            repetition_penalty: 1.2
           }
         },
         {
@@ -55,16 +57,12 @@ router.post('/chat', async (req, res) => {
         }
       );
 
-      let response = hfResponse.data[0].generated_text;
-      response = response.replace("Assistant: Please answer this question: " + message, "").trim();
-
-      if (!response || response === message) {
-        response = "I apologize, but I'm having trouble generating a proper response. Please try rephrasing your question or asking something else.";
-      }
+      let response = hfResponse.data.generated_text || 
+                     "I apologize, I don't understand. Could you rephrase that?";
 
       res.json({
         response: response,
-        model: "GPT-like (Hugging Face)",
+        model: "GPT-like (Conversational AI)",
         warning: 'This model cannot access MFU-specific information'
       });
     } else {
