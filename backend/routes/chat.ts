@@ -18,9 +18,9 @@ const modelConfigs: Record<string, ModelConfig> = {
   },
   gpt: {
     type: 'huggingface',
-    name: 'pythainlp/wangchanberta-base-att-spm-uncased',
+    name: 'facebook/blenderbot-400M-distill',
     displayName: 'GPT-like',
-    apiUrl: 'https://api-inference.huggingface.co/models/pythainlp/wangchanberta-base-att-spm-uncased'
+    apiUrl: 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill'
   }
 };
 
@@ -39,12 +39,10 @@ router.post('/chat', async (req, res) => {
         { 
           inputs: message,
           parameters: {
-            max_length: 2000,
             temperature: 0.7,
+            max_length: 1000,
             top_p: 0.9,
-            repetition_penalty: 1.2,
-            do_sample: true,
-            return_full_text: false
+            repetition_penalty: 1.2
           }
         },
         {
@@ -57,15 +55,15 @@ router.post('/chat', async (req, res) => {
 
       let response = '';
       if (Array.isArray(hfResponse.data)) {
-        response = hfResponse.data[0]?.generated_text || 'ขออภัย ไม่สามารถสร้างคำตอบได้';
+        response = hfResponse.data[0]?.generated_text || 'Sorry, I could not generate a response.';
       } else {
-        response = hfResponse.data?.generated_text || 'ขออภัย ไม่สามารถสร้างคำตอบได้';
+        response = hfResponse.data?.generated_text || 'Sorry, I could not generate a response.';
       }
 
       res.json({
         response: response,
-        model: "GPT-like (WangchanBERTa)",
-        warning: 'โมเดลนี้ไม่สามารถเข้าถึงข้อมูลเฉพาะของ MFU ได้'
+        model: "GPT-like (Hugging Face)",
+        warning: 'This model cannot access MFU-specific information'
       });
     } else {
       // Ollama response
