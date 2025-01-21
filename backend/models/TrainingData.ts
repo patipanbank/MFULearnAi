@@ -6,9 +6,9 @@ const trainingDataSchema = new mongoose.Schema({
     required: true
   },
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: false
+    nameID: String,
+    firstName: String,
+    lastName: String
   },
   isActive: {
     type: Boolean,
