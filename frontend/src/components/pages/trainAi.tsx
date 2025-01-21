@@ -83,10 +83,10 @@ const TrainAI: React.FC = () => {
   };
 
   const deleteTrainingData = async (id: string) => {
-    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลนี้?')) return;
+    if (!window.confirm('Are you sure you want to delete this data?')) return;
     
     try {
-      setMessage('กำลังลบข้อมูล...');
+      setMessage('Deleting data...');
       const token = localStorage.getItem('auth_token');
       
       await axios.delete(
@@ -97,10 +97,10 @@ const TrainAI: React.FC = () => {
       );
 
       await loadTrainingHistory();
-      setMessage('ลบข้อมูลสำเร็จ');
+      setMessage('Data deleted successfully');
     } catch (error) {
       console.error('Error deleting training data:', error);
-      setMessage('เกิดข้อผิดพลาดในการลบข้อมูล');
+      setMessage('An error occurred while deleting data');
     }
   };
 
@@ -141,7 +141,7 @@ const TrainAI: React.FC = () => {
 
         {/* Training history */}
         <div>
-          <h2 className="text-xl font-bold mb-4 mt-4">History Training</h2>
+          <h2 className="text-xl font-bold mb-4 mt-4">History of Training</h2>
           {trainingHistory.map((item) => (
             <div 
               key={item._id} 
@@ -162,11 +162,11 @@ const TrainAI: React.FC = () => {
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {item.isActive ? 'กำลังใช้งาน' : 'ปิดใช้งาน'}
+                      {item.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                   <div className="text-sm text-gray-500 mt-2">
-                    <p>เพิ่มเมื่อ: {new Date(item.createdAt).toLocaleString('th-TH')}</p>
+                    <p>Added on: {new Date(item.createdAt).toLocaleString('th-TH')}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -178,18 +178,18 @@ const TrainAI: React.FC = () => {
                         : 'bg-green-500 hover:bg-green-600 text-white'
                     }`}
                   >
-                    {item.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                    {item.isActive ? 'Inactive' : 'Active'}
                   </button>
                   <button
                     onClick={() => deleteTrainingData(item._id)}
                     className="px-4 py-2 rounded text-sm bg-gray-500 hover:bg-gray-600 text-white"
                   >
-                    ลบ
+                    Delete
                   </button>
                 </div>
               </div>
             </div>
-          ))}
+          ))} 
         </div>
       </div>
     </div>
