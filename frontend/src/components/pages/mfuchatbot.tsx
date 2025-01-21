@@ -36,25 +36,18 @@ const MFUChatbot: React.FC = () => {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  // เพิ่มฟังก์ชัน autoResize สำหรับปรับขนาด textarea
   const autoResize = () => {
     const textarea = textareaRef.current;
     if (textarea) {
-      // รีเซ็ตความสูงก่อน เพื่อคำนวณความสูงที่ต้องการใหม่
       textarea.style.height = 'auto';
-      
-      // คำนวณจำนวนบรรทัด
-      const lineHeight = 20; // ความสูงต่อบรรทัดโดยประมาณ
+      const lineHeight = 20;
       const maxLines = 12;
       const maxHeight = lineHeight * maxLines;
-      
-      // กำหนดความสูงใหม่
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
     }
   };
 
-  // เรียกใช้ autoResize เมื่อข้อความเปลี่ยน
   useEffect(() => {
     autoResize();
   }, [inputMessage]);
@@ -200,10 +193,10 @@ const MFUChatbot: React.FC = () => {
                   ? "Type your message here... (Use send button to submit)" 
                   : "Type your message here... (Shift + Enter for new line)"
                 }
-                className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="flex-1 px-4 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 style={{
                   minHeight: '40px',
-                  maxHeight: '240px', // 12 บรรทัด * 20px ต่อบรรทัด
+                  maxHeight: '240px',
                   overflowY: 'auto'
                 }}
                 disabled={isLoading}
@@ -211,7 +204,7 @@ const MFUChatbot: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`px-4 py-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
+                className={`px-4 h-10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
                   ${isLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
               >
                 {isLoading ? (
