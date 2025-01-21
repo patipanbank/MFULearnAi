@@ -16,6 +16,7 @@ const MFUChatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedModel, setSelectedModel] = useState('llama2');
+  const [isMobile, setIsMobile] = useState(false);
 
   // ฟังก์ชันเลื่อนไปยังข้อความล่าสุด
   const scrollToBottom = () => {
@@ -26,6 +27,22 @@ const MFUChatbot: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  // เพิ่ม useEffect สำหรับตรวจจับขนาดหน้าจอ
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768); // 768px คือจุดแบ่ง mobile/desktop
+    };
+
+    // เช็คครั้งแรก
+    checkIfMobile();
+
+    // เช็คทุกครั้งที่มีการ resize หน้าจอ
+    window.addEventListener('resize', checkIfMobile);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +90,23 @@ const MFUChatbot: React.FC = () => {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // ปรับฟังก์ชัน handle keydown
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter') {
+      if (isMobile) {
+        // ในโหมด mobile: ทั้ง Enter และ Shift+Enter ใช้สำหรับขึ้นบรรทัดใหม่
+        // ไม่ต้องทำอะไร ปล่อยให้เป็นพฤติกรรมปกติของ textarea
+        return;
+      } else {
+        // ในโหมด desktop: Enter = send, Shift+Enter = new line
+        if (!e.shiftKey) {
+          e.preventDefault();
+          handleSendMessage(e);
+        }
+      }
     }
   };
 
@@ -145,13 +179,11 @@ const MFUChatbot: React.FC = () => {
               <textarea
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(e);
-                  }
-                }}
-                placeholder="Type your message here... (Shift + Enter for new line)"
+                onKeyDown={handleKeyDown}
+                placeholder={isMobile 
+                  ? "Type your message here... (Use send button to submit)" 
+                  : "Type your message here... (Shift + Enter for new line)"
+                }
                 className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
                 rows={1}
                 style={{ minHeight: '40px', maxHeight: '120px' }}
