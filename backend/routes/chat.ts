@@ -37,11 +37,10 @@ router.post('/chat', async (req, res) => {
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: message,
+          inputs: "You are a general AI assistant. " + message,
           parameters: {
             max_length: 500,
-            temperature: 0.7,
-            top_p: 0.9
+            temperature: 0.7
           }
         },
         {
@@ -54,7 +53,8 @@ router.post('/chat', async (req, res) => {
 
       res.json({
         response: hfResponse.data[0].generated_text,
-        model: modelConfig.displayName
+        model: modelConfig.displayName,
+        warning: 'Warning: This model is not designed to handle MFU-specific information.'
       });
     } else {
       // Ollama response
@@ -76,12 +76,12 @@ router.post('/chat', async (req, res) => {
     // ตรวจสอบ error จาก Hugging Face
     if (error.response?.status === 429) {
       res.status(429).json({ 
-        error: 'ขออภัย มีการใช้งาน API เกินขีดจำกัด กรุณารอสักครู่แล้วลองใหม่',
+        error: 'Sorry, the API usage limit has been exceeded. Please wait a moment and try again.',
         details: 'Rate limit exceeded'
       });
     } else {
       res.status(500).json({ 
-        error: 'ขออภัย เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
+        error: 'Sorry, an error occurred. Please try again.',
         details: error.message 
       });
     }
