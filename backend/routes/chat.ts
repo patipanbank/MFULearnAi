@@ -37,11 +37,7 @@ router.post('/chat', async (req, res) => {
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: {
-            past_user_inputs: [],
-            generated_responses: [],
-            text: message
-          },
+          inputs: message,
           parameters: {
             temperature: 0.7,
             max_length: 1000,
@@ -57,12 +53,16 @@ router.post('/chat', async (req, res) => {
         }
       );
 
-      let response = hfResponse.data.generated_text || 
-                     "I apologize, I don't understand. Could you rephrase that?";
+      let response = '';
+      if (Array.isArray(hfResponse.data)) {
+        response = hfResponse.data[0]?.generated_text || 'Sorry, I could not generate a response.';
+      } else {
+        response = hfResponse.data?.generated_text || 'Sorry, I could not generate a response.';
+      }
 
       res.json({
         response: response,
-        model: "GPT-like (Conversational AI)",
+        model: "GPT-like (Hugging Face)",
         warning: 'This model cannot access MFU-specific information'
       });
     } else {
