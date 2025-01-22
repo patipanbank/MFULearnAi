@@ -187,7 +187,8 @@ const MFUChatbot: React.FC = () => {
               className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:max-w-[200px] text-sm"
             >
               <option value="llama2">Llama 2</option>
-              <option value="gpt">GPT-like</option>
+              {/* <option value="gpt">GPT-like</option> */}
+              <option value="deberta">DeBERTa-v3</option>  {/* เปลี่ยนจาก GPT-like เป็น DeBERTa-v3 */}
             </select>
             <div className="flex gap-2 flex-1">
               <textarea

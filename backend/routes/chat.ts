@@ -18,11 +18,17 @@ const modelConfigs: Record<string, ModelConfig> = {
     name: 'mfu-custom',
     displayName: 'Llama 2'
   },
-  gpt: {
+  // gpt: {
+  //   type: 'huggingface',
+  //   name: 'facebook/blenderbot-400M-distill',
+  //   displayName: 'GPT-like',
+  //   apiUrl: 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill'
+  // }
+  deberta: {  // เปลี่ยนจาก gpt เป็น deberta
     type: 'huggingface',
-    name: 'facebook/blenderbot-400M-distill',
-    displayName: 'GPT-like',
-    apiUrl: 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill'
+    name: 'protectai/deberta-v3-base-prompt-injection',
+    displayName: 'DeBERTa-v3',
+    apiUrl: 'https://api-inference.huggingface.co/models/protectai/deberta-v3-base-prompt-injection'
   }
 };
 
