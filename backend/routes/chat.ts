@@ -38,41 +38,27 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
   try {
     const { message, model = 'llama2' } = req.body;
     const currentUser = (req as RequestWithUser).user;
+    const modelConfig = modelConfigs[model];
 
-    // Normalize names for comparison
-    const normalizeText = (text: string) => {
-      return text.toLowerCase().trim().replace(/\s+/g, ' ');
-    };
+    // Check if the question is asking for personal information
+    const userDataRegex = /(?:information|info|data|details)(?:\s+(?:of|about|for))?\s+([a-zA-Zก-๙\s]+)/i;
+    const match = message.match(userDataRegex);
 
-    // Check for any personal information request
-    const personalInfoRegex = /(student|id|phone|number|age|nickname|name|information|contact|details|data|what|who)/i;
-    const containsPersonalInfoRequest = personalInfoRegex.test(message);
-
-    // If asking about personal info, strictly verify user identity
-    if (containsPersonalInfoRequest) {
-      // Extract any name from the message
-      const nameRegex = /([a-zA-Zก-๙]+(?:\s+[a-zA-Zก-๙]+)*)/g;
-      const names = message.match(nameRegex) || [];
+    if (match) {
+      const askedPerson = match[1].trim().toLowerCase();
+      const currentUserFullName = `${currentUser.firstName} ${currentUser.lastName}`.toLowerCase();
+      const currentUserFirstName = currentUser.firstName.toLowerCase();
       
-      // Check each name found in the message
-      for (const name of names) {
-        const normalizedName = normalizeText(name);
-        // Skip common words that might be caught in the name regex
-        if (['what', 'who', 'is', 'the', 'my', 'your'].includes(normalizedName)) continue;
-        
-        // If a name is mentioned and it's not the current user's name
-        if (normalizedName !== normalizeText(currentUser.firstName) && 
-            normalizedName !== normalizeText(`${currentUser.firstName} ${currentUser.lastName}`)) {
-          res.json({
-            response: "I apologize, but I cannot provide personal information about others. For privacy and security reasons, you can only inquire about your own information.",
-            model: "Llama 2 (MFU Custom)"
-          });
-          return;
-        }
+      // Check if asking about current user (including partial name matches)
+      if (!askedPerson.includes(currentUserFirstName) && 
+          !askedPerson.includes(currentUserFullName)) {
+        res.json({
+          response: "Sorry, I cannot provide personal information about others. You can only ask about your own information.",
+          model: "Llama 2 (MFU Custom)"
+        });
+        return;
       }
     }
-
-    const modelConfig = modelConfigs[model];
 
     // If asking about themselves or general questions, proceed normally
     if (modelConfig.type === 'ollama') {
