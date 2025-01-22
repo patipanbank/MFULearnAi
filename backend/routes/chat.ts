@@ -1,6 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import { Request, Response } from 'express';
+import { roleGuard } from '../middleware/roleGuard';
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ interface RequestWithUser extends Request {
   };
 }
 
-router.post('/chat', async (req: Request, res: Response) => {
+router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const { message, model = 'llama2' } = req.body;
     const currentUser = (req as RequestWithUser).user;
