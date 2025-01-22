@@ -24,11 +24,11 @@ const modelConfigs: Record<string, ModelConfig> = {
   //   displayName: 'GPT-like',
   //   apiUrl: 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill'
   // }
-  deberta: {  // เปลี่ยนจาก gpt เป็น deberta
+  mistral: {
     type: 'huggingface',
-    name: 'protectai/deberta-v3-base-prompt-injection',
-    displayName: 'DeBERTa-v3',
-    apiUrl: 'https://api-inference.huggingface.co/models/protectai/deberta-v3-base-prompt-injection'
+    name: 'mistralai/Mistral-7B-Instruct-v0.1',
+    displayName: 'Mistral-7B',
+    apiUrl: 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1'
   }
 };
 
