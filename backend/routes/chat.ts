@@ -41,17 +41,17 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
     const modelConfig = modelConfigs[model];
 
     // Check if the question is asking for personal information
-    const userDataRegex = /(?:information about|about|name|student id|phone|age|of)\s*([a-zA-Zก-๙\s]+)/i;
+    const userDataRegex = /(?:information|info|data|details)(?:\s+(?:of|about|for))?\s+([a-zA-Zก-๙\s]+)/i;
     const match = message.match(userDataRegex);
 
-    let systemPrompt = '';
     if (match) {
       const askedPerson = match[1].trim().toLowerCase();
-      const currentUserName = `${currentUser.firstName} ${currentUser.lastName}`.toLowerCase();
+      const currentUserFullName = `${currentUser.firstName} ${currentUser.lastName}`.toLowerCase();
+      const currentUserFirstName = currentUser.firstName.toLowerCase();
       
-      // If asking about someone else's information
-      if (askedPerson !== currentUserName && 
-          !message.toLowerCase().includes(currentUserName)) {
+      // Check if asking about current user (including partial name matches)
+      if (!askedPerson.includes(currentUserFirstName) && 
+          !askedPerson.includes(currentUserFullName)) {
         res.json({
           response: "Sorry, I cannot provide personal information about others. You can only ask about your own information.",
           model: "Llama 2 (MFU Custom)"
