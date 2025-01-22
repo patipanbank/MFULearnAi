@@ -210,4 +210,47 @@ Use this knowledge to help answer questions. If the question is not related to t
   }
 });
 
+router.post('/training-data', async (req: Request, res: Response) => {
+  try {
+    const { content } = req.body;
+    const user = (req as RequestWithUser).user;
+    
+    // Add system prompt to enforce privacy rules
+    const systemPrompt = `
+    You are an AI assistant for MFU University. Here is your knowledge base:
+
+    ${content}
+
+    Important rules:
+    1. If someone asks about personal information (like student ID, phone number, age, etc.), 
+       only provide information if they are asking about themselves.
+    2. If they ask about someone else's personal information, respond that you cannot provide 
+       that information due to privacy concerns.
+    3. For general questions not related to personal information, you can answer normally.
+    4. When someone asks about their own information, verify their identity based on their 
+       first name and last name before providing the information.
+    
+    Example responses:
+    - If "John Smith" asks about "John Smith": Provide the information
+    - If "John Smith" asks about "Jane Doe": "Sorry, I cannot provide personal information about others."
+    - If asked general questions: Provide normal responses
+    `;
+
+    // Train model with updated system prompt
+    await axios.post('http://ollama:11434/api/create', {
+      name: 'mfu-custom',
+      modelfile: `FROM llama2
+SYSTEM "${systemPrompt}"
+`
+    });
+
+    res.json({ 
+      message: 'Training data added and model retrained successfully' 
+    });
+
+  } catch (error) {
+    // ... error handling ...
+  }
+});
+
 export default router; 
