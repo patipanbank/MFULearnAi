@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import { Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
+const axiosRetry = require('axios-retry');
 
 const router = express.Router();
 
@@ -39,6 +40,16 @@ interface RequestWithUser extends Request {
     lastName: string;
   };
 }
+
+// Configure axios retry
+axiosRetry(axios, { 
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error: any) => {
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || 
+           error.code === 'EAI_AGAIN';
+  }
+});
 
 router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
@@ -124,10 +135,18 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
         details: 'Rate limit exceeded'
       });
     } else {
-      res.status(500).json({ 
-        error: 'Sorry, an error occurred. Please try again.',
-        details: error.message 
-      });
+      console.error('Hugging Face API Error:', error.message);
+      if (error.code === 'EAI_AGAIN') {
+        res.status(503).json({
+          error: 'Service temporarily unavailable. Please try again.',
+          details: 'DNS resolution failed'
+        });
+      } else {
+        res.status(500).json({ 
+          error: 'Sorry, an error occurred. Please try again.',
+          details: error.message 
+        });
+      }
     }
   }
 });
