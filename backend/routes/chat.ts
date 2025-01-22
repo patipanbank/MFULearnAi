@@ -38,27 +38,34 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
   try {
     const { message, model = 'llama2' } = req.body;
     const currentUser = (req as RequestWithUser).user;
-    const modelConfig = modelConfigs[model];
 
-    // Check if the question is asking for personal information
-    const userDataRegex = /(?:information|info|data|details)(?:\s+(?:of|about|for))?\s+([a-zA-Zก-๙\s]+)/i;
-    const match = message.match(userDataRegex);
+    // Normalize names for comparison
+    const normalizeText = (text: string) => {
+      return text.toLowerCase().trim().replace(/\s+/g, ' ');
+    };
 
-    if (match) {
-      const askedPerson = match[1].trim().toLowerCase();
-      const currentUserFullName = `${currentUser.firstName} ${currentUser.lastName}`.toLowerCase();
-      const currentUserFirstName = currentUser.firstName.toLowerCase();
-      
-      // Check if asking about current user (including partial name matches)
-      if (!askedPerson.includes(currentUserFirstName) && 
-          !askedPerson.includes(currentUserFullName)) {
+    const currentUserFullName = normalizeText(`${currentUser.firstName} ${currentUser.lastName}`);
+    const currentUserFirstName = normalizeText(currentUser.firstName);
+    const messageText = normalizeText(message);
+
+    // Check if message contains any name or personal info keywords
+    const personalInfoKeywords = /(student|id|phone|number|age|nickname|name|information|contact|details|data)/i;
+    
+    if (personalInfoKeywords.test(messageText)) {
+      // If message doesn't exactly match user's name variations
+      if (messageText !== currentUserFirstName && 
+          messageText !== currentUserFullName && 
+          messageText !== `information of ${currentUserFullName}` &&
+          messageText !== `information about ${currentUserFullName}`) {
         res.json({
-          response: "Sorry, I cannot provide personal information about others. You can only ask about your own information.",
+          response: "I apologize, but I cannot provide personal information about others. For privacy reasons, you can only inquire about your own information.",
           model: "Llama 2 (MFU Custom)"
         });
         return;
       }
     }
+
+    const modelConfig = modelConfigs[model];
 
     // If asking about themselves or general questions, proceed normally
     if (modelConfig.type === 'ollama') {
