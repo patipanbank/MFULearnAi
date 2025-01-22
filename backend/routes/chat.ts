@@ -3,6 +3,7 @@ import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
+import { AxiosError } from 'axios';
 
 const router = express.Router();
 
@@ -45,11 +46,16 @@ interface RequestWithUser extends Request {
 axiosRetry(axios, { 
   retries: 3,
   retryDelay: axiosRetry.exponentialDelay,
-  retryCondition: (error: any) => {
+  retryCondition: (error: AxiosError) => {
     return axiosRetry.isNetworkOrIdempotentRequestError(error) || 
-           error.code === 'EAI_AGAIN';
-  }
+           error.code === 'EAI_AGAIN' ||
+           error.response?.status === 503;
+  },
+  shouldResetTimeout: true
 });
+
+// Set default timeout
+axios.defaults.timeout = 5000 * 60;
 
 router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
@@ -136,10 +142,10 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
       });
     } else {
       console.error('Hugging Face API Error:', error.message);
-      if (error.code === 'EAI_AGAIN') {
+      if (error.response?.status === 503) {
         res.status(503).json({
-          error: 'Service temporarily unavailable. Please try again.',
-          details: 'DNS resolution failed'
+          error: 'Model is currently loading or busy. Please try again in a few moments.',
+          details: 'Service temporarily unavailable'
         });
       } else {
         res.status(500).json({ 
