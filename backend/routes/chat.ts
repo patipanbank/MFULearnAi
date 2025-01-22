@@ -44,24 +44,31 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
       return text.toLowerCase().trim().replace(/\s+/g, ' ');
     };
 
-    const currentUserFullName = normalizeText(`${currentUser.firstName} ${currentUser.lastName}`);
-    const currentUserFirstName = normalizeText(currentUser.firstName);
-    const messageText = normalizeText(message);
+    // Check for any personal information request
+    const personalInfoRegex = /(student|id|phone|number|age|nickname|name|information|contact|details|data|what|who)/i;
+    const containsPersonalInfoRequest = personalInfoRegex.test(message);
 
-    // Check if message contains any name or personal info keywords
-    const personalInfoKeywords = /(student|id|phone|number|age|nickname|name|information|contact|details|data)/i;
-    
-    if (personalInfoKeywords.test(messageText)) {
-      // If message doesn't exactly match user's name variations
-      if (messageText !== currentUserFirstName && 
-          messageText !== currentUserFullName && 
-          messageText !== `information of ${currentUserFullName}` &&
-          messageText !== `information about ${currentUserFullName}`) {
-        res.json({
-          response: "I apologize, but I cannot provide personal information about others. For privacy reasons, you can only inquire about your own information.",
-          model: "Llama 2 (MFU Custom)"
-        });
-        return;
+    // If asking about personal info, strictly verify user identity
+    if (containsPersonalInfoRequest) {
+      // Extract any name from the message
+      const nameRegex = /([a-zA-Zก-๙]+(?:\s+[a-zA-Zก-๙]+)*)/g;
+      const names = message.match(nameRegex) || [];
+      
+      // Check each name found in the message
+      for (const name of names) {
+        const normalizedName = normalizeText(name);
+        // Skip common words that might be caught in the name regex
+        if (['what', 'who', 'is', 'the', 'my', 'your'].includes(normalizedName)) continue;
+        
+        // If a name is mentioned and it's not the current user's name
+        if (normalizedName !== normalizeText(currentUser.firstName) && 
+            normalizedName !== normalizeText(`${currentUser.firstName} ${currentUser.lastName}`)) {
+          res.json({
+            response: "I apologize, but I cannot provide personal information about others. For privacy and security reasons, you can only inquire about your own information.",
+            model: "Llama 2 (MFU Custom)"
+          });
+          return;
+        }
       }
     }
 
