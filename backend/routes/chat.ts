@@ -23,7 +23,7 @@ const modelConfigs: Record<string, ModelConfig> = {
   gpt2: {
     type: 'huggingface',
     name: 'gpt2',
-    displayName: 'GPT-2',
+    displayName: 'GPT-like',
     apiUrl: 'https://api-inference.huggingface.co/models/gpt2'
   },
   t5: {
@@ -38,12 +38,12 @@ const modelConfigs: Record<string, ModelConfig> = {
   //   displayName: 'GPT-like',
   //   apiUrl: 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill'
   // }
-  mistral: {
-    type: 'huggingface',
-    name: 'facebook/opt-350m',
-    displayName: 'OPT-350M',
-    apiUrl: 'https://api-inference.huggingface.co/models/facebook/opt-350m'
-  }
+  // mistral: {
+  //   type: 'huggingface',
+  //   name: 'facebook/opt-350m',
+  //   displayName: 'OPT-350M',
+  //   apiUrl: 'https://api-inference.huggingface.co/models/facebook/opt-350m'
+  // }
 };
 
 interface RequestWithUser extends Request {
@@ -105,7 +105,7 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
 
       res.json({
         response: ollamaResponse.data.response,
-        model: "Llama 2 (MFU Custom)"
+        model: modelConfig.displayName
       });
     } else if (modelConfig.type === 'huggingface') {
       if (!modelConfig.apiUrl) {
@@ -140,7 +140,7 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
 
       res.json({
         response: response,
-        model: "GPT-like (Hugging Face)",
+        model: modelConfig.displayName,
         warning: 'This model cannot access MFU-specific information'
       });
     }
