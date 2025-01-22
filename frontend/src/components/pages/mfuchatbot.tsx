@@ -73,14 +73,14 @@ const MFUChatbot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Get token from localStorage
-      const token = localStorage.getItem('token');
+      // Get auth_token from localStorage
+      const authToken = localStorage.getItem('auth_token');
       
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/chat`, 
         { message: inputMessage, model: selectedModel },
         { 
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json'
           }
         }
