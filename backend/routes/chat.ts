@@ -28,9 +28,9 @@ const modelConfigs: Record<string, ModelConfig> = {
   // }
   mistral: {
     type: 'huggingface',
-    name: 'mistralai/Mistral-7B-Instruct-v0.1',
-    displayName: 'Mistral-7B',
-    apiUrl: 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1'
+    name: 'facebook/opt-350m',
+    displayName: 'OPT-350M',
+    apiUrl: 'https://api-inference.huggingface.co/models/facebook/opt-350m'
   }
 };
 

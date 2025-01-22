@@ -188,7 +188,7 @@ const MFUChatbot: React.FC = () => {
             >
               <option value="llama2">Llama 2</option>
               {/* <option value="gpt">GPT-like</option> */}
-              <option value="mistral">Mistral-7B</option>  {/* เปลี่ยนจาก GPT-like เป็น Mistral-7B */}
+              <option value="mistral">Mistral</option>  {/* เปลี่ยนจาก GPT-like เป็น Mistral-7B */}
             </select>
             <div className="flex gap-2 flex-1">
               <textarea
