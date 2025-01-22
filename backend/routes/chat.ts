@@ -1,8 +1,8 @@
 import express from 'express';
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
 import { Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
-const axiosRetry = require('axios-retry');
 
 const router = express.Router();
 
