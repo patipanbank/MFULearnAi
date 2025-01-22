@@ -14,6 +14,7 @@ const router = Router();
 interface RequestWithUser extends Request {
   user: {
     nameID: string;
+    username: string;
     firstName: string;
     lastName: string;
     groups: string[];
@@ -31,7 +32,7 @@ const upload = multer({
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('รองรับเฉพาะไฟล์ .txt, .pdf, .docx, .xlsx และ .csv เท่านั้น'));
+      cb(new Error('file type must be .txt, .pdf, .docx, .xlsx และ .csv'));
     }
   }
 });
@@ -43,7 +44,7 @@ router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Re
     
     // ดึงเฉพาะข้อมูลที่ user สร้าง ไม่ว่าจะ active หรือไม่
     const trainingData = await TrainingData.find({ 
-      'createdBy.nameID': userNameID
+      'createdBy.username': userNameID
     }).sort({ createdAt: -1 });
     
     res.json(trainingData);
@@ -60,7 +61,7 @@ router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Re
 router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
-      res.status(400).json({ message: 'กรุณาอัพโหลดไฟล์' });
+      res.status(400).json({ message: 'Please upload a file' });
       return;
     }
 
@@ -94,6 +95,7 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
       content: extractedText,
       createdBy: {
         nameID: user.nameID || '',
+        username: user.username || '',
         firstName: user.firstName || '',
         lastName: user.lastName || ''
       },
@@ -119,7 +121,7 @@ Use this knowledge to help answer questions. If the question is not related to t
     });
 
     res.status(200).json({ 
-      message: 'อัพโหลดไฟล์และ train AI สำเร็จ',
+      message: 'File uploaded and AI trained successfully',
       totalDataPoints: allTrainingData.length
     });
 
@@ -127,7 +129,7 @@ Use this knowledge to help answer questions. If the question is not related to t
     console.error('Training error:', error);
     const err = error as Error;
     res.status(500).json({ 
-      message: 'เกิดข้อผิดพลาดในการ train',
+      message: 'Error in training',
       error: err.message
     });
   }

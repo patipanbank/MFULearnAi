@@ -48,7 +48,7 @@ const modelConfigs: Record<string, ModelConfig> = {
 
 interface RequestWithUser extends Request {
   user: {
-    nameID: string;
+    username: string;
     firstName: string;
     lastName: string;
   };

@@ -35,6 +35,7 @@ const samlStrategy = new SamlStrategy(
 
       // ปรับการอ่านค่าให้ตรงกับ SAML response
       const nameID = profile.nameID;
+      const username = profile['User.Userrname'];
       const email = profile['User.Email'];
       const firstName = profile['first_name'];
       const lastName = profile['last_name'];
@@ -43,6 +44,7 @@ const samlStrategy = new SamlStrategy(
       console.log('=== Extracted Values ===');
       console.log({
         nameID,
+        username,
         email,
         firstName,
         lastName,
@@ -67,14 +69,15 @@ const samlStrategy = new SamlStrategy(
         return isStudent ? 'Students' : 'Staffs';
       };
       const user = await User.findOneAndUpdate(
-        { nameID },
+        { username },
         {
           nameID,
+          username,
           email,
           firstName,
           lastName,
           groups: Array.isArray(groups) ? groups : [groups],
-          role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]), // เพิ่ม role
+          role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]),
           updated: new Date()
         },
         { upsert: true, new: true }
@@ -88,6 +91,7 @@ const samlStrategy = new SamlStrategy(
 
       const userData = {
         nameID: user.nameID,
+        username: user.username,
         email: user.email,
         first_name: user.firstName,
         last_name: user.lastName,
@@ -128,6 +132,7 @@ router.post('/saml/callback',
 
       const userData = {
         nameID: req.user.userData.nameID,
+        username: req.user.userData.username,
         email: req.user.userData.email,
         firstName: req.user.userData.first_name,
         lastName: req.user.userData.last_name,
@@ -137,6 +142,7 @@ router.post('/saml/callback',
       const token = jwt.sign(
         { 
           nameID: userData.nameID,
+          username: userData.username,
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
