@@ -9,6 +9,7 @@ interface TrainingData {
     firstName: string;
     lastName: string;
     nameID: string;
+    username: string;
   };
   isActive: boolean;
   createdAt: string;
