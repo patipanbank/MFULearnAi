@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
+import axios from 'axios';
 
 interface Message {
   id: number;
@@ -72,15 +73,20 @@ const MFUChatbot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: inputMessage, model: selectedModel }),
-      });
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/chat`, 
+        { message: inputMessage, model: selectedModel },
+        { 
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      const data = await response.json();
+      const data = await response.data;
       
       const botMessage: Message = {
         id: messages.length + 2,
@@ -92,7 +98,7 @@ const MFUChatbot: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error sending message:', error);
       const errorMessage: Message = {
         id: messages.length + 2,
         text: 'Sorry, an error occurred. Please try again.',
