@@ -125,9 +125,9 @@ const MFUChatbot: React.FC = () => {
   };
 
   const modelDescriptions: Record<string, string> = {
-    llama2: 'General purpose chat model',
-    gpt2: 'Natural conversation',
-    t5: 'Math and reasoning'
+    llama2: 'General purpose AI model',
+    gpt2: 'GPT-like model for chat',
+    t5: 'Math and reasoning focused'
   };
 
   return (
@@ -158,7 +158,12 @@ const MFUChatbot: React.FC = () => {
                   {message.sender === 'bot' && (
                     <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
                       <span className="px-2 py-1 bg-blue-100 rounded-full">
-                        Using: {message.model || 'Unknown Model'}
+                        Using: {
+                          message.model === 'gpt2' ? 'GPT-like' :
+                          message.model === 't5' ? 'Flan-T5' :
+                          message.model === 'llama2' ? 'Llama 2' :
+                          message.model || 'Unknown Model'
+                        }
                       </span>
                     </div>
                   )}
