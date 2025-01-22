@@ -20,6 +20,18 @@ const modelConfigs: Record<string, ModelConfig> = {
     name: 'mfu-custom',
     displayName: 'Llama 2'
   },
+  gpt2: {
+    type: 'huggingface',
+    name: 'gpt2',
+    displayName: 'GPT-2',
+    apiUrl: 'https://api-inference.huggingface.co/models/gpt2'
+  },
+  t5: {
+    type: 'huggingface', 
+    name: 'google/flan-t5-base',
+    displayName: 'Flan-T5',
+    apiUrl: 'https://api-inference.huggingface.co/models/google/flan-t5-base'
+  },
   // gpt: {
   //   type: 'huggingface',
   //   name: 'facebook/blenderbot-400M-distill',

@@ -124,6 +124,12 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  const modelDescriptions: Record<string, string> = {
+    llama2: 'General purpose chat model',
+    gpt2: 'Natural conversation',
+    t5: 'Math and reasoning'
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-4 pb-32">
@@ -181,15 +187,20 @@ const MFUChatbot: React.FC = () => {
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 border-t p-4 bg-white z-10">
         <form onSubmit={handleSendMessage} className="max-w-screen-lg mx-auto">
           <div className="flex flex-col md:flex-row gap-2 md:gap-4">
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:max-w-[200px] text-sm"
-            >
-              <option value="llama2">Llama 2</option>
-              {/* <option value="gpt">GPT-like</option> */}
-              <option value="mistral">Mistral</option>  {/* เปลี่ยนจาก GPT-like เป็น Mistral-7B */}
-            </select>
+            <div className="flex flex-col gap-1">
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:max-w-[200px] text-sm"
+              >
+                <option value="llama2">Llama 2</option>
+                <option value="gpt2">GPT-2</option>
+                <option value="t5">Flan-T5</option>
+              </select>
+              <span className="text-xs text-gray-500">
+                {modelDescriptions[selectedModel]}
+              </span>
+            </div>
             <div className="flex gap-2 flex-1">
               <textarea
                 ref={textareaRef}
