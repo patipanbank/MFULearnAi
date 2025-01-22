@@ -6,14 +6,15 @@ interface TrainingData {
   _id: string;
   content: string;
   createdBy: {
-    firstName: string;
-    lastName: string;
     nameID: string;
     username: string;
+    firstName: string;
+    lastName: string;
   };
   isActive: boolean;
-  createdAt: string;
   fileType?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const TrainAI: React.FC = () => {
@@ -28,17 +29,32 @@ const TrainAI: React.FC = () => {
   const loadTrainingHistory = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      if (!token) return;
+      if (!token) {
+        console.error('No auth token found');
+        setMessage('Please log in again');
+        return;
+      }
 
+      console.log('Fetching training history...'); // debug log
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/train-ai/training-data`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }
       );
-      setTrainingHistory(response.data);
-    } catch (error) {
+      
+      console.log('Training history response:', response.data); // debug log
+      
+      if (Array.isArray(response.data)) {
+        setTrainingHistory(response.data);
+      } else {
+        console.error('Invalid response format:', response.data);
+        setMessage('Data is not correct');
+      }
+    } catch (error: unknown) {
       console.error('Error loading training history:', error);
+      const err = error as AxiosError<{ message: string }>;
+      setMessage(err.response?.data?.message || 'An error occurred while loading history');
     }
   };
 
@@ -164,7 +180,7 @@ const TrainAI: React.FC = () => {
 
   useEffect(() => {
     loadTrainingHistory();
-  }, []);
+  }, [message]);
 
   return (
     <div className="container mx-auto px-4 py-8">

@@ -38,21 +38,19 @@ const upload = multer({
 });
 
 // เพิ่ม endpoint สำหรับดูข้อมูล training ทั้งหมด
-router.get('/training-data', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+router.get('/training-data', async (req: Request, res: Response) => {
   try {
-    const userNameID = (req as RequestWithUser).user.nameID;
+    const trainingData = await TrainingData.find()
+      .sort({ createdAt: -1 }) // เรียงจากใหม่ไปเก่า
+      .lean(); // ใช้ lean() เพื่อความเร็วในการดึงข้อมูล
     
-    // ดึงเฉพาะข้อมูลที่ user สร้าง ไม่ว่าจะ active หรือไม่
-    const trainingData = await TrainingData.find({ 
-      'createdBy.username': userNameID
-    }).sort({ createdAt: -1 });
-    
+    console.log('Sending training data:', trainingData); // debug log
     res.json(trainingData);
-  } catch (error: unknown) {
-    const err = error as Error;
+  } catch (error: any) {
+    console.error('Error fetching training data:', error);
     res.status(500).json({ 
       message: 'Failed to fetch training data',
-      error: err.message 
+      error: error.message 
     });
   }
 });
