@@ -525,4 +525,37 @@ function splitIntoChunks(text: string, chunkSize: number): string[] {
   return chunks;
 }
 
+// เพิ่มฟังก์ชันลบข้อมูลจาก ChromaDB
+async function deleteFromChromaDB(documentId: string) {
+  const collection = await getOrCreateCollection();
+  await collection.delete({
+    ids: [`chunk_${documentId}_*`]
+  });
+}
+
+// แก้ไข route สำหรับลบ/ปิดการใช้งาน
+router.post('/toggle-status/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const doc = await TrainingData.findById(id);
+    if (!doc) {
+      res.status(404).json({ message: 'Document not found' });
+      return;
+    }
+
+    doc.isActive = !doc.isActive;
+    await doc.save();
+
+    // ถ้าปิดการใช้งาน ให้ลบข้อมูลจาก ChromaDB ด้วย
+    if (!doc.isActive) {
+      await deleteFromChromaDB(id);
+    }
+
+    res.json({ message: 'Status updated successfully' });
+  } catch (error) {
+    console.error('Error toggling status:', error);
+    res.status(500).json({ message: 'Error updating status' });
+  }
+});
+
 export default router; 
