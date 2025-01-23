@@ -160,4 +160,24 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
   }
 });
 
+// เพิ่ม endpoint สำหรับดูผลการค้นหา
+router.post('/test-retrieval', async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body;
+    const collection = await getOrCreateCollection();
+    const results = await collection.query({
+      queryTexts: [query],
+      nResults: 3
+    });
+    
+    res.json({
+      query,
+      results: results.documents[0],
+      metadata: results.metadatas[0]
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
