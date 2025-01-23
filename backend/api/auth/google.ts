@@ -1,7 +1,7 @@
 import { Router, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
-import { connectDB } from '../../lib/mongodb';
-import User from '../../models/User';
+import { connectDB } from '../../lib/mongodb.js';
+import User from '../../models/User.js';
 
 const router = Router();
 
