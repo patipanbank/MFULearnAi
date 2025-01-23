@@ -16,18 +16,24 @@ const localEmbeddingFunction: IEmbeddingFunction = {
 };
 
 // สร้าง collection สำหรับเก็บ vectors
-export const getOrCreateCollection = async () => {
-    const collectionName = "mfu_knowledge";
+export async function getOrCreateCollection() {
+    console.log('Connecting to ChromaDB...');
+    const client = new ChromaClient({
+        path: "http://chromadb:8000"
+    });
+
+    const collectionName = 'mfu_knowledge';
+    console.log(`Getting collection: ${collectionName}`);
+
     try {
-        const collection = await client.getCollection({
+        const collection = await client.getOrCreateCollection({
             name: collectionName,
             embeddingFunction: localEmbeddingFunction
         });
+        console.log('Successfully got/created collection');
         return collection;
-    } catch {
-        return await client.createCollection({
-            name: collectionName,
-            embeddingFunction: localEmbeddingFunction
-        });
+    } catch (error) {
+        console.error('Error in getOrCreateCollection:', error);
+        throw error;
     }
-}; 
+} 

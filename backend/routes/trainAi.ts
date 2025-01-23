@@ -384,14 +384,14 @@ SYSTEM "${systemPrompt}"
   }
 });
 
-router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Request, res: Response) => {
+router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const userReq = req as RequestWithUser;
-    if (!userReq.file) {
-      res.status(400).json({ message: 'Please upload a file' });
+    if (!req.file) {
+      res.status(400).json({ message: 'No file uploaded' });
       return;
     }
 
+    const user = (req as RequestWithUser).user;
     const { datasetName, modelName = 'mfu-custom' } = req.body;
     
     if (!datasetName) {
@@ -401,15 +401,15 @@ router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Re
 
     let extractedText = '';
     let imageTexts: string[] = [];
-    const ext = extname(userReq.file.originalname).toLowerCase();
+    const ext = extname(req.file.originalname).toLowerCase();
 
     // แปลงไฟล์เป็นข้อความตามประเภท
     switch (ext) {
       case '.txt':
-        extractedText = userReq.file.buffer.toString('utf-8');
+        extractedText = req.file.buffer.toString('utf-8');
         break;
       case '.pdf':
-        const loadingTask = getDocument(userReq.file.buffer);
+        const loadingTask = getDocument(req.file.buffer);
         const pdf = await loadingTask.promise;
         let pdfText = '';
         for (let i = 1; i <= pdf.numPages; i++) {
@@ -419,24 +419,24 @@ router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Re
         }
         extractedText = pdfText;
         // ดึงข้อความจากรูปภาพใน PDF
-        imageTexts = await extractImagesFromPDF(userReq.file.buffer);
+        imageTexts = await extractImagesFromPDF(req.file.buffer);
         break;
       case '.docx':
-        const result = await mammoth.extractRawText({ buffer: userReq.file.buffer });
+        const result = await mammoth.extractRawText({ buffer: req.file.buffer });
         extractedText = result.value;
         // ดึงข้อความจากรูปภาพใน DOCX
-        imageTexts = await extractImagesFromDOCX(userReq.file.buffer);
+        imageTexts = await extractImagesFromDOCX(req.file.buffer);
         break;
       case '.xlsx':
       case '.csv':
-        const workbook = xlsx.read(userReq.file.buffer);
+        const workbook = xlsx.read(req.file.buffer);
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         extractedText = xlsx.utils.sheet_to_csv(worksheet);
         break;
       case '.png':
       case '.jpg':
       case '.jpeg':
-        extractedText = await extractTextFromImage(userReq.file.buffer);
+        extractedText = await extractTextFromImage(req.file.buffer);
         break;
     }
 
@@ -444,8 +444,6 @@ router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Re
     const combinedText = [extractedText, ...imageTexts]
       .filter(text => text.trim().length > 0)
       .join('\n\n');
-
-    const user = userReq.user;
 
     // บันทึกลงฐานข้อมูล
     const trainingData = await TrainingData.create({
@@ -458,14 +456,18 @@ router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Re
         lastName: user.lastName
       },
       fileType: ext,
-      originalFileName: userReq.file.originalname
+      originalFileName: req.file.originalname
     });
 
     // แปลงข้อความเป็น chunks
-    const chunks = splitIntoChunks(combinedText, 500); // แบ่งข้อความเป็นชิ้นๆ ละ 500 ตัวอักษร
+    console.log('Creating chunks from text...'); // เพิ่ม log
+    const chunks = splitIntoChunks(combinedText, 500);
+    console.log(`Created ${chunks.length} chunks`); // เพิ่ม log
 
     // เก็บข้อมูลใน ChromaDB
+    console.log('Getting ChromaDB collection...'); // เพิ่ม log
     const collection = await getOrCreateCollection();
+    console.log('Adding data to ChromaDB...'); // เพิ่ม log
     await collection.add({
       ids: chunks.map((_, i) => `${trainingData._id}_${i}`),
       documents: chunks,
@@ -474,6 +476,7 @@ router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Re
         author: user.username
       }))
     });
+    console.log('Successfully added data to ChromaDB'); // เพิ่ม log
 
     res.json({ message: 'Training data added successfully' });
   } catch (error) {
