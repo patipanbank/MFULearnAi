@@ -1,7 +1,9 @@
 import { ChromaClient, IEmbeddingFunction } from 'chromadb';
 import { generateEmbedding } from './embeddings.js';
 
-const client = new ChromaClient();
+const client = new ChromaClient({
+  path: "http://chromadb:8000"
+});
 
 // Custom embedding function
 const localEmbeddingFunction: IEmbeddingFunction = {
