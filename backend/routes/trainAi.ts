@@ -143,7 +143,7 @@ async function extractTextFromImage(buffer: Buffer): Promise<string> {
     return text.trim();
   } catch (error) {
     console.error('Error extracting text from image:', error);
-    throw new Error('ไม่สามารถแปลงรูปภาพเป็นข้อความได้');
+    throw new Error('Could not extract text from image');
   }
 }
 
@@ -151,14 +151,14 @@ async function extractTextFromImage(buffer: Buffer): Promise<string> {
 router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      res.status(400).json({ message: 'กรุณาอัพโหลดไฟล์' });
+      res.status(400).json({ message: 'Please upload a file' });
       return;
     }
 
     const { datasetName, modelName = 'mfu-custom' } = req.body;
     
     if (!datasetName) {
-      res.status(400).json({ message: 'กรุณาระบุชื่อชุดข้อมูล' });
+      res.status(400).json({ message: 'Please provide a dataset name' });
       return;
     }
 
@@ -236,7 +236,7 @@ Use this knowledge to help answer questions. If the question is not related to t
     });
 
     res.json({
-      message: 'อัพโหลดและ train ข้อมูลสำเร็จ',
+      message: 'File uploaded and model trained successfully',
       dataId: trainingData._id,
       extractedTextLength: combinedText.length,
       numberOfImages: imageTexts.length
@@ -245,7 +245,7 @@ Use this knowledge to help answer questions. If the question is not related to t
   } catch (error) {
     console.error('Error in file upload:', error);
     res.status(500).json({
-      message: 'เกิดข้อผิดพลาดในการอัพโหลดไฟล์',
+      message: 'Error uploading file',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -367,7 +367,11 @@ SYSTEM "${systemPrompt}"
     });
 
   } catch (error) {
-    // ... error handling ...
+    console.error('Error in add training data:', error);
+    res.status(500).json({
+      message: 'Error adding training data',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

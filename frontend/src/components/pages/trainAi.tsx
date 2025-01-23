@@ -204,11 +204,11 @@ const TrainAI: React.FC = () => {
         
         {/* File upload section */}
         <div className="mb-6 border-b pb-6">
-          <h2 className="text-xl font-bold mb-4">อัพโหลดข้อมูลสำหรับ Training</h2>
+          <h2 className="text-xl font-bold mb-4">Upload data for training</h2>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">ชื่อชุดข้อมูล</label>
+              <label className="block text-sm font-medium text-gray-700">Dataset Name</label>
               <input
                 type="text"
                 value={datasetName}
@@ -219,12 +219,12 @@ const TrainAI: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">ชื่อโมเดล</label>
+              <label className="block text-sm font-medium text-gray-700">Model Name</label>
               <input
                 type="text"
                 value={modelName}
                 onChange={(e) => setModelName(e.target.value)}
-                placeholder="ระบุชื่อโมเดล (ค่าเริ่มต้น: mfu-custom)"
+                placeholder="Enter model name (default: mfu-custom)"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
@@ -246,7 +246,7 @@ const TrainAI: React.FC = () => {
                 />
                 <div className="flex items-center gap-2 cursor-pointer p-2 border rounded hover:bg-gray-50">
                   <FaUpload />
-                  <span>{uploadMessage || 'เลือกไฟล์'}</span>
+                  <span>{uploadMessage || 'Select File'}</span>
                 </div>
               </label>
               <button
@@ -256,7 +256,7 @@ const TrainAI: React.FC = () => {
                 onClick={handleFileUpload}
                 disabled={isTraining || !file || !datasetName.trim()}
               >
-                {isTraining ? 'กำลัง Training...' : 'อัพโหลดและ Train'}
+                {isTraining ? 'Training...' : 'Upload and Train'}
               </button>
             </div>
           </div>
