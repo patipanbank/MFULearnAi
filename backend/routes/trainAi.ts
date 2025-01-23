@@ -148,7 +148,7 @@ async function extractTextFromImage(buffer: Buffer): Promise<string> {
 }
 
 // อัพเดท endpoint สำหรับอัพโหลดไฟล์
-router.post('/upload', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
+router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { 
       datasetName,

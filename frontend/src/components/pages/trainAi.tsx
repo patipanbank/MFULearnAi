@@ -32,7 +32,7 @@ interface TrainingData {
 
 const TrainAI: React.FC = () => {
   // const [text, setText] = useState('');
-  const [isTraining, setIsTraining] = useState(false);
+  const [isTraining] = useState(false);
   const [message, setMessage] = useState('');
   const [trainingHistory, setTrainingHistory] = useState<TrainingData[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -155,51 +155,26 @@ const TrainAI: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async () => {
+  const handleSubmit = async () => {
     try {
-      if (!datasetName.trim()) {
-        setMessage('Please enter a dataset name');
-        return;
-      }
-
-      setIsTraining(true);
-      setMessage('Training AI...');
-
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        setMessage('Please log in again');
-        return;
-      }
-
+      if (!file) return;
+      
       const formData = new FormData();
-      formData.append('file', file!);
+      formData.append('file', file);
       formData.append('datasetName', datasetName);
       formData.append('modelName', modelName);
       formData.append('accessGroups', JSON.stringify(accessGroups));
       formData.append('category', category);
 
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/train-ai/train/file`,
-        formData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
+      await axios.post(`${import.meta.env.VITE_API_URL}/train-ai/train/file`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
         }
-      );
-
-      setMessage(`Training completed: ${response.data.name}`);
-      setFile(null);
-      setUploadMessage('');
-      setDatasetName('');
-      await loadTrainingHistory();
-    } catch (error: unknown) {
-      console.error('Training error:', error);
-      const axiosError = error as AxiosError<{ message: string }>;
-      setMessage(axiosError.response?.data?.message || 'An error occurred during training');
-    } finally {
-      setIsTraining(false);
+      });
+      // ... rest of the code ...
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setMessage('Error uploading file');
     }
   };
 
@@ -302,7 +277,7 @@ const TrainAI: React.FC = () => {
                 className={`px-4 py-2 rounded ${
                   isTraining ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
                 } text-white`}
-                onClick={handleFileUpload}
+                onClick={handleSubmit}
                 disabled={isTraining || !file || !datasetName.trim()}
               >
                 {isTraining ? 'Training...' : 'Upload and Train'}
