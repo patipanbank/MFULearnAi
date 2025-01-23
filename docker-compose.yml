@@ -25,8 +25,10 @@ services:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
     depends_on:
       - db
+      - chromadb
     networks:
       - mfulearnai
+      - mfu_network
     restart: unless-stopped
     dns:
       - 8.8.8.8  # Google DNS
@@ -78,6 +80,8 @@ services:
     environment:
       - CHROMA_SERVER_CORS_ALLOW_ORIGINS=*
       - ALLOW_RESET=true
+    networks:
+      - mfu_network
 
 volumes:
   data:
@@ -85,4 +89,6 @@ volumes:
   chroma_data:
 networks:
   mfulearnai:
+    driver: bridge
+  mfu_network:
     driver: bridge
