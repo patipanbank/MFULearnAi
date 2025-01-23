@@ -148,17 +148,17 @@ async function extractTextFromImage(buffer: Buffer): Promise<string> {
 }
 
 // อัพเดท endpoint สำหรับอัพโหลดไฟล์
-router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
+router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
-    const { 
-      datasetName,
-      modelName = 'mfu-custom',
-      accessGroups = ['Students', 'Staffs'],
-      category 
-    } = req.body;
-
     if (!req.file) {
       res.status(400).json({ message: 'Please upload a file' });
+      return;
+    }
+
+    const { datasetName, modelName = 'mfu-custom' } = req.body;
+    
+    if (!datasetName) {
+      res.status(400).json({ message: 'Please provide a dataset name' });
       return;
     }
 
@@ -202,29 +202,44 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
       .join('\n\n');
 
     const user = (req as RequestWithUser).user;
-    
+
     // บันทึกลงฐานข้อมูล
     const trainingData = await TrainingData.create({
       name: datasetName,
       content: combinedText,
-      modelName,
-      accessGroups: JSON.parse(accessGroups),
-      category,
       createdBy: {
-        nameID: user.nameID,
+        nameID: user.nameID || '',
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName
       },
-      fileType: ext
+      fileType: ext,
+      originalFileName: req.file.originalname
     });
 
-    // Train model แยกตามโมเดล
-    await trainModel(modelName, trainingData.content, accessGroups);
+    // ดึงข้อมูลทั้งหมดที่ active
+    const allTrainingData = await TrainingData.find({ isActive: true });
+    const allContent = allTrainingData
+      .map(data => data.content)
+      .join('\n\n');
+
+    // Train model
+    await axios.post('http://ollama:11434/api/create', {
+      name: modelName,
+      modelfile: `FROM llama2
+SYSTEM "You are an AI assistant for MFU University. Here is your knowledge base:
+
+${allContent}
+
+Use this knowledge to help answer questions. If the question is not related to the provided knowledge, respond that you don't have information about that topic."
+`
+    });
 
     res.json({
-      message: 'อัพโหลดและ train ข้อมูลสำเร็จ',
-      dataId: trainingData._id
+      message: 'File uploaded and model trained successfully',
+      dataId: trainingData._id,
+      extractedTextLength: combinedText.length,
+      numberOfImages: imageTexts.length
     });
 
   } catch (error) {
@@ -235,29 +250,6 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
     });
   }
 });
-
-// เพิ่มฟังก์ชันสำหรับ train model
-async function trainModel(modelName: string, content: string, accessGroups: string[]) {
-  const systemPrompt = `
-  You are an AI assistant for MFU University. 
-  Here is your knowledge base:
-
-  ${content}
-
-  Important rules:
-  1. This information is accessible only to users in these groups: ${accessGroups.join(', ')}
-  2. For personal information requests, only provide information if the user is asking about themselves
-  3. Verify user's identity and permissions before providing sensitive information
-  4. For general questions, provide answers based on the available knowledge
-  `;
-
-  await axios.post('http://ollama:11434/api/create', {
-    name: modelName,
-    modelfile: `FROM llama2
-SYSTEM "${systemPrompt}"
-`
-  });
-}
 
 // endpoint สำหรับเปิด/ปิดการใช้งานข้อมูล
 router.patch('/training-data/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {

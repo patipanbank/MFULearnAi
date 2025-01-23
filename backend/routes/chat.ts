@@ -4,7 +4,6 @@ import axiosRetry from 'axios-retry';
 import { Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
 import { AxiosError } from 'axios';
-import TrainingData from '../models/TrainingData';
 
 const router = express.Router();
 
@@ -52,7 +51,6 @@ interface RequestWithUser extends Request {
     username: string;
     firstName: string;
     lastName: string;
-    groups: string[];
   };
 }
 
@@ -71,57 +69,81 @@ axiosRetry(axios, {
 // Set default timeout
 axios.defaults.timeout = 5000 * 60;
 
-router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response): Promise<void> => {
+router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const { message, modelName = 'mfu-custom' } = req.body;
+    const { message, model = 'llama2' } = req.body;
     const currentUser = (req as RequestWithUser).user;
+    const modelConfig = modelConfigs[model];
 
-    const accessibleData = await TrainingData.find({
-      isActive: true,
-      modelName,
-      accessGroups: { $in: currentUser.groups }
-    });
+    // Check if the question is asking for personal information
+    const userDataRegex = /(?:information|info|data|details)(?:\s+(?:of|about|for))?\s+([a-zA-Zก-๙\s]+)/i;
+    const match = message.match(userDataRegex);
 
-    if (accessibleData.length === 0) {
-      res.status(403).json({
-        error: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลของโมเดลนี้'
-      });
-      return;
-    }
-
-    // ตรวจสอบคำถามเกี่ยวกับข้อมูลส่วนบุคคล
-    const personalInfoRequest = checkPersonalInfoRequest(message);
-    if (personalInfoRequest) {
-      const requestedPerson = personalInfoRequest.toLowerCase();
-      const currentUserName = `${currentUser.firstName} ${currentUser.lastName}`.toLowerCase();
-
-      if (!requestedPerson.includes(currentUserName)) {
+    if (match) {
+      const askedPerson = match[1].trim().toLowerCase();
+      const currentUserFullName = `${currentUser.firstName} ${currentUser.lastName}`.toLowerCase();
+      const currentUserFirstName = currentUser.firstName.toLowerCase();
+      
+      // Check if asking about current user (including partial name matches)
+      if (!askedPerson.includes(currentUserFirstName) && 
+          !askedPerson.includes(currentUserFullName)) {
         res.json({
-          response: "ขออภัย ไม่สามารถให้ข้อมูลส่วนบุคคลของผู้อื่นได้",
-          model: modelName
+          response: "Sorry, I cannot provide personal information about others. You can only ask about your own information.",
+          model: "Llama 2 (MFU Custom)"
         });
         return;
       }
     }
 
-    // ส่งคำถามไปยัง Ollama
-    const ollamaResponse = await axios.post('http://ollama:11434/api/generate', {
-      model: modelName,
-      prompt: message,
-      stream: false,
-      context: {
-        user: {
-          groups: currentUser.groups,
-          name: `${currentUser.firstName} ${currentUser.lastName}`
-        }
+    // If asking about themselves or general questions, proceed normally
+    if (modelConfig.type === 'ollama') {
+      const ollamaResponse = await axios.post('http://ollama:11434/api/generate', {
+        model: modelConfig.name,
+        prompt: message,
+        stream: false
+      });
+
+      res.json({
+        response: ollamaResponse.data.response,
+        model: modelConfig.displayName
+      });
+    } else if (modelConfig.type === 'huggingface') {
+      if (!modelConfig.apiUrl) {
+        throw new Error('API URL is not configured for this model');
       }
-    });
 
-    res.json({
-      response: ollamaResponse.data.response,
-      model: modelName
-    });
+      const hfResponse = await axios.post(
+        modelConfig.apiUrl,
+        { 
+          inputs: message,
+          parameters: {
+            temperature: 0.7,
+            max_length: 1000,
+            top_p: 0.9,
+            repetition_penalty: 1.2
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
+      let response = '';
+      if (Array.isArray(hfResponse.data)) {
+        response = hfResponse.data[0]?.generated_text || 'Sorry, I could not generate a response.';
+      } else {
+        response = hfResponse.data?.generated_text || 'Sorry, I could not generate a response.';
+      }
+
+      res.json({
+        response: response,
+        model: modelConfig.displayName,
+        warning: 'This model cannot access MFU-specific information'
+      });
+    }
   } catch (error: any) {
     console.error('Error:', error);
     // ตรวจสอบ error จาก Hugging Face
@@ -146,19 +168,5 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
     }
   }
 });
-
-function checkPersonalInfoRequest(message: string): string | null {
-  const personalInfoPatterns = [
-    /ข้อมูลของ\s*([ก-๙a-zA-Z\s]+)/i,
-    /information.*about\s+([ก-๙a-zA-Z\s]+)/i,
-    // เพิ่มรูปแบบอื่นๆ ตามต้องการ
-  ];
-
-  for (const pattern of personalInfoPatterns) {
-    const match = message.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
 
 export default router;

@@ -9,16 +9,6 @@ const trainingDataSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  modelName: {
-    type: String,
-    required: true,
-    default: 'mfu-custom'
-  },
-  accessGroups: {
-    type: [String],
-    required: true,
-    default: ['Students', 'Staffs']
-  },
   createdBy: {
     nameID: {
       type: String,
@@ -28,15 +18,20 @@ const trainingDataSchema = new mongoose.Schema({
       type: String,
       required: true
     },
-    firstName: String,
-    lastName: String
+    firstName: {
+      type: String
+    },
+    lastName: {
+      type: String
+    }
   },
   isActive: {
     type: Boolean,
     default: true
   },
-  fileType: String,
-  category: String,
+  fileType: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now
