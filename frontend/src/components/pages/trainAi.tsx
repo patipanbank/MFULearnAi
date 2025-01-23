@@ -20,7 +20,15 @@ interface TrainingData {
   name: string;
   originalFileName: string;
   modelName: string;
+  accessGroups: string[];
+  category: string;
 }
+
+// interface TrainAIProps {
+//   modelName: string;
+//   accessGroups: string[];
+//   category: string;
+// }
 
 const TrainAI: React.FC = () => {
   // const [text, setText] = useState('');
@@ -31,6 +39,21 @@ const TrainAI: React.FC = () => {
   const [uploadMessage, setUploadMessage] = useState('');
   const [datasetName, setDatasetName] = useState('');
   const [modelName, setModelName] = useState('mfu-custom');
+  const [accessGroups, setAccessGroups] = useState<string[]>(['Students', 'Staffs']);
+  const [category] = useState('');
+  // , setCategory
+
+  const availableModels = [
+    { id: 'mfu-custom', name: 'MFU Custom' },
+    { id: 'mfu-staff', name: 'Staff Only' },
+    { id: 'mfu-student', name: 'Student Only' }
+  ];
+
+  const availableGroups = [
+    { id: 'Students', name: 'นักศึกษา' },
+    { id: 'Staffs', name: 'บุคลากร' },
+    { id: 'Admins', name: 'ผู้ดูแลระบบ' }
+  ];
 
   // โหลดข้อมูลประวัติการ train
   const loadTrainingHistory = async () => {
@@ -152,6 +175,8 @@ const TrainAI: React.FC = () => {
       formData.append('file', file!);
       formData.append('datasetName', datasetName);
       formData.append('modelName', modelName);
+      formData.append('accessGroups', JSON.stringify(accessGroups));
+      formData.append('category', category);
 
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/train-ai/train/file`,
@@ -218,15 +243,39 @@ const TrainAI: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Model Name</label>
-              <input
-                type="text"
+            <div className="mb-4">
+              <label>โมเดล</label>
+              <select 
                 value={modelName}
                 onChange={(e) => setModelName(e.target.value)}
-                placeholder="Enter model name (default: mfu-custom)"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
+                className="form-select"
+              >
+                {availableModels.map(model => (
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label>กลุ่มผู้ใช้ที่มีสิทธิ์เข้าถึง</label>
+              {availableGroups.map(group => (
+                <div key={group.id}>
+                  <input
+                    type="checkbox"
+                    checked={accessGroups.includes(group.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setAccessGroups([...accessGroups, group.id]);
+                      } else {
+                        setAccessGroups(accessGroups.filter(g => g !== group.id));
+                      }
+                    }}
+                  />
+                  <label>{group.name}</label>
+                </div>
+              ))}
             </div>
 
             {/* File upload UI */}
