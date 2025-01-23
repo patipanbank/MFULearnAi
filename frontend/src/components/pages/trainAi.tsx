@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
-import { FaUpload, FaFile, FaFilePdf, FaFileWord, FaFileExcel } from 'react-icons/fa';
+import { FaUpload } from 'react-icons/fa';
+
+// FaFile, FaFilePdf, FaFileWord, FaFileExcel
 
 interface TrainingData {
   _id: string;
@@ -15,6 +17,9 @@ interface TrainingData {
   fileType?: string;
   createdAt: string;
   updatedAt: string;
+  name: string;
+  originalFileName: string;
+  modelName: string;
 }
 
 const TrainAI: React.FC = () => {
@@ -24,6 +29,8 @@ const TrainAI: React.FC = () => {
   const [trainingHistory, setTrainingHistory] = useState<TrainingData[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState('');
+  const [datasetName, setDatasetName] = useState('');
+  const [modelName, setModelName] = useState('mfu-custom');
 
   // โหลดข้อมูลประวัติการ train
   const loadTrainingHistory = async () => {
@@ -127,6 +134,11 @@ const TrainAI: React.FC = () => {
 
   const handleFileUpload = async () => {
     try {
+      if (!datasetName.trim()) {
+        setMessage('Please enter a dataset name');
+        return;
+      }
+
       setIsTraining(true);
       setMessage('Training AI...');
 
@@ -137,9 +149,11 @@ const TrainAI: React.FC = () => {
       }
 
       const formData = new FormData();
-      formData.append('file', file!, file!.name);
+      formData.append('file', file!);
+      formData.append('datasetName', datasetName);
+      formData.append('modelName', modelName);
 
-      await axios.post(
+      const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/train-ai/train/file`,
         formData,
         {
@@ -150,9 +164,10 @@ const TrainAI: React.FC = () => {
         }
       );
 
-      setMessage('Training AI successful!');
+      setMessage(`Training completed: ${response.data.name}`);
       setFile(null);
       setUploadMessage('');
+      setDatasetName('');
       await loadTrainingHistory();
     } catch (error: unknown) {
       console.error('Training error:', error);
@@ -164,19 +179,19 @@ const TrainAI: React.FC = () => {
   };
 
   // เพิ่มฟังก์ชันสำหรับแสดงไอคอนตามประเภทไฟล์
-  const getFileIcon = (fileType: string) => {
-    switch (fileType) {
-      case 'pdf':
-        return <FaFilePdf className="text-red-500" />;
-      case 'docx':
-        return <FaFileWord className="text-blue-500" />;
-      case 'xlsx':
-      case 'csv':
-        return <FaFileExcel className="text-green-500" />;
-      default:
-        return <FaFile />;
-    }
-  };
+  // const getFileIcon = (fileType: string) => {
+  //   switch (fileType) {
+  //     case 'pdf':
+  //       return <FaFilePdf className="text-red-500" />;
+  //     case 'docx':
+  //       return <FaFileWord className="text-blue-500" />;
+  //     case 'xlsx':
+  //     case 'csv':
+  //       return <FaFileExcel className="text-green-500" />;
+  //     default:
+  //       return <FaFile />;
+  //   }
+  // };
 
   useEffect(() => {
     loadTrainingHistory();
@@ -189,39 +204,62 @@ const TrainAI: React.FC = () => {
         
         {/* File upload section */}
         <div className="mb-6 border-b pb-6">
-          <h2 className="text-xl font-bold mb-4">Upload File</h2>
-          <div className="flex items-center gap-4">
-            <label className="flex-1">
+          <h2 className="text-xl font-bold mb-4">Upload Training Data</h2>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Dataset Name</label>
               <input
-                type="file"
-                accept=".txt,.pdf,.docx,.xlsx,.csv"
-                className="hidden"
-                onChange={(e) => {
-                  const selectedFile = e.target.files?.[0];
-                  if (selectedFile) {
-                    setFile(selectedFile);
-                    setUploadMessage(selectedFile.name);
-                  }
-                }}
+                type="text"
+                value={datasetName}
+                onChange={(e) => setDatasetName(e.target.value)}
+                placeholder="Enter name for this dataset"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
-              <div className="flex items-center gap-2 cursor-pointer p-2 border rounded hover:bg-gray-50">
-                <FaUpload />
-                <span>{uploadMessage || 'Select File'}</span>
-              </div>
-            </label>
-            <button
-              className={`px-4 py-2 rounded ${
-                isTraining ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
-              } text-white`}
-              onClick={handleFileUpload}
-              disabled={isTraining || !file}
-            >
-              {isTraining ? 'Training...' : 'Upload and Train'}
-            </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Model Name</label>
+              <input
+                type="text"
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
+                placeholder="Enter model name (default: mfu-custom)"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* File upload UI */}
+            <div className="flex items-center gap-4">
+              <label className="flex-1">
+                <input
+                  type="file"
+                  accept=".txt,.pdf,.docx,.xlsx,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const selectedFile = e.target.files?.[0];
+                    if (selectedFile) {
+                      setFile(selectedFile);
+                      setUploadMessage(selectedFile.name);
+                    }
+                  }}
+                />
+                <div className="flex items-center gap-2 cursor-pointer p-2 border rounded hover:bg-gray-50">
+                  <FaUpload />
+                  <span>{uploadMessage || 'Select File'}</span>
+                </div>
+              </label>
+              <button
+                className={`px-4 py-2 rounded ${
+                  isTraining ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+                } text-white`}
+                onClick={handleFileUpload}
+                disabled={isTraining || !file || !datasetName.trim()}
+              >
+                {isTraining ? 'Training...' : 'Upload and Train'}
+              </button>
+            </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            Supported file types: .txt, .pdf, .docx, .xlsx, .csv. File size limit: 10MB.
-          </p>
         </div>
 
         {/* <div className="mb-4">
@@ -252,15 +290,18 @@ const TrainAI: React.FC = () => {
 
         {/* Training history */}
         <div>
-          <h2 className="text-xl font-bold mb-4 mt-4">History of Training</h2>
+          <h2 className="text-xl font-bold mb-4 mt-4">Training History</h2>
           {trainingHistory.map((item) => (
             <div key={item._id} className="mb-4 p-4 border rounded">
               <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-2">
-                  {item.fileType && getFileIcon(item.fileType)}
-                  <span className="text-sm text-gray-500">
-                    {item.fileType ? `ไฟล์ ${item.fileType.toUpperCase()}` : 'ข้อความ'}
-                  </span>
+                <div>
+                  <h3 className="font-bold">{item.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    Original file: {item.originalFileName}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Model: {item.modelName}
+                  </p>
                 </div>
                 <span className={`px-2 py-1 rounded text-xs ${
                   item.isActive 

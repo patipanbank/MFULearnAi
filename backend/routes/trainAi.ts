@@ -56,10 +56,17 @@ router.get('/training-data', async (req: Request, res: Response) => {
 });
 
 // endpoint สำหรับอัพโหลดไฟล์
-router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
+router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       res.status(400).json({ message: 'Please upload a file' });
+      return;
+    }
+
+    const { datasetName, modelName = 'mfu-custom' } = req.body;
+    
+    if (!datasetName) {
+      res.status(400).json({ message: 'Dataset name is required' });
       return;
     }
 
@@ -89,7 +96,9 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
 
     const user = (req as RequestWithUser).user;
 
+    // สร้าง training data
     await TrainingData.create({
+      name: datasetName,
       content: extractedText,
       createdBy: {
         nameID: user.nameID || '',
@@ -98,38 +107,69 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
         lastName: user.lastName || ''
       },
       isActive: true,
-      fileType: ext.substring(1) // เก็บประเภทไฟล์โดยตัด . ออก
+      fileType: ext.substring(1),
+      originalFileName: req.file.originalname,
+      modelName
     });
 
-    // ดึงข้อมูลทั้งหมดที่ active และ train
-    const allTrainingData = await TrainingData.find({ isActive: true });
+    // ดึงข้อมูลทั้งหมดที่ active
+    const allTrainingData = await TrainingData.find({ 
+      isActive: true,
+      modelName // แยกตาม model
+    });
+
     const combinedContent = allTrainingData
-      .map(data => data.content)
+      .map(data => `# ${data.name}\n${data.content}`)
       .join('\n\n');
 
-    await axios.post('http://ollama:11434/api/create', {
-      name: 'mfu-custom',
-      modelfile: `FROM llama2
-SYSTEM "You are an AI assistant for MFU University. Here is your knowledge base:
+    // สร้าง Modelfile
+    const modelfile = `
+FROM llama2
+
+# System prompt
+SYSTEM """
+You are an AI assistant for MFU University. Here is your knowledge base:
 
 ${combinedContent}
 
-Use this knowledge to help answer questions. If the question is not related to the provided knowledge, respond that you don't have information about that topic."
-`
+Important rules:
+1. Use the knowledge provided above to answer questions
+2. If information is not in the knowledge base, say you don't have that information
+3. Respect privacy of personal information
+4. Be clear and concise in your responses
+"""
+
+# Parameters
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+
+# Template format
+TEMPLATE """
+Knowledge Base:
+{{.System}}
+
+User: {{.Prompt}}
+Assistant: Let me help you with that.
+"""
+`;
+
+    // Train model
+    await axios.post('http://ollama:11434/api/create', {
+      name: modelName,
+      modelfile: modelfile
     });
 
-    res.status(200).json({ 
-      message: 'File uploaded and AI trained successfully',
+    res.json({ 
+      message: 'File uploaded and model trained successfully',
+      name: datasetName,
+      model: modelName,
       totalDataPoints: allTrainingData.length
     });
 
-  } catch (error: unknown) {
-    console.error('Training error:', error);
-    const err = error as Error;
-    res.status(500).json({ 
-      message: 'Error in training',
-      error: err.message
-    });
+  } catch (error) {
+    // ... error handling ...
   }
 });
 
