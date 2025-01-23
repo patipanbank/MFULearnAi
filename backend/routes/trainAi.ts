@@ -226,11 +226,32 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
       originalFileName: req.file.originalname
     });
 
-    // ดึงข้อมูลทั้งหมดที่ active
+    // ดึงข้อมูลที่ active จาก MongoDB
     const allTrainingData = await TrainingData.find({ isActive: true });
-    const allContent = allTrainingData
-      .map(data => data.content)
-      .join('\n\n');
+    console.log('Getting active training data...', allTrainingData.length, 'documents found');
+
+    // รวมเนื้อหาทั้งหมด
+    const allContent = allTrainingData.map(doc => doc.content).join('\n\n');
+    console.log('Processing text for ChromaDB...');
+
+    // แปลงข้อความเป็น chunks
+    const chunks = splitIntoChunks(allContent, 500);
+    console.log(`Created ${chunks.length} chunks`);
+
+    // เก็บข้อมูลใน ChromaDB
+    const collection = await getOrCreateCollection();
+    console.log('Adding data to ChromaDB...');
+
+    await collection.add({
+      ids: chunks.map((_, i) => `chunk_${Date.now()}_${i}`),
+      documents: chunks,
+      metadatas: chunks.map(() => ({
+        source: 'training_data',
+        timestamp: new Date().toISOString()
+      }))
+    });
+
+    console.log('Successfully added data to ChromaDB');
 
     // Train model
     await axios.post('http://ollama:11434/api/create', {
@@ -459,24 +480,32 @@ router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Re
       originalFileName: req.file.originalname
     });
 
+    // ดึงข้อมูลที่ active จาก MongoDB
+    const allTrainingData = await TrainingData.find({ isActive: true });
+    console.log('Getting active training data...', allTrainingData.length, 'documents found');
+
+    // รวมเนื้อหาทั้งหมด
+    const allContent = allTrainingData.map(doc => doc.content).join('\n\n');
+    console.log('Processing text for ChromaDB...');
+
     // แปลงข้อความเป็น chunks
-    console.log('Creating chunks from text...'); // เพิ่ม log
-    const chunks = splitIntoChunks(combinedText, 500);
-    console.log(`Created ${chunks.length} chunks`); // เพิ่ม log
+    const chunks = splitIntoChunks(allContent, 500);
+    console.log(`Created ${chunks.length} chunks`);
 
     // เก็บข้อมูลใน ChromaDB
-    console.log('Getting ChromaDB collection...'); // เพิ่ม log
     const collection = await getOrCreateCollection();
-    console.log('Adding data to ChromaDB...'); // เพิ่ม log
+    console.log('Adding data to ChromaDB...');
+
     await collection.add({
-      ids: chunks.map((_, i) => `${trainingData._id}_${i}`),
+      ids: chunks.map((_, i) => `chunk_${Date.now()}_${i}`),
       documents: chunks,
       metadatas: chunks.map(() => ({
-        source: trainingData.name,
-        author: user.username
+        source: 'training_data',
+        timestamp: new Date().toISOString()
       }))
     });
-    console.log('Successfully added data to ChromaDB'); // เพิ่ม log
+
+    console.log('Successfully added data to ChromaDB');
 
     res.json({ message: 'Training data added successfully' });
   } catch (error) {
