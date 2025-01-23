@@ -10,7 +10,8 @@ import authRoutes from './routes/auth.js';
 import chatRouter from './routes/chat.js';
 import trainAiRouter from './routes/trainAi.js';
 import fs from 'fs';
-import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 const app = express();
 
@@ -46,8 +47,11 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // สร้างโฟลเดอร์ uploads ถ้ายังไม่มี
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
