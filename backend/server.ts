@@ -5,13 +5,12 @@ import express from 'express';
 import cors from 'cors';
 import passport from 'passport';
 import session from 'express-session';
-import { connectDB } from './lib/mongodb.js';
-import authRoutes from './routes/auth.js';
-import chatRouter from './routes/chat.js';
-import trainAiRouter from './routes/trainAi.js';
+import { connectDB } from './lib/mongodb';
+import authRoutes from './routes/auth';
+import chatRouter from './routes/chat';
+import trainAiRouter from './routes/trainAi';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import path from 'path';
 
 const app = express();
 
@@ -47,11 +46,8 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 // สร้างโฟลเดอร์ uploads ถ้ายังไม่มี
-const uploadsDir = join(__dirname, 'uploads');
+const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }

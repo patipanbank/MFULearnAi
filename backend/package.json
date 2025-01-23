@@ -1,7 +1,6 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "type": "module",
   "description": "",
   "main": "server.ts",
   "scripts": {
@@ -48,9 +47,6 @@
     "pdf-parse": "^1.1.1",
     "sharp": "^0.33.2",
     "tesseract.js": "^5.0.5",
-    "xlsx": "^0.18.5",
-    "chromadb": "^1.8.0",
-    "@xenova/transformers": "^2.15.0",
-    "pdfjs-dist": "^4.0.379"
+    "xlsx": "^0.18.5"
   }
 }

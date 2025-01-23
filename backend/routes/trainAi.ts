@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { roleGuard } from '../middleware/roleGuard.js';
+import { roleGuard } from '../middleware/roleGuard';
 import axios from 'axios';
-import TrainingData from '../models/TrainingData.js';
+import TrainingData from '../models/TrainingData';
 import multer from 'multer';
 import { extname } from 'path';
 import pdf from 'pdf-parse';
@@ -15,8 +15,6 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import NodeZip from 'node-zip';
-import { getOrCreateCollection } from '../lib/chromadb.js';
-import { getDocument } from 'pdfjs-dist';
 
 const router = Router();
 
@@ -174,15 +172,8 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
         extractedText = req.file.buffer.toString('utf-8');
         break;
       case '.pdf':
-        const loadingTask = getDocument(req.file.buffer);
-        const pdf = await loadingTask.promise;
-        let pdfText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          pdfText += content.items.map((item: any) => item.str).join(' ');
-        }
-        extractedText = pdfText;
+        const pdfData = await pdf(req.file.buffer);
+        extractedText = pdfData.text;
         // ดึงข้อความจากรูปภาพใน PDF
         imageTexts = await extractImagesFromPDF(req.file.buffer);
         break;
@@ -226,32 +217,11 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
       originalFileName: req.file.originalname
     });
 
-    // ดึงข้อมูลที่ active จาก MongoDB
+    // ดึงข้อมูลทั้งหมดที่ active
     const allTrainingData = await TrainingData.find({ isActive: true });
-    console.log('Getting active training data...', allTrainingData.length, 'documents found');
-
-    // รวมเนื้อหาทั้งหมด
-    const allContent = allTrainingData.map(doc => doc.content).join('\n\n');
-    console.log('Processing text for ChromaDB...');
-
-    // แปลงข้อความเป็น chunks
-    const chunks = splitIntoChunks(allContent, 500);
-    console.log(`Created ${chunks.length} chunks`);
-
-    // เก็บข้อมูลใน ChromaDB
-    const collection = await getOrCreateCollection();
-    console.log('Adding data to ChromaDB...');
-
-    await collection.add({
-      ids: chunks.map((_, i) => `chunk_${Date.now()}_${i}`),
-      documents: chunks,
-      metadatas: chunks.map(() => ({
-        source: 'training_data',
-        timestamp: new Date().toISOString()
-      }))
-    });
-
-    console.log('Successfully added data to ChromaDB');
+    const allContent = allTrainingData
+      .map(data => data.content)
+      .join('\n\n');
 
     // Train model
     await axios.post('http://ollama:11434/api/create', {
@@ -402,159 +372,6 @@ SYSTEM "${systemPrompt}"
       message: 'Error adding training data',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
-  }
-});
-
-router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ message: 'No file uploaded' });
-      return;
-    }
-
-    const user = (req as RequestWithUser).user;
-    const { datasetName, modelName = 'mfu-custom' } = req.body;
-    
-    if (!datasetName) {
-      res.status(400).json({ message: 'Please provide a dataset name' });
-      return;
-    }
-
-    let extractedText = '';
-    let imageTexts: string[] = [];
-    const ext = extname(req.file.originalname).toLowerCase();
-
-    // แปลงไฟล์เป็นข้อความตามประเภท
-    switch (ext) {
-      case '.txt':
-        extractedText = req.file.buffer.toString('utf-8');
-        break;
-      case '.pdf':
-        const loadingTask = getDocument(req.file.buffer);
-        const pdf = await loadingTask.promise;
-        let pdfText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          pdfText += content.items.map((item: any) => item.str).join(' ');
-        }
-        extractedText = pdfText;
-        // ดึงข้อความจากรูปภาพใน PDF
-        imageTexts = await extractImagesFromPDF(req.file.buffer);
-        break;
-      case '.docx':
-        const result = await mammoth.extractRawText({ buffer: req.file.buffer });
-        extractedText = result.value;
-        // ดึงข้อความจากรูปภาพใน DOCX
-        imageTexts = await extractImagesFromDOCX(req.file.buffer);
-        break;
-      case '.xlsx':
-      case '.csv':
-        const workbook = xlsx.read(req.file.buffer);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        extractedText = xlsx.utils.sheet_to_csv(worksheet);
-        break;
-      case '.png':
-      case '.jpg':
-      case '.jpeg':
-        extractedText = await extractTextFromImage(req.file.buffer);
-        break;
-    }
-
-    // รวมข้อความจากไฟล์และรูปภาพ
-    const combinedText = [extractedText, ...imageTexts]
-      .filter(text => text.trim().length > 0)
-      .join('\n\n');
-
-    // บันทึกลงฐานข้อมูล
-    const trainingData = await TrainingData.create({
-      name: datasetName,
-      content: combinedText,
-      createdBy: {
-        nameID: user.nameID || '',
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName
-      },
-      fileType: ext,
-      originalFileName: req.file.originalname
-    });
-
-    // ดึงข้อมูลที่ active จาก MongoDB
-    const allTrainingData = await TrainingData.find({ isActive: true });
-    console.log('Getting active training data...', allTrainingData.length, 'documents found');
-
-    // รวมเนื้อหาทั้งหมด
-    const allContent = allTrainingData.map(doc => doc.content).join('\n\n');
-    console.log('Processing text for ChromaDB...');
-
-    // แปลงข้อความเป็น chunks
-    const chunks = splitIntoChunks(allContent, 500);
-    console.log(`Created ${chunks.length} chunks`);
-
-    // เก็บข้อมูลใน ChromaDB
-    const collection = await getOrCreateCollection();
-    console.log('Adding data to ChromaDB...');
-
-    await collection.add({
-      ids: chunks.map((_, i) => `chunk_${Date.now()}_${i}`),
-      documents: chunks,
-      metadatas: chunks.map(() => ({
-        source: 'training_data',
-        timestamp: new Date().toISOString()
-      }))
-    });
-
-    console.log('Successfully added data to ChromaDB');
-
-    res.json({ message: 'Training data added successfully' });
-  } catch (error) {
-    console.error('Error in add training data:', error);
-    res.status(500).json({
-      message: 'Error adding training data',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-function splitIntoChunks(text: string, chunkSize: number): string[] {
-  const chunks = [];
-  for (let i = 0; i < text.length; i += chunkSize) {
-    chunks.push(text.slice(i, i + chunkSize));
-  }
-  return chunks;
-}
-
-// เพิ่มฟังก์ชันลบข้อมูลจาก ChromaDB
-async function deleteFromChromaDB(documentId: string) {
-  const collection = await getOrCreateCollection();
-  await collection.delete({
-    ids: [`chunk_${documentId}_*`]
-  });
-}
-
-// แก้ไข route สำหรับลบ/ปิดการใช้งาน
-router.post('/toggle-status/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const doc = await TrainingData.findById(id);
-    if (!doc) {
-      res.status(404).json({ message: 'Document not found' });
-      return;
-    }
-
-    doc.isActive = !doc.isActive;
-    await doc.save();
-
-    // ถ้าปิดการใช้งาน ให้ลบข้อมูลจาก ChromaDB ด้วย
-    if (!doc.isActive) {
-      await deleteFromChromaDB(id);
-    }
-
-    res.json({ message: 'Status updated successfully' });
-  } catch (error) {
-    console.error('Error toggling status:', error);
-    res.status(500).json({ message: 'Error updating status' });
   }
 });
 

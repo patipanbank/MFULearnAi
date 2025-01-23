@@ -24,7 +24,6 @@ services:
     environment:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
     depends_on:
-      - chromadb
       - db
     networks:
       - mfulearnai
@@ -70,19 +69,9 @@ services:
       - mfulearnai
     restart: unless-stopped
 
-  chromadb:
-    image: chromadb/chroma
-    ports:
-      - "8000:8000"
-    volumes:
-      - chromadb_data:/chroma/chroma
-    networks:
-      - mfulearnai
-
 volumes:
   data:
   ollama:
-  chromadb_data:
 networks:
   mfulearnai:
     driver: bridge
