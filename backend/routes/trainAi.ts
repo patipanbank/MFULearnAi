@@ -15,8 +15,6 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import NodeZip from 'node-zip';
-import { initChroma } from '../config/chromadb';
-import mongoose from 'mongoose';
 
 const router = Router();
 
@@ -149,31 +147,6 @@ async function extractTextFromImage(buffer: Buffer): Promise<string> {
   }
 }
 
-// ฟังก์ชันสำหรับสร้าง embeddings
-const generateEmbeddings = async (text: string) => {
-  let pipeline: any;
-  (async () => {
-    const transformers = await import('@xenova/transformers');
-    pipeline = transformers.pipeline;
-  })();
-  const embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-  const output = await embedder(text, { pooling: 'mean', normalize: true });
-  return Array.from(output.data);
-};
-
-// ฟังก์ชันสำหรับเก็บข้อมูลใน ChromaDB
-const storeDocument = async (content: string, metadata: any) => {
-  const collection = await initChroma();
-  const embeddings = await generateEmbeddings(content);
-  
-  await collection.add({
-    ids: [metadata.id],
-    embeddings: [embeddings as number[]],
-    metadatas: [metadata],
-    documents: [content]
-  });
-};
-
 // อัพเดท endpoint สำหรับอัพโหลดไฟล์
 router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -230,19 +203,8 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
 
     const user = (req as RequestWithUser).user;
 
-    const metadata = {
-      id: new mongoose.Types.ObjectId().toString(),
-      source: req.file?.originalname || 'manual input',
-      author: (req as RequestWithUser).user.username,
-      timestamp: new Date().toISOString()
-    };
-
-    // เก็บข้อมูลใน ChromaDB
-    await storeDocument(combinedText, metadata);
-
-    // บันทึกข้อมูลลง MongoDB เหมือนเดิม
+    // บันทึกลงฐานข้อมูล
     const trainingData = await TrainingData.create({
-      _id: metadata.id,
       name: datasetName,
       content: combinedText,
       createdBy: {

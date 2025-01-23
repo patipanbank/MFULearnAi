@@ -4,7 +4,6 @@ import axiosRetry from 'axios-retry';
 import { Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
 import { AxiosError } from 'axios';
-import { initChroma } from '../config/chromadb';
 
 const router = express.Router();
 
@@ -72,56 +71,40 @@ axios.defaults.timeout = 5000 * 60;
 
 router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const { message, model: selectedModel } = req.body;
-    const modelConfig = modelConfigs[selectedModel];
+    const { message, model = 'llama2' } = req.body;
+    const currentUser = (req as RequestWithUser).user;
+    const modelConfig = modelConfigs[model];
 
-    if (!modelConfig) {
-      res.status(400).json({ error: 'Invalid model selection' });
-      return;
+    // Check if the question is asking for personal information
+    const userDataRegex = /(?:information|info|data|details)(?:\s+(?:of|about|for))?\s+([a-zA-Zก-๙\s]+)/i;
+    const match = message.match(userDataRegex);
+
+    if (match) {
+      const askedPerson = match[1].trim().toLowerCase();
+      const currentUserFullName = `${currentUser.firstName} ${currentUser.lastName}`.toLowerCase();
+      const currentUserFirstName = currentUser.firstName.toLowerCase();
+      
+      // Check if asking about current user (including partial name matches)
+      if (!askedPerson.includes(currentUserFirstName) && 
+          !askedPerson.includes(currentUserFullName)) {
+        res.json({
+          response: "Sorry, I cannot provide personal information about others. You can only ask about your own information.",
+          model: "Llama 2 (MFU Custom)"
+        });
+        return;
+      }
     }
 
-    // สร้าง embedding สำหรับคำถาม
-    let pipeline: any;
-    (async () => {
-      const transformers = await import('@xenova/transformers');
-      pipeline = transformers.pipeline;
-    })();
-    const embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-    const questionEmbedding = await embedder(message, { pooling: 'mean', normalize: true });
-
-    // ค้นหาข้อมูลที่เกี่ยวข้องจาก ChromaDB
-    const collection = await initChroma();
-    const results = await collection.query({
-      queryEmbeddings: [Array.from(questionEmbedding.data)],
-      nResults: 3
-    });
-
-    // สร้าง context จากผลลัพธ์ที่ได้
-    const context = results.documents[0].join('\n\n');
-
-    // สร้าง prompt ที่รวม context
-    const prompt = `Based on this context:
-${context}
-
-Please answer this question:
-${message}
-
-Important rules:
-1. If someone asks about personal information, only provide if they are asking about themselves
-2. For others' personal information, respond that you cannot provide due to privacy
-3. For general questions, answer normally
-4. Verify identity before providing personal information`;
-
-    // ส่ง prompt ไปยัง model
+    // If asking about themselves or general questions, proceed normally
     if (modelConfig.type === 'ollama') {
-      const response = await axios.post('http://ollama:11434/api/generate', {
+      const ollamaResponse = await axios.post('http://ollama:11434/api/generate', {
         model: modelConfig.name,
-        prompt: prompt,
+        prompt: message,
         stream: false
       });
 
       res.json({
-        response: response.data.response,
+        response: ollamaResponse.data.response,
         model: modelConfig.displayName
       });
     } else if (modelConfig.type === 'huggingface') {
@@ -132,7 +115,7 @@ Important rules:
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: prompt,
+          inputs: message,
           parameters: {
             temperature: 0.7,
             max_length: 1000,
