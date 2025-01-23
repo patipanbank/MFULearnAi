@@ -213,7 +213,7 @@ const TrainAI: React.FC = () => {
                 type="text"
                 value={datasetName}
                 onChange={(e) => setDatasetName(e.target.value)}
-                placeholder="ระบุชื่อชุดข้อมูล"
+                placeholder="Enter dataset name"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
