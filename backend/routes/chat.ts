@@ -2,8 +2,9 @@ import express from 'express';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { Request, Response } from 'express';
-import { roleGuard } from '../middleware/roleGuard';
+import { roleGuard } from '../middleware/roleGuard.js';
 import { AxiosError } from 'axios';
+import { getOrCreateCollection } from '../lib/chromadb.js';
 
 const router = express.Router();
 
@@ -71,38 +72,28 @@ axios.defaults.timeout = 5000 * 60;
 
 router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const { message, model = 'llama2' } = req.body;
-    const currentUser = (req as RequestWithUser).user;
+    const { message, model } = req.body;
     const modelConfig = modelConfigs[model];
 
-    // Check if the question is asking for personal information
-    const userDataRegex = /(?:information|info|data|details)(?:\s+(?:of|about|for))?\s+([a-zA-Zก-๙\s]+)/i;
-    const match = message.match(userDataRegex);
+    // ค้นหาข้อมูลที่เกี่ยวข้องจาก ChromaDB
+    const collection = await getOrCreateCollection();
+    const results = await collection.query({
+      queryTexts: [message],
+      nResults: 3
+    });
 
-    if (match) {
-      const askedPerson = match[1].trim().toLowerCase();
-      const currentUserFullName = `${currentUser.firstName} ${currentUser.lastName}`.toLowerCase();
-      const currentUserFirstName = currentUser.firstName.toLowerCase();
-      
-      // Check if asking about current user (including partial name matches)
-      if (!askedPerson.includes(currentUserFirstName) && 
-          !askedPerson.includes(currentUserFullName)) {
-        res.json({
-          response: "Sorry, I cannot provide personal information about others. You can only ask about your own information.",
-          model: "Llama 2 (MFU Custom)"
-        });
-        return;
-      }
-    }
+    // สร้าง prompt โดยรวมข้อมูลที่เกี่ยวข้อง
+    const context = results.documents[0].join('\n\nRelated information:\n');
+    const prompt = `Based on this context:\n${context}\n\nQuestion: ${message}\n\nAnswer:`;
 
-    // If asking about themselves or general questions, proceed normally
+    // ส่ง prompt ไปยัง AI model
     if (modelConfig.type === 'ollama') {
       const ollamaResponse = await axios.post('http://ollama:11434/api/generate', {
         model: modelConfig.name,
-        prompt: message,
+        prompt: prompt,
         stream: false
       });
-
+      
       res.json({
         response: ollamaResponse.data.response,
         model: modelConfig.displayName
@@ -115,7 +106,7 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: message,
+          inputs: prompt,
           parameters: {
             temperature: 0.7,
             max_length: 1000,
