@@ -16,6 +16,7 @@ import os from 'os';
 import path from 'path';
 import NodeZip from 'node-zip';
 import { getOrCreateCollection } from '../lib/chromadb.js';
+import { getDocument } from 'pdfjs-dist';
 
 const router = Router();
 
@@ -173,8 +174,15 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
         extractedText = req.file.buffer.toString('utf-8');
         break;
       case '.pdf':
-        const pdfData = await pdf(req.file.buffer);
-        extractedText = pdfData.text;
+        const loadingTask = getDocument(req.file.buffer);
+        const pdf = await loadingTask.promise;
+        let pdfText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          pdfText += content.items.map((item: any) => item.str).join(' ');
+        }
+        extractedText = pdfText;
         // ดึงข้อความจากรูปภาพใน PDF
         imageTexts = await extractImagesFromPDF(req.file.buffer);
         break;
@@ -401,8 +409,15 @@ router.post('/add', upload.single('file'), roleGuard(['Staffs']), async (req: Re
         extractedText = userReq.file.buffer.toString('utf-8');
         break;
       case '.pdf':
-        const pdfData = await pdf(userReq.file.buffer);
-        extractedText = pdfData.text;
+        const loadingTask = getDocument(userReq.file.buffer);
+        const pdf = await loadingTask.promise;
+        let pdfText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          pdfText += content.items.map((item: any) => item.str).join(' ');
+        }
+        extractedText = pdfText;
         // ดึงข้อความจากรูปภาพใน PDF
         imageTexts = await extractImagesFromPDF(userReq.file.buffer);
         break;
