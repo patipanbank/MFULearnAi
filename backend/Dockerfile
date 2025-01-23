@@ -11,7 +11,12 @@ RUN apk add --no-cache \
     tesseract-ocr-data-tha \
     tesseract-ocr-data-eng \
     poppler-utils \
-    imagemagick
+    imagemagick \
+    ghostscript \
+    imagemagick-dev
+
+# Configure ImageMagick policy to allow PDF
+COPY policy.xml /etc/ImageMagick-7/policy.xml
 
 # Set working directory
 WORKDIR /app
