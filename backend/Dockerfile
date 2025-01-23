@@ -1,6 +1,18 @@
 # Use Node.js LTS version as base image
 FROM node:20-alpine
 
+# Install required dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    build-base \
+    tesseract-ocr \
+    tesseract-ocr-data-tha \
+    tesseract-ocr-data-eng \
+    poppler-utils \
+    imagemagick
+
 # Set working directory
 WORKDIR /app
 

@@ -7,6 +7,14 @@ import { extname } from 'path';
 import pdf from 'pdf-parse';
 import xlsx from 'xlsx';
 import mammoth from 'mammoth';
+import { createWorker } from 'tesseract.js';
+import sharp from 'sharp';
+import { PDFImage } from 'pdf-image';
+import { basename } from 'path';
+import { promises as fs } from 'fs';
+import os from 'os';
+import path from 'path';
+import NodeZip from 'node-zip';
 
 const router = Router();
 
@@ -25,14 +33,14 @@ interface RequestWithUser extends Request {
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // จำกัด 10MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // เพิ่มเป็น 50MB
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['.txt', '.pdf', '.docx', '.xlsx', '.csv'];
+    const allowedTypes = ['.txt', '.pdf', '.docx', '.xlsx', '.csv', '.png', '.jpg', '.jpeg'];
     const ext = extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('file type must be .txt, .pdf, .docx, .xlsx และ .csv'));
+      cb(new Error('ไฟล์ต้องเป็นประเภท .txt, .pdf, .docx, .xlsx, .csv, .png, .jpg หรือ .jpeg เท่านั้น'));
     }
   }
 });
@@ -55,22 +63,107 @@ router.get('/training-data', async (req: Request, res: Response) => {
   }
 });
 
-// endpoint สำหรับอัพโหลดไฟล์
+// เพิ่มฟังก์ชันสำหรับดึงรูปภาพจาก PDF
+async function extractImagesFromPDF(buffer: Buffer): Promise<string[]> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-images-'));
+  const tempPdfPath = path.join(tempDir, 'temp.pdf');
+  await fs.writeFile(tempPdfPath, buffer);
+
+  const pdfImage = new PDFImage(tempPdfPath, {
+    convertOptions: {
+      '-quality': '100',
+      '-density': '300'
+    }
+  });
+
+  try {
+    const numberOfPages = await pdfImage.numberOfPages();
+    const imageTexts: string[] = [];
+
+    for (let i = 0; i < numberOfPages; i++) {
+      const imagePath = await pdfImage.convertPage(i);
+      const imageBuffer = await fs.readFile(imagePath);
+      const text = await extractTextFromImage(imageBuffer);
+      imageTexts.push(text);
+      await fs.unlink(imagePath); // ลบไฟล์ภาพชั่วคราว
+    }
+
+    await fs.rm(tempDir, { recursive: true }); // ลบโฟลเดอร์ชั่วคราว
+    return imageTexts;
+  } catch (error) {
+    await fs.rm(tempDir, { recursive: true }); // ลบโฟลเดอร์ชั่วคราวในกรณีเกิดข้อผิดพลาด
+    throw error;
+  }
+}
+
+// เพิ่มฟังก์ชันสำหรับดึงรูปภาพจาก DOCX
+async function extractImagesFromDOCX(buffer: Buffer): Promise<string[]> {
+  const zip = new NodeZip(buffer);
+  const imageTexts: string[] = [];
+  
+  for (const filename in zip.files) {
+    if (filename.startsWith('word/media/')) {
+      const imageBuffer = zip.files[filename]._data;
+      if (imageBuffer) {
+        try {
+          const text = await extractTextFromImage(imageBuffer);
+          imageTexts.push(text);
+        } catch (error) {
+          console.warn(`Could not process image ${filename}:`, error);
+        }
+      }
+    }
+  }
+  
+  return imageTexts;
+}
+
+// อัพเดทฟังก์ชัน extractTextFromImage
+async function extractTextFromImage(buffer: Buffer): Promise<string> {
+  try {
+    // ปรับแต่งรูปภาพเพื่อเพิ่มความแม่นยำในการ OCR
+    const processedBuffer = await sharp(buffer)
+      .resize(2000, 2000, { fit: 'inside' })
+      .normalize()
+      .sharpen()
+      .gamma(1.2) // ปรับความสว่าง
+      .toBuffer();
+
+    const worker = await createWorker('tha+eng');
+    
+    // ตั้งค่า OCR
+    await worker.setParameters({
+      tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ก-๙.,!?()[]{}:;"\'/ -_+=',
+      preserve_interword_spaces: '1',
+    });
+
+    const { data: { text } } = await worker.recognize(processedBuffer);
+    await worker.terminate();
+    
+    return text.trim();
+  } catch (error) {
+    console.error('Error extracting text from image:', error);
+    throw new Error('ไม่สามารถแปลงรูปภาพเป็นข้อความได้');
+  }
+}
+
+// อัพเดท endpoint สำหรับอัพโหลดไฟล์
 router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      res.status(400).json({ message: 'Please upload a file' });
+      res.status(400).json({ message: 'กรุณาอัพโหลดไฟล์' });
       return;
     }
 
     const { datasetName, modelName = 'mfu-custom' } = req.body;
     
     if (!datasetName) {
-      res.status(400).json({ message: 'Dataset name is required' });
+      res.status(400).json({ message: 'กรุณาระบุชื่อชุดข้อมูล' });
       return;
     }
 
     let extractedText = '';
+    let imageTexts: string[] = [];
     const ext = extname(req.file.originalname).toLowerCase();
 
     // แปลงไฟล์เป็นข้อความตามประเภท
@@ -81,10 +174,14 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
       case '.pdf':
         const pdfData = await pdf(req.file.buffer);
         extractedText = pdfData.text;
+        // ดึงข้อความจากรูปภาพใน PDF
+        imageTexts = await extractImagesFromPDF(req.file.buffer);
         break;
       case '.docx':
         const result = await mammoth.extractRawText({ buffer: req.file.buffer });
         extractedText = result.value;
+        // ดึงข้อความจากรูปภาพใน DOCX
+        imageTexts = await extractImagesFromDOCX(req.file.buffer);
         break;
       case '.xlsx':
       case '.csv':
@@ -92,84 +189,65 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         extractedText = xlsx.utils.sheet_to_csv(worksheet);
         break;
+      case '.png':
+      case '.jpg':
+      case '.jpeg':
+        extractedText = await extractTextFromImage(req.file.buffer);
+        break;
     }
+
+    // รวมข้อความจากไฟล์และรูปภาพ
+    const combinedText = [extractedText, ...imageTexts]
+      .filter(text => text.trim().length > 0)
+      .join('\n\n');
 
     const user = (req as RequestWithUser).user;
 
-    // สร้าง training data
-    await TrainingData.create({
+    // บันทึกลงฐานข้อมูล
+    const trainingData = await TrainingData.create({
       name: datasetName,
-      content: extractedText,
+      content: combinedText,
       createdBy: {
         nameID: user.nameID || '',
-        username: user.username || '',
-        firstName: user.firstName || '',
-        lastName: user.lastName || ''
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName
       },
-      isActive: true,
-      fileType: ext.substring(1),
-      originalFileName: req.file.originalname,
-      modelName
+      fileType: ext,
+      originalFileName: req.file.originalname
     });
 
     // ดึงข้อมูลทั้งหมดที่ active
-    const allTrainingData = await TrainingData.find({ 
-      isActive: true,
-      modelName // แยกตาม model
-    });
-
-    const combinedContent = allTrainingData
-      .map(data => `# ${data.name}\n${data.content}`)
+    const allTrainingData = await TrainingData.find({ isActive: true });
+    const allContent = allTrainingData
+      .map(data => data.content)
       .join('\n\n');
-
-    // สร้าง Modelfile
-    const modelfile = `
-FROM llama2
-
-# System prompt
-SYSTEM """
-You are an AI assistant for MFU University. Here is your knowledge base:
-
-${combinedContent}
-
-Important rules:
-1. Use the knowledge provided above to answer questions
-2. If information is not in the knowledge base, say you don't have that information
-3. Respect privacy of personal information
-4. Be clear and concise in your responses
-"""
-
-# Parameters
-PARAMETER temperature 0.7
-PARAMETER top_p 0.9
-PARAMETER top_k 40
-PARAMETER repeat_penalty 1.1
-
-# Template format
-TEMPLATE """
-Knowledge Base:
-{{.System}}
-
-User: {{.Prompt}}
-Assistant: Let me help you with that.
-"""
-`;
 
     // Train model
     await axios.post('http://ollama:11434/api/create', {
       name: modelName,
-      modelfile: modelfile
+      modelfile: `FROM llama2
+SYSTEM "You are an AI assistant for MFU University. Here is your knowledge base:
+
+${allContent}
+
+Use this knowledge to help answer questions. If the question is not related to the provided knowledge, respond that you don't have information about that topic."
+`
     });
 
-    res.json({ 
-      message: 'File uploaded and model trained successfully',
-      name: datasetName,
-      model: modelName,
-      totalDataPoints: allTrainingData.length
+    res.json({
+      message: 'อัพโหลดและ train ข้อมูลสำเร็จ',
+      dataId: trainingData._id,
+      extractedTextLength: combinedText.length,
+      numberOfImages: imageTexts.length
     });
 
   } catch (error) {
-    // ... error handling ...
+    console.error('Error in file upload:', error);
+    res.status(500).json({
+      message: 'เกิดข้อผิดพลาดในการอัพโหลดไฟล์',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

@@ -204,27 +204,27 @@ const TrainAI: React.FC = () => {
         
         {/* File upload section */}
         <div className="mb-6 border-b pb-6">
-          <h2 className="text-xl font-bold mb-4">Upload Training Data</h2>
+          <h2 className="text-xl font-bold mb-4">อัพโหลดข้อมูลสำหรับ Training</h2>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Dataset Name</label>
+              <label className="block text-sm font-medium text-gray-700">ชื่อชุดข้อมูล</label>
               <input
                 type="text"
                 value={datasetName}
                 onChange={(e) => setDatasetName(e.target.value)}
-                placeholder="Enter name for this dataset"
+                placeholder="ระบุชื่อชุดข้อมูล"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Model Name</label>
+              <label className="block text-sm font-medium text-gray-700">ชื่อโมเดล</label>
               <input
                 type="text"
                 value={modelName}
                 onChange={(e) => setModelName(e.target.value)}
-                placeholder="Enter model name (default: mfu-custom)"
+                placeholder="ระบุชื่อโมเดล (ค่าเริ่มต้น: mfu-custom)"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
@@ -234,7 +234,7 @@ const TrainAI: React.FC = () => {
               <label className="flex-1">
                 <input
                   type="file"
-                  accept=".txt,.pdf,.docx,.xlsx,.csv"
+                  accept=".txt,.pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg"
                   className="hidden"
                   onChange={(e) => {
                     const selectedFile = e.target.files?.[0];
@@ -246,7 +246,7 @@ const TrainAI: React.FC = () => {
                 />
                 <div className="flex items-center gap-2 cursor-pointer p-2 border rounded hover:bg-gray-50">
                   <FaUpload />
-                  <span>{uploadMessage || 'Select File'}</span>
+                  <span>{uploadMessage || 'เลือกไฟล์'}</span>
                 </div>
               </label>
               <button
@@ -256,7 +256,7 @@ const TrainAI: React.FC = () => {
                 onClick={handleFileUpload}
                 disabled={isTraining || !file || !datasetName.trim()}
               >
-                {isTraining ? 'Training...' : 'Upload and Train'}
+                {isTraining ? 'กำลัง Training...' : 'อัพโหลดและ Train'}
               </button>
             </div>
           </div>
