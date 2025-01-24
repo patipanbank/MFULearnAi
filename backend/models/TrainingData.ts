@@ -1,42 +1,38 @@
 import mongoose from 'mongoose';
 
 const trainingDataSchema = new mongoose.Schema({
-  modelName: {
+  name: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
-  documents: [{
-    id: String,
-    content: String,
-    metadata: {
-      creator: String,
-      version: String,
-      status: String,
-      created_at: Date,
-      updated_at: Date,
-      source: String,
+  content: {
+    type: String,
+    required: true
+  },
+  createdBy: {
+    nameID: {
+      type: String,
+      required: true
+    },
+    username: {
+      type: String,
+      required: true
+    },
+    firstName: {
+      type: String
+    },
+    lastName: {
       type: String
     }
-  }],
-  creator: {
-    type: String,
-    required: true
   },
-  version: {
-    type: String,
-    required: true
+  isActive: {
+    type: Boolean,
+    default: true
   },
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'archived'],
-    default: 'active'
+  fileType: {
+    type: String
   },
   createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
     type: Date,
     default: Date.now
   }

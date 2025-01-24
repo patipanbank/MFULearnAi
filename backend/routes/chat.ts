@@ -2,7 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { Request, Response } from 'express';
-import { roleGuard } from '../middleware/roleGuard.js';
+import { roleGuard } from '../middleware/roleGuard';
 import { AxiosError } from 'axios';
 
 const router = express.Router();

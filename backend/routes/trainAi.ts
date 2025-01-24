@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { roleGuard } from '../middleware/roleGuard.js';
+import { roleGuard } from '../middleware/roleGuard';
 import axios from 'axios';
-import TrainingData from '../models/TrainingData.js';
+import TrainingData from '../models/TrainingData';
 import multer from 'multer';
 import { extname } from 'path';
 import pdf from 'pdf-parse';
@@ -220,8 +220,7 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
     // ดึงข้อมูลทั้งหมดที่ active
     const allTrainingData = await TrainingData.find({ isActive: true });
     const allContent = allTrainingData
-      .flatMap(data => data.documents.map(doc => doc.content))
-      .filter(content => content) // กรองค่า null/undefined
+      .map(data => data.content)
       .join('\n\n');
 
     // Train model
@@ -263,8 +262,7 @@ router.patch('/training-data/:id', roleGuard(['Staffs']), async (req: Request, r
     // ดึงข้อมูลทั้งหมดที่ active และ retrain
     const allTrainingData = await TrainingData.find({ isActive: true });
     const combinedContent = allTrainingData
-      .flatMap(data => data.documents.map(doc => doc.content))
-      .filter(content => content) // กรองค่า null/undefined
+      .map(data => data.content)
       .join('\n\n');
 
     // retrain model ด้วยข้อมูลที่ active
@@ -302,8 +300,7 @@ router.delete('/training-data/:id', roleGuard(['Staffs']), async (req: Request, 
     // ดึงข้อมูลทั้งหมดที่ active และ retrain
     const allTrainingData = await TrainingData.find({ isActive: true });
     const combinedContent = allTrainingData
-      .flatMap(data => data.documents.map(doc => doc.content))
-      .filter(content => content) // กรองค่า null/undefined
+      .map(data => data.content)
       .join('\n\n');
 
     // retrain model หลังจากลบข้อมูล
