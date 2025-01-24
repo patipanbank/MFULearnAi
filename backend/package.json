@@ -53,5 +53,11 @@
     "redis": "^4.6.13",
     "winston": "^3.11.0"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "pdf-parse": {
+      "main": "index.js",
+      "type": "module"
+    }
+  }
 }
