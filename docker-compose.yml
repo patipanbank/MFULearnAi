@@ -69,9 +69,19 @@ services:
       - mfulearnai
     restart: unless-stopped
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mfulearnai
+
 volumes:
   data:
   ollama:
+  redis_data:
 networks:
   mfulearnai:
     driver: bridge
