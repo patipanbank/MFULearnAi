@@ -29,11 +29,8 @@ services:
       - mfulearnai
     restart: unless-stopped
     dns:
-      - 8.8.8.8  # Google DNS
-      - 1.1.1.1  # Cloudflare DNS
-    # หรือใช้ DNS ของประเทศไทย
-    # - 203.146.237.237  # TRUE
-    # - 203.146.237.238  # TRUEz
+      - 8.8.8.8
+      - 1.1.1.1
 
   frontend:
     build:
@@ -58,20 +55,8 @@ services:
       - mfulearnai
     restart: unless-stopped
 
-  ollama:
-    image: ollama/ollama
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama:/root/.ollama
-    networks:
-      - mfulearnai
-    restart: unless-stopped
-
 volumes:
   data:
-  ollama:
 networks:
   mfulearnai:
     driver: bridge
