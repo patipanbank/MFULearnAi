@@ -14,7 +14,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     try {
       localStorage.clear();
       // for development
-      window.location.href = 'http://localhost:3000/login';
+      window.location.href = 'http://localhost:5173/login';
       // window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
     } catch (error) {
       console.error('Logout error:', error);
