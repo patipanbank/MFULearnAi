@@ -43,6 +43,8 @@ interface RequestWithUser extends Request {
 }
 
 const uploadHandler = async (req: Request, res: Response): Promise<void> => {
+  const processingFiles = new Set();
+  
   try {
     const file = req.file;
     const { modelId, collectionName } = req.body;
@@ -52,6 +54,14 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
+
+    const fileKey = `${file.originalname}_${user.username}`;
+    if (processingFiles.has(fileKey)) {
+      res.status(400).json({ error: 'File is already being processed' });
+      return;
+    }
+
+    processingFiles.add(fileKey);
 
     // สร้าง metadata ที่มี timestamp ที่แน่นอน
     const metadata = {
@@ -75,6 +85,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     // ลบไฟล์หลังจากประมวลผลเสร็จ
     await fs.promises.unlink(file.path);
 
+    processingFiles.delete(fileKey);
     res.json({ message: 'File uploaded and processed successfully' });
   } catch (error) {
     console.error('Upload error:', error);

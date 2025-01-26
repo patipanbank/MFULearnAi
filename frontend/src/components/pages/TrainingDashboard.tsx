@@ -110,6 +110,8 @@ const TrainingDashboard: React.FC = () => {
 
       alert('อัพโหลดไฟล์สำเร็จ');
       setFile(null);
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
     } catch (error) {
       console.error('Error:', error);
       alert('อัพโหลดไฟล์ไม่สำเร็จ');
@@ -243,6 +245,7 @@ const TrainingDashboard: React.FC = () => {
               type="file"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
               className="mb-4"
+              disabled={loading}
             />
           </div>
           <button

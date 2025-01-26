@@ -12,6 +12,7 @@ interface DocumentMetadata {
 class ChromaService {
   private client: ChromaClient;
   private collections: Map<string, any> = new Map();
+  private processingFiles = new Set<string>();
 
   constructor() {
     this.client = new ChromaClient({
@@ -45,6 +46,15 @@ class ChromaService {
   }
 
   async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
+    const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
+    
+    if (this.processingFiles.has(fileKey)) {
+      console.log(`File ${fileKey} is already being processed`);
+      return;
+    }
+
+    this.processingFiles.add(fileKey);
+    
     try {
       console.log(`Adding documents to collection ${collectionName}`);
       await this.initCollection(collectionName);
@@ -90,9 +100,8 @@ class ChromaService {
       });
       
       console.log('Documents added successfully');
-    } catch (error) {
-      console.error('Error adding documents to ChromaDB:', error);
-      throw error;
+    } finally {
+      this.processingFiles.delete(fileKey);
     }
   }
 
