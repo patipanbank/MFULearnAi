@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
 import { chatHistoryService } from '../services/chatHistory';
-import { ChatMessage } from '../types/chat';
 
 const router = Router();
 
@@ -36,6 +35,13 @@ interface ChatRequest extends Request {
   };
 }
 
+interface ChatMessage {
+  id?: number;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string | Date;
+}
+
 const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
   try {
     const { messages, collectionName, modelId } = req.body;
@@ -62,11 +68,11 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       id: Date.now(),
       role: 'assistant',
       content: response.content,
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     }];
 
     await chatHistoryService.saveChatMessage(
-      user.username, // ใช้ username แทน id
+      user.username,
       modelId,
       collectionName,
       updatedMessages
