@@ -17,6 +17,12 @@ const MFUChatbot: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [models, setModels] = useState<string[]>([]);
+  const [collections, setCollections] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedCollection, setSelectedCollection] = useState('');
+  const [loadingModels, setLoadingModels] = useState(true);
+  const [loadingCollections, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -51,13 +57,64 @@ const MFUChatbot: React.FC = () => {
     autoResize();
   }, [inputMessage]);
 
+  useEffect(() => {
+    fetchModels();
+    fetchCollections();
+  }, []);
+
+  const fetchModels = async () => {
+    try {
+      setLoadingModels(true);
+      const response = await fetch(`${config.apiUrl}/api/training/models`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch models');
+      }
+      const data = await response.json();
+      setModels(data);
+      if (data.length === 1) {
+        setSelectedModel(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching models:', error);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  const fetchCollections = async () => {
+    try {
+      setLoadingCollections(true);
+      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch collections');
+      }
+      const data = await response.json();
+      setCollections(data);
+      if (data.length === 1) {
+        setSelectedCollection(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+    } finally {
+      setLoadingCollections(false);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || !selectedModel || !selectedCollection) return;
 
     const newMessage: Message = {
       id: Date.now(),
@@ -78,22 +135,25 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: newMessage.content }]
+          messages: [...messages, newMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
         })
       });
 
-      if (!response.ok) throw new Error('Chat request failed');
+      if (!response.ok) {
+        throw new Error('Chat request failed');
+      }
 
       const data = await response.json();
-      
       setMessages(prev => [...prev, {
         id: Date.now(),
         role: 'assistant',
-        content: data.response.content,
+        content: data.response,
         timestamp: new Date()
       }]);
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('Error:', error);
       alert('Error sending message. Please try again.');
     } finally {
       setIsLoading(false);
@@ -114,7 +174,43 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen">
+      <div className="p-4 border-b">
+        <div className="flex gap-4">
+          {loadingModels ? (
+            <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
+          ) : (
+            <select 
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="border p-2 rounded"
+              disabled={models.length === 1}
+            >
+              <option value="">เลือก Model</option>
+              {models.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          )}
+          
+          {loadingCollections ? (
+            <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
+          ) : (
+            <select 
+              value={selectedCollection}
+              onChange={(e) => setSelectedCollection(e.target.value)}
+              className="border p-2 rounded"
+              disabled={collections.length === 1}
+            >
+              <option value="">เลือก Collection</option>
+              {collections.map(collection => (
+                <option key={collection} value={collection}>{collection}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-4 pb-32">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">

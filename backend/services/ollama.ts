@@ -8,6 +8,20 @@ class OllamaService {
     this.apiUrl = process.env.OLLAMA_API_URL || 'http://ollama:11434';
   }
 
+  async getAvailableModels(): Promise<string[]> {
+    try {
+      const response = await fetch(`${this.apiUrl}/api/tags`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch models');
+      }
+      const data = await response.json();
+      return data.models.map((model: { name: string }) => model.name);
+    } catch (error) {
+      console.error('Error fetching available models:', error);
+      throw error;
+    }
+  }
+
   async chat(messages: ChatMessage[]): Promise<{ content: string }> {
     try {
       console.log('Sending request to Ollama:', messages);

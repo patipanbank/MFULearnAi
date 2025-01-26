@@ -1,19 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
 
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [models, setModels] = useState<string[]>([]);
+  const [collections, setCollections] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedCollection, setSelectedCollection] = useState('');
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [showNewCollectionForm, setShowNewCollectionForm] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(true);
+  const [loadingCollections, setLoadingCollections] = useState(true);
+
+  useEffect(() => {
+    fetchModels();
+    fetchCollections();
+  }, []);
+
+  const fetchModels = async () => {
+    try {
+      setLoadingModels(true);
+      const response = await fetch(`${config.apiUrl}/api/training/models`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch models');
+      }
+      const data = await response.json();
+      setModels(data);
+      if (data.length === 1) {
+        setSelectedModel(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching models:', error);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  const fetchCollections = async () => {
+    try {
+      setLoadingCollections(true);
+      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch collections');
+      }
+      const data = await response.json();
+      setCollections(data);
+      if (data.length === 1) {
+        setSelectedCollection(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+    } finally {
+      setLoadingCollections(false);
+    }
+  };
+
+  const createNewCollection = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ collectionName: newCollectionName })
+      });
+      if (response.ok) {
+        await fetchCollections();
+        setNewCollectionName('');
+        setShowNewCollectionForm(false);
+      }
+    } catch (error) {
+      console.error('Error creating collection:', error);
+    }
+  };
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file || !selectedModel || !selectedCollection) return;
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('modelId', selectedModel);
+    formData.append('collectionName', selectedCollection);
 
+    setLoading(true);
     try {
-      console.log('Sending request to:', `${config.apiUrl}/api/training/upload`);
       const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
         headers: {
@@ -23,34 +104,108 @@ const TrainingDashboard: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error('Upload failed');
       }
-      
-      alert('File uploaded successfully');
+
+      alert('อัพโหลดไฟล์สำเร็จ');
+      setFile(null);
     } catch (error) {
-      console.error('Upload error:', error);
-      alert('Error uploading file');
+      console.error('Error:', error);
+      alert('อัพโหลดไฟล์ไม่สำเร็จ');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">AI Training Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-6">Training Dashboard</h1>
       
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-semibold mb-4">Upload Training Data</h2>
+      <div className="mb-6">
+        <label className="block mb-2">เลือก Model:</label>
+        {loadingModels ? (
+          <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
+        ) : (
+          <select 
+            className="border p-2 rounded w-full max-w-md"
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={models.length === 1}
+          >
+            <option value="">-- เลือก Model --</option>
+            {models.map(model => (
+              <option key={model} value={model}>{model}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2">
+          <label>เลือก Collection:</label>
+          <button
+            onClick={() => setShowNewCollectionForm(true)}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            + สร้าง Collection ใหม่
+          </button>
+        </div>
         
-        <form onSubmit={handleFileUpload}>
+        {loadingCollections ? (
+          <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
+        ) : (
+          <select 
+            className="border p-2 rounded w-full max-w-md"
+            value={selectedCollection}
+            onChange={(e) => setSelectedCollection(e.target.value)}
+            disabled={collections.length === 1}
+          >
+            <option value="">-- เลือก Collection --</option>
+            {collections.map(collection => (
+              <option key={collection} value={collection}>{collection}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {showNewCollectionForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg">
+            <h2 className="text-xl mb-4">สร้าง Collection ใหม่</h2>
+            <input
+              type="text"
+              value={newCollectionName}
+              onChange={(e) => setNewCollectionName(e.target.value)}
+              className="border p-2 rounded w-full mb-4"
+              placeholder="ชื่อ Collection"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowNewCollectionForm(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={createNewCollection}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                สร้าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedModel && selectedCollection && (
+        <form onSubmit={handleFileUpload} className="mt-6">
           <div className="mb-4">
-            <label className="block text-gray-700 mb-2">Select File</label>
             <input
               type="file"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full p-2 border rounded"
-              accept=".pdf,.txt,.doc,.docx"
+              className="mb-4"
             />
           </div>
-          
           <button
             type="submit"
             disabled={!file || loading}
@@ -58,10 +213,10 @@ const TrainingDashboard: React.FC = () => {
               ${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
             `}
           >
-            {loading ? 'Processing...' : 'Upload'}
+            {loading ? 'กำลังประมวลผล...' : 'อัพโหลด'}
           </button>
         </form>
-      </div>
+      )}
     </div>
   );
 };

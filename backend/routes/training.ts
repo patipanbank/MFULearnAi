@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import { documentService } from '../services/document';
 import { chromaService } from '../services/chroma';
+import { ollamaService } from '../services/ollama';
 
 const router = Router();
 const upload = multer({ 
@@ -18,6 +19,15 @@ const upload = multer({
     }
   }
 });
+
+interface IUser {
+  nameID: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  groups: string[];
+}
 
 interface RequestWithUser extends Request {
   user?: {
@@ -43,20 +53,32 @@ const uploadHandler: RequestHandler = async (req, res): Promise<void> => {
       return;
     }
 
-    const chunks = await documentService.processFile(typedReq.file);
+    const file = typedReq.file;
+    const { modelId, collectionName } = req.body;
+    const user = typedReq.user as IUser;
+    if (!file || !modelId || !collectionName) {
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
 
-    await chromaService.addDocuments(
-      chunks.map(text => ({
-        text,
-        metadata: {
-          filename: typedReq.file!.originalname,
-          uploadedBy: typedReq.user?.username || 'unknown',
-          timestamp: new Date().toISOString()
-        }
-      }))
-    );
+    const chunks = await documentService.processFile(file);
 
-    res.json({ success: true, chunks: chunks.length });
+    const metadata = {
+      filename: file.originalname,
+      uploadedBy: user.email,
+      timestamp: new Date().toISOString(),
+      modelId,
+      collectionName
+    };
+
+    const documents = chunks.map(chunk => ({
+      text: chunk,
+      metadata: metadata
+    }));
+
+    await chromaService.addDocuments(collectionName, documents);
+
+    res.json({ message: 'File uploaded and processed successfully' });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Error processing file' });
@@ -68,7 +90,12 @@ router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandl
 
 const getAllDocumentsHandler: RequestHandler = async (req, res) => {
   try {
-    const documents = await chromaService.getAllDocuments();
+    const { collectionName } = req.query;
+    if (!collectionName || typeof collectionName !== 'string') {
+      res.status(400).json({ error: 'Collection name is required' });
+      return;
+    }
+    const documents = await chromaService.getAllDocuments(collectionName);
     res.json(documents);
   } catch (error) {
     console.error('Error:', error);
@@ -81,8 +108,12 @@ router.get('/documents', roleGuard(['Staffs']), getAllDocumentsHandler);
 
 const deleteDocumentHandler: RequestHandler = async (req, res) => {
   try {
-    const { id } = req.params;
-    await chromaService.deleteDocument(id);
+    const { id, collectionName } = req.params;
+    if (!collectionName || typeof collectionName !== 'string') {
+      res.status(400).json({ error: 'Collection name is required' });
+      return;
+    }
+    await chromaService.deleteDocument(collectionName, id);
     res.json({ message: 'Document deleted successfully' });
   } catch (error) {
     console.error('Error:', error);
@@ -91,5 +122,38 @@ const deleteDocumentHandler: RequestHandler = async (req, res) => {
 };
 
 router.delete('/documents/:id', roleGuard(['Staffs']), deleteDocumentHandler);
+
+// Get available models
+router.get('/models', roleGuard(['Staffs']), async (req, res) => {
+  try {
+    const models = await ollamaService.getAvailableModels();
+    res.json(models);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Error fetching models' });
+  }
+});
+
+// Get available collections
+router.get('/collections', roleGuard(['Staffs']), async (req, res) => {
+  try {
+    const collections = await chromaService.getCollections();
+    res.json(collections);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Error fetching collections' });
+  }
+});
+
+// Create new collection
+router.post('/collections', roleGuard(['Staffs']), async (req, res) => {
+  try {
+    const { collectionName } = req.body;
+    await chromaService.initCollection(collectionName);
+    res.json({ message: 'Collection created successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error creating collection' });
+  }
+});
 
 export default router; 
