@@ -14,11 +14,18 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies and TypeScript globally
 RUN npm install
+RUN npm install -g typescript
 
 # Copy source code
 COPY . .
+
+# Set correct permissions
+RUN chown -R node:node /app
+
+# Switch to non-root user
+USER node
 
 # Build TypeScript
 RUN npm run build
