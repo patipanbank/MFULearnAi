@@ -1,9 +1,11 @@
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import MainLayout from './components/layouts/MainLayout';
 import MFUChatbot from './components/pages/mfuchatbot';
+import TrainingDashboard from './components/pages/TrainingDashboard';
 import Login from './components/login/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
+import RoleGuard from './components/guards/RoleGuard';
 import './index.css';
 
 const App = () => {
@@ -20,6 +22,18 @@ const App = () => {
               <MainLayout>
                 <MFUChatbot />
               </MainLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/training"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['Staffs']}>
+                <MainLayout>
+                  <TrainingDashboard />
+                </MainLayout>
+              </RoleGuard>
             </AuthGuard>
           }
         />

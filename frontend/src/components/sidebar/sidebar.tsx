@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FaRobot, FaBars} from 'react-icons/fa';
+import { FaRobot, FaBars, FaCog } from 'react-icons/fa';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -7,8 +7,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
-  // const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  // const isStudent = userData.Groups === 'Students';
+  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const isStaff = userData.groups?.includes('Staffs');
 
   const handleLogout = async () => {
     try {
@@ -36,21 +36,29 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4">
-        <ul className="space-y-1">
-          <li>
+      <div className="flex-1 px-4 py-2">
+        <nav>
+          <Link
+            to="/mfuchatbot"
+            className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 
+              ${location.pathname === '/mfuchatbot' ? 'bg-gray-100' : ''}`}
+          >
+            <FaRobot className="w-5 h-5 mr-3" />
+            <span>Chatbot</span>
+          </Link>
+
+          {isStaff && (
             <Link
-              to="/mfuchatbot"
-              className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
-                location.pathname === '/mfuchatbot' ? 'bg-blue-50 text-blue-600' : ''
-              }`}
+              to="/training"
+              className={`flex items-center px-4 py-2 mt-2 text-gray-700 rounded-lg hover:bg-gray-100 
+                ${location.pathname === '/training' ? 'bg-gray-100' : ''}`}
             >
-              <FaRobot className="mr-3" />
-              Chatbot
+              <FaCog className="w-5 h-5 mr-3" />
+              <span>AI Training</span>
             </Link>
-          </li>
-        </ul>
-      </nav>
+          )}
+        </nav>
+      </div>
 
       <div className="flex-none border-t">
         <button 
