@@ -213,11 +213,11 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  const formatTimestamp = (timestamp: string | Date) => {
-    if (!timestamp) return '';
-    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
-    return date.toLocaleTimeString();
-  };
+  // const formatTimestamp = (timestamp: string | Date) => {
+  //   if (!timestamp) return '';
+  //   const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+  //   return date.toLocaleTimeString();
+  // };
 
   const clearChat = async () => {
     try {
@@ -241,7 +241,7 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 pb-[200px] md:pb-32">
+      <div className="flex-1 overflow-y-auto p-4 pb-[200px] md:pb-32 pt-16">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -253,22 +253,11 @@ const MFUChatbot: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-tr-none'
-                      : 'bg-gray-100 text-gray-800 rounded-tl-none'
-                  }`}
-                >
-                  <p className="text-sm md:text-base whitespace-pre-wrap">{message.content}</p>
-                  <span className="text-xs text-gray-500">
-                    {formatTimestamp(message.timestamp)}
-                  </span>
+              <div key={message.id} className={`mb-4 ${message.role === 'assistant' ? 'bg-gray-100' : ''} rounded-lg p-4`}>
+                <div className="text-sm text-gray-500 mb-1">
+                  {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                 </div>
+                <div className="whitespace-pre-wrap">{message.content}</div>
               </div>
             ))}
             {isLoading && (
