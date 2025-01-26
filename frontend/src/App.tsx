@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import MainLayout from './components/layouts/MainLayout';
+import MFUChatbot from './components/pages/mfuchatbot';
 import Login from './components/login/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
-// import RoleGuard from './components/guards/RoleGuard';
 import './index.css';
 
 const App = () => {
@@ -12,13 +12,13 @@ const App = () => {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/auth-callback" element={<AuthCallback />} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/mfuchatbot" replace />} />
         <Route
-          path="/dashboard"
+          path="/mfuchatbot"
           element={
             <AuthGuard>
               <MainLayout>
-                <div>Dashboard Content</div>
+                <MFUChatbot />
               </MainLayout>
             </AuthGuard>
           }
