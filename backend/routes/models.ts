@@ -8,15 +8,15 @@ const router = express.Router();
 // Get all models
 router.get('/', async (req, res) => {
   try {
-    // เรียกใช้ Ollama API เพื่อดึงรายการ models
-    const response = await axios.get('http://ollama:11434/api/list');
+    // เรียกใช้ Ollama API endpoint ที่ถูกต้อง
+    const response = await axios.get('http://ollama:11434/api/tags');
     
     // แปลงข้อมูลให้อยู่ในรูปแบบที่ต้องการ
     const models = response.data.models.map((model: any) => ({
       name: model.name,
-      modelType: model.name.split(':')[0], // แยกเอาชื่อ model จาก tag
-      modified: model.modified,
-      size: model.size
+      modelType: model.name.split(':')[0],
+      size: model.size,
+      digest: model.digest
     }));
 
     res.json(models);
