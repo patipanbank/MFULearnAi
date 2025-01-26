@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               ${location.pathname === '/mfuchatbot' ? 'bg-gray-100' : ''}`}
           >
             <FaRobot className="w-5 h-5 mr-3" />
-            <span>Chatbot</span>
+            <span>Chat AI</span>
           </Link>
 
           {isStaff && (

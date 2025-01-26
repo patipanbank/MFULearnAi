@@ -163,7 +163,7 @@ const MFUChatbot: React.FC = () => {
       setMessages(prev => [...prev, {
         id: Date.now(),
         role: 'assistant',
-        content: 'ขออภัย เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง',
+        content: 'Sorry, there was an error during processing. Please try again.',
         timestamp: new Date()
       }]);
     } finally {
@@ -198,7 +198,7 @@ const MFUChatbot: React.FC = () => {
                 className="border p-2 rounded flex-1 min-w-[200px] max-w-xs"
                 disabled={models.length === 1}
               >
-                <option value="">เลือก Model</option>
+                <option value="">Choose Model</option>
                 {models.map(model => (
                   <option key={model} value={model}>{model}</option>
                 ))}
@@ -214,7 +214,7 @@ const MFUChatbot: React.FC = () => {
                 className="border p-2 rounded flex-1 min-w-[200px] max-w-xs"
                 disabled={collections.length === 1}
               >
-                <option value="">เลือก Collection</option>
+                <option value="">Choose Collection</option>
                 {collections.map(collection => (
                   <option key={collection} value={collection}>{collection}</option>
                 ))}
@@ -232,7 +232,7 @@ const MFUChatbot: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-semibold mb-2">Welcome to MFU Chat</h2>
+            <h2 className="text-2xl font-semibold mb-2">Welcome to MFU ChatAI</h2>
             <p className="text-gray-600">How can I help you today?</p>
           </div>
         ) : (

@@ -120,7 +120,7 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Upload failed');
       }
 
-      alert('อัพโหลดไฟล์สำเร็จ');
+      alert('Upload file successfully');
       setFile(null);
       
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -128,14 +128,14 @@ const TrainingDashboard: React.FC = () => {
       
     } catch (error) {
       console.error('Upload error:', error);
-      alert('อัพโหลดไฟล์ไม่สำเร็จ');
+      alert('Upload file failed');
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleDeleteCollection = async (collectionName: string) => {
-    if (!window.confirm(`คุณแน่ใจหรือไม่ที่จะลบ Collection "${collectionName}"?`)) {
+    if (!window.confirm(`Are you sure you want to delete Collection "${collectionName}"?`)) {
       return;
     }
 
@@ -157,7 +157,7 @@ const TrainingDashboard: React.FC = () => {
       fetchCollections();
     } catch (error) {
       console.error('Error:', error);
-      alert('ไม่สามารถลบ Collection ได้');
+      alert('Cannot delete collection');
     }
   };
 
@@ -166,7 +166,7 @@ const TrainingDashboard: React.FC = () => {
       <h1 className="text-2xl font-bold mb-6">Training Dashboard</h1>
       
       <div className="mb-6">
-        <label className="block mb-2">เลือก Model:</label>
+        <label className="block mb-2">Choose Model:</label>
         {loadingModels ? (
           <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
         ) : (
@@ -176,7 +176,7 @@ const TrainingDashboard: React.FC = () => {
             onChange={(e) => setSelectedModel(e.target.value)}
             disabled={models.length === 1}
           >
-            <option value="">-- เลือก Model --</option>
+            <option value="">-- Choose Model --</option>
             {models.map(model => (
               <option key={model} value={model}>{model}</option>
             ))}
@@ -186,12 +186,12 @@ const TrainingDashboard: React.FC = () => {
 
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
-          <label>เลือก Collection:</label>
+          <label>Choose Collection:</label>
           <button
             onClick={() => setShowNewCollectionForm(true)}
             className="text-blue-600 hover:text-blue-800"
           >
-            + สร้าง Collection ใหม่
+            + Create New Collection
           </button>
         </div>
         
@@ -204,7 +204,7 @@ const TrainingDashboard: React.FC = () => {
               onChange={(e) => setSelectedCollection(e.target.value)}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="">-- เลือก Collection --</option>
+              <option value="">-- Choose Collection --</option>
               {collections.map(collection => (
                 <option key={collection} value={collection}>{collection}</option>
               ))}
@@ -213,7 +213,7 @@ const TrainingDashboard: React.FC = () => {
               <button
                 onClick={() => handleDeleteCollection(selectedCollection)}
                 className="mt-1 p-2 text-red-600 hover:text-red-800"
-                title="ลบ Collection"
+                title="Delete Collection"
               >
                 <FaTrash />
               </button>
@@ -225,26 +225,26 @@ const TrainingDashboard: React.FC = () => {
       {showNewCollectionForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg">
-            <h2 className="text-xl mb-4">สร้าง Collection ใหม่</h2>
+            <h2 className="text-xl mb-4">Create New Collection</h2>
             <input
               type="text"
               value={newCollectionName}
               onChange={(e) => setNewCollectionName(e.target.value)}
               className="border p-2 rounded w-full mb-4"
-              placeholder="ชื่อ Collection"
+              placeholder="Collection Name"
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowNewCollectionForm(false)}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
-                ยกเลิก
+                Cancel
               </button>
               <button
                 onClick={createNewCollection}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                สร้าง
+                Create
               </button>
             </div>
           </div>
@@ -268,7 +268,7 @@ const TrainingDashboard: React.FC = () => {
               ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
             `}
           >
-            {isUploading ? 'กำลังอัพโหลด...' : 'อัพโหลด'}
+            {isUploading ? 'Uploading...' : 'Upload'}
           </button>
         </form>
       )}

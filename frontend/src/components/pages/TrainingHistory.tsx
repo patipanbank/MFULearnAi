@@ -68,7 +68,7 @@ const TrainingHistory: React.FC = () => {
   }, []);
 
   const handleDelete = async (id: string, collectionName: string) => {
-    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลนี้?')) {
+    if (!window.confirm('Are you sure you want to delete this data?')) {
       return;
     }
 
@@ -101,7 +101,7 @@ const TrainingHistory: React.FC = () => {
   };
 
   const handleCleanup = async () => {
-    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลที่ไม่มี Model หรือ Collection?')) {
+    if (!window.confirm('Are you sure you want to delete data that does not have a model or collection?')) {
       return;
     }
 
@@ -143,23 +143,23 @@ const TrainingHistory: React.FC = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">ประวัติการเทรนข้อมูล</h1>
+        <h1 className="text-2xl font-bold">Training History</h1>
         <button
           onClick={handleCleanup}
           className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
-          ลบข้อมูลที่ไม่สมบูรณ์
+          Delete Incomplete Data
         </button>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border border-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อไฟล์</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Collection</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">อัพโหลดโดย</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่อัพโหลด</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded By</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Upload Date</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
@@ -203,7 +203,7 @@ const TrainingHistory: React.FC = () => {
 
         {documents?.metadatas.length === 0 && (
           <div className="text-center py-4 text-gray-500">
-            ไม่พบข้อมูลการเทรน
+            No training data found
           </div>
         )}
       </div>
