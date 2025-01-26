@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FaRobot, FaBars, FaCog } from 'react-icons/fa';
+import { FaRobot, FaBars, FaCog, FaHistory } from 'react-icons/fa';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -55,6 +55,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             >
               <FaCog className="w-5 h-5 mr-3" />
               <span>AI Training</span>
+            </Link>
+          )}
+
+          {isStaff && (
+            <Link
+              to="/training-history"
+              className={`flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 
+                ${location.pathname === '/training-history' ? 'bg-gray-100' : ''}`}
+              onClick={onClose}
+            >
+              <FaHistory className="w-5 h-5 mr-2" />
+              ประวัติการเทรน
             </Link>
           )}
         </nav>

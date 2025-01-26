@@ -6,6 +6,7 @@ import Login from './components/login/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
 import RoleGuard from './components/guards/RoleGuard';
+import TrainingHistory from './components/pages/TrainingHistory';
 import './index.css';
 
 const App = () => {
@@ -32,6 +33,18 @@ const App = () => {
               <RoleGuard allowedGroups={['Staffs']}>
                 <MainLayout>
                   <TrainingDashboard />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/training-history"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['Staffs']}>
+                <MainLayout>
+                  <TrainingHistory />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>

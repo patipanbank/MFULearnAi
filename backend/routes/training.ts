@@ -66,4 +66,17 @@ const uploadHandler: RequestHandler = async (req, res): Promise<void> => {
 // เฉพาะ Staff เท่านั้นที่เข้าถึงได้
 router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
 
+const getAllDocumentsHandler: RequestHandler = async (req, res) => {
+  try {
+    const documents = await chromaService.getAllDocuments();
+    res.json(documents);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Error fetching documents' });
+  }
+};
+
+// เพิ่ม route ใหม่
+router.get('/documents', roleGuard(['Staffs']), getAllDocumentsHandler);
+
 export default router; 

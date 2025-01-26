@@ -71,6 +71,24 @@ class ChromaService {
     });
     return results.documents?.[0] || [];
   }
+
+  async getAllDocuments(): Promise<{
+    ids: string[];
+    documents: string[];
+    metadatas: Record<string, any>[];
+  }> {
+    try {
+      const results = await this.collection.get();
+      return {
+        ids: results.ids || [],
+        documents: results.documents || [],
+        metadatas: results.metadatas || []
+      };
+    } catch (error) {
+      console.error('Error fetching documents from ChromaDB:', error);
+      throw error;
+    }
+  }
 }
 
 export const chromaService = new ChromaService(); 
