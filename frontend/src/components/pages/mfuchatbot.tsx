@@ -239,7 +239,7 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen max-h-screen">
       <div className="sticky top-0 bg-white z-20 border-b shadow-sm">
         <div className="p-4">
           <div className="flex flex-wrap gap-4 items-center justify-between">
@@ -284,7 +284,7 @@ const MFUChatbot: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pb-32">
+      <div className="flex-1 overflow-y-auto p-4 pb-24 md:pb-32">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="bg-blue-100 rounded-full p-4 mb-4">
@@ -331,8 +331,8 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      <div className="sticky bottom-0 left-0 right-0 bg-white border-t p-4 mt-auto">
+        <form onSubmit={handleSubmit} className="flex gap-2 max-w-screen-lg mx-auto">
           <textarea
             ref={textareaRef}
             value={inputMessage}
