@@ -84,5 +84,5 @@ volumes:
   ollama:
   chroma-data:
 networks:
-  mfulearnai_network:
+  default:
     driver: bridge
