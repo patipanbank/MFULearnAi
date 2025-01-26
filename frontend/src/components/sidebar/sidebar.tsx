@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {isStaff && (
             <Link
               to="/training"
-              className={`flex items-center px-4 py-2 mt-2 text-gray-700 rounded-lg hover:bg-gray-100 
+              className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100
                 ${location.pathname === '/training' ? 'bg-gray-100' : ''}`}
             >
               <FaCog className="w-5 h-5 mr-3" />
@@ -61,12 +61,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {isStaff && (
             <Link
               to="/training-history"
-              className={`flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 
+              className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100
                 ${location.pathname === '/training-history' ? 'bg-gray-100' : ''}`}
               onClick={onClose}
             >
-              <FaHistory className="w-5 h-5 mr-2" />
-              ประวัติการเทรน
+              <FaHistory className="w-5 h-5 mr-3" />
+              History Training
             </Link>
           )}
         </nav>
