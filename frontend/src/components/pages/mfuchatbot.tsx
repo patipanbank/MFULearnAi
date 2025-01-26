@@ -18,8 +18,6 @@ const MFUChatbot: React.FC = () => {
   const [collections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
-  const [isTraining, setIsTraining] = useState(false);
-  const [trainingFile, setTrainingFile] = useState<File | null>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -27,10 +25,6 @@ const MFUChatbot: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
-
-  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const userGroups = userData.groups || [];
-  const isStaff = userGroups.includes('Staffs');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -73,25 +67,6 @@ const MFUChatbot: React.FC = () => {
     loadModels();
   }, []);
 
-  const handleTraining = async () => {
-    if (!trainingFile || !selectedModel || !selectedCollection) return;
-    
-    setIsTraining(true);
-    const formData = new FormData();
-    formData.append('file', trainingFile);
-    formData.append('model', selectedModel);
-    formData.append('collection', selectedCollection);
-    
-    try {
-      await axios.post('/api/train', formData);
-      alert('Training completed successfully!');
-    } catch (error) {
-      console.error('Training error:', error);
-      alert('Training failed!');
-    } finally {
-      setIsTraining(false);
-    }
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
