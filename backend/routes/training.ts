@@ -5,6 +5,8 @@ import path from 'path';
 import { documentService } from '../services/document';
 import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
+import fs from 'fs';
+import { splitTextIntoChunks } from '../utils/textUtils';
 
 const router = Router();
 const upload = multer({ 
@@ -40,48 +42,43 @@ interface RequestWithUser extends Request {
   };
 }
 
-const uploadHandler: RequestHandler = async (req, res): Promise<void> => {
-  console.log('Upload request received');
-  console.log('Headers:', req.headers);
-  console.log('File:', req.file);
-  
-  const typedReq = req as RequestWithUser;
+const uploadHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!typedReq.file) {
-      console.log('No file uploaded');
-      res.status(400).json({ error: 'No file uploaded' });
-      return;
-    }
-
-    const file = typedReq.file;
+    const file = req.file;
     const { modelId, collectionName } = req.body;
-    const user = typedReq.user as IUser;
+    const user = (req as any).user;
+
     if (!file || !modelId || !collectionName) {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
 
-    const chunks = await documentService.processFile(file);
-
+    // สร้าง metadata ที่มี timestamp ที่แน่นอน
     const metadata = {
       filename: file.originalname,
-      uploadedBy: user.email,
+      uploadedBy: user.username,
       timestamp: new Date().toISOString(),
       modelId,
       collectionName
     };
 
+    const fileContent = await fs.promises.readFile(file.path, 'utf8');
+    const chunks = splitTextIntoChunks(fileContent);
+    
     const documents = chunks.map(chunk => ({
       text: chunk,
-      metadata: metadata
+      metadata: metadata  // ใช้ metadata เดียวกันสำหรับทุก chunk
     }));
 
     await chromaService.addDocuments(collectionName, documents);
+    
+    // ลบไฟล์หลังจากประมวลผลเสร็จ
+    await fs.promises.unlink(file.path);
 
     res.json({ message: 'File uploaded and processed successfully' });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Error processing file' });
+    console.error('Upload error:', error);
+    res.status(500).json({ error: 'Error processing upload' });
   }
 };
 

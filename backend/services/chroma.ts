@@ -1,6 +1,14 @@
 import { ChromaClient, OpenAIEmbeddingFunction } from 'chromadb';
 import { ollamaService } from './ollama';
 
+interface DocumentMetadata {
+  filename: string;
+  timestamp: string;
+  modelId: string;
+  collectionName: string;
+  uploadedBy: string;
+}
+
 class ChromaService {
   private client: ChromaClient;
   private collections: Map<string, any> = new Map();
@@ -36,20 +44,34 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>) {
+  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       
-      const ids = documents.map((_, i) => `doc_${Date.now()}_${i}`);
-      const texts = documents.map(doc => doc.text);
-      const metadatas = documents.map(doc => doc.metadata);
-
-      await collection.add({
-        ids,
-        documents: texts,
-        metadatas
+      // ตรวจสอบว่ามีข้อมูลซ้ำหรือไม่
+      const existingDocs = await collection.get();
+      const existingMetadata = existingDocs.metadatas || [];
+      
+      // กรองเอาเฉพาะข้อมูลที่ไม่ซ้ำ
+      const uniqueDocs = documents.filter(doc => {
+        return !existingMetadata.some((existing: DocumentMetadata) => 
+          existing.filename === doc.metadata.filename &&
+          existing.timestamp === doc.metadata.timestamp
+        );
       });
+
+      if (uniqueDocs.length > 0) {
+        const ids = uniqueDocs.map((_, i) => `doc_${Date.now()}_${i}`);
+        const texts = uniqueDocs.map(doc => doc.text);
+        const metadatas = uniqueDocs.map(doc => doc.metadata);
+
+        await collection.add({
+          ids,
+          documents: texts,
+          metadatas
+        });
+      }
     } catch (error) {
       console.error('Error adding documents to ChromaDB:', error);
       throw error;
