@@ -79,4 +79,17 @@ const getAllDocumentsHandler: RequestHandler = async (req, res) => {
 // เพิ่ม route ใหม่
 router.get('/documents', roleGuard(['Staffs']), getAllDocumentsHandler);
 
+const deleteDocumentHandler: RequestHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await chromaService.deleteDocument(id);
+    res.json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Error deleting document' });
+  }
+};
+
+router.delete('/documents/:id', roleGuard(['Staffs']), deleteDocumentHandler);
+
 export default router; 

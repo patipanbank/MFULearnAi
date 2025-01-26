@@ -89,6 +89,17 @@ class ChromaService {
       throw error;
     }
   }
+
+  async deleteDocument(id: string): Promise<void> {
+    try {
+      await this.collection.delete({
+        ids: [id]
+      });
+    } catch (error) {
+      console.error('Error deleting document from ChromaDB:', error);
+      throw error;
+    }
+  }
 }
 
 export const chromaService = new ChromaService(); 

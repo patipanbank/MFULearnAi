@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
+import { FaTrash } from 'react-icons/fa';
 
 interface TrainingDocument {
   ids: string[];
@@ -15,6 +16,7 @@ const TrainingHistory: React.FC = () => {
   const [documents, setDocuments] = useState<TrainingDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -44,6 +46,39 @@ const TrainingHistory: React.FC = () => {
     fetchDocuments();
   }, []);
 
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this data?')) {
+      return;
+    }
+
+    setIsDeleting(id);
+    try {
+      const response = await fetch(`${config.apiUrl}/api/training/documents/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete document');
+      }
+
+      // รีเฟรชข้อมูลหลังจากลบสำเร็จ
+      const updatedDocs = await fetch(`${config.apiUrl}/api/training/documents`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const data = await updatedDocs.json();
+      setDocuments(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while deleting');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -70,6 +105,7 @@ const TrainingHistory: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded By</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -79,6 +115,21 @@ const TrainingHistory: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap">{metadata.uploadedBy}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {new Date(metadata.timestamp).toLocaleString('th-TH')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <button
+                    onClick={() => handleDelete(documents.ids[index])}
+                    disabled={isDeleting === documents.ids[index]}
+                    className={`text-red-600 hover:text-red-800 ${
+                      isDeleting === documents.ids[index] ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {isDeleting === documents.ids[index] ? (
+                      <span className="inline-block animate-spin">⌛</span>
+                    ) : (
+                      <FaTrash />
+                    )}
+                  </button>
                 </td>
               </tr>
             ))}
