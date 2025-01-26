@@ -1,14 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
-import axios from 'axios';
 
 interface Message {
   id: number;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
-  model?: string;
 }
 
 const MFUChatbot: React.FC = () => {
@@ -17,7 +15,6 @@ const MFUChatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [selectedModel, setSelectedModel] = useState('llama2');
   const [isMobile, setIsMobile] = useState(false);
 
   const scrollToBottom = () => {
@@ -72,43 +69,17 @@ const MFUChatbot: React.FC = () => {
     setInputMessage('');
     setIsLoading(true);
 
-    try {
-      // Get auth_token from localStorage
-      const authToken = localStorage.getItem('auth_token');
-      
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/chat`, 
-        { message: inputMessage, model: selectedModel },
-        { 
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      const data = await response.data;
-      
+    // Simulate bot response
+    setTimeout(() => {
       const botMessage: Message = {
         id: messages.length + 2,
-        text: data.response,
+        text: 'This is a demo response. AI features have been removed.',
         sender: 'bot',
         timestamp: new Date(),
-        model: data.model
       };
-
       setMessages(prev => [...prev, botMessage]);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: messages.length + 2,
-        text: 'Sorry, an error occurred. Please try again.',
-        sender: 'bot',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
       setIsLoading(false);
-    }
+    }, 1000);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -124,12 +95,6 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  const modelDescriptions: Record<string, string> = {
-    llama2: 'General purpose AI model',
-    gpt2: 'GPT-like model for chat',
-    t5: 'Math and reasoning focused'
-  };
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-4 pb-32">
@@ -138,7 +103,7 @@ const MFUChatbot: React.FC = () => {
             <div className="bg-blue-100 rounded-full p-4 mb-4">
               <svg className="w-8 h-8 text-blue-500" /* ... */ />
             </div>
-            <h2 className="text-2xl font-semibold mb-2">Welcome to MFU Chatbot</h2>
+            <h2 className="text-2xl font-semibold mb-2">Welcome to MFU Chat</h2>
             <p className="text-gray-600">How can I help you today?</p>
           </div>
         ) : (
@@ -155,18 +120,6 @@ const MFUChatbot: React.FC = () => {
                       : 'bg-gray-100 text-gray-800 rounded-tl-none'
                   }`}
                 >
-                  {message.sender === 'bot' && (
-                    <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
-                      <span className="px-2 py-1 bg-blue-100 rounded-full">
-                        Using: {
-                          message.model === 'gpt2' ? 'GPT-like' :
-                          message.model === 't5' ? 'Flan-T5' :
-                          message.model === 'llama2' ? 'Llama 2' :
-                          message.model || 'Unknown Model'
-                        }
-                      </span>
-                    </div>
-                  )}
                   <p className="text-sm md:text-base whitespace-pre-wrap">{message.text}</p>
                   <span className="text-xs opacity-75 mt-1 block">
                     {message.timestamp.toLocaleTimeString()}
@@ -191,52 +144,36 @@ const MFUChatbot: React.FC = () => {
 
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 border-t p-4 bg-white z-10">
         <form onSubmit={handleSendMessage} className="max-w-screen-lg mx-auto">
-          <div className="flex flex-col md:flex-row gap-2 md:gap-4">
-            <div className="flex flex-col gap-1">
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:max-w-[200px] text-sm"
-              >
-                <option value="llama2">Llama 2</option>
-                <option value="gpt2">GPT-2</option>
-                <option value="t5">Flan-T5</option>
-              </select>
-              <span className="text-xs text-gray-500">
-                {modelDescriptions[selectedModel]}
-              </span>
-            </div>
-            <div className="flex gap-2 flex-1">
-              <textarea
-                ref={textareaRef}
-                value={inputMessage}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder={isMobile 
-                  ? "Type your message here... (Use send button to submit)" 
-                  : "Type your message here... (Shift + Enter for new line)"
-                }
-                className="flex-1 px-4 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                style={{
-                  minHeight: '40px',
-                  maxHeight: '240px',
-                  overflowY: 'auto'
-                }}
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={`px-4 h-10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
-                  ${isLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
-              >
-                {isLoading ? (
-                  <BiLoaderAlt className="w-5 h-5 animate-spin" />
-                ) : (
-                  <FaPaperPlane className="w-5 h-5" />
-                )}
-              </button>
-            </div>
+          <div className="flex gap-2">
+            <textarea
+              ref={textareaRef}
+              value={inputMessage}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={isMobile 
+                ? "Type your message here... (Use send button to submit)" 
+                : "Type your message here... (Shift + Enter for new line)"
+              }
+              className="flex-1 px-4 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              style={{
+                minHeight: '40px',
+                maxHeight: '240px',
+                overflowY: 'auto'
+              }}
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`px-4 h-10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
+                ${isLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
+            >
+              {isLoading ? (
+                <BiLoaderAlt className="w-5 h-5 animate-spin" />
+              ) : (
+                <FaPaperPlane className="w-5 h-5" />
+              )}
+            </button>
           </div>
         </form>
       </div>
