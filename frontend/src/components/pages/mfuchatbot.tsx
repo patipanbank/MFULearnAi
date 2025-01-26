@@ -239,9 +239,9 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-[100dvh]">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto px-4 pb-[180px] pt-20 md:pb-40 md:pt-24">
+      <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-[calc(60px+env(safe-area-inset-top))] md:pb-40 md:pt-24">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -287,7 +287,7 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       {/* Fixed Bottom Container */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t pb-[env(safe-area-inset-bottom)]">
         {/* Controls */}
         <div className="p-2 md:p-4 border-b">
           <div className="flex gap-2 max-w-4xl mx-auto">
