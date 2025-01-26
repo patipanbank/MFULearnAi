@@ -15,8 +15,6 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import NodeZip from 'node-zip';
-import { VectorDBService } from '../services/vectorDb';
-import { TextProcessing } from '../services/textProcessing';
 
 const router = Router();
 
@@ -374,40 +372,6 @@ SYSTEM "${systemPrompt}"
       message: 'Error adding training data',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
-  }
-});
-
-router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      throw new Error('No file uploaded');
-    }
-
-    // A. Raw Data Sources
-    const file = req.file;
-    
-    // B. Information Extraction
-    const extractedText = await TextProcessing.extractTextFromFile(file);
-    
-    // C. Chunking
-    const chunks = TextProcessing.splitIntoChunks(extractedText);
-    
-    // D. Embedding & Store
-    const vectorDb = new VectorDBService();
-    for (const chunk of chunks) {
-      await vectorDb.addDocument(chunk, {
-        fileId: file.filename || 'unknown',
-        timestamp: new Date()
-      });
-    }
-
-    res.json({ message: 'Document processed successfully' });
-  } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
   }
 });
 
