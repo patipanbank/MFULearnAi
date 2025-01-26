@@ -8,12 +8,15 @@ const router = express.Router();
 // Get all knowledge bases
 router.get('/', async (req, res) => {
   try {
-    const knowledgeBases = await KnowledgeBase.find()
-      .populate('baseModelId')
-      .sort({ createdAt: -1 });
+    const knowledgeBases = await KnowledgeBase.find();
     res.json(knowledgeBases);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching knowledge bases', error });
+    console.error('Error fetching knowledge bases:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching knowledge bases',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -54,5 +57,27 @@ const createKnowledgeBase: RequestHandler = async (req, res, next): Promise<void
 };
 
 router.post('/', roleGuard(['Staffs']), createKnowledgeBase);
+
+// เพิ่ม endpoint สำหรับสร้าง knowledge base ใหม่
+router.post('/', async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const newKnowledgeBase = new KnowledgeBase({
+      name,
+      description
+    });
+    await newKnowledgeBase.save();
+    res.json({
+      success: true,
+      data: newKnowledgeBase
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error creating knowledge base',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 export default router; 
