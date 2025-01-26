@@ -6,10 +6,13 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-    // แก้ไข URI ให้ตรงกับชื่อ service และ credentials ใน docker-compose
-    const URI = process.env.MONGODB_URI || 'mongodb://root:1234@db:27017/mfulearnai?authSource=admin';
+    const URI = 'mongodb://root:1234@db:27017/mfulearnai?authSource=admin';
     
-    await mongoose.connect(URI);
+    await mongoose.connect(URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    
     console.log('MongoDB Connected:', mongoose.connection.name);
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);
