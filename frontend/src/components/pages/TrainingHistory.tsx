@@ -100,6 +100,30 @@ const TrainingHistory: React.FC = () => {
     }
   };
 
+  const handleCleanup = async () => {
+    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลที่ไม่มี Model หรือ Collection?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/training/cleanup`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to cleanup documents');
+      }
+
+      // รีเฟรชข้อมูลหลังจากลบสำเร็จ
+      await fetchDocuments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during cleanup');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -118,7 +142,15 @@ const TrainingHistory: React.FC = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">ประวัติการเทรนข้อมูล</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">ประวัติการเทรนข้อมูล</h1>
+        <button
+          onClick={handleCleanup}
+          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          ลบข้อมูลที่ไม่สมบูรณ์
+        </button>
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border border-gray-200">
           <thead className="bg-gray-50">

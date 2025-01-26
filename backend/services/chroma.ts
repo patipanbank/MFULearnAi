@@ -128,6 +128,31 @@ class ChromaService {
       throw error;
     }
   }
+
+  async deleteDocumentsWithoutModelOrCollection(): Promise<void> {
+    try {
+      const collections = await this.getCollections();
+      
+      for (const collectionName of collections) {
+        await this.initCollection(collectionName);
+        const collection = this.collections.get(collectionName);
+        const results = await collection.get();
+        
+        if (results && results.ids) {
+          for (let i = 0; i < results.ids.length; i++) {
+            const metadata = results.metadatas?.[i] || {};
+            if (!metadata.modelId || !metadata.collectionName) {
+              await collection.delete({ ids: [results.ids[i]] });
+              console.log(`Deleted document ${results.ids[i]} without model/collection info`);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up documents:', error);
+      throw error;
+    }
+  }
 }
 
 export const chromaService = new ChromaService(); 
