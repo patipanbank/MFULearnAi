@@ -14,7 +14,7 @@ const App = () => {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth-callback" element={<AuthCallback />} />
         <Route path="/" element={<Navigate to="/mfuchatbot" replace />} />
         <Route element={<AuthGuard><MainLayout /></AuthGuard>}>
           <Route path="/mfuchatbot" element={<MFUChatbot />} />
