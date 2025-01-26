@@ -114,7 +114,7 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || !selectedModel || !selectedCollection) return;
+    if (!inputMessage.trim() || !selectedModel || !selectedCollection || isLoading) return;
 
     const newMessage: Message = {
       id: Date.now(),
@@ -146,6 +146,11 @@ const MFUChatbot: React.FC = () => {
       }
 
       const data = await response.json();
+      
+      if (!data.response) {
+        throw new Error('Invalid response format');
+      }
+
       setMessages(prev => [...prev, {
         id: Date.now(),
         role: 'assistant',
@@ -154,7 +159,12 @@ const MFUChatbot: React.FC = () => {
       }]);
     } catch (error) {
       console.error('Error:', error);
-      alert('Error sending message. Please try again.');
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        role: 'assistant',
+        content: 'ขออภัย เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsLoading(false);
     }
