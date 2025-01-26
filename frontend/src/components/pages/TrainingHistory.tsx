@@ -20,79 +20,76 @@ const TrainingHistory: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDocuments = async () => {
-      try {
-        // เพิ่ม query parameter collectionName
-        const collections = await fetch(`${config.apiUrl}/api/training/collections`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          }
-        });
-        const collectionList = await collections.json();
-        
-        // ดึงข้อมูลจากทุก collection
-        const allDocuments = await Promise.all(
-          collectionList.map(async (collectionName: string) => {
-            const response = await fetch(
-              `${config.apiUrl}/api/training/documents?collectionName=${collectionName}`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-                }
+  const fetchDocuments = async () => {
+    try {
+      // เพิ่ม query parameter collectionName
+      const collections = await fetch(`${config.apiUrl}/api/training/collections`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const collectionList = await collections.json();
+      
+      // ดึงข้อมูลจากทุก collection
+      const allDocuments = await Promise.all(
+        collectionList.map(async (collectionName: string) => {
+          const response = await fetch(
+            `${config.apiUrl}/api/training/documents?collectionName=${collectionName}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
               }
-            );
-            if (!response.ok) {
-              throw new Error('Failed to fetch documents');
             }
-            return response.json();
-          })
-        );
+          );
+          if (!response.ok) {
+            throw new Error('Failed to fetch documents');
+          }
+          return response.json();
+        })
+      );
 
-        // รวมข้อมูลจากทุก collection
-        const combinedDocuments = {
-          ids: allDocuments.flatMap(doc => doc.ids),
-          documents: allDocuments.flatMap(doc => doc.documents),
-          metadatas: allDocuments.flatMap(doc => doc.metadatas)
-        };
+      // รวมข้อมูลจากทุก collection
+      const combinedDocuments = {
+        ids: allDocuments.flatMap(doc => doc.ids),
+        documents: allDocuments.flatMap(doc => doc.documents),
+        metadatas: allDocuments.flatMap(doc => doc.metadatas)
+      };
 
-        setDocuments(combinedDocuments);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
+      setDocuments(combinedDocuments);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchDocuments();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this data?')) {
+  const handleDelete = async (id: string, collectionName: string) => {
+    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลนี้?')) {
       return;
     }
 
     setIsDeleting(id);
     try {
-      const response = await fetch(`${config.apiUrl}/api/training/documents/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
+      const response = await fetch(
+        `${config.apiUrl}/api/training/documents/${id}?collectionName=${collectionName}`, 
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error('Failed to delete document');
       }
 
       // รีเฟรชข้อมูลหลังจากลบสำเร็จ
-      const updatedDocs = await fetch(`${config.apiUrl}/api/training/documents`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      const data = await updatedDocs.json();
-      setDocuments(data);
+      fetchDocuments();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while deleting');
     } finally {
@@ -151,7 +148,7 @@ const TrainingHistory: React.FC = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
-                    onClick={() => handleDelete(documents.ids[index])}
+                    onClick={() => handleDelete(documents.ids[index], metadata.collectionName)}
                     disabled={isDeleting === documents.ids[index]}
                     className={`text-red-600 hover:text-red-800 ${
                       isDeleting === documents.ids[index] ? 'opacity-50 cursor-not-allowed' : ''
