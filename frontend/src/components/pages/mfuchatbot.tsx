@@ -186,43 +186,45 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="p-4 border-b">
-        <div className="flex gap-4">
-          {loadingModels ? (
-            <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
-          ) : (
-            <select 
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="border p-2 rounded"
-              disabled={models.length === 1}
-            >
-              <option value="">เลือก Model</option>
-              {models.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-          )}
-          
-          {loadingCollections ? (
-            <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
-          ) : (
-            <select 
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-              className="border p-2 rounded"
-              disabled={collections.length === 1}
-            >
-              <option value="">เลือก Collection</option>
-              {collections.map(collection => (
-                <option key={collection} value={collection}>{collection}</option>
-              ))}
-            </select>
-          )}
+      <div className="fixed top-0 left-0 right-0 lg:left-64 bg-white z-20 border-b">
+        <div className="p-4">
+          <div className="flex gap-4">
+            {loadingModels ? (
+              <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
+            ) : (
+              <select 
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="border p-2 rounded min-w-[200px]"
+                disabled={models.length === 1}
+              >
+                <option value="">เลือก Model</option>
+                {models.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
+              </select>
+            )}
+            
+            {loadingCollections ? (
+              <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
+            ) : (
+              <select 
+                value={selectedCollection}
+                onChange={(e) => setSelectedCollection(e.target.value)}
+                className="border p-2 rounded min-w-[200px]"
+                disabled={collections.length === 1}
+              >
+                <option value="">เลือก Collection</option>
+                {collections.map(collection => (
+                  <option key={collection} value={collection}>{collection}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pb-32">
+      <div className="flex-1 overflow-y-auto p-4 pb-32 mt-[76px]">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="bg-blue-100 rounded-full p-4 mb-4">
