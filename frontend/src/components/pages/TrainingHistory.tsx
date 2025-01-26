@@ -20,9 +20,12 @@ const TrainingHistory: React.FC = () => {
     const fetchDocuments = async () => {
       try {
         const response = await fetch(`${config.apiUrl}/api/training/documents`, {
+          method: 'GET',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('auth_token')}`
-          }
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
         });
 
         if (!response.ok) {
