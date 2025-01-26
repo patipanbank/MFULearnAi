@@ -36,18 +36,26 @@ export class ChromaService {
       const texts = documents.map(doc => doc.text);
       const metadatas = documents.map(doc => doc.metadata);
 
-      // แปลงข้อความเป็น vectors ด้วย EmbeddingService
+      // แปลงข้อความเป็น vectors
       const embeddings = await Promise.all(
         texts.map(text => this.embedder.embed(text))
       );
 
-      // เพิ่มข้อมูลเข้า ChromaDB
-      await this.collection.add({
+      console.log('Adding documents:', {
         ids,
-        embeddings,     // vectors
-        documents: texts, // ข้อความต้นฉบับ
+        embeddings: embeddings.length,
+        texts,
         metadatas
       });
+
+      // เพิ่มข้อมูลเข้า ChromaDB
+      await this.collection.add({
+        ids: ids,
+        embeddings: embeddings,
+        metadatas: metadatas,
+        documents: texts
+      });
+
     } catch (error) {
       console.error('Error adding documents:', error);
       throw error;
@@ -83,7 +91,7 @@ export class ChromaService {
       const results = await this.collection.query({
         queryEmbeddings: [embedding],
         nResults: 1,
-        include: [IncludeEnum.Documents]
+        include: ["documents"] as IncludeEnum[]
       });
 
       if (!results.documents || !results.documents[0]) {
