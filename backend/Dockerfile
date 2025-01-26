@@ -1,6 +1,13 @@
 # Use Node.js LTS version as base image
 FROM node:20-alpine
 
+# Install required dependencies for onnxruntime
+RUN apk add --no-cache \
+    libc6-compat \
+    gcompat \
+    build-base \
+    python3
+
 # Install required dependencies
 RUN apk add --no-cache \
     python3 \
@@ -27,14 +34,16 @@ RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies and TypeScript globally
+# Install dependencies
 RUN npm install
+
+# Install dependencies and TypeScript globally
 RUN npm install -g typescript
 
-# Copy source code
+# Copy the rest of the application
 COPY . .
 
-# Build TypeScript code
+# Build TypeScript
 RUN npm run build
 
 # Expose port
