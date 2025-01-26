@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import Header from '../header/header';
 import Sidebar from '../sidebar/sidebar';
 import { FaBars } from 'react-icons/fa';
-import { Outlet } from 'react-router-dom';
 
-const MainLayout: React.FC = () => {
+interface MainLayoutProps {
+  children: React.ReactNode;
+}
+
+const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
@@ -40,7 +43,7 @@ const MainLayout: React.FC = () => {
         )}
 
         <main className="flex-1 overflow-auto pt-16">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>

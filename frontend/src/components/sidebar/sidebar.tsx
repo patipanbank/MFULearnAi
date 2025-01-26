@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FaRobot, FaBars, FaGraduationCap, FaCog } from 'react-icons/fa';
+import { FaRobot, FaBars} from 'react-icons/fa';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -7,9 +7,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
-  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const userGroups = userData.groups || [];
-  const isStaff = userGroups.includes('Staffs');
+  // const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  // const isStudent = userData.Groups === 'Students';
 
   const handleLogout = async () => {
     try {
@@ -46,37 +45,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               }`}
             >
               <FaRobot className="mr-3" />
-              Chat AI
+              Chatbot
             </Link>
           </li>
-
-          {/* Staff Only Menus */}
-          {isStaff && (
-            <>
-              <li>
-                <Link
-                  to="/train"
-                  className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
-                    location.pathname === '/train' ? 'bg-blue-50 text-blue-600' : ''
-                  }`}
-                >
-                  <FaGraduationCap className="mr-3" />
-                  Train Model
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/model-management"
-                  className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
-                    location.pathname === '/model-management' ? 'bg-blue-50 text-blue-600' : ''
-                  }`}
-                >
-                  <FaCog className="mr-3" />
-                  Model Management
-                </Link>
-              </li>
-            </>
-          )}
         </ul>
       </nav>
 

@@ -1,31 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
-import axios from 'axios';
-import { config } from '../../config/config';
 
 interface Message {
   id: number;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
-  model?: string;
-  collection?: string;
 }
 
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [models, setModels] = useState<string[]>([]);
-  const [collections] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [selectedCollection, setSelectedCollection] = useState('');
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingStatus, setProcessingStatus] = useState('');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -60,49 +50,36 @@ const MFUChatbot: React.FC = () => {
     autoResize();
   }, [inputMessage]);
 
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        const response = await axios.get(`${config.apiUrl}/api/models`);
-        setModels(response.data);
-      } catch (error) {
-        console.error('Error loading models:', error);
-      }
-    };
-    loadModels();
-  }, []);
-
-
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
   };
 
-  const handleSendMessage = async () => {
-    setIsProcessing(true);
-    setProcessingStatus('กำลังประมวลผล...');
-    
-    try {
-      // ส่งคำถามไป API
-      const response = await axios.post('/api/chat', {
-        message: inputMessage,
-        model: selectedModel
-      });
-      
-      // อัพเดทข้อความ
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        text: response.data.response,
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputMessage.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: messages.length + 1,
+      text: inputMessage,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    // Simulate bot response
+    setTimeout(() => {
+      const botMessage: Message = {
+        id: messages.length + 2,
+        text: 'This is a demo response. AI features have been removed.',
         sender: 'bot',
-        timestamp: new Date()
-      }]);
-      
-    } catch (error) {
-      console.error('Chat error:', error);
-      setProcessingStatus('เกิดข้อผิดพลาด กรุณาลองใหม่');
-    } finally {
-      setIsProcessing(false);
-      setProcessingStatus('');
-    }
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, botMessage]);
+      setIsLoading(false);
+    }, 1000);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -112,7 +89,7 @@ const MFUChatbot: React.FC = () => {
       } else {
         if (!e.shiftKey) {
           e.preventDefault();
-          handleSendMessage();
+          handleSendMessage(e);
         }
       }
     }
@@ -120,30 +97,6 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex gap-4 p-4">
-        <select 
-          value={selectedModel}
-          onChange={(e) => setSelectedModel(e.target.value)}
-          className="border p-2"
-        >
-          <option value="">Select Model</option>
-          {models.map(model => (
-            <option key={model} value={model}>{model}</option>
-          ))}
-        </select>
-
-        <select
-          value={selectedCollection}
-          onChange={(e) => setSelectedCollection(e.target.value)}
-          className="border p-2"
-        >
-          <option value="">Select Collection</option>
-          {collections.map(collection => (
-            <option key={collection} value={collection}>{collection}</option>
-          ))}
-        </select>
-      </div>
-
       <div className="flex-1 overflow-y-auto p-4 pb-32">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
@@ -169,7 +122,7 @@ const MFUChatbot: React.FC = () => {
                 >
                   <p className="text-sm md:text-base whitespace-pre-wrap">{message.text}</p>
                   <span className="text-xs opacity-75 mt-1 block">
-                    {message.model} - {message.collection}
+                    {message.timestamp.toLocaleTimeString()}
                   </span>
                 </div>
               </div>
@@ -224,14 +177,6 @@ const MFUChatbot: React.FC = () => {
           </div>
         </form>
       </div>
-
-      {/* แสดงสถานะการทำงาน */}
-      {isProcessing && (
-        <div className="text-center py-2 text-gray-600">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto mb-2"></div>
-          <p>{processingStatus}</p>
-        </div>
-      )}
     </div>
   );
 };

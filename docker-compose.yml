@@ -23,7 +23,6 @@ services:
       - 5000:5000
     environment:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
-      - OLLAMA_API_URL=http://172.28.0.2:11434
     depends_on:
       - db
     networks:
@@ -46,37 +45,18 @@ services:
     restart: unless-stopped
 
   nginx:
-    container_name: mfulearnai-nginx
+    build: ./nginx/
     image: nginx:alpine
     ports:
-      - "80:80"
+      - 80:80
+    depends_on:
+      - frontend
     networks:
-      - app-network
-
-  ollama:
-    container_name: ollama
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    networks:
-      - app-network
+      - mfulearnai
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 8G
-        reservations:
-          cpus: '2'
-          memory: 4G
 
 volumes:
   data:
-  ollama_data:
-
 networks:
   mfulearnai:
-    driver: bridge
-  app-network:
-    name: mfulearnai_app-network
     driver: bridge
