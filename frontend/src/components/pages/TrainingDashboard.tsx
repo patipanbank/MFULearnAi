@@ -3,7 +3,7 @@ import { config } from '../../config/config';
 
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -12,24 +12,24 @@ const TrainingDashboard: React.FC = () => {
     const formData = new FormData();
     formData.append('file', file);
 
-    setLoading(true);
     try {
+      console.log('Sending request to:', `${config.apiUrl}/api/training/upload`);
       const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
-        body: formData,
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        },
+        body: formData
       });
 
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       alert('File uploaded successfully');
     } catch (error) {
-        console.log(error);    
+      console.error('Upload error:', error);
       alert('Error uploading file');
-    } finally {
-      setLoading(false);
     }
   };
 

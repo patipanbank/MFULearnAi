@@ -31,9 +31,14 @@ interface RequestWithUser extends Request {
 }
 
 const uploadHandler: RequestHandler = async (req, res): Promise<void> => {
+  console.log('Upload request received');
+  console.log('Headers:', req.headers);
+  console.log('File:', req.file);
+  
   const typedReq = req as RequestWithUser;
   try {
     if (!typedReq.file) {
+      console.log('No file uploaded');
       res.status(400).json({ error: 'No file uploaded' });
       return;
     }
@@ -53,7 +58,7 @@ const uploadHandler: RequestHandler = async (req, res): Promise<void> => {
 
     res.json({ success: true, chunks: chunks.length });
   } catch (error) {
-    console.error('Error processing file:', error);
+    console.error('Error:', error);
     res.status(500).json({ error: 'Error processing file' });
   }
 };

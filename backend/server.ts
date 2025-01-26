@@ -7,6 +7,7 @@ import passport from 'passport';
 import session from 'express-session';
 import { connectDB } from './lib/mongodb';
 import authRoutes from './routes/auth';
+import trainingRoutes from './routes/training';
 
 const app = express();
 
@@ -48,6 +49,11 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/training', trainingRoutes);
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['https://mfulearnai.mfu.ac.th'],
+  credentials: true
+}));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
