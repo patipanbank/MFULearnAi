@@ -14,13 +14,21 @@ class OllamaService {
 
   async chat(messages: ChatMessage[]): Promise<{ content: string }> {
     try {
+      console.log('Sending request to Ollama:', messages);
+      
       const response = await fetch(`${this.apiUrl}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          model: 'llama2',
+          model: 'llama3.1',
           messages: messages,
-          stream: false
+          stream: false,
+          options: {
+            temperature: 0.7,
+            top_p: 0.9
+          }
         }),
       });
 
@@ -29,6 +37,8 @@ class OllamaService {
       }
 
       const data = await response.json();
+      console.log('Ollama response:', data);
+      
       return { content: data.message.content };
     } catch (error) {
       console.error('Ollama service error:', error);
