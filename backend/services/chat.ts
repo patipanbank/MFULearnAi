@@ -12,8 +12,8 @@ Your role is to provide accurate and helpful information based on the university
 Always be polite and professional. If you're not sure about something, admit it and suggest 
 contacting the relevant department for accurate information.`;
 
-  private async getRelevantContext(query: string): Promise<string> {
-    const results = await chromaService.queryDocuments(query);
+  private async getRelevantContext(query: string, collectionName: string): Promise<string> {
+    const results = await chromaService.queryDocuments(collectionName, query);
     return results.documents[0].join('\n\n');
   }
 
@@ -23,7 +23,7 @@ contacting the relevant department for accurate information.`;
       const userQuery = messages[messages.length - 1].content;
 
       // ดึงข้อมูลที่เกี่ยวข้อง
-      const context = await this.getRelevantContext(userQuery);
+      const context = await this.getRelevantContext(userQuery, 'university');
 
       // สร้าง prompt ที่รวม context
       const augmentedMessages: ChatMessage[] = [
