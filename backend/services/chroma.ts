@@ -58,13 +58,21 @@ export class ChromaService {
       const ids = validSentences.map((_, i) => `doc_${Date.now()}_${i}`);
       const metadatas = validSentences.map(() => documents[0].metadata);
 
+      // สร้าง embeddings ก่อน
+      const embeddings = await Promise.all(
+        validSentences.map(text => this.embedder.embed(text))
+      );
+
       console.log('Adding documents:', {
         count: validSentences.length,
-        firstSentence: validSentences[0]
+        firstSentence: validSentences[0],
+        embeddingSize: embeddings[0].length
       });
 
+      // เพิ่มข้อมูลพร้อม embeddings
       await this.collection.add({
         ids: ids,
+        embeddings: embeddings,
         documents: validSentences,
         metadatas: metadatas
       });
@@ -97,22 +105,14 @@ export class ChromaService {
 
   async query(text: string): Promise<string[]> {
     try {
-      // แปลงข้อความเป็น vector
       const embedding = await this.embedder.embed(text);
       
-      // ค้นหาด้วย vector similarity
       const results = await this.collection.query({
         queryEmbeddings: [embedding],
-        nResults: 1,
-        include: ["documents"] as IncludeEnum[]
+        nResults: 1
       });
 
-      if (!results.documents || !results.documents[0]) {
-        console.log('No results found');
-        return [];
-      }
-
-      return results.documents[0].filter((doc): doc is string => doc !== null);
+      return results.documents?.[0]?.filter(Boolean) ?? [];
     } catch (error) {
       console.error('ChromaDB query error:', error);
       throw error;
