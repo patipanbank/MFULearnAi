@@ -1,5 +1,5 @@
 # Use Node.js LTS version as base image
-FROM node:20-alpine
+FROM node:20
 
 RUN apt-get update && apt-get install -y \
     cmake \
@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgl1 \
-    && apt-get clean
-    
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Install required dependencies
 RUN apk add --no-cache \
     python3 \
