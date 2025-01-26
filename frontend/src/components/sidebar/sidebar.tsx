@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FaBars } from 'react-icons/fa';
+import { FaRobot, FaBars } from 'react-icons/fa';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -8,10 +8,12 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   // const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  // const isStudent = userData.Groups === 'Students';
 
   const handleLogout = async () => {
     try {
       localStorage.clear();
+      
       window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
     } catch (error) {
       console.error('Logout error:', error);
@@ -23,7 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     <aside className="flex flex-col h-full">
       <div className="flex-none p-4 border-b">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800">MFU Portal</h2>
+          <h2 className="text-xl font-bold text-gray-800">MFU LEARN AI</h2>
           <button 
             onClick={onClose}
             className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
@@ -37,18 +39,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         <ul className="space-y-1">
           <li>
             <Link
-              to="/dashboard"
-              className={`flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100
-                ${location.pathname === '/dashboard' ? 'bg-gray-100' : ''}`}
+              to="/mfuchatbot"
+              className={`flex items-center px-6 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
+                location.pathname === '/mfuchatbot' ? 'bg-blue-50 text-blue-600' : ''
+              }`}
             >
-              Dashboard
+              <FaRobot className="mr-3" />
+              Chatbot
             </Link>
           </li>
         </ul>
       </nav>
 
-      <div className="flex-none p-4 border-t">
-        <button
+      <div className="flex-none border-t">
+        <button 
           onClick={handleLogout}
           className="flex items-center w-full px-6 py-4 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
         >
