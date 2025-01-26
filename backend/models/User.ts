@@ -1,5 +1,18 @@
 import mongoose from 'mongoose';
 
+export interface IUser  {
+  nameID?: string;
+  username?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  groups?: string[];
+  role?: string;
+  created?: Date;
+  updated?: Date;
+}
+const Role = ['Students', 'Staffs'];
+
 const userSchema = new mongoose.Schema({
   nameID: {
     type: String,
@@ -9,13 +22,13 @@ const userSchema = new mongoose.Schema({
   },
   username: {
     type: String,
-    required: true,
+    required: false,
     unique: true,
     index: true
   },
   email: {
     type: String,
-    required: true,
+    required: false,
     unique: true,
     index: true
   },
@@ -28,7 +41,7 @@ const userSchema = new mongoose.Schema({
   },
   role: { 
     type: String, 
-    enum: ['Students', 'Staffs'], 
+    enum: Role, 
     required: true 
   }, 
   created: {
@@ -45,4 +58,4 @@ userSchema.methods.hasRole = function(roles: string[]) {
   return this.groups.some((group: string) => roles.includes(group));
 };
 
-export default mongoose.models.User || mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);
