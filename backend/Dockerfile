@@ -1,13 +1,18 @@
 # Use Node.js LTS version as base image
 FROM node:20
 
-RUN apt-get update && apt-get install -y \
-    cmake \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgl1 \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    build-essential \
+    tesseract-ocr \
+    tesseract-ocr-tha \
+    tesseract-ocr-eng \
+    poppler-utils \
+    imagemagick \
+    ghostscript \
+    libmagickwand-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install required dependencies
