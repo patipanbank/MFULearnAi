@@ -253,8 +253,19 @@ const MFUChatbot: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {messages.map((message) => (
-              <div key={message.id} className={`mb-4 ${message.role === 'assistant' ? 'bg-gray-100' : ''} rounded-lg p-4`}>
-                <div className="text-sm text-gray-500 mb-1">
+              <div 
+                key={message.id} 
+                className={`mb-4 max-w-[80%] ${
+                  message.role === 'user' 
+                    ? 'ml-auto bg-blue-500 text-white' 
+                    : 'mr-auto bg-gray-100'
+                } rounded-lg p-4`}
+              >
+                <div className={`text-sm ${
+                  message.role === 'user' 
+                    ? 'text-blue-100' 
+                    : 'text-gray-500'
+                } mb-1`}>
                   {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                 </div>
                 <div className="whitespace-pre-wrap">{message.content}</div>
