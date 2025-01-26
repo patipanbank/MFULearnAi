@@ -1,21 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
+import axios from 'axios';
 
 interface Message {
   id: number;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  model?: string;
+  collection?: string;
 }
 
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [models, setModels] = useState<string[]>([]);
+  const [collections] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedCollection, setSelectedCollection] = useState('');
+  const [isTraining, setIsTraining] = useState(false);
+  const [trainingFile, setTrainingFile] = useState<File | null>(null);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
+
+  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const userGroups = userData.groups || [];
+  const isStaff = userGroups.includes('Staffs');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -50,36 +65,64 @@ const MFUChatbot: React.FC = () => {
     autoResize();
   }, [inputMessage]);
 
+  useEffect(() => {
+    const loadModels = async () => {
+      const response = await axios.get('/api/models');
+      setModels(response.data);
+    };
+    loadModels();
+  }, []);
+
+  const handleTraining = async () => {
+    if (!trainingFile || !selectedModel || !selectedCollection) return;
+    
+    setIsTraining(true);
+    const formData = new FormData();
+    formData.append('file', trainingFile);
+    formData.append('model', selectedModel);
+    formData.append('collection', selectedCollection);
+    
+    try {
+      await axios.post('/api/train', formData);
+      alert('Training completed successfully!');
+    } catch (error) {
+      console.error('Training error:', error);
+      alert('Training failed!');
+    } finally {
+      setIsTraining(false);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: messages.length + 1,
-      text: inputMessage,
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsLoading(true);
-
-    // Simulate bot response
-    setTimeout(() => {
-      const botMessage: Message = {
-        id: messages.length + 2,
-        text: 'This is a demo response. AI features have been removed.',
+  const handleSendMessage = async () => {
+    setIsProcessing(true);
+    setProcessingStatus('กำลังประมวลผล...');
+    
+    try {
+      // ส่งคำถามไป API
+      const response = await axios.post('/api/chat', {
+        message: inputMessage,
+        model: selectedModel
+      });
+      
+      // อัพเดทข้อความ
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        text: response.data.response,
         sender: 'bot',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, botMessage]);
-      setIsLoading(false);
-    }, 1000);
+        timestamp: new Date()
+      }]);
+      
+    } catch (error) {
+      console.error('Chat error:', error);
+      setProcessingStatus('เกิดข้อผิดพลาด กรุณาลองใหม่');
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -89,7 +132,7 @@ const MFUChatbot: React.FC = () => {
       } else {
         if (!e.shiftKey) {
           e.preventDefault();
-          handleSendMessage(e);
+          handleSendMessage();
         }
       }
     }
@@ -97,6 +140,48 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
+      <div className="flex gap-4 p-4">
+        <select 
+          value={selectedModel}
+          onChange={(e) => setSelectedModel(e.target.value)}
+          className="border p-2"
+        >
+          <option value="">Select Model</option>
+          {models.map(model => (
+            <option key={model} value={model}>{model}</option>
+          ))}
+        </select>
+
+        <select
+          value={selectedCollection}
+          onChange={(e) => setSelectedCollection(e.target.value)}
+          className="border p-2"
+        >
+          <option value="">Select Collection</option>
+          {collections.map(collection => (
+            <option key={collection} value={collection}>{collection}</option>
+          ))}
+        </select>
+      </div>
+
+      {isStaff && (
+        <div className="p-4 border-t">
+          <h3 className="font-bold mb-2">Train Model</h3>
+          <input
+            type="file"
+            onChange={(e) => setTrainingFile(e.target.files?.[0] || null)}
+            className="mb-2"
+          />
+          <button
+            onClick={handleTraining}
+            disabled={isTraining}
+            className="bg-green-500 text-white px-4 py-2 rounded"
+          >
+            {isTraining ? 'Training...' : 'Start Training'}
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 pb-32">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
@@ -122,7 +207,7 @@ const MFUChatbot: React.FC = () => {
                 >
                   <p className="text-sm md:text-base whitespace-pre-wrap">{message.text}</p>
                   <span className="text-xs opacity-75 mt-1 block">
-                    {message.timestamp.toLocaleTimeString()}
+                    {message.model} - {message.collection}
                   </span>
                 </div>
               </div>
@@ -177,6 +262,14 @@ const MFUChatbot: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {/* แสดงสถานะการทำงาน */}
+      {isProcessing && (
+        <div className="text-center py-2 text-gray-600">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto mb-2"></div>
+          <p>{processingStatus}</p>
+        </div>
+      )}
     </div>
   );
 };
