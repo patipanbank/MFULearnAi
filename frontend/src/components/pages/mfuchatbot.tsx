@@ -213,6 +213,12 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  const formatTimestamp = (timestamp: string | Date) => {
+    if (!timestamp) return '';
+    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+    return date.toLocaleTimeString();
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <div className="sticky top-0 bg-white z-20 border-b shadow-sm">
@@ -279,8 +285,8 @@ const MFUChatbot: React.FC = () => {
                   }`}
                 >
                   <p className="text-sm md:text-base whitespace-pre-wrap">{message.content}</p>
-                  <span className="text-xs opacity-75 mt-1 block">
-                    {message.timestamp.toLocaleTimeString()}
+                  <span className="text-xs text-gray-500">
+                    {formatTimestamp(message.timestamp)}
                   </span>
                 </div>
               </div>
