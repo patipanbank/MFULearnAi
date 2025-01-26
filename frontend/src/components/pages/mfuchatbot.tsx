@@ -78,10 +78,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: messages.concat(newMessage).map(m => ({
-            role: m.role,
-            content: m.content
-          }))
+          messages: [{ role: 'user', content: newMessage.content }]
         })
       });
 
@@ -92,7 +89,7 @@ const MFUChatbot: React.FC = () => {
       setMessages(prev => [...prev, {
         id: Date.now(),
         role: 'assistant',
-        content: data.response,
+        content: data.response.content,
         timestamp: new Date()
       }]);
     } catch (error) {
