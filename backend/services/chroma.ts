@@ -32,13 +32,17 @@ export class ChromaService {
 
   async addDocuments(documents: Array<{text: string, metadata: any}>) {
     try {
-      const ids = documents.map((_, i) => `doc_${Date.now()}_${i}`);
-      const texts = documents.map(doc => doc.text);
-      const metadatas = documents.map(doc => doc.metadata);
+      // แบ่งข้อความเป็นประโยค
+      const sentences = documents[0].text.split('.');
+      const validSentences = sentences.filter(s => s.trim().length > 0);
+
+      const ids = validSentences.map((_, i) => `doc_${Date.now()}_${i}`);
+      const texts = validSentences;
+      const metadatas = validSentences.map(() => documents[0].metadata);
 
       // แปลงข้อความเป็น vectors
       const embeddings = await Promise.all(
-        texts.map(text => this.embedder.embed(text))
+        texts.map(text => this.embedder.embed(text.trim()))
       );
 
       console.log('Adding documents:', {
