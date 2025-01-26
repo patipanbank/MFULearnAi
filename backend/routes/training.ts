@@ -93,6 +93,27 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// อนุญาตทั้ง Students และ Staffs ให้เข้าถึง models และ collections ได้
+router.get('/models', roleGuard(['Students', 'Staffs']), async (req, res) => {
+  try {
+    const models = await ollamaService.getAvailableModels();
+    res.json(models);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Error fetching models' });
+  }
+});
+
+router.get('/collections', roleGuard(['Students', 'Staffs']), async (req, res) => {
+  try {
+    const collections = await chromaService.getCollections();
+    res.json(collections);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Error fetching collections' });
+  }
+});
+
 // เฉพาะ Staff เท่านั้นที่เข้าถึงได้
 router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
 
@@ -133,28 +154,6 @@ const deleteDocumentHandler = async (req: Request, res: Response): Promise<void>
 };
 
 router.delete('/documents/:id', roleGuard(['Staffs']), deleteDocumentHandler);
-
-// Get available models
-router.get('/models', roleGuard(['Staffs']), async (req, res) => {
-  try {
-    const models = await ollamaService.getAvailableModels();
-    res.json(models);
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Error fetching models' });
-  }
-});
-
-// Get available collections
-router.get('/collections', roleGuard(['Staffs']), async (req, res) => {
-  try {
-    const collections = await chromaService.getCollections();
-    res.json(collections);
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Error fetching collections' });
-  }
-});
 
 // Create new collection
 router.post('/collections', roleGuard(['Staffs']), async (req, res) => {
