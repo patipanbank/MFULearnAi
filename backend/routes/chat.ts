@@ -2,6 +2,7 @@ import { Router, Request, Response, RequestHandler } from 'express';
 import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
 import { ChatMessage } from '../types/chat';
+import { chatHistoryService } from '../services/chatHistory';
 
 const router = Router();
 
@@ -31,10 +32,25 @@ const chatHandler: RequestHandler = async (req: ChatRequest, res: Response): Pro
     ] as ChatMessage[];
 
     const response = await ollamaService.chat(augmentedMessages);
+    
+    // บันทึกประวัติแชท
+    const updatedMessages = [...augmentedMessages, {
+      id: Date.now(),
+      role: 'assistant',
+      content: response.content,
+      timestamp: new Date()
+    }];
+
+    await chatHistoryService.saveChatMessage(
+      (req as any).user.id,
+      '',
+      collectionName,
+      updatedMessages
+    );
+
     res.json({
       content: response.content
     });
-    
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -42,5 +58,16 @@ const chatHandler: RequestHandler = async (req: ChatRequest, res: Response): Pro
 };
 
 router.post('/', chatHandler);
+
+router.get('/history', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const history = await chatHistoryService.getChatHistory(userId);
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    res.status(500).json({ error: 'Failed to fetch chat history' });
+  }
+});
 
 export default router;

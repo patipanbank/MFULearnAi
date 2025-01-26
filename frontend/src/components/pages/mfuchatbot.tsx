@@ -62,6 +62,35 @@ const MFUChatbot: React.FC = () => {
     fetchCollections();
   }, []);
 
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch chat history');
+        }
+        
+        const history = await response.json();
+        if (history.length > 0) {
+          // ใช้ประวัติล่าสุด
+          const latestChat = history[0];
+          setMessages(latestChat.messages);
+          setSelectedModel(latestChat.modelId);
+          setSelectedCollection(latestChat.collectionName);
+        }
+      } catch (error) {
+        console.error('Error loading chat history:', error);
+      }
+    };
+
+    loadChatHistory();
+  }, []);
+
   const fetchModels = async () => {
     try {
       setLoadingModels(true);
