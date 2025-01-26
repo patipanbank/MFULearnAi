@@ -1,32 +1,32 @@
-import React,{useState} from 'react';
-import { useNavigate } from 'react-router-dom';
+// import React,{useState} from 'react';
+// import { useNavigate } from 'react-router-dom';
 import { config } from '../../config/config';
-import axios from 'axios';
+// import axios from 'axios';
 const Login: React.FC = () => {
-  const [showLogin, setShowLogin] = useState(false);
-  const [name, setName] = useState('');
+  // const [showLogin, setShowLogin] = useState(false);
+  // const [name, setName] = useState('');
   const handleMFUSSOLogin = () => {
     window.location.href = `${config.apiUrl}/api/auth/login/saml`;
   };
-  const navigator = useNavigate();
-  const login_guest =  async() =>  {
-    try {
-      if (!name) {
-        alert('Please enter your name');
-        return;
-      }
-      const response = await axios.post(`${config.apiUrl}/api/auth/test`, {nameID: name});
+  // const navigator = useNavigate();
+  // const login_guest =  async() =>  {
+  //   try {
+  //     if (!name) {
+  //       alert('Please enter your name');
+  //       return;
+  //     }
+  //     const response = await axios.post(`${config.apiUrl}/api/auth/test`, {nameID: name});
       
-      if (response.status !== 200) {
-        throw new Error('Error logging in as guest');
-      }
-      setShowLogin(false);
-      navigator(response.data)
-    }
-      catch (error) {
-        console.error(error);
-      }
-  }
+  //     if (response.status !== 200) {
+  //       throw new Error('Error logging in as guest');
+  //     }
+  //     setShowLogin(false);
+  //     navigator(response.data)
+  //   }
+  //     catch (error) {
+  //       console.error(error);
+  //     }
+  // }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -48,17 +48,17 @@ const Login: React.FC = () => {
           </button>
         
         </div>
-        <div className="mt-8">
+        {/* <div className="mt-8">
           <button
             onClick={() => setShowLogin(true)}
             className='w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
           >
             Login with guest
           </button>
-        </div>
+        </div> */}
 
       </div>
-      {showLogin && (
+      {/* {showLogin && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center transition-opacity">
           <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
             <div className="text-center">
@@ -87,7 +87,7 @@ const Login: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
