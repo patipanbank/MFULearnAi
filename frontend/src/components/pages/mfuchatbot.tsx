@@ -243,43 +243,43 @@ const MFUChatbot: React.FC = () => {
       <div className="sticky top-0 bg-white z-20 border-b shadow-sm">
         <div className="p-4">
           <div className="flex flex-wrap gap-4 items-center justify-between">
-            {loadingModels ? (
-              <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
-            ) : (
-              <select 
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="border p-2 rounded flex-1 min-w-[200px] max-w-xs"
-                disabled={models.length === 1}
+            <div className="flex flex-col w-full md:flex-row md:w-auto gap-4">
+              {loadingModels ? (
+                <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
+              ) : (
+                <select 
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="p-2 border rounded w-full md:w-48"
+                >
+                  <option value="">Choose Model</option>
+                  {models.map(model => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                </select>
+              )}
+              
+              {loadingCollections ? (
+                <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
+              ) : (
+                <select 
+                  value={selectedCollection}
+                  onChange={(e) => setSelectedCollection(e.target.value)}
+                  className="p-2 border rounded w-full md:w-48"
+                >
+                  <option value="">Choose Collection</option>
+                  {collections.map(collection => (
+                    <option key={collection} value={collection}>{collection}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                onClick={clearChat}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors w-full md:w-auto"
               >
-                <option value="">Choose Model</option>
-                {models.map(model => (
-                  <option key={model} value={model}>{model}</option>
-                ))}
-              </select>
-            )}
-            
-            {loadingCollections ? (
-              <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
-            ) : (
-              <select 
-                value={selectedCollection}
-                onChange={(e) => setSelectedCollection(e.target.value)}
-                className="border p-2 rounded flex-1 min-w-[200px] max-w-xs"
-                disabled={collections.length === 1}
-              >
-                <option value="">Choose Collection</option>
-                {collections.map(collection => (
-                  <option key={collection} value={collection}>{collection}</option>
-                ))}
-              </select>
-            )}
-            <button
-              onClick={clearChat}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-            >
-              เคลียร์แชท
-            </button>
+                เคลียร์แชท
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -331,39 +331,36 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 border-t p-4 bg-white z-10">
-        <form onSubmit={handleSubmit} className="max-w-screen-lg mx-auto">
-          <div className="flex gap-2">
-            <textarea
-              ref={textareaRef}
-              value={inputMessage}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder={isMobile 
-                ? "Type your message here... (Use send button to submit)" 
-                : "Type your message here... (Shift + Enter for new line)"
-              }
-              className="flex-1 px-4 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              style={{
-                minHeight: '40px',
-                maxHeight: '240px',
-                overflowY: 'auto'
-              }}
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`px-4 h-10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
-                ${isLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
-            >
-              {isLoading ? (
-                <BiLoaderAlt className="w-5 h-5 animate-spin" />
-              ) : (
-                <FaPaperPlane className="w-5 h-5" />
-              )}
-            </button>
-          </div>
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <textarea
+            ref={textareaRef}
+            value={inputMessage}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={isMobile 
+              ? "Type your message here... (Use send button to submit)" 
+              : "Type your message here... (Shift + Enter for new line)"
+            }
+            className="flex-1 p-2 border rounded"
+            style={{
+              minHeight: '40px',
+              maxHeight: '240px',
+              overflowY: 'auto'
+            }}
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors`}
+          >
+            {isLoading ? (
+              <BiLoaderAlt className="w-5 h-5 animate-spin" />
+            ) : (
+              <FaPaperPlane className="w-5 h-5" />
+            )}
+          </button>
         </form>
       </div>
     </div>
