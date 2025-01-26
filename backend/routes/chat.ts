@@ -1,13 +1,9 @@
 import { Router, Request, Response, RequestHandler } from 'express';
 import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
+import { ChatMessage } from '../types/chat';
 
 const router = Router();
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
 
 interface ChatRequest extends Request {
   body: { 
@@ -17,15 +13,23 @@ interface ChatRequest extends Request {
 
 const chatHandler: RequestHandler = async (req: ChatRequest, res: Response): Promise<void> => {
   try {
-    console.log('Chat request received:', req.body);
     const { messages } = req.body;
-    
-    if (!messages || messages.length === 0) {
-      res.status(400).json({ error: 'Messages are required' });
-      return;
-    }
+    const userMessage = messages[0].content;
 
-    const response = await ollamaService.chat(messages);
+    // ค้นหาข้อมูลที่เกี่ยวข้องจาก ChromaDB
+    const results = await chromaService.query(userMessage);
+    let context = results[0] || '';
+
+    // สร้าง prompt ที่รวมบริบทและคำถาม
+    const augmentedMessages = [
+      {
+        role: 'system' as const,
+        content: `You are a helpful assistant. Use this context to answer questions: ${context}`
+      },
+      ...messages
+    ] as ChatMessage[];
+
+    const response = await ollamaService.chat(augmentedMessages);
     res.json({ response });
     
   } catch (error) {

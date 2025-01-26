@@ -63,6 +63,14 @@ class ChromaService {
       nResults: nResults
     });
   }
+
+  async query(text: string): Promise<string[]> {
+    const results = await this.collection.query({
+      queryTexts: [text],
+      nResults: 1,
+    });
+    return results.documents?.[0] || [];
+  }
 }
 
 export const chromaService = new ChromaService(); 

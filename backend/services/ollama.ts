@@ -1,9 +1,5 @@
 import fetch from 'node-fetch';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { ChatMessage } from '../types/chat';
 
 class OllamaService {
   private apiUrl: string;
