@@ -105,12 +105,12 @@ router.route('/history').get(async (req: Request, res: Response): Promise<void> 
     });
 });
 
-router.delete('/clear', async (req: Request, res: Response) => {
+router.route('/clear').delete(async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    
     if (!user || !user.username) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     const result = await chatHistoryService.clearChatHistory(user.username);
