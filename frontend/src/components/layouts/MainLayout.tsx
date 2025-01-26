@@ -42,7 +42,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           />
         )}
 
-        <main className="flex-1 overflow-auto pt-16">
+        <main className="flex-1 overflow-auto mt-16 lg:mt-16">
           {children}
         </main>
       </div>
