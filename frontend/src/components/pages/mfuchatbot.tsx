@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
+import { config } from '../../config/config';
 
 interface Message {
   id: number;
-  text: string;
-  sender: 'user' | 'bot';
+  role: 'user' | 'assistant';
+  content: string;
   timestamp: Date;
 }
 
@@ -54,32 +55,52 @@ const MFUChatbot: React.FC = () => {
     setInputMessage(e.target.value);
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: messages.length + 1,
-      text: inputMessage,
-      sender: 'user',
-      timestamp: new Date(),
+    const newMessage: Message = {
+      id: Date.now(),
+      role: 'user',
+      content: inputMessage.trim(),
+      timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, newMessage]);
     setInputMessage('');
     setIsLoading(true);
 
-    // Simulate bot response
-    setTimeout(() => {
-      const botMessage: Message = {
-        id: messages.length + 2,
-        text: 'This is a demo response. AI features have been removed.',
-        sender: 'bot',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, botMessage]);
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: messages.concat(newMessage).map(m => ({
+            role: m.role,
+            content: m.content
+          }))
+        })
+      });
+
+      if (!response.ok) throw new Error('Chat request failed');
+
+      const data = await response.json();
+      
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        role: 'assistant',
+        content: data.response,
+        timestamp: new Date()
+      }]);
+    } catch (error) {
+      console.error('Chat error:', error);
+      alert('Error sending message. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -89,7 +110,7 @@ const MFUChatbot: React.FC = () => {
       } else {
         if (!e.shiftKey) {
           e.preventDefault();
-          handleSendMessage(e);
+          handleSubmit(e);
         }
       }
     }
@@ -111,16 +132,16 @@ const MFUChatbot: React.FC = () => {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
                   className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 ${
-                    message.sender === 'user'
+                    message.role === 'user'
                       ? 'bg-blue-600 text-white rounded-tr-none'
                       : 'bg-gray-100 text-gray-800 rounded-tl-none'
                   }`}
                 >
-                  <p className="text-sm md:text-base whitespace-pre-wrap">{message.text}</p>
+                  <p className="text-sm md:text-base whitespace-pre-wrap">{message.content}</p>
                   <span className="text-xs opacity-75 mt-1 block">
                     {message.timestamp.toLocaleTimeString()}
                   </span>
@@ -143,7 +164,7 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 border-t p-4 bg-white z-10">
-        <form onSubmit={handleSendMessage} className="max-w-screen-lg mx-auto">
+        <form onSubmit={handleSubmit} className="max-w-screen-lg mx-auto">
           <div className="flex gap-2">
             <textarea
               ref={textareaRef}

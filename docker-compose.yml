@@ -23,8 +23,12 @@ services:
       - 5000:5000
     environment:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
+      - OLLAMA_API_URL=http://ollama:11434
+      - CHROMA_URL=http://chroma:8000
     depends_on:
       - db
+      - ollama
+      - chroma
     networks:
       - mfulearnai
     restart: unless-stopped
@@ -55,8 +59,33 @@ services:
       - mfulearnai
     restart: unless-stopped
 
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    networks:
+      - mfulearnai
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma
+    container_name: chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma:/chroma/chroma
+    networks:
+      - mfulearnai
+    restart: unless-stopped
+
 volumes:
   data:
+  ollama:
+  chroma:
+
 networks:
   mfulearnai:
     driver: bridge

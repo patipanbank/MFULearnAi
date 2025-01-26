@@ -1,7 +1,9 @@
-import { Router } from 'express';
+import { Router, Request, Response, RequestHandler } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
 import multer from 'multer';
 import path from 'path';
+import { documentService } from '../services/document';
+import { chromaService } from '../services/chroma';
 
 const router = Router();
 const upload = multer({ 
@@ -17,13 +19,46 @@ const upload = multer({
   }
 });
 
-// เฉพาะ Staff เท่านั้นที่เข้าถึงได้
-router.post('/upload', roleGuard(['Staffs']), upload.single('file'), async (req, res) => {
+interface RequestWithUser extends Request {
+  user?: {
+    nameID: string;
+    username: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    groups: string[];
+  };
+}
+
+const uploadHandler: RequestHandler = async (req, res): Promise<void> => {
+  const typedReq = req as RequestWithUser;
   try {
-    // โค้ดสำหรับประมวลผลไฟล์และเก็บข้อมูลลง Vector Database
+    if (!typedReq.file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
+
+    const chunks = await documentService.processFile(typedReq.file);
+
+    await chromaService.addDocuments(
+      chunks.map(text => ({
+        text,
+        metadata: {
+          filename: typedReq.file!.originalname,
+          uploadedBy: typedReq.user?.username || 'unknown',
+          timestamp: new Date().toISOString()
+        }
+      }))
+    );
+
+    res.json({ success: true, chunks: chunks.length });
   } catch (error) {
+    console.error('Error processing file:', error);
     res.status(500).json({ error: 'Error processing file' });
   }
-});
+};
+
+// เฉพาะ Staff เท่านั้นที่เข้าถึงได้
+router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
 
 export default router; 
