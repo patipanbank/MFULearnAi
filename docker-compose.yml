@@ -26,9 +26,12 @@ services:
       - OLLAMA_API_URL=http://ollama:11434
       - CHROMA_URL=http://chroma:8000
     depends_on:
-      - db
-      - ollama
-      - chroma
+      chroma:
+        condition: service_healthy
+      db:
+        condition: service_started
+      ollama:
+        condition: service_started
     networks:
       - mfulearnai
     restart: unless-stopped
@@ -83,6 +86,11 @@ services:
       - chroma:/chroma/chroma
     networks:
       - mfulearnai
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:
