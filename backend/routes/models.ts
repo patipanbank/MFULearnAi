@@ -9,18 +9,24 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     // เรียกใช้ Ollama API เพื่อดึงรายการ models
-    const response = await axios.get('http://ollama:11434/api/tags');
+    const response = await axios.get('http://ollama:11434/api/list');
     
     // แปลงข้อมูลให้อยู่ในรูปแบบที่ต้องการ
     const models = response.data.models.map((model: any) => ({
       name: model.name,
-      modelType: model.name.split(':')[0] // แยกเอาชื่อ model จาก tag
+      modelType: model.name.split(':')[0], // แยกเอาชื่อ model จาก tag
+      modified: model.modified,
+      size: model.size
     }));
 
     res.json(models);
   } catch (error) {
     console.error('Error fetching models from Ollama:', error);
-    res.status(500).json({ message: 'Error fetching models' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching models',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
