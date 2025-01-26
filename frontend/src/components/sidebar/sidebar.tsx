@@ -45,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               }`}
             >
               <FaRobot className="mr-3" />
-              Chatbot
+              Chat AI
             </Link>
           </li>
         </ul>
