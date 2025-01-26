@@ -40,6 +40,16 @@ class ChatHistoryService {
       throw error;
     }
   }
+
+  async clearChatHistory(userId: string) {
+    try {
+      await ChatHistory.deleteMany({ userId });
+      return { success: true, message: 'Chat history cleared successfully' };
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
+      throw error;
+    }
+  }
 }
 
 export const chatHistoryService = new ChatHistoryService(); 

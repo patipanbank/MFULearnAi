@@ -219,11 +219,30 @@ const MFUChatbot: React.FC = () => {
     return date.toLocaleTimeString();
   };
 
+  const clearChat = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear chat history');
+      }
+
+      setMessages([]); // เคลียร์ข้อความในหน้าจอ
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <div className="sticky top-0 bg-white z-20 border-b shadow-sm">
         <div className="p-4">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 items-center justify-between">
             {loadingModels ? (
               <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
             ) : (
@@ -255,6 +274,12 @@ const MFUChatbot: React.FC = () => {
                 ))}
               </select>
             )}
+            <button
+              onClick={clearChat}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            >
+              เคลียร์แชท
+            </button>
           </div>
         </div>
       </div>
