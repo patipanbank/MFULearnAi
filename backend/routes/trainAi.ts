@@ -1,4 +1,4 @@
-import express, { Router, Request, Response, RequestHandler, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
 import axios from 'axios';
 import TrainingData from '../models/TrainingData';
@@ -15,9 +15,6 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import NodeZip from 'node-zip';
-import { DataProcessor } from '../lib/dataProcessor';
-import { VectorStoreManager } from '../lib/vectorStore';
-import KnowledgeBase from '../models/KnowledgeBase';
 
 const router = Router();
 
@@ -377,58 +374,5 @@ SYSTEM "${systemPrompt}"
     });
   }
 });
-
-type TrainingDataHandler = (
-  req: RequestWithUser,
-  res: Response,
-  next: NextFunction
-) => Promise<void>;
-
-const addTrainingData: TrainingDataHandler = async (req, res, next) => {
-  try {
-    const { knowledgeBaseId } = req.body;
-    
-    const kb = await KnowledgeBase.findById(knowledgeBaseId).populate('baseModelId');
-    if (!kb) {
-      res.status(404).json({ message: 'Knowledge base not found' });
-      return;
-    }
-
-    let content: string;
-    if (req.file) {
-      content = await DataProcessor.extractText(req.file);
-    } else {
-      content = req.body.content;
-    }
-
-    const chunks = await DataProcessor.splitIntoChunks(content);
-    const documentsWithEmbeddings = await DataProcessor.createEmbeddings(chunks, knowledgeBaseId);
-    
-    const vectorStore = VectorStoreManager.getInstance();
-    await vectorStore.addDocuments(knowledgeBaseId, documentsWithEmbeddings);
-
-    const trainingData = await TrainingData.create({
-      content,
-      name: req.file?.originalname || 'Manual Input',
-      knowledgeBaseId,
-      createdBy: {
-        nameID: req.user.nameID,
-        username: req.user.username,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName
-      }
-    });
-
-    res.json({ 
-      message: 'Training data added successfully',
-      data: trainingData
-    });
-
-  } catch (error) {
-    next(error);
-  }
-};
-
-router.post('/add', upload.single('file'), addTrainingData as express.RequestHandler);
 
 export default router; 

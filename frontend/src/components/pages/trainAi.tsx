@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
-// import { FaUpload } from 'react-icons/fa';
+import { FaUpload } from 'react-icons/fa';
 
 // FaFile, FaFilePdf, FaFileWord, FaFileExcel
 
@@ -22,38 +22,15 @@ interface TrainingData {
   modelName: string;
 }
 
-interface AIModel {
-  _id: string;
-  displayName: string;
-  description: string;
-  modelType: string;
-}
-
-interface KnowledgeBase {
-  _id: string;
-  displayName: string;
-  description: string;
-  baseModelId: string;
-}
-
 const TrainAI: React.FC = () => {
-  // const [setIsTraining] = useState(false);
+  // const [text, setText] = useState('');
+  const [isTraining, setIsTraining] = useState(false);
   const [message, setMessage] = useState('');
   const [trainingHistory, setTrainingHistory] = useState<TrainingData[]>([]);
   const [file, setFile] = useState<File | null>(null);
-  // const [setUploadMessage] = useState('');
-  // const [datasetName, setDatasetName] = useState('');
-  // const [modelName] = useState('mfu-custom');
-  const [models, setModels] = useState<AIModel[]>([]);
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('');
-  const [selectedKB, setSelectedKB] = useState<string>('');
-  const [showNewKBForm, setShowNewKBForm] = useState(false);
-  const [newKB, setNewKB] = useState({
-    displayName: '',
-    description: '',
-  });
-  const [content, setContent] = useState('');
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [datasetName, setDatasetName] = useState('');
+  const [modelName, setModelName] = useState('mfu-custom');
 
   // โหลดข้อมูลประวัติการ train
   const loadTrainingHistory = async () => {
@@ -87,6 +64,37 @@ const TrainAI: React.FC = () => {
       setMessage(err.response?.data?.message || 'An error occurred while loading history');
     }
   };
+
+  // const handleTrain = async () => {
+  //   try {
+  //     setIsTraining(true);
+  //     setMessage('Training AI...');
+
+  //     const token = localStorage.getItem('auth_token');
+  //     if (!token) {
+  //       setMessage('Please log in again');
+  //       return;
+  //     }
+
+  //     await axios.post(
+  //       `${import.meta.env.VITE_API_URL}/api/train-ai/train`, 
+  //       { text }, 
+  //       {
+  //         headers: { 'Authorization': `Bearer ${token}` }
+  //       }
+  //     );
+
+  //     setMessage('Training AI successful!');
+  //     setText('');
+  //     await loadTrainingHistory();
+  //   } catch (error: unknown) {
+  //     console.error('Training error:', error);
+  //     const axiosError = error as AxiosError<{ message: string }>;
+  //     setMessage(axiosError.response?.data?.message || 'An error occurred during training');
+  //   } finally {
+  //     setIsTraining(false);
+  //   }
+  // };
 
   const toggleTrainingData = async (id: string, currentStatus: boolean) => {
     try {
@@ -124,49 +132,64 @@ const TrainAI: React.FC = () => {
     }
   };
 
-  // const handleFileUpload = async () => {
-  //   try {
-  //     if (!datasetName.trim()) {
-  //       setMessage('Please enter a dataset name');
-  //       return;
-  //     }
+  const handleFileUpload = async () => {
+    try {
+      if (!datasetName.trim()) {
+        setMessage('Please enter a dataset name');
+        return;
+      }
 
-  //     setIsTraining(true);
-  //     setMessage('Training AI...');
+      setIsTraining(true);
+      setMessage('Training AI...');
 
-  //     const token = localStorage.getItem('auth_token');
-  //     if (!token) {
-  //       setMessage('Please log in again');
-  //       return;
-  //     }
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setMessage('Please log in again');
+        return;
+      }
 
-  //     const formData = new FormData();
-  //     formData.append('file', file!);
-  //     formData.append('datasetName', datasetName);
-  //     formData.append('modelName', modelName);
+      const formData = new FormData();
+      formData.append('file', file!);
+      formData.append('datasetName', datasetName);
+      formData.append('modelName', modelName);
 
-  //     const response = await axios.post(
-  //       `${import.meta.env.VITE_API_URL}/api/train-ai/train/file`,
-  //       formData,
-  //       {
-  //         headers: {
-  //           'Authorization': `Bearer ${token}`,
-  //           'Content-Type': 'multipart/form-data'
-  //         }
-  //       }
-  //     );
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/train-ai/train/file`,
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
 
-  //     setMessage(`Training completed: ${response.data.name}`);
-  //     setFile(null);
-  //     setUploadMessage('');
-  //     setDatasetName('');
-  //     await loadTrainingHistory();
-  //   } catch (error: unknown) {
-  //     console.error('Training error:', error);
-  //     const axiosError = error as AxiosError<{ message: string }>;
-  //     setMessage(axiosError.response?.data?.message || 'An error occurred during training');
-  //   } finally {
-  //     setIsTraining(false);
+      setMessage(`Training completed: ${response.data.name}`);
+      setFile(null);
+      setUploadMessage('');
+      setDatasetName('');
+      await loadTrainingHistory();
+    } catch (error: unknown) {
+      console.error('Training error:', error);
+      const axiosError = error as AxiosError<{ message: string }>;
+      setMessage(axiosError.response?.data?.message || 'An error occurred during training');
+    } finally {
+      setIsTraining(false);
+    }
+  };
+
+  // เพิ่มฟังก์ชันสำหรับแสดงไอคอนตามประเภทไฟล์
+  // const getFileIcon = (fileType: string) => {
+  //   switch (fileType) {
+  //     case 'pdf':
+  //       return <FaFilePdf className="text-red-500" />;
+  //     case 'docx':
+  //       return <FaFileWord className="text-blue-500" />;
+  //     case 'xlsx':
+  //     case 'csv':
+  //       return <FaFileExcel className="text-green-500" />;
+  //     default:
+  //       return <FaFile />;
   //   }
   // };
 
@@ -174,202 +197,90 @@ const TrainAI: React.FC = () => {
     loadTrainingHistory();
   }, [message]);
 
-  useEffect(() => {
-    fetchModels();
-  }, []);
-
-  useEffect(() => {
-    if (selectedModel) {
-      fetchKnowledgeBases(selectedModel);
-    }
-  }, [selectedModel]);
-
-  const fetchModels = async () => {
-    try {
-      const response = await axios.get('/api/models');
-      setModels(response.data);
-    } catch (error) {
-      console.error('Error fetching models:', error);
-    }
-  };
-
-  const fetchKnowledgeBases = async (modelId: string) => {
-    try {
-      const response = await axios.get(`/api/knowledge-base/by-model/${modelId}`);
-      setKnowledgeBases(response.data);
-    } catch (error) {
-      console.error('Error fetching knowledge bases:', error);
-    }
-  };
-
-  const handleCreateKB = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await axios.post('/api/knowledge-base', {
-        ...newKB,
-        baseModelId: selectedModel
-      });
-      setKnowledgeBases([...knowledgeBases, response.data]);
-      setShowNewKBForm(false);
-      setNewKB({ displayName: '', description: '' });
-    } catch (error) {
-      console.error('Error creating knowledge base:', error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedModel || !selectedKB) return;
-
-    const formData = new FormData();
-    formData.append('knowledgeBaseId', selectedKB);
-    if (file) {
-      formData.append('file', file);
-    } else {
-      formData.append('content', content);
-    }
-
-    try {
-      await axios.post('/api/train-ai/add', formData);
-      alert('Training data added successfully');
-      setFile(null);
-      setContent('');
-    } catch (error) {
-      console.error('Error adding training data:', error);
-      alert('Error adding training data');
-    }
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow p-6">
         <h1 className="text-2xl font-bold mb-4">Train AI</h1>
         
-        {/* Model Selection */}
-        <div className="mb-6">
-          <label className="block mb-2">Select Base Model:</label>
-          <select 
-            value={selectedModel}
-            onChange={(e) => {
-              setSelectedModel(e.target.value);
-              setSelectedKB('');
-            }}
-            className="w-full p-2 border rounded"
-          >
-            <option value="">Select a model</option>
-            {models.map(model => (
-              <option key={model._id} value={model._id}>
-                {model.displayName} - {model.description}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* File upload section */}
+        <div className="mb-6 border-b pb-6">
+          <h2 className="text-xl font-bold mb-4">Upload data for training</h2>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Dataset Name</label>
+              <input
+                type="text"
+                value={datasetName}
+                onChange={(e) => setDatasetName(e.target.value)}
+                placeholder="Enter dataset name"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
 
-        {/* Knowledge Base Selection */}
-        {selectedModel && (
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <label>Select Knowledge Base:</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Model Name</label>
+              <input
+                type="text"
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
+                placeholder="Enter model name (default: mfu-custom)"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* File upload UI */}
+            <div className="flex items-center gap-4">
+              <label className="flex-1">
+                <input
+                  type="file"
+                  accept=".txt,.pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    const selectedFile = e.target.files?.[0];
+                    if (selectedFile) {
+                      setFile(selectedFile);
+                      setUploadMessage(selectedFile.name);
+                    }
+                  }}
+                />
+                <div className="flex items-center gap-2 cursor-pointer p-2 border rounded hover:bg-gray-50">
+                  <FaUpload />
+                  <span>{uploadMessage || 'Select File'}</span>
+                </div>
+              </label>
               <button
-                type="button"
-                onClick={() => setShowNewKBForm(true)}
-                className="bg-green-500 text-white px-3 py-1 rounded text-sm"
+                className={`px-4 py-2 rounded ${
+                  isTraining ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+                } text-white`}
+                onClick={handleFileUpload}
+                disabled={isTraining || !file || !datasetName.trim()}
               >
-                Create New
+                {isTraining ? 'Training...' : 'Upload and Train'}
               </button>
             </div>
-            <select 
-              value={selectedKB}
-              onChange={(e) => setSelectedKB(e.target.value)}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Select a knowledge base</option>
-              {knowledgeBases.map(kb => (
-                <option key={kb._id} value={kb._id}>
-                  {kb.displayName} - {kb.description}
-                </option>
-              ))}
-            </select>
           </div>
-        )}
+        </div>
 
-        {/* New Knowledge Base Form */}
-        {showNewKBForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg w-96">
-              <h2 className="text-xl font-bold mb-4">Create New Knowledge Base</h2>
-              <form onSubmit={handleCreateKB} className="space-y-4">
-                <div>
-                  <label className="block mb-2">Display Name:</label>
-                  <input
-                    type="text"
-                    value={newKB.displayName}
-                    onChange={(e) => setNewKB(prev => ({
-                      ...prev,
-                      displayName: e.target.value
-                    }))}
-                    className="w-full p-2 border rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-2">Description:</label>
-                  <textarea
-                    value={newKB.description}
-                    onChange={(e) => setNewKB(prev => ({
-                      ...prev,
-                      description: e.target.value
-                    }))}
-                    className="w-full p-2 border rounded"
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowNewKBForm(false)}
-                    className="bg-gray-500 text-white px-4 py-2 rounded"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-blue-500 text-white px-4 py-2 rounded"
-                  >
-                    Create
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        {/* <div className="mb-4">
+          <textarea
+            className="w-full p-2 border rounded"
+            rows={10}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Enter data to train AI..."
+          />
+        </div>
 
-        {/* Training Data Form */}
-        {selectedModel && selectedKB && (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block mb-2">Upload File or Enter Text:</label>
-              <input
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="mb-2"
-              />
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="w-full p-2 border rounded"
-                rows={5}
-                placeholder="Or enter text here..."
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-              disabled={!file && !content}
-            >
-              Add Training Data
-            </button>
-          </form>
-        )}
+        <button
+          className={`px-4 py-2 rounded ${
+            isTraining ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+          } text-white`}
+          onClick={handleTrain}
+          disabled={isTraining}
+        >
+          {isTraining ? 'Training...' : 'Start Training'}
+        </button> */}
 
         {message && (
           <div className="mt-4 text-center text-sm">

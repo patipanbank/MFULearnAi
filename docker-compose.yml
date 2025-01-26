@@ -12,31 +12,50 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=1234
     restart: always
+    networks:
+      - mfulearnai
 
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - 5000:5000
+    environment:
+      - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
     depends_on:
       - db
+    networks:
+      - mfulearnai
     restart: unless-stopped
+    dns:
+      - 8.8.8.8  # Google DNS
+      - 1.1.1.1  # Cloudflare DNS
+    # หรือใช้ DNS ของประเทศไทย
+    # - 203.146.237.237  # TRUE
+    # - 203.146.237.238  # TRUEz
 
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - 3000:80
     depends_on:
       - backend
+    networks:
+      - mfulearnai
     restart: unless-stopped
 
   nginx:
+    build: ./nginx/
     image: nginx:alpine
     ports:
-      - "80:80"
+      - 80:80
     depends_on:
       - frontend
+    networks:
+      - mfulearnai
     restart: unless-stopped
 
   ollama:
@@ -46,21 +65,13 @@ services:
       - "11434:11434"
     volumes:
       - ollama:/root/.ollama
-    restart: unless-stopped
-
-  chroma:
-    image: chromadb/chroma
-    ports:
-      - "8000:8000"
-    volumes:
-      - chroma-data:/chroma/data
+    networks:
+      - mfulearnai
     restart: unless-stopped
 
 volumes:
   data:
   ollama:
-  chroma-data:
-
 networks:
-  default:
+  mfulearnai:
     driver: bridge

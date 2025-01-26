@@ -2,6 +2,7 @@ import { Router } from 'express';
 import passport from 'passport';
 import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
+import { connectDB } from '../lib/mongodb';
 import User from '../models/User';
 
 const router = Router();
