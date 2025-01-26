@@ -241,7 +241,7 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 pb-[250px] md:pb-40 pt-24">
+      <div className="flex-1 overflow-y-auto px-4 pb-[180px] pt-20 md:pb-40 md:pt-24">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -255,20 +255,20 @@ const MFUChatbot: React.FC = () => {
             {messages.map((message) => (
               <div 
                 key={message.id} 
-                className={`mb-6 max-w-[80%] ${
+                className={`mb-4 max-w-[85%] md:max-w-[80%] ${
                   message.role === 'user' 
                     ? 'ml-auto bg-blue-500 text-white' 
                     : 'mr-auto bg-gray-100'
-                } rounded-lg p-4`}
+                } rounded-lg p-3 md:p-4`}
               >
-                <div className={`text-sm ${
+                <div className={`text-xs md:text-sm ${
                   message.role === 'user' 
                     ? 'text-blue-100' 
                     : 'text-gray-500'
                 } mb-1`}>
                   {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                 </div>
-                <div className="whitespace-pre-wrap">{message.content}</div>
+                <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
               </div>
             ))}
             {isLoading && (
@@ -289,12 +289,12 @@ const MFUChatbot: React.FC = () => {
       {/* Fixed Bottom Container */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t">
         {/* Controls */}
-        <div className="p-4 border-b">
+        <div className="p-2 md:p-4 border-b">
           <div className="flex gap-2 max-w-4xl mx-auto">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-2 border rounded flex-1 max-w-[200px]"
+              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] md:max-w-[200px]"
             >
               <option value="">Choose Model</option>
               {models.map(model => (
@@ -304,7 +304,7 @@ const MFUChatbot: React.FC = () => {
             <select
               value={selectedCollection}
               onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-2 border rounded flex-1 max-w-[200px]"
+              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] md:max-w-[200px]"
             >
               <option value="">Choose Collection</option>
               {collections.map(collection => (
@@ -313,7 +313,7 @@ const MFUChatbot: React.FC = () => {
             </select>
             <button
               onClick={clearChat}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors whitespace-nowrap"
+              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded hover:bg-red-600 transition-colors whitespace-nowrap"
             >
               Clear Chat
             </button>
@@ -321,19 +321,19 @@ const MFUChatbot: React.FC = () => {
         </div>
 
         {/* Input Form */}
-        <form onSubmit={handleSubmit} className="p-4">
+        <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-4xl mx-auto">
             <textarea
               value={inputMessage}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
               onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
-              className="flex-1 p-2 border rounded resize-none"
+              className="flex-1 p-2 text-sm md:text-base border rounded resize-none"
               placeholder="Type your message here..."
               rows={1}
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
             >
               Send
             </button>
