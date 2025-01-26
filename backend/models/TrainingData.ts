@@ -9,21 +9,16 @@ const trainingDataSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  knowledgeBaseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'KnowledgeBase',
+    required: true
+  },
   createdBy: {
-    nameID: {
-      type: String,
-      required: true
-    },
-    username: {
-      type: String,
-      required: true
-    },
-    firstName: {
-      type: String
-    },
-    lastName: {
-      type: String
-    }
+    nameID: String,
+    username: String,
+    firstName: String,
+    lastName: String
   },
   isActive: {
     type: Boolean,

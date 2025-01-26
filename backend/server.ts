@@ -11,6 +11,8 @@ import chatRouter from './routes/chat';
 import trainAiRouter from './routes/trainAi';
 import fs from 'fs';
 import path from 'path';
+import modelsRouter from './routes/models';
+import knowledgeBaseRouter from './routes/knowledgeBase';
 
 const app = express();
 
@@ -54,7 +56,9 @@ if (!fs.existsSync(uploadsDir)) {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/train-ai', trainAiRouter);
-app.use('/api', chatRouter);
+app.use('/api/chat', chatRouter);
+app.use('/api/models', modelsRouter);
+app.use('/api/knowledge-base', knowledgeBaseRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
