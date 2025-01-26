@@ -5,10 +5,10 @@ import express from 'express';
 import cors from 'cors';
 import passport from 'passport';
 import session from 'express-session';
-import { connectDB } from './lib/mongodb';
-import authRoutes from './routes/auth';
-import chatRouter from './routes/chat';
-import trainAiRouter from './routes/trainAi';
+import { connectDB } from './lib/mongodb.js';
+import authRoutes from './routes/auth.js';
+import chatRouter from './routes/chat.js';
+import trainAiRouter from './routes/trainAi.js';
 import fs from 'fs';
 import path from 'path';
 

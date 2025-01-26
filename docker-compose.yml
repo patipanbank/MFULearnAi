@@ -1,77 +1,62 @@
 version: '3.8'
 
 services:
-  db:
-    image: mongo
-    container_name: mfulearnai
+  # MongoDB Service
+  mongodb:
+    image: mongo:latest
+    container_name: mfulearnai-mongodb
     ports:
-      - 27017:27017
+      - "27017:27017"
     volumes:
-      - data:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=1234
-    restart: always
+      - mongodb_data:/data/db
     networks:
-      - mfulearnai
+      - mfulearnai_network
 
+  # ChromaDB Service
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: mfulearnai-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/data
+    networks:
+      - mfulearnai_network
+
+  # Backend Service
   backend:
-    build:
+    build: 
       context: ./backend
       dockerfile: Dockerfile
+    container_name: mfulearnai-backend
     ports:
-      - 5000:5000
+      - "5000:5000"
     environment:
-      - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
+      - MONGODB_URI=mongodb://mongodb:27017/mfulearnai
+      - CHROMA_HOST=http://chromadb:8000
     depends_on:
-      - db
+      - mongodb
+      - chromadb
     networks:
-      - mfulearnai
-    restart: unless-stopped
-    dns:
-      - 8.8.8.8  # Google DNS
-      - 1.1.1.1  # Cloudflare DNS
-    # หรือใช้ DNS ของประเทศไทย
-    # - 203.146.237.237  # TRUE
-    # - 203.146.237.238  # TRUEz
+      - mfulearnai_network
 
+  # Frontend Service
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: mfulearnai-frontend
     ports:
-      - 3000:80
+      - "80:80"
     depends_on:
       - backend
     networks:
-      - mfulearnai
-    restart: unless-stopped
-
-  nginx:
-    build: ./nginx/
-    image: nginx:alpine
-    ports:
-      - 80:80
-    depends_on:
-      - frontend
-    networks:
-      - mfulearnai
-    restart: unless-stopped
-
-  ollama:
-    image: ollama/ollama
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama:/root/.ollama
-    networks:
-      - mfulearnai
-    restart: unless-stopped
+      - mfulearnai_network
 
 volumes:
-  data:
-  ollama:
+  mongodb_data:
+  chromadb_data:
+
 networks:
-  mfulearnai:
+  mfulearnai_network:
     driver: bridge

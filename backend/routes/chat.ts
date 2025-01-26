@@ -2,8 +2,9 @@ import express from 'express';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { Request, Response } from 'express';
-import { roleGuard } from '../middleware/roleGuard';
+import { roleGuard } from '../middleware/roleGuard.js';
 import { AxiosError } from 'axios';
+import { vectorStore } from '../lib/vectorStore.js';
 
 const router = express.Router();
 
@@ -112,10 +113,25 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
         throw new Error('API URL is not configured for this model');
       }
 
+      // ค้นหาข้อมูลที่เกี่ยวข้องจาก vector store
+      const relevantDocs = await vectorStore.querySimular(message);
+
+      // สร้าง context จากข้อมูลที่เกี่ยวข้อง
+      const context = relevantDocs.documents.join('\n\n');
+
+      // ส่ง prompt พร้อม context ไปยัง LLM
+      const prompt = `
+      Context: ${context}
+      
+      Question: ${message}
+      
+      Please answer the question based on the context provided. If you cannot find relevant information in the context, please say so.
+      `;
+
       const hfResponse = await axios.post(
         modelConfig.apiUrl,
         { 
-          inputs: message,
+          inputs: prompt,
           parameters: {
             temperature: 0.7,
             max_length: 1000,
