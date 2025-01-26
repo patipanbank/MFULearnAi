@@ -1,5 +1,26 @@
 import mongoose from 'mongoose';
 
+interface ITrainingData extends mongoose.Document {
+  name: string;
+  content: string;
+  embedding: number[];
+  metadata?: Map<string, any>;
+  createdBy?: {
+    nameID: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  isActive: boolean;
+  fileType?: string;
+  createdAt: Date;
+  score?: number;
+}
+
+interface TrainingDataModel extends mongoose.Model<ITrainingData> {
+  findSimilar(embedding: number[], limit?: number): Promise<ITrainingData[]>;
+}
+
 const trainingDataSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -8,6 +29,15 @@ const trainingDataSchema = new mongoose.Schema({
   content: {
     type: String,
     required: true
+  },
+  embedding: {
+    type: [Number],
+    sparse: true,
+    index: true
+  },
+  metadata: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed
   },
   createdBy: {
     nameID: {
@@ -36,6 +66,20 @@ const trainingDataSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-}, { timestamps: true });
+}, { timestamps: true, index: { embedding: '2dsphere' } });
 
-export default mongoose.model('TrainingData', trainingDataSchema); 
+trainingDataSchema.statics.findSimilar = async function(embedding: number[], limit = 5) {
+  return this.aggregate([
+    {
+      $search: {
+        knnBeta: {
+          vector: embedding,
+          path: "embedding",
+          k: limit
+        }
+      }
+    }
+  ]);
+};
+
+export default mongoose.model<ITrainingData, TrainingDataModel>('TrainingData', trainingDataSchema); 

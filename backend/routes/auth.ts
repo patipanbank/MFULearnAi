@@ -2,8 +2,8 @@ import { Router } from 'express';
 import passport from 'passport';
 import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
-import { connectDB } from '../lib/mongodb';
-import User from '../models/User';
+import { connectDB } from '../lib/mongodb.js';
+import User from '../models/User.js';
 
 const router = Router();
 

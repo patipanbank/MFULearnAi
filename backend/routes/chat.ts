@@ -2,8 +2,10 @@ import express from 'express';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { Request, Response } from 'express';
-import { roleGuard } from '../middleware/roleGuard';
+import { roleGuard } from '../middleware/roleGuard.js';
 import { AxiosError } from 'axios';
+import TrainingData from '../models/TrainingData.js';
+import { generateEmbeddings } from '../utils/generateEmbeddings.js';
 
 const router = express.Router();
 
@@ -97,15 +99,33 @@ router.post('/chat', roleGuard(['Students', 'Staffs']), async (req: Request, res
 
     // If asking about themselves or general questions, proceed normally
     if (modelConfig.type === 'ollama') {
+      // สร้าง embedding จาก user message
+      const queryEmbedding = await generateEmbeddings(message);
+      
+      // ค้นหา relevant documents
+      const relevantDocs = await TrainingData.findSimilar(queryEmbedding, 3);
+      
+      // สร้าง context จาก relevant documents
+      const context = relevantDocs
+        .map(doc => doc.content)
+        .join('\n\n');
+
+      // ส่ง context พร้อมกับ prompt ไปยัง model
+      const prompt = `Context: ${context}\n\nQuestion: ${message}\n\nAnswer:`;
+
       const ollamaResponse = await axios.post('http://ollama:11434/api/generate', {
         model: modelConfig.name,
-        prompt: message,
+        prompt: prompt,
         stream: false
       });
 
       res.json({
         response: ollamaResponse.data.response,
-        model: modelConfig.displayName
+        model: modelConfig.displayName,
+        relevantDocs: relevantDocs.map(doc => ({
+          name: doc.name,
+          similarity: doc.score
+        }))
       });
     } else if (modelConfig.type === 'huggingface') {
       if (!modelConfig.apiUrl) {
