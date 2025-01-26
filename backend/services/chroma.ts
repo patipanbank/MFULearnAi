@@ -21,17 +21,25 @@ export class ChromaService {
     try {
       console.log('Connecting to ChromaDB at:', process.env.CHROMA_URL || 'http://chroma:8000');
       
-      // สร้าง embedding function
+      // ใช้ OpenAIEmbeddingFunction แทน custom embedder
       const embedder = {
         generate: async (texts: string[]) => {
-          return await Promise.all(texts.map(text => this.embedder.embed(text)));
+          return await Promise.all(texts.map(async (text) => {
+            const response = await fetch("http://ollama:11434/api/embeddings", {
+              method: "POST",
+              body: JSON.stringify({ model: "llama3.1", prompt: text })
+            });
+            const data = await response.json();
+            return data.embedding;
+          }));
         }
       };
 
       // สร้าง collection พร้อม embedding function
       this.collection = await this.client.getOrCreateCollection({
         name: "mfu_docs",
-        embeddingFunction: embedder
+        embeddingFunction: embedder,
+        metadata: { "hnsw:space": "cosine" }  // กำหนด similarity metric
       });
 
       console.log('ChromaDB collection initialized successfully');
@@ -50,7 +58,11 @@ export class ChromaService {
       const ids = validSentences.map((_, i) => `doc_${Date.now()}_${i}`);
       const metadatas = validSentences.map(() => documents[0].metadata);
 
-      // ใช้ collection's embedding function
+      console.log('Adding documents:', {
+        count: validSentences.length,
+        firstSentence: validSentences[0]
+      });
+
       await this.collection.add({
         ids: ids,
         documents: validSentences,
