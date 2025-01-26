@@ -147,14 +147,16 @@ const MFUChatbot: React.FC = () => {
 
       const data = await response.json();
       
-      if (!data.response) {
+      const assistantContent = data.message?.content || data.response || data.content;
+      
+      if (!assistantContent) {
         throw new Error('Invalid response format');
       }
 
       setMessages(prev => [...prev, {
         id: Date.now(),
         role: 'assistant',
-        content: data.response,
+        content: assistantContent,
         timestamp: new Date()
       }]);
     } catch (error) {
