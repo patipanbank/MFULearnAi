@@ -5,10 +5,10 @@ import express from 'express';
 import cors from 'cors';
 import passport from 'passport';
 import session from 'express-session';
-import { connectDB } from './lib/mongodb.js';
-import authRouter from './routes/auth.js';
-import chatRouter from './routes/chat.js';
-import trainAiRouter from './routes/trainAi.js';
+import { connectDB } from './lib/mongodb';
+import authRoutes from './routes/auth';
+import chatRouter from './routes/chat';
+import trainAiRouter from './routes/trainAi';
 import fs from 'fs';
 import path from 'path';
 
@@ -52,7 +52,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authRoutes);
 app.use('/api/train-ai', trainAiRouter);
 app.use('/api', chatRouter);
 

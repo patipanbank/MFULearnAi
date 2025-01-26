@@ -9,17 +9,10 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mfu_ch
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI as string);
-    
-    // สร้าง vector index
-    await conn.connection.collection('trainingdata').createIndex(
-      { embedding: "2dsphere" },
-      { 
-        name: "embedding_vector_index",
-        background: true 
-      }
-    );
-
+    const conn = await mongoose.connect(process.env.MONGODB_URI as string, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);

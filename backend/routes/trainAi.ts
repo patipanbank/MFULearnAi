@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { roleGuard } from '../middleware/roleGuard.js';
+import { roleGuard } from '../middleware/roleGuard';
 import axios from 'axios';
-import TrainingData from '../models/TrainingData.js';
+import TrainingData from '../models/TrainingData';
 import multer from 'multer';
 import { extname } from 'path';
 import pdf from 'pdf-parse';
@@ -15,7 +15,6 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import NodeZip from 'node-zip';
-import { pipeline } from '@xenova/transformers';
 
 const router = Router();
 
@@ -148,16 +147,6 @@ async function extractTextFromImage(buffer: Buffer): Promise<string> {
   }
 }
 
-// เพิ่มฟังก์ชันสร้าง embeddings
-async function generateEmbeddings(text: string): Promise<number[]> {
-  const pipe = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-  const output = await pipe(text, {
-    pooling: 'mean',
-    normalize: true
-  });
-  return Array.from(output.data);
-}
-
 // อัพเดท endpoint สำหรับอัพโหลดไฟล์
 router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -214,25 +203,18 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
 
     const user = (req as RequestWithUser).user;
 
-    // สร้าง embeddings จาก content
-    const embedding = await generateEmbeddings(combinedText);
-
-    // บันทึกลงฐานข้อมูลพร้อม embedding
+    // บันทึกลงฐานข้อมูล
     const trainingData = await TrainingData.create({
       name: datasetName,
       content: combinedText,
-      embedding: embedding,
-      metadata: {
-        fileType: ext,
-        originalFileName: req.file.originalname,
-        modelName: modelName
-      },
       createdBy: {
         nameID: user.nameID || '',
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName
-      }
+      },
+      fileType: ext,
+      originalFileName: req.file.originalname
     });
 
     // ดึงข้อมูลทั้งหมดที่ active

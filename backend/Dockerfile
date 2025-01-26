@@ -1,20 +1,19 @@
 # Use Node.js LTS version as base image
-FROM node:20
+FROM node:20-alpine
 
-# Install required dependencies using apt-get
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install required dependencies
+RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    build-essential \
+    build-base \
     tesseract-ocr \
-    tesseract-ocr-tha \
-    tesseract-ocr-eng \
+    tesseract-ocr-data-tha \
+    tesseract-ocr-data-eng \
     poppler-utils \
     imagemagick \
     ghostscript \
-    libmagickwand-dev \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    imagemagick-dev
 
 # Configure ImageMagick policy to allow PDF
 COPY policy.xml /etc/ImageMagick-7/policy.xml
@@ -22,7 +21,7 @@ COPY policy.xml /etc/ImageMagick-7/policy.xml
 # Set working directory
 WORKDIR /app
 
-# Create uploads folder and set permissions
+# สร้างโฟลเดอร์ uploads และกำหนดสิทธิ์
 RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
 # Copy package files
