@@ -241,7 +241,7 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 pb-[200px] md:pb-32"> {/* เพิ่ม padding ด้านล่างสำหรับ controls บน mobile */}
+      <div className="flex-1 overflow-y-auto p-4 pb-[200px] md:pb-32">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -286,75 +286,15 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      {/* Controls and Input Form - Fixed at bottom */}
+      {/* Fixed Bottom Container */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t">
-        {/* Controls - Show only on mobile */}
-        <div className="p-4 border-b md:hidden">
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="flex-1 p-2 border rounded"
-              >
-                <option value="">Choose Model</option>
-                {models.map(model => (
-                  <option key={model} value={model}>{model}</option>
-                ))}
-              </select>
-              <select
-                value={selectedCollection}
-                onChange={(e) => setSelectedCollection(e.target.value)}
-                className="flex-1 p-2 border rounded"
-              >
-                <option value="">Choose Collection</option>
-                {collections.map(collection => (
-                  <option key={collection} value={collection}>{collection}</option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={clearChat}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-            >
-              เคลียร์แชท
-            </button>
-          </div>
-        </div>
-
-        {/* Input Form */}
-        <form onSubmit={handleSubmit} className="p-4 flex gap-2">
-          <textarea
-            ref={textareaRef}
-            value={inputMessage}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message here..."
-            className="flex-1 p-2 border rounded"
-            style={{
-              minHeight: '40px',
-              maxHeight: '240px',
-              overflowY: 'auto'
-            }}
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-          >
-            Send
-          </button>
-        </form>
-      </div>
-
-      {/* Desktop Controls - Show only on desktop */}
-      <div className="hidden md:block sticky top-0 bg-white z-20 border-b shadow-sm">
-        <div className="p-4">
-          <div className="flex gap-4 items-center">
+        {/* Controls */}
+        <div className="p-4 border-b">
+          <div className="flex gap-2 max-w-4xl mx-auto">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-2 border rounded w-48"
+              className="p-2 border rounded flex-1 max-w-[200px]"
             >
               <option value="">Choose Model</option>
               {models.map(model => (
@@ -364,7 +304,7 @@ const MFUChatbot: React.FC = () => {
             <select
               value={selectedCollection}
               onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-2 border rounded w-48"
+              className="p-2 border rounded flex-1 max-w-[200px]"
             >
               <option value="">Choose Collection</option>
               {collections.map(collection => (
@@ -373,12 +313,32 @@ const MFUChatbot: React.FC = () => {
             </select>
             <button
               onClick={clearChat}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors whitespace-nowrap"
             >
               Clear Chat
             </button>
           </div>
         </div>
+
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="p-4">
+          <div className="flex gap-2 max-w-4xl mx-auto">
+            <textarea
+              value={inputMessage}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
+              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
+              className="flex-1 p-2 border rounded resize-none"
+              placeholder="Type your message here..."
+              rows={1}
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            >
+              Send
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
