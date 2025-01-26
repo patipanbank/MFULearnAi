@@ -13,7 +13,8 @@ RUN apk add --no-cache \
     poppler-utils \
     imagemagick \
     ghostscript \
-    imagemagick-dev
+    imagemagick-dev \
+    curl
 
 # Configure ImageMagick policy to allow PDF
 COPY policy.xml /etc/ImageMagick-7/policy.xml
