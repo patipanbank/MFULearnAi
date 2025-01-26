@@ -23,8 +23,10 @@ services:
       - 5000:5000
     environment:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
+      - CHROMA_HOST=http://chroma:8000
     depends_on:
       - db
+      - chroma
     networks:
       - mfulearnai
     restart: unless-stopped
@@ -73,8 +75,6 @@ services:
     image: chromadb/chroma
     ports:
       - "8000:8000"
-    volumes:
-      - chroma_data:/chroma/data
     networks:
       - mfulearnai
 
