@@ -1,5 +1,11 @@
 # Use Node.js LTS version as base image
-FROM node:20-alpine
+FROM node:20-slim
+
+# Install required dependencies for onnxruntime
+RUN apt-get update && apt-get install -y \
+    libc6 \
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install required dependencies
 RUN apk add --no-cache \
