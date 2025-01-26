@@ -112,7 +112,7 @@ export class ChromaService {
         nResults: 1
       });
 
-      return results.documents?.[0]?.filter(Boolean) ?? [];
+      return (results.documents?.[0] ?? []).filter((doc): doc is string => doc !== null);
     } catch (error) {
       console.error('ChromaDB query error:', error);
       throw error;
