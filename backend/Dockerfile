@@ -1,5 +1,5 @@
 # Use Node.js LTS version as base image
-FROM node:20-alpine
+FROM node:20-slim
 
 # Install required dependencies
 RUN apk add --no-cache \
@@ -30,6 +30,7 @@ COPY package*.json ./
 # Install dependencies and TypeScript globally
 RUN npm install
 RUN npm install -g typescript
+RUN npm install chromadb-default-embed
 
 # Copy source code
 COPY . .
