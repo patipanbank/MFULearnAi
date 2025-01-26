@@ -114,11 +114,17 @@ class ChromaService {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
+      if (!collection) {
+        throw new Error(`Collection ${collectionName} not found`);
+      }
+
+      console.log(`Deleting document ${id} from collection ${collectionName}`);
       await collection.delete({
         ids: [id]
       });
+      console.log('Document deleted successfully');
     } catch (error) {
-      console.error('Error deleting document from ChromaDB:', error);
+      console.error(`Error deleting document from ChromaDB:`, error);
       throw error;
     }
   }

@@ -106,18 +106,21 @@ const getAllDocumentsHandler: RequestHandler = async (req, res) => {
 // เพิ่ม route ใหม่
 router.get('/documents', roleGuard(['Staffs']), getAllDocumentsHandler);
 
-const deleteDocumentHandler: RequestHandler = async (req, res) => {
+const deleteDocumentHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id, collectionName } = req.params;
-    if (!collectionName || typeof collectionName !== 'string') {
-      res.status(400).json({ error: 'Collection name is required' });
+    const { id } = req.params;
+    const { collectionName } = req.query;
+
+    if (!id || !collectionName || typeof collectionName !== 'string') {
+      res.status(400).json({ error: 'Missing document ID or collection name' });
       return;
     }
+
     await chromaService.deleteDocument(collectionName, id);
-    res.json({ message: 'Document deleted successfully' });
+    res.status(200).json({ message: 'Document deleted successfully' });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'Error deleting document' });
+    res.status(500).json({ error: 'Failed to delete document' });
   }
 };
 

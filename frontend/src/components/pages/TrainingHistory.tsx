@@ -74,8 +74,9 @@ const TrainingHistory: React.FC = () => {
 
     setIsDeleting(id);
     try {
+      console.log(`Deleting document ${id} from collection ${collectionName}`);
       const response = await fetch(
-        `${config.apiUrl}/api/training/documents/${id}?collectionName=${collectionName}`, 
+        `${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(collectionName)}`,
         {
           method: 'DELETE',
           headers: {
@@ -85,12 +86,14 @@ const TrainingHistory: React.FC = () => {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to delete document');
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to delete document');
       }
 
       // รีเฟรชข้อมูลหลังจากลบสำเร็จ
-      fetchDocuments();
+      await fetchDocuments();
     } catch (err) {
+      console.error('Error deleting document:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while deleting');
     } finally {
       setIsDeleting(null);
