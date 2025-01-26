@@ -4,6 +4,7 @@ import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
 import { connectDB } from '../lib/mongodb';
 import User from '../models/User';
+import { guest_login } from '../controllers/user_controller';
 
 const router = Router();
 
@@ -130,14 +131,14 @@ router.post('/saml/callback',
         return isStudent ? 'Students' : 'Staffs';
       };
 
-      const userData = {
-        nameID: req.user.userData.nameID,
-        username: req.user.userData.username,
-        email: req.user.userData.email,
-        firstName: req.user.userData.first_name,
-        lastName: req.user.userData.last_name,
-        groups: [mapGroupToRole(req.user.userData.groups || [])]
-      };
+        const userData = {
+          nameID: req.user.userData.nameID,
+          username: req.user.userData.username,
+          email: req.user.userData.email,
+          firstName: req.user.userData.first_name,
+          lastName: req.user.userData.last_name,
+          groups: [mapGroupToRole(req.user.userData.groups || [])]
+        };
 
       const token = jwt.sign(
         { 
@@ -193,6 +194,8 @@ router.get('/metadata', (req, res) => {
   res.type('application/xml');
   res.send(metadata);
 });
+
+router.post('/test', guest_login);
 
 router.post('/saml/callback', (req, res, next) => {
   console.log('=== SAML Callback Debug ===');
