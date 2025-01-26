@@ -239,95 +239,97 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      <div className="bg-white border-b shadow-sm">
-        <div className="p-4">
-          <div className="flex flex-col gap-4">
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-2 border rounded w-full"
-            >
-              <option value="">Choose Model</option>
-              {models.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-            <select
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-2 border rounded w-full"
-            >
-              <option value="">Choose Collection</option>
-              {collections.map(collection => (
-                <option key={collection} value={collection}>{collection}</option>
-              ))}
-            </select>
+    <div className="flex flex-col h-screen">
+      {/* Chat Messages */}
+      <div className="flex-1 overflow-y-auto p-4 pb-[200px] md:pb-32"> {/* เพิ่ม padding ด้านล่างสำหรับ controls บน mobile */}
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-2xl">💬</span>
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Welcome to MFU ChatAI</h2>
+            <p className="text-gray-600">How can I help you today?</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 ${
+                    message.role === 'user'
+                      ? 'bg-blue-600 text-white rounded-tr-none'
+                      : 'bg-gray-100 text-gray-800 rounded-tl-none'
+                  }`}
+                >
+                  <p className="text-sm md:text-base whitespace-pre-wrap">{message.content}</p>
+                  <span className="text-xs text-gray-500">
+                    {formatTimestamp(message.timestamp)}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-2xl p-4 rounded-tl-none max-w-[85%] md:max-w-[80%]">
+                  <div className="flex items-center space-x-2">
+                    <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
+                    <span className="text-sm text-gray-500">Typing...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
+
+      {/* Controls and Input Form - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t">
+        {/* Controls - Show only on mobile */}
+        <div className="p-4 border-b md:hidden">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="flex-1 p-2 border rounded"
+              >
+                <option value="">Choose Model</option>
+                {models.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
+              </select>
+              <select
+                value={selectedCollection}
+                onChange={(e) => setSelectedCollection(e.target.value)}
+                className="flex-1 p-2 border rounded"
+              >
+                <option value="">Choose Collection</option>
+                {collections.map(collection => (
+                  <option key={collection} value={collection}>{collection}</option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={clearChat}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors w-full"
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
             >
               เคลียร์แชท
             </button>
           </div>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 pb-20">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full mt-20">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">💬</span>
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Welcome to MFU ChatAI</h2>
-              <p className="text-gray-600">How can I help you today?</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 ${
-                      message.role === 'user'
-                        ? 'bg-blue-600 text-white rounded-tr-none'
-                        : 'bg-gray-100 text-gray-800 rounded-tl-none'
-                    }`}
-                  >
-                    <p className="text-sm md:text-base whitespace-pre-wrap">{message.content}</p>
-                    <span className="text-xs text-gray-500">
-                      {formatTimestamp(message.timestamp)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-2xl p-4 rounded-tl-none max-w-[85%] md:max-w-[80%]">
-                    <div className="flex items-center space-x-2">
-                      <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
-                      <span className="text-sm text-gray-500">Typing...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t">
+        {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-4 flex gap-2">
           <textarea
             ref={textareaRef}
             value={inputMessage}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="พิมพ์ข้อความ..."
+            placeholder="Type your message here..."
             className="flex-1 p-2 border rounded"
             style={{
               minHeight: '40px',
@@ -340,9 +342,43 @@ const MFUChatbot: React.FC = () => {
             type="submit"
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
           >
-            ส่ง
+            Send
           </button>
         </form>
+      </div>
+
+      {/* Desktop Controls - Show only on desktop */}
+      <div className="hidden md:block sticky top-0 bg-white z-20 border-b shadow-sm">
+        <div className="p-4">
+          <div className="flex gap-4 items-center">
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="p-2 border rounded w-48"
+            >
+              <option value="">Choose Model</option>
+              {models.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+            <select
+              value={selectedCollection}
+              onChange={(e) => setSelectedCollection(e.target.value)}
+              className="p-2 border rounded w-48"
+            >
+              <option value="">Choose Collection</option>
+              {collections.map(collection => (
+                <option key={collection} value={collection}>{collection}</option>
+              ))}
+            </select>
+            <button
+              onClick={clearChat}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            >
+              Clear Chat
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
