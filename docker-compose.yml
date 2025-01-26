@@ -23,6 +23,7 @@ services:
       - 5000:5000
     environment:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
+      - OLLAMA_API_URL=http://ollama:11434
     depends_on:
       - db
     networks:
@@ -63,7 +64,7 @@ services:
     ports:
       - "11434:11434"
     networks:
-      - mfulearnai
+      - app-network
     restart: unless-stopped
     deploy:
       resources:
@@ -80,4 +81,6 @@ volumes:
 
 networks:
   mfulearnai:
+    driver: bridge
+  app-network:
     driver: bridge
