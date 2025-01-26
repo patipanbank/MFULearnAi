@@ -69,9 +69,19 @@ services:
       - mfulearnai
     restart: unless-stopped
 
+  chroma:
+    image: chromadb/chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/data
+    networks:
+      - mfulearnai
+
 volumes:
   data:
   ollama:
+  chroma_data:
 networks:
   mfulearnai:
     driver: bridge
