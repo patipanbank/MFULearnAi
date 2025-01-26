@@ -1,17 +1,14 @@
-import { ChromaClient, OpenAIEmbeddingFunction, Collection, IncludeEnum } from 'chromadb';
+import { ChromaClient, OpenAIEmbeddingFunction } from 'chromadb';
 import { ollamaService } from './ollama';
-import { EmbeddingService } from './embedding';
 
-export class ChromaService {
+class ChromaService {
   private client: ChromaClient;
-  private collection!: Collection;
-  private embedder: EmbeddingService;
+  private collection: any;
 
   constructor() {
     this.client = new ChromaClient({
       path: process.env.CHROMA_URL || 'http://chroma:8000'
     });
-    this.embedder = new EmbeddingService();
     this.initCollection().catch(err => {
       console.error('Error initializing ChromaDB collection:', err);
     });
@@ -20,65 +17,29 @@ export class ChromaService {
   private async initCollection() {
     try {
       console.log('Connecting to ChromaDB at:', process.env.CHROMA_URL || 'http://chroma:8000');
-      
-      // ใช้ OpenAIEmbeddingFunction แทน custom embedder
-      const embedder = {
-        generate: async (texts: string[]) => {
-          return await Promise.all(texts.map(async (text) => {
-            const response = await fetch("http://ollama:11434/api/embeddings", {
-              method: "POST",
-              body: JSON.stringify({ model: "llama3.1", prompt: text })
-            });
-            const data = await response.json();
-            return data.embedding;
-          }));
-        }
-      };
-
-      // สร้าง collection พร้อม embedding function
       this.collection = await this.client.getOrCreateCollection({
         name: "mfu_docs",
-        embeddingFunction: embedder,
-        metadata: { "hnsw:space": "cosine" }  // กำหนด similarity metric
       });
-
       console.log('ChromaDB collection initialized successfully');
     } catch (error) {
       console.error('Error initializing ChromaDB collection:', error);
+      // ไม่ throw error เพื่อให้ service ยังทำงานต่อได้
     }
   }
 
   async addDocuments(documents: Array<{text: string, metadata: any}>) {
     try {
-      const sentences = documents[0].text.split('.');
-      const validSentences = sentences
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+      const ids = documents.map((_, i) => `doc_${Date.now()}_${i}`);
+      const texts = documents.map(doc => doc.text);
+      const metadatas = documents.map(doc => doc.metadata);
 
-      const ids = validSentences.map((_, i) => `doc_${Date.now()}_${i}`);
-      const metadatas = validSentences.map(() => documents[0].metadata);
-
-      // สร้าง embeddings ก่อน
-      const embeddings = await Promise.all(
-        validSentences.map(text => this.embedder.embed(text))
-      );
-
-      console.log('Adding documents:', {
-        count: validSentences.length,
-        firstSentence: validSentences[0],
-        embeddingSize: embeddings[0].length
-      });
-
-      // เพิ่มข้อมูลพร้อม embeddings
       await this.collection.add({
-        ids: ids,
-        embeddings: embeddings,
-        documents: validSentences,
-        metadatas: metadatas
+        ids,
+        documents: texts,
+        metadatas
       });
-
     } catch (error) {
-      console.error('Error adding documents:', error);
+      console.error('Error adding documents to ChromaDB:', error);
       throw error;
     }
   }
@@ -104,30 +65,11 @@ export class ChromaService {
   }
 
   async query(text: string): Promise<string[]> {
-    try {
-      const embedding = await this.embedder.embed(text);
-      
-      const results = await this.collection.query({
-        queryEmbeddings: [embedding],
-        nResults: 1
-      });
-
-      return (results.documents?.[0] ?? []).filter((doc): doc is string => doc !== null);
-    } catch (error) {
-      console.error('ChromaDB query error:', error);
-      throw error;
-    }
-  }
-
-  async checkCollection() {
-    try {
-      const count = await this.collection.count();
-      console.log('Documents in collection:', count);
-      return count;
-    } catch (error) {
-      console.error('Error checking collection:', error);
-      throw error;
-    }
+    const results = await this.collection.query({
+      queryTexts: [text],
+      nResults: 1,
+    });
+    return results.documents?.[0] || [];
   }
 }
 
