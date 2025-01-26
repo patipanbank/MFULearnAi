@@ -186,16 +186,16 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="fixed top-0 left-0 right-0 lg:left-64 bg-white z-20 border-b">
+      <div className="sticky top-0 bg-white z-20 border-b shadow-sm">
         <div className="p-4">
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             {loadingModels ? (
               <div className="animate-pulse h-10 w-48 bg-gray-200 rounded"></div>
             ) : (
               <select 
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="border p-2 rounded min-w-[200px]"
+                className="border p-2 rounded flex-1 min-w-[200px] max-w-xs"
                 disabled={models.length === 1}
               >
                 <option value="">เลือก Model</option>
@@ -211,7 +211,7 @@ const MFUChatbot: React.FC = () => {
               <select 
                 value={selectedCollection}
                 onChange={(e) => setSelectedCollection(e.target.value)}
-                className="border p-2 rounded min-w-[200px]"
+                className="border p-2 rounded flex-1 min-w-[200px] max-w-xs"
                 disabled={collections.length === 1}
               >
                 <option value="">เลือก Collection</option>
@@ -224,11 +224,13 @@ const MFUChatbot: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pb-32 mt-[76px]">
+      <div className="flex-1 overflow-y-auto p-4 pb-32">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="bg-blue-100 rounded-full p-4 mb-4">
-              <svg className="w-8 h-8 text-blue-500" /* ... */ />
+              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
             </div>
             <h2 className="text-2xl font-semibold mb-2">Welcome to MFU Chat</h2>
             <p className="text-gray-600">How can I help you today?</p>
