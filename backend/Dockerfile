@@ -1,15 +1,28 @@
 # Use Node.js LTS version as base image
-FROM node:20-slim
+FROM node:20-alpine
 
-# Install required system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# Install required dependencies
+RUN apk add --no-cache \
     python3 \
-    libc6 \
-    && rm -rf /var/lib/apt/lists/*
+    make \
+    g++ \
+    build-base \
+    tesseract-ocr \
+    tesseract-ocr-data-tha \
+    tesseract-ocr-data-eng \
+    poppler-utils \
+    imagemagick \
+    ghostscript \
+    imagemagick-dev
+
+# Configure ImageMagick policy to allow PDF
+COPY policy.xml /etc/ImageMagick-7/policy.xml
 
 # Set working directory
 WORKDIR /app
+
+# สร้างโฟลเดอร์ uploads และกำหนดสิทธิ์
+RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
 # Copy package files
 COPY package*.json ./
@@ -21,13 +34,7 @@ RUN npm install -g typescript
 # Copy source code
 COPY . .
 
-# Set correct permissions
-RUN chown -R node:node /app
-
-# Switch to non-root user
-USER node
-
-# Build TypeScript
+# Build TypeScript code
 RUN npm run build
 
 # Expose port

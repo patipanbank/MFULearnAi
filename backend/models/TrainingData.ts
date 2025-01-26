@@ -18,32 +18,24 @@ const trainingDataSchema = new mongoose.Schema({
       type: String,
       required: true
     },
-    firstName: String,
-    lastName: String
+    firstName: {
+      type: String
+    },
+    lastName: {
+      type: String
+    }
   },
   isActive: {
     type: Boolean,
     default: true
   },
-  fileType: String,
+  fileType: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 }, { timestamps: true });
 
-export interface TrainingData extends mongoose.Document {
-  name: string;
-  content: string;
-  createdBy: {
-    nameID: string;
-    username: string;
-    firstName?: string;
-    lastName?: string;
-  };
-  isActive: boolean;
-  fileType?: string;
-  createdAt: Date;
-}
-
-export default mongoose.model<TrainingData>('TrainingData', trainingDataSchema); 
+export default mongoose.model('TrainingData', trainingDataSchema); 

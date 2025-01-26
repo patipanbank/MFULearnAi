@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { roleGuard } from '../middleware/roleGuard.js';
+import { roleGuard } from '../middleware/roleGuard';
 import axios from 'axios';
-import TrainingData from '../models/TrainingData.js';
+import TrainingData from '../models/TrainingData';
 import multer from 'multer';
 import { extname } from 'path';
 import pdf from 'pdf-parse';
@@ -15,7 +15,6 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import NodeZip from 'node-zip';
-import { vectorStore } from '../lib/vectorStore.js';
 
 const router = Router();
 
@@ -217,9 +216,6 @@ router.post('/train/file', roleGuard(['Staffs']), upload.single('file'), async (
       fileType: ext,
       originalFileName: req.file.originalname
     });
-
-    // เพิ่มข้อมูลเข้า vector store
-    await vectorStore.addDocument(trainingData);
 
     // ดึงข้อมูลทั้งหมดที่ active
     const allTrainingData = await TrainingData.find({ isActive: true });
