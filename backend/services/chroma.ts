@@ -7,27 +7,23 @@ class ChromaService {
 
   constructor() {
     this.client = new ChromaClient({
-      path: process.env.CHROMA_URL || 'http://localhost:8000'
+      path: process.env.CHROMA_URL || 'http://chroma:8000'
     });
-    this.initCollection();
+    this.initCollection().catch(err => {
+      console.error('Error initializing ChromaDB collection:', err);
+    });
   }
 
   private async initCollection() {
     try {
+      console.log('Connecting to ChromaDB at:', process.env.CHROMA_URL || 'http://chroma:8000');
       this.collection = await this.client.getOrCreateCollection({
-        name: "mfu_documents",
-        embeddingFunction: {
-          generate: async (texts: string[]) => {
-            const embeddings = await Promise.all(
-              texts.map(text => ollamaService.generateEmbedding(text))
-            );
-            return embeddings;
-          }
-        }
+        name: "mfu_docs",
       });
+      console.log('ChromaDB collection initialized successfully');
     } catch (error) {
       console.error('Error initializing ChromaDB collection:', error);
-      throw error;
+      // ไม่ throw error เพื่อให้ service ยังทำงานต่อได้
     }
   }
 
