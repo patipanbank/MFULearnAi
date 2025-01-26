@@ -16,15 +16,14 @@ const chatHandler: RequestHandler = async (req: ChatRequest, res: Response): Pro
     const { messages } = req.body;
     const userMessage = messages[0].content;
 
-    // ค้นหาข้อมูลที่เกี่ยวข้องจาก ChromaDB
+    // ค้นหาด้วย vector similarity
     const results = await chromaService.query(userMessage);
-    let context = results[0] || '';
+    const context = results[0] || '';
 
-    // สร้าง prompt ที่รวมบริบทและคำถาม
     const augmentedMessages = [
       {
         role: 'system' as const,
-        content: `You are a helpful assistant. Use this context to answer questions: ${context}`
+        content: `Use this context to answer questions: ${context}`
       },
       ...messages
     ] as ChatMessage[];

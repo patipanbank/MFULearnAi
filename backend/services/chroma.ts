@@ -1,14 +1,17 @@
-import { ChromaClient, OpenAIEmbeddingFunction } from 'chromadb';
+import { ChromaClient, OpenAIEmbeddingFunction, Collection } from 'chromadb';
 import { ollamaService } from './ollama';
+import { EmbeddingService } from './embedding';
 
-class ChromaService {
+export class ChromaService {
   private client: ChromaClient;
-  private collection: any;
+  private collection!: Collection;
+  private embedder: EmbeddingService;
 
   constructor() {
     this.client = new ChromaClient({
       path: process.env.CHROMA_URL || 'http://chroma:8000'
     });
+    this.embedder = new EmbeddingService();
     this.initCollection().catch(err => {
       console.error('Error initializing ChromaDB collection:', err);
     });
@@ -33,13 +36,20 @@ class ChromaService {
       const texts = documents.map(doc => doc.text);
       const metadatas = documents.map(doc => doc.metadata);
 
+      // แปลงข้อความเป็น vectors ด้วย EmbeddingService
+      const embeddings = await Promise.all(
+        texts.map(text => this.embedder.embed(text))
+      );
+
+      // เพิ่มข้อมูลเข้า ChromaDB
       await this.collection.add({
         ids,
-        documents: texts,
+        embeddings,     // vectors
+        documents: texts, // ข้อความต้นฉบับ
         metadatas
       });
     } catch (error) {
-      console.error('Error adding documents to ChromaDB:', error);
+      console.error('Error adding documents:', error);
       throw error;
     }
   }
@@ -65,11 +75,21 @@ class ChromaService {
   }
 
   async query(text: string): Promise<string[]> {
-    const results = await this.collection.query({
-      queryTexts: [text],
-      nResults: 1,
-    });
-    return results.documents?.[0] || [];
+    try {
+      // แปลงข้อความเป็น vector
+      const embedding = await this.embedder.embed(text);
+      
+      // ค้นหาด้วย vector similarity
+      const results = await this.collection.query({
+        queryEmbeddings: [embedding],
+        nResults: 1,
+      });
+
+      return (results.documents?.[0] ?? []).filter((doc): doc is string => doc !== null);
+    } catch (error) {
+      console.error('ChromaDB query error:', error);
+      throw error;
+    }
   }
 }
 
