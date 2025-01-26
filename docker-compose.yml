@@ -13,7 +13,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=1234
     restart: always
     networks:
-      - mfulearnai
+      - mfulearnai_network
 
   backend:
     build:
@@ -26,7 +26,7 @@ services:
     depends_on:
       - db
     networks:
-      - mfulearnai
+      - mfulearnai_network
     restart: unless-stopped
     dns:
       - 8.8.8.8  # Google DNS
@@ -44,7 +44,7 @@ services:
     depends_on:
       - backend
     networks:
-      - mfulearnai
+      - mfulearnai_network
     restart: unless-stopped
 
   nginx:
@@ -55,7 +55,7 @@ services:
     depends_on:
       - frontend
     networks:
-      - mfulearnai
+      - mfulearnai_network
     restart: unless-stopped
 
   ollama:
@@ -66,7 +66,7 @@ services:
     volumes:
       - ollama:/root/.ollama
     networks:
-      - mfulearnai
+      - mfulearnai_network
     restart: unless-stopped
 
   chroma:
@@ -76,7 +76,7 @@ services:
     volumes:
       - chroma-data:/chroma/data
     networks:
-      - mfulearnai
+      - mfulearnai_network
     restart: unless-stopped
 
 volumes:
@@ -84,5 +84,5 @@ volumes:
   ollama:
   chroma-data:
 networks:
-  mfulearnai:
+  mfulearnai_network:
     driver: bridge

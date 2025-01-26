@@ -26,12 +26,14 @@ export class VectorStoreManager {
 
       const model = kb.baseModelId as any;
       
+      const embeddings = new OllamaEmbeddings({
+        model: model.modelType,
+        baseUrl: "http://ollama:11434"
+      });
+      
       const store = await Chroma.fromDocuments(
         [], 
-        new OllamaEmbeddings({
-          model: model.modelType,
-          baseUrl: "http://ollama:11434"
-        }),
+        embeddings,
         {
           collectionName: kb.collectionName,
           url: process.env.CHROMA_URL || "http://chroma:8000"
