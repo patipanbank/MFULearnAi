@@ -56,6 +56,13 @@ class ChromaService {
       throw error;
     }
   }
+
+  async queryCollection(text: string, nResults: number = 5) {
+    return this.collection.query({
+      queryTexts: [text],
+      nResults: nResults
+    });
+  }
 }
 
 export const chromaService = new ChromaService(); 

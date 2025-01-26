@@ -1,32 +1,40 @@
-import axios from 'axios';
+import fetch from 'node-fetch';
 
-const OLLAMA_API = process.env.OLLAMA_API_URL || 'http://localhost:11434';
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
-export const ollamaService = {
-  async generateEmbedding(text: string) {
+class OllamaService {
+  private apiUrl: string;
+
+  constructor() {
+    this.apiUrl = process.env.OLLAMA_API_URL || 'http://ollama:11434';
+  }
+
+  async chat(messages: ChatMessage[]): Promise<{ content: string }> {
     try {
-      const response = await axios.post(`${OLLAMA_API}/api/embeddings`, {
-        model: "llama3.1",
-        prompt: text
+      const response = await fetch(`${this.apiUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama2',
+          messages: messages,
+          stream: false
+        }),
       });
-      return response.data.embedding;
-    } catch (error) {
-      console.error('Error generating embedding:', error);
-      throw error;
-    }
-  },
 
-  async chat(messages: Array<{role: string, content: string}>) {
-    try {
-      const response = await axios.post(`${OLLAMA_API}/api/chat`, {
-        model: "llama3.1",
-        messages,
-        stream: false
-      });
-      return response.data.message;
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return { content: data.message.content };
     } catch (error) {
-      console.error('Error in chat:', error);
+      console.error('Ollama service error:', error);
       throw error;
     }
   }
-}; 
+}
+
+export const ollamaService = new OllamaService(); 
