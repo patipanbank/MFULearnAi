@@ -4,7 +4,7 @@ import { FaTrash } from 'react-icons/fa';
 
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
@@ -13,6 +13,7 @@ const TrainingDashboard: React.FC = () => {
   const [showNewCollectionForm, setShowNewCollectionForm] = useState(false);
   const [loadingModels, setLoadingModels] = useState(true);
   const [loadingCollections, setLoadingCollections] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchModels();
@@ -87,15 +88,26 @@ const TrainingDashboard: React.FC = () => {
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !selectedModel || !selectedCollection) return;
+    
+    if (isUploading) {
+      console.log('Upload already in progress');
+      return;
+    }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('modelId', selectedModel);
-    formData.append('collectionName', selectedCollection);
+    if (!file || !selectedModel || !selectedCollection) {
+      alert('กรุณาเลือก Model, Collection และไฟล์ให้ครบถ้วน');
+      return;
+    }
 
-    setLoading(true);
+    setIsUploading(true);
+    console.log('Starting upload...');
+
     try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('modelId', selectedModel);
+      formData.append('collectionName', selectedCollection);
+
       const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
         headers: {
@@ -110,13 +122,15 @@ const TrainingDashboard: React.FC = () => {
 
       alert('อัพโหลดไฟล์สำเร็จ');
       setFile(null);
+      
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
+      
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Upload error:', error);
       alert('อัพโหลดไฟล์ไม่สำเร็จ');
     } finally {
-      setLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -140,7 +154,6 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Failed to delete collection');
       }
 
-      // รีเฟรช collections หลังจากลบสำเร็จ
       fetchCollections();
     } catch (error) {
       console.error('Error:', error);
@@ -244,18 +257,18 @@ const TrainingDashboard: React.FC = () => {
             <input
               type="file"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="mb-4"
-              disabled={loading}
+              disabled={isUploading}
+              accept=".txt,.pdf,.doc,.docx"
             />
           </div>
           <button
             type="submit"
-            disabled={!file || loading}
+            disabled={!file || isUploading || !selectedModel || !selectedCollection}
             className={`px-4 py-2 rounded text-white
-              ${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
+              ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
             `}
           >
-            {loading ? 'กำลังประมวลผล...' : 'อัพโหลด'}
+            {isUploading ? 'กำลังอัพโหลด...' : 'อัพโหลด'}
           </button>
         </form>
       )}
