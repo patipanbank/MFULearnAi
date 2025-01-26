@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
+import { FaTrash } from 'react-icons/fa';
 
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -117,6 +118,34 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteCollection = async (collectionName: string) => {
+    if (!window.confirm(`คุณแน่ใจหรือไม่ที่จะลบ Collection "${collectionName}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${config.apiUrl}/api/training/collections/${encodeURIComponent(collectionName)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete collection');
+      }
+
+      // รีเฟรช collections หลังจากลบสำเร็จ
+      fetchCollections();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('ไม่สามารถลบ Collection ได้');
+    }
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Training Dashboard</h1>
@@ -154,17 +183,27 @@ const TrainingDashboard: React.FC = () => {
         {loadingCollections ? (
           <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
         ) : (
-          <select 
-            className="border p-2 rounded w-full max-w-md"
-            value={selectedCollection}
-            onChange={(e) => setSelectedCollection(e.target.value)}
-            disabled={collections.length === 1}
-          >
-            <option value="">-- เลือก Collection --</option>
-            {collections.map(collection => (
-              <option key={collection} value={collection}>{collection}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedCollection}
+              onChange={(e) => setSelectedCollection(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option value="">-- เลือก Collection --</option>
+              {collections.map(collection => (
+                <option key={collection} value={collection}>{collection}</option>
+              ))}
+            </select>
+            {selectedCollection && (
+              <button
+                onClick={() => handleDeleteCollection(selectedCollection)}
+                className="mt-1 p-2 text-red-600 hover:text-red-800"
+                title="ลบ Collection"
+              >
+                <FaTrash />
+              </button>
+            )}
+          </div>
         )}
       </div>
 

@@ -170,4 +170,15 @@ router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Respo
   }
 });
 
+router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.params;
+    await chromaService.deleteCollection(name);
+    res.status(200).json({ message: 'Collection deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting collection:', error);
+    res.status(500).json({ error: 'Failed to delete collection' });
+  }
+});
+
 export default router; 

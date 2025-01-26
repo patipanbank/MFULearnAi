@@ -153,6 +153,18 @@ class ChromaService {
       throw error;
     }
   }
+
+  async deleteCollection(collectionName: string): Promise<void> {
+    try {
+      await this.client.deleteCollection({
+        name: collectionName
+      });
+      this.collections.delete(collectionName);
+    } catch (error) {
+      console.error(`Error deleting collection ${collectionName}:`, error);
+      throw error;
+    }
+  }
 }
 
 export const chromaService = new ChromaService(); 
