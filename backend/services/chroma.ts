@@ -46,32 +46,50 @@ class ChromaService {
 
   async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
     try {
+      console.log(`Adding documents to collection ${collectionName}`);
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       
-      // ตรวจสอบว่ามีข้อมูลซ้ำหรือไม่
+      // สร้าง unique ID สำหรับชุดข้อมูลนี้
+      const batchId = `batch_${Date.now()}`;
+      
+      // เพิ่ม batchId เข้าไปใน metadata
+      const docsWithBatchId = documents.map(doc => ({
+        ...doc,
+        metadata: {
+          ...doc.metadata,
+          batchId
+        }
+      }));
+
+      // ตรวจสอบข้อมูลที่มีอยู่
       const existingDocs = await collection.get();
       const existingMetadata = existingDocs.metadatas || [];
       
-      // กรองเอาเฉพาะข้อมูลที่ไม่ซ้ำ
-      const uniqueDocs = documents.filter(doc => {
-        return !existingMetadata.some((existing: DocumentMetadata) => 
-          existing.filename === doc.metadata.filename &&
-          existing.timestamp === doc.metadata.timestamp
-        );
-      });
+      // เช็คว่ามีไฟล์นี้อยู่แล้วหรือไม่
+      const fileExists = existingMetadata.some((existing: DocumentMetadata) => 
+        existing.filename === documents[0].metadata.filename &&
+        existing.uploadedBy === documents[0].metadata.uploadedBy
+      );
 
-      if (uniqueDocs.length > 0) {
-        const ids = uniqueDocs.map((_, i) => `doc_${Date.now()}_${i}`);
-        const texts = uniqueDocs.map(doc => doc.text);
-        const metadatas = uniqueDocs.map(doc => doc.metadata);
-
-        await collection.add({
-          ids,
-          documents: texts,
-          metadatas
-        });
+      if (fileExists) {
+        console.log(`File ${documents[0].metadata.filename} already exists, skipping upload`);
+        return;
       }
+
+      // ถ้าไม่มีข้อมูลซ้ำ ให้เพิ่มข้อมูลใหม่
+      console.log(`Adding ${docsWithBatchId.length} new documents`);
+      const ids = docsWithBatchId.map((_, i) => `${batchId}_${i}`);
+      const texts = docsWithBatchId.map(doc => doc.text);
+      const metadatas = docsWithBatchId.map(doc => doc.metadata);
+
+      await collection.add({
+        ids,
+        documents: texts,
+        metadatas
+      });
+      
+      console.log('Documents added successfully');
     } catch (error) {
       console.error('Error adding documents to ChromaDB:', error);
       throw error;
