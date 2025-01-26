@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { config } from '../../config/config';
 
 interface Model {
   name: string;
@@ -14,7 +15,7 @@ const ModelManagement: React.FC = () => {
   // โหลดรายการ models
   const loadModels = async () => {
     try {
-      const response = await axios.get('/api/models');
+      const response = await axios.get(`${config.apiUrl}/api/models`);
       setModels(response.data);
     } catch (error) {
       console.error('Error loading models:', error);
@@ -31,7 +32,7 @@ const ModelManagement: React.FC = () => {
     
     setLoading(true);
     try {
-      await axios.post('/api/models/pull', { modelName: newModelName });
+      await axios.post(`${config.apiUrl}/api/models/pull`, { modelName: newModelName });
       await loadModels();
       setNewModelName('');
     } catch (error) {
@@ -46,7 +47,7 @@ const ModelManagement: React.FC = () => {
     if (!confirm(`Are you sure you want to delete ${modelName}?`)) return;
     
     try {
-      await axios.delete(`/api/models/${modelName}`);
+      await axios.delete(`${config.apiUrl}/api/models/${modelName}`);
       await loadModels();
     } catch (error) {
       console.error('Error deleting model:', error);

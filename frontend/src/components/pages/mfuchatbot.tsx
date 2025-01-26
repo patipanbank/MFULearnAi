@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
 import axios from 'axios';
+import { config } from '../../config/config';
 
 interface Message {
   id: number;
@@ -61,8 +62,12 @@ const MFUChatbot: React.FC = () => {
 
   useEffect(() => {
     const loadModels = async () => {
-      const response = await axios.get('/api/models');
-      setModels(response.data);
+      try {
+        const response = await axios.get(`${config.apiUrl}/api/models`);
+        setModels(response.data);
+      } catch (error) {
+        console.error('Error loading models:', error);
+      }
     };
     loadModels();
   }, []);
