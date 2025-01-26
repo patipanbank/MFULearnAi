@@ -31,11 +31,13 @@ const chatHandler: RequestHandler = async (req: ChatRequest, res: Response): Pro
     ] as ChatMessage[];
 
     const response = await ollamaService.chat(augmentedMessages);
-    res.json({ response });
+    res.json({
+      content: response.content
+    });
     
   } catch (error) {
     console.error('Chat error:', error);
-    res.status(500).json({ error: 'Error processing chat request' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
