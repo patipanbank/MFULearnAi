@@ -1,4 +1,4 @@
-import { ChromaClient, OpenAIEmbeddingFunction, Collection } from 'chromadb';
+import { ChromaClient, OpenAIEmbeddingFunction, Collection, IncludeEnum } from 'chromadb';
 import { ollamaService } from './ollama';
 import { EmbeddingService } from './embedding';
 
@@ -83,11 +83,28 @@ export class ChromaService {
       const results = await this.collection.query({
         queryEmbeddings: [embedding],
         nResults: 1,
+        include: [IncludeEnum.Documents]
       });
 
-      return (results.documents?.[0] ?? []).filter((doc): doc is string => doc !== null);
+      if (!results.documents || !results.documents[0]) {
+        console.log('No results found');
+        return [];
+      }
+
+      return results.documents[0].filter((doc): doc is string => doc !== null);
     } catch (error) {
       console.error('ChromaDB query error:', error);
+      throw error;
+    }
+  }
+
+  async checkCollection() {
+    try {
+      const count = await this.collection.count();
+      console.log('Documents in collection:', count);
+      return count;
+    } catch (error) {
+      console.error('Error checking collection:', error);
       throw error;
     }
   }
