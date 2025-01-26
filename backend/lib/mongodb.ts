@@ -4,16 +4,13 @@ import dotenv from 'dotenv';
 // เพิ่มบรรทัดนี้เพื่อโหลด .env
 dotenv.config();
 
-// เพิ่ม default URI
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mfu_chatbot';
-
-export const connectDB = async () => {
+const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI as string, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    // แก้ไข URI ให้ตรงกับชื่อ service และ credentials ใน docker-compose
+    const URI = process.env.MONGODB_URI || 'mongodb://root:1234@db:27017/mfulearnai?authSource=admin';
+    
+    await mongoose.connect(URI);
+    console.log('MongoDB Connected:', mongoose.connection.name);
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);
     process.exit(1);
@@ -23,4 +20,6 @@ export const connectDB = async () => {
 // Add connection error handler
 mongoose.connection.on('error', (err) => {
   console.error('MongoDB connection error:', err);
-}); 
+});
+
+export default connectDB; 
