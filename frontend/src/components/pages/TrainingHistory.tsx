@@ -23,21 +23,40 @@ const TrainingHistory: React.FC = () => {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const response = await fetch(`${config.apiUrl}/api/training/documents`, {
-          method: 'GET',
+        // เพิ่ม query parameter collectionName
+        const collections = await fetch(`${config.apiUrl}/api/training/collections`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
         });
+        const collectionList = await collections.json();
+        
+        // ดึงข้อมูลจากทุก collection
+        const allDocuments = await Promise.all(
+          collectionList.map(async (collectionName: string) => {
+            const response = await fetch(
+              `${config.apiUrl}/api/training/documents?collectionName=${collectionName}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                }
+              }
+            );
+            if (!response.ok) {
+              throw new Error('Failed to fetch documents');
+            }
+            return response.json();
+          })
+        );
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch documents');
-        }
+        // รวมข้อมูลจากทุก collection
+        const combinedDocuments = {
+          ids: allDocuments.flatMap(doc => doc.ids),
+          documents: allDocuments.flatMap(doc => doc.documents),
+          metadatas: allDocuments.flatMap(doc => doc.metadatas)
+        };
 
-        const data = await response.json();
-        setDocuments(data);
+        setDocuments(combinedDocuments);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
