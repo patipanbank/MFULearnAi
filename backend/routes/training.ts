@@ -122,10 +122,16 @@ const getAllDocumentsHandler: RequestHandler = async (req, res) => {
     }
     const documents = await chromaService.getAllDocuments(collectionName);
     
+    // ตรวจสอบว่ามีข้อมูลหรือไม่
+    if (!documents || !documents.ids) {
+      res.json([]); // ส่งกลับ array ว่างถ้าไม่มีข้อมูล
+      return;
+    }
+    
     // แปลงข้อมูลก่อนส่งกลับ
     const formattedDocuments = documents.ids.map((id, index) => {
-      const metadata = documents.metadatas[index] || {};
-      const document = documents.documents[index];
+      const metadata = documents.metadatas?.[index] || {};
+      const document = documents.documents?.[index] || '';
 
       return {
         id,
