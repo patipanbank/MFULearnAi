@@ -200,8 +200,7 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       const documents = chunks.map(chunk => ({
         text: chunk,
         metadata: {
-          fileName: url,
-          url: url,
+          source: url,
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
