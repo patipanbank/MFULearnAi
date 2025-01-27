@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y \
     libmagickwand-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure ImageMagick policy to allow PDF
+# Configure ImageMagick policy to allow PDF (for both v6 and v7)
+COPY policy.xml /etc/ImageMagick-6/policy.xml
 COPY policy.xml /etc/ImageMagick-7/policy.xml
 
 # สร้างโฟลเดอร์ uploads และกำหนดสิทธิ์
