@@ -121,13 +121,14 @@ const getAllDocumentsHandler: RequestHandler = async (req, res) => {
       return;
     }
     const documents = await chromaService.getAllDocuments(collectionName);
+    
     // แปลงข้อมูลก่อนส่งกลับ
     const formattedDocuments = documents.ids.map((id, index) => ({
       id: id,
       document: documents.documents[index],
       metadata: {
         ...documents.metadatas[index],
-        fileName: documents.metadatas[index].fileName || documents.metadatas[index].url || 'Unknown source' // ใช้ URL ถ้าไม่มี fileName
+        filename: documents.metadatas[index].fileName || documents.metadatas[index].url || 'Unknown source' // เปลี่ยนจาก fileName เป็น filename
       }
     }));
     
@@ -210,7 +211,7 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       const documents = chunks.map(chunk => ({
         text: chunk,
         metadata: {
-          fileName: url,  // ใช้ URL เป็น fileName เลย
+          filename: url,  // เปลี่ยนจาก fileName เป็น filename
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
