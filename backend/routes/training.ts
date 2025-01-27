@@ -12,7 +12,7 @@ const router = Router();
 const upload = multer({ 
   dest: 'uploads/',
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB
+    fileSize: 100 * 1024 * 1024, // 100MB
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx'];
