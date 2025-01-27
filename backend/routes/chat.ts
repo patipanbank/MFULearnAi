@@ -167,12 +167,17 @@ router.get('/:chatId', verifyToken, async (req: Request, res: Response): Promise
 });
 
 // Create new chat
-router.post('/new', verifyToken, async (req: Request, res: Response) => {
+router.post('/new', verifyToken, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
+    if (!userId) {
+      res.status(401).json({ error: 'User ID not found in token' });
+      return;
+    }
+
     const newChat = new ChatHistory({
       userId,
-      title: 'New Chat', // หรือสร้างชื่อตาม timestamp
+      title: 'New Chat',
       messages: []
     });
     
