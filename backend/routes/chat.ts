@@ -47,11 +47,10 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     const { messages, collectionName, modelId } = req.body;
     const user = (req as any).user;
     const userMessage = messages[messages.length - 1].content;
-    // ค้นหาข้อมูลที่เกี่ยวข้องจาก ChromaDB
+    
     const matches = await chromaService.query(collectionName, userMessage);
     let context = matches[0] || '';
 
-    // สร้าง prompt ที่รวมบริบทและคำถาม
     const augmentedMessages = [
       {
         role: 'system' as const,
@@ -62,7 +61,6 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
 
     const response = await ollamaService.chat(augmentedMessages);
     
-    // บันทึกประวัติแชท
     const updatedMessages = [...messages, {
       id: Date.now(),
       role: 'assistant',
@@ -80,8 +78,8 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     const sources = matches.map((match: any) => ({
       modelId: req.body.modelId,
       collectionName: req.body.collectionName,
-      fileName: match.metadata.fileName,
-      similarity: match.score
+      fileName: match.metadata?.fileName || 'Unknown file',
+      similarity: match.score || 0
     }));
 
     res.json({
