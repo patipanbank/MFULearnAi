@@ -1,14 +1,63 @@
 import { Link, useLocation } from 'react-router-dom';
 import { FaRobot, FaBars, FaCog, FaHistory } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
+import ChatHistory from '../ChatHistory';
+import { config } from '../../config/config';
 
 interface SidebarProps {
   onClose?: () => void;
+}
+
+interface ChatHistory {
+  id: string;
+  title: string;
+  timestamp: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const isStaff = userData.groups?.includes('Staffs');
+  const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    fetchChatHistories();
+  }, []);
+
+  const fetchChatHistories = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/histories`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistories(data);
+      }
+    } catch (error) {
+      console.error('Error fetching chat histories:', error);
+    }
+  };
+
+  const handleSelectChat = async (chatId: string) => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/${chatId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentChatId(chatId);
+        // ส่งข้อมูลแชทไปยัง MFUChatbot component
+        window.dispatchEvent(new CustomEvent('loadChat', { detail: data }));
+      }
+    } catch (error) {
+      console.error('Error loading chat:', error);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -36,7 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </div>
       </div>
 
-      <div className="flex-1 px-4 py-2">
+      <div className="flex-1 overflow-y-auto">
         <nav>
           <Link
             to="/mfuchatbot"
@@ -70,6 +119,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             </Link>
           )}
         </nav>
+        
+        <ChatHistory 
+          histories={chatHistories}
+          onSelectChat={handleSelectChat}
+          currentChatId={currentChatId}
+        />
       </div>
 
       <div className="flex-none border-t">

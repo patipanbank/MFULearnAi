@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
 import { chatHistoryService } from '../services/chatHistory';
+import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -131,6 +132,36 @@ router.delete('/clear', verifyToken, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error clearing chat history:', error);
     res.status(500).json({ error: 'Failed to clear chat history' });
+  }
+});
+
+// Get all chat histories
+router.get('/histories', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const histories = await ChatHistory.find({ userId })
+      .sort({ updatedAt: -1 })
+      .select('id title createdAt');
+    res.json(histories);
+  } catch (error) {
+    console.error('Error fetching chat histories:', error);
+    res.status(500).json({ error: 'Failed to fetch chat histories' });
+  }
+});
+// Get specific chat by ID
+router.get('/:chatId', verifyToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const chatId = req.params.chatId;
+    const chat = await ChatHistory.findOne({ _id: chatId, userId });
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    res.json(chat);
+  } catch (error) {
+    console.error('Error fetching chat:', error);
+    res.status(500).json({ error: 'Failed to fetch chat' });
   }
 });
 

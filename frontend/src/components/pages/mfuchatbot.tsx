@@ -110,6 +110,21 @@ const MFUChatbot: React.FC = () => {
     loadChatHistory();
   }, []);
 
+  useEffect(() => {
+    // เพิ่ม event listener สำหรับโหลดแชท
+    const handleLoadChat = (event: CustomEvent) => {
+      const chatData = event.detail;
+      setMessages(chatData.messages);
+      setSelectedModel(chatData.modelId);
+      setSelectedCollection(chatData.collectionName);
+    };
+
+    window.addEventListener('loadChat', handleLoadChat as EventListener);
+    return () => {
+      window.removeEventListener('loadChat', handleLoadChat as EventListener);
+    };
+  }, []);
+
   const fetchModels = async () => {
     try {
       setLoadingModels(true);
@@ -245,12 +260,19 @@ const MFUChatbot: React.FC = () => {
       setSelectedModel('');
       setSelectedCollection('');
       
-      await fetch(`${config.apiUrl}/api/chat/clear`, {
-        method: 'DELETE',
+      // สร้างแชทใหม่และบันทึกลง database
+      const response = await fetch(`${config.apiUrl}/api/chat/new`, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
         }
       });
+      
+      if (response.ok) {
+        // Trigger การโหลดประวัติแชทใหม่ใน sidebar
+        window.dispatchEvent(new Event('refreshChatHistories'));
+      }
     } catch (error) {
       console.error('Error creating new chat:', error);
     }
