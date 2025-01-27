@@ -47,6 +47,7 @@ interface Source {
   modelId: string;
   collectionName: string;
   filename: string;
+  source: string;
   similarity: number;
 }
 
@@ -73,6 +74,7 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       modelId: modelId,
       collectionName: collectionName,
       filename: match.metadata?.filename || 'Unknown file',
+      source: match.metadata?.source || '',
       similarity: match.score || 0
     }));
 
