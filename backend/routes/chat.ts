@@ -84,7 +84,8 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       id: Date.now(),
       role: 'assistant',
       content: response.content,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      sources: sources
     }];
 
     await chatHistoryService.saveChatMessage(
