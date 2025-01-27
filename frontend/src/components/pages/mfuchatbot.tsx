@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 // import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
 import { config } from '../../config/config';
-import { ChatHeader } from '../ChatHeader';
 
 interface Source {
   modelId: string;
@@ -32,7 +31,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState('');
   const [, setLoadingModels] = useState(true);
   const [, setLoadingCollections] = useState(true);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -111,22 +109,6 @@ const MFUChatbot: React.FC = () => {
     loadChatHistory();
   }, []);
 
-  useEffect(() => {
-    // เพิ่ม event listener สำหรับโหลดแชท
-    const handleLoadChat = (event: CustomEvent) => {
-      const chatData = event.detail;
-      setMessages(chatData.messages || []);
-      setSelectedModel(chatData.modelId || '');
-      setSelectedCollection(chatData.collectionName || '');
-      setCurrentChatId(chatData._id);
-    };
-
-    window.addEventListener('loadChat', handleLoadChat as EventListener);
-    return () => {
-      window.removeEventListener('loadChat', handleLoadChat as EventListener);
-    };
-  }, []);
-
   const fetchModels = async () => {
     try {
       setLoadingModels(true);
@@ -179,35 +161,20 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || !selectedModel || !selectedCollection || isLoading) return;
 
-    const userMessage = {
+    const newMessage: Message = {
       id: Date.now(),
-      role: 'user' as const,
-      content: inputMessage,
+      role: 'user',
+      content: inputMessage.trim(),
       timestamp: new Date()
     };
 
+    setMessages(prev => [...prev, newMessage]);
+    setInputMessage('');
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
-      setMessages(prev => [...prev, userMessage]);
-      setInputMessage('');
-
-      // บันทึกข้อความลง ChatHistory
-      await fetch(`${config.apiUrl}/api/chat/message`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          chatId: currentChatId,
-          message: userMessage,
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
-
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -215,7 +182,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: [...messages, newMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -271,57 +238,27 @@ const MFUChatbot: React.FC = () => {
   //   return date.toLocaleTimeString();
   // };
 
-  const handleNewChat = async () => {
+  const clearChat = async () => {
     try {
-      setMessages([]);
-      setSelectedModel('');
-      setSelectedCollection('');
-      setCurrentChatId(null);
-      
-      const response = await fetch(`${config.apiUrl}/api/chat/new`, {
-        method: 'POST',
+      const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
+        method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentChatId(data._id);
-        // Trigger การโหลดประวัติแชทใหม่ใน sidebar
-        window.dispatchEvent(new Event('refreshChatHistories'));
-      }
-    } catch (error) {
-      console.error('Error creating new chat:', error);
-    }
-  };
 
-  const handleClearChat = async () => {
-    if (messages.length === 0) return;
-    
-    if (window.confirm('คุณแน่ใจหรือไม่ที่จะล้างประวัติการสนทนานี้?')) {
-      try {
-        await fetch(`${config.apiUrl}/api/chat/clear`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          }
-        });
-        setMessages([]);
-      } catch (error) {
-        console.error('Error clearing chat:', error);
+      if (!response.ok) {
+        throw new Error('Failed to clear chat history');
       }
+
+      setMessages([]); // เคลียร์ข้อความในหน้าจอ
+    } catch (error) {
+      console.error('Error clearing chat:', error);
     }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
-      <ChatHeader 
-        onNewChat={handleNewChat}
-        onDeleteChat={handleClearChat}
-      />
-      
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
         {messages.length === 0 ? (
@@ -416,6 +353,12 @@ const MFUChatbot: React.FC = () => {
                 <option key={collection} value={collection}>{collection}</option>
               ))}
             </select>
+            <button
+              onClick={clearChat}
+              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded hover:bg-red-600 transition-colors whitespace-nowrap"
+            >
+              Clear Chat
+            </button>
           </div>
         </div>
 
@@ -423,22 +366,16 @@ const MFUChatbot: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-4xl mx-auto">
             <textarea
-              ref={textareaRef}
               value={inputMessage}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
+              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
               className="flex-1 p-2 text-sm md:text-base border rounded resize-none"
               placeholder="Type your message here..."
               rows={1}
-              disabled={isLoading}
             />
             <button
               type="submit"
-              disabled={!inputMessage.trim() || isLoading || !selectedModel || !selectedCollection}
-              className={`px-3 py-1 md:px-4 md:py-2 text-sm md:text-base rounded text-white
-                ${(!inputMessage.trim() || isLoading || !selectedModel || !selectedCollection)
-                  ? 'bg-gray-400'
-                  : 'bg-blue-500 hover:bg-blue-600'}`}
+              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
             >
               Send
             </button>
