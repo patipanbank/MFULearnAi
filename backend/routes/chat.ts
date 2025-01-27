@@ -50,9 +50,10 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
 
     // ค้นหาข้อมูลที่เกี่ยวข้องจาก ChromaDB
     const results = await chromaService.query(collectionName, userMessage);
-    let context = results[0] || '';
+    const context = results[0]; // แก้ไขการเข้าถึงค่าจาก array
+    const source = results[1]; // แก้ไขการเข้าถึงค่าจาก array
 
-    // สร้าง prompt ที่รวมบริบทและคำถาม
+    // สร้าง prompt ที่รวมบริบทและคำถาม 
     const augmentedMessages = [
       {
         role: 'system' as const,
@@ -79,7 +80,8 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     );
 
     res.json({
-      content: response.content
+      content: response.content,
+      source: source
     });
   } catch (error) {
     console.error('Chat error:', error);

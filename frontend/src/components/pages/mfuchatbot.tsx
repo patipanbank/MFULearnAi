@@ -8,6 +8,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  source?: string;
 }
 
 const MFUChatbot: React.FC = () => {
@@ -184,7 +185,8 @@ const MFUChatbot: React.FC = () => {
         id: Date.now(),
         role: 'assistant',
         content: data.content,
-        timestamp: new Date()
+        timestamp: new Date(),
+        source: data.source
       }]);
 
     } catch (error) {
@@ -253,22 +255,34 @@ const MFUChatbot: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {messages.map((message) => (
-              <div 
-                key={message.id} 
-                className={`mb-4 max-w-[85%] md:max-w-[80%] ${
-                  message.role === 'user' 
-                    ? 'ml-auto bg-blue-500 text-white' 
-                    : 'mr-auto bg-gray-100'
-                } rounded-lg p-3 md:p-4`}
-              >
-                <div className={`text-xs md:text-sm ${
-                  message.role === 'user' 
-                    ? 'text-blue-100' 
-                    : 'text-gray-500'
-                } mb-1`}>
-                  {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
+              <div key={message.id}>
+                <div 
+                  className={`mb-2 max-w-[85%] md:max-w-[80%] ${
+                    message.role === 'user' 
+                      ? 'ml-auto bg-blue-500 text-white' 
+                      : 'mr-auto bg-gray-100'
+                  } rounded-lg p-3 md:p-4`}
+                >
+                  <div className={`text-xs md:text-sm ${
+                    message.role === 'user' 
+                      ? 'text-blue-100' 
+                      : 'text-gray-500'
+                  } mb-1`}>
+                    {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
+                  </div>
+                  <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
                 </div>
-                <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
+                
+                {message.role === 'assistant' && message.source && (
+                  <button
+                    onClick={() => {
+                      alert(`Source: ${message.source}`);
+                    }}
+                    className="text-xs text-blue-500 hover:text-blue-700 ml-2 mt-1 underline"
+                  >
+                    View Source
+                  </button>
+                )}
               </div>
             ))}
             {isLoading && (
