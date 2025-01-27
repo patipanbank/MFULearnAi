@@ -40,6 +40,14 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp?: string | Date;
+  sources?: Source[];
+}
+
+interface Source {
+  modelId: string;
+  collectionName: string;
+  fileName: string;
+  similarity: number;
 }
 
 const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
@@ -61,11 +69,19 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
 
     const response = await ollamaService.chat(augmentedMessages);
     
+    const sources = matches.map((match: any) => ({
+      modelId: req.body.modelId,
+      collectionName: req.body.collectionName,
+      fileName: match.metadata?.fileName || 'Unknown file',
+      similarity: match.score || 0
+    }));
+
     const updatedMessages = [...messages, {
       id: Date.now(),
       role: 'assistant',
       content: response.content,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      sources: sources
     }];
 
     await chatHistoryService.saveChatMessage(
@@ -74,13 +90,6 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       collectionName,
       updatedMessages
     );
-
-    const sources = matches.map((match: any) => ({
-      modelId: req.body.modelId,
-      collectionName: req.body.collectionName,
-      fileName: match.metadata?.fileName || 'Unknown file',
-      similarity: match.score || 0
-    }));
 
     res.json({
       content: response.content,
