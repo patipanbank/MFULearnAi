@@ -15,12 +15,12 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx'];
+    const allowedTypes = ['.pdf', '.txt', '.doc', '.docx'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Allowed types: PDF, TXT, DOC, DOCX, XLS, XLSX'));
+      cb(new Error('Invalid file type'));
     }
   }
 });
@@ -46,50 +46,42 @@ interface RequestWithUser extends Request {
 }
 
 const uploadHandler = async (req: Request, res: Response): Promise<void> => {
-  const processingFiles = new Set();
-  
   try {
     const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
+
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
 
-    if (!file || !modelId || !collectionName) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
-
-    const fileKey = `${file.originalname}_${user.username}`;
-    if (processingFiles.has(fileKey)) {
-      res.status(400).json({ error: 'File is already being processed' });
-      return;
-    }
-
-    processingFiles.add(fileKey);
-
-    // สร้าง metadata ที่มี timestamp ที่แน่นอน
-    const metadata = {
-      filename: file.originalname,
-      uploadedBy: user.username,
-      timestamp: new Date().toISOString(),
-      modelId,
-      collectionName
-    };
-
-    const fileContent = await fs.promises.readFile(file.path, 'utf8');
-    const chunks = splitTextIntoChunks(fileContent);
+    console.log(`Processing file: ${file.originalname}`);
+    const text = await documentService.processFile(file);
     
+    console.log(`Text length (${text.length}) exceeds chunk size (8000), splitting into chunks`);
+    const chunks = splitTextIntoChunks(text);
+    console.log(`Created ${chunks.length} chunks`);
+
     const documents = chunks.map(chunk => ({
       text: chunk,
-      metadata: metadata  // ใช้ metadata เดียวกันสำหรับทุก chunk
+      metadata: {
+        filename: file.originalname,
+        uploadedBy: user.username,
+        timestamp: new Date().toISOString(),
+        modelId,
+        collectionName
+      }
     }));
 
+    console.log(`Adding documents to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
-    // ลบไฟล์หลังจากประมวลผลเสร็จ
-    await fs.promises.unlink(file.path);
+    res.json({ 
+      message: 'File processed successfully',
+      chunks: chunks.length
+    });
 
-    processingFiles.delete(fileKey);
-    res.json({ message: 'File uploaded and processed successfully' });
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Error processing upload' });
