@@ -121,33 +121,7 @@ const getAllDocumentsHandler: RequestHandler = async (req, res) => {
       return;
     }
     const documents = await chromaService.getAllDocuments(collectionName);
-    
-    // ตรวจสอบว่ามีข้อมูลหรือไม่
-    if (!documents || !documents.ids) {
-      res.json([]); // ส่งกลับ array ว่างถ้าไม่มีข้อมูล
-      return;
-    }
-    
-    // แปลงข้อมูลก่อนส่งกลับ
-    const formattedDocuments = documents.ids.map((id, index) => {
-      const metadata = documents.metadatas?.[index] || {};
-      const document = documents.documents?.[index] || '';
-
-      return {
-        id,
-        document,
-        metadata: {
-          ...metadata,
-          filename: metadata.filename || metadata.fileName || metadata.url || 'Unknown source',
-          modelId: metadata.modelId || '',
-          collectionName: metadata.collectionName || '',
-          uploadedBy: metadata.uploadedBy || '',
-          timestamp: metadata.timestamp || new Date().toISOString()
-        }
-      };
-    });
-    
-    res.json(formattedDocuments);
+    res.json(documents);
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Error fetching documents' });
@@ -219,14 +193,23 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       return;
     }
 
+    if (!modelId || !collectionName) {
+      res.status(400).json({ error: 'Model ID and collection name are required' });
+      return;
+    }
+
     const scrapedContents = await webScraperService.scrapeUrls(urls);
+    if (scrapedContents.length === 0) {
+      res.status(400).json({ error: 'No content could be scraped from the provided URLs' });
+      return;
+    }
     for (const { url, content } of scrapedContents) {
       const chunks = splitTextIntoChunks(content);
       
       const documents = chunks.map(chunk => ({
         text: chunk,
         metadata: {
-          filename: url,  // เปลี่ยนจาก fileName เป็น filename
+          source: url,
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
