@@ -121,7 +121,17 @@ const getAllDocumentsHandler: RequestHandler = async (req, res) => {
       return;
     }
     const documents = await chromaService.getAllDocuments(collectionName);
-    res.json(documents);
+    // แปลงข้อมูลก่อนส่งกลับ
+    const formattedDocuments = documents.ids.map((id, index) => ({
+      id: id,
+      document: documents.documents[index],
+      metadata: {
+        ...documents.metadatas[index],
+        fileName: documents.metadatas[index].fileName || documents.metadatas[index].url || 'Unknown source' // ใช้ URL ถ้าไม่มี fileName
+      }
+    }));
+    
+    res.json(formattedDocuments);
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Error fetching documents' });
@@ -200,7 +210,7 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       const documents = chunks.map(chunk => ({
         text: chunk,
         metadata: {
-          source: url,
+          fileName: url,  // ใช้ URL เป็น fileName เลย
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
