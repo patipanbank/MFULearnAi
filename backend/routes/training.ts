@@ -123,14 +123,29 @@ const getAllDocumentsHandler: RequestHandler = async (req, res) => {
     const documents = await chromaService.getAllDocuments(collectionName);
     
     // แปลงข้อมูลก่อนส่งกลับ
-    const formattedDocuments = documents.ids.map((id, index) => ({
-      id: id,
-      document: documents.documents[index],
-      metadata: {
-        ...documents.metadatas[index],
-        filename: documents.metadatas[index].fileName || documents.metadatas[index].url || 'Unknown source' // เปลี่ยนจาก fileName เป็น filename
+    const formattedDocuments = documents.ids.map((id, index) => {
+      const metadata = documents.metadatas[index];
+      // ตรวจสอบและแปลงข้อมูลเก่า
+      let filename = 'Unknown source';
+      if (metadata) {
+        if (metadata.filename) {
+          filename = metadata.filename;
+        } else if (metadata.fileName) {
+          filename = metadata.fileName;
+        } else if (metadata.url) {
+          filename = metadata.url;
+        }
       }
-    }));
+
+      return {
+        id: id,
+        document: documents.documents[index],
+        metadata: {
+          ...metadata,
+          filename: filename
+        }
+      };
+    });
     
     res.json(formattedDocuments);
   } catch (error) {
