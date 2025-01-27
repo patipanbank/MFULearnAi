@@ -8,7 +8,7 @@ interface IChatMessage {
   sources?: {
     modelId: string;
     collectionName: string;
-    fileName: string;
+    filename: string;
     similarity: number;
   }[];
 }
@@ -34,7 +34,7 @@ const chatHistorySchema = new mongoose.Schema<IChatHistory>({
     sources: [{
       modelId: { type: String },
       collectionName: { type: String },
-      fileName: { type: String },
+      filename: { type: String },
       similarity: { type: Number }
     }]
   }],

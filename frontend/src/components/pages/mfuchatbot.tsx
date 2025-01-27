@@ -6,7 +6,7 @@ import { config } from '../../config/config';
 interface Source {
   modelId: string;
   collectionName: string;
-  fileName: string;
+  filename: string;
   similarity: number;
 }
 
@@ -297,7 +297,7 @@ const MFUChatbot: React.FC = () => {
                         const sourceInfo = message.sources?.map(source => 
                           `Model: ${source.modelId}\n` +
                           `Collection: ${source.collectionName}\n` +
-                          `File: ${source.fileName}\n` +
+                          `File: ${source.filename}\n` +
                           `Similarity: ${(source.similarity * 100).toFixed(1)}%`
                         ).join('\n\n');
                         alert(sourceInfo);

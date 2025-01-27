@@ -46,7 +46,7 @@ interface ChatMessage {
 interface Source {
   modelId: string;
   collectionName: string;
-  fileName: string;
+  filename: string;
   similarity: number;
 }
 
@@ -70,9 +70,9 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     const response = await ollamaService.chat(augmentedMessages);
     
     const sources = matches.map((match: any) => ({
-      modelId: req.body.modelId,
-      collectionName: req.body.collectionName,
-      fileName: match.metadata?.fileName || 'Unknown file',
+      modelId: modelId,
+      collectionName: collectionName,
+      filename: match.metadata?.filename || 'Unknown file',
       similarity: match.score || 0
     }));
 
