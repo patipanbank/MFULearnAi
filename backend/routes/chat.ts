@@ -148,6 +148,7 @@ router.get('/histories', verifyToken, async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch chat histories' });
   }
 });
+
 // Get specific chat by ID
 router.get('/:chatId', verifyToken, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -162,6 +163,58 @@ router.get('/:chatId', verifyToken, async (req: Request, res: Response): Promise
   } catch (error) {
     console.error('Error fetching chat:', error);
     res.status(500).json({ error: 'Failed to fetch chat' });
+  }
+});
+
+// Create new chat
+router.post('/new', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const newChat = new ChatHistory({
+      userId,
+      title: 'New Chat', // หรือสร้างชื่อตาม timestamp
+      messages: []
+    });
+    
+    await newChat.save();
+    res.json(newChat);
+  } catch (error) {
+    console.error('Error creating new chat:', error);
+    res.status(500).json({ error: 'Failed to create new chat' });
+  }
+});
+
+// Save chat message
+router.post('/message', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { chatId, message, modelId, collectionName } = req.body;
+    
+    let chat;
+    if (chatId) {
+      chat = await ChatHistory.findOne({ _id: chatId, userId });
+    } else {
+      chat = await ChatHistory.findOne({ userId }).sort({ createdAt: -1 });
+    }
+    
+    if (!chat) {
+      chat = new ChatHistory({
+        userId,
+        title: message.substring(0, 50) + '...', // ใช้ข้อความแรกเป็นชื่อแชท
+        messages: [],
+        modelId,
+        collectionName
+      });
+    }
+    
+    chat.messages.push(message);
+    chat.updatedAt = new Date();
+    await chat.save();
+    
+    res.json(chat);
+  } catch (error) {
+    console.error('Error saving chat message:', error);
+    res.status(500).json({ error: 'Failed to save chat message' });
   }
 });
 

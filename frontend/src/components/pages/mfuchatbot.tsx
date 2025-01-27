@@ -177,20 +177,33 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || !selectedModel || !selectedCollection || isLoading) return;
-
-    const newMessage: Message = {
-      id: Date.now(),
-      role: 'user',
-      content: inputMessage.trim(),
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    setInputMessage('');
-    setIsLoading(true);
+    if (!inputMessage.trim() || isLoading) return;
 
     try {
+      setIsLoading(true);
+      const userMessage: Message = {
+        id: Date.now(),
+        role: 'user',
+        content: inputMessage,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+      setInputMessage('');
+
+      // บันทึกข้อความลง ChatHistory
+      await fetch(`${config.apiUrl}/api/chat/message`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -198,7 +211,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, newMessage],
+          messages: [...messages, userMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -223,7 +236,7 @@ const MFUChatbot: React.FC = () => {
       }]);
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error sending message:', error);
       setMessages(prev => [...prev, {
         id: Date.now(),
         role: 'assistant',
