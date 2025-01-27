@@ -58,7 +58,7 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     const userMessage = messages[messages.length - 1].content;
     
     const matches = await chromaService.query(collectionName, userMessage);
-    let context = matches[0] || '';
+    let context = matches[0]?.text || '';
 
     const augmentedMessages = [
       {
@@ -74,7 +74,7 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       modelId: modelId,
       collectionName: collectionName,
       filename: match.metadata?.filename || 'Unknown file',
-      source: match.metadata?.source || '',
+      source: match.metadata?.source || 'N/A',
       similarity: match.score || 0
     }));
 

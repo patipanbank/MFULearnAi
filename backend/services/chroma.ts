@@ -129,14 +129,25 @@ class ChromaService {
     });
   }
 
-  async query(collectionName: string, text: string): Promise<string[]> {
-    await this.initCollection(collectionName);
-    const collection = this.collections.get(collectionName);
-    const results = await collection.query({
-      queryTexts: [text],
-      nResults: 1,
-    });
-    return results.documents?.[0] || [];
+  async query(collectionName: string, text: string): Promise<any[]> {
+    try {
+      await this.initCollection(collectionName);
+      const collection = this.collections.get(collectionName);
+      const results = await collection.query({
+        queryTexts: [text],
+        nResults: 1,
+        include: ["metadatas", "distances", "documents"]
+      });
+
+      return results.documents[0].map((doc: string, index: number) => ({
+        text: doc,
+        metadata: results.metadatas[0][index],
+        score: results.distances ? 1 - (results.distances[0][index] || 0) : 0
+      }));
+    } catch (error) {
+      console.error('Error querying ChromaDB:', error);
+      return [];
+    }
   }
 
   async getAllDocuments(collectionName: string): Promise<{
