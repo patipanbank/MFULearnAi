@@ -14,15 +14,37 @@ export class DocumentService {
     try {
       switch (ext) {
         case '.pdf':
-          text = await this.processPDF(file.path);
+          // ลองใช้ pdf-parse ก่อน
+          try {
+            const dataBuffer = await fs.readFile(file.path);
+            const pdfData = await pdf(dataBuffer);
+            text = pdfData.text;
+            
+            // ถ้าข้อความว่างหรือมีน้อยเกินไป จึงค่อยใช้ OCR
+            if (!text || text.trim().length < 100) {
+              text = await this.processScannedPDF(file.path);
+            }
+          } catch (error) {
+            // ถ้า pdf-parse ล้มเหลว ให้ใช้ OCR
+            text = await this.processScannedPDF(file.path);
+          }
           break;
         case '.doc':
         case '.docx':
-          text = await this.processWord(file.path);
+          const buffer = await fs.readFile(file.path);
+          const result = await mammoth.extractRawText({ buffer });
+          text = result.value;
           break;
         case '.xls':
         case '.xlsx':
-          text = await this.processExcel(file.path);
+          const workbook = xlsx.readFile(file.path);
+          let fullText = '';
+          for (const sheetName of workbook.SheetNames) {
+            const sheet = workbook.Sheets[sheetName];
+            const sheetText = xlsx.utils.sheet_to_txt(sheet);
+            fullText += `Sheet: ${sheetName}\n${sheetText}\n\n`;
+          }
+          text = fullText;
           break;
         case '.txt':
           text = await fs.readFile(file.path, 'utf-8');
@@ -36,40 +58,25 @@ export class DocumentService {
       return text;
     } catch (error) {
       console.error('Error processing file:', error);
-      throw error;
-    }
-  }
-
-  private async processPDF(filePath: string): Promise<string> {
-    try {
-      // อ่านไฟล์ PDF ด้วย pdf-parse
-      const dataBuffer = await fs.readFile(filePath);
-      const pdfData = await pdf(dataBuffer);
-      let text = pdfData.text;
-
-      // ถ้าไม่มีข้อความ (อาจเป็น scanned PDF) ให้ใช้ OCR
-      if (!text.trim()) {
-        text = await this.processScannedPDF(filePath);
+      // ลบไฟล์ในกรณีที่เกิดข้อผิดพลาด
+      try {
+        await fs.unlink(file.path);
+      } catch (unlinkError) {
+        console.error('Error deleting file:', unlinkError);
       }
-
-      return text;
-    } catch (error) {
-      console.error('Error processing PDF:', error);
       throw error;
     }
   }
 
   private async processScannedPDF(filePath: string): Promise<string> {
+    const worker = await createWorker('eng+tha');
+    const pdfImage = new PDFImage(filePath);
+    let fullText = '';
+
     try {
-      const pdfImage = new PDFImage(filePath);
-      const numberOfPages = await pdfImage.numberOfPages();
-      let fullText = '';
-
-      // สร้าง Tesseract worker
-      const worker = await createWorker('eng+tha');
-
-      // ประมวลผลทีละหน้า
-      for (let i = 0; i < numberOfPages; i++) {
+      const pageCount = await pdfImage.numberOfPages();
+      
+      for (let i = 0; i < pageCount; i++) {
         const imagePath = await pdfImage.convertPage(i);
         const { data: { text } } = await worker.recognize(imagePath);
         fullText += text + '\n';
@@ -77,43 +84,11 @@ export class DocumentService {
         // ลบไฟล์ภาพชั่วคราว
         await fs.unlink(imagePath);
       }
-
+    } finally {
       await worker.terminate();
-      return fullText;
-    } catch (error) {
-      console.error('Error processing scanned PDF:', error);
-      throw error;
     }
-  }
 
-  private async processWord(filePath: string): Promise<string> {
-    try {
-      const buffer = await fs.readFile(filePath);
-      const result = await mammoth.extractRawText({ buffer });
-      return result.value;
-    } catch (error) {
-      console.error('Error processing Word document:', error);
-      throw error;
-    }
-  }
-
-  private async processExcel(filePath: string): Promise<string> {
-    try {
-      const workbook = xlsx.readFile(filePath);
-      let fullText = '';
-
-      // รวมข้อความจากทุก sheet
-      for (const sheetName of workbook.SheetNames) {
-        const sheet = workbook.Sheets[sheetName];
-        const sheetText = xlsx.utils.sheet_to_txt(sheet);
-        fullText += `Sheet: ${sheetName}\n${sheetText}\n\n`;
-      }
-
-      return fullText;
-    } catch (error) {
-      console.error('Error processing Excel file:', error);
-      throw error;
-    }
+    return fullText;
   }
 }
 
