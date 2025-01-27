@@ -61,12 +61,12 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       console.log('First result:', results[0]);
     }
 
-    const sources = (results as any[]).map(match => ({
+    const sources = results.length > 0 ? results.map(match => ({
       modelId: req.body.modelId,
       collectionName: req.body.collectionName,
-      fileName: match.metadata.fileName,
-      similarity: match.score
-    }));
+      fileName: (match as any).metadata?.fileName,
+      similarity: (match as any).score
+    })) : [];
 
     // สร้าง prompt ที่รวมบริบทและคำถาม 
     const augmentedMessages = [
