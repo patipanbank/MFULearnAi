@@ -124,25 +124,19 @@ const getAllDocumentsHandler: RequestHandler = async (req, res) => {
     
     // แปลงข้อมูลก่อนส่งกลับ
     const formattedDocuments = documents.ids.map((id, index) => {
-      const metadata = documents.metadatas[index];
-      // ตรวจสอบและแปลงข้อมูลเก่า
-      let filename = 'Unknown source';
-      if (metadata) {
-        if (metadata.filename) {
-          filename = metadata.filename;
-        } else if (metadata.fileName) {
-          filename = metadata.fileName;
-        } else if (metadata.url) {
-          filename = metadata.url;
-        }
-      }
+      const metadata = documents.metadatas[index] || {};
+      const document = documents.documents[index];
 
       return {
-        id: id,
-        document: documents.documents[index],
+        id,
+        document,
         metadata: {
           ...metadata,
-          filename: filename
+          filename: metadata.filename || metadata.fileName || metadata.url || 'Unknown source',
+          modelId: metadata.modelId || '',
+          collectionName: metadata.collectionName || '',
+          uploadedBy: metadata.uploadedBy || '',
+          timestamp: metadata.timestamp || new Date().toISOString()
         }
       };
     });

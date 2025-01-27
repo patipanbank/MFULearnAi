@@ -2,20 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
 import { FaTrash } from 'react-icons/fa';
 
-interface TrainingDocument {
-  ids: string[];
-  documents: string[];
-  metadatas: {
-    filename: string;
-    uploadedBy: string;
-    timestamp: string;
+interface Document {
+  id: string;
+  document: string;
+  metadata: {
+    filename?: string;
+    fileName?: string;
+    url?: string;
     modelId: string;
     collectionName: string;
-  }[];
+    uploadedBy: string;
+    timestamp: string;
+  };
 }
 
 const TrainingHistory: React.FC = () => {
-  const [documents, setDocuments] = useState<TrainingDocument | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -47,13 +49,12 @@ const TrainingHistory: React.FC = () => {
           return response.json();
         })
       );
-
       // รวมข้อมูลจากทุก collection
-      const combinedDocuments = {
-        ids: allDocuments.flatMap(doc => doc.ids),
-        documents: allDocuments.flatMap(doc => doc.documents),
-        metadatas: allDocuments.flatMap(doc => doc.metadatas)
-      };
+      const combinedDocuments = allDocuments.flatMap(doc => doc.documents.map((document: string) => ({
+        id: doc.ids[doc.documents.indexOf(document)],
+        document: document,
+        metadata: doc.metadatas[doc.documents.indexOf(document)]
+      })));
 
       setDocuments(combinedDocuments);
     } catch (err) {
@@ -67,16 +68,16 @@ const TrainingHistory: React.FC = () => {
     fetchDocuments();
   }, []);
 
-  const handleDelete = async (id: string, collectionName: string) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this data?')) {
       return;
     }
 
     setIsDeleting(id);
     try {
-      console.log(`Deleting document ${id} from collection ${collectionName}`);
+      console.log(`Deleting document ${id}`);
       const response = await fetch(
-        `${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(collectionName)}`,
+        `${config.apiUrl}/api/training/documents/${id}`,
         {
           method: 'DELETE',
           headers: {
@@ -124,6 +125,18 @@ const TrainingHistory: React.FC = () => {
     }
   };
 
+  const renderFileName = (doc: Document) => {
+    const metadata = doc.metadata || {};
+    if (metadata.filename) {
+      return metadata.filename;
+    } else if (metadata.fileName) {
+      return metadata.fileName;
+    } else if (metadata.url) {
+      return metadata.url;
+    }
+    return 'Unknown source';
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -164,32 +177,32 @@ const TrainingHistory: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {documents?.metadatas.map((metadata, index) => (
-              <tr key={documents.ids[index]} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">{metadata.filename}</td>
+            {documents.map((doc) => (
+              <tr key={doc.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">{renderFileName(doc)}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    {metadata.modelId}
+                    {doc.metadata?.modelId || ''}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                    {metadata.collectionName}
+                    {doc.metadata?.collectionName || ''}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">{metadata.uploadedBy}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{doc.metadata?.uploadedBy || ''}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {new Date(metadata.timestamp).toLocaleString('th-TH')}
+                  {new Date(doc.metadata?.timestamp || '').toLocaleString('th-TH')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
-                    onClick={() => handleDelete(documents.ids[index], metadata.collectionName)}
-                    disabled={isDeleting === documents.ids[index]}
+                    onClick={() => handleDelete(doc.id)}
+                    disabled={isDeleting === doc.id}
                     className={`text-red-600 hover:text-red-800 ${
-                      isDeleting === documents.ids[index] ? 'opacity-50 cursor-not-allowed' : ''
+                      isDeleting === doc.id ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
-                    {isDeleting === documents.ids[index] ? (
+                    {isDeleting === doc.id ? (
                       <span className="inline-block animate-spin">⌛</span>
                     ) : (
                       <FaTrash />
@@ -201,7 +214,7 @@ const TrainingHistory: React.FC = () => {
           </tbody>
         </table>
 
-        {documents?.metadatas.length === 0 && (
+        {documents.length === 0 && (
           <div className="text-center py-4 text-gray-500">
             No training data found
           </div>
