@@ -1,6 +1,6 @@
 import { ChatHistory } from '../models/ChatHistory';
 
-class ChatHistoryService {
+export class ChatHistoryService {
   async getChatHistory(userId: string) {
     try {
       const history = await ChatHistory.find({ userId })
@@ -13,28 +13,36 @@ class ChatHistoryService {
     }
   }
 
-  async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[]) {
+  async saveChatMessage(
+    userId: string,
+    modelId: string,
+    collectionName: string,
+    messages: any[]
+  ) {
     try {
-      const chatHistory = await ChatHistory.findOne({
-        userId,
-        modelId,
-        collectionName
-      });
+      // หาแชทล่าสุดของผู้ใช้
+      let chat = await ChatHistory.findOne({ userId }).sort({ createdAt: -1 });
 
-      if (chatHistory) {
-        chatHistory.messages = messages;
-        await chatHistory.save();
-        return chatHistory;
+      if (!chat) {
+        // ถ้าไม่มีแชท ให้สร้างใหม่
+        const firstMessage = messages[0]?.content || 'New Chat';
+        chat = new ChatHistory({
+          userId,
+          title: firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : ''),
+          messages: [],
+          modelId,
+          collectionName
+        });
       }
 
-      const newChatHistory = await ChatHistory.create({
-        userId,
-        modelId,
-        collectionName,
-        messages
-      });
+      // อัพเดทข้อความ
+      chat.messages = messages;
+      chat.modelId = modelId;
+      chat.collectionName = collectionName;
+      chat.updatedAt = new Date();
 
-      return newChatHistory;
+      await chat.save();
+      return chat;
     } catch (error) {
       console.error('Error saving chat message:', error);
       throw error;
