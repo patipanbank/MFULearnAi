@@ -1,4 +1,4 @@
-export function splitTextIntoChunks(text: string, chunkSize: number = 8000): string[] {
+export function splitTextIntoChunks(text: string, chunkSize: number = 2000): string[] {
   // ทำความสะอาดข้อความ
   const cleanText = text
     .trim()
