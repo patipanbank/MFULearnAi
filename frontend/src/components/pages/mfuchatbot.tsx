@@ -85,9 +85,19 @@ const MFUChatbot: React.FC = () => {
         
         const history = await response.json();
         if (history.length > 0) {
-          // ใช้ประวัติล่าสุด
+          // แปลง timestamp และเพิ่ม sources ในแต่ละข้อความ
           const latestChat = history[0];
-          setMessages(latestChat.messages);
+          const formattedMessages = latestChat.messages.map((msg: {
+            timestamp: string | number | Date;
+            sources?: string[];
+            content: string;
+            role: 'user' | 'assistant';
+          }) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+            sources: msg.sources || [] // เพิ่ม sources หรือใช้ array ว่างถ้าไม่มี
+          }));
+          setMessages(formattedMessages);
           setSelectedModel(latestChat.modelId);
           setSelectedCollection(latestChat.collectionName);
         }
