@@ -3,12 +3,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { BiLoaderAlt } from 'react-icons/bi';
 import { config } from '../../config/config';
 
+interface Source {
+  modelId: string;
+  collectionName: string;
+  fileName: string;
+  similarity: number;
+}
+
 interface Message {
   id: number;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  source?: string;
+  sources?: Source[];
 }
 
 const MFUChatbot: React.FC = () => {
@@ -186,7 +193,7 @@ const MFUChatbot: React.FC = () => {
         role: 'assistant',
         content: data.content,
         timestamp: new Date(),
-        source: data.source
+        sources: data.sources
       }]);
 
     } catch (error) {
@@ -273,15 +280,26 @@ const MFUChatbot: React.FC = () => {
                   <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
                 </div>
                 
-                {message.role === 'assistant' && message.source && (
-                  <button
-                    onClick={() => {
-                      alert(`Source: ${message.source}`);
-                    }}
-                    className="text-xs text-blue-500 hover:text-blue-700 ml-2 mt-1 underline"
-                  >
-                    View Source
-                  </button>
+                {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                  <div className="ml-2 mt-1">
+                    <button
+                      onClick={() => {
+                        const sourceInfo = message.sources?.map(source => 
+                          `Model: ${source.modelId}\n` +
+                          `Collection: ${source.collectionName}\n` +
+                          `File: ${source.fileName}\n` +
+                          `Similarity: ${(source.similarity * 100).toFixed(1)}%`
+                        ).join('\n\n');
+                        alert(sourceInfo);
+                      }}
+                      className="text-xs text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      View Sources ({message.sources.length})
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
