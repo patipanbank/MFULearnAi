@@ -32,6 +32,7 @@ COPY package*.json ./
 RUN npm install
 RUN npm install -g typescript
 RUN npm install chromadb-default-embed
+RUN npm install axios cheerio
 
 # Copy source code
 COPY . .

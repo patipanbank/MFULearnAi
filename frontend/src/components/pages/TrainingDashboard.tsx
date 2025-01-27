@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
 
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -14,6 +14,9 @@ const TrainingDashboard: React.FC = () => {
   const [loadingModels, setLoadingModels] = useState(true);
   const [loadingCollections, setLoadingCollections] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [trainingMode, setTrainingMode] = useState<'file' | 'url'>('file');
+  const [urls, setUrls] = useState<string>('');
+  const [isProcessingUrls, setIsProcessingUrls] = useState(false);
 
   useEffect(() => {
     fetchModels();
@@ -168,6 +171,50 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  const handleUrlSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isProcessingUrls) {
+      return;
+    }
+
+    if (!urls.trim() || !selectedModel || !selectedCollection) {
+      alert('กรุณาเลือก Model, Collection และใส่ URLs ให้ครบถ้วน');
+      return;
+    }
+
+    setIsProcessingUrls(true);
+
+    try {
+      const urlList = urls.split('\n').map(url => url.trim()).filter(url => url);
+      
+      const response = await fetch(`${config.apiUrl}/api/training/add-urls`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          urls: urlList,
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('URL processing failed');
+      }
+
+      alert('URLs processed successfully');
+      setUrls('');
+    } catch (error) {
+      console.error('URL processing error:', error);
+      alert('Failed to process URLs');
+    } finally {
+      setIsProcessingUrls(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Training Dashboard</h1>
@@ -259,31 +306,79 @@ const TrainingDashboard: React.FC = () => {
       )}
 
       {selectedModel && selectedCollection && (
-        <form onSubmit={handleFileUpload} className="mt-6">
-          <div className="mb-4">
-            <input
-              type="file"
-              onChange={handleFileChange}
-              className="block w-full text-sm text-gray-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100"
-              disabled={isUploading}
-              accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
-            />
+        <div className="mt-6">
+          <div className="flex gap-4 mb-4">
+            <button
+              onClick={() => setTrainingMode('file')}
+              className={`flex items-center gap-2 px-4 py-2 rounded ${
+                trainingMode === 'file' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              <FaFile /> File Upload
+            </button>
+            <button
+              onClick={() => setTrainingMode('url')}
+              className={`flex items-center gap-2 px-4 py-2 rounded ${
+                trainingMode === 'url' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              <FaGlobe /> URL Training
+            </button>
           </div>
-          <button
-            type="submit"
-            disabled={!file || isUploading || !selectedModel || !selectedCollection}
-            className={`px-4 py-2 rounded text-white
-              ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
-            `}
-          >
-            {isUploading ? 'Uploading...' : 'Upload'}
-          </button>
-        </form>
+
+          {trainingMode === 'file' ? (
+            <form onSubmit={handleFileUpload}>
+              <div className="mb-4">
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"
+                  disabled={isUploading}
+                  accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!file || isUploading || !selectedModel || !selectedCollection}
+                className={`px-4 py-2 rounded text-white
+                  ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
+                `}
+              >
+                {isUploading ? 'Uploading...' : 'Upload'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleUrlSubmit}>
+              <div className="mb-4">
+                <textarea
+                  value={urls}
+                  onChange={(e) => setUrls(e.target.value)}
+                  placeholder="ใส่ URLs (1 URL ต่อบรรทัด)"
+                  className="w-full h-40 p-2 border rounded"
+                  disabled={isProcessingUrls}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!urls.trim() || isProcessingUrls}
+                className={`px-4 py-2 rounded text-white
+                  ${isProcessingUrls ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
+                `}
+              >
+                {isProcessingUrls ? 'Processing URLs...' : 'Process URLs'}
+              </button>
+            </form>
+          )}
+        </div>
       )}
     </div>
   );

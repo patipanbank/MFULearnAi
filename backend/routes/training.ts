@@ -7,6 +7,7 @@ import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
 import fs from 'fs';
 import { splitTextIntoChunks } from '../utils/textUtils';
+import { webScraperService } from '../services/webScraper';
 
 const router = Router();
 const upload = multer({ 
@@ -180,6 +181,44 @@ router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, 
   } catch (error) {
     console.error('Error deleting collection:', error);
     res.status(500).json({ error: 'Failed to delete collection' });
+  }
+});
+
+router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { urls, modelId, collectionName } = req.body;
+    const user = (req as any).user;
+    if (!Array.isArray(urls) || urls.length === 0) {
+      res.status(400).json({ error: 'Invalid URLs format' });
+      return;
+    }
+
+    const scrapedContents = await webScraperService.scrapeUrls(urls);
+    for (const { url, content } of scrapedContents) {
+      const chunks = splitTextIntoChunks(content);
+      
+      const documents = chunks.map(chunk => ({
+        text: chunk,
+        metadata: {
+          source: url,
+          uploadedBy: user.username,
+          timestamp: new Date().toISOString(),
+          modelId,
+          collectionName
+        }
+      }));
+
+      await chromaService.addDocuments(collectionName, documents);
+    }
+
+    res.json({ 
+      message: 'URLs processed successfully',
+      processedUrls: scrapedContents.length
+    });
+
+  } catch (error) {
+    console.error('URL processing error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Error processing URLs' });
   }
 });
 
