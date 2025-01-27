@@ -50,29 +50,13 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
 
     // ค้นหาข้อมูลที่เกี่ยวข้องจาก ChromaDB
     const results = await chromaService.query(collectionName, userMessage);
-    console.log('ChromaDB Response:', JSON.stringify(results, null, 2));
-    
-    // ตรวจสอบโครงสร้างข้อมูล
-    console.log('Results type:', typeof results);
-    console.log('Results structure:', Object.keys(results));
-    
-    // ทดลองดูค่าแรก
-    if (Array.isArray(results)) {
-      console.log('First result:', results[0]);
-    }
+    let context = results[0] || '';
 
-    const sources = (results as any[]).map(match => ({
-      modelId: req.body.modelId,
-      collectionName: req.body.collectionName,
-      fileName: match.metadata.fileName,
-      similarity: match.score
-    }));
-
-    // สร้าง prompt ที่รวมบริบทและคำถาม 
+    // สร้าง prompt ที่รวมบริบทและคำถาม
     const augmentedMessages = [
       {
         role: 'system' as const,
-        content: `You are a helpful assistant. Use this context to answer questions: ${results[0]}`
+        content: `You are a helpful assistant. Use this context to answer questions: ${context}`
       },
       ...messages
     ] as ChatMessage[];
@@ -95,8 +79,7 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     );
 
     res.json({
-      content: response.content,
-      sources: sources
+      content: response.content
     });
   } catch (error) {
     console.error('Chat error:', error);
