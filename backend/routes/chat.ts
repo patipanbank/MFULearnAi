@@ -192,7 +192,7 @@ router.post('/new', authenticateToken, async (req: Request, res: Response): Prom
 // Save chat message
 router.post('/message', verifyToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as any).user.nameID;
     const { chatId, message, modelId, collectionName } = req.body;
     
     let chat;
@@ -203,9 +203,13 @@ router.post('/message', verifyToken, async (req: Request, res: Response) => {
     }
     
     if (!chat) {
+      const title = typeof message === 'object' ? 
+        (message.content || 'New Chat') : 
+        (message || 'New Chat');
+      
       chat = new ChatHistory({
         userId,
-        title: message.substring(0, 50) + '...', // ใช้ข้อความแรกเป็นชื่อแชท
+        title: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
         messages: [],
         modelId,
         collectionName
