@@ -7,6 +7,7 @@ interface Source {
   modelId: string;
   collectionName: string;
   fileName: string;
+  url?: string;
   similarity: number;
 }
 
@@ -297,7 +298,8 @@ const MFUChatbot: React.FC = () => {
                         const sourceInfo = message.sources?.map(source => 
                           `Model: ${source.modelId}\n` +
                           `Collection: ${source.collectionName}\n` +
-                          `File: ${source.fileName}\n` +
+                          `Source: ${source.fileName}\n` +
+                          (source.url ? `URL: ${source.url}\n` : '') +
                           `Similarity: ${(source.similarity * 100).toFixed(1)}%`
                         ).join('\n\n');
                         alert(sourceInfo);
