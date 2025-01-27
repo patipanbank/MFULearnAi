@@ -32,6 +32,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState('');
   const [, setLoadingModels] = useState(true);
   const [, setLoadingCollections] = useState(true);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,9 +115,10 @@ const MFUChatbot: React.FC = () => {
     // เพิ่ม event listener สำหรับโหลดแชท
     const handleLoadChat = (event: CustomEvent) => {
       const chatData = event.detail;
-      setMessages(chatData.messages);
-      setSelectedModel(chatData.modelId);
-      setSelectedCollection(chatData.collectionName);
+      setMessages(chatData.messages || []);
+      setSelectedModel(chatData.modelId || '');
+      setSelectedCollection(chatData.collectionName || '');
+      setCurrentChatId(chatData._id);
     };
 
     window.addEventListener('loadChat', handleLoadChat as EventListener);
@@ -179,14 +181,15 @@ const MFUChatbot: React.FC = () => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
+    const userMessage = {
+      id: Date.now(),
+      role: 'user' as const,
+      content: inputMessage,
+      timestamp: new Date()
+    };
+
     try {
       setIsLoading(true);
-      const userMessage: Message = {
-        id: Date.now(),
-        role: 'user',
-        content: inputMessage,
-        timestamp: new Date()
-      };
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
 
@@ -198,6 +201,7 @@ const MFUChatbot: React.FC = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          chatId: currentChatId,
           message: userMessage,
           modelId: selectedModel,
           collectionName: selectedCollection
@@ -236,7 +240,7 @@ const MFUChatbot: React.FC = () => {
       }]);
 
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error:', error);
       setMessages(prev => [...prev, {
         id: Date.now(),
         role: 'assistant',
@@ -272,29 +276,22 @@ const MFUChatbot: React.FC = () => {
       setMessages([]);
       setSelectedModel('');
       setSelectedCollection('');
-      
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No auth token found');
-      }
+      setCurrentChatId(null);
       
       const response = await fetch(`${config.apiUrl}/api/chat/new`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           'Content-Type': 'application/json'
         }
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to create new chat');
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentChatId(data._id);
+        // Trigger การโหลดประวัติแชทใหม่ใน sidebar
+        window.dispatchEvent(new Event('refreshChatHistories'));
       }
-      
-      const data = await response.json();
-      console.log('New chat created:', data);
-      
-      // Trigger การโหลดประวัติแชทใหม่ใน sidebar
-      window.dispatchEvent(new Event('refreshChatHistories'));
     } catch (error) {
       console.error('Error creating new chat:', error);
     }

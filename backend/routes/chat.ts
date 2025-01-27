@@ -63,11 +63,11 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       console.log('First result:', results[0]);
     }
 
-    const sources = results.length > 0 ? results.map(match => ({
+    const sources = results.length > 0 ? results.map((match: { metadata?: { fileName: string }, score: number }) => ({
       modelId: req.body.modelId,
       collectionName: req.body.collectionName,
-      fileName: (match as any).metadata?.fileName,
-      similarity: (match as any).score
+      fileName: match.metadata?.fileName,
+      similarity: match.score
     })) : [];
 
     // สร้าง prompt ที่รวมบริบทและคำถาม 
@@ -149,23 +149,25 @@ router.get('/histories', verifyToken, async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch chat histories' });
   }
 });
-
 // Get specific chat by ID
 router.get('/:chatId', verifyToken, async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as any).user.nameID;
     const chatId = req.params.chatId;
     const chat = await ChatHistory.findOne({ _id: chatId, userId });
     if (!chat) {
       res.status(404).json({ error: 'Chat not found' });
       return;
     }
+    
     res.json(chat);
+    return;
   } catch (error) {
     console.error('Error fetching chat:', error);
     res.status(500).json({ error: 'Failed to fetch chat' });
   }
 });
+
 // Create new chat
 router.post('/new', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {

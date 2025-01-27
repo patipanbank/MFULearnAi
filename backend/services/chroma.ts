@@ -129,14 +129,28 @@ class ChromaService {
     });
   }
 
-  async query(collectionName: string, text: string): Promise<string[]> {
-    await this.initCollection(collectionName);
-    const collection = this.collections.get(collectionName);
-    const results = await collection.query({
-      queryTexts: [text],
-      nResults: 1,
-    });
-    return results.documents?.[0] || [];
+  async query(collectionName: string, query: string) {
+    try {
+      // ตรวจสอบและแก้ไขชื่อ collection ให้ถูกต้องตามเงื่อนไข
+      const safeCollectionName = collectionName
+        .replace(/[^a-zA-Z0-9-_]/g, '_') // แทนที่อักขระที่ไม่อนุญาตด้วย _
+        .replace(/^[^a-zA-Z0-9]/, 'c')   // เพิ่ม c ถ้าไม่ขึ้นต้นด้วยตัวอักษรหรือตัวเลข
+        .replace(/[^a-zA-Z0-9]$/, '1');   // เพิ่ม 1 ถ้าไม่ลงท้ายด้วยตัวอักษรหรือตัวเลข
+      let finalCollectionName = safeCollectionName;
+      if (finalCollectionName.length < 3) {
+        finalCollectionName = finalCollectionName.padEnd(3, '1');
+      }
+
+      const collection = await this.initCollection(finalCollectionName);
+      const results = await this.collections.get(finalCollectionName)?.query({
+        queryTexts: [query],
+        nResults: 1,
+      });
+      return results.documents?.[0] || [];
+    } catch (error) {
+      console.error('Error querying ChromaDB:', error);
+      return [];
+    }
   }
 
   async getAllDocuments(collectionName: string): Promise<{
