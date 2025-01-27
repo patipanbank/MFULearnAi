@@ -4,6 +4,7 @@ import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
 import { chatHistoryService } from '../services/chatHistory';
 import { ChatHistory } from '../models/ChatHistory';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
@@ -165,24 +166,23 @@ router.get('/:chatId', verifyToken, async (req: Request, res: Response): Promise
     res.status(500).json({ error: 'Failed to fetch chat' });
   }
 });
-
 // Create new chat
-router.post('/new', verifyToken, async (req: Request, res: Response): Promise<void> => {
+router.post('/new', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user.id;
-    if (!userId) {
-      res.status(401).json({ error: 'User ID not found in token' });
+    const user = (req as any).user;
+    if (!user || !user.nameID) {
+      res.status(401).json({ error: 'User not found in token' });
       return;
     }
 
     const newChat = new ChatHistory({
-      userId,
+      userId: user.nameID,
       title: 'New Chat',
       messages: []
     });
     
-    await newChat.save();
-    res.json(newChat);
+    const savedChat = await newChat.save();
+    res.json(savedChat);
   } catch (error) {
     console.error('Error creating new chat:', error);
     res.status(500).json({ error: 'Failed to create new chat' });

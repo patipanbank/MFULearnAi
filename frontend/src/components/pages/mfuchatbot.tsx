@@ -273,19 +273,28 @@ const MFUChatbot: React.FC = () => {
       setSelectedModel('');
       setSelectedCollection('');
       
-      // สร้างแชทใหม่และบันทึกลง database
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('No auth token found');
+      }
+      
       const response = await fetch(`${config.apiUrl}/api/chat/new`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       
-      if (response.ok) {
-        // Trigger การโหลดประวัติแชทใหม่ใน sidebar
-        window.dispatchEvent(new Event('refreshChatHistories'));
+      if (!response.ok) {
+        throw new Error('Failed to create new chat');
       }
+      
+      const data = await response.json();
+      console.log('New chat created:', data);
+      
+      // Trigger การโหลดประวัติแชทใหม่ใน sidebar
+      window.dispatchEvent(new Event('refreshChatHistories'));
     } catch (error) {
       console.error('Error creating new chat:', error);
     }
