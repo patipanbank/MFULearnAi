@@ -5,6 +5,9 @@ import xlsx from 'xlsx';
 import fs from 'fs/promises';
 import path from 'path';
 import { createWorker } from 'tesseract.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+const execAsync = promisify(exec);
 
 export class DocumentService {
   async processFile(file: Express.Multer.File): Promise<string> {
@@ -17,23 +20,23 @@ export class DocumentService {
       switch (ext) {
         case '.pdf':
           try {
-            // ลองใช้ pdf-parse ก่อน
             const pdfData = await pdf(buffer);
             text = pdfData.text;
             
-            // ถ้าข้อความน้อยเกินไป แสดงว่าอาจเป็น scanned PDF
             if (!text || text.trim().length < 100) {
-                const pdfImage = new PDFImage(file.path);
-                const pageCount = await pdfImage.numberOfPages();
-                const worker = await createWorker('eng+tha');
-                
-                for (let i = 0; i < pageCount; i++) {
-                    const imagePath = await pdfImage.convertPage(i);
-                    const { data: { text: pageText } } = await worker.recognize(imagePath);
-                    text += pageText + '\n';
-                    await fs.unlink(imagePath);
-                }
-                await worker.terminate();
+              const outputPath = `${file.path}-page`;
+              await execAsync(`pdftoppm -png "${file.path}" "${outputPath}"`);
+              
+              const worker = await createWorker('eng+tha');
+              const pages = await fs.readdir(path.dirname(file.path));
+              
+              for (const page of pages.filter(p => p.startsWith(path.basename(outputPath)))) {
+                const pagePath = path.join(path.dirname(file.path), page);
+                const { data: { text: pageText } } = await worker.recognize(pagePath);
+                text += pageText + '\n';
+                await fs.unlink(pagePath);
+              }
+              await worker.terminate();
             }
           } catch (error) {
             console.error('PDF processing error:', error);
