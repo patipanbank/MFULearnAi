@@ -161,6 +161,13 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      setFile(files[0]);
+    }
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Training Dashboard</h1>
@@ -256,9 +263,15 @@ const TrainingDashboard: React.FC = () => {
           <div className="mb-4">
             <input
               type="file"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              onChange={handleFileChange}
+              className="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
               disabled={isUploading}
-              accept=".txt,.pdf,.doc,.docx"
+              accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
             />
           </div>
           <button

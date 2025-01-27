@@ -1,6 +1,7 @@
 import { PDFImage } from 'pdf-image';
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
+import xlsx from 'xlsx';
 import fs from 'fs/promises';
 import path from 'path';
 import { createWorker } from 'tesseract.js';
@@ -19,6 +20,10 @@ export class DocumentService {
         case '.docx':
           text = await this.processWord(file.path);
           break;
+        case '.xls':
+        case '.xlsx':
+          text = await this.processExcel(file.path);
+          break;
         case '.txt':
           text = await fs.readFile(file.path, 'utf-8');
           break;
@@ -26,57 +31,25 @@ export class DocumentService {
           throw new Error('Unsupported file type');
       }
 
-      // ทำความสะอาดข้อความ
-      text = this.cleanText(text);
-      
-      // แบ่งข้อความเป็นชิ้นๆ
-      const chunks = this.chunkText(text);
-
-      return chunks;
+      // ลบไฟล์หลังจากประมวลผลเสร็จ
+      await fs.unlink(file.path);
+      return text;
     } catch (error) {
-      console.error('Error processing document:', error);
+      console.error('Error processing file:', error);
       throw error;
-    } finally {
-      // ลบไฟล์ชั่วคราว
-      await fs.unlink(file.path).catch(console.error);
     }
   }
 
   private async processPDF(filePath: string): Promise<string> {
     try {
-      // เพิ่ม timeout และ memory limit สำหรับ pdf-parse
-      const options = {
-        max: 50 * 1024 * 1024, // 50MB
-        timeout: 5000 * 60, // 5 minutes
-      };
+      // อ่านไฟล์ PDF ด้วย pdf-parse
+      const dataBuffer = await fs.readFile(filePath);
+      const pdfData = await pdf(dataBuffer);
+      let text = pdfData.text;
 
-      // กรณีที่ PDF เป็นภาพ
-      const pdfImage = new PDFImage(filePath, {
-        combinedImage: true,
-        convertOptions: {
-          '-density': '300',
-          '-quality': '100',
-        }
-      });
-      const numberOfPages = await pdfImage.numberOfPages();
-      let text = '';
-
-      if (numberOfPages > 0) {
-        const worker = await createWorker('eng+tha');
-        
-        for (let i = 0; i < numberOfPages; i++) {
-          const imagePath = await pdfImage.convertPage(i);
-          const { data: { text: pageText } } = await worker.recognize(imagePath);
-          text += pageText + '\n';
-          await fs.unlink(imagePath).catch(console.error);
-        }
-
-        await worker.terminate();
-      } else {
-        // กรณีที่ PDF เป็นข้อความ
-        const dataBuffer = await fs.readFile(filePath);
-        const pdfData = await pdf(dataBuffer, options);
-        text = pdfData.text;
+      // ถ้าไม่มีข้อความ (อาจเป็น scanned PDF) ให้ใช้ OCR
+      if (!text.trim()) {
+        text = await this.processScannedPDF(filePath);
       }
 
       return text;
@@ -86,37 +59,61 @@ export class DocumentService {
     }
   }
 
-  private async processWord(filePath: string): Promise<string> {
-    const buffer = await fs.readFile(filePath);
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value;
-  }
+  private async processScannedPDF(filePath: string): Promise<string> {
+    try {
+      const pdfImage = new PDFImage(filePath);
+      const numberOfPages = await pdfImage.numberOfPages();
+      let fullText = '';
 
-  private cleanText(text: string): string {
-    return text
-      .replace(/\s+/g, ' ')
-      .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s.,!?()]/g, '')
-      .trim();
-  }
+      // สร้าง Tesseract worker
+      const worker = await createWorker('eng+tha');
 
-  private chunkText(text: string, maxLength: number = 8000): string[] {
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-    const chunks: string[] = [];
-    let currentChunk = '';
-
-    for (const sentence of sentences) {
-      if (currentChunk.length + sentence.length > maxLength) {
-        chunks.push(currentChunk.trim());
-        currentChunk = '';
+      // ประมวลผลทีละหน้า
+      for (let i = 0; i < numberOfPages; i++) {
+        const imagePath = await pdfImage.convertPage(i);
+        const { data: { text } } = await worker.recognize(imagePath);
+        fullText += text + '\n';
+        
+        // ลบไฟล์ภาพชั่วคราว
+        await fs.unlink(imagePath);
       }
-      currentChunk += sentence + ' ';
-    }
 
-    if (currentChunk) {
-      chunks.push(currentChunk.trim());
+      await worker.terminate();
+      return fullText;
+    } catch (error) {
+      console.error('Error processing scanned PDF:', error);
+      throw error;
     }
+  }
 
-    return chunks;
+  private async processWord(filePath: string): Promise<string> {
+    try {
+      const buffer = await fs.readFile(filePath);
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value;
+    } catch (error) {
+      console.error('Error processing Word document:', error);
+      throw error;
+    }
+  }
+
+  private async processExcel(filePath: string): Promise<string> {
+    try {
+      const workbook = xlsx.readFile(filePath);
+      let fullText = '';
+
+      // รวมข้อความจากทุก sheet
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const sheetText = xlsx.utils.sheet_to_txt(sheet);
+        fullText += `Sheet: ${sheetName}\n${sheetText}\n\n`;
+      }
+
+      return fullText;
+    } catch (error) {
+      console.error('Error processing Excel file:', error);
+      throw error;
+    }
   }
 }
 
