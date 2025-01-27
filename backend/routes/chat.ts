@@ -47,10 +47,9 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     const { messages, collectionName, modelId } = req.body;
     const user = (req as any).user;
     const userMessage = messages[messages.length - 1].content;
-
     // ค้นหาข้อมูลที่เกี่ยวข้องจาก ChromaDB
-    const results = await chromaService.query(collectionName, userMessage);
-    let context = results[0] || '';
+    const matches = await chromaService.query(collectionName, userMessage);
+    let context = matches[0] || '';
 
     // สร้าง prompt ที่รวมบริบทและคำถาม
     const augmentedMessages = [
@@ -78,8 +77,16 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       updatedMessages
     );
 
+    const sources = matches.map((match: any) => ({
+      modelId: req.body.modelId,
+      collectionName: req.body.collectionName,
+      fileName: match.metadata.fileName,
+      similarity: match.score
+    }));
+
     res.json({
-      content: response.content
+      content: response.content,
+      sources: sources
     });
   } catch (error) {
     console.error('Chat error:', error);
