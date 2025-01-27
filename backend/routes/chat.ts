@@ -123,16 +123,11 @@ router.route('/history').get(async (req: Request, res: Response): Promise<void> 
     });
 });
 
-router.route('/clear').delete(async (req: Request, res: Response): Promise<void> => {
+router.delete('/clear', verifyToken, async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
-    if (!user || !user.username) {
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
-    }
-
-    const result = await chatHistoryService.clearChatHistory(user.username);
-    res.json(result);
+    const userId = (req as any).user.id;
+    await chatHistoryService.clearChatHistory(userId);
+    res.json({ message: 'Chat history cleared successfully' });
   } catch (error) {
     console.error('Error clearing chat history:', error);
     res.status(500).json({ error: 'Failed to clear chat history' });
