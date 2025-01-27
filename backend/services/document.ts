@@ -23,11 +23,21 @@ export class DocumentService {
             
             // ถ้าข้อความน้อยเกินไป แสดงว่าอาจเป็น scanned PDF
             if (!text || text.trim().length < 100) {
-              text = await this.extractTextFromScannedPDF(file.path);
+                const pdfImage = new PDFImage(file.path);
+                const pageCount = await pdfImage.numberOfPages();
+                const worker = await createWorker('eng+tha');
+                
+                for (let i = 0; i < pageCount; i++) {
+                    const imagePath = await pdfImage.convertPage(i);
+                    const { data: { text: pageText } } = await worker.recognize(imagePath);
+                    text += pageText + '\n';
+                    await fs.unlink(imagePath);
+                }
+                await worker.terminate();
             }
           } catch (error) {
-            // ถ้า pdf-parse ไม่สำเร็จ ให้ใช้ OCR
-            text = await this.extractTextFromScannedPDF(file.path);
+            console.error('PDF processing error:', error);
+            throw error;
           }
           break;
 
