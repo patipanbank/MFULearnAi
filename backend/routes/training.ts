@@ -188,27 +188,24 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
   try {
     const { urls, modelId, collectionName } = req.body;
     const user = (req as any).user;
+
     if (!Array.isArray(urls) || urls.length === 0) {
       res.status(400).json({ error: 'Invalid URLs format' });
       return;
     }
 
-    if (!modelId || !collectionName) {
-      res.status(400).json({ error: 'Model ID and collection name are required' });
-      return;
-    }
-
     const scrapedContents = await webScraperService.scrapeUrls(urls);
-    if (scrapedContents.length === 0) {
-      res.status(400).json({ error: 'No content could be scraped from the provided URLs' });
-      return;
-    }
+    
     for (const { url, content } of scrapedContents) {
       const chunks = splitTextIntoChunks(content);
+      
+      // สร้าง filename จาก URL
+      const filename = new URL(url).hostname + new URL(url).pathname;
       
       const documents = chunks.map(chunk => ({
         text: chunk,
         metadata: {
+          filename: filename, // เพิ่ม filename
           source: url,
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
