@@ -11,6 +11,9 @@ import { splitTextIntoChunks } from '../utils/textUtils';
 const router = Router();
 const upload = multer({ 
   dest: 'uploads/',
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB
+  },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.pdf', '.txt', '.doc', '.docx'];
     const ext = path.extname(file.originalname).toLowerCase();

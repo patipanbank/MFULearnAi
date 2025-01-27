@@ -43,30 +43,47 @@ export class DocumentService {
   }
 
   private async processPDF(filePath: string): Promise<string> {
-    // กรณีที่ PDF เป็นภาพ
-    const pdfImage = new PDFImage(filePath);
-    const numberOfPages = await pdfImage.numberOfPages();
-    let text = '';
+    try {
+      // เพิ่ม timeout และ memory limit สำหรับ pdf-parse
+      const options = {
+        max: 50 * 1024 * 1024, // 50MB
+        timeout: 5000 * 60, // 5 minutes
+      };
 
-    if (numberOfPages > 0) {
-      const worker = await createWorker('eng+tha');
-      
-      for (let i = 0; i < numberOfPages; i++) {
-        const imagePath = await pdfImage.convertPage(i);
-        const { data: { text: pageText } } = await worker.recognize(imagePath);
-        text += pageText + '\n';
-        await fs.unlink(imagePath).catch(console.error);
+      // กรณีที่ PDF เป็นภาพ
+      const pdfImage = new PDFImage(filePath, {
+        combinedImage: true,
+        convertOptions: {
+          '-density': '300',
+          '-quality': '100',
+        }
+      });
+      const numberOfPages = await pdfImage.numberOfPages();
+      let text = '';
+
+      if (numberOfPages > 0) {
+        const worker = await createWorker('eng+tha');
+        
+        for (let i = 0; i < numberOfPages; i++) {
+          const imagePath = await pdfImage.convertPage(i);
+          const { data: { text: pageText } } = await worker.recognize(imagePath);
+          text += pageText + '\n';
+          await fs.unlink(imagePath).catch(console.error);
+        }
+
+        await worker.terminate();
+      } else {
+        // กรณีที่ PDF เป็นข้อความ
+        const dataBuffer = await fs.readFile(filePath);
+        const pdfData = await pdf(dataBuffer, options);
+        text = pdfData.text;
       }
 
-      await worker.terminate();
-    } else {
-      // กรณีที่ PDF เป็นข้อความ
-      const dataBuffer = await fs.readFile(filePath);
-      const pdfData = await pdf(dataBuffer);
-      text = pdfData.text;
+      return text;
+    } catch (error) {
+      console.error('Error processing PDF:', error);
+      throw error;
     }
-
-    return text;
   }
 
   private async processWord(filePath: string): Promise<string> {
@@ -82,7 +99,7 @@ export class DocumentService {
       .trim();
   }
 
-  private chunkText(text: string, maxLength: number = 1000): string[] {
+  private chunkText(text: string, maxLength: number = 8000): string[] {
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
     const chunks: string[] = [];
     let currentChunk = '';
