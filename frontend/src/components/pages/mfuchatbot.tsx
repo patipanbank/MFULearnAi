@@ -32,6 +32,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState('');
   const [, setLoadingModels] = useState(true);
   const [, setLoadingCollections] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -162,35 +163,36 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || !selectedModel || !selectedCollection || isLoading) return;
+    if (!inputMessage.trim() || !selectedModel || !selectedCollection || isLoading) {
+      return;
+    }
 
-    const newMessage: Message = {
-      id: Date.now(),
-      role: 'user',
-      content: inputMessage.trim(),
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    setInputMessage('');
     setIsLoading(true);
+    setError(null);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 นาที timeout
+
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, newMessage],
+          query: inputMessage,
           modelId: selectedModel,
-          collectionName: selectedCollection
+          collectionName: selectedCollection,
+          messages: messages
         })
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Chat request failed');
+        throw new Error('Failed to send message');
       }
 
       const data = await response.json();
@@ -206,17 +208,16 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date(),
         sources: data.sources
       }]);
-
-    } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        role: 'assistant',
-        content: 'Sorry, there was an error during processing. Please try again.',
-        timestamp: new Date()
-      }]);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        setError('Request timeout');
+      } else {
+        setError('Error');
+      }
+      console.error('Chat error:', error);
     } finally {
       setIsLoading(false);
+      setInputMessage('');
     }
   };
 
@@ -260,6 +261,11 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
+      {error && (
+        <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">
+          {error}
+        </div>
+      )}
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
         {messages.length === 0 ? (
