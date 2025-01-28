@@ -1,5 +1,6 @@
 import { ChromaClient, OpenAIEmbeddingFunction } from 'chromadb';
 import { ollamaService } from './ollama';
+import { EmbeddingService } from './embedding';
 
 interface DocumentMetadata {
   filename: string;
@@ -11,16 +12,17 @@ interface DocumentMetadata {
 
 class ChromaService {
   private client: ChromaClient;
-  private collections: Map<string, any> = new Map();
+  private collections: Map<string, any>;
+  private embeddingService: EmbeddingService;
   private processingFiles = new Set<string>();
 
   constructor() {
-    this.client = new ChromaClient({
-      path: process.env.CHROMA_URL || 'http://chroma:8000'
-    });
+    this.client = new ChromaClient();
+    this.collections = new Map();
+    this.embeddingService = new EmbeddingService();
   }
 
-  async initCollection(collectionName: string): Promise<void> {
+  async initCollection(collectionName: string): Promise<any> {
     try {
       if (!this.collections.has(collectionName)) {
         const collection = await this.client.getOrCreateCollection({
@@ -28,6 +30,7 @@ class ChromaService {
         });
         this.collections.set(collectionName, collection);
         console.log(`ChromaDB collection ${collectionName} initialized successfully`);
+        return collection;
       }
     } catch (error) {
       console.error(`Error initializing ChromaDB collection ${collectionName}:`, error);
@@ -45,77 +48,46 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
-    const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
-    
-    if (this.processingFiles.has(fileKey)) {
-      console.log(`File ${fileKey} is already being processed`);
-      return;
-    }
-
-    this.processingFiles.add(fileKey);
-    
+  async addDocuments(collectionName: string, documents: string[], metadata: DocumentMetadata[]) {
     try {
-      console.log(`Adding documents to collection ${collectionName}`);
-      await this.initCollection(collectionName);
-      const collection = this.collections.get(collectionName);
+      const collection = await this.initCollection(collectionName);
       
-      // สร้าง unique ID สำหรับชุดข้อมูลนี้
-      const batchId = `batch_${Date.now()}`;
-      
-      // เพิ่ม batchId เข้าไปใน metadata
-      const docsWithBatchId = documents.map(doc => ({
-        ...doc,
-        metadata: {
-          ...doc.metadata,
-          batchId
-        }
-      }));
-
-      // ตรวจสอบข้อมูลที่มีอยู่
-      const existingDocs = await collection.get();
-      const existingMetadata = existingDocs.metadatas || [];
-      
-      // เช็คว่ามีไฟล์นี้อยู่แล้วหรือไม่
-      const fileExists = existingMetadata.some((existing: DocumentMetadata) => 
-        existing.filename === documents[0].metadata.filename &&
-        existing.uploadedBy === documents[0].metadata.uploadedBy
+      // สร้าง embeddings สำหรับแต่ละ document
+      const embeddings = await Promise.all(
+        documents.map(doc => this.embeddingService.embedText(doc))
       );
 
-      if (fileExists) {
-        console.log(`File ${documents[0].metadata.filename} already exists, skipping upload`);
-        return;
-      }
-
-      // ถ้าไม่มีข้อมูลซ้ำ ให้เพิ่มข้อมูลใหม่
-      console.log(`Adding ${docsWithBatchId.length} new documents`);
-      const ids = docsWithBatchId.map((_, i) => `${batchId}_${i}`);
-      const texts = docsWithBatchId.map(doc => doc.text);
-      const metadatas = docsWithBatchId.map(doc => doc.metadata);
-
+      // เพิ่มข้อมูลลง ChromaDB
       await collection.add({
-        ids,
-        documents: texts,
-        metadatas
+        ids: metadata.map(m => m.filename),
+        embeddings: embeddings,
+        documents: documents,
+        metadatas: metadata
       });
-      
-      console.log('Documents added successfully');
-    } finally {
-      this.processingFiles.delete(fileKey);
+
+    } catch (error) {
+      console.error('Error adding documents:', error);
+      throw error;
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, n_results: number = 5) {
+  async queryDocuments(collectionName: string, query: string): Promise<any> {
     try {
-      await this.initCollection(collectionName);
-      const collection = this.collections.get(collectionName);
+      const collection = await this.initCollection(collectionName);
+      
+      // สร้าง embedding สำหรับ query
+      const queryEmbedding = await this.embeddingService.embedText(query);
+
+      // ค้นหาด้วย vector similarity
       const results = await collection.query({
-        queryTexts: [query],
-        nResults: n_results
+        queryEmbeddings: [queryEmbedding],
+        nResults: 3, // จำนวน results ที่ต้องการ
+        include: ["metadatas", "distances", "documents"]
       });
+
       return results;
     } catch (error) {
-      console.error('Error querying ChromaDB:', error);
+      console.error('Error querying documents:', error);
       throw error;
     }
   }

@@ -60,7 +60,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     console.log(`Processing file: ${file.originalname}`);
     const text = await documentService.processFile(file);
     
-    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
+    console.log(`Text length (${text.length}) exceeds chunk size (4000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
     console.log(`Created ${chunks.length} chunks`);
 
@@ -76,7 +76,11 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     }));
 
     console.log(`Adding documents to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents);
+    await chromaService.addDocuments(
+      collectionName, 
+      documents.map(d => d.text),
+      documents.map(d => d.metadata)
+    );
     
     res.json({ 
       message: 'File processed successfully',
@@ -202,19 +206,18 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       // สร้าง filename จาก URL
       const filename = new URL(url).hostname + new URL(url).pathname;
       
-      const documents = chunks.map(chunk => ({
-        text: chunk,
-        metadata: {
-          filename: filename, // เพิ่ม filename
+      await chromaService.addDocuments(
+        collectionName,
+        chunks,
+        chunks.map(() => ({
+          filename,
           source: url,
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
           collectionName
-        }
-      }));
-
-      await chromaService.addDocuments(collectionName, documents);
+        }))
+      );
     }
 
     res.json({ 

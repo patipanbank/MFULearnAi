@@ -1,42 +1,43 @@
 import { ollamaService } from './ollama';
 import { chromaService } from './chroma';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { ChatMessage } from '../types/chat';
 
 export class ChatService {
   private systemPrompt = `You are an AI assistant for Mae Fah Luang University. 
-Your role is to provide accurate and helpful information based on the university's documents.
-Always be polite and professional. If you're not sure about something, admit it and suggest 
-contacting the relevant department for accurate information.`;
+    Answer based on the provided context. If unsure, admit it and suggest contacting relevant department.`;
 
-  private async getRelevantContext(query: string, collectionName: string): Promise<string> {
-    const results = await chromaService.queryDocuments(collectionName, query);
-    return results.documents[0].join('\n\n');
-  }
-
-  async generateResponse(messages: ChatMessage[]): Promise<string> {
+  async generateResponse(query: string, collectionName: string, messages: ChatMessage[]): Promise<any> {
     try {
-      // ดึงข้อความล่าสุดของผู้ใช้
-      const userQuery = messages[messages.length - 1].content;
-
-      // ดึงข้อมูลที่เกี่ยวข้อง
-      const context = await this.getRelevantContext(userQuery, 'university');
-
-      // สร้าง prompt ที่รวม context
+      // 1. ค้นหาข้อมูลที่เกี่ยวข้องด้วย vector search
+      const searchResults = await chromaService.queryDocuments(collectionName, query);
+      
+      // 2. สร้าง context จากผลการค้นหา
+      const relevantDocs = searchResults.documents[0];
+      const context = relevantDocs.join('\n\n');
+      
+      // 3. สร้าง prompt ที่รวม context
       const augmentedMessages: ChatMessage[] = [
-        { role: 'user', content: this.systemPrompt },
-        { role: 'user', content: `Relevant information: ${context}` },
-        ...messages
+        { role: 'system' as const, content: this.systemPrompt },
+        { role: 'user' as const, content: `Context: ${context}\n\nQuestion: ${query}` }
       ];
 
-      // ส่งไปยัง Ollama
+      // 4. ส่งไปยัง LLM
       const response = await ollamaService.chat(augmentedMessages);
-      return response.content;
+
+      // 5. เตรียมข้อมูล sources สำหรับการแสดงผล
+      const sources = searchResults.metadatas[0].map((metadata: any, index: number) => ({
+        filename: metadata.filename,
+        similarity: 1 - searchResults.distances[0][index], // แปลง distance เป็น similarity score
+        modelId: metadata.modelId,
+        collectionName: metadata.collectionName
+      }));
+
+      return {
+        content: response.content,
+        sources: sources
+      };
     } catch (error) {
-      console.error('Error generating chat response:', error);
+      console.error('Error generating response:', error);
       throw error;
     }
   }

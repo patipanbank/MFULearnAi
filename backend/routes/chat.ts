@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
 import { chatHistoryService } from '../services/chatHistory';
+import { chatService } from '../services/chat';
 
 const router = Router();
 
@@ -104,6 +105,39 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
 };
 
 router.post('/', chatHandler);
+
+router.post('/chat', async (req: Request, res: Response) => {
+  try {
+    const { query, collectionName, modelId, messages } = req.body;
+    const user = (req as any).user;
+
+    // สร้างคำตอบด้วย RAG
+    const response = await chatService.generateResponse(query, collectionName, messages);
+
+    // บันทึกประวัติการสนทนา
+    await chatHistoryService.saveChatMessage(
+      user.id,
+      modelId,
+      collectionName,
+      [{
+        role: 'user',
+        content: query,
+        timestamp: new Date(),
+      },
+      {
+        role: 'assistant',
+        content: response.content,
+        timestamp: new Date(),
+        sources: response.sources
+      }]
+    );
+
+    res.json(response);
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 router.route('/history').get(async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
