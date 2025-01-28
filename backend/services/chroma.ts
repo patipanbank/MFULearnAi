@@ -18,12 +18,7 @@ class ChromaService {
 
   constructor() {
     this.client = new ChromaClient({
-      path: process.env.CHROMA_URL || "http://chroma:8000",  // แก้จาก localhost เป็น container name
-      fetchOptions: {
-        headers: {
-          'Access-Control-Allow-Origin': '*'
-        }
-      }
+      path: process.env.CHROMA_URL || "http://chroma:8000"
     });
     this.collections = new Map();
     this.embeddingService = new EmbeddingService();
@@ -55,19 +50,17 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: string[], metadata: DocumentMetadata[]) {
+  async addDocuments(collectionName: string, documents: string[], metadata: any[]) {
     try {
-      const collection = await this.initCollection(collectionName);
+      // สร้าง collection ถ้ายังไม่มี
+      const collection = await this.client.getOrCreateCollection({ name: collectionName });
       
-      // สร้าง embeddings สำหรับแต่ละ document
-      const embeddings = await Promise.all(
-        documents.map(doc => this.embeddingService.embedText(doc))
-      );
+      // สร้าง ids สำหรับแต่ละ document
+      const ids = metadata.map(() => crypto.randomUUID());
 
-      // เพิ่มข้อมูลลง ChromaDB
+      // เพิ่มข้อมูล
       await collection.add({
-        ids: metadata.map(m => m.filename),
-        embeddings: embeddings,
+        ids: ids,
         documents: documents,
         metadatas: metadata
       });
