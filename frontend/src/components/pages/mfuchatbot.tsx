@@ -19,6 +19,9 @@ interface Message {
   sources?: Source[];
 }
 
+// เพิ่ม constant สำหรับ timeout
+const CHAT_TIMEOUT = 4.5 * 60 * 1000; // 4.5 นาที (น้อยกว่า server timeout)
+
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -32,6 +35,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState('');
   const [, setLoadingModels] = useState(true);
   const [, setLoadingCollections] = useState(true);
+  const [, setError] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -174,20 +178,32 @@ const MFUChatbot: React.FC = () => {
     setMessages(prev => [...prev, newMessage]);
     setInputMessage('');
     setIsLoading(true);
+    setError(null);
+
+    // สร้าง timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Chat request timed out. Please try again.'));
+      }, CHAT_TIMEOUT);
+    });
 
     try {
-      const response = await fetch(`${config.apiUrl}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          messages: [...messages, newMessage],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
+      // แข่งกันระหว่าง fetch และ timeout
+      const response = await Promise.race([
+        fetch(`${config.apiUrl}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          },
+          body: JSON.stringify({
+            messages: [...messages, newMessage],
+            modelId: selectedModel,
+            collectionName: selectedCollection
+          })
+        }),
+        timeoutPromise
+      ]) as Response;
 
       if (!response.ok) {
         throw new Error('Chat request failed');
@@ -211,8 +227,8 @@ const MFUChatbot: React.FC = () => {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
         id: Date.now(),
-        role: 'assistant',
-        content: 'Sorry, there was an error during processing. Please try again.',
+        role: 'assistant', 
+        content: error instanceof Error ? error.message : 'Sorry, there was an error during processing. Please try again.',
         timestamp: new Date()
       }]);
     } finally {
