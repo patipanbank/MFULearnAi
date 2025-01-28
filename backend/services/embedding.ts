@@ -1,8 +1,14 @@
-export class EmbeddingService {
+import { IEmbeddingFunction } from 'chromadb';
+
+export class EmbeddingService implements IEmbeddingFunction {
   private apiUrl: string;
 
   constructor() {
     this.apiUrl = process.env.OLLAMA_API_URL || 'http://ollama:11434';
+  }
+
+  async generate(texts: string[]): Promise<number[][]> {
+    return Promise.all(texts.map(text => this.embedText(text)));
   }
 
   async embedText(text: string): Promise<number[]> {

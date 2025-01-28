@@ -52,16 +52,23 @@ class ChromaService {
 
   async addDocuments(collectionName: string, documents: string[], metadata: any[]) {
     try {
-      // สร้าง collection ถ้ายังไม่มี
       const collection = await this.client.getOrCreateCollection({ name: collectionName });
-      
-      // สร้าง ids สำหรับแต่ละ document
       const ids = metadata.map(() => crypto.randomUUID());
 
-      // เพิ่มข้อมูล
+      // สร้าง embeddings จาก documents
+      const embeddings = await Promise.all(
+        documents.map(doc => this.embeddingService.embedText(doc))
+      );
+
+      console.log('Debug Training:');
+      console.log('Sample Document:', documents[0].substring(0, 100));
+      console.log('Sample Embedding:', embeddings[0].slice(0, 5));
+      console.log('Embedding Dimension:', embeddings[0].length);
+
       await collection.add({
         ids: ids,
         documents: documents,
+        embeddings: embeddings,
         metadatas: metadata
       });
 
@@ -194,6 +201,26 @@ class ChromaService {
       this.collections.delete(collectionName);
     } catch (error) {
       console.error(`Error deleting collection ${collectionName}:`, error);
+      throw error;
+    }
+  }
+
+  async inspectCollection(collectionName: string) {
+    try {
+      const collection = await this.client.getCollection({ 
+        name: collectionName,
+        embeddingFunction: this.embeddingService
+      });
+      const count = await collection.count();
+      const peek = await collection.peek({ limit: 5 });
+
+      console.log('Collection Stats:');
+      console.log('Total Documents:', count);
+      console.log('Sample Documents:', peek);
+
+      return { count, peek };
+    } catch (error) {
+      console.error('Error inspecting collection:', error);
       throw error;
     }
   }
