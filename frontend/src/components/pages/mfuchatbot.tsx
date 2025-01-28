@@ -20,7 +20,7 @@ interface Message {
 }
 
 // เพิ่ม constant สำหรับ timeout
-const CHAT_TIMEOUT = 4.5 * 60 * 1000; // 4.5 นาที (น้อยกว่า server timeout)
+// const CHAT_TIMEOUT = 4.5 * 60 * 1000; // 4.5 นาที (น้อยกว่า server timeout)
 
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -180,36 +180,31 @@ const MFUChatbot: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
-    // สร้าง timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('Chat request timed out. Please try again.'));
-      }, CHAT_TIMEOUT);
-    });
-
     try {
-      // แข่งกันระหว่าง fetch และ timeout
-      const response = await Promise.race([
-        fetch(`${config.apiUrl}/api/chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          },
-          body: JSON.stringify({
-            messages: [...messages, newMessage],
-            modelId: selectedModel,
-            collectionName: selectedCollection
-          })
-        }),
-        timeoutPromise
-      ]) as Response;
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, newMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+
+      // เพิ่มการ log response status และ body
+      console.log('Response status:', response.status);
+      const responseText = await response.text();
+      console.log('Response body:', responseText);
 
       if (!response.ok) {
-        throw new Error('Chat request failed');
+        throw new Error(`Chat request failed: ${response.status} ${responseText}`);
       }
 
-      const data = await response.json();
+      // แปลง response text กลับเป็น JSON
+      const data = JSON.parse(responseText);
       
       if (!data.content || typeof data.content !== 'string') {
         throw new Error('Invalid response format');
@@ -224,11 +219,11 @@ const MFUChatbot: React.FC = () => {
       }]);
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Detailed error:', error);
       setMessages(prev => [...prev, {
         id: Date.now(),
-        role: 'assistant', 
-        content: error instanceof Error ? error.message : 'Sorry, there was an error during processing. Please try again.',
+        role: 'assistant',
+        content: `เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date()
       }]);
     } finally {
