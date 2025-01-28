@@ -17,7 +17,14 @@ class ChromaService {
   private processingFiles = new Set<string>();
 
   constructor() {
-    this.client = new ChromaClient();
+    this.client = new ChromaClient({
+      path: process.env.CHROMA_URL || "http://chroma:8000",  // แก้จาก localhost เป็น container name
+      fetchOptions: {
+        headers: {
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    });
     this.collections = new Map();
     this.embeddingService = new EmbeddingService();
   }
