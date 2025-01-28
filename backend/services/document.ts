@@ -7,8 +7,6 @@ import path from 'path';
 import { createWorker } from 'tesseract.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { createHash } from 'crypto';
-import { chromaService } from './chroma';
 const execAsync = promisify(exec);
 
 export class DocumentService {
@@ -69,17 +67,12 @@ export class DocumentService {
           throw new Error('Unsupported file type');
       }
 
-      const cleanedText = await this.preprocessText(text);
+      await fs.unlink(file.path);
+      return text.trim();
       
-      if (await this.isDuplicate(cleanedText)) {
-        console.warn('Duplicate content detected, but continuing...');
-      }
-
-      const metadata = await this.extractDetailedMetadata(file);
-      return cleanedText;
     } catch (error) {
-      console.error('Error in enhanced document processing:', error);
-      // No fallback available, throw the error
+      console.error(`Error processing file ${file.originalname}:`, error);
+      await fs.unlink(file.path).catch(console.error);
       throw error;
     }
   }
@@ -115,40 +108,6 @@ export class DocumentService {
     } finally {
       await worker.terminate();
     }
-  }
-
-  private async preprocessText(text: string): Promise<string> {
-    return text
-      .replace(/\s+/g, ' ')                    // normalize whitespace
-      .replace(/[^\w\s\u0E00-\u0E7F]/g, '')   // keep only Thai, English, numbers
-      .trim();
-  }
-
-  private async isDuplicate(text: string): Promise<boolean> {
-    const hash = createHash('md5').update(text).digest('hex');
-    const exists = await chromaService.checkHashExists(hash);
-    return exists;
-  }
-
-  private async extractDetailedMetadata(file: Express.Multer.File): Promise<{
-    filename: string;
-    timestamp: string;
-    fileSize: number;
-    mimeType: string;
-    hash: string;
-    processingDate: Date;
-  }> {
-    const stats = await fs.stat(file.path);
-    const fileBuffer = await fs.readFile(file.path);
-
-    return {
-      filename: file.originalname,
-      timestamp: new Date().toISOString(),
-      fileSize: stats.size,
-      mimeType: file.mimetype,
-      hash: createHash('md5').update(fileBuffer).digest('hex'),
-      processingDate: new Date(),
-    };
   }
 }
 

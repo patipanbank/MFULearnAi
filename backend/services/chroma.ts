@@ -9,11 +9,10 @@ interface DocumentMetadata {
   uploadedBy: string;
 }
 
-export class ChromaService {
+class ChromaService {
   private client: ChromaClient;
   private collections: Map<string, any> = new Map();
   private processingFiles = new Set<string>();
-  private relevanceThreshold = 0.7;
 
   constructor() {
     this.client = new ChromaClient({
@@ -225,65 +224,6 @@ export class ChromaService {
       console.error(`Error deleting collection ${collectionName}:`, error);
       throw error;
     }
-  }
-
-  async semanticSearch(query: string, collectionName: string) {
-    try {
-      await this.initCollection(collectionName);
-      const collection = this.collections.get(collectionName);
-      return await collection.query({
-        queryTexts: [query],
-        nResults: 5
-      });
-    } catch (error) {
-      console.error('Semantic search error:', error);
-      return null;
-    }
-  }
-
-  async keywordSearch(query: string, collectionName: string) {
-    try {
-      const keywords = query.toLowerCase().split(' ');
-      await this.initCollection(collectionName);
-      const collection = this.collections.get(collectionName);
-      return await collection.query({
-        queryTexts: keywords,
-        nResults: 5
-      });
-    } catch (error) {
-      console.error('Keyword search error:', error);
-      return null;
-    }
-  }
-
-  async hybridSearch(query: string, collectionName: string) {
-    try {
-      const semanticResults = await this.semanticSearch(query, collectionName);
-      const keywordResults = await this.keywordSearch(query, collectionName);
-
-      if (!semanticResults || !keywordResults) {
-        // fallback to original search
-        return this.queryDocuments(collectionName, query);
-      }
-
-      // Combine and re-rank results
-      const combinedResults = this.combineSearchResults(semanticResults, keywordResults);
-      return combinedResults.filter((result: { similarity: number }) => result.similarity > this.relevanceThreshold);
-    } catch (error) {
-      console.error('Hybrid search error:', error);
-      // fallback to original search  
-      return this.queryDocuments(collectionName, query);
-    }
-  }
-
-  private combineSearchResults(semantic: any, keyword: any) {
-    // ... implement result combination logic ...
-    return semantic; // temporary fallback
-  }
-
-  async checkHashExists(hash: string): Promise<boolean> {
-    // ... implement hash checking logic ...
-    return false; // temporary fallback
   }
 }
 
