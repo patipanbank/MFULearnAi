@@ -52,28 +52,28 @@ class ChromaService {
 
   async addDocuments(collectionName: string, documents: string[], metadata: any[]) {
     try {
-      const collection = await this.client.getOrCreateCollection({ name: collectionName });
+      const collection = await this.client.getOrCreateCollection({ 
+        name: collectionName,
+        embeddingFunction: this.embeddingService
+      });
+      
       const ids = metadata.map(() => crypto.randomUUID());
 
-      // สร้าง embeddings จาก documents
-      const embeddings = await Promise.all(
-        documents.map(doc => this.embeddingService.embedText(doc))
-      );
+      // แบ่งการเพิ่มข้อมูลเป็นชุดๆ ละ 100 documents
+      const batchSize = 100;
+      for (let i = 0; i < documents.length; i += batchSize) {
+        const batch = {
+          ids: ids.slice(i, i + batchSize),
+          documents: documents.slice(i, i + batchSize),
+          metadatas: metadata.slice(i, i + batchSize)
+        };
 
-      console.log('Debug Training:');
-      console.log('Sample Document:', documents[0].substring(0, 100));
-      console.log('Sample Embedding:', embeddings[0].slice(0, 5));
-      console.log('Embedding Dimension:', embeddings[0].length);
-
-      await collection.add({
-        ids: ids,
-        documents: documents,
-        embeddings: embeddings,
-        metadatas: metadata
-      });
+        console.log(`Adding batch ${i/batchSize + 1}, size: ${batch.documents.length}`);
+        await collection.add(batch);
+      }
 
     } catch (error) {
-      console.error('Error adding documents:', error);
+      console.error('Error details:', error);
       throw error;
     }
   }
