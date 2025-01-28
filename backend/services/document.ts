@@ -139,12 +139,14 @@ export class DocumentService {
     processingDate: Date;
   }> {
     const stats = await fs.stat(file.path);
+    const fileBuffer = await fs.readFile(file.path);
+
     return {
       filename: file.originalname,
       timestamp: new Date().toISOString(),
       fileSize: stats.size,
       mimeType: file.mimetype,
-      hash: createHash('md5').update(file.buffer).digest('hex'),
+      hash: createHash('md5').update(fileBuffer).digest('hex'),
       processingDate: new Date(),
     };
   }
