@@ -52,9 +52,25 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// เพิ่ม timeout settings
+const TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+app.use((req, res, next) => {
+  // Set timeout for all requests
+  req.setTimeout(TIMEOUT);
+  res.setTimeout(TIMEOUT, () => {
+    res.status(504).json({ error: 'Request timeout' });
+  });
+  next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/training', trainingRoutes);
-app.use('/api/chat', chatRoutes);
+app.use('/api/chat', (req, res, next) => {
+  req.setTimeout(TIMEOUT);
+  res.setTimeout(TIMEOUT);
+  next();
+}, chatRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
