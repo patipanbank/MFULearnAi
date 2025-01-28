@@ -135,22 +135,29 @@ class ChromaService {
     }
   }
 
-  async getAllDocuments(collectionName: string): Promise<{
-    ids: string[];
-    documents: string[];
-    metadatas: Record<string, any>[];
-  }> {
+  async getAllDocuments(collectionName: string) {
     try {
-      await this.initCollection(collectionName);
-      const collection = this.collections.get(collectionName);
-      const results = await collection.get();
-      return {
-        ids: results.ids || [],
-        documents: results.documents || [],
-        metadatas: results.metadatas || []
-      };
+      // ใช้ getOrCreateCollection แทน getCollection
+      const collection = await this.client.getOrCreateCollection({
+        name: collectionName,
+        metadata: { "hnsw:space": "cosine" }
+      });
+
+      // ตรวจสอบจำนวน documents
+      const count = await collection.count();
+      if (count === 0) {
+        return { documents: [], metadatas: [], ids: [] };
+      }
+
+      // ดึงข้อมูลทั้งหมด
+      const result = await collection.get();
+      console.log(`Retrieved ${result.documents.length} documents from collection ${collectionName}`);
+      
+      return result;
     } catch (error) {
-      console.error('Error fetching documents from ChromaDB:', error);
+      if (error instanceof Error) {
+        console.error('Error fetching documents:', error.message);
+      }
       throw error;
     }
   }
