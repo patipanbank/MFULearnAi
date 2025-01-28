@@ -52,28 +52,34 @@ class ChromaService {
 
   async addDocuments(collectionName: string, documents: string[], metadata: any[]) {
     try {
-      const collection = await this.client.getOrCreateCollection({ 
+      // สร้าง collection ใหม่ทุกครั้ง
+      await this.client.deleteCollection({ name: collectionName });
+      const collection = await this.client.createCollection({ 
         name: collectionName,
-        embeddingFunction: this.embeddingService
+        metadata: { "hnsw:space": "cosine" } // กำหนด similarity metric
       });
-      
+
       const ids = metadata.map(() => crypto.randomUUID());
 
-      // แบ่งการเพิ่มข้อมูลเป็นชุดๆ ละ 100 documents
-      const batchSize = 100;
-      for (let i = 0; i < documents.length; i += batchSize) {
-        const batch = {
-          ids: ids.slice(i, i + batchSize),
-          documents: documents.slice(i, i + batchSize),
-          metadatas: metadata.slice(i, i + batchSize)
-        };
+      console.log('Debug Add Documents:');
+      console.log('Collection:', collectionName);
+      console.log('Documents count:', documents.length);
+      console.log('Sample document:', documents[0].substring(0, 100));
+      console.log('Sample metadata:', metadata[0]);
 
-        console.log(`Adding batch ${i/batchSize + 1}, size: ${batch.documents.length}`);
-        await collection.add(batch);
-      }
+      await collection.add({
+        ids: ids,
+        documents: documents,
+        metadatas: metadata
+      });
 
-    } catch (error) {
+      // ตรวจสอบผลลัพธ์
+      const count = await collection.count();
+      console.log('Documents added successfully. Total count:', count);
+
+    } catch (error: any) {
       console.error('Error details:', error);
+      console.error('Error cause:', error.cause);
       throw error;
     }
   }
