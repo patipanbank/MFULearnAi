@@ -19,9 +19,6 @@ interface Message {
   sources?: Source[];
 }
 
-// เพิ่ม constant สำหรับ timeout
-// const CHAT_TIMEOUT = 4.5 * 60 * 1000; // 4.5 นาที (น้อยกว่า server timeout)
-
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -35,7 +32,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState('');
   const [, setLoadingModels] = useState(true);
   const [, setLoadingCollections] = useState(true);
-  const [, setError] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -178,7 +174,6 @@ const MFUChatbot: React.FC = () => {
     setMessages(prev => [...prev, newMessage]);
     setInputMessage('');
     setIsLoading(true);
-    setError(null);
 
     try {
       const response = await fetch(`${config.apiUrl}/api/chat`, {
@@ -194,17 +189,11 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      // เพิ่มการ log response status และ body
-      console.log('Response status:', response.status);
-      const responseText = await response.text();
-      console.log('Response body:', responseText);
-
       if (!response.ok) {
-        throw new Error(`Chat request failed: ${response.status} ${responseText}`);
+        throw new Error('Chat request failed');
       }
 
-      // แปลง response text กลับเป็น JSON
-      const data = JSON.parse(responseText);
+      const data = await response.json();
       
       if (!data.content || typeof data.content !== 'string') {
         throw new Error('Invalid response format');
@@ -219,11 +208,11 @@ const MFUChatbot: React.FC = () => {
       }]);
 
     } catch (error) {
-      console.error('Detailed error:', error);
+      console.error('Error:', error);
       setMessages(prev => [...prev, {
         id: Date.now(),
         role: 'assistant',
-        content: `เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        content: 'Sorry, there was an error during processing. Please try again.',
         timestamp: new Date()
       }]);
     } finally {

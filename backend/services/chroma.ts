@@ -1,6 +1,5 @@
 import { ChromaClient, OpenAIEmbeddingFunction } from 'chromadb';
 import { ollamaService } from './ollama';
-import { EmbeddingService } from './embedding';
 
 interface DocumentMetadata {
   filename: string;
@@ -12,19 +11,16 @@ interface DocumentMetadata {
 
 class ChromaService {
   private client: ChromaClient;
-  private collections: Map<string, any>;
-  private embeddingService: EmbeddingService;
+  private collections: Map<string, any> = new Map();
   private processingFiles = new Set<string>();
 
   constructor() {
     this.client = new ChromaClient({
-      path: process.env.CHROMA_URL || "http://chroma:8000"
+      path: process.env.CHROMA_URL || 'http://chroma:8000'
     });
-    this.collections = new Map();
-    this.embeddingService = new EmbeddingService();
   }
 
-  async initCollection(collectionName: string): Promise<any> {
+  async initCollection(collectionName: string): Promise<void> {
     try {
       if (!this.collections.has(collectionName)) {
         const collection = await this.client.getOrCreateCollection({
@@ -32,7 +28,6 @@ class ChromaService {
         });
         this.collections.set(collectionName, collection);
         console.log(`ChromaDB collection ${collectionName} initialized successfully`);
-        return collection;
       }
     } catch (error) {
       console.error(`Error initializing ChromaDB collection ${collectionName}:`, error);
@@ -50,57 +45,77 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: string[], metadata: any[]) {
+  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
+    const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
+    
+    if (this.processingFiles.has(fileKey)) {
+      console.log(`File ${fileKey} is already being processed`);
+      return;
+    }
+
+    this.processingFiles.add(fileKey);
+    
     try {
-      // สร้าง collection ใหม่ทุกครั้ง
-      await this.client.deleteCollection({ name: collectionName });
-      const collection = await this.client.createCollection({ 
-        name: collectionName,
-        metadata: { "hnsw:space": "cosine" } // กำหนด similarity metric
-      });
+      console.log(`Adding documents to collection ${collectionName}`);
+      await this.initCollection(collectionName);
+      const collection = this.collections.get(collectionName);
+      
+      // สร้าง unique ID สำหรับชุดข้อมูลนี้
+      const batchId = `batch_${Date.now()}`;
+      
+      // เพิ่ม batchId เข้าไปใน metadata
+      const docsWithBatchId = documents.map(doc => ({
+        ...doc,
+        metadata: {
+          ...doc.metadata,
+          batchId
+        }
+      }));
 
-      const ids = metadata.map(() => crypto.randomUUID());
+      // ตรวจสอบข้อมูลที่มีอยู่
+      const existingDocs = await collection.get();
+      const existingMetadata = existingDocs.metadatas || [];
+      
+      // เช็คว่ามีไฟล์นี้อยู่แล้วหรือไม่
+      const fileExists = existingMetadata.some((existing: DocumentMetadata) => 
+        existing.filename === documents[0].metadata.filename &&
+        existing.uploadedBy === documents[0].metadata.uploadedBy
+      );
 
-      console.log('Debug Add Documents:');
-      console.log('Collection:', collectionName);
-      console.log('Documents count:', documents.length);
-      console.log('Sample document:', documents[0].substring(0, 100));
-      console.log('Sample metadata:', metadata[0]);
+      if (fileExists) {
+        console.log(`File ${documents[0].metadata.filename} already exists, skipping upload`);
+        return;
+      }
+
+      // ถ้าไม่มีข้อมูลซ้ำ ให้เพิ่มข้อมูลใหม่
+      console.log(`Adding ${docsWithBatchId.length} new documents`);
+      const ids = docsWithBatchId.map((_, i) => `${batchId}_${i}`);
+      const texts = docsWithBatchId.map(doc => doc.text);
+      const metadatas = docsWithBatchId.map(doc => doc.metadata);
 
       await collection.add({
-        ids: ids,
-        documents: documents,
-        metadatas: metadata
+        ids,
+        documents: texts,
+        metadatas
       });
-
-      // ตรวจสอบผลลัพธ์
-      const count = await collection.count();
-      console.log('Documents added successfully. Total count:', count);
-
-    } catch (error: any) {
-      console.error('Error details:', error);
-      console.error('Error cause:', error.cause);
-      throw error;
+      
+      console.log('Documents added successfully');
+    } finally {
+      this.processingFiles.delete(fileKey);
     }
   }
 
-  async queryDocuments(collectionName: string, query: string): Promise<any> {
+  async queryDocuments(collectionName: string, query: string, n_results: number = 5) {
     try {
-      const collection = await this.initCollection(collectionName);
-      
-      // สร้าง embedding สำหรับ query
-      const queryEmbedding = await this.embeddingService.embedText(query);
-
-      // ค้นหาด้วย vector similarity
+      await this.initCollection(collectionName);
+      const collection = this.collections.get(collectionName);
       const results = await collection.query({
-        queryEmbeddings: [queryEmbedding],
-        nResults: 3, // จำนวน results ที่ต้องการ
-        include: ["metadatas", "distances", "documents"]
+        queryTexts: [query],
+        nResults: n_results
       });
-
       return results;
     } catch (error) {
-      console.error('Error querying documents:', error);
+      console.error('Error querying ChromaDB:', error);
       throw error;
     }
   }
@@ -135,29 +150,22 @@ class ChromaService {
     }
   }
 
-  async getAllDocuments(collectionName: string) {
+  async getAllDocuments(collectionName: string): Promise<{
+    ids: string[];
+    documents: string[];
+    metadatas: Record<string, any>[];
+  }> {
     try {
-      // ใช้ getOrCreateCollection แทน getCollection
-      const collection = await this.client.getOrCreateCollection({
-        name: collectionName,
-        metadata: { "hnsw:space": "cosine" }
-      });
-
-      // ตรวจสอบจำนวน documents
-      const count = await collection.count();
-      if (count === 0) {
-        return { documents: [], metadatas: [], ids: [] };
-      }
-
-      // ดึงข้อมูลทั้งหมด
-      const result = await collection.get();
-      console.log(`Retrieved ${result.documents.length} documents from collection ${collectionName}`);
-      
-      return result;
+      await this.initCollection(collectionName);
+      const collection = this.collections.get(collectionName);
+      const results = await collection.get();
+      return {
+        ids: results.ids || [],
+        documents: results.documents || [],
+        metadatas: results.metadatas || []
+      };
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error fetching documents:', error.message);
-      }
+      console.error('Error fetching documents from ChromaDB:', error);
       throw error;
     }
   }
@@ -214,26 +222,6 @@ class ChromaService {
       this.collections.delete(collectionName);
     } catch (error) {
       console.error(`Error deleting collection ${collectionName}:`, error);
-      throw error;
-    }
-  }
-
-  async inspectCollection(collectionName: string) {
-    try {
-      const collection = await this.client.getCollection({ 
-        name: collectionName,
-        embeddingFunction: this.embeddingService
-      });
-      const count = await collection.count();
-      const peek = await collection.peek({ limit: 5 });
-
-      console.log('Collection Stats:');
-      console.log('Total Documents:', count);
-      console.log('Sample Documents:', peek);
-
-      return { count, peek };
-    } catch (error) {
-      console.error('Error inspecting collection:', error);
       throw error;
     }
   }

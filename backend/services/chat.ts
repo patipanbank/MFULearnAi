@@ -1,71 +1,44 @@
 import { ollamaService } from './ollama';
 import { chromaService } from './chroma';
-import { ChatMessage } from '../types/chat';
-import { EmbeddingService } from './embedding';
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export class ChatService {
   private systemPrompt = `You are an AI assistant for Mae Fah Luang University. 
-    Answer based on the provided context. If unsure, admit it and suggest contacting relevant department.`;
-  private embeddingService: EmbeddingService;
+Your role is to provide accurate and helpful information based on the university's documents.
+Always be polite and professional. If you're not sure about something, admit it and suggest 
+contacting the relevant department for accurate information.`;
 
-  constructor() {
-    this.embeddingService = new EmbeddingService();
+  private async getRelevantContext(query: string, collectionName: string): Promise<string> {
+    const results = await chromaService.queryDocuments(collectionName, query);
+    return results.documents[0].join('\n\n');
   }
 
-  async generateResponse(query: string, collectionName: string, messages: ChatMessage[]): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Response generation timeout'));
-      }, 4.5 * 60 * 1000); // 4.5 minutes (ให้น้อยกว่า server timeout)
+  async generateResponse(messages: ChatMessage[]): Promise<string> {
+    try {
+      // ดึงข้อความล่าสุดของผู้ใช้
+      const userQuery = messages[messages.length - 1].content;
 
-      try {
-        // สร้าง embedding สำหรับ query
-        const queryEmbedding = await this.embeddingService.embedText(query);
-        
-        console.log('Debug Chat:');
-        console.log('Query:', query);
-        console.log('Query Embedding Sample:', queryEmbedding.slice(0, 5));
-        console.log('Query Embedding Dimension:', queryEmbedding.length);
+      // ดึงข้อมูลที่เกี่ยวข้อง
+      const context = await this.getRelevantContext(userQuery, 'university');
 
-        // ค้นหาด้วย vector similarity
-        const searchResults = await chromaService.queryDocuments(collectionName, query);
-        
-        console.log('Search Results:');
-        console.log('Number of Results:', searchResults.documents[0].length);
-        console.log('Top Result Similarity:', 1 - searchResults.distances[0][0]);
-        console.log('Top Result Content:', searchResults.documents[0][0].substring(0, 100));
+      // สร้าง prompt ที่รวม context
+      const augmentedMessages: ChatMessage[] = [
+        { role: 'user', content: this.systemPrompt },
+        { role: 'user', content: `Relevant information: ${context}` },
+        ...messages
+      ];
 
-        // 2. สร้าง context จากผลการค้นหา
-        const relevantDocs = searchResults.documents[0];
-        const context = relevantDocs.join('\n\n');
-        
-        // 3. สร้าง prompt ที่รวม context
-        const augmentedMessages: ChatMessage[] = [
-          { role: 'system' as const, content: this.systemPrompt },
-          { role: 'user' as const, content: `Context: ${context}\n\nQuestion: ${query}` }
-        ];
-
-        // 4. ส่งไปยัง LLM
-        const response = await ollamaService.chat(augmentedMessages);
-        clearTimeout(timeout);
-
-        // 5. เตรียมข้อมูล sources สำหรับการแสดงผล
-        const sources = searchResults.metadatas[0].map((metadata: any, index: number) => ({
-          filename: metadata.filename,
-          similarity: 1 - searchResults.distances[0][index], // แปลง distance เป็น similarity score
-          modelId: metadata.modelId,
-          collectionName: metadata.collectionName
-        }));
-
-        resolve({
-          content: response.content,
-          sources: sources
-        });
-      } catch (error) {
-        clearTimeout(timeout);
-        reject(error);
-      }
-    });
+      // ส่งไปยัง Ollama
+      const response = await ollamaService.chat(augmentedMessages);
+      return response.content;
+    } catch (error) {
+      console.error('Error generating chat response:', error);
+      throw error;
+    }
   }
 }
 
