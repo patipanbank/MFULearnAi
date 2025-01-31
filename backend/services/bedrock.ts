@@ -6,6 +6,7 @@ class BedrockService {
   private models = {
     titan: 'amazon.titan-text-express-v1',
     claude: 'anthropic.claude-v2',
+    nova: 'amazon.nova-pro',
     embedding: 'amazon.titan-embed-text-v2'
   };
 
@@ -23,6 +24,8 @@ class BedrockService {
     try {
       if (modelId === this.models.claude) {
         return this.claudeChat(messages);
+      } else if (modelId === this.models.nova) {
+        return this.novaChat(messages);
       }
       return this.titanChat(messages);
     } catch (error) {
@@ -121,6 +124,42 @@ class BedrockService {
     const response = await this.client.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     return { content: responseBody.results[0].outputText };
+  }
+
+  private async novaChat(messages: ChatMessage[]): Promise<{ content: string }> {
+    const prompt = this.formatNovaMessages(messages);
+    
+    const command = new InvokeModelCommand({
+      modelId: this.models.nova,
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify({
+        prompt: prompt,
+        temperature: 0.7,
+        top_p: 0.9,
+        max_tokens: 4096,
+        stop_sequences: []
+      })
+    });
+
+    const response = await this.client.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    return { content: responseBody.text };
+  }
+
+  private formatNovaMessages(messages: ChatMessage[]): string {
+    let prompt = '';
+    messages.forEach(msg => {
+      if (msg.role === 'system') {
+        prompt += `System: ${msg.content}\n\n`;
+      } else if (msg.role === 'user') {
+        prompt += `Human: ${msg.content}\n\n`;
+      } else if (msg.role === 'assistant') {
+        prompt += `Assistant: ${msg.content}\n\n`;
+      }
+    });
+    prompt += 'Assistant:';
+    return prompt.trim();
   }
 }
 

@@ -93,7 +93,8 @@ router.get('/models', roleGuard(['Students', 'Staffs']), async (req, res) => {
   try {
     const models = [
       'amazon.titan-text-express-v1',
-      'anthropic.claude-v2'
+      'anthropic.claude-v2',
+      'amazon.nova-2.1'  // เพิ่ม Nova
     ];
     res.json(models);
   } catch (error) {

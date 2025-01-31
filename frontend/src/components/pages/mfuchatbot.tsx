@@ -21,7 +21,8 @@ interface Message {
 
 const modelNames: { [key: string]: string } = {
   'amazon.titan-text-express-v1': 'Titan',
-  'anthropic.claude-v2': 'Claude'
+  'anthropic.claude-v2': 'Claude',
+  'amazon.nova-2.1': 'Nova'
 };
 
 const MFUChatbot: React.FC = () => {
