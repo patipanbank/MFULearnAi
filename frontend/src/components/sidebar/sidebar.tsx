@@ -27,7 +27,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     <aside className="flex flex-col h-full">
       <div className="flex-none p-4 border-b">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">MFU LEARN AI</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+            <span style={{ color: 'rgb(186, 12, 47)' }}>M</span>F
+            <span style={{ color: 'rgb(212, 175, 55)' }}>U</span> LEARN AI
+          </h2>
           <div className="flex items-center gap-2">
             <DarkModeToggle />
             <button 
