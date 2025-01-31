@@ -87,12 +87,8 @@ const TrainingDashboard: React.FC = () => {
       });
 
       if (response.ok) {
-        // Refresh collections list
-        const collectionsRes = await fetch(`${config.apiUrl}/api/training/collections`);
-        const collectionsData = await collectionsRes.json();
-        setCollections(collectionsData);
-        
-        // Reset form
+        const data = await response.json();
+        setCollections(data.collections || []);
         setNewCollectionName('');
         setShowNewCollectionForm(false);
       } else {

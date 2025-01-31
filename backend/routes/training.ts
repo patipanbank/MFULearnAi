@@ -102,10 +102,11 @@ router.get('/models', roleGuard(['Students', 'Staffs']), async (req, res) => {
   }
 });
 
-router.get('/collections', roleGuard(['Students', 'Staffs']), async (req, res) => {
+router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const collections = await chromaService.getCollections();
-    res.json(collections);
+    // collections เป็น array ของ string อยู่แล้ว
+    res.json(collections || []);
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Error fetching collections' });
@@ -158,7 +159,12 @@ router.post('/collections', roleGuard(['Students', 'Staffs']), async (req: Reque
   try {
     const { name } = req.body;
     await chromaService.createCollection(name);
-    res.json({ message: 'Collection created successfully' });
+    
+    const collections = await chromaService.getCollections();
+    res.json({ 
+      message: 'Collection created successfully',
+      collections: collections || []
+    });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Failed to create collection' });

@@ -4,6 +4,7 @@ import { chromaService } from '../services/chroma';
 import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { ChatMessage } from '../types/chat';
+import { roleGuard } from '../middleware/roleGuard';
 
 const router = Router();
 
@@ -112,20 +113,33 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.route('/history').get(async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  
-  if (!user || !user.username) {
-    res.status(401).json({ error: 'User not authenticated' });
-    return;
-  }
+router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+  try {
+    const { messages, modelId, collectionName } = req.body;
+    const userId = (req.user as any)?.username || '';
 
-  chatHistoryService.getChatHistory(user.username)
-    .then(history => res.json(history))
-    .catch(error => {
-      console.error('Error fetching chat history:', error);
-      res.status(500).json({ error: 'Failed to fetch chat history' });
-    });
+    const history = await chatHistoryService.saveChatMessage(
+      userId,
+      modelId,
+      collectionName,
+      messages
+    );
+    res.json(history);
+  } catch (error) {
+    console.error('Error saving chat history:', error);
+    res.status(500).json({ error: 'Failed to save chat history' });
+  }
+});
+
+router.get('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const history = await chatHistoryService.getChatHistory(userId);
+    res.json(history);
+  } catch (error) {
+    console.error('Error getting chat history:', error);
+    res.status(500).json({ error: 'Failed to get chat history' });
+  }
 });
 
 router.route('/clear').delete(async (req: Request, res: Response): Promise<void> => {
