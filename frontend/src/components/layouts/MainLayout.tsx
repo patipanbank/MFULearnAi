@@ -11,7 +11,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-900">
       <div 
         className={`
           fixed top-0 left-0 z-50 w-64 h-full bg-white dark:bg-gray-800 transform transition-transform duration-300 ease-in-out
@@ -29,7 +29,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               className="p-2 lg:hidden"
               onClick={() => setIsSidebarOpen(true)}
             >
-              <FaBars className="h-6 w-6" />
+              <FaBars className="h-6 w-6 dark:text-gray-200" />
             </button>
             <Header />
           </div>
@@ -42,7 +42,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           />
         )}
 
-        <main className="flex-1 overflow-auto mt-16 lg:mt-16">
+        <main className="flex-1 overflow-auto mt-16 lg:mt-16 bg-white dark:bg-gray-900">
           {children}
         </main>
       </div>
