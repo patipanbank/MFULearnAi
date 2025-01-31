@@ -357,7 +357,7 @@ const MFUChatbot: React.FC = () => {
             <select
               value={selectedCollection}
               onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] md:max-w-[200px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
               <option value="">Choose Collection</option>
               {collections.map(collection => (
