@@ -3,10 +3,19 @@ import { ChatHistory } from '../models/ChatHistory';
 class ChatHistoryService {
   async getChatHistory(userId: string) {
     try {
-      const history = await ChatHistory.find({ userId })
-        .sort({ updatedAt: -1 })
-        .limit(50);
-      return history;
+      const history = await ChatHistory.findOne({ 
+        userId: userId 
+      }).sort({ updatedAt: -1 });
+
+      if (!history) {
+        return { messages: [], modelId: '', collectionName: '' };
+      }
+
+      return {
+        messages: history.messages,
+        modelId: history.modelId,
+        collectionName: history.collectionName
+      };
     } catch (error) {
       console.error('Error getting chat history:', error);
       throw error;
@@ -22,26 +31,19 @@ class ChatHistoryService {
         timestamp: new Date(msg.timestamp || Date.now())
       }));
 
-      let chatHistory = await ChatHistory.findOne({
-        userId,
-        modelId,
-        collectionName
-      });
+      const history = await ChatHistory.findOneAndUpdate(
+        { userId, modelId, collectionName },
+        { 
+          userId,
+          modelId,
+          collectionName,
+          messages: processedMessages,
+          updatedAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
 
-      if (chatHistory) {
-        chatHistory.messages = processedMessages as any;
-        await chatHistory.save();
-        return chatHistory;
-      }
-
-      chatHistory = await ChatHistory.create({
-        userId,
-        modelId,
-        collectionName,
-        messages: processedMessages
-      });
-
-      return chatHistory;
+      return history;
     } catch (error) {
       console.error('Error saving chat message:', error);
       throw error;
