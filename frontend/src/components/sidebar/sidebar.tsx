@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FaRobot, FaBars, FaCog, FaHistory } from 'react-icons/fa';
+import { FaRobot, FaBars, FaCog, FaHistory, FaSignOutAlt } from 'react-icons/fa';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 interface SidebarProps {
@@ -27,13 +27,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     <aside className="flex flex-col h-full">
       <div className="flex-none p-4 border-b">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800">MFU LEARN AI</h2>
-          <button 
-            onClick={onClose}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
-          >
-            <FaBars className="w-6 h-6 text-gray-600" />
-          </button>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">MFU LEARN AI</h2>
+          <div className="flex items-center gap-2">
+            <DarkModeToggle />
+            <button 
+              onClick={onClose}
+              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            >
+              <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -73,45 +76,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </nav>
       </div>
 
-      <div className="flex-none border-t">
-        <div className="px-6 py-4 border-b">
-          <DarkModeToggle />
-        </div>
-        <button 
+      <div className="flex-none p-4 border-t">
+        <button
           onClick={handleLogout}
-          className="flex items-center w-full px-6 py-4 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+          className="w-full flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
         >
-          <svg 
-            width="16" 
-            height="16" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="mr-3"
-          >
-            <path 
-              d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            />
-            <path 
-              d="M16 17L21 12L16 7" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            />
-            <path 
-              d="M21 12H9" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            />
-          </svg>
-          Logout
+          <FaSignOutAlt className="w-5 h-5 mr-3" />
+          <span>Logout</span>
         </button>
       </div>
     </aside>
