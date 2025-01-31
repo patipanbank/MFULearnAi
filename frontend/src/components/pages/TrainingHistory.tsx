@@ -238,7 +238,7 @@ const TrainingHistory: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   {new Date(metadata.timestamp).toLocaleString('th-TH')}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-center">
                   <button
                     onClick={() => handleDelete(documents.ids[index], metadata.collectionName)}
                     disabled={isDeleting === documents.ids[index]}
