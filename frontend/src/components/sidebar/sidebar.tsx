@@ -34,7 +34,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>MFU</span>{' '}
-            <span>LEARN{' '}</span>
+            <span style={{ 
+              background: 'linear-gradient(to right, #00FF00, #00BFFF)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>LEARN</span>{' '}
             <span style={{ 
               background: 'linear-gradient(to right, #00FFFF, #0099FF)',
               WebkitBackgroundClip: 'text',
