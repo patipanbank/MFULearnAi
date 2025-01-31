@@ -134,7 +134,7 @@ const TrainingHistory: React.FC = () => {
 
   if (error) {
     return (
-      <div className="text-red-500 text-center p-4">
+      <div className="text-red-500 dark:text-red-400 text-center p-4">
         Error: {error}
       </div>
     );
@@ -202,7 +202,7 @@ const TrainingHistory: React.FC = () => {
         </table>
 
         {documents?.metadatas.length === 0 && (
-          <div className="text-center py-4 text-gray-500">
+          <div className="text-gray-600 dark:text-gray-300 text-center py-4">
             No training data found
           </div>
         )}
