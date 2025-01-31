@@ -68,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text'
-              }}>AI</span>
+              }}> AI</span>
             </span>
           </Link>
 
