@@ -190,7 +190,7 @@ const TrainingHistory: React.FC = () => {
                 isDeletingAll ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              {isDeletingAll ? 'Deleting All...' : 'Delete All'}
+              {isDeletingAll ? 'Deleting All...' : 'Delete Training History All'}
             </button>
           )}
         </div>
