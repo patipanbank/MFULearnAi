@@ -224,18 +224,18 @@ const TrainingHistory: React.FC = () => {
                     metadata.filename
                   )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-6 py-4 whitespace-nowrap text-center">
                   <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                     {metadata.modelId}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-6 py-4 whitespace-nowrap text-center">
                   <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
                     {metadata.collectionName}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">{metadata.uploadedBy}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-6 py-4 whitespace-nowrap text-center">{metadata.uploadedBy}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
                   {new Date(metadata.timestamp).toLocaleString('th-TH')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
