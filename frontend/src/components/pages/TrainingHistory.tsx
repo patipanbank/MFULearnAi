@@ -182,7 +182,7 @@ const TrainingHistory: React.FC = () => {
           >
             Delete Incomplete Data
           </button>
-          {documents?.metadatas.length > 0 && (
+          {documents && documents.metadatas && documents.metadatas.length > 0 && (
             <button
               onClick={() => handleDeleteAll(documents.metadatas[0].collectionName)}
               disabled={isDeletingAll}
