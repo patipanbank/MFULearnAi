@@ -21,8 +21,14 @@ class ChatHistoryService {
         collectionName
       });
 
+      const processedMessages = messages.map((msg, index) => ({
+        ...msg,
+        id: index + 1,
+        timestamp: new Date()
+      }));
+
       if (chatHistory) {
-        chatHistory.messages = messages;
+        chatHistory.messages = processedMessages;
         await chatHistory.save();
         return chatHistory;
       }
@@ -31,7 +37,7 @@ class ChatHistoryService {
         userId,
         modelId,
         collectionName,
-        messages
+        messages: processedMessages
       });
 
       return newChatHistory;
