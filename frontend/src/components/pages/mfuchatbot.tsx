@@ -73,20 +73,39 @@ const MFUChatbot: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          console.error('No auth token found');
+          return;
+        }
+
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+
         const [modelsRes, collectionsRes] = await Promise.all([
-          fetch(`${config.apiUrl}/api/training/models`),
-          fetch(`${config.apiUrl}/api/training/collections`)
+          fetch(`${config.apiUrl}/api/training/models`, { headers }),
+          fetch(`${config.apiUrl}/api/training/collections`, { headers })
         ]);
+
+        if (!modelsRes.ok || !collectionsRes.ok) {
+          throw new Error('Failed to fetch data');
+        }
         
         const modelsData = await modelsRes.json();
         const collectionsData = await collectionsRes.json();
         
-        setModels(modelsData);
-        setCollections(collectionsData);
+        // ตรวจสอบว่าข้อมูลเป็น array
+        setModels(Array.isArray(modelsData) ? modelsData : []);
+        setCollections(Array.isArray(collectionsData) ? collectionsData : []);
       } catch (error) {
         console.error('Error fetching data:', error);
+        setModels([]);
+        setCollections([]);
       }
     };
+
     fetchData();
   }, []);
 

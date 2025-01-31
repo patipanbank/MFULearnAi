@@ -11,63 +11,50 @@ const TrainingDashboard: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState('');
   const [newCollectionName, setNewCollectionName] = useState('');
   const [showNewCollectionForm, setShowNewCollectionForm] = useState(false);
-  const [loadingModels, setLoadingModels] = useState(true);
-  const [loadingCollections, setLoadingCollections] = useState(true);
+  const [loadingModels] = useState(true);
+  const [loadingCollections] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [trainingMode, setTrainingMode] = useState<'file' | 'url'>('file');
   const [urls, setUrls] = useState<string>('');
   const [isProcessingUrls, setIsProcessingUrls] = useState(false);
 
   useEffect(() => {
-    fetchModels();
-    fetchCollections();
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          console.error('No auth token found');
+          return;
+        }
+
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+
+        const [modelsRes, collectionsRes] = await Promise.all([
+          fetch(`${config.apiUrl}/api/training/models`, { headers }),
+          fetch(`${config.apiUrl}/api/training/collections`, { headers })
+        ]);
+
+        if (!modelsRes.ok || !collectionsRes.ok) {
+          throw new Error('Failed to fetch data');
+        }
+
+        const modelsData = await modelsRes.json();
+        const collectionsData = await collectionsRes.json();
+        
+        setModels(Array.isArray(modelsData) ? modelsData : []);
+        setCollections(Array.isArray(collectionsData) ? collectionsData : []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setModels([]);
+        setCollections([]);
+      }
+    };
+
+    fetchData();
   }, []);
-
-  const fetchModels = async () => {
-    try {
-      setLoadingModels(true);
-      const response = await fetch(`${config.apiUrl}/api/training/models`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch models');
-      }
-      const data = await response.json();
-      setModels(data);
-      if (data.length === 1) {
-        setSelectedModel(data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching models:', error);
-    } finally {
-      setLoadingModels(false);
-    }
-  };
-
-  const fetchCollections = async () => {
-    try {
-      setLoadingCollections(true);
-      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch collections');
-      }
-      const data = await response.json();
-      setCollections(data);
-      if (data.length === 1) {
-        setSelectedCollection(data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching collections:', error);
-    } finally {
-      setLoadingCollections(false);
-    }
-  };
 
   const handleCreateCollection = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,9 +159,17 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Failed to delete collection');
       }
 
-      fetchCollections();
+      setCollections([]); // Reset collections
+      // Fetch updated collections after deletion
+      const collectionsRes = await fetch(`${config.apiUrl}/api/training/collections`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const collectionsData = await collectionsRes.json();
+      setCollections(collectionsData);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error deleting collection:', error);
       alert('Cannot delete collection');
     }
   };
