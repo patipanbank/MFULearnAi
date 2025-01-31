@@ -8,8 +8,8 @@ const Header = () => {
   return (
     <header className="w-full text-right">
       <nav className="flex items-center justify-between px-6 py-4 w-full text-right">
-        {/* Right Side: User Name */}
-        <div className="ml-auto text-gray-600">
+        {/* Right Side: User Name - Updated with dark mode support */}
+        <div className="ml-auto text-gray-600 dark:text-gray-300">
           {userData && (
             <span>
               {userData.firstName} {userData.lastName}
