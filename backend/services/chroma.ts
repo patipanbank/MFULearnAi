@@ -224,6 +224,19 @@ class ChromaService {
       throw error;
     }
   }
+
+  async createCollection(name: string): Promise<void> {
+    try {
+      const collection = await this.client.createCollection({
+        name: name,
+        metadata: { "hnsw:space": "cosine" }
+      });
+      console.log(`Collection ${name} created successfully`);
+    } catch (error) {
+      console.error('Error creating collection:', error);
+      throw error;
+    }
+  }
 }
 
 export const chromaService = new ChromaService(); 

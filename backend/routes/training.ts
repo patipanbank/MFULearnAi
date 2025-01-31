@@ -154,13 +154,14 @@ const deleteDocumentHandler = async (req: Request, res: Response): Promise<void>
 router.delete('/documents/:id', roleGuard(['Staffs']), deleteDocumentHandler);
 
 // Create new collection
-router.post('/collections', roleGuard(['Staffs']), async (req, res) => {
+router.post('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const { collectionName } = req.body;
-    await chromaService.initCollection(collectionName);
+    const { name } = req.body;
+    await chromaService.createCollection(name);
     res.json({ message: 'Collection created successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Error creating collection' });
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed to create collection' });
   }
 });
 

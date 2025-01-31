@@ -112,33 +112,23 @@ const MFUChatbot: React.FC = () => {
   useEffect(() => {
     const loadChatHistory = async () => {
       try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+
         const response = await fetch(`${config.apiUrl}/api/chat/history`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch chat history');
-        }
-        
-        const history = await response.json();
-        if (history.length > 0) {
-          // แปลง timestamp และเพิ่ม sources ในแต่ละข้อความ
-          const latestChat = history[0];
-          const formattedMessages = latestChat.messages.map((msg: {
-            timestamp: string | number | Date;
-            sources?: string[];
-            content: string;
-            role: 'user' | 'assistant';
-          }) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-            sources: msg.sources || [] // เพิ่ม sources หรือใช้ array ว่างถ้าไม่มี
-          }));
-          setMessages(formattedMessages);
-          setSelectedModel(latestChat.modelId);
-          setSelectedCollection(latestChat.collectionName);
+
+        if (response.ok) {
+          const history = await response.json();
+          if (history.messages) {
+            setMessages(history.messages);
+            // ตั้งค่า model และ collection ที่เคยใช้
+            setSelectedModel(history.modelId || '');
+            setSelectedCollection(history.collectionName || '');
+          }
         }
       } catch (error) {
         console.error('Error loading chat history:', error);
@@ -159,7 +149,6 @@ const MFUChatbot: React.FC = () => {
     try {
       setIsLoading(true);
       
-      // เพิ่มข้อความของผู้ใช้ก่อน
       const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
@@ -189,7 +178,6 @@ const MFUChatbot: React.FC = () => {
 
       const data = await response.json();
       
-      // เพิ่มข้อความตอบกลับ
       const assistantMessage = {
         id: messages.length + 2,
         role: 'assistant' as const,
@@ -199,9 +187,22 @@ const MFUChatbot: React.FC = () => {
 
       setMessages(prev => [...prev, assistantMessage]);
 
+      // บันทึกประวัติแชท
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage, assistantMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+
     } catch (error) {
       console.error('Chat error:', error);
-      // แสดง error message แต่ไม่ reset messages
       setMessages(prev => [...prev, {
         id: messages.length + 2,
         role: 'assistant' as const,
