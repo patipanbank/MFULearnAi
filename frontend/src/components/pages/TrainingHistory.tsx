@@ -216,7 +216,7 @@ const TrainingHistory: React.FC = () => {
                   <td className="px-4 py-2 text-center relative group">
                     <div className="truncate" title={metadata.filename}>
                       {metadata.filename}
-                      <div className="invisible group-hover:visible absolute z-20 bg-gray-900 text-white p-2 rounded text-sm left-0 break-all max-w-[120ch]">
+                      <div className="invisible group-hover:visible absolute z-20 bg-gray-900 text-white p-2 rounded text-sm left-0 break-words whitespace-normal max-w-[120ch]">
                         {metadata.filename}
                       </div>
                     </div>
