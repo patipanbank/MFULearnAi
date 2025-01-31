@@ -169,10 +169,13 @@ class BedrockService {
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify({
-          prompt: "Human: Simple test\n\nAssistant:",
-          temperature: 0.7,
-          top_p: 0.9,
-          max_tokens: 128
+          input: "Simple test message",
+          configuration: {
+            temperature: 0.7,
+            top_p: 0.9,
+            max_tokens: 128,
+            stop_sequences: []
+          }
         })
       });
 
