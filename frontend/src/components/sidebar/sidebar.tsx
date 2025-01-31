@@ -44,8 +44,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         <nav>
           <Link
             to="/mfuchatbot"
-            className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 
-              ${location.pathname === '/mfuchatbot' ? 'bg-gray-100' : ''}`}
+            className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
+              ${location.pathname === '/mfuchatbot' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
           >
             <FaRobot className="w-5 h-5 mr-3" />
             <span>Chat AI</span>
@@ -54,8 +54,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {isStaff && (
             <Link
               to="/training"
-              className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100
-                ${location.pathname === '/training' ? 'bg-gray-100' : ''}`}
+              className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
+                ${location.pathname === '/training' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
             >
               <FaCog className="w-5 h-5 mr-3" />
               <span>AI Training</span>
@@ -65,12 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {isStaff && (
             <Link
               to="/training-history"
-              className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100
-                ${location.pathname === '/training-history' ? 'bg-gray-100' : ''}`}
+              className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
+                ${location.pathname === '/training-history' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
               onClick={onClose}
             >
               <FaHistory className="w-5 h-5 mr-3" />
-              History Training
+              <span>History Training</span>
             </Link>
           )}
         </nav>
