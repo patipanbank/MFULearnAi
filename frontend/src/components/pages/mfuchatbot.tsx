@@ -386,7 +386,7 @@ const MFUChatbot: React.FC = () => {
             />
             <button
               type="submit"
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
             >
               Send
             </button>
