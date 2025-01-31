@@ -11,18 +11,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-900">
+    <div className="flex h-screen overflow-hidden">
       <div 
         className={`
           fixed top-0 left-0 z-50 w-64 h-full bg-white dark:bg-gray-800 transform transition-transform duration-300 ease-in-out
-          lg:relative lg:translate-x-0 border-r border-gray-200 dark:border-gray-700
+          lg:relative lg:translate-x-0 lg:min-w-[16rem] lg:w-64 lg:flex-shrink-0 border-r border-gray-200 dark:border-gray-700
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      <div className="flex flex-col flex-1 w-full">
+      <div className="flex flex-col flex-1 w-full min-w-0">
         <div className="fixed top-0 right-0 left-0 lg:left-64 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center px-4 h-16">
             <button
