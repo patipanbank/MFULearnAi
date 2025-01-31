@@ -347,7 +347,7 @@ const MFUChatbot: React.FC = () => {
               onChange={(e) => setSelectedModel(e.target.value)}
               className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="">Select Model</option>
+              <option value="">Model</option>
               {models.map(model => (
                 <option key={model} value={model}>
                   {modelNames[model] || model}
@@ -359,7 +359,7 @@ const MFUChatbot: React.FC = () => {
               onChange={(e) => setSelectedCollection(e.target.value)}
               className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="">Choose Collection</option>
+              <option value="">Collection</option>
               {collections.map(collection => (
                 <option key={collection} value={collection}>{collection}</option>
               ))}
