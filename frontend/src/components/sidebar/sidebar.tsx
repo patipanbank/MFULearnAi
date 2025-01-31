@@ -35,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               backgroundClip: 'text'
             }}>MFU</span>{' '}
             <span style={{ 
-              background: 'linear-gradient(to right, #EF3340, #FFFFFF, #00247D,#FFFFFF,#EF3340)',
+              background: 'linear-gradient(to right, #EF3340, #FFFFFF,rgb(44, 90, 205),#FFFFFF,#EF3340)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
