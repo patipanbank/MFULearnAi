@@ -62,13 +62,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               ${location.pathname === '/mfuchatbot' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
           >
             <FaComments className="w-5 h-5 mr-3" />
-            <span>Chat
+            <span>
+              <span style={{ 
+                background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>Chat</span>
               <span style={{ 
                 background: 'linear-gradient(to right, #00FFFF, #0099FF)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text'
-              }}> AI</span>
+              }}>AI</span>
             </span>
           </Link>
 
