@@ -23,6 +23,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.738.0",
     "@node-saml/passport-saml": "^5.0.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

@@ -30,7 +30,6 @@ const MFUChatbot: React.FC = () => {
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
-  const [, setLoadingModels] = useState(true);
   const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
@@ -112,7 +111,6 @@ const MFUChatbot: React.FC = () => {
 
   const fetchModels = async () => {
     try {
-      setLoadingModels(true);
       const response = await fetch(`${config.apiUrl}/api/training/models`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -128,8 +126,6 @@ const MFUChatbot: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching models:', error);
-    } finally {
-      setLoadingModels(false);
     }
   };
 
@@ -146,7 +142,7 @@ const MFUChatbot: React.FC = () => {
       }
       const data = await response.json();
       setCollections(data);
-      if (data.length === 1) {
+      if (data.length > 0) {
         setSelectedCollection(data[0]);
       }
     } catch (error) {

@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { chromaService } from '../services/chroma';
 import { ollamaService } from '../services/ollama';
 import { chatHistoryService } from '../services/chatHistory';
+import { chatService } from '../services/chat';
+import { ChatMessage } from '../types/chat';
 
 const router = Router();
 
@@ -103,7 +105,33 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
   }
 };
 
-router.post('/', chatHandler);
+router.post('/', async (req, res) => {
+  try {
+    const { messages, collectionName } = req.body;
+    const user = (req as any).user;
+
+    if (!messages || !collectionName) {
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
+
+    const latestMessage = messages[messages.length - 1];
+    const response = await chatService.generateResponse(messages, latestMessage.content);
+
+    // Save chat history
+    await chatHistoryService.saveChatMessage(
+      user.username,
+      'aws-bedrock',
+      collectionName,
+      [...messages, { role: 'assistant', content: response }]
+    );
+
+    res.json({ response });
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({ error: 'Error processing chat request' });
+  }
+});
 
 router.route('/history').get(async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;

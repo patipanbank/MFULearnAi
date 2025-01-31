@@ -1,10 +1,6 @@
-import { ollamaService } from './ollama';
+import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { ChatMessage } from '../types/chat';
 
 export class ChatService {
   private systemPrompt = `You are an AI assistant for Mae Fah Luang University. 
@@ -12,32 +8,33 @@ Your role is to provide accurate and helpful information based on the university
 Always be polite and professional. If you're not sure about something, admit it and suggest 
 contacting the relevant department for accurate information.`;
 
-  private async getRelevantContext(query: string, collectionName: string): Promise<string> {
-    const results = await chromaService.queryDocuments(collectionName, query);
-    return results.documents[0].join('\n\n');
-  }
-
-  async generateResponse(messages: ChatMessage[]): Promise<string> {
+  async generateResponse(messages: ChatMessage[], query: string): Promise<string> {
     try {
-      // ดึงข้อความล่าสุดของผู้ใช้
-      const userQuery = messages[messages.length - 1].content;
-
-      // ดึงข้อมูลที่เกี่ยวข้อง
-      const context = await this.getRelevantContext(userQuery, 'university');
-
-      // สร้าง prompt ที่รวม context
-      const augmentedMessages: ChatMessage[] = [
-        { role: 'user', content: this.systemPrompt },
-        { role: 'user', content: `Relevant information: ${context}` },
+      const context = await this.getContext(query);
+      
+      const augmentedMessages = [
+        {
+          role: 'system' as const,
+          content: `${this.systemPrompt}\n\nContext: ${context}`
+        },
         ...messages
       ];
 
-      // ส่งไปยัง Ollama
-      const response = await ollamaService.chat(augmentedMessages);
+      const response = await bedrockService.chat(augmentedMessages);
       return response.content;
     } catch (error) {
       console.error('Error generating chat response:', error);
       throw error;
+    }
+  }
+
+  private async getContext(query: string): Promise<string> {
+    try {
+      const results = await chromaService.queryDocuments('default', query, 3);
+      return results.documents.join('\n\n');
+    } catch (error) {
+      console.error('Error getting context:', error);
+      return '';
     }
   }
 }
