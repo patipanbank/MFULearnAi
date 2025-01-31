@@ -15,32 +15,33 @@ class ChatHistoryService {
 
   async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[]) {
     try {
-      const chatHistory = await ChatHistory.findOne({
+      const processedMessages = messages.map((msg, index) => ({
+        id: index + 1,
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: String(msg.content),
+        timestamp: new Date(msg.timestamp || Date.now())
+      }));
+
+      let chatHistory = await ChatHistory.findOne({
         userId,
         modelId,
         collectionName
       });
 
-      const processedMessages = messages.map((msg, index) => ({
-        ...msg,
-        id: index + 1,
-        timestamp: new Date()
-      }));
-
       if (chatHistory) {
-        chatHistory.messages = processedMessages;
+        chatHistory.messages = processedMessages as any;
         await chatHistory.save();
         return chatHistory;
       }
 
-      const newChatHistory = await ChatHistory.create({
+      chatHistory = await ChatHistory.create({
         userId,
         modelId,
         collectionName,
         messages: processedMessages
       });
 
-      return newChatHistory;
+      return chatHistory;
     } catch (error) {
       console.error('Error saving chat message:', error);
       throw error;
