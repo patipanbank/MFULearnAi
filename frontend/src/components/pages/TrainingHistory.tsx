@@ -214,8 +214,11 @@ const TrainingHistory: React.FC = () => {
               {documents?.metadatas.map((metadata, index) => (
                 <tr key={documents.ids[index]} className="hover:bg-gray-50">
                   <td className="px-4 py-2 text-center relative group">
-                    <div className="truncate" title={metadata.filename}>
+                    <div className="truncate cursor-help" title={metadata.filename}>
                       {metadata.filename}
+                      <div className="invisible group-hover:visible absolute z-20 bg-gray-900 text-white p-2 rounded text-sm -mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                        {metadata.filename}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-4 text-center">
