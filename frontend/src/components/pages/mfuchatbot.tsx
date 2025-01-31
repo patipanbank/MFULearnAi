@@ -272,7 +272,8 @@ const MFUChatbot: React.FC = () => {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
-                }}>MFU</span> Chat{' '}
+                }}>MFU</span>{' '}
+                Chat
                 <span style={{ 
                   background: 'linear-gradient(to right, #00FFFF, #0099FF)',
                   WebkitBackgroundClip: 'text',
