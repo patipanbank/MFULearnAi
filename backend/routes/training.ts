@@ -90,12 +90,13 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
 };
 
 // อนุญาตทั้ง Students และ Staffs ให้เข้าถึง models และ collections ได้
-router.get('/models', roleGuard(['Students', 'Staffs']), async (req, res) => {
+router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const models = [
       'amazon.titan-text-express-v1',
       'anthropic.claude-v2',
-      'amazon.nova-2.1'  // เพิ่ม Nova
+      'anthropic.claude-3-5-sonnet-20240620-v1:0',
+      'anthropic.claude-3-haiku-20240307-v1:0'
     ];
     res.json(models);
   } catch (error) {
@@ -236,19 +237,6 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
   } catch (error) {
     console.error('URL processing error:', error);
     res.status(500).json({ error: (error as Error).message || 'Error processing URLs' });
-  }
-});
-
-router.get('/test-nova', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
-  try {
-    const isAvailable = await bedrockService.testNovaModel();
-    res.json({ 
-      isAvailable,
-      message: isAvailable ? 'Nova Pro is available' : 'Nova Pro is not available'
-    });
-  } catch (error) {
-    console.error('Error testing Nova:', error);
-    res.status(500).json({ error: 'Failed to test Nova Pro' });
   }
 });
 
