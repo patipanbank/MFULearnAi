@@ -240,4 +240,16 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
   }
 });
 
+// เพิ่ม endpoint สำหรับลบข้อมูลทั้งหมดในคอลเลกชัน
+router.delete('/documents/all/:collectionName', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { collectionName } = req.params;
+    await chromaService.deleteAllDocuments(collectionName);
+    res.status(200).json({ message: 'All documents deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting all documents:', error);
+    res.status(500).json({ error: 'Failed to delete all documents' });
+  }
+});
+
 export default router; 

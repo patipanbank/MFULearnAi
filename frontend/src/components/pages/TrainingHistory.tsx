@@ -19,6 +19,7 @@ const TrainingHistory: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const fetchDocuments = async () => {
     try {
@@ -124,6 +125,36 @@ const TrainingHistory: React.FC = () => {
     }
   };
 
+  const handleDeleteAll = async (collectionName: string) => {
+    if (!window.confirm('Are you sure you want to delete all data in this collection?')) {
+      return;
+    }
+
+    setIsDeletingAll(true);
+    try {
+      const response = await fetch(
+        `${config.apiUrl}/api/training/documents/all/${encodeURIComponent(collectionName)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete all documents');
+      }
+
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Error deleting all documents:', error);
+      alert('Failed to delete all documents');
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -144,12 +175,25 @@ const TrainingHistory: React.FC = () => {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training History</h1>
       <div className="flex justify-between items-center mb-6">
-        <button
-          onClick={handleCleanup}
-          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-        >
-          Delete Incomplete Data
-        </button>
+        <div className="space-x-2">
+          <button
+            onClick={handleCleanup}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Delete Incomplete Data
+          </button>
+          {documents?.metadatas.length > 0 && (
+            <button
+              onClick={() => handleDeleteAll(documents.metadatas[0].collectionName)}
+              disabled={isDeletingAll}
+              className={`px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 ${
+                isDeletingAll ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {isDeletingAll ? 'Deleting All...' : 'Delete All'}
+            </button>
+          )}
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border border-gray-200">

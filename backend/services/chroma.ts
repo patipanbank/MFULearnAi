@@ -237,6 +237,28 @@ class ChromaService {
       throw error;
     }
   }
+
+  async deleteAllDocuments(collectionName: string): Promise<void> {
+    try {
+      await this.initCollection(collectionName);
+      const collection = this.collections.get(collectionName);
+      if (!collection) {
+        throw new Error(`Collection ${collectionName} not found`);
+      }
+
+      const documents = await collection.get();
+      if (documents.ids.length > 0) {
+        await collection.delete({
+          ids: documents.ids
+        });
+      }
+      
+      console.log(`All documents in collection ${collectionName} deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting all documents:', error);
+      throw error;
+    }
+  }
 }
 
 export const chromaService = new ChromaService(); 
