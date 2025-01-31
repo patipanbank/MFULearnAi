@@ -212,7 +212,18 @@ const TrainingHistory: React.FC = () => {
           <tbody className="divide-y divide-gray-200">
             {documents?.metadatas.map((metadata, index) => (
               <tr key={documents.ids[index]} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">{metadata.filename}</td>
+                <td className="px-4 py-2 text-left">
+                  {metadata.filename.length > 30 ? (
+                    <div className="group relative">
+                      <span>{metadata.filename.substring(0, 27)}...</span>
+                      <span className="invisible group-hover:visible absolute left-0 top-full bg-gray-800 text-white text-sm rounded p-2 z-10">
+                        {metadata.filename}
+                      </span>
+                    </div>
+                  ) : (
+                    metadata.filename
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                     {metadata.modelId}
