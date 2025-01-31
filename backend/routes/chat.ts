@@ -37,14 +37,6 @@ interface ChatRequest extends Request {
   };
 }
 
-interface ChatMessage {
-  id?: number;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp?: string | Date;
-  sources?: Source[];
-}
-
 interface Source {
   modelId: string;
   collectionName: string;
