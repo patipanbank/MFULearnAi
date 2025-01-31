@@ -267,14 +267,12 @@ const MFUChatbot: React.FC = () => {
               Welcome to
               <br />
               <span className="text-3xl">
-                <span style={{ color: 'rgb(186, 12, 47)' }}>M</span>
                 <span style={{ 
-                  background: 'linear-gradient(to right, rgb(186, 12, 47) 50%, rgb(212, 175, 55) 50%)',
+                  background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
-                }}>F</span>
-                <span style={{ color: 'rgb(212, 175, 55)' }}>U</span> ChatAI
+                }}>MFU</span> ChatAI
               </span>
             </h2>
             <p className="text-gray-600 dark:text-gray-300">How can I help you today?</p>
