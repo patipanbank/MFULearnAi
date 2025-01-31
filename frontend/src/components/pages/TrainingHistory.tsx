@@ -213,9 +213,9 @@ const TrainingHistory: React.FC = () => {
             {documents?.metadatas.map((metadata, index) => (
               <tr key={documents.ids[index]} className="hover:bg-gray-50">
                 <td className="px-4 py-2 text-left">
-                  {metadata.filename.length > 30 ? (
+                  {metadata.filename.length > 25 ? (
                     <div className="group relative">
-                      <span>{metadata.filename.substring(0, 27)}...</span>
+                      <span>{metadata.filename.substring(0, 22)}...</span>
                       <span className="invisible group-hover:visible absolute left-0 top-full bg-gray-800 text-white text-sm rounded p-2 z-10">
                         {metadata.filename}
                       </span>
