@@ -44,7 +44,7 @@ const MFUChatbot: React.FC = () => {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(); 
   }, [messages, isLoading]);
 
   useEffect(() => {
