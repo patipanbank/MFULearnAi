@@ -3,9 +3,7 @@ import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 
 export class ChatService {
-  private systemPrompt = `You are an AI assistant for Mae Fah Luang University. 
-Your role is to provide accurate and helpful information based on the given context.
-If the answer cannot be found in the context, please say so politely.`;
+  private systemPrompt = ``;
 
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
