@@ -201,18 +201,18 @@ const TrainingHistory: React.FC = () => {
         <table className="min-w-full bg-white border border-gray-200">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">File Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Model</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">File Name</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Model</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Collection</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Uploaded By</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Upload Date</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Upload Date</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {documents?.metadatas.map((metadata, index) => (
               <tr key={documents.ids[index]} className="hover:bg-gray-50">
-                <td className="px-4 py-2 text-left">
+                <td className="px-4 py-2 text-center">
                   {metadata.filename.length > 25 ? (
                     <div className="group relative">
                       <span>{metadata.filename.substring(0, 22)}...</span>
