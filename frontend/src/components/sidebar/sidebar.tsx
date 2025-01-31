@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { FaRobot, FaBars, FaCog, FaHistory } from 'react-icons/fa';
+import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -73,6 +74,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </div>
 
       <div className="flex-none border-t">
+        <div className="px-6 py-4 border-b">
+          <DarkModeToggle />
+        </div>
         <button 
           onClick={handleLogout}
           className="flex items-center w-full px-6 py-4 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"

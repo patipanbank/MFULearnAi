@@ -274,7 +274,7 @@ const MFUChatbot: React.FC = () => {
                   className={`mb-2 max-w-[85%] md:max-w-[80%] ${
                     message.role === 'user' 
                       ? 'ml-auto bg-blue-500 text-white' 
-                      : 'mr-auto bg-gray-100'
+                      : 'mr-auto bg-gray-100 dark:bg-gray-700 dark:text-white'
                   } rounded-lg p-3 md:p-4`}
                 >
                   <div className={`text-xs md:text-sm ${
@@ -327,14 +327,14 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       {/* Fixed Bottom Container */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t pb-[env(safe-area-inset-bottom)]">
+      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
         {/* Controls */}
         <div className="p-2 md:p-4 border-b">
           <div className="flex gap-2 max-w-4xl mx-auto">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] md:max-w-[200px]"
+              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] md:max-w-[200px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
               <option value="">Select Model</option>
               {models.map(model => (
@@ -346,7 +346,7 @@ const MFUChatbot: React.FC = () => {
             <select
               value={selectedCollection}
               onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] md:max-w-[200px]"
+              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] md:max-w-[200px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
               <option value="">Choose Collection</option>
               {collections.map(collection => (
@@ -369,7 +369,7 @@ const MFUChatbot: React.FC = () => {
               value={inputMessage}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
               onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
-              className="flex-1 p-2 text-sm md:text-base border rounded resize-none"
+              className="flex-1 p-2 text-sm md:text-base border rounded resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               placeholder="Type your message here..."
               rows={1}
             />
