@@ -35,7 +35,7 @@ const MFUChatbot: React.FC = () => {
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
-  const [, setLoadingCollections] = useState(true);
+  // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,8 +71,23 @@ const MFUChatbot: React.FC = () => {
   }, [inputMessage]);
 
   useEffect(() => {
-    fetchModels();
-    fetchCollections();
+    const fetchData = async () => {
+      try {
+        const [modelsRes, collectionsRes] = await Promise.all([
+          fetch(`${config.apiUrl}/api/training/models`),
+          fetch(`${config.apiUrl}/api/training/collections`)
+        ]);
+        
+        const modelsData = await modelsRes.json();
+        const collectionsData = await collectionsRes.json();
+        
+        setModels(modelsData);
+        setCollections(collectionsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -113,49 +128,6 @@ const MFUChatbot: React.FC = () => {
 
     loadChatHistory();
   }, []);
-
-  const fetchModels = async () => {
-    try {
-      const response = await fetch(`${config.apiUrl}/api/training/models`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch models');
-      }
-      const data = await response.json();
-      setModels(data);
-      if (data.length === 1) {
-        setSelectedModel(data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching models:', error);
-    }
-  };
-
-  const fetchCollections = async () => {
-    try {
-      setLoadingCollections(true);
-      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch collections');
-      }
-      const data = await response.json();
-      setCollections(data);
-      if (data.length > 0) {
-        setSelectedCollection(data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching collections:', error);
-    } finally {
-      setLoadingCollections(false);
-    }
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);

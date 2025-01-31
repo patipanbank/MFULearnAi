@@ -61,7 +61,7 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       ...messages
     ] as ChatMessage[];
 
-    const response = await chatService.generateResponse(messages, userMessage);
+    const response = await chatService.generateResponse(messages, userMessage, modelId, collectionName);
     
     const sources = matches.map((match: any) => ({
       modelId: modelId,
@@ -96,31 +96,19 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
   }
 };
 
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
-    const { messages, collectionName } = req.body;
-    const user = (req as any).user;
-
-    if (!messages || !collectionName) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
-
-    const latestMessage = messages[messages.length - 1];
-    const response = await chatService.generateResponse(messages, latestMessage.content);
-
-    // Save chat history
-    await chatHistoryService.saveChatMessage(
-      user.username,
-      'aws-bedrock',
-      collectionName,
-      [...messages, { role: 'assistant', content: response }]
+    const { messages, modelId, collectionName } = req.body;
+    const response = await chatService.generateResponse(
+      messages, 
+      messages[messages.length - 1].content,
+      modelId,
+      collectionName
     );
-
     res.json({ response });
   } catch (error) {
     console.error('Chat error:', error);
-    res.status(500).json({ error: 'Error processing chat request' });
+    res.status(500).json({ error: 'Failed to generate response' });
   }
 });
 

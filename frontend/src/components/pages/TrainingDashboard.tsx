@@ -69,23 +69,38 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  const createNewCollection = async () => {
+  const handleCreateCollection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCollectionName.trim()) {
+      alert('Please enter collection name');
+      return;
+    }
+
     try {
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
-        body: JSON.stringify({ collectionName: newCollectionName })
+        body: JSON.stringify({ name: newCollectionName })
       });
+
       if (response.ok) {
-        await fetchCollections();
+        // Refresh collections list
+        const collectionsRes = await fetch(`${config.apiUrl}/api/training/collections`);
+        const collectionsData = await collectionsRes.json();
+        setCollections(collectionsData);
+        
+        // Reset form
         setNewCollectionName('');
         setShowNewCollectionForm(false);
+      } else {
+        alert('Failed to create collection');
       }
     } catch (error) {
       console.error('Error creating collection:', error);
+      alert('Error creating collection');
     }
   };
 
@@ -295,7 +310,7 @@ const TrainingDashboard: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={createNewCollection}
+                onClick={handleCreateCollection}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 Create

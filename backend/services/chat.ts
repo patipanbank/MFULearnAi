@@ -8,9 +8,9 @@ Your role is to provide accurate and helpful information based on the university
 Always be polite and professional. If you're not sure about something, admit it and suggest 
 contacting the relevant department for accurate information.`;
 
-  async generateResponse(messages: ChatMessage[], query: string): Promise<string> {
+  async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
-      const context = await this.getContext(query);
+      const context = await this.getContext(query, collectionName);
       
       const augmentedMessages = [
         {
@@ -20,7 +20,7 @@ contacting the relevant department for accurate information.`;
         ...messages
       ];
 
-      const response = await bedrockService.chat(augmentedMessages, query);
+      const response = await bedrockService.chat(augmentedMessages, modelId);
       return response.content;
     } catch (error) {
       console.error('Error generating chat response:', error);
@@ -28,9 +28,9 @@ contacting the relevant department for accurate information.`;
     }
   }
 
-  private async getContext(query: string): Promise<string> {
+  private async getContext(query: string, collectionName: string): Promise<string> {
     try {
-      const results = await chromaService.queryDocuments('default', query, 3);
+      const results = await chromaService.queryDocuments(collectionName, query, 3);
       return results.documents.join('\n\n');
     } catch (error) {
       console.error('Error getting context:', error);
