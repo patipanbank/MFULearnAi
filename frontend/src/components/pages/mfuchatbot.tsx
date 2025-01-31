@@ -366,7 +366,7 @@ const MFUChatbot: React.FC = () => {
             </select>
             <button
               onClick={clearChat}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded hover:bg-red-600 transition-colors whitespace-nowrap"
+              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors whitespace-nowrap"
             >
               Clear Chat
             </button>
