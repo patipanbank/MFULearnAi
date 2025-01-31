@@ -34,7 +34,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>MFU</span>{' '}
-            <span>LEARN AI</span>
+            <span>LEARN{' '}</span>
+            <span style={{ 
+              background: 'linear-gradient(to right, #00FFFF, #0099FF)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>AI</span>
           </h2>
           <div className="flex items-center gap-2">
             <DarkModeToggle />
