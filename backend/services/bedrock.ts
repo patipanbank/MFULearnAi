@@ -6,7 +6,7 @@ class BedrockService {
   private models = {
     titan: 'amazon.titan-text-express-v1',
     claude: 'anthropic.claude-v2',
-    nova: 'async-invoke.foundation-model',
+    nova: 'amazon.nova-micro-v1:0',
     embedding: 'amazon.titan-embed-text-v2'
   };
 
