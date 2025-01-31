@@ -68,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text'
-              }}>Chat</span>
+              }}>Chat</span>{' '}
               <span style={{ 
                 background: 'linear-gradient(to right, #00FFFF, #0099FF)',
                 WebkitBackgroundClip: 'text',
