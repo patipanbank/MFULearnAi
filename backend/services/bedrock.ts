@@ -161,6 +161,35 @@ class BedrockService {
     prompt += 'Assistant:';
     return prompt.trim();
   }
+
+  async testNovaModel(): Promise<boolean> {
+    try {
+      const testMessage = {
+        role: 'user',
+        content: 'Simple test: Say "Hello, I am Nova Pro"'
+      };
+
+      const command = new InvokeModelCommand({
+        modelId: this.models.nova,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify({
+          prompt: `Human: ${testMessage.content}\n\nAssistant:`,
+          temperature: 0.7,
+          top_p: 0.9,
+          max_tokens: 50,
+          stop_sequences: []
+        })
+      });
+
+      const response = await this.client.send(command);
+      console.log('Nova Pro test response:', JSON.parse(new TextDecoder().decode(response.body)));
+      return true;
+    } catch (error) {
+      console.error('Nova Pro test error:', error);
+      return false;
+    }
+  }
 }
 
 export const bedrockService = new BedrockService(); 

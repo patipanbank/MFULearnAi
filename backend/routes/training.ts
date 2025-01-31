@@ -7,6 +7,7 @@ import { chromaService } from '../services/chroma';
 import fs from 'fs';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
+import { bedrockService } from '../services/bedrock';
 
 const router = Router();
 const upload = multer({ 
@@ -235,6 +236,19 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
   } catch (error) {
     console.error('URL processing error:', error);
     res.status(500).json({ error: (error as Error).message || 'Error processing URLs' });
+  }
+});
+
+router.get('/test-nova', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+  try {
+    const isAvailable = await bedrockService.testNovaModel();
+    res.json({ 
+      isAvailable,
+      message: isAvailable ? 'Nova Pro is available' : 'Nova Pro is not available'
+    });
+  } catch (error) {
+    console.error('Error testing Nova:', error);
+    res.status(500).json({ error: 'Failed to test Nova Pro' });
   }
 });
 
