@@ -33,7 +33,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
-            }}>MFU LEARN AI</span>
+            }}>MFU</span>{' '}
+            <span>LEARN AI</span>
           </h2>
           <div className="flex items-center gap-2">
             <DarkModeToggle />
