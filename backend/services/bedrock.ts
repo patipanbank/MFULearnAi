@@ -6,7 +6,7 @@ class BedrockService {
   private models = {
     titan: 'amazon.titan-text-express-v1',
     claude: 'anthropic.claude-v2',
-    nova: 'amazon.nova-micro-v1:0',
+    nova: 'amazon.nova-micro-v1.0',
     embedding: 'amazon.titan-embed-text-v2'
   };
 
@@ -172,15 +172,15 @@ class BedrockService {
           prompt: "Human: Simple test\n\nAssistant:",
           temperature: 0.7,
           top_p: 0.9,
-          max_tokens: 50
+          max_tokens: 128
         })
       });
 
       const response = await this.client.send(command);
-      console.log('Nova test response:', JSON.parse(new TextDecoder().decode(response.body)));
+      console.log('Nova Micro test response:', JSON.parse(new TextDecoder().decode(response.body)));
       return true;
     } catch (error) {
-      console.error('Nova Pro test error:', error);
+      console.error('Nova Micro test error:', error);
       return false;
     }
   }
