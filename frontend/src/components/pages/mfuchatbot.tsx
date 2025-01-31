@@ -266,7 +266,7 @@ const MFUChatbot: React.FC = () => {
             <h2 className="text-center text-xl font-semibold mb-2 text-gray-800 dark:text-white">
               Welcome to
               <br />
-              <span className="text-2xl">
+              <span className="text-3xl">
                 <span style={{ color: 'rgb(186, 12, 47)' }}>M</span>
                 <span style={{ 
                   background: 'linear-gradient(to right, rgb(186, 12, 47) 50%, rgb(212, 175, 55) 50%)',
