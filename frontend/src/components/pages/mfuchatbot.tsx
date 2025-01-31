@@ -19,6 +19,11 @@ interface Message {
   sources?: Source[];
 }
 
+const modelNames: { [key: string]: string } = {
+  'amazon.titan-text-express-v1': 'Titan',
+  'anthropic.claude-v2': 'Claude'
+};
+
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -337,9 +342,11 @@ const MFUChatbot: React.FC = () => {
               onChange={(e) => setSelectedModel(e.target.value)}
               className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] md:max-w-[200px]"
             >
-              <option value="">Choose Model</option>
+              <option value="">Select Model</option>
               {models.map(model => (
-                <option key={model} value={model}>{model}</option>
+                <option key={model} value={model}>
+                  {modelNames[model] || model}
+                </option>
               ))}
             </select>
             <select

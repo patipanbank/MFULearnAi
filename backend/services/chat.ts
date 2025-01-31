@@ -20,7 +20,7 @@ contacting the relevant department for accurate information.`;
         ...messages
       ];
 
-      const response = await bedrockService.chat(augmentedMessages);
+      const response = await bedrockService.chat(augmentedMessages, query);
       return response.content;
     } catch (error) {
       console.error('Error generating chat response:', error);

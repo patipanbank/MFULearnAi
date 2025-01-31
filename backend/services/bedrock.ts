@@ -3,8 +3,11 @@ import { ChatMessage } from '../types/chat';
 
 class BedrockService {
   private client: BedrockRuntimeClient;
-  private chatModel = 'amazon.titan-text-express-v1';
-  private embeddingModel = 'amazon.titan-embed-text-v2';
+  private models = {
+    titan: 'amazon.titan-text-express-v1',
+    claude: 'anthropic.claude-v2',
+    embedding: 'amazon.titan-embed-text-v2'
+  };
 
   constructor() {
     this.client = new BedrockRuntimeClient({
@@ -16,39 +19,57 @@ class BedrockService {
     });
   }
 
-  async chat(messages: ChatMessage[]): Promise<{ content: string }> {
+  async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
-      const prompt = this.formatMessages(messages);
-      
-      const command = new InvokeModelCommand({
-        modelId: this.chatModel,
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify({
-          inputText: prompt,
-          textGenerationConfig: {
-            maxTokenCount: 4096,
-            stopSequences: [],
-            temperature: 0.7,
-            topP: 0.9
-          }
-        })
-      });
-
-      const response = await this.client.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      
-      return { content: responseBody.results[0].outputText };
+      if (modelId === this.models.claude) {
+        return this.claudeChat(messages);
+      }
+      return this.titanChat(messages);
     } catch (error) {
       console.error('Bedrock chat error:', error);
       throw error;
     }
   }
 
+  private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
+    const prompt = this.formatClaudeMessages(messages);
+    
+    const command = new InvokeModelCommand({
+      modelId: this.models.claude,
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify({
+        prompt: prompt,
+        max_tokens_to_sample: 4096,
+        temperature: 0.7,
+        top_p: 0.9
+      })
+    });
+
+    const response = await this.client.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    return { content: responseBody.completion };
+  }
+
+  private formatClaudeMessages(messages: ChatMessage[]): string {
+    let prompt = '';
+    messages.forEach(msg => {
+      if (msg.role === 'system') {
+        prompt += `\n\nHuman: ${msg.content}\n\nAssistant: I understand.`;
+      } else if (msg.role === 'user') {
+        prompt += `\n\nHuman: ${msg.content}`;
+      } else if (msg.role === 'assistant') {
+        prompt += `\n\nAssistant: ${msg.content}`;
+      }
+    });
+    prompt += '\n\nAssistant:';
+    return prompt.trim();
+  }
+
   async embed(text: string): Promise<number[]> {
     try {
       const command = new InvokeModelCommand({
-        modelId: this.embeddingModel,
+        modelId: this.models.embedding,
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify({
@@ -78,6 +99,28 @@ class BedrockService {
       }
     });
     return prompt.trim();
+  }
+
+  private async titanChat(messages: ChatMessage[]): Promise<{ content: string }> {
+    const prompt = this.formatMessages(messages);
+    
+    const command = new InvokeModelCommand({
+      modelId: this.models.titan,
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify({
+        inputText: prompt,
+        textGenerationConfig: {
+          maxTokenCount: 4096,
+          temperature: 0.7,
+          topP: 0.9
+        }
+      })
+    });
+
+    const response = await this.client.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    return { content: responseBody.results[0].outputText };
   }
 }
 
