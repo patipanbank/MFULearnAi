@@ -1,5 +1,4 @@
-import { ChromaClient, OpenAIEmbeddingFunction } from 'chromadb';
-import { ollamaService } from './ollama';
+import { ChromaClient } from 'chromadb';
 
 interface DocumentMetadata {
   filename: string;

@@ -1,7 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { chromaService } from '../services/chroma';
-import { ollamaService } from '../services/ollama';
 import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { ChatMessage } from '../types/chat';
@@ -62,7 +61,7 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
       ...messages
     ] as ChatMessage[];
 
-    const response = await ollamaService.chat(augmentedMessages);
+    const response = await chatService.generateResponse(messages, userMessage);
     
     const sources = matches.map((match: any) => ({
       modelId: modelId,
@@ -75,7 +74,7 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     const updatedMessages = [...messages, {
       id: Date.now(),
       role: 'assistant',
-      content: response.content,
+      content: response,
       timestamp: new Date().toISOString(),
       sources: sources
     }];
@@ -88,7 +87,7 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
     );
 
     res.json({
-      content: response.content,
+      content: response,
       sources: sources
     });
   } catch (error) {

@@ -4,7 +4,6 @@ import multer from 'multer';
 import path from 'path';
 import { documentService } from '../services/document';
 import { chromaService } from '../services/chroma';
-import { ollamaService } from '../services/ollama';
 import fs from 'fs';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
@@ -92,7 +91,11 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
 // อนุญาตทั้ง Students และ Staffs ให้เข้าถึง models และ collections ได้
 router.get('/models', roleGuard(['Students', 'Staffs']), async (req, res) => {
   try {
-    const models = await ollamaService.getAvailableModels();
+    // ส่งรายการโมเดลของ AWS Bedrock แทน
+    const models = [
+      'amazon.titan-text-express-v1',
+      'amazon.titan-embed-text-v2'
+    ];
     res.json(models);
   } catch (error) {
     console.error('Error:', error);
