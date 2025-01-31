@@ -63,12 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           >
             <FaComments className="w-5 h-5 mr-3" />
             <span>
-              <span style={{ 
-                background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>Chat</span>{' '}
+              Chat{' '}
               <span style={{ 
                 background: 'linear-gradient(to right, #00FFFF, #0099FF)',
                 WebkitBackgroundClip: 'text',
