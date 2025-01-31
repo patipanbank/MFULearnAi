@@ -218,7 +218,7 @@ const TrainingHistory: React.FC = () => {
                       {metadata.filename}
                     </div>
                     {metadata.filename.length > 25 && (
-                      <div className="invisible group-hover:visible absolute left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-sm rounded px-2 py-1 z-20 whitespace-nowrap">
+                      <div className="invisible group-hover:visible absolute left-0 bg-gray-800 text-white text-sm rounded px-2 py-1 z-20 whitespace-nowrap">
                         {metadata.filename}
                       </div>
                     )}
