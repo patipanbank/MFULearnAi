@@ -219,7 +219,7 @@ const TrainingHistory: React.FC = () => {
                     </div>
                     {metadata.filename.length > 25 && (
                       <div className={`invisible group-hover:visible absolute left-0 bg-gray-800 text-white text-sm rounded px-2 py-1 z-50 min-w-max ${
-                        metadata.filename.length > 70 ? 'whitespace-normal max-w-2xl break-all' : 'whitespace-nowrap'
+                        metadata.filename.length > 70 ? 'whitespace-normal max-w-[800px] break-all' : 'whitespace-nowrap'
                       }`}>
                         {metadata.filename}
                       </div>
