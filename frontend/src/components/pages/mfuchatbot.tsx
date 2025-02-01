@@ -359,11 +359,18 @@ const MFUChatbot: React.FC = () => {
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-2xl p-4 rounded-tl-none max-w-[85%] md:max-w-[80%]">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden">
+                  <img 
+                    src="/dindin.PNG" 
+                    alt="DinDin" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
                   <div className="flex items-center space-x-2">
                     <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
-                    <span className="text-sm text-gray-500">Typing...</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-300">Typing...</span>
                   </div>
                 </div>
               </div>
