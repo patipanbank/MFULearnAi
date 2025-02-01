@@ -323,7 +323,9 @@ const MFUChatbot: React.FC = () => {
                 }`}>
                   {/* Avatar */}
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
-                    message.role === 'user' ? 'bg-blue-500' : 'bg-transparent'
+                    message.role === 'user' 
+                      ? 'bg-gradient-to-r from-red-600 to-yellow-400' 
+                      : 'bg-transparent'
                   } flex items-center justify-center`}>
                     {message.role === 'user' ? (
                       <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
