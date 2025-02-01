@@ -255,9 +255,36 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* Update logo section */}
+        <div className="flex flex-col items-center justify-center mb-8">
+          <img 
+            src="/mfu_logo_chatbot.PNG" 
+            alt="MFU Logo" 
+            className="w-24 h-24 mb-4 object-contain"
+          />
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Welcome to{' '}
+            <span style={{ 
+              background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              MFU
+            </span>{' '}
+            <span>LEARN{' '}</span>
+            <span style={{ 
+              background: 'linear-gradient(to right, #00FFFF, #0099FF)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              AI
+            </span>
+          </h1>
+        </div>
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -333,95 +360,4 @@ const MFUChatbot: React.FC = () => {
                           `Model: ${source.modelId}\n` +
                           `Collection: ${source.collectionName}\n` +
                           `File: ${source.filename}\n` +
-                          `Source: ${source.source || 'N/A'}\n` +
-                          `Similarity: ${(source.similarity * 100).toFixed(1)}%`
-                        ).join('\n\n');
-                        alert(sourceInfo);
-                      }}
-                      className="text-xs text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      View Sources ({message.sources.length})
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-2xl p-4 rounded-tl-none max-w-[85%] md:max-w-[80%]">
-                  <div className="flex items-center space-x-2">
-                    <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
-                    <span className="text-sm text-gray-500">Typing...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
-
-      {/* Fixed Bottom Container */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
-        {/* Controls */}
-        <div className="p-2 md:p-4 border-b">
-          <div className="flex gap-2 max-w-4xl mx-auto">
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Model</option>
-              {models.map(model => (
-                <option key={model} value={model}>
-                  {modelNames[model] || model}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Collection</option>
-              {collections.map(collection => (
-                <option key={collection} value={collection}>{collection}</option>
-              ))}
-            </select>
-            <button
-              onClick={clearChat}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors whitespace-nowrap"
-            >
-              Clear Chat
-            </button>
-          </div>
-        </div>
-
-        {/* Input Form */}
-        <form onSubmit={handleSubmit} className="p-2 md:p-4">
-          <div className="flex gap-2 max-w-4xl mx-auto">
-            <textarea
-              value={inputMessage}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
-              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
-              className="flex-1 p-2 text-sm md:text-base border rounded resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              placeholder="Type your message here..."
-              rows={1}
-            />
-            <button
-              type="submit"
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
-            >
-              Send
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default MFUChatbot;
+                          `
