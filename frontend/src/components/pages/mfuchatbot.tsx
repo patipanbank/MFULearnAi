@@ -288,21 +288,40 @@ const MFUChatbot: React.FC = () => {
           <div className="space-y-6">
             {messages.map((message) => (
               <div key={message.id}>
-                <div 
-                  className={`mb-2 max-w-[85%] md:max-w-[80%] ${
+                <div className={`flex items-start gap-3 ${
+                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                }`}>
+                  {/* Avatar */}
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
+                    message.role === 'user' ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'
+                  } flex items-center justify-center`}>
+                    {message.role === 'user' ? (
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-gray-500 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+
+                  {/* Message Content */}
+                  <div className={`max-w-[75%] md:max-w-[70%] ${
                     message.role === 'user' 
                       ? 'ml-auto bg-blue-500 text-white' 
                       : 'mr-auto bg-gray-100 dark:bg-gray-700 dark:text-white'
-                  } rounded-lg p-3 md:p-4`}
-                >
-                  <div className={`text-xs md:text-sm ${
-                    message.role === 'user' 
-                      ? 'text-blue-100' 
-                      : 'text-gray-500'
-                  } mb-1`}>
-                    {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
+                  } rounded-lg p-3 md:p-4`}>
+                    <div className={`text-xs md:text-sm ${
+                      message.role === 'user' 
+                        ? 'text-blue-100' 
+                        : 'text-gray-500'
+                    } mb-1`}>
+                      {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
+                    </div>
+                    <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
                   </div>
-                  <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
                 </div>
                 
                 {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
