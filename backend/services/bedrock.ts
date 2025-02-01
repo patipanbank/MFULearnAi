@@ -150,4 +150,17 @@ class BedrockService {
   }
 }
 
-export const bedrockService = new BedrockService(); 
+export const bedrockService = new BedrockService();
+
+async function testEmbedding() {
+  try {
+    const text = "This is a test sentence.";
+    const vector = await bedrockService.embed(text);
+    console.log("Embedding vector:", vector);
+  } catch (error) {
+    console.error("Error during embedding test:", error);
+  }
+}
+
+// เรียกใช้ฟังก์ชันทดสอบ
+testEmbedding(); 
