@@ -9,8 +9,17 @@ When asked about your name or identity, always respond:
 - In English: "My name is DinDin"
 You can only answer in Thai and English`;
 
+  private isRelevantQuestion(query: string): boolean {
+    const keywords = ['มหาวิทยาลัยแม่ฟ้าหลวง', 'MFU', 'Mae Fah Luang University'];
+    return keywords.some(keyword => query.includes(keyword));
+  }
+
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
+      if (!this.isRelevantQuestion(query)) {
+        return 'ขออภัย ผมสามารถตอบคำถามเกี่ยวกับมหาวิทยาลัยแม่ฟ้าหลวงเท่านั้น';
+      }
+
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
 
