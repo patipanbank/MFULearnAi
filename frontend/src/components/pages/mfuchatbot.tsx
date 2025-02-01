@@ -350,6 +350,7 @@ const MFUChatbot: React.FC = () => {
                       <button
                         onClick={() => handleCopy(message.content)}
                         className="absolute top-1 right-1 px-1 py-0.5 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded text-xs"
+                        style={{ transform: 'translateY(-50%)', top: '50%' }}
                       >
                         {copySuccess ? 'Copied' : 'Copy'}
                       </button>
