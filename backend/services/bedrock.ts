@@ -126,6 +126,29 @@ class BedrockService {
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     return { content: responseBody.results[0].outputText };
   }
+
+  async chatWithVector(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
+    try {
+      const text = messages.map(msg => msg.content).join(' ');
+      const vector = await this.embed(text);
+
+      const command = new InvokeModelCommand({
+        modelId: this.models.embedding,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify({
+          inputVector: vector,
+        })
+      });
+
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      return { content: responseBody.results[0].outputText };
+    } catch (error) {
+      console.error('Bedrock chat with vector error:', error);
+      throw error;
+    }
+  }
 }
 
 export const bedrockService = new BedrockService(); 
