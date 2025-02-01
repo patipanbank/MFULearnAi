@@ -266,26 +266,30 @@ const MFUChatbot: React.FC = () => {
                 alt="MFU Logo" 
                 className="w-24 h-24 mb-4 object-contain"
               />
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-                Welcome to{' '}
-                <span style={{ 
-                  background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text'
-                }}>
-                  MFU
-                </span>{' '}
-                <span>LEARN{' '}</span>
-                <span style={{ 
-                  background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text'
-                }}>
-                  AI
-                </span>
-              </h1>
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                  Welcome to
+                </h1>
+                <div className="text-2xl font-bold">
+                  <span style={{ 
+                    background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}>
+                    MFU
+                  </span>{' '}
+                  <span>LEARN{' '}</span>
+                  <span style={{ 
+                    background: 'linear-gradient(to right, #00FFFF, #0099FF)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}>
+                    AI
+                  </span>
+                </div>
+              </div>
             </div>
             <p className="text-gray-600 dark:text-gray-300">How can I help you today?</p>
           </div>
