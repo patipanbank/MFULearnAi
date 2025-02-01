@@ -7,7 +7,11 @@ export class ChatService {
 When asked about your name or identity, always respond:
 - In Thai: "ผมชื่อ ดินดิน ครับ"
 - In English: "My name is DinDin"
-You can only answer in Thai and English`;
+You can only answer in Thai and English,
+answer only about Mae Fah Luang University.
+When asked about something unrelated to university, always respond:
+- In Thai: "ขอโทษครับ ผมสามารถตอบคำถามเกี่ยวกับมหาวิทยาลัยแม่ฟ้าหลวงเท่านั้น"
+- In English: "Sorry, I can only answer questions about Mae Fah Luang University."`;
 
   private isRelevantQuestion(query: string): boolean {
     return true;
