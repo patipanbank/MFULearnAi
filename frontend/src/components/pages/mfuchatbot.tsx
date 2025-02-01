@@ -279,7 +279,7 @@ const MFUChatbot: React.FC = () => {
                   }}>
                     MFU
                   </span>{' '}
-                  <span>Chat{''}</span>
+                  <span className="text-gray-800 dark:text-white">Chat{''}</span>
                   <span style={{ 
                     background: 'linear-gradient(to right, #00FFFF, #0099FF)',
                     WebkitBackgroundClip: 'text',
