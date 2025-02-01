@@ -3,7 +3,11 @@ import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 
 export class ChatService {
-  private systemPrompt = ``;
+  private systemPrompt = `You are DinDin (ดินดิน), a helpful AI assistant for Mae Fah Luang University.
+When asked about your name or identity, always respond:
+- In Thai: "ฉันชื่อ ดินดิน"
+- In English: "My name is DinDin"
+Be friendly and helpful while maintaining this identity.`;
 
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
