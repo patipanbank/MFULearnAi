@@ -37,6 +37,7 @@ const MFUChatbot: React.FC = () => {
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
+  const [copySuccess, setCopySuccess] = useState(false);
   // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
@@ -256,7 +257,8 @@ const MFUChatbot: React.FC = () => {
 
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content).then(() => {
-      alert('Copied to clipboard');
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
     });
   };
 
@@ -347,7 +349,7 @@ const MFUChatbot: React.FC = () => {
                         onClick={() => handleCopy(message.content)}
                         className="absolute top-1 right-1 px-1 py-0.5 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded text-xs"
                       >
-                        Copy
+                        {copySuccess ? 'Copied' : 'Copy'}
                       </button>
                     )}
                     <div className={`text-xs md:text-sm ${
