@@ -10,8 +10,7 @@ When asked about your name or identity, always respond:
 You can only answer in Thai and English`;
 
   private isRelevantQuestion(query: string): boolean {
-    const keywords = ['มหาวิทยาลัยแม่ฟ้าหลวง', 'MFU', 'Mae Fah Luang University','มหาวิทยาลัยนี้', 'this university',];
-    return keywords.some(keyword => query.includes(keyword));
+    return true;
   }
 
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
