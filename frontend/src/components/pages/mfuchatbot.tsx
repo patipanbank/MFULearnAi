@@ -345,11 +345,7 @@ const MFUChatbot: React.FC = () => {
                         Copy
                       </button>
                     )}
-                    <div className={`text-xs md:text-sm ${
-                      message.role === 'user' 
-                        ? 'text-blue-100' 
-                        : 'text-gray-500'
-                    } mb-1`}>
+                    <div className="text-xs md:text-sm text-gray-500 mb-1">
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                     </div>
                     <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
