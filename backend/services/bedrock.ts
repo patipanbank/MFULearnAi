@@ -100,7 +100,7 @@ class BedrockService {
       } else if (msg.role === 'assistant') {
         prompt += `Assistant: ${msg.content}\n\n`;
       }
-    });
+    }); 
     return prompt.trim();
   }
 
