@@ -340,7 +340,7 @@ const MFUChatbot: React.FC = () => {
                     {message.role === 'assistant' && (
                       <button
                         onClick={() => handleCopy(message.content)}
-                        className="absolute top-1 right-1 px-2 py-1 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded"
+                        className="absolute top-1 right-1 px-1 py-0.5 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded text-xs"
                       >
                         Copy
                       </button>
