@@ -20,7 +20,7 @@ interface Message {
 }
 
 const modelNames: { [key: string]: string } = {
-  'amazon.titan-text-express-v1': 'Titan',
+  'amazon.titan-text-premier-v1:0': 'Titan Premier',
   'anthropic.claude-v2': 'Claude',
   'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
   'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku'
