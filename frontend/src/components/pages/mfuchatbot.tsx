@@ -337,14 +337,14 @@ const MFUChatbot: React.FC = () => {
                       ? 'ml-auto bg-blue-500 text-white' 
                       : 'mr-auto bg-gray-100 dark:bg-gray-700 dark:text-white'
                   } rounded-lg p-3 md:p-4 relative`}>
-                    <button
-                      onClick={() => handleCopy(message.content)}
-                      className={`absolute top-1 right-1 text-xs ${
-                        message.role === 'user' ? 'text-green-500 hover:text-green-700' : 'text-blue-500 hover:text-blue-700'
-                      }`}
-                    >
-                      Copy
-                    </button>
+                    {message.role === 'assistant' && (
+                      <button
+                        onClick={() => handleCopy(message.content)}
+                        className="absolute top-1 right-1 text-xs text-blue-500 hover:text-blue-700"
+                      >
+                        Copy
+                      </button>
+                    )}
                     <div className={`text-xs md:text-sm ${
                       message.role === 'user' 
                         ? 'text-blue-100' 
