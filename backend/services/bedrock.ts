@@ -83,7 +83,7 @@ class BedrockService {
 
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      return responseBody.results[0].embedding; // Adjust based on actual response structure
+      return responseBody.results[0].embedding; // ปรับตามโครงสร้างของการตอบสนองจริง
     } catch (error) {
       console.error('Embedding error:', error);
       throw error;
