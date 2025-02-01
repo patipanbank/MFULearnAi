@@ -181,9 +181,4 @@ testEmbedding();
 
 function cleanResponse(response: string): string {
   return response.replace(/^Bot:\s*/, '').replace(/^Human:\s*/, '');
-}
-
-// Example usage
-const rawResponse = "Bot: Hello, how can I assist you today?";
-const cleanedResponse = cleanResponse(rawResponse);
-console.log(cleanedResponse); // Output: "Hello, how can I assist you today?" 
+} // Output: "Hello, how can I assist you today?" 
