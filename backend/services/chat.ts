@@ -17,7 +17,7 @@ You can only answer in Thai and English`;
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
       if (!this.isRelevantQuestion(query)) {
-        return 'ขออภัย ผมสามารถตอบคำถามเกี่ยวกับมหาวิทยาลัยแม่ฟ้าหลวงเท่านั้น';
+        return 'Sorry, I can only answer questions about Mae Fah Luang University.';
       }
 
       const context = await this.getContext(query, collectionName);
