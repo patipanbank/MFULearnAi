@@ -310,7 +310,7 @@ const MFUChatbot: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {messages.map((message, index) => (
-              <div key={index} className="message">
+              <div key={index} className="message relative">
                 <div className={`flex items-start gap-3 ${
                   message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}>
@@ -336,7 +336,13 @@ const MFUChatbot: React.FC = () => {
                     message.role === 'user' 
                       ? 'ml-auto bg-blue-500 text-white' 
                       : 'mr-auto bg-gray-100 dark:bg-gray-700 dark:text-white'
-                  } rounded-lg p-3 md:p-4`}>
+                  } rounded-lg p-3 md:p-4 relative`}>
+                    <button
+                      onClick={() => handleCopy(message.content)}
+                      className="absolute top-1 right-1 text-xs text-blue-500 hover:text-blue-700"
+                    >
+                      Copy
+                    </button>
                     <div className={`text-xs md:text-sm ${
                       message.role === 'user' 
                         ? 'text-blue-100' 
@@ -370,11 +376,6 @@ const MFUChatbot: React.FC = () => {
                     </button>
                   </div>
                 )}
-                <div className="actions">
-                  <button onClick={() => handleCopy(message.content)}>Copy</button>
-                  {/* <button onClick={() => handleLike(index)}>Like</button>
-                  <button onClick={() => handleDislike(index)}>Dislike</button> */}
-                </div>
               </div>
             ))}
             {isLoading && (
