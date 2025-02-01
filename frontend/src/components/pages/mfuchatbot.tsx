@@ -268,6 +268,11 @@ const MFUChatbot: React.FC = () => {
   //   // Implement logic to toggle dislike state
   // };
 
+  const isDayTime = () => {
+    const hour = new Date().getHours();
+    return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Chat Messages */}
@@ -345,7 +350,9 @@ const MFUChatbot: React.FC = () => {
                         Copy
                       </button>
                     )}
-                    <div className="text-xs md:text-sm text-gray-300 mb-1">
+                    <div className={`text-xs md:text-sm ${
+                      message.role === 'assistant' && isDayTime() ? 'text-gray-600' : 'text-gray-400'
+                    } mb-1`}>
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                     </div>
                     <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
