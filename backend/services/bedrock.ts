@@ -21,6 +21,8 @@ class BedrockService {
     });
   }
 
+
+  
   async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
       if (modelId === this.models.claude || 
@@ -76,17 +78,14 @@ class BedrockService {
         modelId: this.models.embedding,
         contentType: "application/json",
         accept: "application/json",
-        body: JSON.stringify({
-          inputText: text
-        })
+        body: JSON.stringify({ text })
       });
 
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      
-      return responseBody.embedding;
+      return responseBody.results[0].embedding; // Adjust based on actual response structure
     } catch (error) {
-      console.error('Bedrock embedding error:', error);
+      console.error('Embedding error:', error);
       throw error;
     }
   }
