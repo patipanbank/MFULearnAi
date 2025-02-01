@@ -254,6 +254,20 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      alert('Copied to clipboard');
+    });
+  };
+
+  // const handleLike = (index: number) => {
+  //   // Implement logic to toggle like state
+  // };
+
+  // const handleDislike = (index: number) => {
+  //   // Implement logic to toggle dislike state
+  // };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Chat Messages */}
@@ -295,8 +309,8 @@ const MFUChatbot: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {messages.map((message) => (
-              <div key={message.id}>
+            {messages.map((message, index) => (
+              <div key={index} className="message">
                 <div className={`flex items-start gap-3 ${
                   message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}>
@@ -356,6 +370,11 @@ const MFUChatbot: React.FC = () => {
                     </button>
                   </div>
                 )}
+                <div className="actions">
+                  <button onClick={() => handleCopy(message.content)}>Copy</button>
+                  {/* <button onClick={() => handleLike(index)}>Like</button>
+                  <button onClick={() => handleDislike(index)}>Dislike</button> */}
+                </div>
               </div>
             ))}
             {isLoading && (
