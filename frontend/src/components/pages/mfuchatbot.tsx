@@ -260,28 +260,33 @@ const MFUChatbot: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <span className="text-2xl">💬</span>
-            </div>
-            <h2 className="text-center text-xl font-semibold mb-2 text-gray-800 dark:text-white">
-              Welcome to
-              <br />
-              <span className="text-3xl">
+            <div className="flex flex-col items-center justify-center mb-8">
+              <img 
+                src="/mfu_logo_chatbot.PNG" 
+                alt="MFU Logo" 
+                className="w-24 h-24 mb-4 object-contain"
+              />
+              <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+                Welcome to{' '}
                 <span style={{ 
                   background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
-                }}>MFU</span>{' '}
-                Chat
+                }}>
+                  MFU
+                </span>{' '}
+                <span>LEARN{' '}</span>
                 <span style={{ 
                   background: 'linear-gradient(to right, #00FFFF, #0099FF)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
-                }}>AI</span>
-              </span>
-            </h2>
+                }}>
+                  AI
+                </span>
+              </h1>
+            </div>
             <p className="text-gray-600 dark:text-gray-300">How can I help you today?</p>
           </div>
         ) : (
