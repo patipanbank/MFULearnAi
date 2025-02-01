@@ -328,7 +328,7 @@ const MFUChatbot: React.FC = () => {
                       : 'bg-transparent'
                   } flex items-center justify-center`}>
                     {message.role === 'user' ? (
-                      <svg className="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className={`w-5 h-5 ${isDayTime() ? 'text-white' : 'text-black'}`} fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                       </svg>
                     ) : (
