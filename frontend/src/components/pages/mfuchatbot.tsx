@@ -352,7 +352,7 @@ const MFUChatbot: React.FC = () => {
                     )}
                     <div className={`text-xs md:text-sm ${
                       message.role === 'assistant' && isDayTime() ? 'text-gray-600' : 'text-gray-400'
-                    } mb-1`}>
+                    } ${message.role === 'user' ? 'text-gray-300' : ''} mb-1`}>
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                     </div>
                     <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
