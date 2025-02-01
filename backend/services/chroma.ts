@@ -128,14 +128,15 @@ class ChromaService {
     });
   }
 
-  async query(collectionName: string, text: string): Promise<any[]> {
+  async query(collectionName: string, query: string): Promise<any[]> {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
-        queryTexts: [text],
-        nResults: 1,
-        include: ["metadatas", "distances", "documents"]
+        queryTexts: [query],
+        nResults: 5,
+        where: {},
+        include: ["documents", "metadatas", "distances"]
       });
 
       return results.documents[0].map((doc: string, index: number) => ({
