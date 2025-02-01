@@ -343,7 +343,7 @@ const MFUChatbot: React.FC = () => {
                         className="absolute top-1 right-1 p-1 border border-blue-500 rounded-full text-blue-500 hover:bg-blue-100"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-4-4v16m-4-4h8" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v16H4z" />
                         </svg>
                       </button>
                     )}
