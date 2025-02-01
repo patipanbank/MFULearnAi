@@ -144,7 +144,8 @@ class BedrockService {
 
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      return { content: responseBody.results[0].outputText };
+      const cleanedContent = cleanResponse(responseBody.results[0].outputText);
+      return { content: cleanedContent };
     } catch (error) {
       console.error('Bedrock chat with vector error:', error);
       throw error;
