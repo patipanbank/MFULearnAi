@@ -11,14 +11,16 @@ When asked about your name or identity, always respond:
 You can only answer in Thai and English, You are a polite person.`;
 
   private isRelevantQuestion(query: string): boolean {
-    const relevantKeywords = ['university', 'MFU', 'มหาวิทยาลัย','มหาลัย','University','มอ','มฟล'];
+    const relevantKeywords = ['university', 'MFU', 'มหาวิทยาลัย','มหาลัย',
+                              'University','มอ','มฟล','hi','Hi','hello',
+                              'Hello'];
     return relevantKeywords.some(keyword => query.includes(keyword));
   }
 
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
       if (!this.isRelevantQuestion(query)) {
-        return 'Sorry, I can only answer questions about Mae Fah Luang University.';
+        return 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
       }
 
       const context = await this.getContext(query, collectionName);
