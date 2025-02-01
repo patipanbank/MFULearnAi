@@ -260,17 +260,17 @@ const MFUChatbot: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <div className="flex flex-col items-center justify-center mb-4">
+            <div className="flex flex-col items-center justify-center mb-1">
               <img 
                 src="/mfu_logo_chatbot.PNG" 
                 alt="MFU Logo" 
                 className="w-24 h-24 mb-4 object-contain"
               />
               <div className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
                   Welcome to
                 </h1>
-                <div className="text-2xl font-bold mb-1">
+                <div className="text-2xl font-bold mb-0">
                   <span style={{ 
                     background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
                     WebkitBackgroundClip: 'text',
@@ -291,7 +291,7 @@ const MFUChatbot: React.FC = () => {
                 </div>
               </div>
             </div>
-            <p className="text-gray-600 dark:text-gray-300">How can I help you today?</p>
+            <p className="text-gray-600 dark:text-gray-300 -mt-1">How can I help you today?</p>
           </div>
         ) : (
           <div className="space-y-6">
