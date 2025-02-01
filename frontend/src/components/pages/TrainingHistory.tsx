@@ -21,26 +21,9 @@ const TrainingHistory: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
-  const sortDocumentsByTimestamp = (documents: TrainingDocument): TrainingDocument => {
-    if (!documents || !documents.metadatas) return documents;
-
-    const indices = documents.metadatas.map((_, index) => index);
-    
-    indices.sort((a, b) => {
-      const timestampA = new Date(documents.metadatas[a].timestamp).getTime();
-      const timestampB = new Date(documents.metadatas[b].timestamp).getTime();
-      return timestampB - timestampA;
-    });
-
-    return {
-      ids: indices.map(i => documents.ids[i]),
-      documents: indices.map(i => documents.documents[i]),
-      metadatas: indices.map(i => documents.metadatas[i])
-    };
-  };
-
   const fetchDocuments = async () => {
     try {
+      // เพิ่ม query parameter collectionName
       const collections = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -48,6 +31,7 @@ const TrainingHistory: React.FC = () => {
       });
       const collectionList = await collections.json();
       
+      // ดึงข้อมูลจากทุก collection
       const allDocuments = await Promise.all(
         collectionList.map(async (collectionName: string) => {
           const response = await fetch(
@@ -65,14 +49,14 @@ const TrainingHistory: React.FC = () => {
         })
       );
 
+      // รวมข้อมูลจากทุก collection
       const combinedDocuments = {
         ids: allDocuments.flatMap(doc => doc.ids),
         documents: allDocuments.flatMap(doc => doc.documents),
         metadatas: allDocuments.flatMap(doc => doc.metadatas)
       };
 
-      const sortedDocuments = sortDocumentsByTimestamp(combinedDocuments);
-      setDocuments(sortedDocuments);
+      setDocuments(combinedDocuments);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -107,6 +91,7 @@ const TrainingHistory: React.FC = () => {
         throw new Error(errorData.details || errorData.error || 'Failed to delete document');
       }
 
+      // รีเฟรชข้อมูลหลังจากลบสำเร็จ
       await fetchDocuments();
     } catch (err) {
       console.error('Error deleting document:', err);
@@ -133,6 +118,7 @@ const TrainingHistory: React.FC = () => {
         throw new Error('Failed to cleanup documents');
       }
 
+      // รีเฟรชข้อมูลหลังจากลบสำเร็จ
       await fetchDocuments();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during cleanup');
