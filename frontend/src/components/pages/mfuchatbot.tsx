@@ -264,13 +264,13 @@ const MFUChatbot: React.FC = () => {
               <img 
                 src="/mfu_logo_chatbot.PNG" 
                 alt="MFU Logo" 
-                className="w-24 h-24 mb-4 object-contain"
+                className="w-24 h-24 mb-2 object-contain"
               />
               <div className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-0">
                   Welcome to
                 </h1>
-                <div className="text-2xl font-bold mb-0">
+                <div className="text-2xl font-bold -mt-1 mb-0">
                   <span style={{ 
                     background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
                     WebkitBackgroundClip: 'text',
