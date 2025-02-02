@@ -81,9 +81,15 @@ class BedrockService {
       });
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      
+      // Log vector values
+      console.log('Input text:', text);
+      console.log('Vector embedding (first 5 dimensions):', responseBody.embedding.slice(0, 5));
+      console.log('Vector dimension:', responseBody.embedding.length);
+      
       return responseBody.embedding;
     } catch (error) {
-      console.error('Embedding error:', error);
+      console.error('Error in embed:', error);
       throw error;
     }
   }
