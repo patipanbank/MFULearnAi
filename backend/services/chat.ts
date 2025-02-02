@@ -17,6 +17,11 @@ You can only answer in Thai and English, You are a polite person.`;
     return (true);
   }
 
+  private detectLanguage(query: string): 'en' | 'th' {
+    const englishPattern = /[a-zA-Z]/;
+    return englishPattern.test(query) ? 'en' : 'th';
+  }
+
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
       if (!this.isRelevantQuestion(query)) {
@@ -25,6 +30,11 @@ You can only answer in Thai and English, You are a polite person.`;
 
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
+
+      const language = this.detectLanguage(query);
+      const systemPrompt = language === 'en' 
+        ? `You are DinDin, a helpful AI assistant for Mae Fah Luang University. You should respond in English.`
+        : `คุณคือดินดิน ผู้ช่วย AI ที่เป็นประโยชน์สำหรับมหาวิทยาลัยแม่ฟ้าหลวง คุณควรตอบเป็นภาษาไทย`;
 
       const augmentedMessages = [
         {
