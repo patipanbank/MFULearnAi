@@ -355,7 +355,9 @@ const MFUChatbot: React.FC = () => {
                       </button>
                     )}
                     <div className={`text-xs md:text-sm ${
-                      message.role === 'assistant' && isDayTime() ? 'text-gray-600' : 'text-gray-400'
+                      message.role === 'assistant' 
+                        ? (isDayTime() ? 'text-gray-600' : 'text-white') 
+                        : 'text-gray-400'
                     } ${message.role === 'user' ? 'text-white' : ''} mb-1`}>
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                     </div>
