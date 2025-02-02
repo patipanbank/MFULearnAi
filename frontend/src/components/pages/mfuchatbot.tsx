@@ -424,7 +424,7 @@ const MFUChatbot: React.FC = () => {
               <option value="">Model</option>
               {models.map(model => (
                 <option key={model} value={model}>
-                  {modelNames[model] || model}
+                  {modelNames[model] }
                 </option>
               ))}
             </select>
