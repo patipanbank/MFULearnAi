@@ -73,7 +73,7 @@ class BedrockService {
 
   async embed(text: string): Promise<number[]> {
     try {
-      console.log('=== Starting Vector Embedding ===');
+      console.log('\n=== Starting Vector Embedding ===');
       console.log('Input text:', text);
 
       const command = new InvokeModelCommand({
@@ -87,10 +87,20 @@ class BedrockService {
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
       
-      console.log('=== Vector Embedding Results ===');
-      console.log('First 5 dimensions:', responseBody.embedding.slice(0, 5));
-      console.log('Vector dimension:', responseBody.embedding.length);
-      console.log('===============================');
+      console.log('=== Complete Response from Bedrock ===');
+      console.log('Response Body:', JSON.stringify(responseBody, null, 2));
+      console.log('Response Type:', typeof responseBody);
+      console.log('Response Keys:', Object.keys(responseBody));
+      
+      if (responseBody.embedding) {
+        console.log('=== Vector Embedding Results ===');
+        console.log('First 5 dimensions:', responseBody.embedding.slice(0, 5));
+        console.log('Vector dimension:', responseBody.embedding.length);
+      } else {
+        console.log('No embedding found in response');
+        console.log('Full response:', responseBody);
+      }
+      console.log('===============================\n');
       
       return responseBody.embedding;
     } catch (error) {
