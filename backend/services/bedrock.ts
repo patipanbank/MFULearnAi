@@ -4,7 +4,7 @@ import { ChatMessage } from '../types/chat';
 class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
-    // titan: 'amazon.titan-text-express-v1',
+    titan: 'amazon.titan-text-express-v1',
     claude: 'anthropic.claude-v2',
     claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
     claude3h: 'anthropic.claude-3-haiku-20240307-v1:0',
