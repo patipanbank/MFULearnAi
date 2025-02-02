@@ -26,8 +26,8 @@ class BedrockService {
   async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
       if (modelId === this.models.claude || 
-          modelId === this.models.claude35 
-          || modelId === this.models.claude3h) {
+          modelId === this.models.claude35 || 
+          modelId === this.models.claude3h) {
         return this.claudeChat(messages);
       }
       return this.titanChat(messages);
@@ -41,7 +41,7 @@ class BedrockService {
     const prompt = this.formatClaudeMessages(messages);
     
     const command = new InvokeModelCommand({
-      modelId: this.models.claude35,
+      modelId: this.models.claude,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
