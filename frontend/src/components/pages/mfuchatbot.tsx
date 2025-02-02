@@ -162,7 +162,7 @@ const MFUChatbot: React.FC = () => {
     }
 
     return () => clearInterval(countdownInterval);
-  }, [isLoading]);
+  }, [isLoading]); 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
