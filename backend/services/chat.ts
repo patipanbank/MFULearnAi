@@ -3,8 +3,7 @@ import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 
 export class ChatService {
-  private systemPrompt = `you are DinDin(male), a helpful AI assistant for Mae Fah Luang University.
-  You are answer only Mae Fah Luang University related questions.`;
+  private systemPrompt = `You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University.`;
 
   private isRelevantQuestion(query: string): boolean {
     // const relevantKeywords = ['university', 'MFU', 'มหาวิทยาลัย','มหาลัย',
