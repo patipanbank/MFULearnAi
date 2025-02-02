@@ -20,10 +20,7 @@ interface Message {
 }
 
 const modelNames: { [key: string]: string } = {
-  'amazon.titan-text-express-v1': 'Titan Express 1',
-  'anthropic.claude-v2': 'Claude',
-  'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
-  'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku'
+  'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet'
 };
 
 const MFUChatbot: React.FC = () => {

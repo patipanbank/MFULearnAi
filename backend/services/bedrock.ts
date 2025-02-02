@@ -105,7 +105,7 @@ class BedrockService {
     const prompt = this.formatMessages(messages);
     
     const command = new InvokeModelCommand({
-      modelId: this.models.embedding,
+      modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
