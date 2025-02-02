@@ -13,12 +13,21 @@ export class ChatService {
   }
 
   private isGreeting(query: string): boolean {
-    const greetings = ['hi', 'hello', 'สวัสดี', 'hey'];
+    const greetings = ['hi', 'hello', 'hey'];
     return greetings.some(greeting => query.toLowerCase().includes(greeting));
+  }
+
+  private isThaiGreeting(query: string): boolean {
+    const thaiGreetings = ['สวัสดี'];
+    return thaiGreetings.some(greeting => query.includes(greeting));
   }
 
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
+      if (this.isThaiGreeting(query)) {
+        return 'สวัสดีครับ ผมชื่อ ดินดิน เป็นผู้ช่วย AI ของ มหาวิทยาลัยแม่ฟ้าหลวง ฉันจะช่วยคุณอะไรได้บ้างวันนี้?';
+      }
+
       if (this.isGreeting(query)) {
         return 'Hi! I am DinDin, AI assistant in Mae Fah Luang University. How can I help you today?';
       }
