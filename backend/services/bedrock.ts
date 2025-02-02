@@ -4,10 +4,10 @@ import { ChatMessage } from '../types/chat';
 class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
-    titan: 'amazon.titan-text-express-v1',
-    claude: 'anthropic.claude-v2',
+    // titan: 'amazon.titan-text-express-v1',
+    // claude: 'anthropic.claude-v2',
     claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    claude3h: 'anthropic.claude-3-haiku-20240307-v1:0',
+    // claude3h: 'anthropic.claude-3-haiku-20240307-v1:0',
     embedding: 'amazon.titan-embed-text-v2'
   };
 
@@ -25,9 +25,8 @@ class BedrockService {
   
   async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
-      if (modelId === this.models.claude || 
-          modelId === this.models.claude35 || 
-          modelId === this.models.claude3h) {
+      if (
+          modelId === this.models.claude35 ) {
         return this.claudeChat(messages);
       }
       return this.titanChat(messages);
@@ -41,7 +40,7 @@ class BedrockService {
     const prompt = this.formatClaudeMessages(messages);
     
     const command = new InvokeModelCommand({
-      modelId: this.models.claude,
+      modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
