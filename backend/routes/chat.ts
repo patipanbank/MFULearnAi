@@ -5,6 +5,7 @@ import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { ChatMessage } from '../types/chat';
 import { roleGuard } from '../middleware/roleGuard';
+import { bedrockService } from '../services/bedrock';
 
 const router = Router();
 
@@ -155,6 +156,31 @@ router.route('/clear').delete(async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('Error clearing chat history:', error);
     res.status(500).json({ error: 'Failed to clear chat history' });
+  }
+});
+
+router.post('/chat', async (req, res) => {
+  try {
+    const { messages, modelId } = req.body;
+    const text = messages[messages.length - 1].content;
+    
+    // Get vector embedding
+    const vector = await bedrockService.embed(text);
+    
+    // Get chat response
+    const response = await bedrockService.chatWithVector(messages, modelId);
+    
+    // Send both response and vector
+    res.json({
+      response: response,
+      vectorInfo: {
+        first5Dimensions: vector.slice(0, 5),
+        dimension: vector.length
+      }
+    });
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
