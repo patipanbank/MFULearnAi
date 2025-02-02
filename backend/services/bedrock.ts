@@ -79,12 +79,9 @@ class BedrockService {
         accept: "application/json",
         body: JSON.stringify({ text })
       });
-
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      const vector = responseBody.results[0].embedding; // Adjust based on actual response structure
-      console.log('Generated vector:', vector); // เพิ่มบรรทัดนี้เพื่อแสดง vector
-      return vector;
+      return responseBody.embedding;
     } catch (error) {
       console.error('Embedding error:', error);
       throw error;
