@@ -20,10 +20,10 @@ interface Message {
 }
 
 const modelNames: { [key: string]: string } = {
-  // 'amazon.titan-text-express-v1': 'Titan Express 1',
-  // 'anthropic.claude-v2': 'Claude',
+  'amazon.titan-text-express-v1': 'Titan Express 1',
+  'anthropic.claude-v2': 'Claude',
   'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
-  // 'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku'
+  'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku'
 };
 
 const MFUChatbot: React.FC = () => {
@@ -344,7 +344,7 @@ const MFUChatbot: React.FC = () => {
                   <div className={`max-w-[75%] md:max-w-[70%] ${
                     message.role === 'user' 
                       ? 'ml-auto bg-blue-500 text-white' 
-                      : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
+                      : 'mr-auto bg-gray-100 bg-opacity-25 text-black'
                   } rounded-lg p-3 md:p-4 relative`}>
                     {message.role === 'assistant' && (
                       <button
