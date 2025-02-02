@@ -18,7 +18,7 @@ export class ChatService {
   }
 
   private isThaiGreeting(query: string): boolean {
-    const thaiGreetings = ['สวัสดี','หวัดดี','คุณคือ'];
+    const thaiGreetings = ['สวัสดี','หวัดดี','คุณคือ','เจ้าคือ'];
     return thaiGreetings.some(greeting => query.includes(greeting));
   }
 
