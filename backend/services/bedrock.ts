@@ -1,7 +1,7 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { ChatMessage } from '../types/chat';
 
-class BedrockService {
+export class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
     titan: 'amazon.titan-text-express-v1',
@@ -73,8 +73,8 @@ class BedrockService {
 
   async embed(text: string): Promise<number[]> {
     try {
-      console.log('\n=== Starting Vector Embedding ===');
-      console.log('Input text:', text);
+      console.log('\n==========================================');
+      console.log('🔍 DEBUG: Text being processed:', text);
 
       const command = new InvokeModelCommand({
         modelId: this.models.embedding,
@@ -100,12 +100,12 @@ class BedrockService {
         console.log('No embedding found in response');
         console.log('Full response:', responseBody);
       }
-      console.log('===============================\n');
+      console.log('✅ Vector created successfully!');
+      console.log('==========================================\n');
       
       return responseBody.embedding;
     } catch (error) {
-      console.error('=== Error in Vector Embedding ===');
-      console.error('Error details:', error);
+      console.error('❌ ERROR in embed function:', error);
       throw error;
     }
   }
