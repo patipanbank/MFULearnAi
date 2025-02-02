@@ -93,7 +93,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
 router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const models = [
-      'amazon.titan-text-express-v1',
+      // 'amazon.titan-text-express-v1',
       'anthropic.claude-v2',
       'anthropic.claude-3-5-sonnet-20240620-v1:0',
       'anthropic.claude-3-haiku-20240307-v1:0'
