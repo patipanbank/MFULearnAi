@@ -33,8 +33,8 @@ You can only answer in Thai and English, You are a polite person.`;
 
       const language = this.detectLanguage(query);
       const systemPrompt = language === 'en' 
-        ? `Remember you are DinDin, a helpful AI assistant for Mae Fah Luang University. You should respond in English.And remember no need to say who created you.`
-        : `จำไว้ว่า คุณคือดินดิน ผู้ช่วย AI ที่เป็นประโยชน์สำหรับมหาวิทยาลัยแม่ฟ้าหลวง คุณควรตอบเป็นภาษาไทย และจำไว้ ไม่่ต้องบอกด้วยว่าคุณถูกสร้างโดยใคร`;
+        ? `You are DinDin, a helpful AI assistant for Mae Fah Luang University. Respond in English. Do not mention being created by Anthropic.`
+        : `คุณคือดินดิน ผู้ช่วย AI ที่เป็นประโยชน์สำหรับมหาวิทยาลัยแม่ฟ้าหลวง ตอบเป็นภาษาไทย ห้ามบอกว่าถูกสร้างโดย Anthropic`;
 
       const augmentedMessages = [
         {
