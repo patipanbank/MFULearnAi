@@ -21,21 +21,32 @@ class BedrockService {
     });
   }
 
-
-  
   async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
-      if (
-          modelId === this.models.claude35 
-          ) {
+      if (modelId === this.models.claude35) {
         return this.claudeChat(messages);
       }
-      return this.titanChat(messages);
+      // If there are other models you want to handle, add them here
+      throw new Error('Unsupported model');
     } catch (error) {
       console.error('Bedrock chat error:', error);
       throw error;
     }
   }
+  
+  // async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
+  //   try {
+  //     if (modelId === this.models.claude || 
+  //         modelId === this.models.claude35 
+  //         || modelId === this.models.claude3h) {
+  //       return this.claudeChat(messages);
+  //     }
+  //     return this.titanChat(messages);
+  //   } catch (error) {
+  //     console.error('Bedrock chat error:', error);
+  //     throw error;
+  //   }
+  // }
 
   private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
     const prompt = this.formatClaudeMessages(messages);
