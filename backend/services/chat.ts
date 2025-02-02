@@ -2,6 +2,13 @@ import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 
+const logger = {
+  debug: (...args: any[]) => process.env.NODE_ENV !== 'production' && console.debug(...args),
+  info: (...args: any[]) => console.info(...args),
+  warn: (...args: any[]) => console.warn(...args),
+  error: (...args: any[]) => console.error(...args)
+};
+
 export class ChatService {
   private systemPrompt = `You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.`;
 
@@ -54,6 +61,10 @@ export class ChatService {
     } catch (error) {
       console.error('Error generating chat response:', error);
       throw error;
+    } finally {
+      if (process.env.NODE_ENV !== 'production') {
+        console.timeEnd('operation');
+      }
     }
   }
 
@@ -75,6 +86,10 @@ export class ChatService {
     } catch (error) {
       console.error('Error generating chat response with vector:', error);
       throw error;
+    } finally {
+      if (process.env.NODE_ENV !== 'production') {
+        console.timeEnd('operation');
+      }
     }
   }
 
@@ -88,8 +103,24 @@ export class ChatService {
     } catch (error) {
       console.error('Error getting context:', error);
       return '';
+    } finally {
+      if (process.env.NODE_ENV !== 'production') {
+        console.timeEnd('operation');
+      }
     }
   }
 }
 
-export const chatService = new ChatService(); 
+export const chatService = new ChatService();
+
+// ใน production mode บางครั้ง console จะถูก strip ออกโดยอัตโนมัติ
+if (process.env.NODE_ENV !== 'production') {
+  console.log('Debug message');
+}
+
+// backend/server.ts
+// ถ้า log level ถูกตั้งค่าสูงเกินไป console.debug() อาจไม่แสดงผล
+console.error('Always shows');  // highest priority
+console.warn('Shows in most cases');
+console.info('May not show');
+console.debug('Lowest priority, may not show'); 
