@@ -130,9 +130,12 @@ class BedrockService {
   async chatWithVector(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
       const text = messages.map(msg => msg.content).join(' ');
-      console.log("Before vectorization:", text);
+      console.log("Received message:", text);
+      
+      // Convert message to vector using embed function
       const vector = await this.embed(text);
-      console.log("After vectorization:", vector);
+      
+      console.log("Vectorized message:", vector);
 
       const command = new InvokeModelCommand({
         modelId: this.models.embedding,
