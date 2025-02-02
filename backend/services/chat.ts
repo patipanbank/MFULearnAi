@@ -39,7 +39,7 @@ You can only answer in Thai and English, You are a polite person.`;
       const augmentedMessages = [
         {
           role: 'system' as const,
-          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
+          content: `${systemPrompt}\n\nContext from documents:\n${context}`
         },
         ...messages
       ];
