@@ -344,7 +344,7 @@ const MFUChatbot: React.FC = () => {
                   <div className={`max-w-[75%] md:max-w-[70%] ${
                     message.role === 'user' 
                       ? 'ml-auto bg-blue-500 text-white' 
-                      : 'mr-auto bg-gray-100 text-black'
+                      : 'mr-auto bg-gray-50 text-black'
                   } rounded-lg p-3 md:p-4 relative`}>
                     {message.role === 'assistant' && (
                       <button
