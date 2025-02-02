@@ -12,8 +12,17 @@ export class ChatService {
     return (true);
   }
 
+  private isGreeting(query: string): boolean {
+    const greetings = ['hi', 'hello', 'สวัสดี', 'hey'];
+    return greetings.some(greeting => query.toLowerCase().includes(greeting));
+  }
+
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
+      if (this.isGreeting(query)) {
+        return 'ฉันทำหน้าที่อยู่ที่ มหาวิทยาลัยแม่ฟ้าหลวง';
+      }
+
       if (!this.isRelevantQuestion(query)) {
         return 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
       }
@@ -21,7 +30,7 @@ export class ChatService {
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
 
-      const systemPrompt = `You are DinDin,you are male, a helpful AI assistant for Mae Fah Luang University. Respond in English.`;
+      const systemPrompt = `You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University.`;
 
       const augmentedMessages = [
         {
