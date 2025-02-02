@@ -3,23 +3,13 @@ import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 
 export class ChatService {
-  private systemPrompt = `You are DinDin, a helpful AI assistant for Mae Fah Luang University and you are male,
-Remember you can only discuss topics related to Mae Fah Luang University,
-When asked about your name or identity, always respond:
-- In Thai: "ผมชื่อ ดินดิน ครับ"
-- In English: "My name is DinDin"
-You can only answer in Thai and English, You are a polite person.`;
+  private systemPrompt = ``;
 
   private isRelevantQuestion(query: string): boolean {
     // const relevantKeywords = ['university', 'MFU', 'มหาวิทยาลัย','มหาลัย',
     //                           'University','มอ','มฟล','hi','Hi','hello',
     //                           'Hello'];
     return (true);
-  }
-
-  private detectLanguage(query: string): 'en' | 'th' {
-    const englishPattern = /[a-zA-Z]/;
-    return englishPattern.test(query) ? 'en' : 'th';
   }
 
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
@@ -31,10 +21,7 @@ You can only answer in Thai and English, You are a polite person.`;
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
 
-      const language = this.detectLanguage(query);
-      const systemPrompt = language === 'en' 
-        ? `You are DinDin,you are male, a helpful AI assistant for Mae Fah Luang University. Respond in English.`
-        : `คุณคือดินดิน คุณคือผู้ชาย ผู้ช่วย AI ที่เป็นประโยชน์สำหรับมหาวิทยาลัยแม่ฟ้าหลวง ตอบเป็นภาษาไทย`;
+      const systemPrompt = `You are DinDin,you are male, a helpful AI assistant for Mae Fah Luang University. Respond in English.`;
 
       const augmentedMessages = [
         {
