@@ -13,12 +13,12 @@ export class ChatService {
   }
 
   private isGreeting(query: string): boolean {
-    const greetings = ['hi', 'hello', 'hey'];
+    const greetings = ['hi', 'hello', 'hey', 'who are you'];
     return greetings.some(greeting => query.toLowerCase().includes(greeting));
   }
 
   private isThaiGreeting(query: string): boolean {
-    const thaiGreetings = ['สวัสดี','หวัดดี'];
+    const thaiGreetings = ['สวัสดี','หวัดดี','คุณคือ'];
     return thaiGreetings.some(greeting => query.includes(greeting));
   }
 
