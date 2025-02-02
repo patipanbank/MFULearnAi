@@ -20,7 +20,7 @@ export class ChatService {
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
       if (this.isGreeting(query)) {
-        return 'ฉันทำหน้าที่อยู่ที่ มหาวิทยาลัยแม่ฟ้าหลวง';
+        return 'Hi! I am DinDin, AI assistant in Mae Fah Luang University. How can I help you today?';
       }
 
       if (!this.isRelevantQuestion(query)) {
