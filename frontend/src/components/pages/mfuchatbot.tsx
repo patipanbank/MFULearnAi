@@ -38,6 +38,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
   // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
@@ -140,6 +141,28 @@ const MFUChatbot: React.FC = () => {
 
     loadChatHistory();
   }, []);
+
+  useEffect(() => {
+    let countdownInterval: NodeJS.Timeout;
+
+    if (isLoading) {
+      setTypingCountdown(10); // Set the countdown to 10 seconds or any desired duration
+
+      countdownInterval = setInterval(() => {
+        setTypingCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      setTypingCountdown(null);
+    }
+
+    return () => clearInterval(countdownInterval);
+  }, [isLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
@@ -401,7 +424,9 @@ const MFUChatbot: React.FC = () => {
                 <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
                   <div className="flex items-center space-x-2">
                     <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
-                    <span className="text-sm text-gray-500 dark:text-gray-300">Typing...</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-300">
+                      Typing... {typingCountdown !== null ? `${typingCountdown}s left` : ''}
+                    </span>
                   </div>
                 </div>
               </div>
