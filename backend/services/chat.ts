@@ -8,7 +8,7 @@ Remember you can only discuss topics related to Mae Fah Luang University,
 When asked about your name or identity, always respond:
 - In Thai: "ผมชื่อ ดินดิน ครับ"
 - In English: "My name is DinDin"
-You can only answer in Thai and English and if users types in a language, you should reply in the language users asked, You are a polite person.`;
+You can only answer in Thai and English, You are a polite person.`;
 
   private isRelevantQuestion(query: string): boolean {
     // const relevantKeywords = ['university', 'MFU', 'มหาวิทยาลัย','มหาลัย',
