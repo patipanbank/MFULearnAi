@@ -344,7 +344,7 @@ const MFUChatbot: React.FC = () => {
                   <div className={`max-w-[75%] md:max-w-[70%] ${
                     message.role === 'user' 
                       ? 'ml-auto bg-blue-500 text-white' 
-                      : 'mr-auto bg-gray-300 text-black'
+                      : 'mr-auto bg-gray-300 text-white'
                   } rounded-lg p-3 md:p-4 relative`}>
                     {message.role === 'assistant' && (
                       <button
@@ -356,7 +356,7 @@ const MFUChatbot: React.FC = () => {
                     )}
                     <div className={`text-xs md:text-sm ${
                       message.role === 'assistant' 
-                        ? 'text-white'
+                        ? 'text-black'
                         : 'text-gray-400'
                     } ${message.role === 'user' ? 'text-white' : ''} mb-1`}>
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
