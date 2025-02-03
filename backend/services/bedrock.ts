@@ -25,11 +25,10 @@ export class BedrockService {
   
   async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
-      if ( 
-          modelId === this.models.claude35 ) {
+      if (modelId === this.models.claude35) {
         return this.claudeChat(messages);
       }
-      return this.titanChat(messages);
+      throw new Error('Unsupported model');
     } catch (error) {
       console.error('Bedrock chat error:', error);
       throw error;
@@ -37,38 +36,52 @@ export class BedrockService {
   }
 
   private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
-    const prompt = this.formatClaudeMessages(messages);
-    
     const command = new InvokeModelCommand({
       modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
-        prompt: prompt,
-        max_tokens_to_sample: 4096,
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 4096,
+        messages: messages.map(msg => {
+          const content = [];
+          
+          // ถ้ามีรูปภาพ
+          if (msg.image) {
+            content.push({
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: msg.image.mediaType || "image/jpeg",
+                data: msg.image.data
+              }
+            });
+          }
+          
+          // เพิ่มข้อความ
+          content.push({
+            type: "text",
+            text: msg.content
+          });
+
+          return {
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content
+          };
+        }),
         temperature: 0.7,
         top_p: 0.9
       })
     });
 
-    const response = await this.client.send(command);
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    return { content: responseBody.completion };
-  }
-
-  private formatClaudeMessages(messages: ChatMessage[]): string {
-    let prompt = '';
-    messages.forEach(msg => {
-      if (msg.role === 'system') {
-        prompt += `\n\nHuman: ${msg.content}\n\nAssistant: I understand.`;
-      } else if (msg.role === 'user') {
-        prompt += `\n\nHuman: ${msg.content}`;
-      } else if (msg.role === 'assistant') {
-        prompt += `\n\nAssistant: ${msg.content}`;
-      }
-    });
-    prompt += '\n\nAssistant:';
-    return prompt.trim();
+    try {
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      return { content: responseBody.content[0].text };
+    } catch (error) {
+      console.error('Claude chat error:', error);
+      throw error;
+    }
   }
 
   async embed(text: string): Promise<number[]> {
