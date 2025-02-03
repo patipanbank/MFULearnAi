@@ -13,14 +13,14 @@ interface Source {
 
 interface Message {
   id: number;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  sources?: Source[];
   image?: {
     data: string;
     mediaType: string;
   };
+  sources?: Source[];
 }
 
 const modelNames: { [key: string]: string } = {
@@ -478,7 +478,7 @@ const MFUChatbot: React.FC = () => {
                       ? 'ml-auto bg-blue-500 text-white' 
                       : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
                   } rounded-lg p-3 md:p-4 relative`}>
-                    {/* Add Image Display */}
+                    {/* แสดงรูปภาพถ้ามี */}
                     {message.image && (
                       <div className="mb-2">
                         <img

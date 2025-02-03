@@ -33,7 +33,12 @@ router.use(verifyToken);
 
 interface ChatRequest extends Request {
   body: { 
-    messages: ChatMessage[];
+    messages: (ChatMessage & {
+      image?: {
+        data: string;
+        mediaType: string;
+      };
+    })[];
     collectionName: string;
     modelId: string;
   };
@@ -128,11 +133,18 @@ router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, 
     const { messages, modelId, collectionName } = req.body;
     const userId = (req.user as any)?.username || '';
 
+    // บันทึกประวัติการแชทพร้อมรูปภาพ
     const history = await chatHistoryService.saveChatMessage(
       userId,
       modelId,
       collectionName,
-      messages
+      messages.map((msg: { image: { data: any; mediaType: any; }; }) => ({
+        ...msg,
+        image: msg.image ? {
+          data: msg.image.data,
+          mediaType: msg.image.mediaType
+        } : undefined
+      }))
     );
     res.json(history);
   } catch (error) {

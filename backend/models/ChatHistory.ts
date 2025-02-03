@@ -5,6 +5,10 @@ interface IChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  image?: {
+    data: string;
+    mediaType: string;
+  };
   sources?: {
     modelId: string;
     collectionName: string;
@@ -38,7 +42,17 @@ const chatHistorySchema = new mongoose.Schema({
     id: { type: Number, required: true },
     role: { type: String, enum: ['user', 'assistant', 'system'], required: true },
     content: { type: String, required: true },
-    timestamp: { type: Date, required: true, default: Date.now }
+    timestamp: { type: Date, required: true, default: Date.now },
+    image: {
+      data: String,
+      mediaType: String
+    },
+    sources: [{
+      modelId: String,
+      collectionName: String,
+      filename: String,
+      similarity: Number
+    }]
   }],
   sources: [{
     modelId: { type: String },
