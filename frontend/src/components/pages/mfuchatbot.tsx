@@ -469,6 +469,17 @@ const MFUChatbot: React.FC = () => {
                       ? 'ml-auto bg-blue-500 text-white' 
                       : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
                   } rounded-lg p-3 md:p-4 relative`}>
+                    {/* Add Image Display */}
+                    {message.image && (
+                      <div className="mb-2">
+                        <img
+                          src={`data:${message.image.mediaType};base64,${message.image.data}`}
+                          alt="Uploaded"
+                          className="max-w-full max-h-[300px] rounded object-contain"
+                        />
+                      </div>
+                    )}
+                    
                     {message.role === 'assistant' && (
                       <button
                         onClick={() => handleCopy(message.content)}
