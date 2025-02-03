@@ -170,12 +170,14 @@ router.delete('/documents/:id', roleGuard(['Staffs']), deleteDocumentHandler);
 router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
   try {
     const { name, isPublic } = req.body;
-    const userId = (req as RequestWithUser).user.id; // จาก JWT token
+    const userId = (req as RequestWithUser).user.id;
 
     const collection = await Collection.create({
       name,
       isPublic,
-      createdBy: userId
+      createdBy: userId,
+      created: new Date(),
+      updated: new Date()
     });
 
     res.status(201).json(collection);
