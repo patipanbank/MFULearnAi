@@ -587,7 +587,7 @@ const MFUChatbot: React.FC = () => {
 
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
-          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
+          <div className="flex gap-2 max-w-4xl mx-auto">
             <div className="flex-1">
               {/* แสดงรูปที่วางมา */}
               {selectedImage && (
@@ -613,7 +613,7 @@ const MFUChatbot: React.FC = () => {
                 onChange={(e) => handleInputChange(e)}
                 onKeyDown={(e) => handleKeyDown(e)}
                 onPaste={handlePaste}
-                className="flex-1 min-w-0 p-2 text-sm md:text-base border rounded resize-none"
+                className="w-full md:w-[800px] lg:w-[1000px] p-2 text-sm md:text-base border rounded resize-none"
                 placeholder={selectedImage ? "Please describe or ask about this image..." : "Type a message or paste image..."}
                 rows={1}
                 required
