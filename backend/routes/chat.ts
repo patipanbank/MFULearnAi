@@ -6,6 +6,7 @@ import { chatService } from '../services/chat';
 import { ChatMessage } from '../types/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { bedrockService } from '../services/bedrock';
+import { Collection, CollectionPermission } from '../models/Collection';
 
 const router = Router();
 
@@ -50,6 +51,14 @@ const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
   try {
     const { messages, collectionName, modelId } = req.body;
     const user = (req as any).user;
+
+    // ตรวจสอบสิทธิ์การเข้าถึง collection
+    const hasAccess = await chromaService.checkCollectionAccess(collectionName, user);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied to this collection' });
+      return;
+    }
+
     const userMessage = messages[messages.length - 1].content;
     
     const matches = await chromaService.query(collectionName, userMessage);
@@ -181,6 +190,35 @@ router.post('/chat', async (req, res) => {
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/collections', async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    
+    // ดึงข้อมูล collections จาก MongoDB
+    const collections = await Collection.find({});
+    
+    // กรองตามสิทธิ์
+    const accessibleCollections = collections.filter(collection => {
+      switch (collection.permission) {
+        case CollectionPermission.PUBLIC:
+          return true;
+        case CollectionPermission.STAFF_ONLY:
+          return user.groups.includes('Staffs');
+        case CollectionPermission.PRIVATE:
+          return collection.createdBy === user.nameID;
+        default:
+          return false;
+      }
+    });
+
+    // ส่งเฉพาะชื่อ collection ที่มีสิทธิ์
+    res.json(accessibleCollections.map(c => c.name));
+  } catch (error) {
+    console.error('Error fetching collections:', error);
+    res.status(500).json({ error: 'Failed to fetch collections' });
   }
 });
 

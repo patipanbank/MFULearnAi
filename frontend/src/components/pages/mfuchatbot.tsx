@@ -36,7 +36,7 @@ const MFUChatbot: React.FC = () => {
   const [models, setModels] = useState<string[]>([]);
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
-  const [selectedCollection, setSelectedCollection] = useState('');
+  const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
   // const [, setLoadingCollections] = useState(true);
@@ -90,7 +90,7 @@ const MFUChatbot: React.FC = () => {
 
         const [modelsRes, collectionsRes] = await Promise.all([
           fetch(`${config.apiUrl}/api/training/models`, { headers }),
-          fetch(`${config.apiUrl}/api/training/collections`, { headers })
+          fetch(`${config.apiUrl}/api/chat/collections`, { headers })
         ]);
 
         if (!modelsRes.ok || !collectionsRes.ok) {
@@ -100,9 +100,13 @@ const MFUChatbot: React.FC = () => {
         const modelsData = await modelsRes.json();
         const collectionsData = await collectionsRes.json();
         
-        // ตรวจสอบว่าข้อมูลเป็น array
         setModels(Array.isArray(modelsData) ? modelsData : []);
         setCollections(Array.isArray(collectionsData) ? collectionsData : []);
+
+        // ถ้ามี collections ให้เลือกอันแรกเป็นค่าเริ่มต้น
+        if (Array.isArray(collectionsData) && collectionsData.length > 0) {
+          setSelectedCollection(collectionsData[0]);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         setModels([]);
@@ -458,9 +462,11 @@ const MFUChatbot: React.FC = () => {
               onChange={(e) => setSelectedCollection(e.target.value)}
               className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="">Collection</option>
+              <option value="">Select Collection</option>
               {collections.map(collection => (
-                <option key={collection} value={collection}>{collection}</option>
+                <option key={collection} value={collection}>
+                  {collection}
+                </option>
               ))}
             </select>
             <button

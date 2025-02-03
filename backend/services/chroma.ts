@@ -275,15 +275,9 @@ class ChromaService {
       // ค้นหา collection จาก MongoDB
       const collection = await Collection.findOne({ name: collectionName });
       
-      // ถ้าไม่พบ collection ให้สร้างใหม่เป็น public
+      // ถ้าไม่พบ collection
       if (!collection) {
-        await Collection.create({
-          name: collectionName,
-          permission: CollectionPermission.PUBLIC,
-          createdBy: user.nameID,
-          created: new Date()
-        });
-        return true;
+        return false;
       }
 
       // ตรวจสอบสิทธิ์
