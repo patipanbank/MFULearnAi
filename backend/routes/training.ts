@@ -282,14 +282,59 @@ router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Respo
   }
 });
 
-router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+// endpoint สำหรับลบ collection
+router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
+    const user = (req as any).user;
+
+    // ตรวจสอบสิทธิ์ก่อนลบ
+    const collection = await Collection.findOne({ name });
+    if (!collection) {
+      res.status(404).json({ error: 'Collection not found' });
+      return;
+    }
+
+    // ตรวจสอบว่าเป็น Staff หรือเจ้าของ collection
+    if (!user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
+      res.status(403).json({ error: 'Permission denied' });
+      return;
+    }
+
+    // ลบ collection
     await chromaService.deleteCollection(name);
-    res.status(200).json({ message: 'Collection deleted successfully' });
+    res.json({ message: 'Collection deleted successfully' });
   } catch (error) {
     console.error('Error deleting collection:', error);
     res.status(500).json({ error: 'Failed to delete collection' });
+  }
+});
+
+// endpoint สำหรับลบหลาย collections
+router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+  try {
+    const { collections } = req.body;
+    const user = (req as any).user;
+
+    if (!Array.isArray(collections)) {
+      res.status(400).json({ error: 'Invalid collections array' });
+      return;
+    }
+
+    // ตรวจสอบสิทธิ์สำหรับแต่ละ collection
+    for (const name of collections) {
+      const collection = await Collection.findOne({ name });
+      if (collection && !user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
+        res.status(403).json({ error: `Permission denied for collection: ${name}` });
+        return;
+      }
+    }
+
+    await chromaService.deleteCollections(collections);
+    res.json({ message: 'Collections deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting collections:', error);
+    res.status(500).json({ error: 'Failed to delete collections' });
   }
 });
 
