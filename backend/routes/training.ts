@@ -8,7 +8,7 @@ import fs from 'fs';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { bedrockService } from '../services/bedrock';
-import { Collection } from '../models/Collection';
+import { Collection, CollectionPermission } from '../models/Collection';
 
 const router = Router();
 const upload = multer({ 
@@ -108,9 +108,36 @@ router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, re
 
 router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const collections = await chromaService.getCollections();
-    // collections เป็น array ของ string อยู่แล้ว
-    res.json(collections || []);
+    // ดึง collections จาก ChromaDB
+    const chromaCollections = await chromaService.getCollections();
+    const userData = (req as any).user;
+
+    // ดึงข้อมูล permissions จาก MongoDB
+    const mongoCollections = await Collection.find({ 
+      name: { $in: chromaCollections } 
+    });
+
+    // สร้าง map ของ permissions
+    const permissionsMap = new Map(
+      mongoCollections.map(col => [col.name, {
+        permission: col.permission,
+        createdBy: col.createdBy
+      }])
+    );
+
+    // กรอง collections ตามสิทธิ์
+    const accessibleCollections = chromaCollections.filter(name => {
+      const collectionInfo = permissionsMap.get(name);
+      if (!collectionInfo) return true; // ถ้าไม่มีข้อมูลใน MongoDB ให้เข้าถึงได้
+
+      return (
+        collectionInfo.permission === CollectionPermission.PUBLIC ||
+        (collectionInfo.permission === CollectionPermission.STAFF_ONLY && userData.groups?.includes('Staffs')) ||
+        (collectionInfo.permission === CollectionPermission.PRIVATE && collectionInfo.createdBy === userData.nameID)
+      );
+    });
+
+    res.json(accessibleCollections);
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Error fetching collections' });
