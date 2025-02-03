@@ -243,6 +243,21 @@ const MFUChatbot: React.FC = () => {
         image: imageData
       };
 
+      // บันทึกข้อความลงในประวัติ
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messages: [...messages, newMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
       setSelectedImage(null);
