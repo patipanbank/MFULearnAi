@@ -587,7 +587,7 @@ const MFUChatbot: React.FC = () => {
 
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
-          <div className="flex gap-2 max-w-4xl mx-auto">
+          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             <div className="flex-1">
               {/* แสดงรูปที่วางมา */}
               {selectedImage && (
