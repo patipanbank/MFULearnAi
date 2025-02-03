@@ -11,6 +11,8 @@ interface TrainingDocument {
     timestamp: string;
     modelId: string;
     collectionName: string;
+    permission: string;
+    createdBy: string;
   }[];
 }
 
@@ -155,6 +157,15 @@ const TrainingHistory: React.FC = () => {
     }
   };
 
+  // เพิ่มฟังก์ชันตรวจสอบสิทธิ์การลบ
+  const canDeleteDocument = (metadata: TrainingDocument['metadatas'][0]) => {
+    const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+    return (
+      userData.groups?.includes('Staffs') || 
+      metadata.createdBy === userData.nameID
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -207,6 +218,7 @@ const TrainingHistory: React.FC = () => {
                 <th className="w-1/6 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Collection</th>
                 <th className="w-1/6 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Uploaded By</th>
                 <th className="w-1/6 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Upload Date</th>
+                <th className="w-1/6 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Permission</th>
                 <th className="w-1/12 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Action</th>
               </tr>
             </thead>
@@ -236,19 +248,32 @@ const TrainingHistory: React.FC = () => {
                     {new Date(metadata.timestamp).toLocaleString('th-TH')}
                   </td>
                   <td className="px-4 py-4 text-center">
-                    <button
-                      onClick={() => handleDelete(documents.ids[index], metadata.collectionName)}
-                      disabled={isDeleting === documents.ids[index]}
-                      className={`text-red-600 hover:text-red-800 ${
-                        isDeleting === documents.ids[index] ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {isDeleting === documents.ids[index] ? (
-                        <span className="inline-block animate-spin">⌛</span>
-                      ) : (
-                        <FaTrash />
-                      )}
-                    </button>
+                    <span className={`px-2 py-1 rounded-full text-sm ${
+                      metadata.permission === 'public' ? 'bg-green-100 text-green-800' :
+                      metadata.permission === 'staff_only' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {metadata.permission}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    {canDeleteDocument(metadata) ? (
+                      <button
+                        onClick={() => handleDelete(documents.ids[index], metadata.collectionName)}
+                        disabled={isDeleting === documents.ids[index]}
+                        className={`text-red-600 hover:text-red-800 ${
+                          isDeleting === documents.ids[index] ? 'opacity-50' : ''
+                        }`}
+                      >
+                        {isDeleting === documents.ids[index] ? (
+                          <span className="inline-block animate-spin">⌛</span>
+                        ) : (
+                          <FaTrash />
+                        )}
+                      </button>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                 </tr>
               ))}

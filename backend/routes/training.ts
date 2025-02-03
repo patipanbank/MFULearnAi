@@ -1,4 +1,4 @@
-import { Router, Request, Response, RequestHandler } from 'express';
+import { Router, Request, Response, RequestHandler, NextFunction } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
 import multer from 'multer';
 import path from 'path';
@@ -8,6 +8,7 @@ import fs from 'fs';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { bedrockService } from '../services/bedrock';
+import { Collection } from '../models/Collection';
 
 const router = Router();
 const upload = multer({ 
@@ -119,31 +120,67 @@ router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Reques
 // เฉพาะ Staff เท่านั้นที่เข้าถึงได้
 router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
 
-const getAllDocumentsHandler: RequestHandler = async (req, res) => {
+router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const { collectionName } = req.query;
+    const user = (req as any).user;
+
     if (!collectionName || typeof collectionName !== 'string') {
       res.status(400).json({ error: 'Collection name is required' });
       return;
     }
+
+    // ตรวจสอบสิทธิ์การเข้าถึง collection
+    const hasAccess = await chromaService.checkCollectionAccess(collectionName, user);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied to this collection' });
+      return;
+    }
+
     const documents = await chromaService.getAllDocuments(collectionName);
+    
+    // เพิ่มข้อมูล permission และ createdBy
+    const collection = await Collection.findOne({ name: collectionName });
+    if (collection) {
+      documents.metadatas = documents.metadatas.map(metadata => ({
+        ...metadata,
+        permission: collection.permission,
+        createdBy: collection.createdBy
+      }));
+    }
+
     res.json(documents);
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Error fetching documents' });
   }
-};
+});
 
-// เพิ่ม route ใหม่
-router.get('/documents', roleGuard(['Staffs']), getAllDocumentsHandler);
-
-const deleteDocumentHandler = async (req: Request, res: Response): Promise<void> => {
+// แก้ไข endpoint สำหรับลบเอกสาร
+router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { collectionName } = req.query;
+    const user = (req as any).user;
 
     if (!id || !collectionName || typeof collectionName !== 'string') {
       res.status(400).json({ error: 'Missing document ID or collection name' });
+      return;
+    }
+
+    // ตรวจสอบสิทธิ์การลบ
+    const collection = await Collection.findOne({ name: collectionName });
+    if (!collection) {
+      res.status(404).json({ error: 'Collection not found' });
+      return;
+    }
+
+    const canDelete = 
+      user.groups.includes('Staffs') || 
+      collection.createdBy === user.nameID;
+
+    if (!canDelete) {
+      res.status(403).json({ error: 'No permission to delete this document' });
       return;
     }
 
@@ -153,26 +190,44 @@ const deleteDocumentHandler = async (req: Request, res: Response): Promise<void>
     console.error('Error:', error);
     res.status(500).json({ error: 'Failed to delete document' });
   }
-};
-
-router.delete('/documents/:id', roleGuard(['Staffs']), deleteDocumentHandler);
+});
 
 // Create new collection
-router.post('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
   try {
-    const { name } = req.body;
-    await chromaService.createCollection(name);
-    
-    const collections = await chromaService.getCollections();
-    res.json({ 
-      message: 'Collection created successfully',
-      collections: collections || []
-    });
+    const { name, permission } = req.body;
+    const user = (req as any).user; // จาก roleGuard middleware
+
+    const collection = await chromaService.createCollection(
+      name,
+      permission,
+      user.nameID
+    );
+
+    res.status(201).json({ message: 'Collection created successfully' });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error creating collection:', error);
     res.status(500).json({ error: 'Failed to create collection' });
   }
 });
+
+// Middleware ตรวจสอบสิทธิ์การเข้าถึง collection
+const checkCollectionAccess = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { collectionName } = req.params;
+    const user = (req as any).user;
+
+    const hasAccess = await chromaService.checkCollectionAccess(collectionName, user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this collection' });
+    }
+
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Error checking collection access' });
+  }
+};
+
 
 // Cleanup endpoint
 router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {

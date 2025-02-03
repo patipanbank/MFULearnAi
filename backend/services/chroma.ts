@@ -1,4 +1,6 @@
 import { ChromaClient } from 'chromadb';
+import { Collection } from '../models/Collection';
+import { CollectionPermission } from '../models/Collection';
 
 interface DocumentMetadata {
   filename: string;
@@ -226,13 +228,19 @@ class ChromaService {
     }
   }
 
-  async createCollection(name: string): Promise<void> {
+  async createCollection(name: string, permission: CollectionPermission, createdBy: string) {
     try {
-      const collection = await this.client.createCollection({
-        name: name,
-        metadata: { "hnsw:space": "cosine" }
+      // สร้าง collection ใน ChromaDB
+      const collection = await this.client.createCollection({ name });
+      
+      // บันทึกข้อมูล permission ใน MongoDB
+      await Collection.create({
+        name,
+        permission,
+        createdBy
       });
-      console.log(`Collection ${name} created successfully`);
+
+      return collection;
     } catch (error) {
       console.error('Error creating collection:', error);
       throw error;
@@ -258,6 +266,24 @@ class ChromaService {
     } catch (error) {
       console.error('Error deleting all documents:', error);
       throw error;
+    }
+  }
+
+  async checkCollectionAccess(collectionName: string, user: { nameID: string, groups: string[] }) {
+    const collection = await Collection.findOne({ name: collectionName });
+    if (!collection) {
+      throw new Error('Collection not found');
+    }
+
+    switch (collection.permission) {
+      case CollectionPermission.PUBLIC:
+        return true;
+      case CollectionPermission.STAFF_ONLY:
+        return user.groups.includes('Staffs');
+      case CollectionPermission.PRIVATE:
+        return collection.createdBy === user.nameID;
+      default:
+        return false;
     }
   }
 }

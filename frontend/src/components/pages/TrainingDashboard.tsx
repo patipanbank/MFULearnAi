@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
 import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
+import { CollectionPermission } from '../../../../backend/models/Collection';
 
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -17,6 +18,7 @@ const TrainingDashboard: React.FC = () => {
   const [trainingMode, setTrainingMode] = useState<'file' | 'url'>('file');
   const [urls, setUrls] = useState<string>('');
   const [isProcessingUrls, setIsProcessingUrls] = useState(false);
+  const [newCollectionPermission, setNewCollectionPermission] = useState(CollectionPermission.PRIVATE);
 
   useEffect(() => {
     fetchModels();
@@ -83,7 +85,7 @@ const TrainingDashboard: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
-        body: JSON.stringify({ name: newCollectionName })
+        body: JSON.stringify({ name: newCollectionName, permission: newCollectionPermission })
       });
 
       if (response.ok) {
@@ -299,6 +301,18 @@ const TrainingDashboard: React.FC = () => {
                 className="border p-2 rounded w-full mb-4"
                 placeholder="Collection Name"
               />
+              <div className="mb-4">
+                <label>Collection Permission:</label>
+                <select 
+                  value={newCollectionPermission}
+                  onChange={(e) => setNewCollectionPermission(e.target.value as CollectionPermission)}
+                  className="ml-2 p-2 border rounded"
+                >
+                  <option value={CollectionPermission.PUBLIC}>Public</option>
+                  <option value={CollectionPermission.STAFF_ONLY}>Staff Only</option>
+                  <option value={CollectionPermission.PRIVATE}>Private</option>
+                </select>
+              </div>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setShowNewCollectionForm(false)}
