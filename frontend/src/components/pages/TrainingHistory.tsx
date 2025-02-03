@@ -36,9 +36,9 @@ const TrainingHistory: React.FC = () => {
       
       // ดึงข้อมูลจากทุก collection
       const allDocuments = await Promise.all(
-        collectionList.map(async (collectionName: string) => {
+        collectionList.map(async (collection: { name: string }) => {
           const response = await fetch(
-            `${config.apiUrl}/api/training/documents?collectionName=${collectionName}`,
+            `${config.apiUrl}/api/training/documents?collectionName=${collection.name}`,
             {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('auth_token')}`

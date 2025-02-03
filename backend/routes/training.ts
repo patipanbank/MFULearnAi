@@ -8,7 +8,7 @@ import fs from 'fs';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { bedrockService } from '../services/bedrock';
-import { Collection } from '../models/Collection';
+import { Collection, CollectionPermission } from '../models/Collection';
 
 const router = Router();
 const upload = multer({ 
@@ -179,20 +179,32 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
       return;
     }
 
-    // ตรวจสอบและสร้าง collection ถ้ายังไม่มี
-    await chromaService.ensureCollectionExists(collectionName, user);
+    // ตรวจสอบว่า collection มีอยู่จริง
+    const collection = await Collection.findOne({ name: collectionName });
+    if (!collection) {
+      res.status(404).json({ error: 'Collection not found' });
+      return;
+    }
+
+    // ตรวจสอบสิทธิ์การเข้าถึง
+    const canAccess = 
+      collection.permission === CollectionPermission.PUBLIC ||
+      (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
+      collection.createdBy === user.nameID;
+
+    if (!canAccess) {
+      res.status(403).json({ error: 'No permission to access this collection' });
+      return;
+    }
 
     const documents = await chromaService.getAllDocuments(collectionName);
     
     // เพิ่มข้อมูล permission และ createdBy
-    const collection = await Collection.findOne({ name: collectionName });
-    if (collection) {
-      documents.metadatas = documents.metadatas.map(metadata => ({
-        ...metadata,
-        permission: collection.permission,
-        createdBy: collection.createdBy
-      }));
-    }
+    documents.metadatas = documents.metadatas.map(metadata => ({
+      ...metadata,
+      permission: collection.permission,
+      createdBy: collection.createdBy
+    }));
 
     res.json(documents);
   } catch (error) {
