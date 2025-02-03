@@ -613,7 +613,7 @@ const MFUChatbot: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             {/* ปรับปุ่ม Add image */}
-            <label className="whitespace-nowrap cursor-pointer px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center h-[38px]">
+            <label className="whitespace-nowrap cursor-pointer px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded flex items-center text-sm">
               <input
                 type="file"
                 accept="image/*"
