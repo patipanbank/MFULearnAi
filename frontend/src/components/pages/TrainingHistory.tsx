@@ -158,12 +158,13 @@ const TrainingHistory: React.FC = () => {
     }
   };
 
-  // เพิ่มฟังก์ชันตรวจสอบสิทธิ์การลบ
-  const canDeleteDocument = (metadata: TrainingDocument['metadatas'][0]) => {
+  // เพิ่มฟังก์ชันตรวจสอบสิทธิ์การเข้าถึง
+  const canAccessDocument = (metadata: TrainingDocument['metadatas'][0]) => {
     const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
     return (
-      userData.groups?.includes('Staffs') || 
-      metadata.createdBy === userData.nameID
+      metadata.permission === CollectionPermission.PUBLIC ||
+      (metadata.permission === CollectionPermission.STAFF_ONLY && userData.groups?.includes('Staffs')) ||
+      (metadata.permission === CollectionPermission.PRIVATE && metadata.createdBy === userData.nameID)
     );
   };
 
@@ -224,60 +225,62 @@ const TrainingHistory: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {documents?.metadatas.map((metadata, index) => (
-                <tr key={documents.ids[index]} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 text-center relative group">
-                    <div className="truncate" title={metadata.filename}>
-                      {metadata.filename}
-                      <div className="invisible group-hover:visible absolute z-20 bg-gray-900 text-white p-2 rounded text-sm left-0 break-words whitespace-normal max-w-[120ch]">
+              {documents?.metadatas
+                .filter(metadata => canAccessDocument(metadata))
+                .map((metadata, index) => (
+                  <tr key={documents.ids[index]} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-center relative group">
+                      <div className="truncate" title={metadata.filename}>
                         {metadata.filename}
+                        <div className="invisible group-hover:visible absolute z-20 bg-gray-900 text-white p-2 rounded text-sm left-0 break-words whitespace-normal max-w-[120ch]">
+                          {metadata.filename}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm truncate block">
-                      {metadata.modelId}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm truncate block">
-                      {metadata.collectionName}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-center truncate">{metadata.uploadedBy}</td>
-                  <td className="px-4 py-4 text-center truncate">
-                    {new Date(metadata.timestamp).toLocaleString('th-TH')}
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className={`px-2 py-1 rounded-full text-sm ${
-                      metadata.permission === 'public' ? 'bg-green-100 text-green-800' :
-                      metadata.permission === 'staff_only' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {metadata.permission}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    {canDeleteDocument(metadata) ? (
-                      <button
-                        onClick={() => handleDelete(documents.ids[index], metadata.collectionName)}
-                        disabled={isDeleting === documents.ids[index]}
-                        className={`text-red-600 hover:text-red-800 ${
-                          isDeleting === documents.ids[index] ? 'opacity-50' : ''
-                        }`}
-                      >
-                        {isDeleting === documents.ids[index] ? (
-                          <span className="inline-block animate-spin">⌛</span>
-                        ) : (
-                          <FaTrash />
-                        )}
-                      </button>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm truncate block">
+                        {metadata.modelId}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm truncate block">
+                        {metadata.collectionName}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-center truncate">{metadata.uploadedBy}</td>
+                    <td className="px-4 py-4 text-center truncate">
+                      {new Date(metadata.timestamp).toLocaleString('th-TH')}
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className={`px-2 py-1 rounded-full text-sm ${
+                        metadata.permission === 'public' ? 'bg-green-100 text-green-800' :
+                        metadata.permission === 'staff_only' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {metadata.permission}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      {canAccessDocument(metadata) ? (
+                        <button
+                          onClick={() => handleDelete(documents.ids[index], metadata.collectionName)}
+                          disabled={isDeleting === documents.ids[index]}
+                          className={`text-red-600 hover:text-red-800 ${
+                            isDeleting === documents.ids[index] ? 'opacity-50' : ''
+                          }`}
+                        >
+                          {isDeleting === documents.ids[index] ? (
+                            <span className="inline-block animate-spin">⌛</span>
+                          ) : (
+                            <FaTrash />
+                          )}
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
 
