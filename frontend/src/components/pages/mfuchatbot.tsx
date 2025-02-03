@@ -67,7 +67,7 @@ const MFUChatbot: React.FC = () => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      const lineHeight = 20;
+      const lineHeight = 10;
       const maxLines = 6;
       const maxHeight = lineHeight * maxLines;
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
