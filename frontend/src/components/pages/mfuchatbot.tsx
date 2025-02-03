@@ -616,14 +616,14 @@ const MFUChatbot: React.FC = () => {
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             {/* ปรับปุ่ม Add image */}
             {/* <label className="whitespace-nowrap cursor-pointer px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded flex items-center text-[10px]"> */}
-            <label className="cursor-pointer p-3 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center">
+            <label className="cursor-pointer px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center gap-2 min-w-[100px]">
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleFileSelect}
                 className="hidden"
               />
-              <RiImageAddFill className="w-6 h-6 text-gray-600" />
+              <RiImageAddFill className="w-5 h-5 text-gray-600" />
             </label>
 
             <div className="flex-1">
