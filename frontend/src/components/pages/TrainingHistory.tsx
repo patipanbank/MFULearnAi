@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
 import { FaTrash } from 'react-icons/fa';
+import { CollectionPermission } from '../../types/collection';
 
 interface TrainingDocument {
   ids: string[];
@@ -11,7 +12,7 @@ interface TrainingDocument {
     timestamp: string;
     modelId: string;
     collectionName: string;
-    permission: string;
+    permission: CollectionPermission;
     createdBy: string;
   }[];
 }

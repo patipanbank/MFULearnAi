@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
 import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
-import { CollectionPermission } from '../../../../backend/models/Collection';
+import { CollectionPermission } from '../../types/collection';
 
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
