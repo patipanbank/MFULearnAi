@@ -28,7 +28,12 @@ class ChatHistoryService {
         id: index + 1,
         role: msg.role as 'user' | 'assistant' | 'system',
         content: String(msg.content),
-        timestamp: new Date(msg.timestamp || Date.now())
+        timestamp: new Date(msg.timestamp || Date.now()),
+        image: msg.image ? {
+          data: msg.image.data,
+          mediaType: msg.image.mediaType
+        } : undefined,
+        sources: msg.sources || []
       }));
 
       const history = await ChatHistory.findOneAndUpdate(

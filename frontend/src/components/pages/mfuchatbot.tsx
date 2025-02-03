@@ -243,7 +243,7 @@ const MFUChatbot: React.FC = () => {
         image: imageData
       };
 
-      // บันทึกข้อความลงในประวัติ
+      // บันทึกข้อความและรูปภาพลงในประวัติ
       const token = localStorage.getItem('auth_token');
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
