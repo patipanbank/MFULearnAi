@@ -597,6 +597,17 @@ const MFUChatbot: React.FC = () => {
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-4xl mx-auto">
+            {/* ย้ายปุ่ม Add image มาไว้ด้านซ้าย */}
+            <label className="cursor-pointer px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              Add image
+            </label>
+
             <div className="flex-1">
               {selectedImage && (
                 <div className="mb-2 relative">
@@ -628,16 +639,15 @@ const MFUChatbot: React.FC = () => {
                   required
                 />
                 
-                {/* เพิ่มปุ่ม Add image */}
-                <label className="cursor-pointer px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  Add image
-                </label>
+                {/* เพิ่มปุ่ม Send ไว้ด้านขวา */}
+                <button
+                  type="submit"
+                  disabled={!canSubmit()}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
+                           disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Sending...' : 'Send'}
+                </button>
               </div>
             </div>
           </div>
