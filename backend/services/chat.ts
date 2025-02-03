@@ -47,7 +47,8 @@ export class ChatService {
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
 
-      const systemPrompt = `You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.`;
+      const systemPrompt = ``;
+      // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
 
       const augmentedMessages = [
         {
