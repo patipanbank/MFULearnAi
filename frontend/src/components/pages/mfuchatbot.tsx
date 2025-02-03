@@ -665,7 +665,7 @@ const MFUChatbot: React.FC = () => {
                   }`}
                   style={{ minHeight: '40px' }}
                 >
-                  <GrSend size={20} />
+                  <GrSend size={30} />
                 </button>
               </div>
             </div>
