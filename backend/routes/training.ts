@@ -120,6 +120,52 @@ router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Reques
 // เฉพาะ Staff เท่านั้นที่เข้าถึงได้
 router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
 
+router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { modelId, collectionName } = req.body;
+    const user = (req as any).user;
+
+    // ตรวจสอบและสร้าง collection ถ้ายังไม่มี
+    await chromaService.ensureCollectionExists(collectionName, user);
+
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
+
+    console.log(`Processing file: ${file.originalname}`);
+    const text = await documentService.processFile(file);
+    
+    console.log(`Text length (${text.length}) exceeds chunk size (4000), splitting into chunks`);
+    const chunks = splitTextIntoChunks(text);
+    console.log(`Created ${chunks.length} chunks`);
+
+    const documents = chunks.map(chunk => ({
+      text: chunk,
+      metadata: {
+        filename: file.originalname,
+        uploadedBy: user.username,
+        timestamp: new Date().toISOString(),
+        modelId,
+        collectionName
+      }
+    }));
+
+    console.log(`Adding documents to collection ${collectionName}`);
+    await chromaService.addDocuments(collectionName, documents);
+    
+    res.json({ 
+      message: 'File processed successfully',
+      chunks: chunks.length
+    });
+
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Error processing document' });
+  }
+});
+
 router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const { collectionName } = req.query;
@@ -130,12 +176,8 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
       return;
     }
 
-    // ตรวจสอบสิทธิ์การเข้าถึง collection
-    const hasAccess = await chromaService.checkCollectionAccess(collectionName, user);
-    if (!hasAccess) {
-      res.status(403).json({ error: 'Access denied to this collection' });
-      return;
-    }
+    // ตรวจสอบและสร้าง collection ถ้ายังไม่มี
+    await chromaService.ensureCollectionExists(collectionName, user);
 
     const documents = await chromaService.getAllDocuments(collectionName);
     

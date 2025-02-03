@@ -230,14 +230,15 @@ class ChromaService {
 
   async createCollection(name: string, permission: CollectionPermission, createdBy: string) {
     try {
-      // สร้าง collection ใน ChromaDB
+      // 1. สร้าง collection ใน ChromaDB
       const collection = await this.client.createCollection({ name });
       
-      // บันทึกข้อมูล permission ใน MongoDB
+      // 2. บันทึก metadata ใน MongoDB
       await Collection.create({
         name,
         permission,
-        createdBy
+        createdBy,
+        created: new Date()
       });
 
       return collection;
@@ -270,20 +271,56 @@ class ChromaService {
   }
 
   async checkCollectionAccess(collectionName: string, user: { nameID: string, groups: string[] }) {
-    const collection = await Collection.findOne({ name: collectionName });
-    if (!collection) {
-      throw new Error('Collection not found');
-    }
-
-    switch (collection.permission) {
-      case CollectionPermission.PUBLIC:
+    try {
+      // ค้นหา collection จาก MongoDB
+      const collection = await Collection.findOne({ name: collectionName });
+      
+      // ถ้าไม่พบ collection ให้สร้างใหม่เป็น public
+      if (!collection) {
+        await Collection.create({
+          name: collectionName,
+          permission: CollectionPermission.PUBLIC,
+          createdBy: user.nameID,
+          created: new Date()
+        });
         return true;
-      case CollectionPermission.STAFF_ONLY:
-        return user.groups.includes('Staffs');
-      case CollectionPermission.PRIVATE:
-        return collection.createdBy === user.nameID;
-      default:
-        return false;
+      }
+
+      // ตรวจสอบสิทธิ์
+      switch (collection.permission) {
+        case CollectionPermission.PUBLIC:
+          return true;
+        case CollectionPermission.STAFF_ONLY:
+          return user.groups.includes('Staffs');
+        case CollectionPermission.PRIVATE:
+          return collection.createdBy === user.nameID;
+        default:
+          return false;
+      }
+    } catch (error) {
+      console.error('Error checking collection access:', error);
+      throw error;
+    }
+  }
+
+  // เพิ่มเมธอดสำหรับตรวจสอบการมีอยู่ของ collection
+  async ensureCollectionExists(name: string, user: { nameID: string }) {
+    try {
+      let collection = await Collection.findOne({ name });
+      
+      if (!collection) {
+        collection = await Collection.create({
+          name,
+          permission: CollectionPermission.PUBLIC,
+          createdBy: user.nameID,
+          created: new Date()
+        });
+      }
+      
+      return collection;
+    } catch (error) {
+      console.error('Error ensuring collection exists:', error);
+      throw error;
     }
   }
 }
