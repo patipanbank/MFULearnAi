@@ -51,7 +51,6 @@ const TrainingDashboard: React.FC = () => {
   const fetchCollections = async () => {
     try {
       setLoadingCollections(true);
-      const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -61,23 +60,9 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Failed to fetch collections');
       }
       const data = await response.json();
-      
-      // แก้ไขการกรอง collections
-      const accessibleCollections = data.filter((collection: { 
-        name: string;
-        permission: CollectionPermission;
-        createdBy: string;
-      }) => {
-        return (
-          collection.permission === CollectionPermission.PUBLIC ||
-          (collection.permission === CollectionPermission.STAFF_ONLY && userData.groups?.includes('Staffs')) ||
-          (collection.permission === CollectionPermission.PRIVATE && collection.createdBy === userData.nameID)
-        );
-      }).map((collection: { name: string }) => collection.name);
-      
-      setCollections(accessibleCollections);
-      if (accessibleCollections.length === 1) {
-        setSelectedCollection(accessibleCollections[0]);
+      setCollections(data);
+      if (data.length === 1) {
+        setSelectedCollection(data[0]);
       }
     } catch (error) {
       console.error('Error fetching collections:', error);
