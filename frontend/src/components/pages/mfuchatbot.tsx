@@ -595,84 +595,58 @@ const MFUChatbot: React.FC = () => {
         </div>
 
         {/* Input Form */}
-        <form onSubmit={handleSubmit} className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t dark:border-gray-700 p-4 shadow-lg">
-          <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
-            {/* Add image button */}
-            <label className="cursor-pointer px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 
-                             dark:hover:bg-gray-600 rounded-lg flex items-center gap-2 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+        <form onSubmit={handleSubmit} className="p-2 md:p-4">
+          <div className="flex gap-2 max-w-4xl mx-auto">
+            {/* ย้ายปุ่ม Add image มาไว้ด้านซ้าย */}
+            <label className="cursor-pointer px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center">
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleFileSelect}
                 className="hidden"
               />
-              <span className="text-gray-700 dark:text-gray-300">Add image</span>
+              Add image
             </label>
 
             <div className="flex-1">
-              {/* Image preview */}
               {selectedImage && (
-                <div className="mb-3 relative inline-block">
+                <div className="mb-2 relative">
                   <img
                     src={URL.createObjectURL(selectedImage)}
-                    alt="Preview"
-                    className="max-h-32 rounded-lg border border-gray-200 dark:border-gray-600"
+                    alt="Pasted"
+                    className="max-h-32 rounded"
                   />
                   <button
                     type="button"
                     onClick={() => setSelectedImage(null)}
-                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 
-                             shadow-md transition-colors"
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    ✕
                   </button>
                 </div>
               )}
               
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-2">
                 <textarea
                   ref={textareaRef}
                   value={inputMessage}
                   onChange={(e) => handleInputChange(e)}
                   onKeyDown={(e) => handleKeyDown(e)}
                   onPaste={handlePaste}
-                  className="flex-1 p-3 text-sm md:text-base border border-gray-200 dark:border-gray-600 
-                           rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 
-                           dark:bg-gray-700 dark:text-white transition-all"
+                  className="w-full md:w-[800px] lg:w-[1000px] p-2 text-sm md:text-base border rounded resize-none"
                   placeholder={selectedImage ? "Please describe or ask about this image..." : "Type a message or paste image..."}
                   rows={1}
                   required
                 />
                 
-                {/* Send button */}
+                {/* เพิ่มปุ่ม Send ไว้ด้านขวา */}
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 
-                           text-white rounded-lg flex items-center gap-2 transition-colors
-                           disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
+                           disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {isLoading ? (
-                    <>
-                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Sending</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Send</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </>
-                  )}
+                  {isLoading ? 'Sending...' : 'Send'}
                 </button>
               </div>
             </div>
