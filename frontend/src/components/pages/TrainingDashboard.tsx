@@ -3,11 +3,17 @@ import { config } from '../../config/config';
 import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
 import { CollectionPermission } from '../../types/collection';
 
+interface CollectionWithMetadata {
+  name: string;
+  permission: CollectionPermission;
+  createdBy: string;
+}
+
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   // const [loading, setLoading] = useState(false);
   const [models, setModels] = useState<string[]>([]);
-  const [collections, setCollections] = useState<string[]>([]);
+  const [collections, setCollections] = useState<CollectionWithMetadata[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -62,13 +68,26 @@ const TrainingDashboard: React.FC = () => {
       const data = await response.json();
       setCollections(data);
       if (data.length === 1) {
-        setSelectedCollection(data[0]);
+        setSelectedCollection(data[0].name);
       }
     } catch (error) {
       console.error('Error fetching collections:', error);
     } finally {
       setLoadingCollections(false);
     }
+  };
+
+  const getFilteredCollections = () => {
+    const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+    const isStaff = userData.groups?.includes('Staffs');
+
+    return collections.filter(collection => {
+      if (collection.permission === CollectionPermission.PUBLIC) {
+        return isStaff;
+      }
+      
+      return collection.createdBy === userData.nameID;
+    });
   };
 
   const handleCreateCollection = async (e: React.FormEvent) => {
@@ -273,8 +292,11 @@ const TrainingDashboard: React.FC = () => {
                 className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="">-- Choose Collection --</option>
-                {collections.map(collection => (
-                  <option key={collection} value={collection}>{collection}</option>
+                {getFilteredCollections().map(collection => (
+                  <option key={collection.name} value={collection.name}>
+                    {collection.name} 
+                    {collection.permission !== CollectionPermission.PUBLIC && ' (Restricted)'}
+                  </option>
                 ))}
               </select>
               {selectedCollection && (

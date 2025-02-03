@@ -108,9 +108,12 @@ router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, re
 
 router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const collections = await chromaService.getCollections();
-    // collections เป็น array ของ string อยู่แล้ว
-    res.json(collections || []);
+    const collections = await Collection.find({}).select('name permission createdBy');
+    res.json(collections.map(collection => ({
+      name: collection.name,
+      permission: collection.permission,
+      createdBy: collection.createdBy
+    })));
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Error fetching collections' });
