@@ -40,7 +40,7 @@ export class BedrockService {
     const prompt = this.formatClaudeMessages(messages);
     
     const command = new InvokeModelCommand({
-      modelId: this.models.claude,
+      modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
