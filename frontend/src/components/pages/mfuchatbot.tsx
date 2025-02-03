@@ -245,6 +245,7 @@ const MFUChatbot: React.FC = () => {
 
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
+      setSelectedImage(null);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -396,6 +397,14 @@ const MFUChatbot: React.FC = () => {
       selectedCollection && 
       inputMessage.trim()
     );
+  };
+
+  // เพิ่มฟังก์ชันสำหรับจัดการการเลือกไฟล์
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+    }
   };
 
   return (
@@ -589,7 +598,6 @@ const MFUChatbot: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-4xl mx-auto">
             <div className="flex-1">
-              {/* แสดงรูปที่วางมา */}
               {selectedImage && (
                 <div className="mb-2 relative">
                   <img
@@ -606,29 +614,32 @@ const MFUChatbot: React.FC = () => {
                   </button>
                 </div>
               )}
-
-              <textarea
-                ref={textareaRef}
-                value={inputMessage}
-                onChange={(e) => handleInputChange(e)}
-                onKeyDown={(e) => handleKeyDown(e)}
-                onPaste={handlePaste}
-                className="w-full md:w-[800px] lg:w-[1000px] p-2 text-sm md:text-base border rounded resize-none"
-                placeholder={selectedImage ? "Please describe or ask about this image..." : "Type a message or paste image..."}
-                rows={1}
-                required
-              />
+              
+              <div className="flex gap-2">
+                <textarea
+                  ref={textareaRef}
+                  value={inputMessage}
+                  onChange={(e) => handleInputChange(e)}
+                  onKeyDown={(e) => handleKeyDown(e)}
+                  onPaste={handlePaste}
+                  className="w-full md:w-[800px] lg:w-[1000px] p-2 text-sm md:text-base border rounded resize-none"
+                  placeholder={selectedImage ? "Please describe or ask about this image..." : "Type a message or paste image..."}
+                  rows={1}
+                  required
+                />
+                
+                {/* เพิ่มปุ่ม Add image */}
+                <label className="cursor-pointer px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  Add image
+                </label>
+              </div>
             </div>
-            
-            <button
-              type="submit"
-              disabled={!canSubmit()}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
-                       disabled:bg-gray-400 disabled:cursor-not-allowed"
-              title={!selectedModel || !selectedCollection ? "Please select both model and collection" : ""}
-            >
-              {isLoading ? 'Sending...' : 'Send'}
-            </button>
           </div>
         </form>
       </div>
