@@ -613,7 +613,7 @@ const MFUChatbot: React.FC = () => {
                 onChange={(e) => handleInputChange(e)}
                 onKeyDown={(e) => handleKeyDown(e)}
                 onPaste={handlePaste}
-                className="w-[500px] p-2 text-sm md:text-base border rounded resize-none"
+                className="w-full md:w-[800px] lg:w-[1000px] p-2 text-sm md:text-base border rounded resize-none"
                 placeholder={selectedImage ? "Please describe or ask about this image..." : "Type a message or paste image..."}
                 rows={1}
                 required
