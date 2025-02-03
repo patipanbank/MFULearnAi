@@ -657,10 +657,14 @@ const MFUChatbot: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className="whitespace-nowrap px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
-                           disabled:bg-gray-400 disabled:cursor-not-allowed h-[38px]"
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${
+                    canSubmit()
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  style={{ minHeight: '40px' }}
                 >
-                  {isLoading ? 'Sending...' : 'Send'}
+                  Send
                 </button>
               </div>
             </div>
