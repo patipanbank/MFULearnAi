@@ -356,6 +356,16 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  // เพิ่มการตรวจสอบว่าสามารถส่งข้อความได้หรือไม่
+  const canSubmit = () => {
+    return (
+      !isLoading && 
+      selectedModel && 
+      selectedCollection && 
+      (inputMessage.trim() || selectedImage)
+    );
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Chat Messages */}
@@ -568,9 +578,10 @@ const MFUChatbot: React.FC = () => {
             
             <button
               type="submit"
-              disabled={isLoading || (!inputMessage.trim() && !selectedImage)}
+              disabled={!canSubmit()}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
                        disabled:bg-gray-400 disabled:cursor-not-allowed"
+              title={!selectedModel || !selectedCollection ? "Please select both model and collection" : ""}
             >
               {isLoading ? 'Sending...' : 'Send'}
             </button>
