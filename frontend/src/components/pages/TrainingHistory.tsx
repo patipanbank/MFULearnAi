@@ -17,6 +17,12 @@ interface TrainingDocument {
   }[];
 }
 
+interface Collection {
+  name: string;
+  permission: CollectionPermission;
+  createdBy: string;
+}
+
 const TrainingHistory: React.FC = () => {
   const [documents, setDocuments] = useState<TrainingDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,37 +32,55 @@ const TrainingHistory: React.FC = () => {
 
   const fetchDocuments = async () => {
     try {
-      // เพิ่ม query parameter collectionName
       const collections = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
-      const collectionList = await collections.json();
+      const collectionList: Collection[] = await collections.json();
       
-      // ดึงข้อมูลจากทุก collection
+      // กรองเฉพาะ collections ที่มีสิทธิ์เข้าถึง
+      const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+      const accessibleCollections = collectionList.filter(collection => {
+        if (collection.permission === CollectionPermission.PUBLIC) {
+          return true;
+        }
+        if (collection.permission === CollectionPermission.STAFF_ONLY) {
+          return userData.groups?.includes('Staffs');
+        }
+        return collection.createdBy === userData.nameID;
+      });
+
+      // ดึงข้อมูลเฉพาะจาก collections ที่มีสิทธิ์
       const allDocuments = await Promise.all(
-        collectionList.map(async (collection: { name: string }) => {
-          const response = await fetch(
-            `${config.apiUrl}/api/training/documents?collectionName=${collection.name}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        accessibleCollections.map(async (collection) => {
+          try {
+            const response = await fetch(
+              `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(collection.name)}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                }
               }
+            );
+            if (!response.ok) {
+              console.warn(`Failed to fetch documents for collection ${collection.name}`);
+              return null;
             }
-          );
-          if (!response.ok) {
-            throw new Error('Failed to fetch documents');
+            return response.json();
+          } catch (error) {
+            console.error(`Error fetching collection ${collection.name}:`, error);
+            return null;
           }
-          return response.json();
         })
       );
 
-      // รวมข้อมูลจากทุก collection
+      // กรองออก null values และรวมข้อมูล
+      const validDocuments = allDocuments.filter(doc => doc !== null);
       const combinedDocuments = {
-        ids: allDocuments.flatMap(doc => doc.ids),
-        documents: allDocuments.flatMap(doc => doc.documents),
-        metadatas: allDocuments.flatMap(doc => doc.metadatas)
+        ids: validDocuments.flatMap(doc => doc?.ids || []),
+        documents: validDocuments.flatMap(doc => doc?.documents || []),
+        metadatas: validDocuments.flatMap(doc => doc?.metadatas || [])
       };
 
       setDocuments(combinedDocuments);
