@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 // import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
+import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
 
 interface Source {
@@ -664,7 +665,7 @@ const MFUChatbot: React.FC = () => {
                   }`}
                   style={{ minHeight: '40px' }}
                 >
-                  Send
+                  <GrSend size={20} />
                 </button>
               </div>
             </div>
