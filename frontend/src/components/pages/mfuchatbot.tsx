@@ -17,6 +17,10 @@ interface Message {
   content: string;
   timestamp: Date;
   sources?: Source[];
+  image?: {
+    data: string;
+    mediaType: string;
+  };
 }
 
 const modelNames: { [key: string]: string } = {
@@ -37,8 +41,9 @@ const MFUChatbot: React.FC = () => {
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string>('');
-  const [copySuccess, setCopySuccess] = useState(false);
+  // const [copySuccess, setCopySuccess] = useState(false);
   const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
   // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
@@ -168,26 +173,54 @@ const MFUChatbot: React.FC = () => {
     return () => clearInterval(countdownInterval);
   }, [isLoading]); 
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputMessage(e.target.value);
+  // const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  //   setInputMessage(e.target.value);
+  // };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+    }
+  };
+
+  const convertImageToBase64 = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading || !selectedModel || !selectedCollection) return;
+    if (!inputMessage.trim() && !selectedImage) return;
 
     try {
       setIsLoading(true);
-      
-      const userMessage = {
-        id: messages.length + 1,
-        role: 'user' as const,
-        content: inputMessage.trim(),
-        timestamp: new Date()
+
+      let imageData;
+      if (selectedImage) {
+        const base64Image = await convertImageToBase64(selectedImage);
+        // ตัด prefix "data:image/jpeg;base64," ออก
+        imageData = {
+          data: base64Image.split(',')[1],
+          mediaType: selectedImage.type
+        };
+      }
+
+      const newMessage: Message = {
+        id: Date.now(),
+        role: 'user',
+        content: inputMessage,
+        timestamp: new Date(),
+        image: imageData
       };
-      
-      setMessages(prev => [...prev, userMessage]);
+
+      setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
+      setSelectedImage(null);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -196,7 +229,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: [...messages, newMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -208,7 +241,7 @@ const MFUChatbot: React.FC = () => {
 
       const data = await response.json();
       
-      const assistantMessage = {
+      const assistantMessage: Message = {
         id: messages.length + 2,
         role: 'assistant' as const,
         content: data.response,
@@ -225,14 +258,14 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage, assistantMessage],
+          messages: [...messages, newMessage, assistantMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
       });
 
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('Error:', error);
       setMessages(prev => [...prev, {
         id: messages.length + 2,
         role: 'assistant' as const,
@@ -282,12 +315,12 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  const handleCopy = (content: string) => {
-    navigator.clipboard.writeText(content).then(() => {
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
-    });
-  };
+  // const handleCopy = (content: string) => {
+  //   navigator.clipboard.writeText(content).then(() => {
+  //     setCopySuccess(true);
+  //     setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
+  //   });
+  // };
 
   // const handleLike = (index: number) => {
   //   // Implement logic to toggle like state
@@ -297,9 +330,26 @@ const MFUChatbot: React.FC = () => {
   //   // Implement logic to toggle dislike state
   // };
 
-  const isDayTime = () => {
-    const hour = new Date().getHours();
-    return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
+  // const isDayTime = () => {
+  //   const hour = new Date().getHours();
+  //   return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
+  // };
+
+  const MessageItem: React.FC<{ message: Message }> = ({ message }) => {
+    return (
+      <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+        <div className="max-w-[70%] bg-gray-100 rounded-lg p-3">
+          {message.image && (
+            <img
+              src={`data:${message.image.mediaType};base64,${message.image.data}`}
+              alt="Uploaded"
+              className="max-w-full rounded mb-2"
+            />
+          )}
+          <p className="text-gray-800">{message.content}</p>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -344,77 +394,7 @@ const MFUChatbot: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {messages.map((message, index) => (
-              <div key={index} className="message relative">
-                <div className={`flex items-start gap-3 ${
-                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                }`}>
-                  {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
-                    message.role === 'user' 
-                      ? 'bg-gradient-to-r from-red-600 to-yellow-400' 
-                      : 'bg-transparent'
-                  } flex items-center justify-center`}>
-                    {message.role === 'user' ? (
-                      <svg className={`w-5 h-5 ${isDayTime() ? 'text-white' : 'text-white'}`} fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <img 
-                        src="/dindin.PNG" 
-                        alt="AI Assistant" 
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-
-                  {/* Message Content */}
-                  <div className={`max-w-[75%] md:max-w-[70%] ${
-                    message.role === 'user' 
-                      ? 'ml-auto bg-blue-500 text-white' 
-                      : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
-                  } rounded-lg p-3 md:p-4 relative`}>
-                    {message.role === 'assistant' && (
-                      <button
-                        onClick={() => handleCopy(message.content)}
-                        className="absolute top-1 right-1 px-1 py-0.5 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded text-xs"
-                      >
-                        {copySuccess ? 'Copied' : 'Copy'}
-                      </button>
-                    )}
-                    <div className={`text-xs md:text-sm ${
-                      message.role === 'assistant' 
-                        ? 'text-black'
-                        : 'text-black'
-                    } ${message.role === 'user' ? 'text-white' : ''} mb-1`}>
-                      {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
-                    </div>
-                    <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
-                  </div>
-                </div>
-                
-                {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                  <div className="ml-2 mt-1">
-                    <button
-                      onClick={() => {
-                        const sourceInfo = message.sources?.map(source => 
-                          `Model: ${source.modelId}\n` +
-                          `Collection: ${source.collectionName}\n` +
-                          `File: ${source.filename}\n` +
-                          `Source: ${source.source || 'N/A'}\n` +
-                          `Similarity: ${(source.similarity * 100).toFixed(1)}%`
-                        ).join('\n\n');
-                        alert(sourceInfo);
-                      }}
-                      className="text-xs text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      View Sources ({message.sources.length})
-                    </button>
-                  </div>
-                )}
-              </div>
+              <MessageItem key={index} message={message} />
             ))} 
             {isLoading && (
               <div className="flex items-start gap-3">
@@ -481,19 +461,56 @@ const MFUChatbot: React.FC = () => {
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-4xl mx-auto">
-            <textarea
-              value={inputMessage}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
-              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
-              className="flex-1 p-2 text-sm md:text-base border rounded resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              placeholder="Type your message here..."
-              rows={1}
-            />
+            <div className="flex-1">
+              {/* Image Upload Button */}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id="image-upload"
+              />
+              <label
+                htmlFor="image-upload"
+                className="inline-block mb-2 cursor-pointer text-blue-500 hover:text-blue-600"
+              >
+                📎 Add Image
+              </label>
+              
+              {/* แสดงรูปที่เลือก */}
+              {selectedImage && (
+                <div className="mb-2">
+                  <img
+                    src={URL.createObjectURL(selectedImage)}
+                    alt="Selected"
+                    className="max-h-32 rounded"
+                  />
+                  <button
+                    onClick={() => setSelectedImage(null)}
+                    className="text-red-500 text-sm mt-1"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              {/* Text Input */}
+              <textarea
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
+                className="w-full p-2 border rounded"
+                placeholder="Ask a question..."
+                rows={3}
+              />
+            </div>
+            
             <button
               type="submit"
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+              className="px-4 py-2 bg-blue-500 text-white rounded"
+              disabled={isLoading}
             >
-              Send
+              {isLoading ? 'Sending...' : 'Send'}
             </button>
           </div>
         </form>
