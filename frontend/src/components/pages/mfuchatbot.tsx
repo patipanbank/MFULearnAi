@@ -39,6 +39,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
   // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
@@ -302,6 +303,33 @@ const MFUChatbot: React.FC = () => {
     return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
   };
 
+  // เพิ่มฟังก์ชันสำหรับตรวจสอบขนาดไฟล์
+  const validateImageFile = (file: File): boolean => {
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      alert('Image size must not exceed 20MB');
+      return false;
+    }
+    return true;
+  };
+
+  // เพิ่มฟังก์ชันสำหรับรับการวางรูปภาพ
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file && validateImageFile(file)) {
+            setSelectedImage(file);
+          }
+          break;
+        }
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Chat Messages */}
@@ -483,11 +511,12 @@ const MFUChatbot: React.FC = () => {
           <div className="flex gap-2 max-w-4xl mx-auto">
             <textarea
               value={inputMessage}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
+              onChange={(e) => handleInputChange(e)}
               onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
+              onPaste={handlePaste}
               className="flex-1 p-2 text-sm md:text-base border rounded resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              placeholder="Type your message here..."
-              rows={1}
+              placeholder={selectedImage ? "Ask about this image..." : "Type a message or paste an image..."}
+              rows={3}
             />
             <button
               type="submit"
