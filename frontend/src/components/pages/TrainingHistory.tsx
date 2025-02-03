@@ -43,9 +43,6 @@ const TrainingHistory: React.FC = () => {
       const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
       const accessibleCollections = collectionList.filter(collection => {
         if (collection.permission === CollectionPermission.PUBLIC) {
-          return true;
-        }
-        if (collection.permission === CollectionPermission.STAFF_ONLY) {
           return userData.groups?.includes('Staffs');
         }
         return collection.createdBy === userData.nameID;
@@ -102,7 +99,6 @@ const TrainingHistory: React.FC = () => {
 
     setIsDeleting(id);
     try {
-      console.log(`Deleting document ${id} from collection ${collectionName}`);
       const response = await fetch(
         `${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(collectionName)}`,
         {
@@ -118,7 +114,6 @@ const TrainingHistory: React.FC = () => {
         throw new Error(errorData.details || errorData.error || 'Failed to delete document');
       }
 
-      // รีเฟรชข้อมูลหลังจากลบสำเร็จ
       await fetchDocuments();
     } catch (err) {
       console.error('Error deleting document:', err);
@@ -182,13 +177,16 @@ const TrainingHistory: React.FC = () => {
     }
   };
 
-  // เพิ่มฟังก์ชันตรวจสอบสิทธิ์การลบ
-  const canDeleteDocument = (metadata: TrainingDocument['metadatas'][0]) => {
+  // เพิ่มฟังก์ชันตรวจสอบสิทธิ์การเข้าถึง
+  const canAccessDocument = (metadata: TrainingDocument['metadatas'][0]) => {
     const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-    return (
-      userData.groups?.includes('Staffs') || 
-      metadata.createdBy === userData.nameID
-    );
+    
+    if (metadata.permission === CollectionPermission.PUBLIC) {
+      return userData.groups?.includes('Staffs');
+    }
+    
+    // สำหรับ STAFF_ONLY และ PRIVATE ต้องเป็นคนที่สร้างเท่านั้น
+    return metadata.createdBy === userData.nameID;
   };
 
   if (loading) {
@@ -282,7 +280,7 @@ const TrainingHistory: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-4 py-4 text-center">
-                    {canDeleteDocument(metadata) ? (
+                    {canAccessDocument(metadata) ? (
                       <button
                         onClick={() => handleDelete(documents.ids[index], metadata.collectionName)}
                         disabled={isDeleting === documents.ids[index]}
