@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { BiLoaderAlt } from 'react-icons/bi';
 import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
+import { RiImageAddFill } from 'react-icons/ri';
 
 interface Source {
   modelId: string;
@@ -614,14 +615,15 @@ const MFUChatbot: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             {/* ปรับปุ่ม Add image */}
-            <label className="whitespace-nowrap cursor-pointer px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded flex items-center text-[10px]">
+            {/* <label className="whitespace-nowrap cursor-pointer px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded flex items-center text-[10px]"> */}
+            <label className="cursor-pointer p-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center">
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleFileSelect}
                 className="hidden"
               />
-              Add image
+              <RiImageAddFill className="w-5 h-5 text-gray-600" />
             </label>
 
             <div className="flex-1">
