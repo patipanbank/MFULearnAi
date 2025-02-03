@@ -61,8 +61,10 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Failed to fetch collections');
       }
       const data = await response.json();
-      // กรองเฉพาะ collections ที่มีสิทธิ์เข้าถึง
+      
+      // แก้ไขการกรอง collections
       const accessibleCollections = data.filter((collection: { 
+        name: string;
         permission: CollectionPermission;
         createdBy: string;
       }) => {
@@ -71,7 +73,7 @@ const TrainingDashboard: React.FC = () => {
           (collection.permission === CollectionPermission.STAFF_ONLY && userData.groups?.includes('Staffs')) ||
           (collection.permission === CollectionPermission.PRIVATE && collection.createdBy === userData.nameID)
         );
-      });
+      }).map((collection: { name: string }) => collection.name);
       
       setCollections(accessibleCollections);
       if (accessibleCollections.length === 1) {
