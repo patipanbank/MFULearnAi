@@ -4,10 +4,10 @@ import { ChatMessage } from '../types/chat';
 export class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
-    titan: 'amazon.titan-text-express-v1',
-    claude: 'anthropic.claude-v2',
+    // titan: 'amazon.titan-text-express-v1',
+    // claude: 'anthropic.claude-v2',
     claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    claude3h: 'anthropic.claude-3-haiku-20240307-v1:0',
+    // claude3h: 'anthropic.claude-3-haiku-20240307-v1:0',
     embedding: 'amazon.titan-embed-text-v2'
   };
 
@@ -40,7 +40,7 @@ export class BedrockService {
     const prompt = this.formatClaudeMessages(messages);
     
     const command = new InvokeModelCommand({
-      modelId: this.models.claude,
+      modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
