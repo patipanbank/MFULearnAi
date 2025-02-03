@@ -20,25 +20,27 @@ export class ChatService {
     return (true);
   }
 
-  // private isGreeting(query: string): boolean {
-  //   const greetings = ['hi', 'hello', 'hey', 'who are you'];
-  //   return greetings.some(greeting => query.toLowerCase().includes(greeting));
-  // }
+  private isGreeting(query: string): boolean {
+    const greetings = ['hi', 'hello', 'hey', 'who are you'];
+    const words = query.toLowerCase().split(/\s+/);
+    return greetings.some(greeting => words.includes(greeting));
+  }
 
-  // private isThaiGreeting(query: string): boolean {
-  //   const thaiGreetings = ['สวัสดี','หวัดดี','คุณคือ','เจ้าคือ'];
-  //   return thaiGreetings.some(greeting => query.includes(greeting));
-  // }
+  private isThaiGreeting(query: string): boolean {
+    const thaiGreetings = ['สวัสดี', 'หวัดดี', 'คุณคือ', 'เจ้าคือ'];
+    const words = query.split(/\s+/);
+    return thaiGreetings.some(greeting => words.includes(greeting));
+  }
 
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
-      // if (this.isThaiGreeting(query)) {
-      //   return 'สวัสดีครับ ผมชื่อ ดินดิน เป็นผู้ช่วย AI ของ มหาวิทยาลัยแม่ฟ้าหลวง ฉันจะช่วยคุณอะไรได้บ้างวันนี้?';
-      // }
+      if (this.isThaiGreeting(query)) {
+        return 'สวัสดีครับ ผมชื่อ ดินดิน เป็นผู้ช่วย AI ของ มหาวิทยาลัยแม่ฟ้าหลวง ฉันจะช่วยคุณอะไรได้บ้างวันนี้?';
+      }
 
-      // if (this.isGreeting(query)) {
-      //   return 'Hi! I am DinDin, AI assistant in Mae Fah Luang University. How can I help you today?';
-      // }
+      if (this.isGreeting(query)) {
+        return 'Hi! I am DinDin, AI assistant in Mae Fah Luang University. How can I help you today?';
+      }
 
       if (!this.isRelevantQuestion(query)) {
         return 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
