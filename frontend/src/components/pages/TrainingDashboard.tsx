@@ -6,11 +6,7 @@ const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   // const [loading, setLoading] = useState(false);
   const [models, setModels] = useState<string[]>([]);
-  const [collections, setCollections] = useState<Array<{
-    name: string;
-    isPublic: boolean;
-    createdBy: string;
-  }>>([]);
+  const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -21,11 +17,6 @@ const TrainingDashboard: React.FC = () => {
   const [trainingMode, setTrainingMode] = useState<'file' | 'url'>('file');
   const [urls, setUrls] = useState<string>('');
   const [isProcessingUrls, setIsProcessingUrls] = useState(false);
-  const [newCollectionForm, setNewCollectionForm] = useState({
-    name: '',
-    isPublic: true
-  });
-  const userId = localStorage.getItem('user_id');
 
   useEffect(() => {
     fetchModels();
@@ -69,7 +60,7 @@ const TrainingDashboard: React.FC = () => {
       const data = await response.json();
       setCollections(data);
       if (data.length === 1) {
-        setSelectedCollection(data[0].name);
+        setSelectedCollection(data[0]);
       }
     } catch (error) {
       console.error('Error fetching collections:', error);
@@ -280,20 +271,8 @@ const TrainingDashboard: React.FC = () => {
                 className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="">-- Choose Collection --</option>
-                {collections.map((collection) => (
-                  <option key={collection.name} value={collection.name}>
-                    {collection.name}
-                    {!collection.isPublic && (
-                      <span className="ml-2 text-sm text-gray-500">
-                        (Private)
-                      </span>
-                    )}
-                    {collection.createdBy === userId && (
-                      <span className="ml-2 text-sm text-blue-500">
-                        (Owner)
-                      </span>
-                    )}
-                  </option>
+                {collections.map(collection => (
+                  <option key={collection} value={collection}>{collection}</option>
                 ))}
               </select>
               {selectedCollection && (
@@ -320,20 +299,6 @@ const TrainingDashboard: React.FC = () => {
                 className="border p-2 rounded w-full mb-4"
                 placeholder="Collection Name"
               />
-              <div className="mb-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={newCollectionForm.isPublic}
-                    onChange={(e) => setNewCollectionForm({
-                      ...newCollectionForm,
-                      isPublic: e.target.checked
-                    })}
-                    className="mr-2"
-                  />
-                  <span>Public Collection</span>
-                </label>
-              </div>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setShowNewCollectionForm(false)}

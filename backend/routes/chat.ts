@@ -6,7 +6,6 @@ import { chatService } from '../services/chat';
 import { ChatMessage } from '../types/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { bedrockService } from '../services/bedrock';
-import { collectionGuard } from '../middleware/collectionGuard';
 
 const router = Router();
 
@@ -183,13 +182,6 @@ router.post('/chat', async (req, res) => {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
-
-router.post('/chat/:collectionName', 
-  verifyToken,
-  collectionGuard,
-  async (req: Request, res: Response) => {
-    // ... existing chat logic
 });
 
 export default router;

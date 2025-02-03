@@ -8,8 +8,6 @@ import fs from 'fs';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { bedrockService } from '../services/bedrock';
-import { Collection } from '../models/Collection';
-import { verifyToken } from '../middleware/verifyToken';
 
 const router = Router();
 const upload = multer({ 
@@ -38,8 +36,12 @@ interface IUser {
 }
 
 interface RequestWithUser extends Request {
-  user: {
-    id: string;
+  user?: {
+    nameID: string;
+    username: string;
+    email: string;
+    firstName: string;
+    lastName: string;
     groups: string[];
   };
 }
@@ -103,25 +105,14 @@ router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, re
   }
 });
 
-router.get('/collections', verifyToken, async (req: Request, res: Response) => {
+router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const userId = (req as RequestWithUser).user.id;
-
-    // ให้เห็นเฉพาะ:
-    // 1. collections ที่เป็น public หรือ
-    // 2. collections ที่ตัวเองสร้าง
-    const query = { 
-      $or: [
-        { isPublic: true },
-        { createdBy: userId }
-      ]
-    };
-
-    const collections = await Collection.find(query);
-    res.json(collections);
+    const collections = await chromaService.getCollections();
+    // collections เป็น array ของ string อยู่แล้ว
+    res.json(collections || []);
   } catch (error) {
-    console.error('Error fetching collections:', error);
-    res.status(500).json({ error: 'Failed to fetch collections' });
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Error fetching collections' });
   }
 });
 
@@ -167,22 +158,18 @@ const deleteDocumentHandler = async (req: Request, res: Response): Promise<void>
 router.delete('/documents/:id', roleGuard(['Staffs']), deleteDocumentHandler);
 
 // Create new collection
-router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+router.post('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const { name, isPublic } = req.body;
-    const userId = (req as RequestWithUser).user.id;
-
-    const collection = await Collection.create({
-      name,
-      isPublic,
-      createdBy: userId,
-      created: new Date(),
-      updated: new Date()
+    const { name } = req.body;
+    await chromaService.createCollection(name);
+    
+    const collections = await chromaService.getCollections();
+    res.json({ 
+      message: 'Collection created successfully',
+      collections: collections || []
     });
-
-    res.status(201).json(collection);
   } catch (error) {
-    console.error('Error creating collection:', error);
+    console.error('Error:', error);
     res.status(500).json({ error: 'Failed to create collection' });
   }
 });
@@ -198,27 +185,10 @@ router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Respo
   }
 });
 
-router.delete('/collections/:collectionName', verifyToken, async (req: Request, res: Response): Promise<void> => {
+router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { collectionName } = req.params;
-    const userId = (req as RequestWithUser).user.id;
-
-    const collection = await Collection.findOne({ name: collectionName });
-
-    if (!collection) {
-      res.status(404).json({ message: 'Collection not found' });
-      return;
-    }
-
-    // ตรวจสอบว่าเป็นเจ้าของ collection หรือไม่
-    if (collection.createdBy !== userId) {
-      res.status(403).json({ message: 'Only collection owner can delete this collection' });
-      return;
-    }
-
-    await Collection.deleteOne({ name: collectionName });
-    await chromaService.deleteCollection(collectionName);
-
+    const { name } = req.params;
+    await chromaService.deleteCollection(name);
     res.status(200).json({ message: 'Collection deleted successfully' });
   } catch (error) {
     console.error('Error deleting collection:', error);
