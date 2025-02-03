@@ -17,6 +17,10 @@ interface Message {
   content: string;
   timestamp: Date;
   sources?: Source[];
+  image?: {
+    data: string;
+    mediaType: string;
+  };
 }
 
 const modelNames: { [key: string]: string } = {
@@ -175,19 +179,29 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading || !selectedModel || !selectedCollection) return;
+    if (!inputMessage.trim() && !selectedImage) return;
 
     try {
       setIsLoading(true);
-      
-      const userMessage = {
+
+      let imageData;
+      if (selectedImage) {
+        const base64Image = await convertImageToBase64(selectedImage);
+        imageData = {
+          data: base64Image.split(',')[1],
+          mediaType: selectedImage.type
+        };
+      }
+
+      const newMessage = {
         id: messages.length + 1,
         role: 'user' as const,
         content: inputMessage.trim(),
-        timestamp: new Date()
+        timestamp: new Date(),
+        image: imageData
       };
-      
-      setMessages(prev => [...prev, userMessage]);
+
+      setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
@@ -197,7 +211,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: [...messages, newMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -226,7 +240,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage, assistantMessage],
+          messages: [...messages, newMessage, assistantMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -313,14 +327,26 @@ const MFUChatbot: React.FC = () => {
     return true;
   };
 
-  // เพิ่มฟังก์ชันสำหรับรับการวางรูปภาพ
+  // เพิ่มฟังก์ชันแปลงรูปเป็น base64
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // อัพเดทฟังก์ชัน handlePaste
   const handlePaste = async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     
     if (items) {
       for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          e.preventDefault(); // ป้องกันการวางข้อความ
+          const file = item.getAsFile();
           if (file && validateImageFile(file)) {
             setSelectedImage(file);
           }
@@ -509,20 +535,44 @@ const MFUChatbot: React.FC = () => {
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-4xl mx-auto">
-            <textarea
-              value={inputMessage}
-              onChange={(e) => handleInputChange(e)}
-              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyDown(e)}
-              onPaste={handlePaste}
-              className="flex-1 p-2 text-sm md:text-base border rounded resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              placeholder={selectedImage ? "Ask about this image..." : "Type a message or paste an image..."}
-              rows={3}
-            />
+            <div className="flex-1">
+              {/* แสดงรูปที่วางมา */}
+              {selectedImage && (
+                <div className="mb-2 relative">
+                  <img
+                    src={URL.createObjectURL(selectedImage)}
+                    alt="Pasted"
+                    className="max-h-32 rounded"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImage(null)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              <textarea
+                ref={textareaRef}
+                value={inputMessage}
+                onChange={(e) => handleInputChange(e)}
+                onKeyDown={(e) => handleKeyDown(e)}
+                onPaste={handlePaste}
+                className="flex-1 p-2 text-sm md:text-base border rounded resize-none"
+                placeholder={selectedImage ? "Ask about this image..." : "Type a message or paste an image..."}
+                rows={3}
+              />
+            </div>
+            
             <button
               type="submit"
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+              disabled={isLoading || (!inputMessage.trim() && !selectedImage)}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
+                       disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Send
+              {isLoading ? 'Sending...' : 'Send'}
             </button>
           </div>
         </form>
