@@ -9,6 +9,7 @@ import { connectDB } from './lib/mongodb';
 import authRoutes from './routes/auth';
 import trainingRoutes from './routes/training';
 import chatRoutes from './routes/chat';
+import bodyParser from 'body-parser';
 
 const app = express();
 
@@ -36,8 +37,8 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
