@@ -616,7 +616,7 @@ const MFUChatbot: React.FC = () => {
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             {/* ปรับปุ่ม Add image */}
             {/* <label className="whitespace-nowrap cursor-pointer px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded flex items-center text-[10px]"> */}
-            <label className="cursor-pointer px-4 py-2 bg-white-200 hover:bg-gray-300 rounded flex items-center justify-center gap-2 min-w-[70px]">
+            <label className="cursor-pointer px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center gap-2 min-w-[70px]">
               <input
                 type="file"
                 accept="image/*"
