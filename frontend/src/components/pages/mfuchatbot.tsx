@@ -560,7 +560,7 @@ const MFUChatbot: React.FC = () => {
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
         {/* Controls */}
         <div className="p-2 md:p-4 border-b">
-          <div className="flex gap-2 max-w-4xl mx-auto">
+          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
@@ -596,9 +596,9 @@ const MFUChatbot: React.FC = () => {
 
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
-          <div className="flex gap-2 max-w-4xl mx-auto">
-            {/* ย้ายปุ่ม Add image มาไว้ด้านซ้าย */}
-            <label className="cursor-pointer px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center">
+          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
+            {/* ปรับปุ่ม Add image */}
+            <label className="whitespace-nowrap cursor-pointer px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center h-[38px]">
               <input
                 type="file"
                 accept="image/*"
@@ -633,18 +633,17 @@ const MFUChatbot: React.FC = () => {
                   onChange={(e) => handleInputChange(e)}
                   onKeyDown={(e) => handleKeyDown(e)}
                   onPaste={handlePaste}
-                  className="w-full md:w-[800px] lg:w-[1000px] p-2 text-sm md:text-base border rounded resize-none"
+                  className="flex-1 min-w-0 p-2 text-sm md:text-base border rounded resize-none"
                   placeholder={selectedImage ? "Please describe or ask about this image..." : "Type a message or paste image..."}
                   rows={1}
                   required
                 />
                 
-                {/* เพิ่มปุ่ม Send ไว้ด้านขวา */}
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
-                           disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="whitespace-nowrap px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
+                           disabled:bg-gray-400 disabled:cursor-not-allowed h-[38px]"
                 >
                   {isLoading ? 'Sending...' : 'Send'}
                 </button>
