@@ -8,7 +8,7 @@ export class BedrockService {
     // claude: 'anthropic.claude-v2',
     claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
     // claude3h: 'anthropic.claude-3-haiku-20240307-v1:0',
-    embedding: 'amazon.titan-embed-text-v2'
+    embedding: 'amazon.titan-embed-text-v2:0'
   };
 
   constructor() {
@@ -91,23 +91,17 @@ export class BedrockService {
       const command = new InvokeModelCommand({
         modelId: this.models.embedding,
         contentType: "application/json",
-        accept: "application/json",
+        accept: "*/*",
         body: JSON.stringify({
           inputText: text,
-          embeddingConfig: {
-            dimension: 1536,
-            truncate: "NONE"
-          }
+          dimensions: 512,
+          normalize: true
         })
       });
 
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      
-      if (responseBody.embedding) {
-        return responseBody.embedding;
-      }
-      throw new Error('No embedding in response');
+      return responseBody.embedding;
     } catch (error) {
       console.error('Embedding error:', error);
       throw error;
