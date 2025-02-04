@@ -115,9 +115,8 @@ class ChromaService {
       const queryEmbedding = await bedrockService.embed(query);
       
       const results = await collection.query({
-        queryEmbeddings: queryEmbedding,
-        nResults: n_results,
-        include: ["documents", "metadatas", "distances"]
+        queryEmbeddings: [queryEmbedding],
+        nResults: n_results
       });
 
       return {
