@@ -690,7 +690,7 @@ const MFUChatbot: React.FC = () => {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <RiImageAddFill className="w-6 h-6 text-gray-500 dark:text-white hover:text-gray-700 dark:hover:text-gray-300" />
+                <RiImageAddFill className="text-2xl text-gray-500 hover:text-gray-700" />
               </label>
 
               {/* แสดงรูปภาพที่เลือก */}
