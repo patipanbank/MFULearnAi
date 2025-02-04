@@ -112,17 +112,15 @@ class ChromaService {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       
-      // ใช้ embedding service เพื่อแปลงข้อความเป็น vector
       const queryEmbedding = await bedrockService.embed(query);
       
       const results = await collection.query({
-        queryEmbeddings: [queryEmbedding],
+        queryEmbeddings: queryEmbedding,
         nResults: n_results,
-        // เพิ่ม include parameter
+        where: {},
         include: ["documents", "metadatas", "distances"]
       });
 
-      // จัดการผลลัพธ์และคำนวณความคล้ายคลึง
       return {
         ids: results.ids?.[0] || [],
         documents: results.documents?.[0] || [],
