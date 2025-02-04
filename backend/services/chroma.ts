@@ -14,6 +14,8 @@ class ChromaService {
   private client: ChromaClient;
   private collections: Map<string, any> = new Map();
   private processingFiles = new Set<string>();
+  private cache: Map<string, any> = new Map();
+  private CACHE_TTL = 5 * 60 * 1000; // 5 นาที
 
   constructor() {
     this.client = new ChromaClient({
@@ -107,18 +109,27 @@ class ChromaService {
   }
 
   async queryDocuments(collectionName: string, query: string, n_results: number = 5) {
-    try {
-      await this.initCollection(collectionName);
-      const collection = this.collections.get(collectionName);
-      const results = await collection.query({
-        queryTexts: [query],
-        nResults: n_results
-      });
-      return results;
-    } catch (error) {
-      console.error('Error querying ChromaDB:', error);
-      throw error;
+    const cacheKey = `${collectionName}:${query}:${n_results}`;
+    
+    // เช็คแคช
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.data;
     }
+
+    // ถ้าไม่มีในแคช ดึงข้อมูลใหม่
+    const results = await this.collections.get(collectionName).query({
+      queryTexts: [query],
+      nResults: n_results
+    });
+
+    // เก็บในแคช
+    this.cache.set(cacheKey, {
+      data: results,
+      timestamp: Date.now()
+    });
+
+    return results;
   }
 
   async queryCollection(collectionName: string, text: string, nResults: number = 5) {

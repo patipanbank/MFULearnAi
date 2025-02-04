@@ -36,17 +36,20 @@ export class BedrockService {
   }
 
   private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
+    // เก็บเฉพาะข้อความล่าสุด 5 ข้อความเพื่อลด context size
+    const recentMessages = messages.slice(-5);
+    
     const command = new InvokeModelCommand({
       modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 4096,
-        messages: messages.map(msg => {
+        max_tokens: 2048, // ลดจาก 4096 เพื่อความเร็วในการตอบกลับ
+        messages: recentMessages.map(msg => {
           const content = [];
           
-          // ถ้ามีรูปภาพ
+          // จัดการรูปภาพ
           if (msg.image) {
             content.push({
               type: "image",
@@ -58,10 +61,14 @@ export class BedrockService {
             });
           }
           
-          // เพิ่มข้อความ
+          // เพิ่ม prompt engineering เพื่อให้ตอบแม่นยำขึ้น
+          const enhancedText = msg.role === 'user' 
+            ? `Please provide a clear, concise, and accurate response: ${msg.content}`
+            : msg.content;
+
           content.push({
             type: "text",
-            text: msg.content
+            text: enhancedText
           });
 
           return {
@@ -69,15 +76,29 @@ export class BedrockService {
             content
           };
         }),
-        temperature: 0.7,
-        top_p: 0.9
+        temperature: 0.3, // ลดลงจาก 0.7 เพื่อให้ตอบแม่นยำขึ้น
+        top_p: 0.9,
+        top_k: 50, // เพิ่มเพื่อควบคุมความหลากหลายของคำตอบ
+        presence_penalty: 0.1, // ลดการซ้ำซ้อนในคำตอบ
+        frequency_penalty: 0.1 // ลดการใช้คำซ้ำ
       })
     });
 
     try {
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      return { content: responseBody.content[0].text };
+      
+      // ตรวจสอบคุณภาพคำตอบ
+      if (!responseBody.content?.[0]?.text) {
+        throw new Error('Invalid response format');
+      }
+
+      // ทำความสะอาดคำตอบ
+      const cleanedContent = responseBody.content[0].text
+        .trim()
+        .replace(/\n{3,}/g, '\n\n'); // ลดการเว้นบรรทัดที่มากเกินไป
+
+      return { content: cleanedContent };
     } catch (error) {
       console.error('Claude chat error:', error);
       throw error;

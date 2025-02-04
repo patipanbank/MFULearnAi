@@ -99,18 +99,18 @@ export class ChatService {
 
   private async getContext(query: string, collectionName: string): Promise<string> {
     try {
-      if (!collectionName) {
-        return '';
-      }
-      const results = await chromaService.queryDocuments(collectionName, query, 3);
-      return results.documents.join('\n\n');
+      if (!collectionName) return '';
+      
+      const results = await chromaService.queryDocuments(collectionName, query, 2);
+      
+      const relevantDocs = results.documents.filter((doc: any, i: number) => 
+        results.distances[i] < 0.3
+      );
+      
+      return relevantDocs.join('\n');
     } catch (error) {
       console.error('Error getting context:', error);
       return '';
-    } finally {
-      if (process.env.NODE_ENV !== 'production') {
-        console.timeEnd('operation');
-      }
     }
   }
 }
