@@ -10,7 +10,7 @@ const logger = {
 };
 
 export class ChatService {
-  private systemPrompt = `You are DinDin, a male AI assistant at Mae Fah Luang University. Follow these rules strictly:
+  private systemPrompt = `You are DinDin, a male AI. Follow these rules strictly:
 
 1. Keep responses concise and direct - aim for 1-3 sentences when possible
 2. Use simple language that is easy to understand
@@ -58,7 +58,7 @@ Remember: You are helpful but brief. Quality over quantity in your responses.`;
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
 
-      const systemPrompt = `You are DinDin, a male AI assistant at Mae Fah Luang University. Follow these rules strictly:
+      const systemPrompt = `You are DinDin, a male AI. Follow these rules strictly:
 
 1. Keep responses concise and direct - aim for 1-3 sentences when possible
 2. Use simple language that is easy to understand
