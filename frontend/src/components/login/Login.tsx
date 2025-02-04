@@ -34,7 +34,7 @@ const Login: React.FC = () => {
         {/* Add logo as background */}
         <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
           <img
-            src="public/mfu_logo_chatbot.PNG"
+            src="/public/mfu_logo_chatbot.PNG"
             alt="MFU Logo Background"
             className="w-64 h-64 object-contain"
           />
