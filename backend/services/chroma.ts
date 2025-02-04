@@ -1,7 +1,6 @@
 import { ChromaClient } from 'chromadb';
 import { Collection } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
-import { bedrockService } from './bedrock';
 
 interface DocumentMetadata {
   filename: string;
@@ -111,22 +110,13 @@ class ChromaService {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
-      
-      const queryEmbedding = await bedrockService.embed(query);
-      
       const results = await collection.query({
-        queryEmbeddings: [queryEmbedding],
+        queryTexts: [query],
         nResults: n_results
       });
-
-      return {
-        ids: results.ids?.[0] || [],
-        documents: results.documents?.[0] || [],
-        metadatas: results.metadatas?.[0] || [],
-        distances: results.distances?.[0] || []
-      };
+      return results;
     } catch (error) {
-      console.error('Error querying documents:', error);
+      console.error('Error querying ChromaDB:', error);
       throw error;
     }
   }
