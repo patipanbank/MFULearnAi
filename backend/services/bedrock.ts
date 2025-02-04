@@ -47,14 +47,16 @@ export class BedrockService {
           const content = [];
           
           // ถ้ามีรูปภาพ
-          if (msg.image) {
-            content.push({
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: msg.image.mediaType || "image/jpeg",
-                data: msg.image.data
-              }
+          if (msg.images && msg.images.length > 0) {
+            msg.images.forEach(image => {
+              content.push({
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: image.mediaType || "image/jpeg",
+                  data: image.data
+                }
+              });
             });
           }
           

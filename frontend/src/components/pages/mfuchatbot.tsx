@@ -24,6 +24,10 @@ interface Message {
     data: string;
     mediaType: string;
   };
+  images?: {
+    data: string;
+    mediaType: string;
+  }[];
   sources?: Source[];
 }
 
@@ -47,7 +51,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
   // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
@@ -181,7 +185,7 @@ const MFUChatbot: React.FC = () => {
     setInputMessage(e.target.value);
   };
 
-  const compressImage = async (file: File): Promise<string> => {
+  const compressImage = async (file: File): Promise<{ data: string; mediaType: string }> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -191,7 +195,6 @@ const MFUChatbot: React.FC = () => {
           let width = img.width;
           let height = img.height;
           
-          // ลดขนาดรูปถ้าใหญ่เกินไป
           const MAX_WIDTH = 1024;
           const MAX_HEIGHT = 1024;
           
@@ -213,9 +216,11 @@ const MFUChatbot: React.FC = () => {
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          // ลดคุณภาพรูป
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-          resolve(compressedBase64);
+          resolve({
+            data: compressedBase64.split(',')[1],
+            mediaType: 'image/jpeg'
+          });
         };
         img.src = e.target?.result as string;
       };
@@ -230,13 +235,9 @@ const MFUChatbot: React.FC = () => {
     try {
       setIsLoading(true);
 
-      let imageData;
-      if (selectedImage) {
-        const compressedBase64 = await compressImage(selectedImage);
-        imageData = {
-          data: compressedBase64.split(',')[1],
-          mediaType: 'image/jpeg'
-        };
+      let images;
+      if (selectedImages.length > 0) {
+        images = await Promise.all(selectedImages.map(compressImage));
       }
 
       const newMessage = {
@@ -244,7 +245,7 @@ const MFUChatbot: React.FC = () => {
         role: 'user' as const,
         content: inputMessage.trim(),
         timestamp: new Date(),
-        image: imageData
+        images: images
       };
 
       // บันทึกข้อความและรูปภาพลงในประวัติ
@@ -264,7 +265,7 @@ const MFUChatbot: React.FC = () => {
 
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
-      setSelectedImage(null);
+      setSelectedImages([]);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -400,7 +401,7 @@ const MFUChatbot: React.FC = () => {
           e.preventDefault(); // ป้องกันการวางข้อความ
           const file = item.getAsFile();
           if (file && validateImageFile(file)) {
-            setSelectedImage(file);
+            setSelectedImages(prev => [...prev, file]);
           }
           break;
         }
@@ -420,10 +421,15 @@ const MFUChatbot: React.FC = () => {
 
   // เพิ่มฟังก์ชันสำหรับจัดการการเลือกไฟล์
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
+    const files = e.target.files;
+    if (files) {
+      setSelectedImages(prev => [...prev, ...Array.from(files)]);
     }
+  };
+
+  // ฟังก์ชันลบรูปภาพที่เลือก
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   // เพิ่มฟังก์ชันสำหรับแปลงข้อความเป็น component
@@ -546,24 +552,30 @@ const MFUChatbot: React.FC = () => {
                       : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
                   } rounded-lg p-3 md:p-4 relative`}>
                     {/* แสดงรูปภาพถ้ามี */}
-                    {message.image && (
+                    {message.images && message.images.length > 0 && (
                       <div className="mb-2">
-                        <img
-                          src={`data:${message.image.mediaType};base64,${message.image.data}`}
-                          alt="Uploaded"
-                          className="max-w-full max-h-[300px] rounded object-contain"
-                        />
+                        <div className="flex flex-wrap gap-2">
+                          {message.images.map((image, index) => (
+                            <div key={index} className="relative">
+                              <img
+                                src={`data:${image.mediaType};base64,${image.data}`}
+                                alt={`Image ${index + 1}`}
+                                className="max-w-full max-h-[300px] rounded object-contain"
+                              />
+                              {message.role === 'assistant' && (
+                                <button
+                                  onClick={() => handleCopy(image.data)}
+                                  className="absolute top-1 right-1 px-1 py-0.5 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded text-xs"
+                                >
+                                  {copySuccess ? 'Copied' : 'Copy'}
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                     
-                    {message.role === 'assistant' && (
-                      <button
-                        onClick={() => handleCopy(message.content)}
-                        className="absolute top-1 right-1 px-1 py-0.5 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded text-xs"
-                      >
-                        {copySuccess ? 'Copied' : 'Copy'}
-                      </button>
-                    )}
                     <div className={`text-xs md:text-sm ${
                       message.role === 'assistant' 
                         ? 'text-black'
@@ -667,35 +679,42 @@ const MFUChatbot: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             {/* ปรับปุ่ม Add image */}
-            {/* <label className="whitespace-nowrap cursor-pointer px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded flex items-center text-[10px]"> */}
-            <label className="cursor-pointer px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center gap-2 min-w-[70px]">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <RiImageAddFill className="w-5 h-5 text-gray-600" />
-            </label>
-
-            <div className="flex-1">
-              {selectedImage && (
-                <div className="mb-2 relative">
-                  <img
-                    src={URL.createObjectURL(selectedImage)}
-                    alt="Pasted"
-                    className="max-h-32 rounded"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setSelectedImage(null)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
-                  >
-                    ✕
-                  </button>
+            <div className="flex items-center gap-2 p-2">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <RiImageAddFill className="text-2xl text-gray-500 hover:text-gray-700" />
+              </label>
+              
+              {/* แสดงรูปภาพที่เลือก */}
+              {selectedImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedImages.map((image, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={URL.createObjectURL(image)}
+                        alt={`Selected ${index + 1}`}
+                        className="w-20 h-20 object-cover rounded"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
-              
+            </div>
+
+            <div className="flex-1">
               <div className="flex gap-2">
                 <textarea
                   ref={textareaRef}
@@ -704,7 +723,7 @@ const MFUChatbot: React.FC = () => {
                   onKeyDown={(e) => handleKeyDown(e)}
                   onPaste={handlePaste}
                   className="flex-1 min-w-0 p-2 text-sm md:text-base border rounded resize-none"
-                  placeholder={selectedImage ? "Please describe or ask about this image..." : "Type a message..."}
+                  placeholder={selectedImages.length > 0 ? "Please describe or ask about these images..." : "Type a message..."}
                   rows={1}
                   required
                 />

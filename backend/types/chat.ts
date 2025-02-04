@@ -1,8 +1,8 @@
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
-  image?: {
+  images?: Array<{
     data: string;
     mediaType: string;
-  };
+  }>;
 } 
