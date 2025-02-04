@@ -690,7 +690,7 @@ const MFUChatbot: React.FC = () => {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <RiImageAddFill className="text-2xl text-gray-500 hover:text-gray-700" />
+                <RiImageAddFill className="w-6 h-6 text-gray-500 dark:text-white hover:text-gray-700 dark:hover:text-gray-300" />
               </label>
 
               {/* แสดงรูปภาพที่เลือก */}
@@ -739,11 +739,7 @@ const MFUChatbot: React.FC = () => {
                       : 'text-gray-400 bg-gray-200 cursor-not-allowed'
                   }`}
                 >
-                  {isLoading ? (
-                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <GrSend className="w-5 h-5" />
-                  )}
+                  <GrSend size={25} />
                 </button>
               </div>
             </div>
