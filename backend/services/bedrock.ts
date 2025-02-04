@@ -42,7 +42,7 @@ export class BedrockService {
       accept: "application/json",
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 4096,
+        max_tokens: 2048,
         messages: messages.map(msg => {
           const content = [];
           
@@ -69,7 +69,7 @@ export class BedrockService {
             content
           };
         }),
-        temperature: 0.7,
+        temperature: 0.3,
         top_p: 0.9
       })
     });
