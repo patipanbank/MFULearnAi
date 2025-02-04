@@ -733,13 +733,17 @@ const MFUChatbot: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className={`p-2 rounded-full ${
-                    canSubmit()
-                      ? 'text-white bg-blue-500 hover:bg-blue-600'
-                      : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  style={{ minHeight: '40px' }}
                 >
-                  <GrSend size={25} />
+                  {isLoading ? (
+                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <GrSend className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
