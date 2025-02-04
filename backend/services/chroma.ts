@@ -106,18 +106,17 @@ class ChromaService {
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, limit: number = 2) {
+  async queryDocuments(collectionName: string, query: string, n_results: number = 2) {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
         queryTexts: [query],
-        nResults: limit,
-        where: { "metadata.similarity": { $gte: 0.7 } }
+        nResults: n_results
       });
       return results;
     } catch (error) {
-      console.error('Error querying documents:', error);
+      console.error('Error querying ChromaDB:', error);
       throw error;
     }
   }
