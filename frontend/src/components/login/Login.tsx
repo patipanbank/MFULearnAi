@@ -30,7 +30,7 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-cover bg-center" style={{ backgroundImage: "url('/mfu_background_login.jpg')" }}>
-      <div className="max-w-md w-full space-y-8 p-8 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white/70 backdrop-blur-sm rounded-xl shadow-lg">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
             Login to MFU Chatbot
