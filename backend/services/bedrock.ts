@@ -205,6 +205,46 @@ export class BedrockService {
       throw error;
     }
   }
+
+  async streamChat(
+    messages: ChatMessage[],
+    modelId: string,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    try {
+      const command = new InvokeModelCommand({
+        modelId: this.models.claude35,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: 4096,
+          messages: messages.map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          })),
+          stream: true
+        })
+      });
+
+      const response = await this.client.send(command);
+      const decoder = new TextDecoder();
+      const chunk = decoder.decode(response.body);
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line) {
+          const parsed = JSON.parse(line);
+          if (parsed.content?.[0]?.text) {
+            onChunk(parsed.content[0].text);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Bedrock streaming error:', error);
+      throw error;
+    }
+  }
 }
 
 export const bedrockService = new BedrockService();
