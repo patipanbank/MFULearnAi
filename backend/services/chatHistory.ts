@@ -29,10 +29,10 @@ class ChatHistoryService {
         role: msg.role as 'user' | 'assistant' | 'system',
         content: String(msg.content),
         timestamp: new Date(msg.timestamp || Date.now()),
-        image: msg.image ? {
-          data: msg.image.data,
-          mediaType: msg.image.mediaType
-        } : undefined,
+        images: msg.images ? msg.images.map((img: any) => ({
+          data: img.data,
+          mediaType: img.mediaType
+        })) : undefined,
         sources: msg.sources || []
       }));
 

@@ -133,17 +133,17 @@ router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, 
     const { messages, modelId, collectionName } = req.body;
     const userId = (req.user as any)?.username || '';
 
-    // บันทึกประวัติการแชทพร้อมรูปภาพ
+    // แก้ไขการบันทึกประวัติให้รองรับหลายรูป
     const history = await chatHistoryService.saveChatMessage(
       userId,
       modelId,
       collectionName,
-      messages.map((msg: { image: { data: any; mediaType: any; }; }) => ({
+      messages.map((msg: any) => ({
         ...msg,
-        image: msg.image ? {
-          data: msg.image.data,
-          mediaType: msg.image.mediaType
-        } : undefined
+        images: msg.images ? msg.images.map((img: any) => ({
+          data: img.data,
+          mediaType: img.mediaType
+        })) : undefined
       }))
     );
     res.json(history);
