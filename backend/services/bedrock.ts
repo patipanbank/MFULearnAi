@@ -36,7 +36,7 @@ export class BedrockService {
   }
 
   private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
-    // เก็บเฉพาะข้อความล่าสุด 5 ข้อความเพื่อลด context size
+    // เก็บเฉพาะข้อความล่าสุด 5 ข้อความ
     const recentMessages = messages.slice(-5);
     
     const command = new InvokeModelCommand({
@@ -45,11 +45,10 @@ export class BedrockService {
       accept: "application/json",
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 2048, // ลดจาก 4096 เพื่อความเร็วในการตอบกลับ
+        max_tokens: 2048,
         messages: recentMessages.map(msg => {
           const content = [];
           
-          // จัดการรูปภาพ
           if (msg.image) {
             content.push({
               type: "image",
@@ -61,7 +60,7 @@ export class BedrockService {
             });
           }
           
-          // เพิ่ม prompt engineering เพื่อให้ตอบแม่นยำขึ้น
+          // เพิ่ม prompt engineering
           const enhancedText = msg.role === 'user' 
             ? `Please provide a clear, concise, and accurate response: ${msg.content}`
             : msg.content;
@@ -76,11 +75,8 @@ export class BedrockService {
             content
           };
         }),
-        temperature: 0.3, // ลดลงจาก 0.7 เพื่อให้ตอบแม่นยำขึ้น
-        top_p: 0.9,
-        top_k: 50, // เพิ่มเพื่อควบคุมความหลากหลายของคำตอบ
-        presence_penalty: 0.1, // ลดการซ้ำซ้อนในคำตอบ
-        frequency_penalty: 0.1 // ลดการใช้คำซ้ำ
+        temperature: 0.3,
+        top_p: 0.9
       })
     });
 
@@ -88,15 +84,13 @@ export class BedrockService {
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
       
-      // ตรวจสอบคุณภาพคำตอบ
       if (!responseBody.content?.[0]?.text) {
         throw new Error('Invalid response format');
       }
 
-      // ทำความสะอาดคำตอบ
       const cleanedContent = responseBody.content[0].text
         .trim()
-        .replace(/\n{3,}/g, '\n\n'); // ลดการเว้นบรรทัดที่มากเกินไป
+        .replace(/\n{3,}/g, '\n\n');
 
       return { content: cleanedContent };
     } catch (error) {
