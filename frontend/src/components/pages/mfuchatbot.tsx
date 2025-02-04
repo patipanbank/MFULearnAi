@@ -4,6 +4,8 @@ import { BiLoaderAlt } from 'react-icons/bi';
 import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Source {
   modelId: string;
@@ -424,6 +426,54 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  // เพิ่มฟังก์ชันสำหรับแปลงข้อความเป็น component
+  const MessageContent = ({ content }: { content: string }) => {
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+    const copyToClipboard = (code: string, index: number) => {
+      navigator.clipboard.writeText(code);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    };
+
+    const parts = content.split(/(```[\s\S]*?```)/g);
+
+    return (
+      <div className="whitespace-pre-wrap text-sm md:text-base">
+        {parts.map((part, index) => {
+          if (part.startsWith('```') && part.endsWith('```')) {
+            const [, language = '', code = ''] = part.match(/```(\w*)\n?([\s\S]*?)```/) || [];
+            return (
+              <div key={index} className="my-2 relative">
+                <div className="flex justify-between items-center bg-[#1E1E1E] text-white text-xs px-4 py-2 rounded-t">
+                  <span>{language || 'plaintext'}</span>
+                  <button
+                    onClick={() => copyToClipboard(code.trim(), index)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    {copiedIndex === index ? 'Copied!' : 'Copy code'}
+                  </button>
+                </div>
+                <SyntaxHighlighter
+                  language={language || 'plaintext'}
+                  style={vscDarkPlus}
+                  customStyle={{
+                    margin: 0,
+                    borderTopLeftRadius: 0,
+                    borderTopRightRadius: 0,
+                  }}
+                >
+                  {code.trim()}
+                </SyntaxHighlighter>
+              </div>
+            );
+          }
+          return <span key={index}>{part}</span>;
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Chat Messages */}
@@ -521,7 +571,9 @@ const MFUChatbot: React.FC = () => {
                     } ${message.role === 'user' ? 'text-white' : ''} mb-1`}>
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                     </div>
-                    <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
+                    <div className="whitespace-pre-wrap text-sm md:text-base">
+                      <MessageContent content={message.content} />
+                    </div>
                   </div>
                 </div>
                 
