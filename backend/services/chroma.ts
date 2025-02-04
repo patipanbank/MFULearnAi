@@ -14,8 +14,6 @@ class ChromaService {
   private client: ChromaClient;
   private collections: Map<string, any> = new Map();
   private processingFiles = new Set<string>();
-  private cache: Map<string, any> = new Map();
-  private CACHE_TTL = 5 * 60 * 1000; // 5 นาที
 
   constructor() {
     this.client = new ChromaClient({
@@ -112,19 +110,14 @@ class ChromaService {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
-      
-      if (!collection) {
-        console.error(`Collection ${collectionName} not found`);
-        return { documents: [], distances: [] };
-      }
-
-      return await collection.query({
+      const results = await collection.query({
         queryTexts: [query],
         nResults: n_results
       });
+      return results;
     } catch (error) {
-      console.error('Error querying documents:', error);
-      return { documents: [], distances: [] };
+      console.error('Error querying ChromaDB:', error);
+      throw error;
     }
   }
 
