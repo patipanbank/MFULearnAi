@@ -1,6 +1,7 @@
 import { ChromaClient } from 'chromadb';
 import { Collection } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
+import { bedrockService } from './bedrock';
 
 interface DocumentMetadata {
   filename: string;
@@ -110,13 +111,26 @@ class ChromaService {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
+      
+      // ใช้ embedding service เพื่อแปลงข้อความเป็น vector
+      const queryEmbedding = await bedrockService.embed(query);
+      
       const results = await collection.query({
-        queryTexts: [query],
-        nResults: n_results
+        queryEmbeddings: [queryEmbedding],
+        nResults: n_results,
+        // เพิ่ม include parameter
+        include: ["documents", "metadatas", "distances"]
       });
-      return results;
+
+      // จัดการผลลัพธ์และคำนวณความคล้ายคลึง
+      return {
+        ids: results.ids?.[0] || [],
+        documents: results.documents?.[0] || [],
+        metadatas: results.metadatas?.[0] || [],
+        distances: results.distances?.[0] || []
+      };
     } catch (error) {
-      console.error('Error querying ChromaDB:', error);
+      console.error('Error querying documents:', error);
       throw error;
     }
   }

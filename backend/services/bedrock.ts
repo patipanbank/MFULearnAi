@@ -88,39 +88,28 @@ export class BedrockService {
 
   async embed(text: string): Promise<number[]> {
     try {
-      console.log('\n==========================================');
-      console.log('🔍 DEBUG: Text being processed:', text);
-
       const command = new InvokeModelCommand({
         modelId: this.models.embedding,
         contentType: "application/json",
         accept: "application/json",
-        body: JSON.stringify({ text })
+        body: JSON.stringify({
+          inputText: text,
+          embeddingConfig: {
+            dimension: 1536,
+            truncate: "NONE"
+          }
+        })
       });
 
-      console.log('Sending request to Bedrock...');
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
       
-      console.log('=== Complete Response from Bedrock ===');
-      console.log('Response Body:', JSON.stringify(responseBody, null, 2));
-      console.log('Response Type:', typeof responseBody);
-      console.log('Response Keys:', Object.keys(responseBody));
-      
       if (responseBody.embedding) {
-        console.log('=== Vector Embedding Results ===');
-        console.log('First 5 dimensions:', responseBody.embedding.slice(0, 5));
-        console.log('Vector dimension:', responseBody.embedding.length);
-      } else {
-        console.log('No embedding found in response');
-        console.log('Full response:', responseBody);
+        return responseBody.embedding;
       }
-      console.log('✅ Vector created successfully!');
-      console.log('==========================================\n');
-      
-      return responseBody.embedding;
+      throw new Error('No embedding in response');
     } catch (error) {
-      console.error('❌ ERROR in embed function:', error);
+      console.error('Embedding error:', error);
       throw error;
     }
   }

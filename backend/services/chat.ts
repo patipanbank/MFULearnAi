@@ -34,41 +34,22 @@ export class ChatService {
 
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
-      if (this.isThaiGreeting(query)) {
-        return 'สวัสดีครับ ผมชื่อ ดินดิน เป็นผู้ช่วย AI ของ มหาวิทยาลัยแม่ฟ้าหลวง ฉันจะช่วยคุณอะไรได้บ้างวันนี้?';
-      }
-
-      if (this.isGreeting(query)) {
-        return 'Hi! I am DinDin, AI assistant in Mae Fah Luang University. How can I help you today?';
-      }
-
-      if (!this.isRelevantQuestion(query)) {
-        return 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
-      }
-
+      // ดึงข้อมูลที่เกี่ยวข้องจาก vector search
       const context = await this.getContext(query, collectionName);
-      console.log('Retrieved context:', context);
-
-      const systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
-      // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
-
-      const augmentedMessages = [
-        {
-          role: 'system' as const,
-          content: `${systemPrompt}\n\nContext from documents:\n${context}`
-        },
+      
+      // สร้าง prompt ที่รวมบริบทจาก vector search
+      const systemPrompt = `${this.systemPrompt}\n\nContext from relevant documents:\n${context}`;
+      
+      const allMessages = [
+        { role: 'system' as const, content: systemPrompt },
         ...messages
       ];
 
-      const response = await bedrockService.chat(augmentedMessages, modelId);
+      const response = await bedrockService.chat(allMessages, modelId);
       return response.content;
     } catch (error) {
-      console.error('Error generating chat response:', error);
+      console.error('Error generating response:', error);
       throw error;
-    } finally {
-      if (process.env.NODE_ENV !== 'production') {
-        console.timeEnd('operation');
-      }
     }
   }
 
