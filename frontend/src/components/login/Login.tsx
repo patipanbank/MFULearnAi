@@ -34,7 +34,7 @@ const Login: React.FC = () => {
       <div className="absolute inset-0 bg-white/50"></div>
       <div className="max-w-md w-full space-y-8 p-8 bg-white/70 backdrop-blur-sm rounded-xl shadow-lg relative z-10">
         <div className="text-center">
-          <img src="/mfu_logo_chatbot.PNG" alt="MFU Logo" className="mx-auto h-16 w-auto mb-4" />
+          <img src="/mfu_logo_chatbot.PNG" alt="MFU Logo" className="mx-auto h-24 w-auto mb-4" />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
             Login to <span style={{ 
               background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
@@ -52,7 +52,7 @@ const Login: React.FC = () => {
             Please login with your MFU account
           </p>
           <p className="mt-2 text-sm text-gray-600">
-            Your 24/7 AI Assistant for MFU Services
+            Your 24/7 AI Assistant for Mae Fah Luang University
           </p>
         </div>
         <div className="mt-8">
