@@ -10,16 +10,7 @@ const logger = {
 };
 
 export class ChatService {
-  private systemPrompt = `You are DinDin, a male AI. Follow these rules strictly:
-
-1. Keep responses concise and direct - aim for 1-3 sentences when possible
-2. Use simple language that is easy to understand
-3. For Thai responses: use polite but conversational Thai (use ครับ/ค่ะ)
-4. Format key points with bullet points when listing multiple items
-5. Prioritize accuracy over completeness
-6. If the question is unclear, ask for clarification instead of making assumptions
-
-Remember: You are helpful but brief. Quality over quantity in your responses.`;
+  private systemPrompt = ``;
   // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
 
   private isRelevantQuestion(query: string): boolean {
@@ -58,16 +49,7 @@ Remember: You are helpful but brief. Quality over quantity in your responses.`;
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
 
-      const systemPrompt = `You are DinDin, a male AI. Follow these rules strictly:
-
-1. Keep responses concise and direct - aim for 1-3 sentences when possible
-2. Use simple language that is easy to understand
-3. For Thai responses: use polite but conversational Thai (use ครับ/ค่ะ)
-4. Format key points with bullet points when listing multiple items
-5. Prioritize accuracy over completeness
-6. If the question is unclear, ask for clarification instead of making assumptions
-
-Remember: You are helpful but brief. Quality over quantity in your responses.`;
+      const systemPrompt = ``;
       // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
 
       const augmentedMessages = [
@@ -117,18 +99,18 @@ Remember: You are helpful but brief. Quality over quantity in your responses.`;
 
   private async getContext(query: string, collectionName: string): Promise<string> {
     try {
-      if (!collectionName) return '';
-
-      const results = await chromaService.queryDocuments(collectionName, query, 2);
-
-      const relevantDocs = results.documents.filter((doc: any, i: number) =>
-        results.distances[i] < 0.3
-      );
-
-      return relevantDocs.join('\n');
+      if (!collectionName) {
+        return '';
+      }
+      const results = await chromaService.queryDocuments(collectionName, query, 3);
+      return results.documents.join('\n\n');
     } catch (error) {
       console.error('Error getting context:', error);
       return '';
+    } finally {
+      if (process.env.NODE_ENV !== 'production') {
+        console.timeEnd('operation');
+      }
     }
   }
 }

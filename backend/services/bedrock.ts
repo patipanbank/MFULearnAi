@@ -36,19 +36,17 @@ export class BedrockService {
   }
 
   private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
-    // เก็บเฉพาะข้อความล่าสุด 5 ข้อความ
-    const recentMessages = messages.slice(-5);
-    
     const command = new InvokeModelCommand({
       modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 2048,
-        messages: recentMessages.map(msg => {
+        max_tokens: 4096,
+        messages: messages.map(msg => {
           const content = [];
           
+          // ถ้ามีรูปภาพ
           if (msg.image) {
             content.push({
               type: "image",
@@ -60,14 +58,10 @@ export class BedrockService {
             });
           }
           
-          // เพิ่ม prompt engineering
-          const enhancedText = msg.role === 'user' 
-            ? `Please provide a clear, concise, and accurate response: ${msg.content}`
-            : msg.content;
-
+          // เพิ่มข้อความ
           content.push({
             type: "text",
-            text: enhancedText
+            text: msg.content
           });
 
           return {
@@ -75,7 +69,7 @@ export class BedrockService {
             content
           };
         }),
-        temperature: 0.3,
+        temperature: 0.7,
         top_p: 0.9
       })
     });
@@ -83,16 +77,7 @@ export class BedrockService {
     try {
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      
-      if (!responseBody.content?.[0]?.text) {
-        throw new Error('Invalid response format');
-      }
-
-      const cleanedContent = responseBody.content[0].text
-        .trim()
-        .replace(/\n{3,}/g, '\n\n');
-
-      return { content: cleanedContent };
+      return { content: responseBody.content[0].text };
     } catch (error) {
       console.error('Claude chat error:', error);
       throw error;
