@@ -10,7 +10,7 @@ const logger = {
 };
 
 export class ChatService {
-  private systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point. You have the following capabilities:
+  private systemPrompt = `You are DinDin, a male AI. You have the following capabilities:
 
 1. Answer general questions
 2. Write and explain code in various programming languages
@@ -70,7 +70,7 @@ When providing code examples:
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
 
-      const systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point. You have the following capabilities:
+      const systemPrompt = `You are DinDin, a male AI. You have the following capabilities:
 
 1. Answer general questions
 2. Write and explain code in various programming languages
