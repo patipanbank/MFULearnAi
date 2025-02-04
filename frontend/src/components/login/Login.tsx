@@ -51,7 +51,7 @@ const Login: React.FC = () => {
           <p className="mt-2 text-sm text-gray-600">
             Please login with your MFU account
           </p>
-          <p className="mt-2 text-base text-gray-800">
+          <p className="mt-2 text-sm text-gray-600">
             Your 24/7 AI Assistant for MFU Services
           </p>
         </div>
@@ -62,11 +62,6 @@ const Login: React.FC = () => {
           >
             Login with MFU SSO
           </button>
-        </div>
-        <div className="mt-4 text-center">
-          <a href="#" className="text-sm text-blue-600 hover:text-blue-800">
-            Having trouble logging in?
-          </a>
         </div>
         {/* <div className="mt-8">
           <button
