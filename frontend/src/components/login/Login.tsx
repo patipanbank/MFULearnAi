@@ -35,7 +35,7 @@ const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8 p-8 bg-white/70 backdrop-blur-sm rounded-xl shadow-lg relative z-10">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Login to MFU Chatbot
+            Login to MFU ChatAI
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Please login with your MFU account
