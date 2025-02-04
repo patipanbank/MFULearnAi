@@ -108,8 +108,7 @@ const TrainingDashboard: React.FC = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setCollections(data.collections || []);
+        await fetchCollections();
         setSelectedCollection(newCollectionName);
         setNewCollectionName('');
         setShowNewCollectionForm(false);
