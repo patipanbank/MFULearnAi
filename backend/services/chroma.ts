@@ -117,7 +117,6 @@ class ChromaService {
       const results = await collection.query({
         queryEmbeddings: queryEmbedding,
         nResults: n_results,
-        where: {},
         include: ["documents", "metadatas", "distances"]
       });
 
