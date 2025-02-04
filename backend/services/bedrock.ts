@@ -222,23 +222,18 @@ export class BedrockService {
           messages: messages.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'assistant',
             content: msg.content
-          })),
-          stream: true
+          }))
         })
       });
 
       const response = await this.client.send(command);
       const decoder = new TextDecoder();
-      const chunk = decoder.decode(response.body);
-      const lines = chunk.split('\n');
+      const text = decoder.decode(response.body);
       
-      for (const line of lines) {
-        if (line) {
-          const parsed = JSON.parse(line);
-          if (parsed.content?.[0]?.text) {
-            onChunk(parsed.content[0].text);
-          }
-        }
+      // ส่งข้อความทีละตัวอักษรเพื่อจำลอง streaming
+      for (const char of text) {
+        onChunk(char);
+        await new Promise(resolve => setTimeout(resolve, 20)); // delay เล็กน้อย
       }
     } catch (error) {
       console.error('Bedrock streaming error:', error);
