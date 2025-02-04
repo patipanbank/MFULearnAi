@@ -113,31 +113,6 @@ export class ChatService {
       }
     }
   }
-
-  async generateStreamingResponse(
-    messages: ChatMessage[],
-    query: string,
-    modelId: string,
-    collectionName: string,
-    onChunk: (chunk: string) => void
-  ): Promise<void> {
-    try {
-      const context = await this.getContext(query, collectionName);
-      
-      const augmentedMessages = [
-        {
-          role: 'system' as const,
-          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
-        },
-        ...messages
-      ];
-
-      await bedrockService.streamChat(augmentedMessages, modelId, onChunk);
-    } catch (error) {
-      console.error('Error generating streaming response:', error);
-      throw error;
-    }
-  }
 }
 
 export const chatService = new ChatService();

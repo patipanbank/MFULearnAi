@@ -234,41 +234,4 @@ router.get('/collections', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/stream', verifyToken, async (req: Request, res: Response) => {
-  try {
-    const { messages, modelId, collectionName } = req.body;
-    const user = (req as any).user;
-
-    // Set headers for streaming
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    // ตรวจสอบสิทธิ์การเข้าถึง collection
-    const hasAccess = await chromaService.checkCollectionAccess(collectionName, user);
-    if (!hasAccess) {
-      res.write(`data: ${JSON.stringify({ error: 'Access denied' })}\n\n`);
-      res.end();
-      return;
-    }
-
-    // Stream response
-    await chatService.generateStreamingResponse(
-      messages,
-      messages[messages.length - 1].content,
-      modelId,
-      collectionName,
-      (chunk) => {
-        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
-      }
-    );
-
-    res.end();
-  } catch (error) {
-    console.error('Streaming error:', error);
-    res.write(`data: ${JSON.stringify({ error: 'Streaming failed' })}\n\n`);
-    res.end();
-  }
-});
-
 export default router;

@@ -35,7 +35,7 @@ const modelNames: { [key: string]: string } = {
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -46,8 +46,6 @@ const MFUChatbot: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
   // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
@@ -227,74 +225,68 @@ const MFUChatbot: React.FC = () => {
     e.preventDefault();
     if (!canSubmit()) return;
 
-    let imageData = '';
-    if (selectedImage) {
-      imageData = await compressImage(selectedImage);
-    }
-
-    const userMessage = {
-      id: messages.length + 1,
-      role: 'user' as const,
-      content: inputMessage.trim(),
-      timestamp: new Date(),
-      image: imageData ? {
-        data: imageData,
-        mediaType: selectedImage?.type || 'image/jpeg'
-      } : undefined
-    };
-
-    setInputMessage('');
-    setSelectedImage(null);
-    
-    // เพิ่มข้อความผู้ใช้ทันที
-    setMessages(prev => [...prev, userMessage]);
-    setIsStreaming(true);
-    setStreamingContent('');
-
     try {
-      const response = await fetch(`${config.apiUrl}/api/chat/stream`, {
+      setIsLoading(true);
+
+      let imageData;
+      if (selectedImage) {
+        const compressedBase64 = await compressImage(selectedImage);
+        imageData = {
+          data: compressedBase64.split(',')[1],
+          mediaType: 'image/jpeg'
+        };
+      }
+
+      const newMessage = {
+        id: messages.length + 1,
+        role: 'user' as const,
+        content: inputMessage.trim(),
+        timestamp: new Date(),
+        image: imageData
+      };
+
+      // บันทึกข้อความและรูปภาพลงในประวัติ
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: [...messages, newMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
       });
 
-      const reader = new ReadableStreamDefaultReader(response.body!);
-      const decoder = new TextDecoder();
+      setMessages(prev => [...prev, newMessage]);
+      setInputMessage('');
+      setSelectedImage(null);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, newMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.error) throw new Error(data.error);
-              if (data.content) {
-                setStreamingContent(prev => prev + data.content);
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
-            }
-          }
-        }
+      if (!response.ok) {
+        throw new Error('Failed to get response');
       }
 
-      // เพิ่มข้อความ AI เมื่อ stream เสร็จสิ้น
+      const data = await response.json();
+      
       const assistantMessage = {
         id: messages.length + 2,
         role: 'assistant' as const,
-        content: streamingContent,
+        content: data.response,
         timestamp: new Date()
       };
 
@@ -305,10 +297,10 @@ const MFUChatbot: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage, assistantMessage],
+          messages: [...messages, newMessage, assistantMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -316,9 +308,14 @@ const MFUChatbot: React.FC = () => {
 
     } catch (error) {
       console.error('Error:', error);
+      setMessages(prev => [...prev, {
+        id: messages.length + 2,
+        role: 'assistant' as const,
+        content: 'Sorry, there was an error during processing. Please try again.',
+        timestamp: new Date()
+      }]);
     } finally {
-      setIsStreaming(false);
-      setStreamingContent('');
+      setIsLoading(false);
     }
   };
 
@@ -567,19 +564,6 @@ const MFUChatbot: React.FC = () => {
                     <span className="text-sm text-gray-500 dark:text-gray-300">
                       Typing... {typingCountdown !== null ? `${typingCountdown}s left` : ''}
                     </span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {isStreaming && streamingContent && (
-              <div className="flex items-start gap-3 px-4 py-2">
-                <div className="flex-shrink-0">
-                  <img src="/dindin.PNG" alt="Bot" className="w-8 h-8 rounded-full" />
-                </div>
-                <div className="flex-grow">
-                  <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
-                    {streamingContent}
-                    <span className="animate-pulse">▋</span>
                   </div>
                 </div>
               </div>
