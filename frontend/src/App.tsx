@@ -8,6 +8,7 @@ import AuthGuard from './components/guards/AuthGuard';
 import RoleGuard from './components/guards/RoleGuard';
 import TrainingHistory from './components/pages/TrainingHistory';
 import './index.css';
+ 
 
 const App = () => {
   return (
