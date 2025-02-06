@@ -186,19 +186,19 @@ router.post('/chat', async (req, res) => {
     const text = messages[messages.length - 1].content;
     
     // Get vector embedding
-    const vector = await bedrockService.embed(text);
+    // const vector = await bedrockService.embed(text);
     
     // Get chat response
-    const response = await bedrockService.chatWithVector(messages, modelId);
+    // const response = await bedrockService.chatWithVector(messages, modelId);
     
     // Send both response and vector
-    res.json({
-      response: response,
-      vectorInfo: {
-        first5Dimensions: vector.slice(0, 5),
-        dimension: vector.length
-      }
-    });
+    // res.json({
+    //   response: response,
+    //   vectorInfo: {
+    //     first5Dimensions: vector.slice(0, 5),
+    //     dimension: vector.length
+    //   }
+    // });
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error' });

@@ -8,7 +8,7 @@ export class BedrockService {
     // claude: 'anthropic.claude-v2',
     claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
     // claude3h: 'anthropic.claude-3-haiku-20240307-v1:0',
-    embedding: 'amazon.titan-embed-text-v2'
+    // embedding: 'amazon.titan-embed-text-v2'
   };
 
   constructor() {
@@ -86,44 +86,44 @@ export class BedrockService {
     }
   }
 
-  async embed(text: string): Promise<number[]> {
-    try {
-      console.log('\n==========================================');
-      console.log('🔍 DEBUG: Text being processed:', text);
+  // async embed(text: string): Promise<number[]> {
+  //   try {
+  //     console.log('\n==========================================');
+  //     console.log('🔍 DEBUG: Text being processed:', text);
 
-      const command = new InvokeModelCommand({
-        modelId: this.models.embedding,
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify({ text })
-      });
+  //     const command = new InvokeModelCommand({
+  //       modelId: this.models.embedding,
+  //       contentType: "application/json",
+  //       accept: "application/json",
+  //       body: JSON.stringify({ text })
+  //     });
 
-      console.log('Sending request to Bedrock...');
-      const response = await this.client.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+  //     console.log('Sending request to Bedrock...');
+  //     const response = await this.client.send(command);
+  //     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
       
-      console.log('=== Complete Response from Bedrock ===');
-      console.log('Response Body:', JSON.stringify(responseBody, null, 2));
-      console.log('Response Type:', typeof responseBody);
-      console.log('Response Keys:', Object.keys(responseBody));
+  //     console.log('=== Complete Response from Bedrock ===');
+  //     console.log('Response Body:', JSON.stringify(responseBody, null, 2));
+  //     console.log('Response Type:', typeof responseBody);
+  //     console.log('Response Keys:', Object.keys(responseBody));
       
-      if (responseBody.embedding) {
-        console.log('=== Vector Embedding Results ===');
-        console.log('First 5 dimensions:', responseBody.embedding.slice(0, 5));
-        console.log('Vector dimension:', responseBody.embedding.length);
-      } else {
-        console.log('No embedding found in response');
-        console.log('Full response:', responseBody);
-      }
-      console.log('✅ Vector created successfully!');
-      console.log('==========================================\n');
+  //     if (responseBody.embedding) {
+  //       console.log('=== Vector Embedding Results ===');
+  //       console.log('First 5 dimensions:', responseBody.embedding.slice(0, 5));
+  //       console.log('Vector dimension:', responseBody.embedding.length);
+  //     } else {
+  //       console.log('No embedding found in response');
+  //       console.log('Full response:', responseBody);
+  //     }
+  //     console.log('✅ Vector created successfully!');
+  //     console.log('==========================================\n');
       
-      return responseBody.embedding;
-    } catch (error) {
-      console.error('❌ ERROR in embed function:', error);
-      throw error;
-    }
-  }
+  //     return responseBody.embedding;
+  //   } catch (error) {
+  //     console.error('❌ ERROR in embed function:', error);
+  //     throw error;
+  //   }
+  // }
 
   private formatMessages(messages: ChatMessage[]): string {
     let prompt = '';
@@ -161,34 +161,34 @@ export class BedrockService {
     return { content: responseBody.results[0].outputText };
   }
 
-  async chatWithVector(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
-    try {
-      const text = messages.map(msg => msg.content).join(' ');
-      console.log("Received message:", text);
+  // async chatWithVector(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
+  //   try {
+  //     const text = messages.map(msg => msg.content).join(' ');
+  //     console.log("Received message:", text);
       
-      // Convert message to vector using embed function
-      const vector = await this.embed(text);
+  //     // Convert message to vector using embed function
+  //     const vector = await this.embed(text);
       
-      console.log("Vectorized message:", vector);
+  //     console.log("Vectorized message:", vector);
 
-      const command = new InvokeModelCommand({
-        modelId: this.models.embedding,
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify({
-          inputVector: vector,
-        })
-      });
+  //     const command = new InvokeModelCommand({
+  //       modelId: this.models.embedding,
+  //       contentType: "application/json",
+  //       accept: "application/json",
+  //       body: JSON.stringify({
+  //         inputVector: vector,
+  //       })
+  //     });
 
-      const response = await this.client.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      const cleanedContent = cleanResponse(responseBody.results[0].outputText);
-      return { content: cleanedContent };
-    } catch (error) {
-      console.error('Bedrock chat with vector error:', error);
-      throw error;
-    }
-  }
+  //     const response = await this.client.send(command);
+  //     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+  //     const cleanedContent = cleanResponse(responseBody.results[0].outputText);
+  //     return { content: cleanedContent };
+  //   } catch (error) {
+  //     console.error('Bedrock chat with vector error:', error);
+  //     throw error;
+  //   }
+  // }
 
   async chatWithEstimatedTime(messages: ChatMessage[], modelId: string): Promise<{ content: string, estimatedTime: number }> {
     try {
