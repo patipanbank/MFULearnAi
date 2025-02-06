@@ -107,8 +107,11 @@ export class BedrockService {
     const response = await this.client.send(new InvokeModelCommand(params));
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     
+    console.log('Nova response:', JSON.stringify(responseBody, null, 2));
+
+    // Nova returns response in different format than Claude
     return {
-      content: responseBody.completion
+      content: responseBody.messages?.[0]?.content?.[0]?.text || responseBody.output?.[0]?.text || ''
     };
   }
 
