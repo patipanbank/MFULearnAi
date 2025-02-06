@@ -90,38 +90,13 @@ export class BedrockService {
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 1024,
-        temperature: 0.7,
-        top_p: 0.9,
-        messages: messages.map(msg => {
-          const content = [];
-          
-          // ถ้ามีรูปภาพ
-          if (msg.images && msg.images.length > 0) {
-            msg.images.forEach(image => {
-              content.push({
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: image.mediaType || "image/jpeg",
-                  data: image.data
-                }
-              });
-            });
-          }
-          
-          // เพิ่มข้อความ
-          content.push({
-            type: "text",
-            text: msg.content
-          });
-
-          return {
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content
-          };
-        }),
+        inferenceConfig: {
+          max_new_tokens: 1000
+        },
+        messages: messages.map(message => ({
+          role: message.role,
+          content: [{ text: message.content }]
+        }))
       })
     });
 
