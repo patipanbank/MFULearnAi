@@ -87,15 +87,21 @@ export class BedrockService {
   private async novaChat(messages: ChatMessage[]): Promise<{ content: string }> {
     const params: InvokeModelCommandInput = {
       modelId: this.models.nova,
+      contentType: 'application/json',
+      accept: 'application/json',
       body: JSON.stringify({
-        anthropic_version: 'bedrock-2023-05-31',
-        max_tokens: 2048,
+        inferenceConfig: {
+          max_new_tokens: 1000
+        },
         messages: messages.map(m => ({
           role: m.role,
-          content: m.content
+          content: [
+            {
+              text: m.content
+            }
+          ]
         }))
-      }),
-      contentType: 'application/json',
+      })
     };
 
     const response = await this.client.send(new InvokeModelCommand(params));
