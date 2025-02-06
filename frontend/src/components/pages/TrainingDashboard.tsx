@@ -130,7 +130,7 @@ const TrainingDashboard: React.FC = () => {
     }
 
     if (!file || !selectedModel || !selectedCollection) {
-      alert('กรุณาเลือก Model, Collection และไฟล์ให้ครบถ้วน');
+      alert('Please select Model, Collection and file');
       return;
     }
 
@@ -211,7 +211,7 @@ const TrainingDashboard: React.FC = () => {
     }
 
     if (!urls.trim() || !selectedModel || !selectedCollection) {
-      alert('กรุณาเลือก Model, Collection และใส่ URLs ให้ครบถ้วน');
+      alert('Please select Model, Collection and URLs');
       return;
     }
 
@@ -410,7 +410,7 @@ const TrainingDashboard: React.FC = () => {
                   <textarea
                     value={urls}
                     onChange={(e) => setUrls(e.target.value)}
-                    placeholder="ใส่ URLs (1 URL ต่อบรรทัด)"
+                    placeholder="Enter URLs (1 URL per line)"
                     className="w-full h-40 p-2 border rounded"
                     disabled={isProcessingUrls}
                   />

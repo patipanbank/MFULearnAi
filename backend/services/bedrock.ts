@@ -17,8 +17,6 @@ export class BedrockService {
     });
   }
 
- 
-  
   async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
       if (modelId === this.models.claude35) {
@@ -82,42 +80,6 @@ export class BedrockService {
     }
   }
 
-  private formatMessages(messages: ChatMessage[]): string {
-    let prompt = '';
-    messages.forEach(msg => {
-      if (msg.role === 'system') {
-        prompt += `System: ${msg.content}\n\n`;
-      } else if (msg.role === 'user') {
-        prompt += `Human: ${msg.content}\n\n`;
-      } else if (msg.role === 'assistant') {
-        prompt += `Assistant: ${msg.content}\n\n`;
-      }
-    }); 
-    return prompt.trim();
-  }
-
-  private async titanChat(messages: ChatMessage[]): Promise<{ content: string }> {
-    const prompt = this.formatMessages(messages);
-    
-    const command = new InvokeModelCommand({
-      modelId: this.models.claude35,
-      contentType: "application/json",
-      accept: "application/json",
-      body: JSON.stringify({
-        inputText: prompt,
-        textGenerationConfig: {
-          maxTokenCount: 4096,
-          temperature: 0.7,
-          topP: 0.9
-        }
-      })
-    });
-
-    const response = await this.client.send(command);
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    return { content: responseBody.results[0].outputText };
-  }
-  
   async chatWithEstimatedTime(messages: ChatMessage[], modelId: string): Promise<{ content: string, estimatedTime: number }> {
     try {
       const estimatedTime = 10; // Simulate an estimated time of 10 seconds
@@ -138,7 +100,3 @@ export class BedrockService {
 }
 
 export const bedrockService = new BedrockService();
-
-function cleanResponse(response: string): string {
-  return response.replace(/^Bot:\s*/, '').replace(/^Human:\s*/, '');
-} 

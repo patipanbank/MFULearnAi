@@ -1,13 +1,11 @@
-import { Router, Request, Response, RequestHandler, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { roleGuard } from '../middleware/roleGuard';
 import multer from 'multer';
 import path from 'path';
 import { documentService } from '../services/document';
 import { chromaService } from '../services/chroma';
-import fs from 'fs';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
-import { bedrockService } from '../services/bedrock';
 import { Collection, CollectionPermission } from '../models/Collection';
 
 const router = Router();
@@ -26,26 +24,6 @@ const upload = multer({
     }
   }
 });
-
-interface IUser {
-  nameID: string;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  groups: string[];
-}
-
-interface RequestWithUser extends Request {
-  user?: {
-    nameID: string;
-    username: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    groups: string[];
-  };
-}
 
 const uploadHandler = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -264,24 +242,6 @@ router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Res
     res.status(500).json({ error: 'Failed to create collection' });
   }
 });
-
-// Middleware ตรวจสอบสิทธิ์การเข้าถึง collection
-const checkCollectionAccess = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { collectionName } = req.params;
-    const user = (req as any).user;
-
-    const hasAccess = await chromaService.checkCollectionAccess(collectionName, user);
-    if (!hasAccess) {
-      return res.status(403).json({ message: 'Access denied to this collection' });
-    }
-
-    next();
-  } catch (error) {
-    res.status(500).json({ error: 'Error checking collection access' });
-  }
-};
-
 
 // Cleanup endpoint
 router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {

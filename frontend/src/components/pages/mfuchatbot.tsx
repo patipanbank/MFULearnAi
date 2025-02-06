@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-// import { FaPaperPlane } from 'react-icons/fa';
 import { BiLoaderAlt } from 'react-icons/bi';
 import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';

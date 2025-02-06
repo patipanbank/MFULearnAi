@@ -1,11 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { chromaService } from '../services/chroma';
 import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
-import { ChatMessage } from '../types/chat';
 import { roleGuard } from '../middleware/roleGuard';
-import { bedrockService } from '../services/bedrock';
 import { Collection, CollectionPermission } from '../models/Collection';
 
 const router = Router();
