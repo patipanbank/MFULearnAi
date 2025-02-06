@@ -31,86 +31,6 @@ const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
 
 router.use(verifyToken);
 
-interface ChatRequest extends Request {
-  body: { 
-    messages: (ChatMessage & {
-      image?: {
-        data: string;
-        mediaType: string;
-      };
-    })[];
-    collectionName: string;
-    modelId: string;
-  };
-}
-
-interface Source {
-  modelId: string;
-  collectionName: string;
-  filename: string;
-  source: string;
-  similarity: number;
-}
-
-const chatHandler = async (req: ChatRequest, res: Response): Promise<void> => {
-  try {
-    const { messages, collectionName, modelId } = req.body;
-    const user = (req as any).user;
-
-    // ตรวจสอบสิทธิ์การเข้าถึง collection
-    const hasAccess = await chromaService.checkCollectionAccess(collectionName, user);
-    if (!hasAccess) {
-      res.status(403).json({ error: 'Access denied to this collection' });
-      return;
-    }
-
-    const userMessage = messages[messages.length - 1].content;
-    
-    const matches = await chromaService.query(collectionName, userMessage);
-    let context = matches[0]?.text || '';
-
-    const augmentedMessages = [
-      {
-        role: 'system' as const,
-        content: `You are a helpful assistant. Use this context to answer questions: ${context}`
-      },
-      ...messages
-    ] as ChatMessage[];
-
-    const response = await chatService.generateResponse(messages, userMessage, modelId, collectionName);
-    
-    const sources = matches.map((match: any) => ({
-      modelId: modelId,
-      collectionName: collectionName,
-      filename: match.metadata?.filename || 'Unknown file',
-      source: match.metadata?.source || 'N/A',
-      similarity: match.score || 0
-    }));
-
-    const updatedMessages = [...messages, {
-      id: Date.now(),
-      role: 'assistant',
-      content: response,
-      timestamp: new Date().toISOString(),
-      sources: sources
-    }];
-
-    await chatHistoryService.saveChatMessage(
-      user.username,
-      modelId,
-      collectionName,
-      updatedMessages
-    );
-
-    res.json({
-      content: response,
-      sources: sources
-    });
-  } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
 
 router.post('/', async (req: Request, res: Response) => {
   try {
@@ -185,20 +105,6 @@ router.post('/chat', async (req, res) => {
     const { messages, modelId } = req.body;
     const text = messages[messages.length - 1].content;
     
-    // Get vector embedding
-    // const vector = await bedrockService.embed(text);
-    
-    // Get chat response
-    // const response = await bedrockService.chatWithVector(messages, modelId);
-    
-    // Send both response and vector
-    // res.json({
-    //   response: response,
-    //   vectorInfo: {
-    //     first5Dimensions: vector.slice(0, 5),
-    //     dimension: vector.length
-    //   }
-    // });
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error' });

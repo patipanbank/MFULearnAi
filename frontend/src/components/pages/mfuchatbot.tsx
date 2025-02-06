@@ -340,11 +340,6 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  // const formatTimestamp = (timestamp: string | Date) => {
-  //   if (!timestamp) return '';
-  //   const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
-  //   return date.toLocaleTimeString();
-  // };
 
   const clearChat = async () => {
     try {
@@ -371,14 +366,6 @@ const MFUChatbot: React.FC = () => {
       setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
     });
   };
-
-  // const handleLike = (index: number) => {
-  //   // Implement logic to toggle like state
-  // };
-
-  // const handleDislike = (index: number) => {
-  //   // Implement logic to toggle dislike state
-  // };
 
   const isDayTime = () => {
     const hour = new Date().getHours();

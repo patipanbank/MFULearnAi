@@ -14,9 +14,6 @@ export class ChatService {
   // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
 
   private isRelevantQuestion(query: string): boolean {
-    // const relevantKeywords = ['university', 'MFU', 'มหาวิทยาลัย','มหาลัย',
-    //                           'University','มอ','มฟล','hi','Hi','hello',
-    //                           'Hello'];
     return (true);
   }
 
@@ -71,31 +68,6 @@ export class ChatService {
       }
     }
   }
-
-  // async generateResponseWithVector(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
-  //   try {
-  //     const context = await this.getContext(query, collectionName);
-  //     console.log('Retrieved context:', context);
-
-  //     const augmentedMessages = [
-  //       {
-  //         role: 'system' as const,
-  //         content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
-  //       },
-  //       ...messages
-  //     ];
-
-  //     const response = await bedrockService.chatWithVector(augmentedMessages, modelId);
-  //     return response.content;
-  //   } catch (error) {
-  //     console.error('Error generating chat response with vector:', error);
-  //     throw error;
-  //   } finally {
-  //     if (process.env.NODE_ENV !== 'production') {
-  //       console.timeEnd('operation');
-  //     }
-  //   }
-  // }
 
   private async getContext(query: string, collectionName: string): Promise<string> {
     try {
