@@ -40,8 +40,16 @@ router.post('/', async (req: Request, res: Response) => {
     );
     res.json({ response });
   } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({ error: 'Failed to generate response' });
+    console.error('Bedrock Error:', error);
+    // Log specific error details if available
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    res.status(500).json({ 
+      error: 'Failed to process request',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
