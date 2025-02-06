@@ -5,7 +5,6 @@ export class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
     claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    novapro:'amazon.nova-pro-v1:0',
     nova: 'amazon.nova-v1:0',
   };
 
@@ -23,9 +22,6 @@ export class BedrockService {
     try {
       if (modelId === this.models.claude35) {
         return this.claudeChat(messages);
-      }
-      if (modelId === this.models.novapro) {
-        return this.novaChat(messages);
       }
       if (modelId === this.models.nova) {
         return this.novaChat(messages);
