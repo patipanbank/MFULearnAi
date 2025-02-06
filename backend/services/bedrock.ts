@@ -5,7 +5,7 @@ export class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
     claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    nova: 'amazon.nova-v1:0',
+    nova: 'amazon.nova-pro-v1:0',
   };
 
   constructor() {
