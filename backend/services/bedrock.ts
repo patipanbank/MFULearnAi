@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, InvokeModelCommand, InvokeModelCommandInput } from "@aws-sdk/client-bedrock-runtime";
 import { ChatMessage } from '../types/chat';
 
 export class BedrockService {
@@ -23,6 +23,9 @@ export class BedrockService {
       if (modelId === this.models.claude35) {
         return this.claudeChat(messages);
       }
+      if (modelId === this.models.novapro) {
+        return this.novaChat(messages);
+      }
       throw new Error('Unsupported model');
     } catch (error) {
       console.error('Bedrock chat error:', error);
@@ -33,6 +36,57 @@ export class BedrockService {
   private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
     const command = new InvokeModelCommand({
       modelId: this.models.claude35,
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify({
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 1024,
+        temperature: 0.7,
+        top_p: 0.9,
+        messages: messages.map(msg => {
+          const content = [];
+          
+          // ถ้ามีรูปภาพ
+          if (msg.images && msg.images.length > 0) {
+            msg.images.forEach(image => {
+              content.push({
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: image.mediaType || "image/jpeg",
+                  data: image.data
+                }
+              });
+            });
+          }
+          
+          // เพิ่มข้อความ
+          content.push({
+            type: "text",
+            text: msg.content
+          });
+
+          return {
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content
+          };
+        }),
+      })
+    });
+
+    try {
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      return { content: responseBody.content[0].text };
+    } catch (error) {
+      console.error('Claude chat error:', error);
+      throw error;
+    }
+  }
+
+  private async novaChat(messages: ChatMessage[]): Promise<{ content: string }> {
+    const command = new InvokeModelCommand({
+      modelId: this.models.novapro,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
