@@ -85,34 +85,54 @@ export class BedrockService {
   }
 
   private async novaChat(messages: ChatMessage[]): Promise<{ content: string }> {
-    const params: InvokeModelCommandInput = {
+    const command = new InvokeModelCommand({
       modelId: this.models.nova,
-      contentType: 'application/json',
-      accept: 'application/json',
+      contentType: "application/json",
+      accept: "application/json",
       body: JSON.stringify({
-        inferenceConfig: {
-          max_new_tokens: 1000
-        },
-        messages: messages.map(m => ({
-          role: m.role,
-          content: [
-            {
-              text: m.content
-            }
-          ]
-        }))
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 1024,
+        temperature: 0.7,
+        top_p: 0.9,
+        messages: messages.map(msg => {
+          const content = [];
+          
+          // ถ้ามีรูปภาพ
+          if (msg.images && msg.images.length > 0) {
+            msg.images.forEach(image => {
+              content.push({
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: image.mediaType || "image/jpeg",
+                  data: image.data
+                }
+              });
+            });
+          }
+          
+          // เพิ่มข้อความ
+          content.push({
+            type: "text",
+            text: msg.content
+          });
+
+          return {
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content
+          };
+        }),
       })
-    };
+    });
 
-    const response = await this.client.send(new InvokeModelCommand(params));
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    
-    console.log('Nova response:', JSON.stringify(responseBody, null, 2));
-
-    // Nova returns response in different format than Claude
-    return {
-      content: responseBody.messages?.[0]?.content?.[0]?.text || responseBody.output?.[0]?.text || ''
-    };
+    try {
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      return { content: responseBody.content[0].text };
+    } catch (error) {
+      console.error('Nova chat error:', error);
+      throw error;
+    }
   }
 
   async chatWithEstimatedTime(messages: ChatMessage[], modelId: string): Promise<{ content: string, estimatedTime: number }> {
