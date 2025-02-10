@@ -573,7 +573,7 @@ const MFUChatbot: React.FC = () => {
                 </div>
 
                 {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                  <div className="ml-2">
+                  <div className="ml-2 mt-1">
                     <button
                       onClick={() => {
                         const sourceInfo = message.sources?.map(source =>
