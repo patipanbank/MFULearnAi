@@ -257,8 +257,6 @@ const MFUChatbot: React.FC = () => {
       
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-  
-      // Use a ref to track accumulated text
       let accumulatedText = '';
   
       while (true) {
@@ -266,15 +264,16 @@ const MFUChatbot: React.FC = () => {
         if (done) break;
   
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        const lines = chunk.split('\n\n');
   
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const { content } = JSON.parse(line.slice(5));
+              const jsonStr = line.replace('data: ', '').trim();
+              const { content } = JSON.parse(jsonStr);
+              
               if (content) {
                 accumulatedText += content;
-                // Update messages with accumulated text
                 setMessages(prev => 
                   prev.map(msg => 
                     msg.id === aiMessageId
@@ -284,7 +283,7 @@ const MFUChatbot: React.FC = () => {
                 );
               }
             } catch (e) {
-              console.error('Error parsing chunk:', e);
+              console.error('Parsing error:', e, 'Raw line:', line);
             }
           }
         }
