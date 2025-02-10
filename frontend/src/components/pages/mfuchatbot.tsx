@@ -204,10 +204,10 @@ const MFUChatbot: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit()) return;
-
+  
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
-
+  
     try {
       let processedImages;
       if (selectedImages.length > 0) {
@@ -226,7 +226,7 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date(),
         images: processedImages
       };
-
+  
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
@@ -252,56 +252,45 @@ const MFUChatbot: React.FC = () => {
           collectionName: selectedCollection
         })
       });
-
+  
       if (!response.ok) throw new Error('Failed to get response');
       
       const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
-      let accumulatedText = '';
       const decoder = new TextDecoder();
-
-      try {
-        // ใช้ requestAnimationFrame เพื่อให้ UI อัพเดทได้ทัน
-        const processStream = async () => {
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const { content } = JSON.parse(line.slice(5));
-                  if (content) {
-                    accumulatedText += content;
-                    // อัพเดท UI ด้วย requestAnimationFrame
-                    requestAnimationFrame(() => {
-                      setMessages(prev => 
-                        prev.map(msg => 
-                          msg.id === aiMessageId
-                            ? { ...msg, content: accumulatedText }
-                            : msg
-                        )
-                      );
-                    });
-                  }
-                } catch (e) {
-                  console.error('Error parsing chunk:', e);
-                }
+  
+      // Use a ref to track accumulated text
+      let accumulatedText = '';
+  
+      while (true) {
+        const { value, done } = await reader!.read();
+        if (done) break;
+  
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+  
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const { content } = JSON.parse(line.slice(5));
+              if (content) {
+                accumulatedText += content;
+                // Update messages with accumulated text
+                setMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === aiMessageId
+                      ? { ...msg, content: accumulatedText }
+                      : msg
+                  )
+                );
               }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
-        };
-
-        await processStream();
-      } finally {
-        reader.releaseLock();
+        }
       }
-
-      // บันทึกประวัติแชท
+  
+      // Save chat history after complete response
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
@@ -314,7 +303,7 @@ const MFUChatbot: React.FC = () => {
           collectionName: selectedCollection
         })
       });
-
+  
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
@@ -360,18 +349,6 @@ const MFUChatbot: React.FC = () => {
       console.error('Error clearing chat:', error);
     }
   };
-
-  // const handleCopy = (content: string) => {
-  //   navigator.clipboard.writeText(content).then(() => {
-  //     setCopySuccess(true);
-  //     setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
-  //   });
-  // };
-
-  // const isDayTime = () => {
-  //   const hour = new Date().getHours();
-  //   return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
-  // };
 
   // เพิ่มฟังก์ชันสำหรับตรวจสอบขนาดไฟล์
   const validateImageFile = (file: File): boolean => {
