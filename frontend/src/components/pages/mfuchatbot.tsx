@@ -253,7 +253,7 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
-      const response = await fetch(`${config.apiUrl}/api/chat`, {
+      const response = await fetch(`${config.apiUrl}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -271,7 +271,15 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let accumulatedResponse = '';
-      let lastEstimatedTime = 10;
+
+      // เพิ่มข้อความ AI response เปล่าๆ ก่อน
+      const aiMessage = {
+        id: messages.length + 2,
+        role: 'assistant' as const,
+        content: '',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -282,9 +290,8 @@ const MFUChatbot: React.FC = () => {
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6));
+            const data = JSON.parse(line.slice(5));
             accumulatedResponse += data.content;
-            lastEstimatedTime = data.estimatedTime;
 
             setMessages(prev => {
               const lastMessage = prev[prev.length - 1];
@@ -293,26 +300,15 @@ const MFUChatbot: React.FC = () => {
                   ...prev.slice(0, -1),
                   { ...lastMessage, content: accumulatedResponse }
                 ];
-              } else {
-                return [
-                  ...prev,
-                  {
-                    id: prev.length + 2,
-                    role: 'assistant' as const,
-                    content: accumulatedResponse,
-                    timestamp: new Date()
-                  }
-                ];
               }
+              return prev;
             });
-
-            setTypingCountdown(lastEstimatedTime);
           }
         }
       }
 
       // บันทึกประวัติแชท
-      await fetch(`${config.apiUrl}/api/chat/history`, {
+      await fetch(`${config.apiUrl}/chat/history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -321,7 +317,7 @@ const MFUChatbot: React.FC = () => {
         body: JSON.stringify({
           messages: [...messages, newMessage, {
             id: messages.length + 2,
-            role: 'assistant' as const,
+            role: 'assistant',
             content: accumulatedResponse,
             timestamp: new Date()
           }],
@@ -334,7 +330,7 @@ const MFUChatbot: React.FC = () => {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
         id: messages.length + 2,
-        role: 'assistant' as const,
+        role: 'assistant',
         content: 'Sorry, there was an error during processing. Please try again.',
         timestamp: new Date()
       }]);

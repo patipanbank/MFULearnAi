@@ -31,54 +31,44 @@ export class BedrockService {
   }
 
   private async *claudeChat(messages: ChatMessage[]): AsyncGenerator<string> {
-    console.log('Starting Claude chat with messages count:', messages.length);
-
-    const command = new InvokeModelWithResponseStreamCommand({
-      modelId: this.models.claude35,
-      contentType: "application/json",
-      accept: "application/json",
-      body: JSON.stringify({
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 2000,
-        temperature: 1,
-        top_p: 0.99,
-        messages: messages.map(msg => ({
-          role: msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.content
-        }))
-      })
-    });
-
     try {
-      console.log('Sending request to Bedrock');
-      const response = await this.client.send(command);
-      console.log('Received response from Bedrock');
+      const command = new InvokeModelWithResponseStreamCommand({
+        modelId: this.models.claude35,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: 2000,
+          temperature: 1,
+          top_p: 0.99,
+          messages: messages.map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          }))
+        })
+      });
 
+      const response = await this.client.send(command);
+      
       if (response.body) {
         for await (const chunk of response.body) {
           if (chunk.chunk?.bytes) {
             const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
             try {
               const parsedChunk = JSON.parse(decodedChunk);
-              console.log('Received chunk:', parsedChunk);
-              if (parsedChunk.type === 'content_block' && parsedChunk.delta?.text) {
+              if (parsedChunk.type === 'content_block_delta' && 
+                  parsedChunk.delta?.type === 'text_delta' && 
+                  parsedChunk.delta?.text) {
                 yield parsedChunk.delta.text;
               }
             } catch (e) {
-              console.error('Error parsing chunk:', {
-                error: e,
-                decodedChunk
-              });
+              console.error('Error parsing chunk:', e);
             }
           }
         }
       }
     } catch (error) {
-      console.error('Claude chat error details:', {
-        error,
-        stack: (error as Error).stack,
-        modelId: this.models.claude35
-      });
+      console.error('Claude chat error:', error);
       throw error;
     }
   }
