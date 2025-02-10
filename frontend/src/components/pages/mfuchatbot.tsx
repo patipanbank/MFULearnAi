@@ -262,7 +262,7 @@ const MFUChatbot: React.FC = () => {
       };
       setMessages(prev => [...prev, aiMessage]);
 
-      const response = await fetch(`${config.apiUrl}/chat`, {
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
