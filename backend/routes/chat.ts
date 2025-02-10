@@ -29,7 +29,7 @@ const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
 router.use(verifyToken);
 
 
-router.post('/chat', async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { messages, modelId, collectionName } = req.body;
     const query = messages[messages.length - 1].content;
