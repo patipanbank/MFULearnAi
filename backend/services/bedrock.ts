@@ -43,7 +43,17 @@ export class BedrockService {
           top_p: 0.99,
           messages: messages.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.content
+            content: msg.images ? [
+              { type: 'text', text: msg.content },
+              ...msg.images.map(img => ({
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: img.mediaType,
+                  data: img.data
+                }
+              }))
+            ] : msg.content
           }))
         })
       });

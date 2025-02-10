@@ -39,13 +39,9 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     const { messages, modelId, collectionName } = req.body;
-    const query = messages[messages.length - 1].content;
-
-    console.log('Processing chat with:', {
-      modelId,
-      collectionName,
-      lastMessage: query
-    });
+    // ตรวจสอบว่ามีรูปภาพหรือไม่
+    const lastMessage = messages[messages.length - 1];
+    const query = lastMessage.content;
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -56,6 +52,7 @@ router.post('/', async (req: Request, res: Response) => {
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      res.flushHeaders();
     }
 
     console.log('Chat response completed');
