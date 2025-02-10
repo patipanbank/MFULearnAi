@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BiLoaderAlt } from 'react-icons/bi';
-// import { GrSend } from "react-icons/gr";
+import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -252,76 +252,43 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      // บันทึกข้อความและรูปภาพลงในประวัติ
-      const token = localStorage.getItem('auth_token');
-      await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messages: [...messages, newMessage],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
-
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
-      const response = await fetch(`${config.apiUrl}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          messages: [...messages, newMessage],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
-      const data = await response.json();
-
-      const assistantMessage = {
+      const aiMessage = {
         id: messages.length + 2,
         role: 'assistant' as const,
-        content: data.response,
+        content: '',
         timestamp: new Date()
       };
+      setMessages(prev => [...prev, aiMessage]);
 
-      setMessages(prev => [...prev, assistantMessage]);
+      const eventSource = new EventSource(`${config.apiUrl}/api/chat/stream?` + new URLSearchParams({
+        messages: JSON.stringify([...messages, newMessage]),
+        modelId: selectedModel,
+        collectionName: selectedCollection
+      }));
 
-      // บันทึกประวัติแชท
-      await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          messages: [...messages, newMessage, assistantMessage],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          setMessages(prev => prev.map(msg => 
+            msg.id === aiMessage.id ? { ...msg, content: data.content } : msg
+          ));
+        } else if (data.type === 'end') {
+          eventSource.close();
+          setIsLoading(false);
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        setIsLoading(false);
+      };
 
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, {
-        id: messages.length + 2,
-        role: 'assistant' as const,
-        content: 'Sorry, there was an error during processing. Please try again.',
-        timestamp: new Date()
-      }]);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -781,7 +748,7 @@ const MFUChatbot: React.FC = () => {
                   required
                 />
 
-                {/* <button
+                <button
                   type="submit"
                   disabled={!canSubmit()}
                   className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${
@@ -790,7 +757,7 @@ const MFUChatbot: React.FC = () => {
                   style={{ minHeight: '40px' }}
                 >
                   {isLoading ? <BiLoaderAlt className="w-6 h-6 animate-spin" /> : <GrSend className="w-5 h-5" />}
-                </button> */}
+                </button>
                 <button
                   type="button"
                   onClick={handleStreamSubmit}
