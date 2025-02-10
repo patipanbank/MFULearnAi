@@ -239,99 +239,6 @@ const MFUChatbot: React.FC = () => {
         processedImages = await Promise.all(
           selectedImages.map(async (file) => {
             const base64 = await compressImage(file);
-            return {
-              data: base64.data,
-              mediaType: file.type
-            };
-          })
-        );
-      }
-
-      const newMessage = {
-        id: messages.length + 1,
-        role: 'user' as const,
-        content: inputMessage.trim(),
-        timestamp: new Date(),
-        images: processedImages
-      };
-
-      setMessages(prev => [...prev, newMessage]);
-      setInputMessage('');
-      setSelectedImages([]);
-
-      const aiMessage = {
-        id: messages.length + 2,
-        role: 'assistant' as const,
-        content: '',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMessage]);
-
-      // สร้าง URL สำหรับ EventSource
-      // const params = new URLSearchParams({
-      //   messages: JSON.stringify([...messages, newMessage]),
-      //   modelId: selectedModel,
-      //   collectionName: selectedCollection
-      // });
-
-      // ใช้ fetch แทน EventSource เพื่อส่ง POST request
-      const response = await fetch(`${config.apiUrl}/api/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          messages: [...messages, newMessage],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === 'update') {
-                setMessages(prev => prev.map(msg => 
-                  msg.id === aiMessage.id ? { ...msg, content: data.content } : msg
-                ));
-              } else if (data.type === 'end') {
-                setIsLoading(false);
-                break;
-              }
-            }
-          }
-        }
-      }
-
-    } catch (error) {
-      console.error('Error:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const handleStreamSubmit = async () => {
-    if (!canSubmit()) return;
-
-    try {
-      setIsLoading(true);
-
-      let processedImages;
-      if (selectedImages.length > 0) {
-        processedImages = await Promise.all(
-          selectedImages.map(async (file) => {
-            const base64 = await compressImage(file);
             return base64;
           })
         );
@@ -345,43 +252,76 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
+      // บันทึกข้อความและรูปภาพลงในประวัติ
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messages: [...messages, newMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
-      const aiMessage = {
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, newMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      const data = await response.json();
+
+      const assistantMessage = {
         id: messages.length + 2,
         role: 'assistant' as const,
-        content: '',
+        content: data.response,
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, aiMessage]);
 
-      const eventSource = new EventSource(`${config.apiUrl}/api/chat/stream?` + new URLSearchParams({
-        messages: JSON.stringify([...messages, newMessage]),
-        modelId: selectedModel,
-        collectionName: selectedCollection
-      }));
+      setMessages(prev => [...prev, assistantMessage]);
 
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          setMessages(prev => prev.map(msg => 
-            msg.id === aiMessage.id ? { ...msg, content: data.content } : msg
-          ));
-        } else if (data.type === 'end') {
-          eventSource.close();
-          setIsLoading(false);
-        }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        setIsLoading(false);
-      };
+      // บันทึกประวัติแชท
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, newMessage, assistantMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
 
     } catch (error) {
       console.error('Error:', error);
+      setMessages(prev => [...prev, {
+        id: messages.length + 2,
+        role: 'assistant' as const,
+        content: 'Sorry, there was an error during processing. Please try again.',
+        timestamp: new Date()
+      }]);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -779,20 +719,17 @@ const MFUChatbot: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${
-                    canSubmit() ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                   style={{ minHeight: '40px' }}
                 >
-                  {isLoading ? <BiLoaderAlt className="w-6 h-6 animate-spin" /> : <GrSend className="w-5 h-5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleStreamSubmit}
-                  disabled={!canSubmit()}
-                  className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-300"
-                >
-                  Stream
+                  {isLoading ? (
+                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <GrSend className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>

@@ -137,39 +137,4 @@ router.get('/collections', async (req: Request, res: Response) => {
   }
 });
 
-// เพิ่ม endpoint ใหม่สำหรับ real-time response
-router.post('/stream', async (req: Request, res: Response) => {
-  try {
-    const { messages, modelId, collectionName } = req.body;
-    
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    res.write('data: {"content": "", "type": "start"}\n\n');
-
-    const response = await chatService.generateResponse(
-      messages, 
-      messages[messages.length - 1].content,
-      modelId,
-      collectionName
-    );
-
-    const sentences = response.match(/[^.!?]+[.!?]+/g) || [response];
-    let accumulatedContent = '';
-    
-    for (const sentence of sentences) {
-      accumulatedContent += sentence;
-      res.write(`data: {"content": ${JSON.stringify(accumulatedContent)}, "type": "update"}\n\n`);
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-
-    res.write('data: {"type": "end"}\n\n');
-    res.end();
-  } catch (error) {
-    console.error('Chat stream error:', error);
-    res.status(500).json({ error: 'Failed to generate streaming response' });
-  }
-});
-
 export default router;
