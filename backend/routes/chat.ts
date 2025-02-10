@@ -32,13 +32,26 @@ router.use(verifyToken);
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { messages, modelId, collectionName } = req.body;
+    
+    // Set headers for streaming
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
     const response = await chatService.generateResponse(
-      messages, 
+      messages,
       messages[messages.length - 1].content,
       modelId,
       collectionName
     );
-    res.json({ response });
+
+    // ส่งข้อมูลแบบ streaming
+    for (const chunk of response) {
+      res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+    }
+
+    res.write('data: [DONE]\n\n');
+    res.end();
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Failed to generate response' });

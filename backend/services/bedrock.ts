@@ -42,7 +42,6 @@ export class BedrockService {
         messages: messages.map(msg => {
           const content = [];
           
-          // ถ้ามีรูปภาพ
           if (msg.images && msg.images.length > 0) {
             msg.images.forEach(image => {
               content.push({
@@ -56,7 +55,6 @@ export class BedrockService {
             });
           }
           
-          // เพิ่มข้อความ
           content.push({
             type: "text",
             text: msg.content
@@ -67,13 +65,36 @@ export class BedrockService {
             content
           };
         }),
+        stream: true
       })
     });
 
     try {
       const response = await this.client.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      return { content: responseBody.content[0].text };
+      const stream = response.body as unknown as ReadableStream;
+      const reader = stream.getReader();
+      let content = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = new TextDecoder().decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.type === 'content_block_delta') {
+              content += parsed.delta.text;
+            }
+          } catch (e) {
+            console.error('Error parsing streaming response:', e);
+          }
+        }
+      }
+      
+      return { content };
     } catch (error) {
       console.error('Claude chat error:', error);
       throw error;
