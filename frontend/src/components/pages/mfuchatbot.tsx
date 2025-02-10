@@ -217,7 +217,6 @@ const MFUChatbot: React.FC = () => {
     if (!canSubmit()) return;
 
     setIsLoading(true);
-    setTypingCountdown(10); // เริ่มนับถอยหลัง 10 วินาที
 
     try {
       let processedImages;
@@ -238,9 +237,19 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
+      // เพิ่มข้อความผู้ใช้
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
       setSelectedImages([]);
+
+      // เพิ่มข้อความ AI เปล่าๆ ทันที
+      const aiMessage = {
+        id: messages.length + 2,
+        role: 'assistant' as const,
+        content: '',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -260,7 +269,6 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let accumulatedResponse = '';
-      let isFirstChunk = true;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -273,32 +281,20 @@ const MFUChatbot: React.FC = () => {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(5));
+              accumulatedResponse += data.content;
               
-              // เมื่อได้รับ chunk แรก ให้เพิ่มข้อความ AI
-              if (isFirstChunk) {
-                setMessages(prev => [...prev, {
-                  id: prev.length + 1,
-                  role: 'assistant',
-                  content: data.content,
-                  timestamp: new Date()
-                }]);
-                isFirstChunk = false;
-                setTypingCountdown(null); // ยกเลิก typing indicator
-              } else {
-                // อัพเดทข้อความที่มีอยู่
-                accumulatedResponse += data.content;
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  if (lastMessage.role === 'assistant') {
-                    return [
-                      ...newMessages.slice(0, -1),
-                      { ...lastMessage, content: accumulatedResponse }
-                    ];
-                  }
-                  return newMessages;
-                });
-              }
+              // อัพเดทข้อความทันทีที่ได้รับแต่ละ chunk
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.role === 'assistant') {
+                  return [
+                    ...newMessages.slice(0, -1),
+                    { ...lastMessage, content: accumulatedResponse }
+                  ];
+                }
+                return newMessages;
+              });
             } catch (e) {
               console.error('Error parsing SSE data:', e);
             }
@@ -315,10 +311,8 @@ const MFUChatbot: React.FC = () => {
         },
         body: JSON.stringify({
           messages: [...messages, newMessage, {
-            id: messages.length + 2,
-            role: 'assistant',
-            content: accumulatedResponse,
-            timestamp: new Date()
+            ...aiMessage,
+            content: accumulatedResponse
           }],
           modelId: selectedModel,
           collectionName: selectedCollection
@@ -335,7 +329,6 @@ const MFUChatbot: React.FC = () => {
       }]);
     } finally {
       setIsLoading(false);
-      setTypingCountdown(null); // ยกเลิก typing indicator เมื่อเสร็จสิ้น
     }
   };
 
