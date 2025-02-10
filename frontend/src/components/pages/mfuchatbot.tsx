@@ -478,6 +478,17 @@ const MFUChatbot: React.FC = () => {
     );
   };
 
+  // เพิ่ม component ใหม่สำหรับ loading animation
+  const LoadingAnimation = () => (
+    <div className="flex items-center gap-2 p-4">
+      <div className="flex gap-2">
+        <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]"></div>
+        <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]"></div>
+        <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce"></div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Chat Messages */}
@@ -584,6 +595,15 @@ const MFUChatbot: React.FC = () => {
                 )}
               </div>
             ))}
+            {isLoading && (
+              <div className="mb-4">
+                <div className={`flex ${messages[messages.length - 1].role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className="max-w-[80%]">
+                    <LoadingAnimation />
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         )}
