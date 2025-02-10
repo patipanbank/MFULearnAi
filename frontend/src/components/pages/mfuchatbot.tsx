@@ -46,7 +46,7 @@ const MFUChatbot: React.FC = () => {
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string>('');
-  const [copySuccess, setCopySuccess] = useState(false);
+  // const [copySuccess, setCopySuccess] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
   const scrollToBottom = () => {
@@ -350,17 +350,17 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  const handleCopy = (content: string) => {
-    navigator.clipboard.writeText(content).then(() => {
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
-    });
-  };
+  // const handleCopy = (content: string) => {
+  //   navigator.clipboard.writeText(content).then(() => {
+  //     setCopySuccess(true);
+  //     setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
+  //   });
+  // };
 
-  const isDayTime = () => {
-    const hour = new Date().getHours();
-    return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
-  };
+  // const isDayTime = () => {
+  //   const hour = new Date().getHours();
+  //   return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
+  // };
 
   // เพิ่มฟังก์ชันสำหรับตรวจสอบขนาดไฟล์
   const validateImageFile = (file: File): boolean => {
@@ -414,8 +414,8 @@ const MFUChatbot: React.FC = () => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // เพิ่มฟังก์ชันสำหรับแปลงข้อความเป็น component
-  const MessageContent = ({ content }: { content: string }) => {
+  // แก้ไข MessageContent component
+  const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
     const copyToClipboard = (code: string, index: number) => {
@@ -424,40 +424,55 @@ const MFUChatbot: React.FC = () => {
       setTimeout(() => setCopiedIndex(null), 2000);
     };
 
-    const parts = content.split(/(```[\s\S]*?```)/g);
+    // แยกการ render content ออกมา
+    const renderContent = (content: string) => {
+      const parts = content.split(/(```[\s\S]*?```)/g);
+
+      return parts.map((part, index) => {
+        if (part.startsWith('```') && part.endsWith('```')) {
+          const [, language = '', code = ''] = part.match(/```(\w*)\n?([\s\S]*?)```/) || [];
+          return (
+            <div key={index} className="my-2 relative">
+              <div className="flex justify-between items-center bg-[#1E1E1E] text-white text-xs px-4 py-2 rounded-t">
+                <span>{language || 'plaintext'}</span>
+                <button
+                  onClick={() => copyToClipboard(code.trim(), index)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  {copiedIndex === index ? 'Copied!' : 'Copy code'}
+                </button>
+              </div>
+              <SyntaxHighlighter
+                language={language || 'plaintext'}
+                style={vscDarkPlus}
+                customStyle={{
+                  margin: 0,
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                }}
+              >
+                {code.trim()}
+              </SyntaxHighlighter>
+            </div>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      });
+    };
 
     return (
-      <div className="whitespace-pre-wrap text-sm md:text-base">
-        {parts.map((part, index) => {
-          if (part.startsWith('```') && part.endsWith('```')) {
-            const [, language = '', code = ''] = part.match(/```(\w*)\n?([\s\S]*?)```/) || [];
-            return (
-              <div key={index} className="my-2 relative">
-                <div className="flex justify-between items-center bg-[#1E1E1E] text-white text-xs px-4 py-2 rounded-t">
-                  <span>{language || 'plaintext'}</span>
-                  <button
-                    onClick={() => copyToClipboard(code.trim(), index)}
-                    className="text-gray-400 hover:text-white"
-                  >
-                    {copiedIndex === index ? 'Copied!' : 'Copy code'}
-                  </button>
-                </div>
-                <SyntaxHighlighter
-                  language={language || 'plaintext'}
-                  style={vscDarkPlus}
-                  customStyle={{
-                    margin: 0,
-                    borderTopLeftRadius: 0,
-                    borderTopRightRadius: 0,
-                  }}
-                >
-                  {code.trim()}
-                </SyntaxHighlighter>
-              </div>
-            );
-          }
-          return <span key={index}>{part}</span>;
-        })}
+      <div className="space-y-2">
+        {message.images?.map((img, index) => (
+          <img
+            key={index}
+            src={`data:${img.mediaType};base64,${img.data}`}
+            alt="Uploaded content"
+            className="max-w-full h-auto rounded-lg"
+          />
+        ))}
+        <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
+          {renderContent(message.content)}
+        </div>
       </div>
     );
   };
@@ -503,17 +518,19 @@ const MFUChatbot: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {messages.map((message, index) => (
-              <div key={index} className="message relative">
-                <div className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                  }`}>
+            {messages.map((message) => (
+              <div key={message.id} className="message relative">
+                <div className={`flex items-start gap-3 ${
+                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                }`}>
                   {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${message.role === 'user'
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
+                    message.role === 'user'
                       ? 'bg-gradient-to-r from-red-600 to-yellow-400'
                       : 'bg-transparent'
-                    } flex items-center justify-center`}>
+                  } flex items-center justify-center`}>
                     {message.role === 'user' ? (
-                      <svg className={`w-5 h-5 ${isDayTime() ? 'text-white' : 'text-white'}`} fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                       </svg>
                     ) : (
@@ -526,44 +543,18 @@ const MFUChatbot: React.FC = () => {
                   </div>
 
                   {/* Message Content */}
-                  <div className={`max-w-[75%] md:max-w-[70%] ${message.role === 'user'
-                      ? 'ml-auto bg-blue-500 text-white'
-                      : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
-                    } rounded-lg p-3 md:p-4 relative`}>
-                    {/* แสดงรูปภาพถ้ามี */}
-                    {message.images && message.images.length > 0 && (
-                      <div className="mb-2">
-                        <div className="flex flex-wrap gap-2">
-                          {message.images.map((image, index) => (
-                            <div key={index} className="relative">
-                              <img
-                                key={index}
-                                src={`data:${image.mediaType};base64,${image.data}`}
-                                alt={`Uploaded ${index + 1}`}
-                                className="max-w-[200px] max-h-[200px] rounded object-contain"
-                              />
-                              {message.role === 'assistant' && (
-                                <button
-                                  onClick={() => handleCopy(image.data)}
-                                  className="absolute top-1 right-1 px-1 py-0.5 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded text-xs"
-                                >
-                                  {copySuccess ? 'Copied' : 'Copy'}
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className={`text-xs md:text-sm ${message.role === 'assistant'
-                        ? 'text-black'
-                        : 'text-black'
-                      } ${message.role === 'user' ? 'text-white' : ''} mb-1`}>
-                      {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
+                  <div className={`flex flex-col space-y-2 max-w-[80%] ${
+                    message.role === 'user' ? 'items-end' : 'items-start'
+                  }`}>
+                    <div className="text-sm text-gray-500">
+                      {new Date(message.timestamp).toLocaleTimeString()}
                     </div>
-                    <div className="whitespace-pre-wrap text-sm md:text-base">
-                      <MessageContent content={message.content} />
+                    <div className={`rounded-lg p-3 ${
+                      message.role === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
+                    }`}>
+                      <MessageContent message={message} />
                     </div>
                   </div>
                 </div>
