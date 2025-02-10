@@ -31,25 +31,42 @@ router.use(verifyToken);
 
 router.post('/', async (req: Request, res: Response) => {
   try {
+    console.log('Received chat request:', {
+      body: req.body,
+      headers: req.headers,
+      url: req.url,
+      method: req.method
+    });
+
     const { messages, modelId, collectionName } = req.body;
     const query = messages[messages.length - 1].content;
 
-    // Set headers for SSE
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Transfer-Encoding', 'chunked');
+    console.log('Processing chat with:', {
+      modelId,
+      collectionName,
+      lastMessage: query
+    });
 
-    // Stream response
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    });
+
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      console.log('Streaming response chunk:', content);
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      // ใช้ flushHeaders แทน flush
-      res.flushHeaders();
     }
 
+    console.log('Chat response completed');
     res.end();
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error('Chat error details:', {
+      error,
+      stack: (error as Error).stack,
+      url: req.url,
+      method: req.method
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
