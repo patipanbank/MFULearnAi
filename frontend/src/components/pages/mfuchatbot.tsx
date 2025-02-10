@@ -217,6 +217,7 @@ const MFUChatbot: React.FC = () => {
     if (!canSubmit()) return;
 
     setIsLoading(true);
+    let streamedText = '';
 
     try {
       let processedImages;
@@ -268,35 +269,40 @@ const MFUChatbot: React.FC = () => {
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
-      let streamedText = '';
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
 
-        const text = new TextDecoder().decode(value);
-        const lines = text.split('\n');
+          const chunk = new TextDecoder().decode(value);
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const { content } = JSON.parse(line.slice(5));
-              streamedText += content;
-              
-              // อัพเดท UI ทันที
-              setMessages(prev => prev.map(msg => 
-                msg.id === aiMessage.id 
-                  ? { ...msg, content: streamedText }
-                  : msg
-              ));
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const { content } = JSON.parse(line.slice(5));
+                if (content) {
+                  streamedText += content;
+                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === aiMessage.id 
+                      ? { ...msg, content: streamedText }
+                      : msg
+                  ));
+                }
+              } catch (e) {
+                console.error('Error parsing chunk:', e);
+              }
             }
           }
         }
+      } catch (error) {
+        console.error('Error reading stream:', error);
+        throw error;
       }
 
-      // บันทึกประวัติแชท
+      // บันทึกประวัติแชทหลังจากได้ข้อความครบ
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
