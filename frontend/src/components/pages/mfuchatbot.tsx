@@ -478,15 +478,6 @@ const MFUChatbot: React.FC = () => {
     );
   };
 
-  // เพิ่ม component สำหรับ loading animation
-  const LoadingDots = () => (
-    <div className="flex items-center space-x-1">
-      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-    </div>
-  );
-
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Chat Messages */}
@@ -529,16 +520,68 @@ const MFUChatbot: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {messages.map((message) => (
-              <div key={message.id} className="mb-4">
-                <div className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-[80%] ${message.role === 'assistant' ? 'bg-gray-100' : 'bg-blue-500 text-white'} rounded-lg p-3`}>
-                    {message.role === 'assistant' && message.content === '' && isLoading ? (
-                      <LoadingDots />
+              <div key={message.id} className="message relative">
+                <div className={`flex items-start gap-3 ${
+                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                }`}>
+                  {/* Avatar */}
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
+                    message.role === 'user'
+                      ? 'bg-gradient-to-r from-red-600 to-yellow-400'
+                      : 'bg-transparent'
+                  } flex items-center justify-center`}>
+                    {message.role === 'user' ? (
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
                     ) : (
-                      <MessageContent message={message} />
+                      <img
+                        src="/dindin.PNG"
+                        alt="AI Assistant"
+                        className="w-full h-full object-cover"
+                      />
                     )}
                   </div>
+
+                  {/* Message Content */}
+                  <div className={`flex flex-col space-y-2 max-w-[80%] ${
+                    message.role === 'user' ? 'items-end' : 'items-start'
+                  }`}>
+                    <div className="text-sm text-gray-500">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </div>
+                    <div className={`rounded-lg p-3 ${
+                      message.role === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
+                    }`}>
+                      <MessageContent message={message} />
+                    </div>
+                  </div>
                 </div>
+
+                {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                  <div className="ml-2 mt-1">
+                    <button
+                      onClick={() => {
+                        const sourceInfo = message.sources?.map(source =>
+                          `Model: ${source.modelId}\n` +
+                          `Collection: ${source.collectionName}\n` +
+                          `File: ${source.filename}\n` +
+                          `Source: ${source.source || 'N/A'}\n` +
+                          `Similarity: ${(source.similarity * 100).toFixed(1)}%`
+                        ).join('\n\n');
+                        alert(sourceInfo);
+                      }}
+                      className="text-xs text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      View Sources ({message.sources.length})
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             <div ref={messagesEndRef} />
