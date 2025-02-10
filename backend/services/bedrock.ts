@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { ChatMessage } from '../types/chat';
 
 export class BedrockService {
@@ -17,60 +17,83 @@ export class BedrockService {
     });
   }
 
-  // Streaming chat method
-  async chatStream(messages: ChatMessage[], modelId: string): Promise<ReadableStream> {
-    if (modelId !== this.models.claude35) {
+  async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
+    try {
+      if (modelId === this.models.claude35) {
+        return this.claudeChat(messages);
+      }
       throw new Error('Unsupported model');
+    } catch (error) {
+      console.error('Bedrock chat error:', error);
+      throw error;
     }
-    return this.claudeChatStream(messages);
   }
 
-  private async claudeChatStream(messages: ChatMessage[]): Promise<ReadableStream> {
-    const command = new InvokeModelWithResponseStreamCommand({
+  private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
+    const command = new InvokeModelCommand({
       modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 1000,
+        max_tokens: 375,
         temperature: 0.7,
         top_p: 0.9,
-        // stream: true,
-        messages: messages.map(msg => ({
-          role: msg.role === 'user' ? 'user' : 'assistant',
-          content: [{ type: "text", text: msg.content }]
-        })),
+        messages: messages.map(msg => {
+          const content = [];
+          
+          // ถ้ามีรูปภาพ
+          if (msg.images && msg.images.length > 0) {
+            msg.images.forEach(image => {
+              content.push({
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: image.mediaType || "image/jpeg",
+                  data: image.data
+                }
+              });
+            });
+          }
+          
+          // เพิ่มข้อความ
+          content.push({
+            type: "text",
+            text: msg.content
+          });
+
+          return {
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content
+          };
+        }),
       })
     });
 
     try {
       const response = await this.client.send(command);
-
-      if (!response.body) {
-        throw new Error("Empty response body");
-      }
-
-      return new ReadableStream({
-        async start(controller) {
-          const decoder = new TextDecoder();
-          try {
-            for await (const chunk of response.body!) {
-              if (chunk?.chunk?.bytes) {
-                const textChunk = decoder.decode(chunk.chunk.bytes, { stream: true });
-                controller.enqueue(new TextEncoder().encode(textChunk));
-              }
-            }
-          } catch (error) {
-            console.error("Error reading stream:", error);
-            controller.error(error);
-          } finally {
-            controller.close();
-          }
-        }
-      });
-
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      return { content: responseBody.content[0].text };
     } catch (error) {
-      console.error('Claude chat stream error:', error);
+      console.error('Claude chat error:', error);
+      throw error;
+    }
+  }
+
+  async chatWithEstimatedTime(messages: ChatMessage[], modelId: string): Promise<{ content: string, estimatedTime: number }> {
+    try {
+      const estimatedTime = 10; // Simulate an estimated time of 10 seconds
+      const startTime = Date.now();
+
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, estimatedTime * 1000));
+
+      const response = await this.chat(messages, modelId);
+      const elapsedTime = (Date.now() - startTime) / 1000;
+
+      return { content: response.content, estimatedTime: Math.max(0, estimatedTime - elapsedTime) };
+    } catch (error) {
+      console.error('Bedrock chat with estimated time error:', error);
       throw error;
     }
   }

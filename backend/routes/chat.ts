@@ -4,7 +4,6 @@ import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
-import { bedrockService } from '../services/bedrock';
 
 const router = Router();
 
@@ -32,41 +31,14 @@ router.use(verifyToken);
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { messages, modelId, collectionName, stream } = req.body;
-    
-    if (stream) {
-      // Set headers for streaming response
-      res.setHeader('Content-Type', 'text/plain');
-      res.setHeader('Transfer-Encoding', 'chunked');
-      
-      const stream = await bedrockService.chatStream(
-        messages,
-        modelId
-      );
-
-      const reader = stream.getReader();
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) {
-          break;
-        }
-        
-        res.write(value);
-      }
-      
-      res.end();
-    } else {
-      // Handle non-streaming response as before
-      const response = await chatService.generateResponse(
-        messages,
-        messages[messages.length - 1].content,
-        modelId,
-        collectionName
-      );
-      res.json({ response });
-    }
+    const { messages, modelId, collectionName } = req.body;
+    const response = await chatService.generateResponse(
+      messages, 
+      messages[messages.length - 1].content,
+      modelId,
+      collectionName
+    );
+    res.json({ response });
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Failed to generate response' });
