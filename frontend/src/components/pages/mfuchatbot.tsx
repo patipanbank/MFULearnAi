@@ -239,7 +239,10 @@ const MFUChatbot: React.FC = () => {
         processedImages = await Promise.all(
           selectedImages.map(async (file) => {
             const base64 = await compressImage(file);
-            return base64;
+            return {
+              data: base64.data,
+              mediaType: file.type
+            };
           })
         );
       }
@@ -264,28 +267,53 @@ const MFUChatbot: React.FC = () => {
       };
       setMessages(prev => [...prev, aiMessage]);
 
-      const eventSource = new EventSource(`${config.apiUrl}/api/chat/stream?` + new URLSearchParams({
-        messages: JSON.stringify([...messages, newMessage]),
-        modelId: selectedModel,
-        collectionName: selectedCollection
-      }));
+      // สร้าง URL สำหรับ EventSource
+      // const params = new URLSearchParams({
+      //   messages: JSON.stringify([...messages, newMessage]),
+      //   modelId: selectedModel,
+      //   collectionName: selectedCollection
+      // });
 
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          setMessages(prev => prev.map(msg => 
-            msg.id === aiMessage.id ? { ...msg, content: data.content } : msg
-          ));
-        } else if (data.type === 'end') {
-          eventSource.close();
-          setIsLoading(false);
+      // ใช้ fetch แทน EventSource เพื่อส่ง POST request
+      const response = await fetch(`${config.apiUrl}/api/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, newMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'update') {
+                setMessages(prev => prev.map(msg => 
+                  msg.id === aiMessage.id ? { ...msg, content: data.content } : msg
+                ));
+              } else if (data.type === 'end') {
+                setIsLoading(false);
+                break;
+              }
+            }
+          }
         }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        setIsLoading(false);
-      };
+      }
 
     } catch (error) {
       console.error('Error:', error);
