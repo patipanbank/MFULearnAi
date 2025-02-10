@@ -253,7 +253,7 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
-      const response = await fetch(`${config.apiUrl}/chat`, {
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
