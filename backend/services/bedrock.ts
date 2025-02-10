@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
 import { ChatMessage } from '../types/chat';
 
 export class BedrockService {
@@ -17,20 +17,21 @@ export class BedrockService {
     });
   }
 
-  async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
+  async *chat(messages: ChatMessage[], modelId: string): AsyncGenerator<string> {
     try {
       if (modelId === this.models.claude35) {
-        return this.claudeChat(messages);
+        yield* this.claudeChat(messages);
+      } else {
+        throw new Error('Unsupported model');
       }
-      throw new Error('Unsupported model');
     } catch (error) {
       console.error('Bedrock chat error:', error);
       throw error;
     }
   }
 
-  private async claudeChat(messages: ChatMessage[]): Promise<{ content: string }> {
-    const command = new InvokeModelCommand({
+  private async *claudeChat(messages: ChatMessage[]): AsyncGenerator<string> {
+    const command = new InvokeModelWithResponseStreamCommand({
       modelId: this.models.claude35,
       contentType: "application/json",
       accept: "application/json",
@@ -42,7 +43,6 @@ export class BedrockService {
         messages: messages.map(msg => {
           const content = [];
           
-          // ถ้ามีรูปภาพ
           if (msg.images && msg.images.length > 0) {
             msg.images.forEach(image => {
               content.push({
@@ -56,7 +56,6 @@ export class BedrockService {
             });
           }
           
-          // เพิ่มข้อความ
           content.push({
             type: "text",
             text: msg.content
@@ -72,26 +71,34 @@ export class BedrockService {
 
     try {
       const response = await this.client.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      return { content: responseBody.content[0].text };
+      if (response.body) {
+        for await (const chunk of response.body) {
+          if (chunk.chunk?.bytes) {
+            const decodedChunk = JSON.parse(new TextDecoder().decode(chunk.chunk.bytes));
+            if (decodedChunk.type === 'content_block' && decodedChunk.content && decodedChunk.content[0].type === 'text') {
+              yield decodedChunk.content[0].text;
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Claude chat error:', error);
       throw error;
     }
   }
 
-  async chatWithEstimatedTime(messages: ChatMessage[], modelId: string): Promise<{ content: string, estimatedTime: number }> {
+  async *chatWithEstimatedTime(messages: ChatMessage[], modelId: string): AsyncGenerator<{ content: string, estimatedTime: number }> {
+    const estimatedTime = 10; // ประมาณเวลา 10 วินาที
+    const startTime = Date.now();
+
     try {
-      const estimatedTime = 10; // Simulate an estimated time of 10 seconds
-      const startTime = Date.now();
-
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, estimatedTime * 1000));
-
-      const response = await this.chat(messages, modelId);
-      const elapsedTime = (Date.now() - startTime) / 1000;
-
-      return { content: response.content, estimatedTime: Math.max(0, estimatedTime - elapsedTime) };
+      for await (const chunk of this.chat(messages, modelId)) {
+        const elapsedTime = (Date.now() - startTime) / 1000;
+        yield { 
+          content: chunk, 
+          estimatedTime: Math.max(0, estimatedTime - elapsedTime) 
+        };
+      }
     } catch (error) {
       console.error('Bedrock chat with estimated time error:', error);
       throw error;

@@ -31,10 +31,8 @@ interface Message {
 }
 
 const modelNames: { [key: string]: string } = {
-  // 'amazon.titan-text-express-v1': 'Titan Express 1',
-  // 'anthropic.claude-v2': 'Claude',
   'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
-  // 'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku'
+
 };
 
 const MFUChatbot: React.FC = () => {
@@ -51,7 +49,6 @@ const MFUChatbot: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -231,9 +228,9 @@ const MFUChatbot: React.FC = () => {
     e.preventDefault();
     if (!canSubmit()) return;
 
-    try {
-      setIsLoading(true);
+    setIsLoading(true);
 
+    try {
       let processedImages;
       if (selectedImages.length > 0) {
         processedImages = await Promise.all(
@@ -252,21 +249,6 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      // บันทึกข้อความและรูปภาพลงในประวัติ
-      const token = localStorage.getItem('auth_token');
-      await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messages: [...messages, newMessage],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
-
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
       setSelectedImages([]);
@@ -284,20 +266,50 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
+      if (!response.ok) throw new Error('Failed to get response');
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedResponse = '';
+      let lastEstimatedTime = 10;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            accumulatedResponse += data.content;
+            lastEstimatedTime = data.estimatedTime;
+
+            setMessages(prev => {
+              const lastMessage = prev[prev.length - 1];
+              if (lastMessage.role === 'assistant') {
+                return [
+                  ...prev.slice(0, -1),
+                  { ...lastMessage, content: accumulatedResponse }
+                ];
+              } else {
+                return [
+                  ...prev,
+                  {
+                    id: prev.length + 2,
+                    role: 'assistant' as const,
+                    content: accumulatedResponse,
+                    timestamp: new Date()
+                  }
+                ];
+              }
+            });
+
+            setTypingCountdown(lastEstimatedTime);
+          }
+        }
       }
-
-      const data = await response.json();
-
-      const assistantMessage = {
-        id: messages.length + 2,
-        role: 'assistant' as const,
-        content: data.response,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
 
       // บันทึกประวัติแชท
       await fetch(`${config.apiUrl}/api/chat/history`, {
@@ -307,7 +319,12 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, newMessage, assistantMessage],
+          messages: [...messages, newMessage, {
+            id: messages.length + 2,
+            role: 'assistant' as const,
+            content: accumulatedResponse,
+            timestamp: new Date()
+          }],
           modelId: selectedModel,
           collectionName: selectedCollection
         })

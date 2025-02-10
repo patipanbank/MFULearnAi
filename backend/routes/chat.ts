@@ -29,19 +29,25 @@ const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
 router.use(verifyToken);
 
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/chat', async (req: Request, res: Response) => {
   try {
     const { messages, modelId, collectionName } = req.body;
-    const response = await chatService.generateResponse(
-      messages, 
-      messages[messages.length - 1].content,
-      modelId,
-      collectionName
-    );
-    res.json({ response });
+    const query = messages[messages.length - 1].content;
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    });
+
+    for await (const { content, estimatedTime } of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      res.write(`data: ${JSON.stringify({ content, estimatedTime })}\n\n`);
+    }
+
+    res.end();
   } catch (error) {
     console.error('Chat error:', error);
-    res.status(500).json({ error: 'Failed to generate response' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
