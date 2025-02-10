@@ -3,7 +3,8 @@ import { BiLoaderAlt } from 'react-icons/bi';
 import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
-
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Source {
   modelId: string;
@@ -46,6 +47,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
   const scrollToBottom = () => {
@@ -153,6 +155,16 @@ const MFUChatbot: React.FC = () => {
     loadChatHistory();
   }, []);
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (typingCountdown !== null && typingCountdown > 0) {
+      timer = setTimeout(() => {
+        setTypingCountdown(prev => prev !== null ? prev - 1 : null);
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [typingCountdown]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
   };
@@ -225,12 +237,12 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      // เพิ่มข้อความผู้ใช้และเคลียร์ input
+      // เพิ่มข้อความผู้ใช้
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
-      // สร้างข้อความ AI เปล่าๆ ไว้รอรับ streaming
+      // เพิ่มข้อความ AI เปล่าๆ
       const aiMessage = {
         id: messages.length + 2,
         role: 'assistant' as const,
@@ -258,35 +270,30 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body.getReader();
       let streamedText = '';
 
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-          const chunk = new TextDecoder().decode(value);
-          const lines = chunk.split('\n');
+        const text = new TextDecoder().decode(value);
+        const lines = text.split('\n');
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const { content } = JSON.parse(line.slice(5));
-                if (content) {
-                  streamedText += content;
-                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === aiMessage.id 
-                      ? { ...msg, content: streamedText }
-                      : msg
-                  ));
-                }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
-              }
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const { content } = JSON.parse(line.slice(5));
+              streamedText += content;
+              
+              // อัพเดท UI ทันที
+              setMessages(prev => prev.map(msg => 
+                msg.id === aiMessage.id 
+                  ? { ...msg, content: streamedText }
+                  : msg
+              ));
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }
-      } catch (error) {
-        console.error('Error reading stream:', error);
       }
 
       // บันทึกประวัติแชท
@@ -414,10 +421,49 @@ const MFUChatbot: React.FC = () => {
   };
 
   // เพิ่มฟังก์ชันสำหรับแปลงข้อความเป็น component
-  const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
+  const MessageContent = ({ content }: { content: string }) => {
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+    const copyToClipboard = (code: string, index: number) => {
+      navigator.clipboard.writeText(code);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    };
+
+    const parts = content.split(/(```[\s\S]*?```)/g);
+
     return (
-      <div className="flex-1 space-y-2 overflow-hidden break-words">
-        {message.content}
+      <div className="whitespace-pre-wrap text-sm md:text-base">
+        {parts.map((part, index) => {
+          if (part.startsWith('```') && part.endsWith('```')) {
+            const [, language = '', code = ''] = part.match(/```(\w*)\n?([\s\S]*?)```/) || [];
+            return (
+              <div key={index} className="my-2 relative">
+                <div className="flex justify-between items-center bg-[#1E1E1E] text-white text-xs px-4 py-2 rounded-t">
+                  <span>{language || 'plaintext'}</span>
+                  <button
+                    onClick={() => copyToClipboard(code.trim(), index)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    {copiedIndex === index ? 'Copied!' : 'Copy code'}
+                  </button>
+                </div>
+                <SyntaxHighlighter
+                  language={language || 'plaintext'}
+                  style={vscDarkPlus}
+                  customStyle={{
+                    margin: 0,
+                    borderTopLeftRadius: 0,
+                    borderTopRightRadius: 0,
+                  }}
+                >
+                  {code.trim()}
+                </SyntaxHighlighter>
+              </div>
+            );
+          }
+          return <span key={index}>{part}</span>;
+        })}
       </div>
     );
   };
@@ -523,7 +569,7 @@ const MFUChatbot: React.FC = () => {
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                     </div>
                     <div className="whitespace-pre-wrap text-sm md:text-base">
-                      <MessageContent message={message} />
+                      <MessageContent content={message.content} />
                     </div>
                   </div>
                 </div>
@@ -564,6 +610,9 @@ const MFUChatbot: React.FC = () => {
                 <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
                   <div className="flex items-center space-x-2">
                     <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-300">
+                      Typing... {typingCountdown !== null ? `${typingCountdown}s left` : ''}
+                    </span>
                   </div>
                 </div>
               </div>
