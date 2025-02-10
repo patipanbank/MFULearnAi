@@ -427,49 +427,53 @@ const MFUChatbot: React.FC = () => {
   };
 
   // เพิ่มฟังก์ชันสำหรับแปลงข้อความเป็น component
-  const MessageContent = ({ content }: { content: string }) => {
-    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-
-    const copyToClipboard = (code: string, index: number) => {
-      navigator.clipboard.writeText(code);
-      setCopiedIndex(index);
-      setTimeout(() => setCopiedIndex(null), 2000);
+  const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
+    const renderContent = (content: string) => {
+      const parts = content.split(/(```[\s\S]*?```)/);
+      
+      return parts.map((part, index) => {
+        if (part.startsWith('```') && part.endsWith('```')) {
+          const [firstLine, ...rest] = part.slice(3, -3).split('\n');
+          const language = firstLine.trim();
+          const code = rest.join('\n');
+          
+          return (
+            <div key={index} className="relative group my-2">
+              <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => handleCopy(code)}
+                  className="bg-gray-700 text-white px-2 py-1 rounded text-sm hover:bg-gray-600"
+                >
+                  {copySuccess ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <SyntaxHighlighter
+                language={language}
+                style={vscDarkPlus}
+                className="rounded-lg"
+              >
+                {code}
+              </SyntaxHighlighter>
+            </div>
+          );
+        }
+        return <p key={index} className="whitespace-pre-wrap">{part}</p>;
+      });
     };
 
-    const parts = content.split(/(```[\s\S]*?```)/g);
-
     return (
-      <div className="whitespace-pre-wrap text-sm md:text-base">
-        {parts.map((part, index) => {
-          if (part.startsWith('```') && part.endsWith('```')) {
-            const [, language = '', code = ''] = part.match(/```(\w*)\n?([\s\S]*?)```/) || [];
-            return (
-              <div key={index} className="my-2 relative">
-                <div className="flex justify-between items-center bg-[#1E1E1E] text-white text-xs px-4 py-2 rounded-t">
-                  <span>{language || 'plaintext'}</span>
-                  <button
-                    onClick={() => copyToClipboard(code.trim(), index)}
-                    className="text-gray-400 hover:text-white"
-                  >
-                    {copiedIndex === index ? 'Copied!' : 'Copy code'}
-                  </button>
-                </div>
-                <SyntaxHighlighter
-                  language={language || 'plaintext'}
-                  style={vscDarkPlus}
-                  customStyle={{
-                    margin: 0,
-                    borderTopLeftRadius: 0,
-                    borderTopRightRadius: 0,
-                  }}
-                >
-                  {code.trim()}
-                </SyntaxHighlighter>
-              </div>
-            );
-          }
-          return <span key={index}>{part}</span>;
-        })}
+      <div className="space-y-2">
+        {message.images?.map((img, index) => (
+          <img
+            key={index}
+            src={`data:${img.mediaType};base64,${img.data}`}
+            alt="Uploaded content"
+            className="max-w-full h-auto rounded-lg"
+          />
+        ))}
+        <div className="overflow-hidden break-words">
+          {renderContent(message.content)}
+        </div>
       </div>
     );
   };
@@ -575,7 +579,7 @@ const MFUChatbot: React.FC = () => {
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                     </div>
                     <div className="whitespace-pre-wrap text-sm md:text-base">
-                      <MessageContent content={message.content} />
+                      <MessageContent message={message} />
                     </div>
                   </div>
                 </div>
