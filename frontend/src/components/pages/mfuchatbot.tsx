@@ -156,26 +156,14 @@ const MFUChatbot: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    let countdownInterval: NodeJS.Timeout;
-
-    if (isLoading) {
-      setTypingCountdown(10); // Set the countdown to 10 seconds or any desired duration
-
-      countdownInterval = setInterval(() => {
-        setTypingCountdown((prev) => {
-          if (prev === null || prev <= 1) {
-            clearInterval(countdownInterval);
-            return null;
-          }
-          return prev - 1;
-        });
+    let timer: NodeJS.Timeout;
+    if (typingCountdown !== null && typingCountdown > 0) {
+      timer = setTimeout(() => {
+        setTypingCountdown(prev => prev !== null ? prev - 1 : null);
       }, 1000);
-    } else {
-      setTypingCountdown(null);
     }
-
-    return () => clearInterval(countdownInterval);
-  }, [isLoading]);
+    return () => clearTimeout(timer);
+  }, [typingCountdown]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
@@ -229,6 +217,7 @@ const MFUChatbot: React.FC = () => {
     if (!canSubmit()) return;
 
     setIsLoading(true);
+    setTypingCountdown(10); // เริ่มนับถอยหลัง 10 วินาที
 
     try {
       let processedImages;
@@ -253,15 +242,6 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
-      // เพิ่มข้อความ AI response เปล่าๆ ก่อน
-      const aiMessage = {
-        id: messages.length + 2,
-        role: 'assistant' as const,
-        content: '',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMessage]);
-
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -280,6 +260,7 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let accumulatedResponse = '';
+      let isFirstChunk = true;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -292,20 +273,32 @@ const MFUChatbot: React.FC = () => {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(5));
-              accumulatedResponse += data.content;
               
-              // อัพเดทข้อความทันทีที่ได้รับ chunk
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage.role === 'assistant') {
-                  return [
-                    ...newMessages.slice(0, -1),
-                    { ...lastMessage, content: accumulatedResponse }
-                  ];
-                }
-                return newMessages;
-              });
+              // เมื่อได้รับ chunk แรก ให้เพิ่มข้อความ AI
+              if (isFirstChunk) {
+                setMessages(prev => [...prev, {
+                  id: prev.length + 1,
+                  role: 'assistant',
+                  content: data.content,
+                  timestamp: new Date()
+                }]);
+                isFirstChunk = false;
+                setTypingCountdown(null); // ยกเลิก typing indicator
+              } else {
+                // อัพเดทข้อความที่มีอยู่
+                accumulatedResponse += data.content;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  if (lastMessage.role === 'assistant') {
+                    return [
+                      ...newMessages.slice(0, -1),
+                      { ...lastMessage, content: accumulatedResponse }
+                    ];
+                  }
+                  return newMessages;
+                });
+              }
             } catch (e) {
               console.error('Error parsing SSE data:', e);
             }
@@ -342,6 +335,7 @@ const MFUChatbot: React.FC = () => {
       }]);
     } finally {
       setIsLoading(false);
+      setTypingCountdown(null); // ยกเลิก typing indicator เมื่อเสร็จสิ้น
     }
   };
 
