@@ -204,34 +204,42 @@ const MFUChatbot: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit()) return;
-  
+
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
-  
+
     try {
-      const processedImages = await Promise.all(
-        selectedImages.map(compressImage)
-      );
-  
+      let processedImages;
+      if (selectedImages.length > 0) {
+        processedImages = await Promise.all(
+          selectedImages.map(async (file) => {
+            const base64 = await compressImage(file);
+            return base64;
+          })
+        );
+      }
+
       const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
         content: inputMessage.trim(),
         timestamp: new Date(),
-        images: processedImages.length > 0 ? processedImages : undefined
+        images: processedImages
       };
-  
+
+      setMessages(prev => [...prev, userMessage]);
+      setInputMessage('');
+      setSelectedImages([]);
+
+      // เพิ่มข้อความ AI เปล่าๆ ทันที
       const aiMessage = {
         id: aiMessageId,
         role: 'assistant' as const,
         content: '',
         timestamp: new Date()
       };
-  
-      setMessages(prev => [...prev, userMessage, aiMessage]);
-      setInputMessage('');
-      setSelectedImages([]);
-  
+      setMessages(prev => [...prev, aiMessage]);
+
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -244,44 +252,56 @@ const MFUChatbot: React.FC = () => {
           collectionName: selectedCollection
         })
       });
-  
+
       if (!response.ok) throw new Error('Failed to get response');
       
       const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      let accumulatedText = '';
       const decoder = new TextDecoder();
-  
-      while (true) {
-        const { value, done } = await reader!.read();
-        if (done) break;
-  
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n\n');
-  
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const { content } = JSON.parse(line.replace('data: ', '').trim());
-              
-              if (content) {
-                setMessages(prev => 
-                  prev.map(msg => 
-                    msg.id === aiMessageId
-                      ? { ...msg, content: msg.content + content }
-                      : msg
-                  )
-                );
+
+      try {
+        // ใช้ requestAnimationFrame เพื่อให้ UI อัพเดทได้ทัน
+        const processStream = async () => {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const { content } = JSON.parse(line.slice(5));
+                  if (content) {
+                    accumulatedText += content;
+                    // อัพเดท UI ด้วย requestAnimationFrame
+                    requestAnimationFrame(() => {
+                      setMessages(prev => 
+                        prev.map(msg => 
+                          msg.id === aiMessageId
+                            ? { ...msg, content: accumulatedText }
+                            : msg
+                        )
+                      );
+                    });
+                  }
+                } catch (e) {
+                  console.error('Error parsing chunk:', e);
+                }
               }
-            } catch (e) {
-              console.error('Parsing error:', e, 'Raw line:', line);
             }
           }
-        }
+        };
+
+        await processStream();
+      } finally {
+        reader.releaseLock();
       }
-  
-      // Save chat history after complete response
-      const updatedMessages = messages.map(msg => 
-        msg.id === aiMessageId ? { ...msg, content: msg.content } : msg
-      );
+
+      // บันทึกประวัติแชท
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
@@ -289,19 +309,20 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: updatedMessages,
+          messages: [...messages, userMessage, { ...aiMessage, content: accumulatedText }],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
       });
-  
+
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => prev.map(msg => 
-        msg.id === aiMessageId
-          ? { ...msg, content: 'Sorry, there was an error during processing. Please try again.' }
-          : msg
-      ));
+      setMessages(prev => [...prev, {
+        id: aiMessageId,
+        role: 'assistant',
+        content: 'Sorry, there was an error during processing. Please try again.',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -339,7 +360,7 @@ const MFUChatbot: React.FC = () => {
       console.error('Error clearing chat:', error);
     }
   };
-
+  
   // เพิ่มฟังก์ชันสำหรับตรวจสอบขนาดไฟล์
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024; // 20MB
