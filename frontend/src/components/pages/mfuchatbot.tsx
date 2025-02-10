@@ -206,7 +206,7 @@ const MFUChatbot: React.FC = () => {
     if (!canSubmit()) return;
 
     setIsLoading(true);
-    const aiMessageId = messages.length + 2; // สร้าง ID ไว้ใช้อ้างอิง
+    const aiMessageId = messages.length + 2;
 
     try {
       let processedImages;
@@ -227,7 +227,6 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      // เพิ่มข้อความผู้ใช้
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
@@ -260,41 +259,38 @@ const MFUChatbot: React.FC = () => {
       if (!reader) throw new Error('No response body');
 
       let accumulatedText = '';
+      const decoder = new TextDecoder();
 
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-          const chunk = new TextDecoder().decode(value);
-          const lines = chunk.split('\n');
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const { content } = JSON.parse(line.slice(5));
-                if (content) {
-                  accumulatedText += content;
-                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === aiMessageId
-                        ? { ...msg, content: accumulatedText }
-                        : msg
-                    )
-                  );
-                }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const { content } = JSON.parse(line.slice(5));
+              if (content) {
+                accumulatedText += content;
+                // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
+                setMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === aiMessageId
+                      ? { ...msg, content: accumulatedText }
+                      : msg
+                  )
+                );
               }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }
-      } finally {
-        reader.releaseLock();
       }
 
-      // บันทึกประวัติแชท
+      // บันทึกประวัติแชทหลังจากได้ข้อความครบ
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
