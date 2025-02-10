@@ -10,7 +10,7 @@ const logger = {
 };
 
 export class ChatService {
-  private systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
+  // private systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
   // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
 
   private isRelevantQuestion(query: string): boolean {
@@ -46,7 +46,8 @@ export class ChatService {
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context:', context);
 
-      const systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
+      const systemPrompt = ``;
+      // You are DinDin, a male AI. Keep responses brief and to the point.
       // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
 
       const augmentedMessages = [

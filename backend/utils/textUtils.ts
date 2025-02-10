@@ -1,4 +1,4 @@
-export function splitTextIntoChunks(text: string, chunkSize: number = 4000): string[] {
+export function splitTextIntoChunks(text: string, chunkSize: number = 2000): string[] {
   // ทำความสะอาดข้อความ
   const cleanText = text
     .trim()
@@ -16,13 +16,15 @@ export function splitTextIntoChunks(text: string, chunkSize: number = 4000): str
   const chunks: string[] = [];
   let currentChunk = '';
   const words = cleanText.split(' ');
+  const overlap = 200; // ความยาวที่ให้ chunks ทับซ้อนกัน
 
   for (const word of words) {
     if ((currentChunk + ' ' + word).length <= chunkSize) {
       currentChunk += (currentChunk ? ' ' : '') + word;
     } else {
-      if (currentChunk) chunks.push(currentChunk.trim());
-      currentChunk = word;
+      chunks.push(currentChunk.trim());
+      // เก็บคำสุดท้ายไว้เป็น overlap
+      currentChunk = currentChunk.split(' ').slice(-overlap).join(' ') + ' ' + word;
     }
   }
 
