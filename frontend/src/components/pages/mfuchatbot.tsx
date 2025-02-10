@@ -279,7 +279,9 @@ const MFUChatbot: React.FC = () => {
       }
   
       // Save chat history after complete response
-      const updatedMessages = messages.concat([userMessage, aiMessage]);
+      const updatedMessages = messages.map(msg => 
+        msg.id === aiMessageId ? { ...msg, content: msg.content } : msg
+      );
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
@@ -295,12 +297,11 @@ const MFUChatbot: React.FC = () => {
   
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, {
-        id: aiMessageId,
-        role: 'assistant',
-        content: 'Sorry, there was an error during processing. Please try again.',
-        timestamp: new Date()
-      }]);
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId
+          ? { ...msg, content: 'Sorry, there was an error during processing. Please try again.' }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
     }
