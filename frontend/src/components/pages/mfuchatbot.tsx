@@ -35,6 +35,14 @@ const modelNames: { [key: string]: string } = {
 
 };
 
+const LoadingDots = () => (
+  <div className="flex items-center space-x-1">
+    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+  </div>
+);
+
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -555,7 +563,11 @@ const MFUChatbot: React.FC = () => {
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                     }`}>
-                      <MessageContent message={message} />
+                      {message.role === 'assistant' && message.content === '' && isLoading ? (
+                        <LoadingDots />
+                      ) : (
+                        <MessageContent message={message} />
+                      )}
                     </div>
                   </div>
                 </div>
