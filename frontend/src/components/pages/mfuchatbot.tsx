@@ -466,7 +466,7 @@ const MFUChatbot: React.FC = () => {
             key={index}
             src={`data:${img.mediaType};base64,${img.data}`}
             alt="Uploaded content"
-            className="max-w-full h-auto rounded-lg"
+            className="max-w-[300px] max-h-[300px] w-auto h-auto rounded-lg object-contain"
           />
         ))}
         <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
