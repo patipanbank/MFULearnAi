@@ -587,17 +587,6 @@ const MFUChatbot: React.FC = () => {
                 )}
               </div>
             ))}
-            {isLoading && (
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden">
-                  <img
-                    src="/dindin.PNG"
-                    alt="DinDin"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-            )}
             <div ref={messagesEndRef} />
           </div>
         )}
