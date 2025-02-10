@@ -31,8 +31,21 @@ router.use(verifyToken);
 
 router.post('/', async (req: Request, res: Response) => {
   try {
+    console.log('Received chat request:', {
+      body: req.body,
+      headers: req.headers,
+      url: req.url,
+      method: req.method
+    });
+
     const { messages, modelId, collectionName } = req.body;
     const query = messages[messages.length - 1].content;
+
+    console.log('Processing chat with:', {
+      modelId,
+      collectionName,
+      lastMessage: query
+    });
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -41,12 +54,19 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      console.log('Streaming response chunk:', content);
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
     }
 
+    console.log('Chat response completed');
     res.end();
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error('Chat error details:', {
+      error,
+      stack: (error as Error).stack,
+      url: req.url,
+      method: req.method
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

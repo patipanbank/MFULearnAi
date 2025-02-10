@@ -12,12 +12,23 @@ export class ChatService {
 
   async *generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): AsyncGenerator<string> {
     try {
+      console.log('Starting generateResponse:', {
+        modelId,
+        collectionName,
+        messagesCount: messages.length,
+        query
+      });
+
       if (!this.isRelevantQuestion(query)) {
+        console.log('Query not relevant');
         yield 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
         return;
       }
 
+      console.log('Getting context for query:', query);
       const context = await this.getContext(query, collectionName);
+      console.log('Retrieved context length:', context.length);
+
       const augmentedMessages = [
         {
           role: 'system' as const,
@@ -26,9 +37,15 @@ export class ChatService {
         ...messages
       ];
 
+      console.log('Calling Bedrock service with augmented messages');
       yield* bedrockService.chat(augmentedMessages, modelId);
     } catch (error) {
-      console.error('Error generating chat response:', error);
+      console.error('Error in generateResponse:', {
+        error,
+        stack: (error as Error).stack,
+        modelId,
+        collectionName
+      });
       throw error;
     }
   }

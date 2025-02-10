@@ -31,6 +31,8 @@ export class BedrockService {
   }
 
   private async *claudeChat(messages: ChatMessage[]): AsyncGenerator<string> {
+    console.log('Starting Claude chat with messages count:', messages.length);
+
     const command = new InvokeModelWithResponseStreamCommand({
       modelId: this.models.claude35,
       contentType: "application/json",
@@ -48,24 +50,35 @@ export class BedrockService {
     });
 
     try {
+      console.log('Sending request to Bedrock');
       const response = await this.client.send(command);
+      console.log('Received response from Bedrock');
+
       if (response.body) {
         for await (const chunk of response.body) {
           if (chunk.chunk?.bytes) {
             const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
             try {
               const parsedChunk = JSON.parse(decodedChunk);
+              console.log('Received chunk:', parsedChunk);
               if (parsedChunk.type === 'content_block' && parsedChunk.delta?.text) {
                 yield parsedChunk.delta.text;
               }
             } catch (e) {
-              console.error('Error parsing chunk:', e);
+              console.error('Error parsing chunk:', {
+                error: e,
+                decodedChunk
+              });
             }
           }
         }
       }
     } catch (error) {
-      console.error('Claude chat error:', error);
+      console.error('Claude chat error details:', {
+        error,
+        stack: (error as Error).stack,
+        modelId: this.models.claude35
+      });
       throw error;
     }
   }
