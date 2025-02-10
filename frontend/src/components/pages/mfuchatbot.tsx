@@ -219,22 +219,15 @@ const MFUChatbot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      let processedImages;
-      if (selectedImages.length > 0) {
-        processedImages = await Promise.all(
-          selectedImages.map(async (file) => {
-            const base64 = await compressImage(file);
-            return base64;
-          })
-        );
-      }
-
+      // สร้างข้อความผู้ใช้
       const newMessage = {
         id: messages.length + 1,
         role: 'user' as const,
         content: inputMessage.trim(),
         timestamp: new Date(),
-        images: processedImages
+        images: selectedImages.length > 0 
+          ? await Promise.all(selectedImages.map(compressImage)) 
+          : undefined
       };
 
       // เพิ่มข้อความผู้ใช้
@@ -242,7 +235,7 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
-      // เพิ่มข้อความ AI เปล่าๆ ทันที
+      // เพิ่มข้อความ AI เปล่าๆ
       const aiMessage = {
         id: messages.length + 2,
         role: 'assistant' as const,
@@ -265,38 +258,36 @@ const MFUChatbot: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Failed to get response');
+      if (!response.body) throw new Error('No response body');
 
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedResponse = '';
+      const reader = response.body.getReader();
+      let streamedText = '';
 
+      // อ่าน stream
       while (true) {
-        const { done, value } = await reader.read();
+        const { value, done } = await reader.read();
         if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
+
+        // แปลง chunk เป็นข้อความ
+        const text = new TextDecoder().decode(value);
+        const lines = text.split('\n');
+
+        // ประมวลผลแต่ละบรรทัด
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(5));
-              accumulatedResponse += data.content;
-              
-              // อัพเดทข้อความทันทีที่ได้รับแต่ละ chunk
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage.role === 'assistant') {
-                  return [
-                    ...newMessages.slice(0, -1),
-                    { ...lastMessage, content: accumulatedResponse }
-                  ];
-                }
-                return newMessages;
-              });
+              const { content } = JSON.parse(line.slice(5));
+              if (content) {
+                streamedText += content;
+                // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
+                setMessages(prev => prev.map(msg => 
+                  msg.id === aiMessage.id 
+                    ? { ...msg, content: streamedText }
+                    : msg
+                ));
+              }
             } catch (e) {
-              console.error('Error parsing SSE data:', e);
+              console.error('Error parsing chunk:', e);
             }
           }
         }
@@ -310,10 +301,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, newMessage, {
-            ...aiMessage,
-            content: accumulatedResponse
-          }],
+          messages: [...messages, newMessage, { ...aiMessage, content: streamedText }],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
