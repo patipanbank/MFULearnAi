@@ -461,14 +461,16 @@ const MFUChatbot: React.FC = () => {
 
     return (
       <div className="space-y-2">
-        {message.images?.map((img, index) => (
-          <img
-            key={index}
-            src={`data:${img.mediaType};base64,${img.data}`}
-            alt="Uploaded content"
-            className="max-w-[300px] max-h-[300px] w-auto h-auto rounded-lg object-contain"
-          />
-        ))}
+        <div className="grid grid-cols-3 gap-2">
+          {message.images?.map((img, index) => (
+            <img
+              key={index}
+              src={`data:${img.mediaType};base64,${img.data}`}
+              alt="Uploaded content"
+              className="max-w-[200px] max-h-[200px] w-full h-auto rounded-lg object-contain"
+            />
+          ))}
+        </div>
         <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
           {renderContent(message.content)}
         </div>
