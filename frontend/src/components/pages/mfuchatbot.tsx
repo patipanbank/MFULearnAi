@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BiLoaderAlt } from 'react-icons/bi';
-import { GrSend } from "react-icons/gr";
+// import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -781,7 +781,7 @@ const MFUChatbot: React.FC = () => {
                   required
                 />
 
-                <button
+                {/* <button
                   type="submit"
                   disabled={!canSubmit()}
                   className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${
@@ -790,7 +790,7 @@ const MFUChatbot: React.FC = () => {
                   style={{ minHeight: '40px' }}
                 >
                   {isLoading ? <BiLoaderAlt className="w-6 h-6 animate-spin" /> : <GrSend className="w-5 h-5" />}
-                </button>
+                </button> */}
                 <button
                   type="button"
                   onClick={handleStreamSubmit}
