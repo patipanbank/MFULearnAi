@@ -326,6 +326,71 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  const handleStreamSubmit = async () => {
+    if (!canSubmit()) return;
+
+    try {
+      setIsLoading(true);
+
+      let processedImages;
+      if (selectedImages.length > 0) {
+        processedImages = await Promise.all(
+          selectedImages.map(async (file) => {
+            const base64 = await compressImage(file);
+            return base64;
+          })
+        );
+      }
+
+      const newMessage = {
+        id: messages.length + 1,
+        role: 'user' as const,
+        content: inputMessage.trim(),
+        timestamp: new Date(),
+        images: processedImages
+      };
+
+      setMessages(prev => [...prev, newMessage]);
+      setInputMessage('');
+      setSelectedImages([]);
+
+      const aiMessage = {
+        id: messages.length + 2,
+        role: 'assistant' as const,
+        content: '',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+
+      const eventSource = new EventSource(`${config.apiUrl}/api/chat/stream?` + new URLSearchParams({
+        messages: JSON.stringify([...messages, newMessage]),
+        modelId: selectedModel,
+        collectionName: selectedCollection
+      }));
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          setMessages(prev => prev.map(msg => 
+            msg.id === aiMessage.id ? { ...msg, content: data.content } : msg
+          ));
+        } else if (data.type === 'end') {
+          eventSource.close();
+          setIsLoading(false);
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        setIsLoading(false);
+      };
+
+    } catch (error) {
+      console.error('Error:', error);
+      setIsLoading(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       if (isMobile) {
@@ -719,17 +784,20 @@ const MFUChatbot: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${
+                    canSubmit() ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                   style={{ minHeight: '40px' }}
                 >
-                  {isLoading ? (
-                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <GrSend className="w-5 h-5" />
-                  )}
+                  {isLoading ? <BiLoaderAlt className="w-6 h-6 animate-spin" /> : <GrSend className="w-5 h-5" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStreamSubmit}
+                  disabled={!canSubmit()}
+                  className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-300"
+                >
+                  Stream
                 </button>
               </div>
             </div>
