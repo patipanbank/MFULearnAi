@@ -39,7 +39,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     console.log(`Processing file: ${file.originalname}`);
     const text = await documentService.processFile(file);
     
-    console.log(`Text length (${text.length}) exceeds chunk size (4000), splitting into chunks`);
+    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
     console.log(`Created ${chunks.length} chunks`);
 
@@ -115,7 +115,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     console.log(`Processing file: ${file.originalname}`);
     const text = await documentService.processFile(file);
     
-    console.log(`Text length (${text.length}) exceeds chunk size (4000), splitting into chunks`);
+    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
     console.log(`Created ${chunks.length} chunks`);
 
