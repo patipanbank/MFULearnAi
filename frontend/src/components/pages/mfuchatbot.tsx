@@ -209,36 +209,28 @@ const MFUChatbot: React.FC = () => {
     const aiMessageId = messages.length + 2;
   
     try {
-      let processedImages;
-      if (selectedImages.length > 0) {
-        processedImages = await Promise.all(
-          selectedImages.map(async (file) => {
-            const base64 = await compressImage(file);
-            return base64;
-          })
-        );
-      }
+      const processedImages = await Promise.all(
+        selectedImages.map(compressImage)
+      );
   
       const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
         content: inputMessage.trim(),
         timestamp: new Date(),
-        images: processedImages
+        images: processedImages.length > 0 ? processedImages : undefined
       };
   
-      setMessages(prev => [...prev, userMessage]);
-      setInputMessage('');
-      setSelectedImages([]);
-  
-      // เพิ่มข้อความ AI เปล่าๆ ทันที
       const aiMessage = {
         id: aiMessageId,
         role: 'assistant' as const,
         content: '',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, aiMessage]);
+  
+      setMessages(prev => [...prev, userMessage, aiMessage]);
+      setInputMessage('');
+      setSelectedImages([]);
   
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -257,7 +249,6 @@ const MFUChatbot: React.FC = () => {
       
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      let accumulatedText = '';
   
       while (true) {
         const { value, done } = await reader!.read();
@@ -269,15 +260,13 @@ const MFUChatbot: React.FC = () => {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const jsonStr = line.replace('data: ', '').trim();
-              const { content } = JSON.parse(jsonStr);
+              const { content } = JSON.parse(line.replace('data: ', '').trim());
               
               if (content) {
-                accumulatedText += content;
                 setMessages(prev => 
                   prev.map(msg => 
                     msg.id === aiMessageId
-                      ? { ...msg, content: accumulatedText }
+                      ? { ...msg, content: msg.content + content }
                       : msg
                   )
                 );
@@ -290,6 +279,7 @@ const MFUChatbot: React.FC = () => {
       }
   
       // Save chat history after complete response
+      const updatedMessages = messages.concat([userMessage, aiMessage]);
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
@@ -297,7 +287,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage, { ...aiMessage, content: accumulatedText }],
+          messages: updatedMessages,
           modelId: selectedModel,
           collectionName: selectedCollection
         })

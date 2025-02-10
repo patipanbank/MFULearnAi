@@ -18,17 +18,17 @@ export class ChatService {
         messagesCount: messages.length,
         query
       });
-
+  
       if (!this.isRelevantQuestion(query)) {
         console.log('Query not relevant');
-        yield 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
+        yield JSON.stringify({ content: 'Sorry, DinDin can only answer questions about Mae Fah Luang University.' });
         return;
       }
-
+  
       console.log('Getting context for query:', query);
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context length:', context.length);
-
+  
       const augmentedMessages = [
         {
           role: 'system' as const,
@@ -36,10 +36,9 @@ export class ChatService {
         },
         ...messages
       ];
-
-      // ส่ง response แบบ streaming ทันที
+  
       for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
-        yield chunk;
+        yield JSON.stringify({ content: chunk });
       }
     } catch (error) {
       console.error('Error in generateResponse:', error);
