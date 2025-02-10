@@ -80,23 +80,23 @@ export class BedrockService {
     }
   }
 
-  async chatWithEstimatedTime(messages: ChatMessage[], modelId: string): Promise<{ content: string, estimatedTime: number }> {
-    try {
-      const estimatedTime = 10; // Simulate an estimated time of 10 seconds
-      const startTime = Date.now();
+  // async chatWithEstimatedTime(messages: ChatMessage[], modelId: string): Promise<{ content: string, estimatedTime: number }> {
+  //   try {
+  //     const estimatedTime = 10; // Simulate an estimated time of 10 seconds
+  //     const startTime = Date.now();
 
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, estimatedTime * 1000));
+  //     // Simulate processing delay
+  //     await new Promise(resolve => setTimeout(resolve, estimatedTime * 1000));
 
-      const response = await this.chat(messages, modelId);
-      const elapsedTime = (Date.now() - startTime) / 1000;
+  //     const response = await this.chat(messages, modelId);
+  //     const elapsedTime = (Date.now() - startTime) / 1000;
 
-      return { content: response.content, estimatedTime: Math.max(0, estimatedTime - elapsedTime) };
-    } catch (error) {
-      console.error('Bedrock chat with estimated time error:', error);
-      throw error;
-    }
-  }
+  //     return { content: response.content, estimatedTime: Math.max(0, estimatedTime - elapsedTime) };
+  //   } catch (error) {
+  //     console.error('Bedrock chat with estimated time error:', error);
+  //     throw error;
+  //   }
+  // }
 }
 
 export const bedrockService = new BedrockService();
