@@ -102,6 +102,7 @@ export class BedrockService {
         max_tokens: 1000,
         temperature: 0.7,
         top_p: 0.9,
+        stream: true, // เพิ่ม option นี้
         messages: messages.map(msg => {
           const content = [];
           

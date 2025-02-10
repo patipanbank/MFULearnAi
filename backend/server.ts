@@ -21,7 +21,7 @@ console.log('Allowed origins:', allowedOrigins);
 
 app.use(cors({
   origin: function(origin, callback) {
-    console.log('Request origin:', origin);
+    // console.log('Request origin:', origin);
     
     // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
