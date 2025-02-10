@@ -218,7 +218,7 @@ const MFUChatbot: React.FC = () => {
           })
         );
       }
-
+  
       const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
@@ -230,7 +230,7 @@ const MFUChatbot: React.FC = () => {
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
-
+  
       // เพิ่มข้อความ AI เปล่าๆ ทันที
       const aiMessage = {
         id: aiMessageId,
@@ -239,7 +239,7 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMessage]);
-
+  
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
