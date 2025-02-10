@@ -40,8 +40,8 @@ router.post('/chat', async (req: Request, res: Response) => {
       'Connection': 'keep-alive'
     });
 
-    for await (const { content, estimatedTime } of chatService.generateResponse(messages, query, modelId, collectionName)) {
-      res.write(`data: ${JSON.stringify({ content, estimatedTime })}\n\n`);
+    for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
     }
 
     res.end();

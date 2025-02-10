@@ -40,32 +40,10 @@ export class BedrockService {
         max_tokens: 2000,
         temperature: 1,
         top_p: 0.99,
-        messages: messages.map(msg => {
-          const content = [];
-          
-          if (msg.images && msg.images.length > 0) {
-            msg.images.forEach(image => {
-              content.push({
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: image.mediaType || "image/jpeg",
-                  data: image.data
-                }
-              });
-            });
-          }
-          
-          content.push({
-            type: "text",
-            text: msg.content
-          });
-
-          return {
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content
-          };
-        }),
+        messages: messages.map(msg => ({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        }))
       })
     });
 
@@ -74,9 +52,14 @@ export class BedrockService {
       if (response.body) {
         for await (const chunk of response.body) {
           if (chunk.chunk?.bytes) {
-            const decodedChunk = JSON.parse(new TextDecoder().decode(chunk.chunk.bytes));
-            if (decodedChunk.type === 'content_block' && decodedChunk.content && decodedChunk.content[0].type === 'text') {
-              yield decodedChunk.content[0].text;
+            const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
+            try {
+              const parsedChunk = JSON.parse(decodedChunk);
+              if (parsedChunk.type === 'content_block' && parsedChunk.delta?.text) {
+                yield parsedChunk.delta.text;
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }

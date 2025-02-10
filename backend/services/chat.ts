@@ -10,27 +10,23 @@ export class ChatService {
     return (true);
   }
 
-  async *generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): AsyncGenerator<{ content: string, estimatedTime: number }> {
+  async *generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): AsyncGenerator<string> {
     try {
       if (!this.isRelevantQuestion(query)) {
-        yield { content: 'Sorry, DinDin can only answer questions about Mae Fah Luang University.', estimatedTime: 0 };
+        yield 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
         return;
       }
 
       const context = await this.getContext(query, collectionName);
-      console.log('Retrieved context:', context);
-
-      const systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
-
       const augmentedMessages = [
         {
           role: 'system' as const,
-          content: `${systemPrompt}\n\nContext from documents:\n${context}`
+          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
         },
         ...messages
       ];
 
-      yield* bedrockService.chatWithEstimatedTime(augmentedMessages, modelId);
+      yield* bedrockService.chat(augmentedMessages, modelId);
     } catch (error) {
       console.error('Error generating chat response:', error);
       throw error;
