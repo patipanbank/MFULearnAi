@@ -308,7 +308,7 @@ const MFUChatbot: React.FC = () => {
       }
 
       // บันทึกประวัติแชท
-      await fetch(`${config.apiUrl}/chat/history`, {
+      await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
