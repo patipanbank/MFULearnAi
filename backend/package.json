@@ -51,7 +51,6 @@
     "pdf-parse": "^1.1.1",
     "pdf2image": "^1.2.3",
     "sharp": "^0.33.2",
-    "socket.io": "^4.8.1",
     "tesseract.js": "^5.0.0",
     "xlsx": "^0.18.5"
   }
