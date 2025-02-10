@@ -46,7 +46,7 @@ const MFUChatbot: React.FC = () => {
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string>('');
-  const [copySuccess, setCopySuccess] = useState(false);
+  // const [copySuccess, setCopySuccess] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
   const scrollToBottom = () => {
@@ -257,35 +257,43 @@ const MFUChatbot: React.FC = () => {
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       let streamedText = '';
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
 
-        const text = new TextDecoder().decode(value);
-        const lines = text.split('\n');
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const { content } = JSON.parse(line.slice(5));
-              streamedText += content;
-              
-              // อัพเดท UI ทันที
-              setMessages(prev => prev.map(msg => 
-                msg.id === aiMessage.id 
-                  ? { ...msg, content: streamedText }
-                  : msg
-              ));
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const { content } = JSON.parse(line.slice(5));
+                if (content) {
+                  streamedText += content;
+                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
+                  setMessages(prevMessages => 
+                    prevMessages.map(msg => 
+                      msg.id === aiMessage.id 
+                        ? { ...msg, content: streamedText }
+                        : msg
+                    )
+                  );
+                }
+              } catch (e) {
+                console.error('Error parsing chunk:', e);
+              }
             }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
 
-      // บันทึกประวัติแชท
+      // บันทึกประวัติแชทหลังจากได้ข้อความครบ
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
@@ -345,17 +353,17 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  const handleCopy = (content: string) => {
-    navigator.clipboard.writeText(content).then(() => {
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
-    });
-  };
+  // const handleCopy = (content: string) => {
+  //   navigator.clipboard.writeText(content).then(() => {
+  //     setCopySuccess(true);
+  //     setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2 seconds
+  //   });
+  // };
 
-  const isDayTime = () => {
-    const hour = new Date().getHours();
-    return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
-  };
+  // const isDayTime = () => {
+  //   const hour = new Date().getHours();
+  //   return hour >= 6 && hour < 18; // Assuming day time is from 6 AM to 6 PM
+  // };
 
   // เพิ่มฟังก์ชันสำหรับตรวจสอบขนาดไฟล์
   const validateImageFile = (file: File): boolean => {
@@ -457,158 +465,49 @@ const MFUChatbot: React.FC = () => {
     );
   };
 
+  const renderMessages = () => {
+    return messages.map((message) => (
+      <div
+        key={message.id}
+        className={`flex items-start gap-3 ${
+          message.role === 'user' ? 'flex-row-reverse' : ''
+        }`}
+      >
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+          <img
+            src={message.role === 'user' ? '/images/user.png' : '/images/ai.png'}
+            alt={message.role === 'user' ? 'User' : 'AI'}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <div
+          className={`flex flex-col space-y-2 max-w-[80%] ${
+            message.role === 'user' ? 'items-end' : 'items-start'
+          }`}
+        >
+          <div className="text-sm text-gray-500">
+            {new Date(message.timestamp).toLocaleTimeString()}
+          </div>
+          <div
+            className={`rounded-lg p-3 ${
+              message.role === 'user'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
+            }`}
+          >
+            <MessageContent content={message.content} />
+          </div>
+        </div>
+      </div>
+    ));
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <div className="flex flex-col items-center justify-center mb-1">
-              <img
-                src="/mfu_logo_chatbot.PNG"
-                alt="MFU Logo"
-                className="w-24 h-24 mb-2 object-contain"
-              />
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-0">
-                  Welcome to
-                </h1>
-                <div className="text-2xl font-bold -mt-1 mb-0">
-                  <span style={{
-                    background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
-                    MFU
-                  </span>{' '}
-                  <span className="text-gray-800 dark:text-white">Chat{''}</span>
-                  <span style={{
-                    background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
-                    AI
-                  </span>
-                </div>
-              </div>
-            </div>
-            <p className="text-gray-600 dark:text-gray-300 -mt-1">How can I help you today?</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {messages.map((message, index) => (
-              <div key={index} className="message relative">
-                <div className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                  }`}>
-                  {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${message.role === 'user'
-                      ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-                      : 'bg-transparent'
-                    } flex items-center justify-center`}>
-                    {message.role === 'user' ? (
-                      <svg className={`w-5 h-5 ${isDayTime() ? 'text-white' : 'text-white'}`} fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <img
-                        src="/dindin.PNG"
-                        alt="AI Assistant"
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-
-                  {/* Message Content */}
-                  <div className={`max-w-[75%] md:max-w-[70%] ${message.role === 'user'
-                      ? 'ml-auto bg-blue-500 text-white'
-                      : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
-                    } rounded-lg p-3 md:p-4 relative`}>
-                    {/* แสดงรูปภาพถ้ามี */}
-                    {message.images && message.images.length > 0 && (
-                      <div className="mb-2">
-                        <div className="flex flex-wrap gap-2">
-                          {message.images.map((image, index) => (
-                            <div key={index} className="relative">
-                              <img
-                                key={index}
-                                src={`data:${image.mediaType};base64,${image.data}`}
-                                alt={`Uploaded ${index + 1}`}
-                                className="max-w-[200px] max-h-[200px] rounded object-contain"
-                              />
-                              {message.role === 'assistant' && (
-                                <button
-                                  onClick={() => handleCopy(image.data)}
-                                  className="absolute top-1 right-1 px-1 py-0.5 border border-blue-500 text-blue-500 hover:bg-blue-100 rounded text-xs"
-                                >
-                                  {copySuccess ? 'Copied' : 'Copy'}
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className={`text-xs md:text-sm ${message.role === 'assistant'
-                        ? 'text-black'
-                        : 'text-black'
-                      } ${message.role === 'user' ? 'text-white' : ''} mb-1`}>
-                      {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
-                    </div>
-                    <div className="whitespace-pre-wrap text-sm md:text-base">
-                      <MessageContent content={message.content} />
-                    </div>
-                  </div>
-                </div>
-
-                {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                  <div className="ml-2 mt-1">
-                    <button
-                      onClick={() => {
-                        const sourceInfo = message.sources?.map(source =>
-                          `Model: ${source.modelId}\n` +
-                          `Collection: ${source.collectionName}\n` +
-                          `File: ${source.filename}\n` +
-                          `Source: ${source.source || 'N/A'}\n` +
-                          `Similarity: ${(source.similarity * 100).toFixed(1)}%`
-                        ).join('\n\n');
-                        alert(sourceInfo);
-                      }}
-                      className="text-xs text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      View Sources ({message.sources.length})
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden">
-                  <img
-                    src="/dindin.PNG"
-                    alt="DinDin"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
-                  <div className="flex items-center space-x-2">
-                    <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
-                    <span className="text-sm text-gray-500 dark:text-gray-300">
-                      Typing...
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {renderMessages()}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Fixed Bottom Container */}
