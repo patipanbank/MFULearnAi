@@ -206,6 +206,7 @@ const MFUChatbot: React.FC = () => {
     if (!canSubmit()) return;
 
     setIsLoading(true);
+    const aiMessageId = messages.length + 2; // สร้าง ID ไว้ใช้อ้างอิง
 
     try {
       let processedImages;
@@ -218,7 +219,7 @@ const MFUChatbot: React.FC = () => {
         );
       }
 
-      const newMessage = {
+      const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
         content: inputMessage.trim(),
@@ -227,13 +228,13 @@ const MFUChatbot: React.FC = () => {
       };
 
       // เพิ่มข้อความผู้ใช้
-      setMessages(prev => [...prev, newMessage]);
+      setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
-      // เพิ่มข้อความ AI เปล่าๆ
+      // เพิ่มข้อความ AI เปล่าๆ ทันที
       const aiMessage = {
-        id: messages.length + 2,
+        id: aiMessageId,
         role: 'assistant' as const,
         content: '',
         timestamp: new Date()
@@ -247,42 +248,50 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, newMessage],
+          messages: [...messages, userMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
       });
 
       if (!response.ok) throw new Error('Failed to get response');
-      if (!response.body) throw new Error('No response body');
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
 
-      const reader = response.body.getReader();
-      let streamedText = '';
+      let accumulatedText = '';
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
 
-        const text = new TextDecoder().decode(value);
-        const lines = text.split('\n');
+          const chunk = new TextDecoder().decode(value);
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const { content } = JSON.parse(line.slice(5));
-              streamedText += content;
-              
-              // อัพเดท UI ทันที
-              setMessages(prev => prev.map(msg => 
-                msg.id === aiMessage.id 
-                  ? { ...msg, content: streamedText }
-                  : msg
-              ));
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const { content } = JSON.parse(line.slice(5));
+                if (content) {
+                  accumulatedText += content;
+                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === aiMessageId
+                        ? { ...msg, content: accumulatedText }
+                        : msg
+                    )
+                  );
+                }
+              } catch (e) {
+                console.error('Error parsing chunk:', e);
+              }
             }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
 
       // บันทึกประวัติแชท
@@ -293,7 +302,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, newMessage, { ...aiMessage, content: streamedText }],
+          messages: [...messages, userMessage, { ...aiMessage, content: accumulatedText }],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -302,7 +311,7 @@ const MFUChatbot: React.FC = () => {
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
-        id: messages.length + 2,
+        id: aiMessageId,
         role: 'assistant',
         content: 'Sorry, there was an error during processing. Please try again.',
         timestamp: new Date()
