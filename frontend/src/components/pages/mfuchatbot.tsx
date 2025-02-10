@@ -49,7 +49,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
-  const [typingCountdown] = useState<number | null>(null);
+  const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   // const [, setLoadingCollections] = useState(true);
 
@@ -158,6 +158,28 @@ const MFUChatbot: React.FC = () => {
     loadChatHistory();
   }, []);
 
+  useEffect(() => {
+    let countdownInterval: NodeJS.Timeout;
+
+    if (isLoading) {
+      setTypingCountdown(10); // Set the countdown to 10 seconds or any desired duration
+
+      countdownInterval = setInterval(() => {
+        setTypingCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      setTypingCountdown(null);
+    }
+
+    return () => clearInterval(countdownInterval);
+  }, [isLoading]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
   };
@@ -249,12 +271,11 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
-      // เริ่มการ streaming response
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
           messages: [...messages, newMessage],
@@ -267,45 +288,23 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Failed to get response');
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No reader available');
+      const data = await response.json();
 
       const assistantMessage = {
         id: messages.length + 2,
         role: 'assistant' as const,
-        content: '',
+        content: data.response,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim());
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6));
-            if (data === '[DONE]') break;
-
-            assistantMessage.content += data.content;
-            setMessages(prev => [
-              ...prev.slice(0, -1),
-              { ...assistantMessage }
-            ]);
-          }
-        }
-      }
-
-      // บันทึกประวัติแชทหลังจากได้รับคำตอบทั้งหมด
+      // บันทึกประวัติแชท
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
           messages: [...messages, newMessage, assistantMessage],
