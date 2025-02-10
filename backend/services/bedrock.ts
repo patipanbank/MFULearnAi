@@ -35,7 +35,7 @@ export class BedrockService {
         max_tokens: 1000,
         temperature: 0.7,
         top_p: 0.9,
-        stream: true, // ✅ เปิดโหมด Streaming
+        // stream: true,
         messages: messages.map(msg => ({
           role: msg.role === 'user' ? 'user' : 'assistant',
           content: [{ type: "text", text: msg.content }]

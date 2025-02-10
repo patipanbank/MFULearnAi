@@ -286,7 +286,7 @@ const MFUChatbot: React.FC = () => {
           messages: [...messages, newMessage],
           modelId: selectedModel,
           collectionName: selectedCollection,
-          stream: true // Add this flag to indicate streaming
+          // stream: true // Add this flag to indicate streaming
         })
       });
 
