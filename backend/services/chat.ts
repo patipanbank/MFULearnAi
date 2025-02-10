@@ -37,15 +37,12 @@ export class ChatService {
         ...messages
       ];
 
-      console.log('Calling Bedrock service with augmented messages');
-      yield* bedrockService.chat(augmentedMessages, modelId);
+      // ส่ง response แบบ streaming ทันที
+      for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
+        yield chunk;
+      }
     } catch (error) {
-      console.error('Error in generateResponse:', {
-        error,
-        stack: (error as Error).stack,
-        modelId,
-        collectionName
-      });
+      console.error('Error in generateResponse:', error);
       throw error;
     }
   }

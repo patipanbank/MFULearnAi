@@ -219,15 +219,22 @@ const MFUChatbot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // สร้างข้อความผู้ใช้
+      let processedImages;
+      if (selectedImages.length > 0) {
+        processedImages = await Promise.all(
+          selectedImages.map(async (file) => {
+            const base64 = await compressImage(file);
+            return base64;
+          })
+        );
+      }
+
       const newMessage = {
         id: messages.length + 1,
         role: 'user' as const,
         content: inputMessage.trim(),
         timestamp: new Date(),
-        images: selectedImages.length > 0 
-          ? await Promise.all(selectedImages.map(compressImage)) 
-          : undefined
+        images: processedImages
       };
 
       // เพิ่มข้อความผู้ใช้
@@ -263,29 +270,25 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body.getReader();
       let streamedText = '';
 
-      // อ่าน stream
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        // แปลง chunk เป็นข้อความ
         const text = new TextDecoder().decode(value);
         const lines = text.split('\n');
 
-        // ประมวลผลแต่ละบรรทัด
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const { content } = JSON.parse(line.slice(5));
-              if (content) {
-                streamedText += content;
-                // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
-                setMessages(prev => prev.map(msg => 
-                  msg.id === aiMessage.id 
-                    ? { ...msg, content: streamedText }
-                    : msg
-                ));
-              }
+              streamedText += content;
+              
+              // อัพเดท UI ทันที
+              setMessages(prev => prev.map(msg => 
+                msg.id === aiMessage.id 
+                  ? { ...msg, content: streamedText }
+                  : msg
+              ));
             } catch (e) {
               console.error('Error parsing chunk:', e);
             }
