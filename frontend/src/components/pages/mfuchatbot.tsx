@@ -253,7 +253,16 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
-      const response = await fetch(`${config.apiUrl}/api/chat`, {
+      // เพิ่มข้อความ AI response เปล่าๆ ก่อน
+      const aiMessage = {
+        id: messages.length + 2,
+        role: 'assistant' as const,
+        content: '',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+
+      const response = await fetch(`${config.apiUrl}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -272,15 +281,6 @@ const MFUChatbot: React.FC = () => {
       const decoder = new TextDecoder();
       let accumulatedResponse = '';
 
-      // เพิ่มข้อความ AI response เปล่าๆ ก่อน
-      const aiMessage = {
-        id: messages.length + 2,
-        role: 'assistant' as const,
-        content: '',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMessage]);
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -290,19 +290,25 @@ const MFUChatbot: React.FC = () => {
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(5));
-            accumulatedResponse += data.content;
-
-            setMessages(prev => {
-              const lastMessage = prev[prev.length - 1];
-              if (lastMessage.role === 'assistant') {
-                return [
-                  ...prev.slice(0, -1),
-                  { ...lastMessage, content: accumulatedResponse }
-                ];
-              }
-              return prev;
-            });
+            try {
+              const data = JSON.parse(line.slice(5));
+              accumulatedResponse += data.content;
+              
+              // อัพเดทข้อความทันทีที่ได้รับ chunk
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.role === 'assistant') {
+                  return [
+                    ...newMessages.slice(0, -1),
+                    { ...lastMessage, content: accumulatedResponse }
+                  ];
+                }
+                return newMessages;
+              });
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
           }
         }
       }
