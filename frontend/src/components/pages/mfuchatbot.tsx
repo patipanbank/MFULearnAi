@@ -468,7 +468,7 @@ const MFUChatbot: React.FC = () => {
     };
 
     return (
-      <div className="space-y-2">
+      <div className="">
         <div className="grid grid-cols-3 gap-2">
           {message.images?.map((img, index) => (
             <img
