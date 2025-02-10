@@ -17,6 +17,7 @@ export class BedrockService {
     });
   }
 
+  // Regular chat method for non-streaming responses
   async chat(messages: ChatMessage[], modelId: string): Promise<{ content: string }> {
     try {
       if (modelId === this.models.claude35) {
@@ -25,6 +26,19 @@ export class BedrockService {
       throw new Error('Unsupported model');
     } catch (error) {
       console.error('Bedrock chat error:', error);
+      throw error;
+    }
+  }
+
+  // Streaming chat method
+  async chatStream(messages: ChatMessage[], modelId: string): Promise<ReadableStream> {
+    try {
+      if (modelId === this.models.claude35) {
+        return this.claudeChatStream(messages);
+      }
+      throw new Error('Unsupported model');
+    } catch (error) {
+      console.error('Bedrock chat stream error:', error);
       throw error;
     }
   }
@@ -42,7 +56,6 @@ export class BedrockService {
         messages: messages.map(msg => {
           const content = [];
           
-          // ถ้ามีรูปภาพ
           if (msg.images && msg.images.length > 0) {
             msg.images.forEach(image => {
               content.push({
@@ -56,7 +69,6 @@ export class BedrockService {
             });
           }
           
-          // เพิ่มข้อความ
           content.push({
             type: "text",
             text: msg.content
@@ -80,23 +92,74 @@ export class BedrockService {
     }
   }
 
-  // async chatWithEstimatedTime(messages: ChatMessage[], modelId: string): Promise<{ content: string, estimatedTime: number }> {
-  //   try {
-  //     const estimatedTime = 10; // Simulate an estimated time of 10 seconds
-  //     const startTime = Date.now();
+  private async claudeChatStream(messages: ChatMessage[]): Promise<ReadableStream> {
+    const command = new InvokeModelCommand({
+      modelId: this.models.claude35,
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify({
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 1000,
+        temperature: 0.7,
+        top_p: 0.9,
+        messages: messages.map(msg => {
+          const content = [];
+          
+          if (msg.images && msg.images.length > 0) {
+            msg.images.forEach(image => {
+              content.push({
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: image.mediaType || "image/jpeg",
+                  data: image.data
+                }
+              });
+            });
+          }
+          
+          content.push({
+            type: "text",
+            text: msg.content
+          });
 
-  //     // Simulate processing delay
-  //     await new Promise(resolve => setTimeout(resolve, estimatedTime * 1000));
+          return {
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content
+          };
+        }),
+      })
+    });
 
-  //     const response = await this.chat(messages, modelId);
-  //     const elapsedTime = (Date.now() - startTime) / 1000;
+    try {
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      const content = responseBody.content[0].text;
 
-  //     return { content: response.content, estimatedTime: Math.max(0, estimatedTime - elapsedTime) };
-  //   } catch (error) {
-  //     console.error('Bedrock chat with estimated time error:', error);
-  //     throw error;
-  //   }
-  // }
+      return new ReadableStream({
+        start(controller) {
+          const chunkSize = 10;
+          let offset = 0;
+
+          const sendChunk = () => {
+            if (offset < content.length) {
+              const chunk = content.slice(offset, offset + chunkSize);
+              controller.enqueue(new TextEncoder().encode(chunk));
+              offset += chunkSize;
+              setTimeout(sendChunk, 50);
+            } else {
+              controller.close();
+            }
+          };
+
+          sendChunk();
+        }
+      });
+    } catch (error) {
+      console.error('Claude chat stream error:', error);
+      throw error;
+    }
+  }
 }
 
 export const bedrockService = new BedrockService();

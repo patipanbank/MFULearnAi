@@ -49,8 +49,10 @@ const MFUChatbot: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
-  const [typingCountdown, setTypingCountdown] = useState<number | null>(null);
+  const [, setTypingCountdown] = useState<number | null>(null);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [streamingContent, setStreamingContent] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState(false);
   // const [, setLoadingCollections] = useState(true);
 
   const scrollToBottom = () => {
@@ -233,6 +235,8 @@ const MFUChatbot: React.FC = () => {
 
     try {
       setIsLoading(true);
+      setIsStreaming(true);
+      setStreamingContent('');
 
       let processedImages;
       if (selectedImages.length > 0) {
@@ -252,7 +256,7 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      // บันทึกข้อความและรูปภาพลงในประวัติ
+      // Save user message to history
       const token = localStorage.getItem('auth_token');
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
@@ -271,6 +275,7 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
+      // Start streaming request
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -280,7 +285,8 @@ const MFUChatbot: React.FC = () => {
         body: JSON.stringify({
           messages: [...messages, newMessage],
           modelId: selectedModel,
-          collectionName: selectedCollection
+          collectionName: selectedCollection,
+          stream: true // Add this flag to indicate streaming
         })
       });
 
@@ -288,18 +294,32 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Failed to get response');
       }
 
-      const data = await response.json();
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+
+      let accumulatedContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = new TextDecoder().decode(value);
+        accumulatedContent += chunk;
+        setStreamingContent(accumulatedContent);
+      }
 
       const assistantMessage = {
         id: messages.length + 2,
         role: 'assistant' as const,
-        content: data.response,
+        content: accumulatedContent,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // บันทึกประวัติแชท
+      // Save complete conversation to history
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
@@ -323,6 +343,8 @@ const MFUChatbot: React.FC = () => {
       }]);
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
+      setStreamingContent('');
     }
   };
 
@@ -518,8 +540,8 @@ const MFUChatbot: React.FC = () => {
                   }`}>
                   {/* Avatar */}
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${message.role === 'user'
-                      ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-                      : 'bg-transparent'
+                    ? 'bg-gradient-to-r from-red-600 to-yellow-400'
+                    : 'bg-transparent'
                     } flex items-center justify-center`}>
                     {message.role === 'user' ? (
                       <svg className={`w-5 h-5 ${isDayTime() ? 'text-white' : 'text-white'}`} fill="currentColor" viewBox="0 0 20 20">
@@ -536,8 +558,8 @@ const MFUChatbot: React.FC = () => {
 
                   {/* Message Content */}
                   <div className={`max-w-[75%] md:max-w-[70%] ${message.role === 'user'
-                      ? 'ml-auto bg-blue-500 text-white'
-                      : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
+                    ? 'ml-auto bg-blue-500 text-white'
+                    : 'mr-auto bg-gray-100 bg-opacity-75 text-black'
                     } rounded-lg p-3 md:p-4 relative`}>
                     {/* แสดงรูปภาพถ้ามี */}
                     {message.images && message.images.length > 0 && (
@@ -566,8 +588,8 @@ const MFUChatbot: React.FC = () => {
                     )}
 
                     <div className={`text-xs md:text-sm ${message.role === 'assistant'
-                        ? 'text-black'
-                        : 'text-black'
+                      ? 'text-black'
+                      : 'text-black'
                       } ${message.role === 'user' ? 'text-white' : ''} mb-1`}>
                       {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
                     </div>
@@ -601,7 +623,7 @@ const MFUChatbot: React.FC = () => {
                 )}
               </div>
             ))}
-            {isLoading && (
+            {isStreaming && (
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden">
                   <img
@@ -611,11 +633,8 @@ const MFUChatbot: React.FC = () => {
                   />
                 </div>
                 <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
-                  <div className="flex items-center space-x-2">
-                    <BiLoaderAlt className="w-5 h-5 animate-spin text-blue-500" />
-                    <span className="text-sm text-gray-500 dark:text-gray-300">
-                      Typing... {typingCountdown !== null ? `${typingCountdown}s left` : ''}
-                    </span>
+                  <div className="whitespace-pre-wrap text-sm md:text-base">
+                    <MessageContent content={streamingContent} />
                   </div>
                 </div>
               </div>
@@ -720,8 +739,8 @@ const MFUChatbot: React.FC = () => {
                   type="submit"
                   disabled={!canSubmit()}
                   className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-blue-500 text-white hover:bg-blue-600'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   style={{ minHeight: '40px' }}
                 >

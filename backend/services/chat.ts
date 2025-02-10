@@ -2,44 +2,16 @@ import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 
-const logger = {
-  debug: (...args: any[]) => process.env.NODE_ENV !== 'production' && console.debug(...args),
-  info: (...args: any[]) => console.info(...args),
-  warn: (...args: any[]) => console.warn(...args),
-  error: (...args: any[]) => console.error(...args)
-};
 
 export class ChatService {
   private systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
-  // You are DinDin, a male AI. Keep responses brief and to the point.
-  // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
 
   private isRelevantQuestion(query: string): boolean {
     return (true);
   }
 
-  // private isGreeting(query: string): boolean {
-  //   const greetings = ['hi', 'hello', 'hey', 'who are you'];
-  //   const words = query.toLowerCase().split(/\s+/);
-  //   return greetings.some(greeting => words.includes(greeting));
-  // }
-
-  // private isThaiGreeting(query: string): boolean {
-  //   const thaiGreetings = ['สวัสดี', 'หวัดดี', 'คุณคือ', 'เจ้าคือ'];
-  //   const words = query.split(/\s+/);
-  //   return thaiGreetings.some(greeting => words.includes(greeting));
-  // }
-
   async generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): Promise<string> {
     try {
-      // if (this.isThaiGreeting(query)) {
-      //   return 'สวัสดีครับ ผมชื่อ ดินดิน เป็นผู้ช่วย AI ของ มหาวิทยาลัยแม่ฟ้าหลวง ฉันจะช่วยคุณอะไรได้บ้างวันนี้?';
-      // }
-
-      // if (this.isGreeting(query)) {
-      //   return 'Hi! I am DinDin, AI assistant in Mae Fah Luang University. How can I help you today?';
-      // }
-
       if (!this.isRelevantQuestion(query)) {
         return 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
       }
@@ -48,9 +20,7 @@ export class ChatService {
       console.log('Retrieved context:', context);
 
       const systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
-      // You are DinDin, a male AI. Keep responses brief and to the point.
-      // You are DinDin, a male AI assistant. Only answer questions about Mae Fah Luang University. You are now working at Mae Fah Luang University.
-
+      
       const augmentedMessages = [
         {
           role: 'system' as const,
@@ -95,10 +65,3 @@ export const chatService = new ChatService();
 if (process.env.NODE_ENV !== 'production') {
   console.log('Debug message');
 }
-
-// backend/server.ts
-// ถ้า log level ถูกตั้งค่าสูงเกินไป console.debug() อาจไม่แสดงผล
-console.error('Always shows');  // highest priority
-console.warn('Shows in most cases');
-console.info('May not show');
-console.debug('Lowest priority, may not show'); 
