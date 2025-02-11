@@ -37,13 +37,12 @@ router.post('/', async (req: Request, res: Response) => {
       url: req.url,
       method: req.method
     });
-    res.flushHeaders(); // <---- เพิ่มบรรทัดนี้เพื่อให้แน่ใจว่า header ถูกส่งก่อน
 
     const { messages, modelId, collectionName } = req.body;
-    // ตรวจสอบว่ามีรูปภาพหรือไม่
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
+    // ตั้งค่า Streaming Response
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
@@ -55,21 +54,26 @@ router.post('/', async (req: Request, res: Response) => {
       console.log('Streaming response chunk:', content);
       const data = JSON.stringify({ content });
       res.write(`data: ${data}\n\n`);
-      res.write('\n');  // <---- เพิ่ม newline เพื่อลด latency
       
-      // ใช้ setTimeout แทน flush
+      // ใช้ setTimeout ป้องกันการค้าง
       await new Promise(resolve => setTimeout(resolve, 10));
     }
 
+    // ปิด Stream อย่างถูกต้อง
     res.write('data: [DONE]\n\n');
     res.end();
   } catch (error) {
     console.error('Chat error details:', error);
+
+    // ป้องกันการเรียก res.end() หรือ res.status(500) ซ้ำ
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error' });
+      res.write('data: {"content": "ขออภัย มีข้อผิดพลาดเกิดขึ้น"}\n\n');
+      res.write('data: [DONE]\n\n');
+      res.end();
     }
   }
 });
+
 
 router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
