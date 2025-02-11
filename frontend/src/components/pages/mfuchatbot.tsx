@@ -281,35 +281,22 @@ const MFUChatbot: React.FC = () => {
       if (!reader) throw new Error('No response body');
 
       let accumulatedContent = '';
-      const decoder = new TextDecoder();
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
+        const chunk = new TextDecoder().decode(value);
         const lines = chunk.split('\n');
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
-            try {
-              const cleanData = line.replace('data: ', '').trim();
-              if (cleanData) {
-                try {
-                  const data = JSON.parse(cleanData);
-                  if (data.content) {
-                    accumulatedContent += data.content;
-                    setCurrentResponse(accumulatedContent);
-                    setMessages(prev => 
-                      prev.map(msg => 
-                        msg.id === aiMessageId 
-                          ? { ...msg, content: accumulatedContent }
-                          : msg
-                      )
-                    );
-                  }
-                } catch {
-                  accumulatedContent += cleanData;
+            const data = line.slice(5).trim();
+            if (data) {
+              try {
+                const parsedData = JSON.parse(data);
+                if (parsedData.content) {
+                  accumulatedContent += parsedData.content;
                   setCurrentResponse(accumulatedContent);
                   setMessages(prev => 
                     prev.map(msg => 
@@ -319,9 +306,18 @@ const MFUChatbot: React.FC = () => {
                     )
                   );
                 }
+              } catch (e) {
+                console.error('Error parsing JSON:', e);
+                accumulatedContent += data;
+                setCurrentResponse(accumulatedContent);
+                setMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === aiMessageId 
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  )
+                );
               }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
             }
           }
         }
@@ -485,7 +481,7 @@ const MFUChatbot: React.FC = () => {
     };
 
     return (
-      <div className="space-y-2">
+      <div className="">
         <div className={`grid gap-2 auto-cols-fr ${
           message.images && message.images.length > 0 
             ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
