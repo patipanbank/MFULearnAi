@@ -239,6 +239,7 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
+      // สร้าง assistant message ว่าง ๆ ไว้ก่อน
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
@@ -279,6 +280,8 @@ const MFUChatbot: React.FC = () => {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
                 accumulatedContent += data.content;
+
+                // อัปเดตข้อความ assistant ทันทีที่ได้รับ chunk ใหม่
                 setMessages(prev => prev.map(msg =>
                   msg.id === aiMessageId
                     ? { ...msg, content: accumulatedContent }
@@ -327,6 +330,7 @@ const MFUChatbot: React.FC = () => {
       setIsLoading(false);
     }
   };
+
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
