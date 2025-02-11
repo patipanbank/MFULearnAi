@@ -265,41 +265,31 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
-      const decoder = new TextDecoder();
       let accumulatedContent = '';
-      let buffer = '';
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          // แปลง bytes เป็น text และเพิ่มเข้า buffer
-          buffer += decoder.decode(value, { stream: true });
+      // อ่านและประมวลผล stream แบบ chunk
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (value) {
+          const chunk = new TextDecoder().decode(value);
+          const lines = chunk.split('\n');
           
-          // แยกข้อความตาม newlines
-          const lines = buffer.split('\n');
-          // เก็บส่วนที่เหลือไว้ใน buffer
-          buffer = lines.pop() || '';
-
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
                 const { content } = JSON.parse(line.slice(6));
                 if (content) {
                   accumulatedContent += content;
-                  // อัพเดท UI ทันที
-                  await new Promise<void>(resolve => {
-                    setMessages(prev => {
-                      const newMessages = prev.map(msg =>
-                        msg.id === aiMessageId
-                          ? { ...msg, content: accumulatedContent }
-                          : msg
-                      );
-                      resolve();
-                      return newMessages;
-                    });
-                  });
+                  
+                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === aiMessageId 
+                        ? { ...msg, content: accumulatedContent }
+                        : msg
+                    )
+                  );
                 }
               } catch (e) {
                 console.error('Error parsing chunk:', e);
@@ -307,25 +297,8 @@ const MFUChatbot: React.FC = () => {
             }
           }
         }
-
-        // จัดการข้อความที่เหลือใน buffer (ถ้ามี)
-        if (buffer.length > 0) {
-          try {
-            const { content } = JSON.parse(buffer.slice(6));
-            if (content) {
-              accumulatedContent += content;
-              setMessages(prev => prev.map(msg =>
-                msg.id === aiMessageId
-                  ? { ...msg, content: accumulatedContent }
-                  : msg
-              ));
-            }
-          } catch (e) {
-            console.error('Error parsing final chunk:', e);
-          }
-        }
-      } finally {
-        reader.releaseLock();
+        
+        if (done) break;
       }
 
       // บันทึกประวัติแชท
@@ -336,7 +309,16 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage, { ...messages[aiMessageId - 1], content: accumulatedContent }],
+          messages: [
+            ...messages, 
+            userMessage, 
+            { 
+              id: aiMessageId,
+              role: 'assistant',
+              content: accumulatedContent,
+              timestamp: new Date()
+            }
+          ],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
