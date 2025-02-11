@@ -212,10 +212,10 @@ const MFUChatbot: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit()) return;
-
+  
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
-
+  
     try {
       let processedImages;
       if (selectedImages.length > 0) {
@@ -226,7 +226,7 @@ const MFUChatbot: React.FC = () => {
           })
         );
       }
-
+  
       const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
@@ -234,19 +234,19 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date(),
         images: processedImages
       };
-
+  
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
-
-      // สร้าง assistant message ว่าง ๆ ไว้ก่อน
+  
+      // สร้าง assistant message ว่าง ๆ ไว้ก่อน เพื่อให้มีที่อัปเดตข้อความ
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
         content: '',
         timestamp: new Date()
       }]);
-
+  
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -259,33 +259,39 @@ const MFUChatbot: React.FC = () => {
           collectionName: selectedCollection
         })
       });
-
+  
       if (!response.ok) throw new Error('Network response was not ok');
-
+  
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
-
+  
+      const decoder = new TextDecoder();
+      let firstChunkReceived = false; // เช็คว่ามีข้อความแรกเข้ามาหรือยัง
+  
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-      
-        const chunk = new TextDecoder().decode(value);
+  
+        const chunk = decoder.decode(value);
         const lines = chunk.split('\n');
-      
+  
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: msg.content + data.content } // ✨ อัปเดตข้อความทันที
-                    : msg
-                ));
-      
-                // ปิด LoadingDots เมื่อมีข้อความแรกปรากฏ
-                if (data.content.length > 0) {
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: msg.content + data.content } // ✨ อัปเดตข้อความทีละส่วน
+                      : msg
+                  )
+                );
+  
+                // ปิด LoadingDots เมื่อได้รับข้อความแรก
+                if (!firstChunkReceived) {
                   setIsLoading(false);
+                  firstChunkReceived = true;
                 }
               }
             } catch (e) {
@@ -294,7 +300,7 @@ const MFUChatbot: React.FC = () => {
           }
         }
       }
-
+  
       // บันทึกประวัติแชท
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
@@ -316,7 +322,7 @@ const MFUChatbot: React.FC = () => {
           collectionName: selectedCollection
         })
       });
-
+  
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
@@ -329,6 +335,128 @@ const MFUChatbot: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!canSubmit()) return;
+
+  //   setIsLoading(true);
+  //   const aiMessageId = messages.length + 2;
+
+  //   try {
+  //     let processedImages;
+  //     if (selectedImages.length > 0) {
+  //       processedImages = await Promise.all(
+  //         selectedImages.map(async (file) => {
+  //           const base64 = await compressImage(file);
+  //           return base64;
+  //         })
+  //       );
+  //     }
+
+  //     const userMessage = {
+  //       id: messages.length + 1,
+  //       role: 'user' as const,
+  //       content: inputMessage.trim(),
+  //       timestamp: new Date(),
+  //       images: processedImages
+  //     };
+
+  //     setMessages(prev => [...prev, userMessage]);
+  //     setInputMessage('');
+  //     setSelectedImages([]);
+
+  //     // สร้าง assistant message ว่าง ๆ ไว้ก่อน
+  //     setMessages(prev => [...prev, {
+  //       id: aiMessageId,
+  //       role: 'assistant',
+  //       content: '',
+  //       timestamp: new Date()
+  //     }]);
+
+  //     const response = await fetch(`${config.apiUrl}/api/chat`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+  //       },
+  //       body: JSON.stringify({
+  //         messages: [...messages, userMessage],
+  //         modelId: selectedModel,
+  //         collectionName: selectedCollection
+  //       })
+  //     });
+
+  //     if (!response.ok) throw new Error('Network response was not ok');
+
+  //     const reader = response.body?.getReader();
+  //     if (!reader) throw new Error('No response body');
+
+  //     while (true) {
+  //       const { value, done } = await reader.read();
+  //       if (done) break;
+      
+  //       const chunk = new TextDecoder().decode(value);
+  //       const lines = chunk.split('\n');
+      
+  //       for (const line of lines) {
+  //         if (line.startsWith('data: ')) {
+  //           try {
+  //             const data = JSON.parse(line.slice(6));
+  //             if (data.content) {
+  //               setMessages(prev => prev.map(msg =>
+  //                 msg.id === aiMessageId
+  //                   ? { ...msg, content: msg.content + data.content } // ✨ อัปเดตข้อความทันที
+  //                   : msg
+  //               ));
+      
+  //               // ปิด LoadingDots เมื่อมีข้อความแรกปรากฏ
+  //               if (data.content.length > 0) {
+  //                 setIsLoading(false);
+  //               }
+  //             }
+  //           } catch (e) {
+  //             console.error('Error parsing chunk:', e);
+  //           }
+  //         }
+  //       }
+  //     }
+
+  //     // บันทึกประวัติแชท
+  //     await fetch(`${config.apiUrl}/api/chat/history`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+  //       },
+  //       body: JSON.stringify({
+  //         messages: [
+  //           ...messages,
+  //           userMessage,
+  //           {
+  //             id: aiMessageId,
+  //             role: 'assistant',
+  //             timestamp: new Date()
+  //           }
+  //         ],
+  //         modelId: selectedModel,
+  //         collectionName: selectedCollection
+  //       })
+  //     });
+
+  //   } catch (error) {
+  //     console.error('Error:', error);
+  //     setMessages(prev => [...prev, {
+  //       id: aiMessageId,
+  //       role: 'assistant',
+  //       content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
+  //       timestamp: new Date()
+  //     }]);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
