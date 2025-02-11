@@ -10,6 +10,7 @@ import authRoutes from './routes/auth';
 import trainingRoutes from './routes/training';
 import chatRoutes from './routes/chat';
 import bodyParser from 'body-parser';
+import compression from 'compression';
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use(passport.session());
 app.use('/api/auth', authRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/chat', chatRoutes);
+app.use(compression()); // ✅ เปิดใช้งาน res.flush()
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

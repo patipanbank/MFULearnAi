@@ -235,54 +235,56 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      setMessages(prev => [...prev, userMessage]);
-      setInputMessage('');
+      setMessages((prev) => [...prev, userMessage]);
+      setInputMessage("");
       setSelectedImages([]);
 
-      setMessages(prev => [...prev, {
-        id: aiMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date()
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: aiMessageId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+        } as Message,
+      ]);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("auth_token")}`,
         },
         body: JSON.stringify({
           messages: [...messages, userMessage],
           modelId: selectedModel,
-          collectionName: selectedCollection
-        })
+          collectionName: selectedCollection,
+        }),
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.ok) throw new Error("Network response was not ok");
 
       const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
+      if (!reader) throw new Error("No response body");
 
-      let accumulatedContent = '';
+      let accumulatedContent = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
         const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('\n');
+        const lines = chunk.split("\n");
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
                 accumulatedContent += data.content;
 
-                // ✅ อัปเดตข้อความของ assistant ให้ UI แสดงผลแบบเรียลไทม์
-                setMessages(prev =>
-                  prev.map(msg =>
+                setMessages((prev) =>
+                  prev.map((msg) =>
                     msg.id === aiMessageId
                       ? { ...msg, content: accumulatedContent }
                       : msg
@@ -290,18 +292,17 @@ const MFUChatbot: React.FC = () => {
                 );
               }
             } catch (e) {
-              console.error('Error parsing chunk:', e);
+              console.error("Error parsing chunk:", e);
             }
           }
         }
       }
 
-      // บันทึกประวัติแชท
       await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("auth_token")}`,
         },
         body: JSON.stringify({
           messages: [
@@ -309,24 +310,26 @@ const MFUChatbot: React.FC = () => {
             userMessage,
             {
               id: aiMessageId,
-              role: 'assistant',
+              role: "assistant",
               content: accumulatedContent,
-              timestamp: new Date()
-            }
+              timestamp: new Date(),
+            } as Message,
           ],
           modelId: selectedModel,
-          collectionName: selectedCollection
-        })
+          collectionName: selectedCollection,
+        }),
       });
-
     } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => [...prev, {
-        id: aiMessageId,
-        role: 'assistant',
-        content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
-        timestamp: new Date()
-      }]);
+      console.error("Error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: aiMessageId,
+          role: "assistant",
+          content: "ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง",
+          timestamp: new Date(),
+        } as Message,
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -466,8 +469,8 @@ const MFUChatbot: React.FC = () => {
     return (
       <div className="">
         <div className={`grid gap-2 auto-cols-fr ${message.images && message.images.length > 0
-            ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
-            : ''
+          ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
+          : ''
           }`}>
           {message.images?.map((img, index) => (
             <img
@@ -532,8 +535,8 @@ const MFUChatbot: React.FC = () => {
                   }`}>
                   {/* Avatar */}
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${message.role === 'user'
-                      ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-                      : 'bg-transparent'
+                    ? 'bg-gradient-to-r from-red-600 to-yellow-400'
+                    : 'bg-transparent'
                     } flex items-center justify-center`}>
                     {message.role === 'user' ? (
                       <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -555,8 +558,8 @@ const MFUChatbot: React.FC = () => {
                       {new Date(message.timestamp).toLocaleTimeString()}
                     </div>
                     <div className={`rounded-lg p-3 ${message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                       }`}>
                       {/* {message.role === 'assistant' && message.content === '' && isLoading ? (
                         <LoadingDots />

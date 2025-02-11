@@ -31,15 +31,9 @@ router.use(verifyToken);
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    console.log('Received chat request:', {
-      body: req.body,
-      headers: req.headers,
-      url: req.url,
-      method: req.method
-    });
+    console.log('Received chat request:', req.body);
 
     const { messages, modelId, collectionName } = req.body;
-    // ตรวจสอบว่ามีรูปภาพหรือไม่
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
@@ -52,21 +46,17 @@ router.post('/', async (req: Request, res: Response) => {
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      res.flushHeaders();
+      res.flush(); // 💡 สำคัญ! เพื่อให้ข้อความถูกส่งไปทันที
     }
 
     console.log('Chat response completed');
     res.end();
   } catch (error) {
-    console.error('Chat error details:', {
-      error,
-      stack: (error as Error).stack,
-      url: req.url,
-      method: req.method
-    });
+    console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
