@@ -3,8 +3,8 @@ import { BiLoaderAlt } from 'react-icons/bi';
 import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
-// import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-// import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Source {
   modelId: string;
@@ -235,6 +235,7 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
+      // เพิ่มข้อความผู้ใช้
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
@@ -260,52 +261,46 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      if (!response.body) throw new Error('No response body');
+      if (!response.ok) throw new Error('Network response was not ok');
       
-      const reader = response.body.getReader();
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
       const decoder = new TextDecoder();
-      let accumulatedContent = '';
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+
+        // แปลง bytes เป็น text และรวมกับ buffer ที่เหลือจากรอบที่แล้ว
+        buffer += decoder.decode(value, { stream: true });
         
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
+        // แยกข้อความตาม data: events
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // เก็บข้อความที่เหลือไว้รอบถัดไป
+
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const { content } = JSON.parse(line.slice(6));
               if (content) {
-                accumulatedContent += content;
-                // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
-                setMessages(prev => prev.map(msg => 
-                  msg.id === aiMessageId 
-                    ? { ...msg, content: accumulatedContent }
+                // อัพเดทข้อความทันทีที่ได้รับแต่ละ chunk
+                setMessages(prev => prev.map(msg =>
+                  msg.id === aiMessageId
+                    ? {
+                        ...msg,
+                        content: msg.content + content
+                      }
                     : msg
                 ));
               }
-            } catch (error) {
-              console.error('Error parsing chunk:', error);
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }
       }
-
-      // บันทึกประวัติแชท
-      await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          messages: [...messages, userMessage, { ...messages[aiMessageId - 1], content: accumulatedContent }],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
 
     } catch (error) {
       console.error('Error:', error);
@@ -406,73 +401,73 @@ const MFUChatbot: React.FC = () => {
   };
 
   // แก้ไข MessageContent component
-  // const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
-  //   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  //   const copyToClipboard = (code: string, index: number) => {
-  //     navigator.clipboard.writeText(code);
-  //     setCopiedIndex(index);
-  //     setTimeout(() => setCopiedIndex(null), 2000);
-  //   };
+    const copyToClipboard = (code: string, index: number) => {
+      navigator.clipboard.writeText(code);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    };
 
-  //   // แยกการ render content ออกมา
-  //   const renderContent = (content: string) => {
-  //     const parts = content.split(/(```[\s\S]*?```)/g);
+    // แยกการ render content ออกมา
+    const renderContent = (content: string) => {
+      const parts = content.split(/(```[\s\S]*?```)/g);
 
-  //     return parts.map((part, index) => {
-  //       if (part.startsWith('```') && part.endsWith('```')) {
-  //         const [, language = '', code = ''] = part.match(/```(\w*)\n?([\s\S]*?)```/) || [];
-  //         return (
-  //           <div key={index} className="my-2 relative">
-  //             <div className="flex justify-between items-center bg-[#1E1E1E] text-white text-xs px-4 py-2 rounded-t">
-  //               <span>{language || 'plaintext'}</span>
-  //               <button
-  //                 onClick={() => copyToClipboard(code.trim(), index)}
-  //                 className="text-gray-400 hover:text-white"
-  //               >
-  //                 {copiedIndex === index ? 'Copied!' : 'Copy code'}
-  //               </button>
-  //             </div>
-  //             <SyntaxHighlighter
-  //               language={language || 'plaintext'}
-  //               style={vscDarkPlus}
-  //               customStyle={{
-  //                 margin: 0,
-  //                 borderTopLeftRadius: 0,
-  //                 borderTopRightRadius: 0,
-  //               }}
-  //             >
-  //               {code.trim()}
-  //             </SyntaxHighlighter>
-  //           </div>
-  //         );
-  //       }
-  //       return <span key={index}>{part}</span>;
-  //     });
-  //   };
+      return parts.map((part, index) => {
+        if (part.startsWith('```') && part.endsWith('```')) {
+          const [, language = '', code = ''] = part.match(/```(\w*)\n?([\s\S]*?)```/) || [];
+          return (
+            <div key={index} className="my-2 relative">
+              <div className="flex justify-between items-center bg-[#1E1E1E] text-white text-xs px-4 py-2 rounded-t">
+                <span>{language || 'plaintext'}</span>
+                <button
+                  onClick={() => copyToClipboard(code.trim(), index)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  {copiedIndex === index ? 'Copied!' : 'Copy code'}
+                </button>
+              </div>
+              <SyntaxHighlighter
+                language={language || 'plaintext'}
+                style={vscDarkPlus}
+                customStyle={{
+                  margin: 0,
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                }}
+              >
+                {code.trim()}
+              </SyntaxHighlighter>
+            </div>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      });
+    };
 
-  //   return (
-  //     <div className="">
-  //       <div className={`grid gap-2 auto-cols-fr ${
-  //         message.images && message.images.length > 0 
-  //           ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
-  //           : ''
-  //       }`}>
-  //         {message.images?.map((img, index) => (
-  //           <img
-  //             key={index}
-  //             src={`data:${img.mediaType};base64,${img.data}`}
-  //             alt="Uploaded content"
-  //             className="max-w-[200px] w-full h-auto rounded-lg object-contain"
-  //           />
-  //         ))}
-  //       </div>
-  //       <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
-  //         {renderContent(message.content)}
-  //       </div>
-  //     </div>
-  //   );
-  // };
+    return (
+      <div className="">
+        <div className={`grid gap-2 auto-cols-fr ${
+          message.images && message.images.length > 0 
+            ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
+            : ''
+        }`}>
+          {message.images?.map((img, index) => (
+            <img
+              key={index}
+              src={`data:${img.mediaType};base64,${img.data}`}
+              alt="Uploaded content"
+              className="max-w-[200px] w-full h-auto rounded-lg object-contain"
+            />
+          ))}
+        </div>
+        <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
+          {renderContent(message.content)}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -551,8 +546,11 @@ const MFUChatbot: React.FC = () => {
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                     }`}>
-                      {message.content || (message.role === 'assistant' && isLoading && <LoadingDots />)}
-                      {/* <MessageContent message={message} /> */}
+                      {message.role === 'assistant' && message.content === '' && isLoading ? (
+                        <LoadingDots />
+                      ) : (
+                        <MessageContent message={message} />
+                      )}
                     </div>
                   </div>
                 </div>
