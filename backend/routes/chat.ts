@@ -42,24 +42,40 @@ router.post('/', async (req: Request, res: Response) => {
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    // ตั้งค่า headers สำหรับ SSE (Server-Sent Events)
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // สำหรับ Nginx
+    // ตั้งค่า headers สำหรับ SSE
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    });
+
+    // ส่ง initial response เพื่อเริ่ม stream
+    res.write('data: {"content": ""}\n\n');
+    res.flush();
+
+    console.log('Starting generateResponse:', {
+      modelId,
+      collectionName,
+      messagesCount: messages.length,
+      query
+    });
 
     // ฟังก์ชันสำหรับส่งข้อมูลแต่ละ chunk
     const sendChunk = (content: string) => {
+      console.log('Sending chunk:', content);
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      // บังคับให้ส่งข้อมูลทันที
-      if (res.flush) {
-        res.flush();
-      }
+      res.flush();
     };
 
-    for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-      console.log('Streaming response chunk:', content);
-      sendChunk(content);
+    try {
+      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+        console.log('Streaming response chunk:', content);
+        sendChunk(content);
+      }
+    } catch (error) {
+      console.error('Error in stream generation:', error);
+      sendChunk('\nขออภัย มีข้อผิดพลาดเกิดขึ้นระหว่างการสร้างคำตอบ');
     }
 
     console.log('Chat response completed');
@@ -71,7 +87,17 @@ router.post('/', async (req: Request, res: Response) => {
       url: req.url,
       method: req.method
     });
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // ส่ง error response ในรูปแบบ SSE
+    if (!res.headersSent) {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      });
+    }
+    res.write(`data: ${JSON.stringify({ content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง' })}\n\n`);
+    res.end();
   }
 });
 
