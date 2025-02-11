@@ -297,7 +297,6 @@ const MFUChatbot: React.FC = () => {
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                // แก้การ parse ข้อมูล
                 const cleanData = line.replace('data: ', '').trim();
                 if (cleanData) {
                   try {
@@ -305,11 +304,24 @@ const MFUChatbot: React.FC = () => {
                     if (data.content) {
                       accumulatedContent += data.content;
                       setCurrentResponse(accumulatedContent);
+                      setMessages(prev => 
+                        prev.map(msg => 
+                          msg.id === aiMessageId 
+                            ? { ...msg, content: accumulatedContent }
+                            : msg
+                        )
+                      );
                     }
                   } catch {
-                    // ถ้า parse JSON ไม่ได้ ให้ใช้ข้อความนั้นเลย
                     accumulatedContent += cleanData;
                     setCurrentResponse(accumulatedContent);
+                    setMessages(prev => 
+                      prev.map(msg => 
+                        msg.id === aiMessageId 
+                          ? { ...msg, content: accumulatedContent }
+                          : msg
+                      )
+                    );
                   }
                 }
               } catch (e) {
