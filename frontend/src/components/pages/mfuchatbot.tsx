@@ -215,6 +215,14 @@ const MFUChatbot: React.FC = () => {
     const aiMessageId = messages.length + 2;
 
     try {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
+        await new Promise((resolve, reject) => {
+          wsRef.current!.onopen = resolve;
+          wsRef.current!.onerror = reject;
+        });
+      }
+
       let processedImages;
       if (selectedImages.length > 0) {
         processedImages = await Promise.all(
@@ -241,16 +249,7 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        wsRef.current = new WebSocket(config.wsUrl);
-        
-        wsRef.current.onopen = () => {
-          console.log('WebSocket connected');
-        };
-      }
-
       let accumulatedContent = '';
-
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -261,19 +260,6 @@ const MFUChatbot: React.FC = () => {
                 ? { ...msg, content: accumulatedContent }
                 : msg
             ));
-          }
-
-          if (data.done) {
-            saveChatHistory([
-              ...messages,
-              userMessage,
-              {
-                id: aiMessageId,
-                role: 'assistant',
-                content: accumulatedContent,
-                timestamp: new Date()
-              }
-            ]);
           }
         } catch (error) {
           console.error('Error parsing message:', error);
@@ -307,24 +293,24 @@ const MFUChatbot: React.FC = () => {
     };
   }, []);
 
-  const saveChatHistory = async (messages: Message[]) => {
-    try {
-      await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          messages,
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
-    } catch (error) {
-      console.error('Error saving chat history:', error);
-    }
-  };
+  // const saveChatHistory = async (messages: Message[]) => {
+  //   try {
+  //     await fetch(`${config.apiUrl}/api/chat/history`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+  //       },
+  //       body: JSON.stringify({
+  //         messages,
+  //         modelId: selectedModel,
+  //         collectionName: selectedCollection
+  //       })
+  //     });
+  //   } catch (error) {
+  //     console.error('Error saving chat history:', error);
+  //   }
+  // };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
