@@ -50,13 +50,15 @@ router.post('/', async (req: Request, res: Response) => {
       'X-Accel-Buffering': 'no'
     });
 
+    // เพิ่ม delay function
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
       const data = JSON.stringify({ content });
       res.write(`data: ${data}\n\n`);
-      if (typeof res.flush === 'function') {
-        res.flush();
-      }
+      await res.flush(); // รอให้ flush เสร็จ
+      await delay(50); // เพิ่ม delay ระหว่าง chunk
     }
 
     res.write('data: [DONE]\n\n');
