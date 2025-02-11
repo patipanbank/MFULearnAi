@@ -266,30 +266,41 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedContent = '';
+      let currentChunk = '';
 
       try {
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
 
+          // แปลง bytes เป็น text
           const text = decoder.decode(value);
+          
+          // แยกข้อความเป็นบรรทัด
           const lines = text.split('\n');
-
+          
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const { content } = JSON.parse(line.slice(6));
-                if (content) {
-                  accumulatedContent += content;
+                const parsed = JSON.parse(line.slice(6));
+                if (parsed.content) {
+                  currentChunk = parsed.content;
+                  accumulatedContent += currentChunk;
+                  
                   // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
-                  setMessages(messages => 
-                    messages.map(msg => 
-                      msg.id === aiMessageId 
-                        ? { ...msg, content: accumulatedContent }
-                        : msg
-                    )
-                  );
-                  // Force re-render
+                  await new Promise<void>((resolve) => {
+                    setMessages(prevMessages => {
+                      const updatedMessages = prevMessages.map(msg =>
+                        msg.id === aiMessageId
+                          ? { ...msg, content: accumulatedContent }
+                          : msg
+                      );
+                      resolve();
+                      return updatedMessages;
+                    });
+                  });
+
+                  // รอให้ UI อัพเดทเสร็จก่อนดำเนินการต่อ
                   await new Promise(resolve => requestAnimationFrame(resolve));
                 }
               } catch (error) {
@@ -303,27 +314,29 @@ const MFUChatbot: React.FC = () => {
       }
 
       // บันทึกประวัติแชท
-      await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          messages: [
-            ...messages, 
-            userMessage, 
-            { 
-              id: aiMessageId,
-              role: 'assistant',
-              content: accumulatedContent,
-              timestamp: new Date()
-            }
-          ],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
+      if (accumulatedContent) {
+        await fetch(`${config.apiUrl}/api/chat/history`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          },
+          body: JSON.stringify({
+            messages: [
+              ...messages,
+              userMessage,
+              {
+                id: aiMessageId,
+                role: 'assistant',
+                content: accumulatedContent,
+                timestamp: new Date()
+              }
+            ],
+            modelId: selectedModel,
+            collectionName: selectedCollection
+          })
+        });
+      }
 
     } catch (error) {
       console.error('Error:', error);
