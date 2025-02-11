@@ -267,46 +267,35 @@ const MFUChatbot: React.FC = () => {
       if (!reader) throw new Error('No response body');
 
       let accumulatedText = '';
-      const decoder = new TextDecoder();
-
-      try {
-        // ใช้ requestAnimationFrame เพื่อให้ UI อัพเดทได้ทัน
-        const processStream = async () => {
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const { content } = JSON.parse(line.slice(5));
-                  if (content) {
-                    accumulatedText += content;
-                    // อัพเดท UI ด้วย requestAnimationFrame
-                    requestAnimationFrame(() => {
-                      setMessages(prev => 
-                        prev.map(msg => 
-                          msg.id === aiMessageId
-                            ? { ...msg, content: accumulatedText }
-                            : msg
-                        )
-                      );
-                    });
-                  }
-                } catch (e) {
-                  console.error('Error parsing chunk:', e);
-                }
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        // แปลง bytes เป็น text
+        const text = new TextDecoder().decode(value);
+        const lines = text.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.content) {
+                accumulatedText += data.content;
+                // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
+                setMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === aiMessageId 
+                      ? { ...msg, content: accumulatedText }
+                      : msg
+                  )
+                );
               }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
-        };
-
-        await processStream();
-      } finally {
-        reader.releaseLock();
+        }
       }
 
       // บันทึกประวัติแชท
