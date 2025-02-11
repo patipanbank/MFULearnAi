@@ -57,49 +57,37 @@ export class BedrockService {
           }))
         })
       });
-
+  
       const response = await this.client.send(command);
-      
-      if (response.body) {
-        for await (const chunk of response.body) {
-          if (chunk.chunk?.bytes) {
-            const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
-            try {
-              const parsedChunk = JSON.parse(decodedChunk);
-              if (parsedChunk.type === 'content_block_delta' && 
-                  parsedChunk.delta?.type === 'text_delta' && 
-                  parsedChunk.delta?.text) {
-                yield parsedChunk.delta.text;
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
+  
+      if (!response.body) {
+        console.error("Bedrock response body is empty.");
+        yield "[Error]: No response from Claude 3.5.";
+        return;
+      }
+  
+      let buffer = ""; // ใช้เก็บข้อมูลเผื่อ JSON มาไม่ครบ
+      for await (const chunk of response.body) {
+        if (chunk.chunk?.bytes) {
+          buffer += new TextDecoder().decode(chunk.chunk.bytes);
+          try {
+            const parsedChunk = JSON.parse(buffer);
+            if (parsedChunk.type === 'content_block_delta' && parsedChunk.delta?.type === 'text_delta' && parsedChunk.delta?.text) {
+              yield parsedChunk.delta.text;
+              buffer = ""; // Reset buffer หลังจาก parse สำเร็จ
             }
+          } catch (e) {
+            // JSON อาจจะยังมาไม่ครบ ไม่ต้องโยน Error ทิ้ง
+            continue;
           }
         }
       }
     } catch (error) {
       console.error('Claude chat error:', error);
-      throw error;
+      yield `[Error]: ${(error as Error).message}`;
     }
   }
-
-  async *chatWithEstimatedTime(messages: ChatMessage[], modelId: string): AsyncGenerator<{ content: string, estimatedTime: number }> {
-    const estimatedTime = 10; // ประมาณเวลา 10 วินาที
-    const startTime = Date.now();
-
-    try {
-      for await (const chunk of this.chat(messages, modelId)) {
-        const elapsedTime = (Date.now() - startTime) / 1000;
-        yield { 
-          content: chunk, 
-          estimatedTime: Math.max(0, estimatedTime - elapsedTime) 
-        };
-      }
-    } catch (error) {
-      console.error('Bedrock chat with estimated time error:', error);
-      throw error;
-    }
-  }
+  
 }
 
 export const bedrockService = new BedrockService();

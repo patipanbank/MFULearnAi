@@ -39,20 +39,20 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     const { messages, modelId, collectionName } = req.body;
-    // ตรวจสอบว่ามีรูปภาพหรือไม่
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'  // 💡 ป้องกันเซิร์ฟเวอร์แคช SSE
     });
 
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      res.flushHeaders();
+      res.flushHeaders(); // 💡 Force ส่ง response ทันที
     }
 
     console.log('Chat response completed');
@@ -64,9 +64,13 @@ router.post('/', async (req: Request, res: Response) => {
       url: req.url,
       method: req.method
     });
-    res.status(500).json({ error: 'Internal server error' });
+
+    // 💡 ส่งข้อความ error กลับไปยัง frontend
+    res.write(`data: ${JSON.stringify({ content: '[Error]: Internal server error' })}\n\n`);
+    res.end();
   }
 });
+
 
 router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {

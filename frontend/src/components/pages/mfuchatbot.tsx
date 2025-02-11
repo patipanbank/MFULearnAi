@@ -260,12 +260,12 @@ const MFUChatbot: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
-      
+
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
       let accumulatedContent = '';
-      
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -279,11 +279,15 @@ const MFUChatbot: React.FC = () => {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
                 accumulatedContent += data.content;
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                ));
+
+                // ✅ อัปเดตข้อความของ assistant ให้ UI แสดงผลแบบเรียลไทม์
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  )
+                );
               }
             } catch (e) {
               console.error('Error parsing chunk:', e);
@@ -301,9 +305,9 @@ const MFUChatbot: React.FC = () => {
         },
         body: JSON.stringify({
           messages: [
-            ...messages, 
-            userMessage, 
-            { 
+            ...messages,
+            userMessage,
+            {
               id: aiMessageId,
               role: 'assistant',
               content: accumulatedContent,
@@ -360,7 +364,7 @@ const MFUChatbot: React.FC = () => {
       console.error('Error clearing chat:', error);
     }
   };
-  
+
   // เพิ่มฟังก์ชันสำหรับตรวจสอบขนาดไฟล์
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024; // 20MB
@@ -461,11 +465,10 @@ const MFUChatbot: React.FC = () => {
 
     return (
       <div className="">
-        <div className={`grid gap-2 auto-cols-fr ${
-          message.images && message.images.length > 0 
+        <div className={`grid gap-2 auto-cols-fr ${message.images && message.images.length > 0
             ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
             : ''
-        }`}>
+          }`}>
           {message.images?.map((img, index) => (
             <img
               key={index}
@@ -525,15 +528,13 @@ const MFUChatbot: React.FC = () => {
           <div className="space-y-6">
             {messages.map((message) => (
               <div key={message.id} className="message relative">
-                <div className={`flex items-start gap-3 ${
-                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                }`}>
+                <div className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                  }`}>
                   {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
-                    message.role === 'user'
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${message.role === 'user'
                       ? 'bg-gradient-to-r from-red-600 to-yellow-400'
                       : 'bg-transparent'
-                  } flex items-center justify-center`}>
+                    } flex items-center justify-center`}>
                     {message.role === 'user' ? (
                       <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -548,18 +549,21 @@ const MFUChatbot: React.FC = () => {
                   </div>
 
                   {/* Message Content */}
-                  <div className={`flex flex-col space-y-2 max-w-[80%] ${
-                    message.role === 'user' ? 'items-end' : 'items-start'
-                  }`}>
+                  <div className={`flex flex-col space-y-2 max-w-[80%] ${message.role === 'user' ? 'items-end' : 'items-start'
+                    }`}>
                     <div className="text-sm text-gray-500">
                       {new Date(message.timestamp).toLocaleTimeString()}
                     </div>
-                    <div className={`rounded-lg p-3 ${
-                      message.role === 'user'
+                    <div className={`rounded-lg p-3 ${message.role === 'user'
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
-                    }`}>
-                      {message.role === 'assistant' && message.content === '' && isLoading ? (
+                      }`}>
+                      {/* {message.role === 'assistant' && message.content === '' && isLoading ? (
+                        <LoadingDots />
+                      ) : (
+                        <MessageContent message={message} />
+                      )} */}
+                      {message.role === 'assistant' && isLoading && !message.content ? (
                         <LoadingDots />
                       ) : (
                         <MessageContent message={message} />
@@ -692,8 +696,8 @@ const MFUChatbot: React.FC = () => {
                   type="submit"
                   disabled={!canSubmit()}
                   className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-blue-500 text-white hover:bg-blue-600'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   style={{ minHeight: '40px' }}
                 >
