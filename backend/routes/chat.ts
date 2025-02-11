@@ -63,6 +63,7 @@ router.post('/', async (req: Request, res: Response) => {
       stack: (error as Error).stack,
       url: req.url,
       method: req.method
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
