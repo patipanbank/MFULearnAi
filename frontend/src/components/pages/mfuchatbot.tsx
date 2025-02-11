@@ -215,7 +215,6 @@ const MFUChatbot: React.FC = () => {
 
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
-    console.log('Starting chat with ID:', aiMessageId);
 
     try {
       let processedImages;
@@ -235,12 +234,12 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date(),
         images: processedImages
       };
-      console.log('Sending user message:', userMessage);
 
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
+      // เพิ่ม placeholder สำหรับข้อความ AI
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
@@ -248,7 +247,6 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      console.log('Fetching response from API...');
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -262,36 +260,28 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      if (!response.ok) {
-        console.error('API response not OK:', response.status, response.statusText);
-        throw new Error('Network response was not ok');
-      }
+      if (!response.ok) throw new Error('Network response was not ok');
       
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
       let accumulatedContent = '';
-      console.log('Starting to read stream...');
       
       while (true) {
         const { value, done } = await reader.read();
-        if (done) {
-          console.log('Stream complete. Final content:', accumulatedContent);
-          break;
-        }
-
+        if (done) break;
+        
         const chunk = new TextDecoder().decode(value);
-        console.log('Received chunk:', chunk);
-
         const lines = chunk.split('\n');
+        
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
                 accumulatedContent += data.content;
-                console.log('Updated content:', accumulatedContent);
                 
+                // อัพเดท message ทันทีที่ได้รับข้อความใหม่
                 setMessages(prev => prev.map(msg =>
                   msg.id === aiMessageId
                     ? { ...msg, content: accumulatedContent }
@@ -299,13 +289,12 @@ const MFUChatbot: React.FC = () => {
                 ));
               }
             } catch (e) {
-              console.error('Error parsing chunk:', e, 'Line:', line);
+              console.error('Error parsing chunk:', e);
             }
           }
         }
       }
 
-      console.log('Saving chat history...');
       // บันทึกประวัติแชท
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
@@ -315,9 +304,9 @@ const MFUChatbot: React.FC = () => {
         },
         body: JSON.stringify({
           messages: [
-            ...messages, 
-            userMessage, 
-            { 
+            ...messages,
+            userMessage,
+            {
               id: aiMessageId,
               role: 'assistant',
               content: accumulatedContent,
@@ -338,7 +327,6 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
     } finally {
-      console.log('Chat complete');
       setIsLoading(false);
     }
   };
