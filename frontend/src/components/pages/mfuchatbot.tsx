@@ -295,12 +295,22 @@ const MFUChatbot: React.FC = () => {
           const lines = chunk.split('\n');
 
           for (const line of lines) {
-            if (line.startsWith('data: ') && line.trim() !== 'data: ') {
+            if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.slice(5));
-                if (data.content) {
-                  accumulatedContent += data.content;
-                  setCurrentResponse(accumulatedContent);
+                // แก้การ parse ข้อมูล
+                const cleanData = line.replace('data: ', '').trim();
+                if (cleanData) {
+                  try {
+                    const data = JSON.parse(cleanData);
+                    if (data.content) {
+                      accumulatedContent += data.content;
+                      setCurrentResponse(accumulatedContent);
+                    }
+                  } catch {
+                    // ถ้า parse JSON ไม่ได้ ให้ใช้ข้อความนั้นเลย
+                    accumulatedContent += cleanData;
+                    setCurrentResponse(accumulatedContent);
+                  }
                 }
               } catch (e) {
                 console.error('Error parsing chunk:', e);
