@@ -298,14 +298,38 @@ const MFUChatbot: React.FC = () => {
         }
       }
 
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({
+          messages: [
+            ...messages,
+            userMessage,
+            {
+              id: aiMessageId,
+              role: "assistant",
+              content: accumulatedContent,
+              timestamp: new Date(),
+            } as Message,
+          ],
+          modelId: selectedModel,
+          collectionName: selectedCollection,
+        }),
+      });
     } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => [...prev, {
-        id: aiMessageId,
-        role: 'assistant',
-        content: 'Sorry, an error occurred. Please try again.',
-        timestamp: new Date()
-      }]);
+      console.error("Error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: aiMessageId,
+          role: "assistant",
+          content: "ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง",
+          timestamp: new Date(),
+        } as Message,
+      ]);
     } finally {
       setIsLoading(false);
       setStreamingMessageId(null);
