@@ -11,8 +11,11 @@ import trainingRoutes from './routes/training';
 import chatRoutes from './routes/chat';
 import bodyParser from 'body-parser';
 import compression from 'compression';
+import { Server } from 'socket.io';
+import http from 'http';
 
 const app = express();
+const server = http.createServer(app);
 
 // Connect to MongoDB
 connectDB();
@@ -74,7 +77,26 @@ app.use((req, res, next) => {
   }
 });
 
+// เพิ่ม Socket.IO server
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
+  }
+});
+
+// เพิ่ม Socket.IO handlers
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-}); 
+});
+
+export { io }; // export เพื่อใช้ในไฟล์อื่น 
