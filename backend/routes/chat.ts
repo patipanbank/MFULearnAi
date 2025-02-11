@@ -54,6 +54,9 @@ router.post('/', async (req: Request, res: Response) => {
       console.log('Streaming response chunk:', content);
       const data = JSON.stringify({ content });
       res.write(`data: ${data}\n\n`);
+      if (typeof res.flush === 'function') {
+        res.flush();
+      }
     }
 
     res.write('data: [DONE]\n\n');
