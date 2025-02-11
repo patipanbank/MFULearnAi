@@ -57,7 +57,22 @@ app.use(passport.session());
 app.use('/api/auth', authRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/chat', chatRoutes);
-app.use(compression()); // ✅ เปิดใช้งาน res.flush()
+
+// เพิ่มการตั้งค่า timeout
+app.use((req, res, next) => {
+  res.setTimeout(24 * 60 * 60 * 1000); // 24 hours
+  next();
+});
+
+// ปิดการใช้งาน compression middleware สำหรับ SSE endpoints
+app.use((req, res, next) => {
+  if (req.url.includes('/api/chat') && req.method === 'POST') {
+    // ข้าม compression สำหรับ chat endpoint
+    next();
+  } else {
+    compression()(req, res, next);
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
