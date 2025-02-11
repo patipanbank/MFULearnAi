@@ -56,8 +56,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   // const [copySuccess, setCopySuccess] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [, setStreamingMessageId] = useState<number | null>(null);
-  const [, setCurrentResponse] = useState('');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -217,9 +215,7 @@ const MFUChatbot: React.FC = () => {
 
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
-    setStreamingMessageId(aiMessageId);
-    setCurrentResponse('');
-
+    
     try {
       let processedImages;
       if (selectedImages.length > 0) {
@@ -231,9 +227,9 @@ const MFUChatbot: React.FC = () => {
         );
       }
 
-      const userMessage = {
+      const userMessage: Message = {
         id: messages.length + 1,
-        role: 'user' as const,
+        role: 'user',
         content: inputMessage.trim(),
         timestamp: new Date(),
         images: processedImages
@@ -241,11 +237,12 @@ const MFUChatbot: React.FC = () => {
 
       const aiMessage: Message = {
         id: aiMessageId,
-        role: 'assistant' as const,
+        role: 'assistant',
         content: '',
         timestamp: new Date()
       };
 
+      // เพิ่มทั้ง user message และ ai message ทันที
       setMessages(prev => [...prev, userMessage, aiMessage]);
       setInputMessage('');
       setSelectedImages([]);
@@ -263,11 +260,8 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
-      
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
+      if (!response.body) throw new Error('No response body');
+      const reader = response.body.getReader();
       let accumulatedContent = '';
 
       while (true) {
@@ -280,9 +274,10 @@ const MFUChatbot: React.FC = () => {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(5));
-              if (data.content) {
+              const data = JSON.parse(line.slice(6));
+              if (data.content !== undefined) {
                 accumulatedContent += data.content;
+                // อัพเดท message ทันทีที่ได้รับ chunk
                 setMessages(prev => 
                   prev.map(msg => 
                     msg.id === aiMessageId 
@@ -298,41 +293,33 @@ const MFUChatbot: React.FC = () => {
         }
       }
 
+      // บันทึกประวัติการแชทหลังจากเสร็จสิ้น
       await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("auth_token")}`,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [
-            ...messages,
-            userMessage,
-            {
-              id: aiMessageId,
-              role: "assistant",
-              content: accumulatedContent,
-              timestamp: new Date(),
-            } as Message,
-          ],
+          messages: [...messages, userMessage, { ...aiMessage, content: accumulatedContent }],
           modelId: selectedModel,
-          collectionName: selectedCollection,
-        }),
+          collectionName: selectedCollection
+        })
       });
+
     } catch (error) {
-      console.error("Error:", error);
-      setMessages((prev) => [
+      console.error('Error:', error);
+      setMessages(prev => [
         ...prev,
         {
           id: aiMessageId,
-          role: "assistant",
-          content: "ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง",
-          timestamp: new Date(),
-        } as Message,
+          role: 'assistant',
+          content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
+          timestamp: new Date()
+        }
       ]);
     } finally {
       setIsLoading(false);
-      setStreamingMessageId(null);
     }
   };
 

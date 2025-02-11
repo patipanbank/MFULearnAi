@@ -42,8 +42,11 @@ router.post('/', async (req: Request, res: Response) => {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no' // ป้องกัน nginx buffering
+      'X-Accel-Buffering': 'no'
     });
+
+    // ส่ง initial message เพื่อเริ่ม connection
+    res.write('data: {"content": ""}\n\n');
 
     try {
       for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
@@ -51,16 +54,11 @@ router.post('/', async (req: Request, res: Response) => {
         // ส่งแต่ละ chunk ทันทีที่ได้รับ
         const data = JSON.stringify({ content });
         res.write(`data: ${data}\n\n`);
-        // บังคับให้ส่งข้อมูลทันที
-        if (res.flush) res.flush();
       }
     } catch (error) {
       console.error('Streaming error:', error);
-      // ส่ง error event ถ้าเกิดปัญหาระหว่าง streaming
-      const errorData = JSON.stringify({ error: 'Streaming error occurred' });
-      res.write(`event: error\ndata: ${errorData}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: 'Streaming error occurred' })}\n\n`);
     } finally {
-      // ปิด connection
       res.end();
     }
   } catch (error) {
