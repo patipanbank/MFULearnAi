@@ -46,7 +46,7 @@ const LoadingDots = () => (
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading,] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -247,6 +247,8 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
+      setIsLoading(true);
+
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -267,6 +269,8 @@ const MFUChatbot: React.FC = () => {
 
       let accumulatedContent = '';
       const decoder = new TextDecoder();
+
+      setIsLoading(false); // ปิด loading ทันทีที่เริ่มได้รับข้อความ
 
       while (true) {
         const { value, done } = await reader.read();
@@ -329,6 +333,8 @@ const MFUChatbot: React.FC = () => {
         content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
         timestamp: new Date()
       }]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
