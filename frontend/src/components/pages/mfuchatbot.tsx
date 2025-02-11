@@ -247,7 +247,6 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      // ส่ง request แบบ POST ด้วย fetch แทน EventSource
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -261,53 +260,59 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.body) throw new Error('No response body');
       
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let accumulatedContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
-        // แปลง bytes เป็น text และรวมกับ buffer
-        buffer += decoder.decode(value, { stream: true });
         
-        // แยกข้อความตาม data: events
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const { content } = JSON.parse(line.slice(6));
               if (content) {
+                accumulatedContent += content;
                 // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? {
-                        ...msg,
-                        content: msg.content + content
-                      }
+                setMessages(prev => prev.map(msg => 
+                  msg.id === aiMessageId 
+                    ? { ...msg, content: accumulatedContent }
                     : msg
                 ));
               }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
+            } catch (error) {
+              console.error('Error parsing chunk:', error);
             }
           }
         }
       }
+
+      // บันทึกประวัติแชท
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage, { ...messages[aiMessageId - 1], content: accumulatedContent }],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
 
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
-        content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
+        content: 'sorry, something went wrong',
         timestamp: new Date()
       }]);
     } finally {
