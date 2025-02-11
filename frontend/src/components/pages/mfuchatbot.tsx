@@ -295,26 +295,10 @@ const MFUChatbot: React.FC = () => {
           const lines = chunk.split('\n');
 
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                // แก้การ parse ข้อมูล
-                const cleanData = line.replace('data: ', '').trim();
-                if (cleanData) {
-                  try {
-                    const data = JSON.parse(cleanData);
-                    if (data.content) {
-                      accumulatedContent += data.content;
-                      setCurrentResponse(accumulatedContent);
-                    }
-                  } catch {
-                    // ถ้า parse JSON ไม่ได้ ให้ใช้ข้อความนั้นเลย
-                    accumulatedContent += cleanData;
-                    setCurrentResponse(accumulatedContent);
-                  }
-                }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
-              }
+            if (line.startsWith('Streaming response chunk: ')) {
+              const content = line.replace('Streaming response chunk: ', '').trim();
+              accumulatedContent += content;
+              setCurrentResponse(accumulatedContent); // อัพเดททันทีที่ได้รับ chunk
             }
           }
         }
@@ -581,7 +565,7 @@ const MFUChatbot: React.FC = () => {
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                     }`}>
-                      {message.role === 'assistant' && message.id === streamingMessageId && message.content === '' ? (
+                      {message.role === 'assistant' && message.content === '' ? (
                         <LoadingDots />
                       ) : (
                         <MessageContent message={message} />
