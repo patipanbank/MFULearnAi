@@ -213,9 +213,6 @@ const MFUChatbot: React.FC = () => {
     e.preventDefault();
     if (!canSubmit()) return;
 
-    setIsLoading(true);
-    const aiMessageId = messages.length + 2;
-
     try {
       let processedImages;
       if (selectedImages.length > 0) {
@@ -235,16 +232,21 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
+      // เพิ่มข้อความผู้ใช้
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
+      // เพิ่มข้อความ AI ว่างๆ ทันที
+      const aiMessageId = messages.length + 2;
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
         content: '',
         timestamp: new Date()
       }]);
+
+      setIsLoading(true);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -264,10 +266,11 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No reader available');
 
-      const decoder = new TextDecoder();
+      // เริ่มอ่าน stream
+      setIsLoading(false); // ปิด LoadingDots ทันทีที่เริ่มได้รับข้อความ
+      
       let accumulatedContent = '';
-
-      setIsLoading(false);
+      const decoder = new TextDecoder();
 
       while (true) {
         const { value, done } = await reader.read();
@@ -278,13 +281,14 @@ const MFUChatbot: React.FC = () => {
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') break;
-
             try {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+              
               const parsed = JSON.parse(data);
               if (parsed.content) {
                 accumulatedContent += parsed.content;
+                // อัพเดท message ทันทีที่ได้รับข้อความใหม่
                 setMessages(prev => prev.map(msg =>
                   msg.id === aiMessageId
                     ? { ...msg, content: accumulatedContent }
@@ -324,7 +328,7 @@ const MFUChatbot: React.FC = () => {
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
-        id: aiMessageId,
+        id: messages.length + 1,
         role: 'assistant',
         content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
         timestamp: new Date()
