@@ -45,17 +45,19 @@ router.post('/', async (req: Request, res: Response) => {
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'
     });
 
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
-      res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      res.flushHeaders();
+      const data = JSON.stringify({ content });
+      res.write(`data: ${data}\n\n`);
+      res.flush();
     }
 
-    console.log('Chat response completed');
+    res.write('data: [DONE]\n\n');
     res.end();
   } catch (error) {
     console.error('Chat error details:', {

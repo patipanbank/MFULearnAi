@@ -262,25 +262,29 @@ const MFUChatbot: React.FC = () => {
       if (!response.ok) throw new Error('Network response was not ok');
       
       const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
+      if (!reader) throw new Error('No reader available');
 
+      const decoder = new TextDecoder();
       let accumulatedContent = '';
-      
+
       setIsLoading(false);
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const chunk = new TextDecoder().decode(value);
+        const chunk = decoder.decode(value);
         const lines = chunk.split('\n');
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+
             try {
-              const data = JSON.parse(line.slice(6));
-              if (data.content) {
-                accumulatedContent += data.content;
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                accumulatedContent += parsed.content;
                 setMessages(prev => prev.map(msg =>
                   msg.id === aiMessageId
                     ? { ...msg, content: accumulatedContent }
