@@ -247,37 +247,60 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      // ใช้ EventSource แทน fetch
-      const eventSource = new EventSource(`${config.apiUrl}/api/chat` + new URLSearchParams({
-        messages: JSON.stringify([...messages, userMessage]),
-        modelId: selectedModel,
-        collectionName: selectedCollection
-      }));
+      // ส่ง request แบบ POST ด้วย fetch แทน EventSource
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
 
-      let accumulatedContent = '';
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
 
-      eventSource.onmessage = (event) => {
-        try {
-          const { content } = JSON.parse(event.data);
-          if (content) {
-            accumulatedContent += content;
-            // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
-            setMessages(prev => prev.map(msg =>
-              msg.id === aiMessageId
-                ? { ...msg, content: accumulatedContent }
-                : msg
-            ));
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // แปลง bytes เป็น text และรวมกับ buffer
+        buffer += decoder.decode(value, { stream: true });
+        
+        // แยกข้อความตาม data: events
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const { content } = JSON.parse(line.slice(6));
+              if (content) {
+                // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
+                setMessages(prev => prev.map(msg =>
+                  msg.id === aiMessageId
+                    ? {
+                        ...msg,
+                        content: msg.content + content
+                      }
+                    : msg
+                ));
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
+            }
           }
-        } catch (error) {
-          console.error('Error parsing SSE:', error);
         }
-      };
-
-      eventSource.onerror = (error) => {
-        console.error('SSE Error:', error);
-        eventSource.close();
-        setIsLoading(false);
-      };
+      }
 
     } catch (error) {
       console.error('Error:', error);
@@ -287,6 +310,7 @@ const MFUChatbot: React.FC = () => {
         content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
         timestamp: new Date()
       }]);
+    } finally {
       setIsLoading(false);
     }
   };
