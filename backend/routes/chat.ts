@@ -37,6 +37,7 @@ router.post('/', async (req: Request, res: Response) => {
       url: req.url,
       method: req.method
     });
+    res.flushHeaders(); // <---- เพิ่มบรรทัดนี้เพื่อให้แน่ใจว่า header ถูกส่งก่อน
 
     const { messages, modelId, collectionName } = req.body;
     // ตรวจสอบว่ามีรูปภาพหรือไม่
@@ -54,6 +55,7 @@ router.post('/', async (req: Request, res: Response) => {
       console.log('Streaming response chunk:', content);
       const data = JSON.stringify({ content });
       res.write(`data: ${data}\n\n`);
+      res.write('\n');  // <---- เพิ่ม newline เพื่อลด latency
       
       // ใช้ setTimeout แทน flush
       await new Promise(resolve => setTimeout(resolve, 10));

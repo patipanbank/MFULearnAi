@@ -37,25 +37,25 @@ export class ChatService {
       // รับ response ทั้งหมดก่อน
       let fullResponse = '';
       for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
-        fullResponse += chunk;
+        console.log('Streaming chunk:', chunk); // <--- ตรวจสอบว่ามีการ stream จริงไหม
+        yield chunk;
       }
 
       // แยกข้อความเป็นคำๆ
       const words = fullResponse.split(/(\s+)/);
       let buffer = '';
-      
+      let wordCount = 0;
       for (const word of words) {
         buffer += word;
-        
-        // ส่งทันทีเมื่อเจอช่องว่างหรือเครื่องหมายวรรคตอน
-        if (buffer.match(/[\s.!?]$/)) {
+        wordCount++;
+        if (wordCount >= 3 || buffer.match(/[\s.!?]$/)) { // ส่งทุก 3 คำ หรือเมื่อมีวรรคตอน
           yield buffer;
           buffer = '';
-          // delay เล็กน้อย
+          wordCount = 0;
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
-      
+
       // ส่งข้อความที่เหลือ (ถ้ามี)
       if (buffer) {
         yield buffer;
