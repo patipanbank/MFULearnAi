@@ -266,35 +266,45 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedContent = '';
+      let currentChunk = '';
 
       try {
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
 
-          // Decode the chunk
-          const chunk = decoder.decode(value, { stream: true });
+          // แปลง bytes เป็น text
+          const text = decoder.decode(value);
           
-          // Process each line
-          const lines = chunk.split('\n');
+          // แยกข้อความเป็นบรรทัด
+          const lines = text.split('\n');
+          
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.slice(6));
-                if (data.content) {
-                  accumulatedContent += data.content;
+                const parsed = JSON.parse(line.slice(6));
+                if (parsed.content) {
+                  currentChunk = parsed.content;
+                  accumulatedContent += currentChunk;
                   
-                  // Update UI immediately
-                  setMessages(prevMessages => 
-                    prevMessages.map(msg =>
-                      msg.id === aiMessageId
-                        ? { ...msg, content: accumulatedContent }
-                        : msg
-                    )
-                  );
+                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
+                  await new Promise<void>((resolve) => {
+                    setMessages(prevMessages => {
+                      const updatedMessages = prevMessages.map(msg =>
+                        msg.id === aiMessageId
+                          ? { ...msg, content: accumulatedContent }
+                          : msg
+                      );
+                      resolve();
+                      return updatedMessages;
+                    });
+                  });
+
+                  // รอให้ UI อัพเดทเสร็จก่อนดำเนินการต่อ
+                  await new Promise(resolve => requestAnimationFrame(resolve));
                 }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
+              } catch (error) {
+                console.error('Error parsing chunk:', error);
               }
             }
           }

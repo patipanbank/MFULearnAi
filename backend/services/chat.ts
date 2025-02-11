@@ -37,12 +37,9 @@ export class ChatService {
         ...messages
       ];
 
-      // ส่ง chunk แบบ streaming
-      for await (const chunk of bedrockService.chatWithEstimatedTime(augmentedMessages, modelId)) {
-        if (chunk.content) {
-          // ส่ง chunk ในรูปแบบที่ frontend ต้องการ
-          yield JSON.stringify({ content: chunk.content }) + '\n';
-        }
+      // ส่ง response แบบ streaming ทันที
+      for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
+        yield chunk;
       }
     } catch (error) {
       console.error('Error in generateResponse:', error);
