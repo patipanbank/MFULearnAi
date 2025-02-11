@@ -252,6 +252,11 @@ const MFUChatbot: React.FC = () => {
       }]);
 
       console.log('Fetching response from API...');
+
+      // สร้าง AbortController สำหรับยกเลิก fetch ถ้าจำเป็น
+      const controller = new AbortController();
+      const signal = controller.signal;
+
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -262,61 +267,59 @@ const MFUChatbot: React.FC = () => {
           messages: [...messages, userMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
-        })
+        }),
+        signal // เพิ่ม signal เพื่อให้สามารถยกเลิก fetch ได้
       });
 
       if (!response.ok) {
         console.error('API response not OK:', response.status, response.statusText);
         throw new Error('Network response was not ok');
       }
-      
+
+      console.log('Starting to read stream...');
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
       let accumulatedContent = '';
-      console.log('Starting to read stream...');
-      
-      const readStream = async () => {
-        try {
-          while (true) {
-            const { value, done } = await reader.read();
-            
-            if (done) {
-              console.log('Stream complete. Final content:', accumulatedContent);
-              break;
-            }
-            
-            const chunk = new TextDecoder().decode(value);
-            console.log('Received chunk:', chunk);
-            
-            const lines = chunk.split('\n');
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-                  if (data.content) {
-                    accumulatedContent += data.content;
-                    console.log('Updated content:', accumulatedContent);
-                    
-                    setMessages(prev => prev.map(msg =>
-                      msg.id === aiMessageId
-                        ? { ...msg, content: accumulatedContent }
-                        : msg
-                    ));
-                  }
-                } catch (e) {
-                  console.error('Error parsing chunk:', e, 'Line:', line);
+      const textDecoder = new TextDecoder();
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            console.log('Stream complete. Final content:', accumulatedContent);
+            break;
+          }
+
+          const chunk = textDecoder.decode(value);
+          console.log('Raw chunk received:', chunk);
+
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.content !== undefined) { // เช็คว่ามี content แม้จะเป็นค่าว่าง
+                  console.log('Parsed chunk content:', data.content);
+                  accumulatedContent += data.content;
+                  
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  ));
                 }
+              } catch (e) {
+                console.error('Error parsing chunk:', e, 'Line:', line);
               }
             }
           }
-        } catch (error) {
-          console.error('Error reading stream:', error);
-          throw error;
         }
-      };
-
-      await readStream();
+      } catch (error) {
+        console.error('Error reading stream:', error);
+        reader.cancel(); // ยกเลิก stream ถ้าเกิด error
+        throw error;
+      }
 
       console.log('Saving chat history...');
       await fetch(`${config.apiUrl}/api/chat/history`, {
