@@ -52,7 +52,6 @@ router.post('/', async (req: Request, res: Response) => {
 
     // ส่ง initial response เพื่อเริ่ม stream
     res.write('data: {"content": ""}\n\n');
-    res.flush();
 
     console.log('Starting generateResponse:', {
       modelId,
@@ -65,7 +64,6 @@ router.post('/', async (req: Request, res: Response) => {
     const sendChunk = (content: string) => {
       console.log('Sending chunk:', content);
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      res.flush();
     };
 
     try {
