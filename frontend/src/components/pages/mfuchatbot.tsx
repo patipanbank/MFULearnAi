@@ -253,12 +253,12 @@ const MFUChatbot: React.FC = () => {
 
       console.log('Fetching response from API...');
       
-      // เปลี่ยนวิธีการ fetch และการอ่าน stream
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
@@ -275,39 +275,42 @@ const MFUChatbot: React.FC = () => {
       console.log('Starting to read stream...');
       let accumulatedContent = '';
 
-      // ใช้ getReader() แบบ text stream
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
+      // ใช้ ReadableStream API โดยตรง
+      const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        console.log('Received raw chunk:', chunk);
+          console.log('Received chunk:', value);
 
-        // แยกข้อความตาม SSE format
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              console.log('Parsed data:', data);
-              if (data.content !== undefined) {
-                accumulatedContent += data.content;
-                console.log('Updated content:', accumulatedContent);
+          // แยกและประมวลผลแต่ละ event
+          const events = value.split('\n\n');
+          for (const event of events) {
+            if (event.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(event.slice(6));
+                console.log('Parsed data:', data);
                 
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                ));
+                if (data.content !== undefined) {
+                  accumulatedContent += data.content;
+                  console.log('Updated content:', accumulatedContent);
+                  
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  ));
+                }
+              } catch (e) {
+                console.error('Error parsing event:', e);
               }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
             }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
 
       console.log('Stream complete');

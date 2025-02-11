@@ -33,22 +33,25 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     console.log('Received chat request');
 
-    // ตั้งค่า headers ก่อนส่งข้อมูลใดๆ
+    // ตั้งค่า headers และ flush ทันที
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no'
+      'X-Accel-Buffering': 'no',
+      'Transfer-Encoding': 'chunked'
     });
 
     const { messages, modelId, collectionName } = req.body;
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    // ส่ง event ทันทีเพื่อเริ่ม stream
+    // ส่ง event แบบ immediate flush
     const writeEvent = (content: string) => {
       const data = JSON.stringify({ content });
-      res.write(`data: ${data}\n\n`);
+      res.write(`data: ${data}\n\n`, 'utf8', (err) => {
+        if (err) console.error('Error writing chunk:', err);
+      });
     };
 
     // ส่ง initial event
@@ -67,26 +70,12 @@ router.post('/', async (req: Request, res: Response) => {
       writeEvent('\nขออภัย มีข้อผิดพลาดเกิดขึ้นระหว่างการสร้างคำตอบ');
     }
 
-    // ส่ง event สุดท้าย
-    writeEvent('[DONE]');
-    
     console.log('Chat response completed');
     res.end();
 
   } catch (error) {
     console.error('Chat error details:', error);
-    
-    // ส่ง error response ในรูปแบบ SSE
-    if (!res.headersSent) {
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      });
-    }
-    const errorData = JSON.stringify({ content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง' });
-    res.write(`data: ${errorData}\n\n`);
-    res.end();
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
