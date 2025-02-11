@@ -4,6 +4,7 @@ import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
+import { WebSocket, WebSocketServer } from 'ws';
 
 const router = Router();
 
@@ -28,6 +29,31 @@ const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
 
 router.use(verifyToken);
 
+const wss = new WebSocketServer({ port: 5001 });
+
+wss.on('connection', (ws: WebSocket) => {
+  console.log('Client connected');
+
+  ws.on('message', async (message: string) => {
+    try {
+      const { messages, modelId, collectionName } = JSON.parse(message);
+      const lastMessage = messages[messages.length - 1];
+      const query = lastMessage.content;
+
+      console.log('Starting response generation');
+      
+      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+        console.log('Sending chunk:', content);
+        ws.send(JSON.stringify({ content }));
+      }
+
+      ws.send(JSON.stringify({ done: true }));
+    } catch (error) {
+      console.error('Error:', error);
+      ws.send(JSON.stringify({ error: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น' }));
+    }
+  });
+});
 
 router.post('/', async (req: Request, res: Response) => {
   console.log('Received chat request');

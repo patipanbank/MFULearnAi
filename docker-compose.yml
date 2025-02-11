@@ -21,9 +21,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - 5000:5000
+      - 5001:5001
     environment:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
       - CHROMA_URL=http://chroma:8000
+      - WS_PORT=5001
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}

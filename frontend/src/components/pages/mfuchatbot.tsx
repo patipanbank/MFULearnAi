@@ -54,8 +54,8 @@ const MFUChatbot: React.FC = () => {
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string>('');
-  // const [copySuccess, setCopySuccess] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,7 +119,6 @@ const MFUChatbot: React.FC = () => {
         setModels(Array.isArray(modelsData) ? modelsData : []);
         setCollections(Array.isArray(collectionsData) ? collectionsData : []);
 
-        // ถ้ามี collections ให้เลือกอันแรกเป็นค่าเริ่มต้น
         if (Array.isArray(collectionsData) && collectionsData.length > 0) {
           setSelectedCollection(collectionsData[0]);
         }
@@ -149,7 +148,6 @@ const MFUChatbot: React.FC = () => {
           const history = await response.json();
           if (history.messages) {
             setMessages(history.messages);
-            // ตั้งค่า model และ collection ที่เคยใช้
             setSelectedModel(history.modelId || '');
             setSelectedCollection(history.collectionName || '');
           }
@@ -215,19 +213,13 @@ const MFUChatbot: React.FC = () => {
 
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
-    console.log('Starting chat with ID:', aiMessageId);
 
     try {
       let processedImages;
       if (selectedImages.length > 0) {
-        console.log('Processing images...');
         processedImages = await Promise.all(
-          selectedImages.map(async (file) => {
-            const base64 = await compressImage(file);
-            return base64;
-          })
+          selectedImages.map(async (file) => await compressImage(file))
         );
-        console.log('Images processed:', processedImages.length);
       }
 
       const userMessage = {
@@ -237,13 +229,11 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date(),
         images: processedImages
       };
-      console.log('Sending user message:', userMessage);
 
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
-      console.log('Adding AI placeholder message');
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
@@ -251,92 +241,50 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      console.log('Fetching response from API...');
-      
-      const response = await fetch(`${config.apiUrl}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        wsRef.current = new WebSocket(config.wsUrl);
+        
+        wsRef.current.onopen = () => {
+          console.log('WebSocket connected');
+        };
       }
 
-      console.log('Starting to read stream...');
       let accumulatedContent = '';
 
-      // ใช้ ReadableStream API โดยตรง
-      const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
-
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          console.log('Received chunk:', value);
-
-          // แยกและประมวลผลแต่ละ event
-          const events = value.split('\n\n');
-          for (const event of events) {
-            if (event.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(event.slice(6));
-                console.log('Parsed data:', data);
-                
-                if (data.content !== undefined) {
-                  accumulatedContent += data.content;
-                  console.log('Updated content:', accumulatedContent);
-                  
-                  setMessages(prev => prev.map(msg =>
-                    msg.id === aiMessageId
-                      ? { ...msg, content: accumulatedContent }
-                      : msg
-                  ));
-                }
-              } catch (e) {
-                console.error('Error parsing event:', e);
-              }
-            }
+      wsRef.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.content) {
+            accumulatedContent += data.content;
+            setMessages(prev => prev.map(msg =>
+              msg.id === aiMessageId
+                ? { ...msg, content: accumulatedContent }
+                : msg
+            ));
           }
+
+          if (data.done) {
+            saveChatHistory([
+              ...messages,
+              userMessage,
+              {
+                id: aiMessageId,
+                role: 'assistant',
+                content: accumulatedContent,
+                timestamp: new Date()
+              }
+            ]);
+          }
+        } catch (error) {
+          console.error('Error parsing message:', error);
         }
-      } finally {
-        reader.releaseLock();
-      }
+      };
 
-      console.log('Stream complete');
-
-      console.log('Saving chat history...');
-      await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          messages: [
-            ...messages,
-            userMessage,
-            {
-              id: aiMessageId,
-              role: 'assistant',
-              content: accumulatedContent,
-              timestamp: new Date()
-            }
-          ],
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
+      wsRef.current.send(JSON.stringify({
+        messages: [...messages, userMessage],
+        modelId: selectedModel,
+        collectionName: selectedCollection
+      }));
 
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -348,6 +296,33 @@ const MFUChatbot: React.FC = () => {
       }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  const saveChatHistory = async (messages: Message[]) => {
+    try {
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages,
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+    } catch (error) {
+      console.error('Error saving chat history:', error);
     }
   };
 
@@ -378,15 +353,14 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Failed to clear chat history');
       }
 
-      setMessages([]); // เคลียร์ข้อความในหน้าจอ
+      setMessages([]);
     } catch (error) {
       console.error('Error clearing chat:', error);
     }
   };
   
-  // เพิ่มฟังก์ชันสำหรับตรวจสอบขนาดไฟล์
   const validateImageFile = (file: File): boolean => {
-    const maxSize = 20 * 1024 * 1024; // 20MB
+    const maxSize = 20 * 1024 * 1024;
     if (file.size > maxSize) {
       alert('Image size must not exceed 20MB');
       return false;
@@ -394,7 +368,6 @@ const MFUChatbot: React.FC = () => {
     return true;
   };
 
-  // อัพเดทฟังก์ชัน handlePaste
   const handlePaste = async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
 
@@ -402,7 +375,7 @@ const MFUChatbot: React.FC = () => {
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (item.type.indexOf('image') !== -1) {
-          e.preventDefault(); // ป้องกันการวางข้อความ
+          e.preventDefault();
           const file = item.getAsFile();
           if (file && validateImageFile(file)) {
             setSelectedImages(prev => [...prev, file]);
@@ -413,7 +386,6 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  // เพิ่มการตรวจสอบว่าสามารถส่งข้อความได้หรือไม่
   const canSubmit = () => {
     return (
       !isLoading &&
@@ -423,7 +395,6 @@ const MFUChatbot: React.FC = () => {
     );
   };
 
-  // เพิ่มฟังก์ชันสำหรับจัดการการเลือกไฟล์
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
@@ -431,12 +402,10 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  // ฟังก์ชันลบรูปภาพที่เลือก
   const handleRemoveImage = (index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // แก้ไข MessageContent component
   const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -446,7 +415,6 @@ const MFUChatbot: React.FC = () => {
       setTimeout(() => setCopiedIndex(null), 2000);
     };
 
-    // แยกการ render content ออกมา
     const renderContent = (content: string) => {
       const parts = content.split(/(```[\s\S]*?```)/g);
 
@@ -507,7 +475,6 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
-      {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
@@ -551,7 +518,6 @@ const MFUChatbot: React.FC = () => {
                 <div className={`flex items-start gap-3 ${
                   message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}>
-                  {/* Avatar */}
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
                     message.role === 'user'
                       ? 'bg-gradient-to-r from-red-600 to-yellow-400'
@@ -570,7 +536,6 @@ const MFUChatbot: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Message Content */}
                   <div className={`flex flex-col space-y-2 max-w-[80%] ${
                     message.role === 'user' ? 'items-end' : 'items-start'
                   }`}>
@@ -620,9 +585,7 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      {/* Fixed Bottom Container */}
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
-        {/* Controls */}
         <div className="p-2 md:p-4 border-b">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             <select
@@ -658,10 +621,8 @@ const MFUChatbot: React.FC = () => {
           </div>
         </div>
 
-        {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            {/* ปรับปุ่ม Add image */}
             <div className="flex items-center gap-2 p-2">
               <label className="cursor-pointer">
                 <input
@@ -674,7 +635,6 @@ const MFUChatbot: React.FC = () => {
                 <RiImageAddFill className="w-6 h-6 text-gray-500 dark:text-white hover:text-gray-700 dark:hover:text-gray-300" />
               </label>
 
-              {/* แสดงรูปภาพที่เลือก */}
               {selectedImages.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {selectedImages.map((image, index) => (
