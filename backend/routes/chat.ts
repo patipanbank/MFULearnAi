@@ -39,19 +39,26 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     const { messages, modelId, collectionName } = req.body;
-    // ตรวจสอบว่ามีรูปภาพหรือไม่
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
+    // Set headers for SSE
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no' // ป้องกัน nginx buffering
     });
 
+    // Generate and stream response
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
-      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      
+      // ส่ง chunk และ flush ทันที
+      const chunk = `data: ${JSON.stringify({ content })}\n\n`;
+      res.write(chunk);
+      
+      // Force flush แต่ละ chunk
       res.flushHeaders();
     }
 
