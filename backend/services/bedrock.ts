@@ -64,7 +64,6 @@ export class BedrockService {
         for await (const chunk of response.body) {
           if (chunk.chunk?.bytes) {
             const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
-            console.log('Raw Claude stream chunk:', decodedChunk);
             try {
               const parsedChunk = JSON.parse(decodedChunk);
               if (parsedChunk.type === 'content_block_delta' && 

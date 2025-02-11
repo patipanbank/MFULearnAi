@@ -39,41 +39,34 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     const { messages, modelId, collectionName } = req.body;
+    // ตรวจสอบว่ามีรูปภาพหรือไม่
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    // ตั้งค่า Streaming Response
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no'
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
     });
 
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
-      const data = JSON.stringify({ content });
-      res.write(`data: ${data}\n\n`);
-      
-      // ใช้ setTimeout ป้องกันการค้าง
-      await new Promise(resolve => setTimeout(resolve, 10));
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      res.flushHeaders();
     }
 
-    // ปิด Stream อย่างถูกต้อง
-    res.write('data: [DONE]\n\n');
+    console.log('Chat response completed');
     res.end();
   } catch (error) {
-    console.error('Chat error details:', error);
-
-    // ป้องกันการเรียก res.end() หรือ res.status(500) ซ้ำ
-    if (!res.headersSent) {
-      res.write('data: {"content": "ขออภัย มีข้อผิดพลาดเกิดขึ้น"}\n\n');
-      res.write('data: [DONE]\n\n');
-      res.end();
-    }
+    console.error('Chat error details:', {
+      error,
+      stack: (error as Error).stack,
+      url: req.url,
+      method: req.method
+    });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
