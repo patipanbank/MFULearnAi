@@ -288,7 +288,7 @@ const MFUChatbot: React.FC = () => {
       if (!reader) throw new Error('No reader available');
 
       const decoder = new TextDecoder();
-      // let accumulatedContent = '';
+      let accumulatedContent = '';  // เพิ่มตัวแปรสะสมข้อความ
       
       while (true) {
         const { value, done } = await reader.read();
@@ -305,12 +305,12 @@ const MFUChatbot: React.FC = () => {
             try {
               const parsed = JSON.parse(data);
               if (parsed.content) {
-                // ส่งเฉพาะ content ใหม่ ไม่ต้องสะสม
+                accumulatedContent += parsed.content;
                 requestAnimationFrame(() => {
                   dispatch({
                     type: 'UPDATE_ASSISTANT_MESSAGE',
                     id: aiMessage.id,
-                    content: parsed.content  // ใช้ content จาก chunk โดยตรง ไม่ต้องสะสม
+                    content: accumulatedContent  // ส่งข้อความที่สะสมไว้
                   });
                 });
               }
