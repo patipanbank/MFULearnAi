@@ -285,41 +285,38 @@ const MFUChatbot: React.FC = () => {
       if (!reader) throw new Error('No reader available');
 
       const decoder = new TextDecoder();
+
       let accumulatedContent = '';
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const text = decoder.decode(value, { stream: true });
+        const lines = text.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                accumulatedContent += parsed.content;
+                console.log('5. New content:', accumulatedContent);
 
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = line.slice(6);
-                if (data === '[DONE]') break;
-                
-                const parsed = JSON.parse(data);
-                if (parsed.content) {
-                  accumulatedContent += parsed.content;
-                  console.log('5. New content:', accumulatedContent);
-
-                  dispatch({
-                    type: 'UPDATE_ASSISTANT_MESSAGE',
-                    id: aiMessage.id,
-                    content: accumulatedContent
-                  });
-                }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
+                dispatch({
+                  type: 'UPDATE_ASSISTANT_MESSAGE',
+                  id: aiMessage.id,
+                  content: accumulatedContent
+                });
               }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }
-      } finally {
-        reader.releaseLock();
       }
 
       // บันทึกประวัติแชท
