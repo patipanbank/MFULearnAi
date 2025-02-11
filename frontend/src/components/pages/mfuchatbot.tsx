@@ -335,7 +335,7 @@ const MFUChatbot: React.FC = () => {
             {
               id: aiMessage.id,
               role: 'assistant',
-              content: accumulatedContent,
+              // content: accumulatedContent,
               timestamp: new Date()
             }
           ],
