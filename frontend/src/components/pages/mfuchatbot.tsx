@@ -5,7 +5,6 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { io, Socket } from 'socket.io-client';
 
 interface Source {
   modelId: string;
@@ -57,7 +56,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   // const [copySuccess, setCopySuccess] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [socket, setSocket] = useState<Socket | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -164,51 +162,6 @@ const MFUChatbot: React.FC = () => {
     loadChatHistory();
   }, []);
 
-  useEffect(() => {
-    // สร้าง socket connection
-    const newSocket = io(config.apiUrl, {
-      withCredentials: true
-    });
-
-    newSocket.on('connect', () => {
-      console.log('Connected to WebSocket server');
-    });
-
-    newSocket.on('chat-response', (data: { content: string }) => {
-      setMessages(prev => {
-        const lastMessage = prev[prev.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant') {
-          return prev.map((msg, i) => 
-            i === prev.length - 1 
-              ? { ...msg, content: msg.content + data.content }
-              : msg
-          );
-        }
-        return prev;
-      });
-    });
-
-    newSocket.on('chat-complete', () => {
-      setIsLoading(false);
-    });
-
-    newSocket.on('chat-error', (data: { message: string }) => {
-      setMessages(prev => [...prev, {
-        id: prev.length + 1,
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date()
-      }]);
-      setIsLoading(false);
-    });
-
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.close();
-    };
-  }, []);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
   };
@@ -258,20 +211,23 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit() || !socket) return;
+    if (!canSubmit()) return;
 
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
+    console.log('Starting chat with ID:', aiMessageId);
 
     try {
       let processedImages;
       if (selectedImages.length > 0) {
+        console.log('Processing images...');
         processedImages = await Promise.all(
           selectedImages.map(async (file) => {
             const base64 = await compressImage(file);
             return base64;
           })
         );
+        console.log('Images processed:', processedImages.length);
       }
 
       const userMessage = {
@@ -281,11 +237,13 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date(),
         images: processedImages
       };
+      console.log('Sending user message:', userMessage);
 
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
+      console.log('Adding AI placeholder message');
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
@@ -293,18 +251,20 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      // ส่งข้อมูลผ่าน HTTP POST พร้อม socketId
+      console.log('Fetching response from API...');
+      
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
           messages: [...messages, userMessage],
           modelId: selectedModel,
-          collectionName: selectedCollection,
-          socketId: socket.id
+          collectionName: selectedCollection
         })
       });
 
@@ -386,6 +346,7 @@ const MFUChatbot: React.FC = () => {
         content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
         timestamp: new Date()
       }]);
+    } finally {
       setIsLoading(false);
     }
   };
