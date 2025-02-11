@@ -458,13 +458,17 @@ const MFUChatbot: React.FC = () => {
 
     return (
       <div className="">
-        <div className="grid grid-cols-3 gap-2">
+        <div className={`grid gap-2 auto-cols-fr ${
+          message.images && message.images.length > 0 
+            ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
+            : ''
+        }`}>
           {message.images?.map((img, index) => (
             <img
               key={index}
               src={`data:${img.mediaType};base64,${img.data}`}
               alt="Uploaded content"
-              className="max-w-[200px] max-h-[200px] w-full h-auto rounded-lg object-contain"
+              className="max-w-[200px] w-full h-auto rounded-lg object-contain"
             />
           ))}
         </div>
