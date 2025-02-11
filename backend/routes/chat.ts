@@ -37,33 +37,36 @@ router.post('/', async (req: Request, res: Response) => {
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    // ตั้งค่า headers ก่อนส่งข้อมูล
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
+    // ตั้งค่า headers สำหรับ SSE
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no' // ป้องกัน nginx buffering
+    });
 
     try {
       for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-        console.log('Streaming response chunk:', content);
-        // ส่งข้อมูลแบบ SSE
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        // ส่งแต่ละ chunk ทันทีที่ได้รับ
+        const data = JSON.stringify({ content });
+        res.write(`data: ${data}\n\n`);
+        // บังคับให้ส่งข้อมูลทันที
+        if (res.flush) res.flush();
       }
-      
-      // จบการส่งข้อมูล
-      res.end();
     } catch (error) {
-      // ถ้าเกิด error ระหว่าง streaming และยังไม่ได้ส่ง headers
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Streaming error occurred' });
-      }
       console.error('Streaming error:', error);
+      // ส่ง error event ถ้าเกิดปัญหาระหว่าง streaming
+      const errorData = JSON.stringify({ error: 'Streaming error occurred' });
+      res.write(`event: error\ndata: ${errorData}\n\n`);
+    } finally {
+      // ปิด connection
+      res.end();
     }
   } catch (error) {
-    // จัดการ error ก่อนเริ่ม streaming
+    console.error('Chat error:', error);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Internal server error' });
     }
-    console.error('Chat error:', error);
   }
 });
 
