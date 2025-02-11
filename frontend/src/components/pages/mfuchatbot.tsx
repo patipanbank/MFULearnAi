@@ -235,21 +235,15 @@ const MFUChatbot: React.FC = () => {
       };
       console.log('2. User message:', userMessage);
 
-      setMessages(prev => [...prev, userMessage]);
-      
       const aiMessageId = messages.length + 2;
-      console.log('3. AI message ID:', aiMessageId);
+      const aiMessage = {
+        id: aiMessageId,
+        role: 'assistant' as const,
+        content: '',
+        timestamp: new Date()
+      };
 
-      setMessages(prev => {
-        console.log('4. Previous messages:', prev);
-        return [...prev, {
-          id: aiMessageId,
-          role: 'assistant',
-          content: '',
-          timestamp: new Date()
-        }];
-      });
-
+      setMessages(prev => [...prev, userMessage, aiMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
@@ -274,38 +268,46 @@ const MFUChatbot: React.FC = () => {
       const decoder = new TextDecoder();
       let accumulatedContent = '';
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = line.slice(6);
-              if (data === '[DONE]') break;
-              
-              const parsed = JSON.parse(data);
-              if (parsed.content) {
-                accumulatedContent += parsed.content;
-                console.log('5. New content:', accumulatedContent);
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = line.slice(6);
+                if (data === '[DONE]') break;
+                
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  accumulatedContent += parsed.content;
+                  console.log('5. New content:', accumulatedContent);
 
-                setMessages(prevMessages => {
-                  console.log('6. Updating messages:', prevMessages);
-                  return prevMessages.map(msg => 
-                    msg.id === aiMessageId 
-                      ? { ...msg, content: accumulatedContent }
-                      : msg
-                  );
-                });
+                  setMessages(prevMessages => {
+                    console.log('6. Updating messages:', prevMessages);
+                    const newMessages = [...prevMessages];
+                    const aiMessageIndex = newMessages.findIndex(msg => msg.id === aiMessageId);
+                    if (aiMessageIndex !== -1) {
+                      newMessages[aiMessageIndex] = {
+                        ...newMessages[aiMessageIndex],
+                        content: accumulatedContent
+                      };
+                    }
+                    return newMessages;
+                  });
+                }
+              } catch (e) {
+                console.error('Error parsing chunk:', e);
               }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
             }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
 
       // บันทึกประวัติแชท
