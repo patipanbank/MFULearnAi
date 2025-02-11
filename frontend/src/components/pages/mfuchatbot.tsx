@@ -260,37 +260,53 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      if (!response.body) throw new Error('No response body');
+      if (!response.ok) throw new Error('Network response was not ok');
       
-      const reader = response.body.getReader();
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
       const decoder = new TextDecoder();
       let accumulatedContent = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const { content } = JSON.parse(line.slice(6));
-              if (content) {
-                accumulatedContent += content;
-                // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
-                setMessages(prev => prev.map(msg => 
-                  msg.id === aiMessageId 
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                ));
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          // แปลง bytes เป็น text
+          const text = decoder.decode(value, { stream: true });
+          const lines = text.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const { content } = JSON.parse(line.slice(6));
+                if (content) {
+                  accumulatedContent += content;
+                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    const messageIndex = newMessages.findIndex(msg => msg.id === aiMessageId);
+                    if (messageIndex !== -1) {
+                      newMessages[messageIndex] = {
+                        ...newMessages[messageIndex],
+                        content: accumulatedContent
+                      };
+                    }
+                    return newMessages;
+                  });
+                  
+                  // Force re-render
+                  await new Promise(resolve => setTimeout(resolve, 0));
+                }
+              } catch (e) {
+                console.error('Error parsing chunk:', e);
               }
-            } catch (error) {
-              console.error('Error parsing chunk:', error);
             }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
 
       // บันทึกประวัติแชท
@@ -312,7 +328,7 @@ const MFUChatbot: React.FC = () => {
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
-        content: 'sorry, something went wrong',
+        content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
         timestamp: new Date()
       }]);
     } finally {
