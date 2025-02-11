@@ -224,6 +224,7 @@ const MFUChatbot: React.FC = () => {
         );
       }
 
+      // เตรียมข้อความของผู้ใช้
       const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
@@ -262,15 +263,14 @@ const MFUChatbot: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
-
+      
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No reader available');
 
-      // เริ่มอ่าน stream
-      setIsLoading(false); // ปิด LoadingDots ทันทีที่เริ่มได้รับข้อความ
-
       let accumulatedContent = '';
       const decoder = new TextDecoder();
+
+      setIsLoading(false); // ปิด loading ทันทีที่เริ่มได้รับข้อความ
 
       while (true) {
         const { value, done } = await reader.read();
@@ -284,11 +284,11 @@ const MFUChatbot: React.FC = () => {
             try {
               const data = line.slice(6);
               if (data === '[DONE]') break;
-
+              
               const parsed = JSON.parse(data);
               if (parsed.content) {
                 accumulatedContent += parsed.content;
-                // อัพเดท message ทันทีที่ได้รับข้อความใหม่
+                // อัพเดทข้อความทันทีที่ได้รับ chunk ใหม่
                 setMessages(prev => prev.map(msg =>
                   msg.id === aiMessageId
                     ? { ...msg, content: accumulatedContent }
