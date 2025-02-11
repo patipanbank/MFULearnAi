@@ -262,10 +262,7 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       };
 
-      dispatch({
-        type: 'ADD_MESSAGES',
-        messages: [userMessage, aiMessage]
-      });
+      dispatch({ type: 'ADD_MESSAGES', messages: [userMessage, aiMessage] });
       setInputMessage('');
       setSelectedImages([]);
 
@@ -308,12 +305,10 @@ const MFUChatbot: React.FC = () => {
                 accumulatedContent += parsed.content;
                 console.log('5. New content:', accumulatedContent);
 
-                requestAnimationFrame(() => {
-                  dispatch({
-                    type: 'UPDATE_ASSISTANT_MESSAGE',
-                    id: aiMessage.id,
-                    content: accumulatedContent
-                  });
+                dispatch({
+                  type: 'UPDATE_ASSISTANT_MESSAGE',
+                  id: aiMessage.id,
+                  content: accumulatedContent
                 });
               }
             } catch (e) {
@@ -352,7 +347,7 @@ const MFUChatbot: React.FC = () => {
         type: 'ADD_MESSAGES',
         messages: [
           {
-            id: messages.length + 2,
+            id: messages.length + 1,
             role: 'assistant',
             content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
             timestamp: new Date()
