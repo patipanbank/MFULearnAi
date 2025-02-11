@@ -43,28 +43,22 @@ router.post('/', async (req: Request, res: Response) => {
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    });
+    // ส่ง response header เพียงครั้งเดียว
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
-    for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-      console.log('Streaming response chunk:', content);
-      res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      res.flushHeaders();
+    for await (const chunk of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
     }
-
-    console.log('Chat response completed');
+    
     res.end();
   } catch (error) {
-    console.error('Chat error details:', {
-      error,
-      stack: (error as Error).stack,
-      url: req.url,
-      method: req.method
-    });
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Chat error details:', { error, stack: (error as Error).stack, url: req.url, method: req.method });
+    // ตรวจสอบว่ายังไม่ได้ส่ง response ก่อนที่จะส่ง error
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'An error occurred while processing your request' });
+    }
   }
 });
 

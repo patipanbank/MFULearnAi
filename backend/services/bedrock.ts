@@ -88,32 +88,36 @@ export class BedrockService {
 
   private async *novaProChat(messages: ChatMessage[]): AsyncGenerator<string> {
     try {
+      // ตรวจสอบและปรับแต่งข้อความให้ข้อความแรกเป็น user เสมอ
+      const formattedMessages = messages.map((msg, index) => ({
+        role: index === 0 ? 'user' : msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.images ? [
+          {
+            text: msg.content
+          },
+          ...msg.images.map(img => ({
+            image: {
+              base64: img.data,
+              media_type: img.mediaType
+            }
+          }))
+        ] : [
+          {
+            text: msg.content
+          }
+        ]
+      }));
+
       const command = new InvokeModelWithResponseStreamCommand({
         modelId: this.models.novaPro,
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify({
           inferenceConfig: {
-            max_new_tokens: 1000
+            max_new_tokens: 1000,
+            temperature: 0.7
           },
-          messages: messages.map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.images ? [
-              {
-                text: msg.content
-              },
-              ...msg.images.map(img => ({
-                image: {
-                  base64: img.data,
-                  media_type: img.mediaType
-                }
-              }))
-            ] : [
-              {
-                text: msg.content
-              }
-            ]
-          }))
+          messages: formattedMessages
         })
       });
 
