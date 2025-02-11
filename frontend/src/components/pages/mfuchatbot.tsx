@@ -266,6 +266,8 @@ const MFUChatbot: React.FC = () => {
 
       let accumulatedContent = '';
       
+      setIsLoading(false);
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -476,7 +478,11 @@ const MFUChatbot: React.FC = () => {
           ))}
         </div>
         <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
-          {renderContent(message.content)}
+          {message.role === 'assistant' && message.content === '' && isLoading ? (
+            <LoadingDots />
+          ) : (
+            renderContent(message.content)
+          )}
         </div>
       </div>
     );
@@ -559,11 +565,7 @@ const MFUChatbot: React.FC = () => {
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                     }`}>
-                      {message.role === 'assistant' && message.content === '' && isLoading ? (
-                        <LoadingDots />
-                      ) : (
-                        <MessageContent message={message} />
-                      )}
+                      <MessageContent message={message} />
                     </div>
                   </div>
                 </div>
