@@ -247,6 +247,7 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
+      // สร้าง EventSource สำหรับ SSE
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -267,35 +268,48 @@ const MFUChatbot: React.FC = () => {
 
       let accumulatedContent = '';
       
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        
-        const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.content) {
-                accumulatedContent += data.content;
-                
-                // อัพเดท message ทันทีที่ได้รับข้อความใหม่
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                ));
+      // ฟังก์ชันสำหรับอ่าน stream
+      const readStream = async () => {
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            
+            if (done) break;
+            
+            // แปลง chunk เป็น text
+            const chunk = new TextDecoder().decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  if (data.content) {
+                    accumulatedContent += data.content;
+                    
+                    // อัพเดท message ทันทีที่ได้รับข้อความใหม่
+                    setMessages(prev => prev.map(msg =>
+                      msg.id === aiMessageId
+                        ? { ...msg, content: accumulatedContent }
+                        : msg
+                    ));
+                  }
+                } catch (e) {
+                  console.error('Error parsing chunk:', e);
+                }
               }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
             }
           }
+        } catch (error) {
+          console.error('Error reading stream:', error);
+          throw error;
         }
-      }
+      };
 
-      // บันทึกประวัติแชท
+      // เริ่มอ่าน stream
+      await readStream();
+
+      // บันทึกประวัติแชทหลังจากได้รับข้อความครบ
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {

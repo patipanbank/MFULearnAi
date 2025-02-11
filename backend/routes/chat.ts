@@ -39,20 +39,27 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     const { messages, modelId, collectionName } = req.body;
-    // ตรวจสอบว่ามีรูปภาพหรือไม่
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    });
+    // ตั้งค่า headers สำหรับ SSE (Server-Sent Events)
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // สำหรับ Nginx
+
+    // ฟังก์ชันสำหรับส่งข้อมูลแต่ละ chunk
+    const sendChunk = (content: string) => {
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      // บังคับให้ส่งข้อมูลทันที
+      if (res.flush) {
+        res.flush();
+      }
+    };
 
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
-      res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      res.flushHeaders();
+      sendChunk(content);
     }
 
     console.log('Chat response completed');
