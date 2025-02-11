@@ -33,43 +33,60 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     console.log('Received chat request');
 
-    // ตั้งค่า headers ที่จำเป็นสำหรับ streaming
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // สำคัญสำหรับ Nginx
-    res.setHeader('Transfer-Encoding', 'chunked');
-
-    // ส่ง response header ทันที
-    res.flushHeaders();
+    // ตั้งค่า headers ก่อนส่งข้อมูลใดๆ
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    });
 
     const { messages, modelId, collectionName } = req.body;
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    // ส่ง initial message เพื่อเริ่ม stream
-    console.log('Sending initial message');
-    res.write('data: {"content": ""}\n\n');
+    // ส่ง event ทันทีเพื่อเริ่ม stream
+    const writeEvent = (content: string) => {
+      const data = JSON.stringify({ content });
+      res.write(`data: ${data}\n\n`);
+    };
+
+    // ส่ง initial event
+    writeEvent('');
 
     console.log('Starting response generation');
     try {
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-        // ส่งแต่ละ chunk พร้อมกับ newline characters ที่จำเป็น
-        const chunk = `data: ${JSON.stringify({ content })}\n\n`;
+      const generator = chatService.generateResponse(messages, query, modelId, collectionName);
+      
+      for await (const content of generator) {
         console.log('Sending chunk:', content);
-        res.write(chunk);
+        writeEvent(content);
       }
     } catch (error) {
       console.error('Error in stream generation:', error);
-      res.write(`data: ${JSON.stringify({ content: '\nขออภัย มีข้อผิดพลาดเกิดขึ้นระหว่างการสร้างคำตอบ' })}\n\n`);
+      writeEvent('\nขออภัย มีข้อผิดพลาดเกิดขึ้นระหว่างการสร้างคำตอบ');
     }
 
-    // ปิด stream
+    // ส่ง event สุดท้าย
+    writeEvent('[DONE]');
+    
     console.log('Chat response completed');
     res.end();
+
   } catch (error) {
     console.error('Chat error details:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // ส่ง error response ในรูปแบบ SSE
+    if (!res.headersSent) {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      });
+    }
+    const errorData = JSON.stringify({ content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง' });
+    res.write(`data: ${errorData}\n\n`);
+    res.end();
   }
 });
 
