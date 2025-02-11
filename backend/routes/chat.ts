@@ -54,19 +54,15 @@ router.post('/', async (req: Request, res: Response) => {
       console.log('Streaming response chunk:', content);
       const data = JSON.stringify({ content });
       res.write(`data: ${data}\n\n`);
-      res.flush();
     }
 
     res.write('data: [DONE]\n\n');
     res.end();
   } catch (error) {
-    console.error('Chat error details:', {
-      error,
-      stack: (error as Error).stack,
-      url: req.url,
-      method: req.method
-    });
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Chat error details:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 });
 
