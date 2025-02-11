@@ -37,10 +37,23 @@ export class ChatService {
         ...messages
       ];
 
-      // ส่ง response แบบ streaming ทันที
+      let buffer = '';
       for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
-        yield chunk;
+        buffer += chunk;
+        
+        // ส่งเมื่อเจอจุดสิ้นสุดประโยค หรือ buffer มีขนาดพอสมควร
+        if (buffer.match(/[.!?]|\s{2,}/) || buffer.length >= 10) {
+          yield buffer;
+          buffer = '';
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
+
+      // ส่งข้อความที่เหลือ (ถ้ามี)
+      if (buffer) {
+        yield buffer;
+      }
+
     } catch (error) {
       console.error('Error in generateResponse:', error);
       throw error;
