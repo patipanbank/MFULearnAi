@@ -31,44 +31,42 @@ router.use(verifyToken);
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    console.log('Received chat request:', req.body);
+    console.log('Received chat request:', {
+      body: req.body,
+      headers: req.headers,
+      url: req.url,
+      method: req.method
+    });
 
     const { messages, modelId, collectionName } = req.body;
+    // ตรวจสอบว่ามีรูปภาพหรือไม่
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    // ตั้งค่า headers สำหรับ SSE
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no'
+      'Connection': 'keep-alive'
     });
 
-    // ส่ง initial message เพื่อเริ่ม connection
-    res.write('data: {"content": ""}\n\n');
+    for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      console.log('Streaming response chunk:', content);
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      res.flushHeaders();
+    }
 
-    try {
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-        console.log('Streaming response chunk:', content);
-        // ส่งแต่ละ chunk ทันทีที่ได้รับ
-        const data = JSON.stringify({ content });
-        res.write(`data: ${data}\n\n`);
-      }
-    } catch (error) {
-      console.error('Streaming error:', error);
-      res.write(`data: ${JSON.stringify({ error: 'Streaming error occurred' })}\n\n`);
-    } finally {
-      res.end();
-    }
+    console.log('Chat response completed');
+    res.end();
   } catch (error) {
-    console.error('Chat error:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error' });
-    }
+    console.error('Chat error details:', {
+      error,
+      stack: (error as Error).stack,
+      url: req.url,
+      method: req.method
+    });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {

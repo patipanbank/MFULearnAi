@@ -213,6 +213,9 @@ const MFUChatbot: React.FC = () => {
     e.preventDefault();
     if (!canSubmit()) return;
 
+    setIsLoading(true);
+    const aiMessageId = messages.length + 2;
+
     try {
       let processedImages;
       if (selectedImages.length > 0) {
@@ -224,26 +227,24 @@ const MFUChatbot: React.FC = () => {
         );
       }
 
-      const userMessage: Message = {
+      const userMessage = {
         id: messages.length + 1,
-        role: 'user',
+        role: 'user' as const,
         content: inputMessage.trim(),
         timestamp: new Date(),
         images: processedImages
       };
 
-      const aiMessage: Message = {
-        id: messages.length + 2,
+      setMessages(prev => [...prev, userMessage]);
+      setInputMessage('');
+      setSelectedImages([]);
+
+      setMessages(prev => [...prev, {
+        id: aiMessageId,
         role: 'assistant',
         content: '',
         timestamp: new Date()
-      };
-
-      // เพิ่ม messages และเคลียร์ input ทันที
-      setMessages(prev => [...prev, userMessage, aiMessage]);
-      setInputMessage('');
-      setSelectedImages([]);
-      setIsLoading(true);
+      }]);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -252,7 +253,7 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [userMessage],
+          messages: [...messages, userMessage],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -264,8 +265,7 @@ const MFUChatbot: React.FC = () => {
       if (!reader) throw new Error('No response body');
 
       let accumulatedContent = '';
-
-      // อ่าน stream
+      
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -277,11 +277,10 @@ const MFUChatbot: React.FC = () => {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.content !== undefined) {
+              if (data.content) {
                 accumulatedContent += data.content;
-                // อัพเดท message ทันทีที่ได้รับแต่ละ chunk
-                setMessages(prev => prev.map(msg => 
-                  msg.id === aiMessage.id 
+                setMessages(prev => prev.map(msg =>
+                  msg.id === aiMessageId
                     ? { ...msg, content: accumulatedContent }
                     : msg
                 ));
@@ -293,7 +292,7 @@ const MFUChatbot: React.FC = () => {
         }
       }
 
-      // บันทึกประวัติ
+      // บันทึกประวัติแชท
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
@@ -301,7 +300,16 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage, { ...aiMessage, content: accumulatedContent }],
+          messages: [
+            ...messages, 
+            userMessage, 
+            { 
+              id: aiMessageId,
+              role: 'assistant',
+              content: accumulatedContent,
+              timestamp: new Date()
+            }
+          ],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -310,7 +318,7 @@ const MFUChatbot: React.FC = () => {
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
-        id: messages.length + 2,
+        id: aiMessageId,
         role: 'assistant',
         content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
         timestamp: new Date()
@@ -352,7 +360,7 @@ const MFUChatbot: React.FC = () => {
       console.error('Error clearing chat:', error);
     }
   };
-
+  
   // เพิ่มฟังก์ชันสำหรับตรวจสอบขนาดไฟล์
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024; // 20MB
@@ -453,10 +461,11 @@ const MFUChatbot: React.FC = () => {
 
     return (
       <div className="">
-        <div className={`grid gap-2 auto-cols-fr ${message.images && message.images.length > 0
-          ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
-          : ''
-          }`}>
+        <div className={`grid gap-2 auto-cols-fr ${
+          message.images && message.images.length > 0 
+            ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
+            : ''
+        }`}>
           {message.images?.map((img, index) => (
             <img
               key={index}
@@ -516,13 +525,15 @@ const MFUChatbot: React.FC = () => {
           <div className="space-y-6">
             {messages.map((message) => (
               <div key={message.id} className="message relative">
-                <div className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                  }`}>
+                <div className={`flex items-start gap-3 ${
+                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                }`}>
                   {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${message.role === 'user'
-                    ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-                    : 'bg-transparent'
-                    } flex items-center justify-center`}>
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
+                    message.role === 'user'
+                      ? 'bg-gradient-to-r from-red-600 to-yellow-400'
+                      : 'bg-transparent'
+                  } flex items-center justify-center`}>
                     {message.role === 'user' ? (
                       <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -537,21 +548,18 @@ const MFUChatbot: React.FC = () => {
                   </div>
 
                   {/* Message Content */}
-                  <div className={`flex flex-col space-y-2 max-w-[80%] ${message.role === 'user' ? 'items-end' : 'items-start'
-                    }`}>
+                  <div className={`flex flex-col space-y-2 max-w-[80%] ${
+                    message.role === 'user' ? 'items-end' : 'items-start'
+                  }`}>
                     <div className="text-sm text-gray-500">
                       {new Date(message.timestamp).toLocaleTimeString()}
                     </div>
-                    <div className={`rounded-lg p-3 ${message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
-                      }`}>
-                      {/* {message.role === 'assistant' && message.content === '' && isLoading ? (
-                        <LoadingDots />
-                      ) : (
-                        <MessageContent message={message} />
-                      )} */}
-                      {message.role === 'assistant' && isLoading && !message.content ? (
+                    <div className={`rounded-lg p-3 ${
+                      message.role === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
+                    }`}>
+                      {message.role === 'assistant' && message.content === '' && isLoading ? (
                         <LoadingDots />
                       ) : (
                         <MessageContent message={message} />
@@ -684,8 +692,8 @@ const MFUChatbot: React.FC = () => {
                   type="submit"
                   disabled={!canSubmit()}
                   className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
-                    ? 'bg-blue-500 text-white hover:bg-blue-600'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   style={{ minHeight: '40px' }}
                 >
