@@ -253,7 +253,7 @@ const MFUChatbot: React.FC = () => {
       }]);
 
       console.log('Setting up EventSource...');
-      const eventSource = new EventSourcePolyfill(`${config.apiUrl}/api/chat`, {
+      const eventSource = new EventSourcePolyfill('/api/chat', {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
