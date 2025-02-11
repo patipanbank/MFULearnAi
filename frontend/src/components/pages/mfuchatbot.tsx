@@ -56,10 +56,8 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   // const [copySuccess, setCopySuccess] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [currentResponse] = useState('');
+  const [currentResponse, setCurrentResponse] = useState('');
   const [streamingMessageId, setStreamingMessageId] = useState<number | null>(null);
-  const [streamingContent, setStreamingContent] = useState<string>('');
-  const [, setIsStreaming] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -230,10 +228,9 @@ const MFUChatbot: React.FC = () => {
     if (!canSubmit()) return;
 
     setIsLoading(true);
-    setIsStreaming(true);
     const aiMessageId = messages.length + 2;
     setStreamingMessageId(aiMessageId);
-    let accumulatedContent = '';
+    setCurrentResponse('');
 
     try {
       let processedImages;
@@ -266,7 +263,7 @@ const MFUChatbot: React.FC = () => {
         content: '',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, userMessage, aiMessage]);
+      setMessages(prev => [...prev, aiMessage]);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -286,6 +283,7 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
+      let accumulatedContent = '';
       const decoder = new TextDecoder();
 
       try {
@@ -299,17 +297,19 @@ const MFUChatbot: React.FC = () => {
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
+                // แก้การ parse ข้อมูล
                 const cleanData = line.replace('data: ', '').trim();
                 if (cleanData) {
                   try {
                     const data = JSON.parse(cleanData);
                     if (data.content) {
                       accumulatedContent += data.content;
-                      setStreamingContent(accumulatedContent);
+                      setCurrentResponse(accumulatedContent);
                     }
                   } catch {
+                    // ถ้า parse JSON ไม่ได้ ให้ใช้ข้อความนั้นเลย
                     accumulatedContent += cleanData;
-                    setStreamingContent(accumulatedContent);
+                    setCurrentResponse(accumulatedContent);
                   }
                 }
               } catch (e) {
@@ -346,19 +346,7 @@ const MFUChatbot: React.FC = () => {
       }]);
     } finally {
       setIsLoading(false);
-      setIsStreaming(false);
       setStreamingMessageId(null);
-      
-      // อัพเดท messages ด้วยข้อความทั้งหมดเมื่อจบ stream
-      if (accumulatedContent) {
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === aiMessageId 
-              ? { ...msg, content: accumulatedContent }
-              : msg
-          )
-        );
-      }
     }
   };
 
@@ -593,10 +581,8 @@ const MFUChatbot: React.FC = () => {
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                     }`}>
-                      {message.role === 'assistant' && message.id === streamingMessageId ? (
-                        <div className="whitespace-pre-wrap">
-                          {streamingContent || <LoadingDots />}
-                        </div>
+                      {message.role === 'assistant' && message.id === streamingMessageId && message.content === '' ? (
+                        <LoadingDots />
                       ) : (
                         <MessageContent message={message} />
                       )}
