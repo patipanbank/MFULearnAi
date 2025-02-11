@@ -571,7 +571,7 @@ const MFUChatbot: React.FC = () => {
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                     }`}>
-                      {message.role === 'assistant' && message.content === '' && isLoading ? (
+                      {message.role === 'assistant' && message.id === streamingMessageId && message.content === '' ? (
                         <LoadingDots />
                       ) : (
                         <MessageContent message={message} />
