@@ -41,17 +41,18 @@ export class ChatService {
       }
 
       // แยกข้อความเป็นคำๆ
-      const words = fullResponse.split(/([.!?\n]|\s{2,})/);
+      const words = fullResponse.split(/(\s+)/);
       let buffer = '';
       
       for (const word of words) {
         buffer += word;
         
-        // ส่งเมื่อจบประโยคหรือมีการขึ้นบรรทัดใหม่
-        if (buffer.match(/[.!?\n]$/)) {
+        // ส่งทันทีเมื่อเจอช่องว่างหรือเครื่องหมายวรรคตอน
+        if (buffer.match(/[\s.!?]$/)) {
           yield buffer;
           buffer = '';
-          await new Promise(resolve => setTimeout(resolve, 30));
+          // delay เล็กน้อย
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
       
