@@ -5,7 +5,6 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { EventSourcePolyfill } from 'event-source-polyfill';
 
 interface Source {
   modelId: string;
@@ -252,62 +251,72 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      console.log('Setting up EventSource...');
-      const url = new URL('/api/chat', window.location.origin);
-      url.searchParams.append('messages', JSON.stringify([...messages, userMessage]));
-      url.searchParams.append('modelId', selectedModel);
-      url.searchParams.append('collectionName', selectedCollection);
-
-      const eventSource = new EventSourcePolyfill(url.toString(), {
+      console.log('Fetching response from API...');
+      
+      const response = await fetch(`${config.apiUrl}/api/chat`, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
-        withCredentials: true
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      console.log('Starting to read stream...');
       let accumulatedContent = '';
 
-      eventSource.onopen = () => {
-        console.log('Starting to read stream...');
-      };
+      // ใช้ ReadableStream API โดยตรง
+      const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.content !== undefined) {
-            accumulatedContent += data.content;
-            setMessages(prev => prev.map(msg =>
-              msg.id === aiMessageId
-                ? { ...msg, content: accumulatedContent }
-                : msg
-            ));
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          console.log('Received chunk:', value);
+
+          // แยกและประมวลผลแต่ละ event
+          const events = value.split('\n\n');
+          for (const event of events) {
+            if (event.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(event.slice(6));
+                console.log('Parsed data:', data);
+                
+                if (data.content !== undefined) {
+                  accumulatedContent += data.content;
+                  console.log('Updated content:', accumulatedContent);
+                  
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  ));
+                }
+              } catch (e) {
+                console.error('Error parsing event:', e);
+              }
+            }
           }
-        } catch (e) {
-          console.error('Error parsing event:', e);
         }
-      };
+      } finally {
+        reader.releaseLock();
+      }
 
-      eventSource.onerror = (error) => {
-        console.error('EventSource error:', error);
-        eventSource.close();
-      };
-
-      // รอจนกว่า stream จะจบ
-      await new Promise<void>((resolve) => {
-        eventSource.addEventListener('done', () => {
-          eventSource.close();
-          resolve();
-        });
-        
-        // Timeout safety
-        setTimeout(() => {
-          eventSource.close();
-          resolve();
-        }, 30000);
-      });
+      console.log('Stream complete');
 
       console.log('Saving chat history...');
-      await fetch(`${config.apiUrl}/api/chat`, {
+      await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
