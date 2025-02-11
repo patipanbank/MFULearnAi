@@ -5,7 +5,6 @@ export class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
     claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    novaPro: 'amazon.nova-pro-v1:0'
   };
 
   constructor() {
@@ -22,8 +21,6 @@ export class BedrockService {
     try {
       if (modelId === this.models.claude35) {
         yield* this.claudeChat(messages);
-      } else if (modelId === this.models.novaPro) {
-        yield* this.novaProChat(messages);
       } else {
         throw new Error('Unsupported model');
       }
@@ -82,64 +79,6 @@ export class BedrockService {
       }
     } catch (error) {
       console.error('Claude chat error:', error);
-      throw error;
-    }
-  }
-
-  private async *novaProChat(messages: ChatMessage[]): AsyncGenerator<string> {
-    try {
-      // ตรวจสอบและปรับแต่งข้อความให้ข้อความแรกเป็น user เสมอ
-      const formattedMessages = messages.map((msg, index) => ({
-        role: index === 0 ? 'user' : msg.role === 'user' ? 'user' : 'assistant',
-        content: msg.images ? [
-          {
-            text: msg.content
-          },
-          ...msg.images.map(img => ({
-            image: {
-              base64: img.data,
-              media_type: img.mediaType
-            }
-          }))
-        ] : [
-          {
-            text: msg.content
-          }
-        ]
-      }));
-
-      const command = new InvokeModelWithResponseStreamCommand({
-        modelId: this.models.novaPro,
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify({
-          inferenceConfig: {
-            max_new_tokens: 1000,
-            temperature: 0.7
-          },
-          messages: formattedMessages
-        })
-      });
-
-      const response = await this.client.send(command);
-      
-      if (response.body) {
-        for await (const chunk of response.body) {
-          if (chunk.chunk?.bytes) {
-            const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
-            try {
-              const parsedChunk = JSON.parse(decodedChunk);
-              if (parsedChunk.output_text) {
-                yield parsedChunk.output_text;
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Nova Pro chat error:', error);
       throw error;
     }
   }
