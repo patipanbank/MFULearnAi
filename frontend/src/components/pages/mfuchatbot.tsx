@@ -239,7 +239,6 @@ const MFUChatbot: React.FC = () => {
       setInputMessage('');
       setSelectedImages([]);
 
-      // เพิ่มข้อความ AI เปล่าๆ
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
@@ -261,82 +260,60 @@ const MFUChatbot: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
-      if (!response.body) throw new Error('No response body');
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
       let accumulatedContent = '';
-      let currentChunk = '';
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
+        const chunk = new TextDecoder().decode(value);
+        const lines = chunk.split('\n');
 
-          // แปลง bytes เป็น text
-          const text = decoder.decode(value);
-          
-          // แยกข้อความเป็นบรรทัด
-          const lines = text.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const parsed = JSON.parse(line.slice(6));
-                if (parsed.content) {
-                  currentChunk = parsed.content;
-                  accumulatedContent += currentChunk;
-                  
-                  // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
-                  await new Promise<void>((resolve) => {
-                    setMessages(prevMessages => {
-                      const updatedMessages = prevMessages.map(msg =>
-                        msg.id === aiMessageId
-                          ? { ...msg, content: accumulatedContent }
-                          : msg
-                      );
-                      resolve();
-                      return updatedMessages;
-                    });
-                  });
-
-                  // รอให้ UI อัพเดทเสร็จก่อนดำเนินการต่อ
-                  await new Promise(resolve => requestAnimationFrame(resolve));
-                }
-              } catch (error) {
-                console.error('Error parsing chunk:', error);
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.content) {
+                accumulatedContent += data.content;
+                setMessages(prev => prev.map(msg =>
+                  msg.id === aiMessageId
+                    ? { ...msg, content: accumulatedContent }
+                    : msg
+                ));
               }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }
-      } finally {
-        reader.releaseLock();
       }
 
       // บันทึกประวัติแชท
-      if (accumulatedContent) {
-        await fetch(`${config.apiUrl}/api/chat/history`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          },
-          body: JSON.stringify({
-            messages: [
-              ...messages,
-              userMessage,
-              {
-                id: aiMessageId,
-                role: 'assistant',
-                content: accumulatedContent,
-                timestamp: new Date()
-              }
-            ],
-            modelId: selectedModel,
-            collectionName: selectedCollection
-          })
-        });
-      }
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [
+            ...messages, 
+            userMessage, 
+            { 
+              id: aiMessageId,
+              role: 'assistant',
+              content: accumulatedContent,
+              timestamp: new Date()
+            }
+          ],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
 
     } catch (error) {
       console.error('Error:', error);
