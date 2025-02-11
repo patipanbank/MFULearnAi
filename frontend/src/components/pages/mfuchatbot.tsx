@@ -35,13 +35,13 @@ const modelNames: { [key: string]: string } = {
 
 };
 
-const LoadingDots = () => (
-  <div className="flex items-center space-x-1">
-    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-  </div>
-);
+// const LoadingDots = () => (
+//   <div className="flex items-center space-x-1">
+//     <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+//     <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+//     <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+//   </div>
+// );
 
 const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -235,7 +235,6 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      // เพิ่มข้อความผู้ใช้
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
@@ -261,60 +260,52 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.body) throw new Error('No response body');
       
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let accumulatedContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
-        // แปลง bytes เป็น text และรวมกับ buffer ที่เหลือจากรอบที่แล้ว
-        buffer += decoder.decode(value, { stream: true });
         
-        // แยกข้อความตาม data: events
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // เก็บข้อความที่เหลือไว้รอบถัดไป
-
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const { content } = JSON.parse(line.slice(6));
               if (content) {
-                // อัพเดทข้อความทันทีที่ได้รับแต่ละ chunk
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? {
-                        ...msg,
-                        content: msg.content + content
-                      }
+                accumulatedContent += content;
+                // อัพเดท UI ทันทีที่ได้รับข้อความใหม่
+                setMessages(prev => prev.map(msg => 
+                  msg.id === aiMessageId 
+                    ? { ...msg, content: accumulatedContent }
                     : msg
                 ));
               }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
+            } catch (error) {
+              console.error('Error parsing chunk:', error);
             }
           }
         }
       }
 
       // บันทึกประวัติแชท
-      // await fetch(`${config.apiUrl}/api/chat/history`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      //   },
-      //   body: JSON.stringify({
-      //     messages: [...messages, userMessage, { ...messages[aiMessageId - 1], content: accumulatedContent }],
-      //     modelId: selectedModel,
-      //     collectionName: selectedCollection
-      //   })
-      // });
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage, { ...messages[aiMessageId - 1], content: accumulatedContent }],
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
 
     } catch (error) {
       console.error('Error:', error);
@@ -560,11 +551,7 @@ const MFUChatbot: React.FC = () => {
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                     }`}>
-                      {message.role === 'assistant' && message.content === '' && isLoading ? (
-                        <LoadingDots />
-                      ) : (
-                        <MessageContent message={message} />
-                      )}
+                      <MessageContent message={message} />
                     </div>
                   </div>
                 </div>
