@@ -56,8 +56,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   // const [copySuccess, setCopySuccess] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [currentResponse, setCurrentResponse] = useState('');
-  const [streamingMessageId, setStreamingMessageId] = useState<number | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -164,18 +162,6 @@ const MFUChatbot: React.FC = () => {
     loadChatHistory();
   }, []);
 
-  useEffect(() => {
-    if (currentResponse && streamingMessageId) {
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === streamingMessageId 
-            ? { ...msg, content: currentResponse }
-            : msg
-        )
-      );
-    }
-  }, [currentResponse, streamingMessageId]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
   };
@@ -229,8 +215,6 @@ const MFUChatbot: React.FC = () => {
 
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
-    setStreamingMessageId(aiMessageId);
-    setCurrentResponse('');
 
     try {
       let processedImages;
@@ -251,19 +235,16 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      // เพิ่มข้อความผู้ใช้
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
-      // เพิ่มข้อความ AI เปล่าๆ ทันที
-      const aiMessage: Message = {
+      setMessages(prev => [...prev, {
         id: aiMessageId,
-        role: 'assistant' as const,
+        role: 'assistant',
         content: '',
         timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMessage]);
+      }]);
 
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
@@ -284,35 +265,34 @@ const MFUChatbot: React.FC = () => {
       if (!reader) throw new Error('No response body');
 
       let accumulatedContent = '';
-      const decoder = new TextDecoder();
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
+        const chunk = new TextDecoder().decode(value);
+        const lines = chunk.split('\n');
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ') && line.trim() !== 'data: ') {
-              try {
-                const data = JSON.parse(line.slice(5));
-                if (data.content) {
-                  accumulatedContent += data.content;
-                  setCurrentResponse(accumulatedContent);
-                }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.content) {
+                accumulatedContent += data.content;
+                setMessages(prev => prev.map(msg =>
+                  msg.id === aiMessageId
+                    ? { ...msg, content: accumulatedContent }
+                    : msg
+                ));
               }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }
-      } finally {
-        reader.releaseLock();
       }
 
-      // บันทึกประวัติหลังจากได้ข้อความครบ
+      // บันทึกประวัติแชท
       await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
@@ -320,7 +300,16 @@ const MFUChatbot: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage, { ...aiMessage, content: accumulatedContent }],
+          messages: [
+            ...messages, 
+            userMessage, 
+            { 
+              id: aiMessageId,
+              role: 'assistant',
+              content: accumulatedContent,
+              timestamp: new Date()
+            }
+          ],
           modelId: selectedModel,
           collectionName: selectedCollection
         })
@@ -336,7 +325,6 @@ const MFUChatbot: React.FC = () => {
       }]);
     } finally {
       setIsLoading(false);
-      setStreamingMessageId(null);
     }
   };
 
