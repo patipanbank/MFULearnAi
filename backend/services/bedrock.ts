@@ -57,37 +57,31 @@ export class BedrockService {
           }))
         })
       });
-  
+
       const response = await this.client.send(command);
-  
-      if (!response.body) {
-        console.error("Bedrock response body is empty.");
-        yield "[Error]: No response from Claude 3.5.";
-        return;
-      }
-  
-      let buffer = ""; // ใช้เก็บข้อมูลเผื่อ JSON มาไม่ครบ
-      for await (const chunk of response.body) {
-        if (chunk.chunk?.bytes) {
-          buffer += new TextDecoder().decode(chunk.chunk.bytes);
-          try {
-            const parsedChunk = JSON.parse(buffer);
-            if (parsedChunk.type === 'content_block_delta' && parsedChunk.delta?.type === 'text_delta' && parsedChunk.delta?.text) {
-              yield parsedChunk.delta.text;
-              buffer = ""; // Reset buffer หลังจาก parse สำเร็จ
+      
+      if (response.body) {
+        for await (const chunk of response.body) {
+          if (chunk.chunk?.bytes) {
+            const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
+            try {
+              const parsedChunk = JSON.parse(decodedChunk);
+              if (parsedChunk.type === 'content_block_delta' && 
+                  parsedChunk.delta?.type === 'text_delta' && 
+                  parsedChunk.delta?.text) {
+                yield parsedChunk.delta.text;
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
-          } catch (e) {
-            // JSON อาจจะยังมาไม่ครบ ไม่ต้องโยน Error ทิ้ง
-            continue;
           }
         }
       }
     } catch (error) {
       console.error('Claude chat error:', error);
-      yield `[Error]: ${(error as Error).message}`;
+      throw error;
     }
   }
-  
 }
 
 export const bedrockService = new BedrockService();
