@@ -47,6 +47,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     try {
       for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+        console.log('Streaming response chunk:', content);
         // ส่งแต่ละ chunk ทันทีที่ได้รับ
         const data = JSON.stringify({ content });
         res.write(`data: ${data}\n\n`);
