@@ -224,7 +224,7 @@ const MFUChatbot: React.FC = () => {
         );
       }
 
-      // เตรียมข้อความของผู้ใช้
+      // 1. เพิ่มข้อความผู้ใช้
       const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
@@ -232,13 +232,9 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date(),
         images: processedImages
       };
-
-      // เพิ่มข้อความผู้ใช้
       setMessages(prev => [...prev, userMessage]);
-      setInputMessage('');
-      setSelectedImages([]);
-
-      // เพิ่มข้อความ AI ว่างๆ ทันที
+      
+      // 2. เพิ่มข้อความ AI ว่างๆ ทันที
       const aiMessageId = messages.length + 2;
       setMessages(prev => [...prev, {
         id: aiMessageId,
@@ -247,8 +243,11 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      setIsLoading(true);
+      // 3. เคลียร์ input
+      setInputMessage('');
+      setSelectedImages([]);
 
+      // 4. เริ่ม fetch
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -267,11 +266,10 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No reader available');
 
-      let accumulatedContent = '';
       const decoder = new TextDecoder();
+      let accumulatedContent = '';
 
-      setIsLoading(false); // ปิด loading ทันทีที่เริ่มได้รับข้อความ
-
+      // 5. อ่าน stream
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -288,12 +286,14 @@ const MFUChatbot: React.FC = () => {
               const parsed = JSON.parse(data);
               if (parsed.content) {
                 accumulatedContent += parsed.content;
-                // อัพเดทข้อความทันทีที่ได้รับ chunk ใหม่
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                ));
+                // อัพเดท message ทันที
+                setMessages(prevMessages => 
+                  prevMessages.map(msg => 
+                    msg.id === aiMessageId 
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  )
+                );
               }
             } catch (e) {
               console.error('Error parsing chunk:', e);
