@@ -261,6 +261,22 @@ const MFUChatbot: React.FC = () => {
                 : msg
             ));
           }
+
+          if (data.done) {
+            const updatedMessages = [
+              ...messages,
+              userMessage,
+              {
+                id: aiMessageId,
+                role: 'assistant' as const,
+                content: accumulatedContent,
+                timestamp: new Date(),
+                sources: data.sources
+              }
+            ];
+
+            saveChatHistory(updatedMessages);
+          }
         } catch (error) {
           console.error('Error parsing message:', error);
         }
@@ -293,24 +309,25 @@ const MFUChatbot: React.FC = () => {
     };
   }, []);
 
-  // const saveChatHistory = async (messages: Message[]) => {
-  //   try {
-  //     await fetch(`${config.apiUrl}/api/chat/history`, {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-  //       },
-  //       body: JSON.stringify({
-  //         messages,
-  //         modelId: selectedModel,
-  //         collectionName: selectedCollection
-  //       })
-  //     });
-  //   } catch (error) {
-  //     console.error('Error saving chat history:', error);
-  //   }
-  // };
+  const saveChatHistory = async (messages: Message[]) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          messages,
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
