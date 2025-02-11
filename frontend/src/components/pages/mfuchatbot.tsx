@@ -248,7 +248,7 @@ const MFUChatbot: React.FC = () => {
       }]);
 
       // ใช้ EventSource แทน fetch
-      const eventSource = new EventSource(`${config.apiUrl}/api/chat?` + new URLSearchParams({
+      const eventSource = new EventSource(`${config.apiUrl}/api/chat` + new URLSearchParams({
         messages: JSON.stringify([...messages, userMessage]),
         modelId: selectedModel,
         collectionName: selectedCollection
