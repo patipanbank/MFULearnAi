@@ -265,30 +265,26 @@ const MFUChatbot: React.FC = () => {
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
-      let accumulatedContent = '';
-
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-
+      
         const chunk = new TextDecoder().decode(value);
         const lines = chunk.split('\n');
-
+      
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
-                accumulatedContent += data.content;
-
                 setMessages(prev => prev.map(msg =>
                   msg.id === aiMessageId
-                    ? { ...msg, content: accumulatedContent }
+                    ? { ...msg, content: msg.content + data.content } // ✨ อัปเดตข้อความทันที
                     : msg
                 ));
-
-                // ปิด LoadingDots เมื่อเริ่มได้รับข้อความแรก
-                if (accumulatedContent.length > 0) {
+      
+                // ปิด LoadingDots เมื่อมีข้อความแรกปรากฏ
+                if (data.content.length > 0) {
                   setIsLoading(false);
                 }
               }
@@ -313,7 +309,6 @@ const MFUChatbot: React.FC = () => {
             {
               id: aiMessageId,
               role: 'assistant',
-              content: accumulatedContent,
               timestamp: new Date()
             }
           ],
