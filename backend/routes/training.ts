@@ -7,6 +7,7 @@ import { chromaService } from '../services/chroma';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
+import { bedrockService } from '../services/bedrock';
 
 const router = Router();
 const upload = multer({ 
@@ -69,15 +70,17 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
 };
 
 // อนุญาตทั้ง Students และ Staffs ให้เข้าถึง models และ collections ได้
-router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.get('/models', (req, res) => {
   try {
+    // ส่งรายการ models ทั้งหมดที่รองรับ
     const models = [
       'anthropic.claude-3-5-sonnet-20240620-v1:0',
+      'amazon.nova-pro-v1:0'
     ];
     res.json(models);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Error fetching models' });
+    console.error('Error fetching models:', error);
+    res.status(500).json({ error: 'Failed to fetch models' });
   }
 });
 
