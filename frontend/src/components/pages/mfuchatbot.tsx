@@ -56,6 +56,8 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   // const [copySuccess, setCopySuccess] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [, setStreamingMessageId] = useState<number | null>(null);
+  const [, setCurrentResponse] = useState('');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -215,6 +217,8 @@ const MFUChatbot: React.FC = () => {
 
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
+    setStreamingMessageId(aiMessageId);
+    setCurrentResponse('');
 
     try {
       let processedImages;
@@ -235,103 +239,76 @@ const MFUChatbot: React.FC = () => {
         images: processedImages
       };
 
-      setMessages((prev) => [...prev, userMessage]);
-      setInputMessage("");
+      const aiMessage: Message = {
+        id: aiMessageId,
+        role: 'assistant' as const,
+        content: '',
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, userMessage, aiMessage]);
+      setInputMessage('');
       setSelectedImages([]);
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: aiMessageId,
-          role: "assistant",
-          content: "",
-          timestamp: new Date(),
-        } as Message,
-      ]);
-
       const response = await fetch(`${config.apiUrl}/api/chat`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("auth_token")}`,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: [userMessage],
           modelId: selectedModel,
-          collectionName: selectedCollection,
-        }),
+          collectionName: selectedCollection
+        })
       });
 
-      if (!response.ok) throw new Error("Network response was not ok");
-
+      if (!response.ok) throw new Error('Network response was not ok');
+      
       const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response body");
+      if (!reader) throw new Error('No response body');
 
-      let accumulatedContent = "";
+      let accumulatedContent = '';
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
         const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split("\n");
+        const lines = chunk.split('\n');
 
         for (const line of lines) {
-          if (line.startsWith("data: ")) {
+          if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(line.slice(5));
               if (data.content) {
                 accumulatedContent += data.content;
-
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === aiMessageId
+                setMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === aiMessageId 
                       ? { ...msg, content: accumulatedContent }
                       : msg
                   )
                 );
               }
             } catch (e) {
-              console.error("Error parsing chunk:", e);
+              console.error('Error parsing chunk:', e);
             }
           }
         }
       }
 
-      await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-        body: JSON.stringify({
-          messages: [
-            ...messages,
-            userMessage,
-            {
-              id: aiMessageId,
-              role: "assistant",
-              content: accumulatedContent,
-              timestamp: new Date(),
-            } as Message,
-          ],
-          modelId: selectedModel,
-          collectionName: selectedCollection,
-        }),
-      });
     } catch (error) {
-      console.error("Error:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: aiMessageId,
-          role: "assistant",
-          content: "ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง",
-          timestamp: new Date(),
-        } as Message,
-      ]);
+      console.error('Error:', error);
+      setMessages(prev => [...prev, {
+        id: aiMessageId,
+        role: 'assistant',
+        content: 'Sorry, an error occurred. Please try again.',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsLoading(false);
+      setStreamingMessageId(null);
     }
   };
 
