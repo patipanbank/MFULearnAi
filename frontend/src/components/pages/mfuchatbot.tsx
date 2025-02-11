@@ -253,12 +253,16 @@ const MFUChatbot: React.FC = () => {
       }]);
 
       console.log('Setting up EventSource...');
-      const eventSource = new EventSourcePolyfill('/api/chat', {
+      const url = new URL('/api/chat', window.location.origin);
+      url.searchParams.append('messages', JSON.stringify([...messages, userMessage]));
+      url.searchParams.append('modelId', selectedModel);
+      url.searchParams.append('collectionName', selectedCollection);
+
+      const eventSource = new EventSourcePolyfill(url.toString(), {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'X-Requested-With': 'XMLHttpRequest'
-        }
+        },
+        withCredentials: true
       });
 
       let accumulatedContent = '';
