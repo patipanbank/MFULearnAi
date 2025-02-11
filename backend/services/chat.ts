@@ -25,10 +25,7 @@ export class ChatService {
         return;
       }
 
-      console.log('Getting context for query:', query);
       const context = await this.getContext(query, collectionName);
-      console.log('Retrieved context length:', context.length);
-
       const augmentedMessages = [
         {
           role: 'system' as const,
@@ -37,18 +34,28 @@ export class ChatService {
         ...messages
       ];
 
-      let buffer = '';
+      // รับ response ทั้งหมดก่อน
+      let fullResponse = '';
       for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
-        buffer += chunk;
+        fullResponse += chunk;
+      }
+
+      // แยกข้อความเป็นคำๆ
+      const words = fullResponse.split(/(\s+)/);
+      let buffer = '';
+      
+      for (const word of words) {
+        buffer += word;
         
-        // ส่งเมื่อเจอจุดสิ้นสุดประโยค หรือ buffer มีขนาดพอสมควร
-        if (buffer.match(/[.!?]|\s{2,}/) || buffer.length >= 10) {
+        // ส่งทันทีเมื่อเจอช่องว่างหรือเครื่องหมายวรรคตอน
+        if (buffer.match(/[\s.!?]$/)) {
           yield buffer;
           buffer = '';
+          // delay เล็กน้อย
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
-
+      
       // ส่งข้อความที่เหลือ (ถ้ามี)
       if (buffer) {
         yield buffer;
