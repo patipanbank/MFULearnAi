@@ -39,6 +39,7 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     const { messages, modelId, collectionName } = req.body;
+    // ตรวจสอบว่ามีรูปภาพหรือไม่
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
@@ -48,16 +49,10 @@ router.post('/', async (req: Request, res: Response) => {
       'Connection': 'keep-alive'
     });
 
-    res.flushHeaders(); // ✅ Flush headers ก่อนส่งข้อมูล
-
     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
       console.log('Streaming response chunk:', content);
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      
-      // ✅ บังคับให้ Streaming โดยหน่วงเวลาสั้น ๆ 
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      res.flushHeaders(); // ✅ บังคับให้ส่งข้อมูล
+      res.flushHeaders();
     }
 
     console.log('Chat response completed');
@@ -72,45 +67,6 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-// router.post('/', async (req: Request, res: Response) => {
-//   try {
-//     console.log('Received chat request:', {
-//       body: req.body,
-//       headers: req.headers,
-//       url: req.url,
-//       method: req.method
-//     });
-
-//     const { messages, modelId, collectionName } = req.body;
-//     // ตรวจสอบว่ามีรูปภาพหรือไม่
-//     const lastMessage = messages[messages.length - 1];
-//     const query = lastMessage.content;
-
-//     res.writeHead(200, {
-//       'Content-Type': 'text/event-stream',
-//       'Cache-Control': 'no-cache',
-//       'Connection': 'keep-alive'
-//     });
-
-//     for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-//       console.log('Streaming response chunk:', content);
-//       res.write(`data: ${JSON.stringify({ content })}\n\n`);
-//       res.flushHeaders();
-//     }
-
-//     console.log('Chat response completed');
-//     res.end();
-//   } catch (error) {
-//     console.error('Chat error details:', {
-//       error,
-//       stack: (error as Error).stack,
-//       url: req.url,
-//       method: req.method
-//     });
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 
 router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
