@@ -261,44 +261,45 @@ const MFUChatbot: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
-      
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
+      if (!response.body) throw new Error('No response body');
 
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       let accumulatedContent = '';
 
-      // อ่านและประมวลผล stream แบบ chunk
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (value) {
-          const chunk = new TextDecoder().decode(value);
-          const lines = chunk.split('\n');
-          
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          const text = decoder.decode(value);
+          const lines = text.split('\n');
+
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
                 const { content } = JSON.parse(line.slice(6));
                 if (content) {
                   accumulatedContent += content;
-                  
                   // อัพเดท UI ทันทีที่ได้รับแต่ละ chunk
-                  setMessages(prev => 
-                    prev.map(msg => 
+                  setMessages(messages => 
+                    messages.map(msg => 
                       msg.id === aiMessageId 
                         ? { ...msg, content: accumulatedContent }
                         : msg
                     )
                   );
+                  // Force re-render
+                  await new Promise(resolve => requestAnimationFrame(resolve));
                 }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
+              } catch (error) {
+                console.error('Error parsing chunk:', error);
               }
             }
           }
         }
-        
-        if (done) break;
+      } finally {
+        reader.releaseLock();
       }
 
       // บันทึกประวัติแชท
