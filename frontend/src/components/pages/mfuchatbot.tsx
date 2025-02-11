@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useReducer } from 'react';
 import { BiLoaderAlt } from 'react-icons/bi';
 import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
@@ -43,8 +43,28 @@ const LoadingDots = () => (
   </div>
 );
 
+// เพิ่ม reducer
+type MessageAction = 
+  | { type: 'ADD_MESSAGES'; messages: Message[] }
+  | { type: 'UPDATE_ASSISTANT_MESSAGE'; id: number; content: string };
+
+const messageReducer = (state: Message[], action: MessageAction): Message[] => {
+  switch (action.type) {
+    case 'ADD_MESSAGES':
+      return [...state, ...action.messages];
+    case 'UPDATE_ASSISTANT_MESSAGE':
+      return state.map(msg =>
+        msg.id === action.id
+          ? { ...msg, content: action.content }
+          : msg
+      );
+    default:
+      return state;
+  }
+};
+
 const MFUChatbot: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, dispatch] = useReducer(messageReducer, []);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -148,7 +168,7 @@ const MFUChatbot: React.FC = () => {
         if (response.ok) {
           const history = await response.json();
           if (history.messages) {
-            setMessages(history.messages);
+            dispatch({ type: 'ADD_MESSAGES', messages: history.messages });
             // ตั้งค่า model และ collection ที่เคยใช้
             setSelectedModel(history.modelId || '');
             setSelectedCollection(history.collectionName || '');
@@ -235,15 +255,14 @@ const MFUChatbot: React.FC = () => {
       };
       console.log('2. User message:', userMessage);
 
-      const aiMessageId = messages.length + 2;
       const aiMessage = {
-        id: aiMessageId,
+        id: messages.length + 2,
         role: 'assistant' as const,
         content: '',
         timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, userMessage, aiMessage]);
+      dispatch({ type: 'ADD_MESSAGES', messages: [userMessage, aiMessage] });
       setInputMessage('');
       setSelectedImages([]);
 
@@ -287,17 +306,10 @@ const MFUChatbot: React.FC = () => {
                   accumulatedContent += parsed.content;
                   console.log('5. New content:', accumulatedContent);
 
-                  setMessages(prevMessages => {
-                    console.log('6. Updating messages:', prevMessages);
-                    const newMessages = [...prevMessages];
-                    const aiMessageIndex = newMessages.findIndex(msg => msg.id === aiMessageId);
-                    if (aiMessageIndex !== -1) {
-                      newMessages[aiMessageIndex] = {
-                        ...newMessages[aiMessageIndex],
-                        content: accumulatedContent
-                      };
-                    }
-                    return newMessages;
+                  dispatch({
+                    type: 'UPDATE_ASSISTANT_MESSAGE',
+                    id: aiMessage.id,
+                    content: accumulatedContent
                   });
                 }
               } catch (e) {
@@ -322,7 +334,7 @@ const MFUChatbot: React.FC = () => {
             ...messages,
             userMessage,
             {
-              id: aiMessageId,
+              id: aiMessage.id,
               role: 'assistant',
               content: accumulatedContent,
               timestamp: new Date()
@@ -335,12 +347,17 @@ const MFUChatbot: React.FC = () => {
 
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, {
-        id: messages.length + 1,
-        role: 'assistant',
-        content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
-        timestamp: new Date()
-      }]);
+      dispatch({
+        type: 'ADD_MESSAGES',
+        messages: [
+          {
+            id: messages.length + 1,
+            role: 'assistant',
+            content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
+            timestamp: new Date()
+          }
+        ]
+      });
     } finally {
       setIsLoading(false);
     }
@@ -373,7 +390,7 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Failed to clear chat history');
       }
 
-      setMessages([]); // เคลียร์ข้อความในหน้าจอ
+      dispatch({ type: 'ADD_MESSAGES', messages: [] });
     } catch (error) {
       console.error('Error clearing chat:', error);
     }
