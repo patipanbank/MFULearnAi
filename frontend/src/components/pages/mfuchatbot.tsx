@@ -432,6 +432,12 @@ const MFUChatbot: React.FC = () => {
   // แก้ไข MessageContent component
   const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+    const [localContent, setLocalContent] = useState(message.content);
+
+    // เพิ่ม useEffect เพื่อติดตามการเปลี่ยนแปลงของ message.content
+    useEffect(() => {
+      setLocalContent(message.content);
+    }, [message.content]);
 
     const copyToClipboard = (code: string, index: number) => {
       navigator.clipboard.writeText(code);
@@ -441,7 +447,6 @@ const MFUChatbot: React.FC = () => {
 
     const renderContent = (content: string) => {
       const parts = content.split(/(```[\s\S]*?```)/g);
-
       return parts.map((part, index) => {
         if (part.startsWith('```') && part.endsWith('```')) {
           const [, language = '', code = ''] = part.match(/```(\w*)\n?([\s\S]*?)```/) || [];
@@ -490,10 +495,10 @@ const MFUChatbot: React.FC = () => {
           ))}
         </div>
         <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
-          {message.role === 'assistant' && !message.content ? (
+          {message.role === 'assistant' && !localContent ? (
             <LoadingDots />
           ) : (
-            renderContent(message.content)
+            renderContent(localContent)
           )}
         </div>
       </div>
