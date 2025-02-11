@@ -433,7 +433,6 @@ const MFUChatbot: React.FC = () => {
       setTimeout(() => setCopiedIndex(null), 2000);
     };
 
-    // แยกการ render content ออกมา
     const renderContent = (content: string) => {
       const parts = content.split(/(```[\s\S]*?```)/g);
 
@@ -485,9 +484,7 @@ const MFUChatbot: React.FC = () => {
           ))}
         </div>
         <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
-          {/* {message.role === 'assistant' && message.content === '' && isLoading ? (
-            <LoadingDots /> */}
-          {message.role === 'assistant' && !message.content && isLoading ? (
+          {message.role === 'assistant' && !message.content ? (
             <LoadingDots />
           ) : (
             renderContent(message.content)
