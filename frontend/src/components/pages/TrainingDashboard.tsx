@@ -128,12 +128,11 @@ const TrainingDashboard: React.FC = () => {
     setIsUploading(true);
     const formData = new FormData();
     
-    // แปลงชื่อไฟล์เป็น binary
-    const encoder = new TextEncoder();
-    const binaryFilename = encoder.encode(file.name);
+    // ใช้ unescape และ encodeURIComponent แทน
+    const encodedFilename = encodeURIComponent(unescape(file.name));
     
     formData.append('file', file);
-    formData.append('originalFilename', new Blob([binaryFilename]).toString());
+    formData.append('originalFilename', encodedFilename);
     formData.append('modelId', selectedModel);
     formData.append('collectionName', selectedCollection);
 
