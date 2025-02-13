@@ -7,7 +7,6 @@ import { chromaService } from '../services/chroma';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
-import iconv from 'iconv-lite';
 
 const router = Router();
 const upload = multer({ 
@@ -37,18 +36,17 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
 
-    // แปลงชื่อไฟล์เป็น UTF-8 ด้วย iconv-lite
-    const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
-    
-    console.log(`Processing file: ${filename}`);
+    console.log(`Processing file: ${file.originalname}`);
     const text = await documentService.processFile(file);
     
+    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
-    
+    console.log(`Created ${chunks.length} chunks`);
+
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename,
+        filename: file.originalname,
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
@@ -56,6 +54,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       }
     }));
 
+    console.log(`Adding documents to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
@@ -123,7 +122,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: encodeURIComponent(file.originalname),
+        filename: file.originalname,
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,

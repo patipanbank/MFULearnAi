@@ -123,24 +123,30 @@ const TrainingDashboard: React.FC = () => {
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || isUploading) return;
+    
+    if (isUploading) {
+      console.log('Upload already in progress');
+      return;
+    }
+
+    if (!file || !selectedModel || !selectedCollection) {
+      alert('Please select Model, Collection and file');
+      return;
+    }
 
     setIsUploading(true);
-    const formData = new FormData();
-    
-    // ใช้ unescape และ encodeURIComponent แทน
-    const encodedFilename = encodeURIComponent(unescape(file.name));
-    
-    formData.append('file', file);
-    formData.append('originalFilename', encodedFilename);
-    formData.append('modelId', selectedModel);
-    formData.append('collectionName', selectedCollection);
+    console.log('Starting upload...');
 
     try {
-      const response = await fetch(`${config.apiUrl}/api/training/documents`, {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('modelId', selectedModel);
+      formData.append('collectionName', selectedCollection);
+
+      const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: formData
       });
@@ -149,13 +155,15 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Upload failed');
       }
 
-      alert('File uploaded successfully');
+      alert('Upload file successfully');
       setFile(null);
+      
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
+      
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload file');
+      alert('Upload file failed');
     } finally {
       setIsUploading(false);
     }
