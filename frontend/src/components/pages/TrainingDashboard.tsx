@@ -128,11 +128,12 @@ const TrainingDashboard: React.FC = () => {
     setIsUploading(true);
     const formData = new FormData();
     
-    // ใช้ encodeURIComponent แทน btoa
-    const filename = encodeURIComponent(file.name);
+    // แปลงชื่อไฟล์เป็น binary
+    const encoder = new TextEncoder();
+    const binaryFilename = encoder.encode(file.name);
     
-    formData.append('file', file); // ส่งไฟล์ปกติ
-    formData.append('originalFilename', filename); // ส่งชื่อไฟล์แยก
+    formData.append('file', file);
+    formData.append('originalFilename', new Blob([binaryFilename]).toString());
     formData.append('modelId', selectedModel);
     formData.append('collectionName', selectedCollection);
 
