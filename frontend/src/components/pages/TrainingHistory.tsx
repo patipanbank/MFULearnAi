@@ -254,12 +254,12 @@ const TrainingHistory: React.FC = () => {
                     <div className="truncate" title={metadata.filename}>
                       {metadata.filename.startsWith('http') 
                         ? decodeURIComponent(metadata.filename)
-                        : metadata.filename
+                        : decodeURIComponent(escape(atob(metadata.filename)))
                       }
                       <div className="invisible group-hover:visible absolute z-20 bg-gray-900 text-white p-2 rounded text-sm left-0 break-words whitespace-normal max-w-[120ch]">
                         {metadata.filename.startsWith('http') 
                           ? decodeURIComponent(metadata.filename)
-                          : metadata.filename
+                          : decodeURIComponent(escape(atob(metadata.filename)))
                         }
                       </div>
                     </div>

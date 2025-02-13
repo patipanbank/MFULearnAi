@@ -127,10 +127,14 @@ const TrainingDashboard: React.FC = () => {
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('file', file);
+    
+    // แปลงชื่อไฟล์เป็น base64 ก่อนส่ง
+    const filename = btoa(unescape(encodeURIComponent(file.name)));
+    
+    const renamedFile = new File([file], filename, { type: file.type });
+    formData.append('file', renamedFile);
     formData.append('modelId', selectedModel);
     formData.append('collectionName', selectedCollection);
-    formData.append('originalFilename', file.name);
 
     try {
       const response = await fetch(`${config.apiUrl}/api/training/documents`, {
