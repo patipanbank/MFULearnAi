@@ -251,10 +251,10 @@ const TrainingHistory: React.FC = () => {
               {documents?.metadatas.map((metadata, index) => (
                 <tr key={documents.ids[index]} className="hover:bg-gray-50">
                   <td className="px-4 py-2 text-center relative group">
-                    <div className="truncate" title={decodeURIComponent(metadata.filename)}>
-                      {decodeURIComponent(metadata.filename)}
+                    <div className="truncate" title={decodeURI(metadata.filename)}>
+                      {decodeURI(metadata.filename)}
                       <div className="invisible group-hover:visible absolute z-20 bg-gray-900 text-white p-2 rounded text-sm left-0 break-words whitespace-normal max-w-[120ch]">
-                        {decodeURIComponent(metadata.filename)}
+                        {decodeURI(metadata.filename)}
                       </div>
                     </div>
                   </td>
