@@ -123,30 +123,20 @@ const TrainingDashboard: React.FC = () => {
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isUploading) {
-      console.log('Upload already in progress');
-      return;
-    }
-
-    if (!file || !selectedModel || !selectedCollection) {
-      alert('Please select Model, Collection and file');
-      return;
-    }
+    if (!file || isUploading) return;
 
     setIsUploading(true);
-    console.log('Starting upload...');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('modelId', selectedModel);
+    formData.append('collectionName', selectedCollection);
+    formData.append('originalFilename', file.name);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('modelId', selectedModel);
-      formData.append('collectionName', selectedCollection);
-
-      const response = await fetch(`${config.apiUrl}/api/training/upload`, {
+      const response = await fetch(`${config.apiUrl}/api/training/documents`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: formData
       });
@@ -155,15 +145,13 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Upload failed');
       }
 
-      alert('Upload file successfully');
+      alert('File uploaded successfully');
       setFile(null);
-      
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
-      
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload file failed');
+      alert('Failed to upload file');
     } finally {
       setIsUploading(false);
     }
