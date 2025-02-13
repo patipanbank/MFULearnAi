@@ -46,8 +46,8 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: encodeURIComponent(file.originalname),
-        uploadedBy: encodeURIComponent(user.username),
+        filename: file.originalname,
+        uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
         collectionName
@@ -122,8 +122,8 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: encodeURIComponent(file.originalname),
-        uploadedBy: encodeURIComponent(user.username),
+        filename: file.originalname,
+        uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
         collectionName
@@ -331,9 +331,9 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       const documents = chunks.map(chunk => ({
         text: chunk,
         metadata: {
-          filename: encodeURIComponent(filename),
+          filename: filename, // เพิ่ม filename
           source: url,
-          uploadedBy: encodeURIComponent(user.username),
+          uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
           collectionName
