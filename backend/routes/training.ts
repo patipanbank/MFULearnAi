@@ -7,6 +7,7 @@ import { chromaService } from '../services/chroma';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
+import iconv from 'iconv-lite';
 
 const router = Router();
 const upload = multer({ 
@@ -33,13 +34,13 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { modelId, collectionName, originalFilename } = req.body;
+    const { modelId, collectionName } = req.body;
     const user = (req as any).user;
 
-    // ใช้ originalFilename ถ้ามี หรือแปลง file.originalname ถ้าไม่มี
-    const displayFilename = originalFilename || file.originalname;
+    // แปลงชื่อไฟล์เป็น UTF-8 ด้วย iconv-lite
+    const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
-    console.log(`Processing file: ${displayFilename}`);
+    console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
     
     const chunks = splitTextIntoChunks(text);
@@ -47,7 +48,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: displayFilename, // ใช้ชื่อที่ถูก encode แล้ว
+        filename,
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
