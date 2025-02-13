@@ -128,11 +128,11 @@ const TrainingDashboard: React.FC = () => {
     setIsUploading(true);
     const formData = new FormData();
     
-    // แปลงชื่อไฟล์เป็น base64 ก่อนส่ง
-    const filename = btoa(unescape(encodeURIComponent(file.name)));
+    // ใช้ encodeURIComponent แทน btoa
+    const filename = encodeURIComponent(file.name);
     
-    const renamedFile = new File([file], filename, { type: file.type });
-    formData.append('file', renamedFile);
+    formData.append('file', file); // ส่งไฟล์ปกติ
+    formData.append('originalFilename', filename); // ส่งชื่อไฟล์แยก
     formData.append('modelId', selectedModel);
     formData.append('collectionName', selectedCollection);
 
