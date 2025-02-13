@@ -33,20 +33,18 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { modelId, collectionName } = req.body;
+    const { modelId, collectionName, originalFilename } = req.body;
     const user = (req as any).user;
 
-    console.log(`Processing file: ${file.originalname}`);
+    console.log(`Processing file: ${originalFilename || file.originalname}`);
     const text = await documentService.processFile(file);
     
-    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
-    console.log(`Created ${chunks.length} chunks`);
-
+    
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: encodeURIComponent(file.originalname),
+        filename: originalFilename || file.originalname, // ใช้ originalFilename ถ้ามี
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
@@ -54,7 +52,6 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       }
     }));
 
-    console.log(`Adding documents to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
