@@ -33,13 +33,13 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { modelId, collectionName } = req.body;
+    const { modelId, collectionName, originalFilename } = req.body;
     const user = (req as any).user;
 
-    // แปลงชื่อไฟล์จาก buffer เป็น string ที่ถูกต้อง
-    const originalFilename = Buffer.from(file.originalname, 'binary').toString('utf8');
+    // ใช้ originalFilename ถ้ามี หรือแปลง file.originalname ถ้าไม่มี
+    const displayFilename = originalFilename || file.originalname;
     
-    console.log(`Processing file: ${originalFilename}`);
+    console.log(`Processing file: ${displayFilename}`);
     const text = await documentService.processFile(file);
     
     const chunks = splitTextIntoChunks(text);
@@ -47,7 +47,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: originalFilename,
+        filename: displayFilename, // ใช้ชื่อที่ถูก encode แล้ว
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
