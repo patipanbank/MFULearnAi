@@ -251,16 +251,10 @@ const TrainingHistory: React.FC = () => {
               {documents?.metadatas.map((metadata, index) => (
                 <tr key={documents.ids[index]} className="hover:bg-gray-50">
                   <td className="px-4 py-2 text-center relative group">
-                    <div className="truncate" title={metadata.filename}>
-                      {metadata.filename.startsWith('http') 
-                        ? decodeURIComponent(metadata.filename)
-                        : metadata.filename
-                      }
+                    <div className="truncate" title={decodeURIComponent(metadata.filename)}>
+                      {decodeURIComponent(metadata.filename)}
                       <div className="invisible group-hover:visible absolute z-20 bg-gray-900 text-white p-2 rounded text-sm left-0 break-words whitespace-normal max-w-[120ch]">
-                        {metadata.filename.startsWith('http') 
-                          ? decodeURIComponent(metadata.filename)
-                          : metadata.filename
-                        }
+                        {decodeURIComponent(metadata.filename)}
                       </div>
                     </div>
                   </td>
@@ -274,9 +268,13 @@ const TrainingHistory: React.FC = () => {
                       {metadata.collectionName}
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-center truncate">{metadata.uploadedBy}</td>
                   <td className="px-4 py-4 text-center truncate">
-                    {new Date(metadata.timestamp).toLocaleString('th-TH')}
+                    {decodeURIComponent(metadata.uploadedBy)}
+                  </td>
+                  <td className="px-4 py-4 text-center truncate">
+                    {new Date(metadata.timestamp).toLocaleString('th-TH', {
+                      timeZone: 'Asia/Bangkok'
+                    })}
                   </td>
                   <td className="px-4 py-4 text-center">
                     <span className={`px-2 py-1 rounded-full text-sm ${

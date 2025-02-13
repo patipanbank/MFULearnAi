@@ -4,9 +4,7 @@ import * as cheerio from 'cheerio';
 export class WebScraperService {
   async scrapeUrl(url: string): Promise<string> {
     try {
-      // ถอดรหัส URL ที่เป็นภาษาไทย
-      const decodedUrl = decodeURIComponent(url);
-      const response = await axios.get(decodedUrl);
+      const response = await axios.get(url);
       const $ = cheerio.load(response.data);
       
       // ลบ elements ที่ไม่ต้องการ
