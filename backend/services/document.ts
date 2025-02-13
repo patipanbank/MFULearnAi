@@ -1,4 +1,3 @@
-import { PDFImage } from 'pdf-image';
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
 import xlsx from 'xlsx';
@@ -7,10 +6,15 @@ import path from 'path';
 import { createWorker } from 'tesseract.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import iconv from 'iconv-lite';
 const execAsync = promisify(exec);
 
 export class DocumentService {
   async processFile(file: Express.Multer.File): Promise<string> {
+    // แปลงชื่อไฟล์เป็น UTF-8
+    const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
+    console.log(`Processing file: ${filename}`);
+    
     const ext = path.extname(file.originalname).toLowerCase();
     
     try {
@@ -74,39 +78,6 @@ export class DocumentService {
       console.error(`Error processing file ${file.originalname}:`, error);
       await fs.unlink(file.path).catch(console.error);
       throw error;
-    }
-  }
-
-  private async extractTextFromScannedPDF(filePath: string): Promise<string> {
-    const worker = await createWorker('eng+tha');
-    const pdfImage = new PDFImage(filePath);
-    let fullText = '';
-
-    try {
-      const pageCount = await pdfImage.numberOfPages();
-      
-      for (let i = 0; i < pageCount; i++) {
-        const imagePath = await pdfImage.convertPage(i);
-        const { data: { text } } = await worker.recognize(imagePath);
-        fullText += text + '\n';
-        
-        // ลบไฟล์ภาพชั่วคราว
-        await fs.unlink(imagePath);
-      }
-    } finally {
-      await worker.terminate();
-    }
-
-    return fullText;
-  }
-
-  private async performOCROnImage(imageBuffer: Buffer): Promise<string> {
-    const worker = await createWorker('eng+tha');
-    try {
-      const { data: { text } } = await worker.recognize(imageBuffer);
-      return text;
-    } finally {
-      await worker.terminate();
     }
   }
 }

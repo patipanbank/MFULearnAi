@@ -7,6 +7,7 @@ import { chromaService } from '../services/chroma';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
+import iconv from 'iconv-lite';
 
 const router = Router();
 const upload = multer({ 
@@ -36,7 +37,10 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
 
-    console.log(`Processing file: ${file.originalname}`);
+    // แปลงชื่อไฟล์เป็น UTF-8
+    const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
+    
+    console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
     
     console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
@@ -46,7 +50,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: file.originalname,
+        filename: filename,
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
@@ -112,7 +116,10 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
       return;
     }
 
-    console.log(`Processing file: ${file.originalname}`);
+    // แปลงชื่อไฟล์เป็น UTF-8
+    const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
+    
+    console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
     
     console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
@@ -122,7 +129,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: file.originalname,
+        filename: filename,
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
