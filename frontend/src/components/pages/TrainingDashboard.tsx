@@ -54,9 +54,7 @@ const TrainingDashboard: React.FC = () => {
       setLoadingModels(true);
       const response = await fetch(`${config.apiUrl}/api/training/models`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          // Optionally add Accept-Language so that API may return language-specific responses
-          'Accept-Language': 'th-TH'
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
       if (!response.ok) {
@@ -79,8 +77,7 @@ const TrainingDashboard: React.FC = () => {
       setLoadingCollections(true);
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Accept-Language': 'th-TH'
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
       if (!response.ok) {
@@ -112,7 +109,7 @@ const TrainingDashboard: React.FC = () => {
   };
 
   // New function to fetch uploaded files from the selected collection.
-  // It groups document chunks by file (using decoded filename and uploadedBy).
+  // It groups document chunks by file (using filename and uploadedBy).
   const fetchUploadedFiles = async () => {
     if (!selectedCollection) return;
     try {
@@ -120,8 +117,7 @@ const TrainingDashboard: React.FC = () => {
         `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(selectedCollection)}`,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            'Accept-Language': 'th-TH'
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           }
         }
       );
@@ -136,14 +132,12 @@ const TrainingDashboard: React.FC = () => {
         for (let i = 0; i < data.ids.length; i++) {
           const id = data.ids[i];
           const metadata = data.metadatas[i];
-          // Decode the filename to support Thai language characters
-          const decodedFileName = decodeURIComponent(metadata.filename);
-          const key = `${decodedFileName}_${metadata.uploadedBy}`;
+          const key = `${metadata.filename}_${metadata.uploadedBy}`;
           if (fileMap.has(key)) {
             fileMap.get(key)!.ids.push(id);
           } else {
             fileMap.set(key, {
-              filename: decodedFileName,
+              filename: metadata.filename,
               uploadedBy: metadata.uploadedBy,
               timestamp: metadata.timestamp,
               ids: [id]
@@ -160,7 +154,7 @@ const TrainingDashboard: React.FC = () => {
   const handleCreateCollection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCollectionName.trim()) {
-      alert('กรุณากรอกชื่อคอลเลกชัน');
+      alert('Please enter collection name');
       return;
     }
 
@@ -169,8 +163,7 @@ const TrainingDashboard: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Accept-Language': 'th-TH'
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({ name: newCollectionName, permission: newCollectionPermission })
       });
@@ -181,11 +174,11 @@ const TrainingDashboard: React.FC = () => {
         setNewCollectionName('');
         setShowNewCollectionForm(false);
       } else {
-        alert('ไม่สามารถสร้างคอลเลกชันได้');
+        alert('Failed to create collection');
       }
     } catch (error) {
       console.error('Error creating collection:', error);
-      alert('เกิดข้อผิดพลาดในการสร้างคอลเลกชัน');
+      alert('Error creating collection');
     }
   };
 
@@ -198,7 +191,7 @@ const TrainingDashboard: React.FC = () => {
     }
 
     if (!file || !selectedModel || !selectedCollection) {
-      alert('กรุณาเลือกโมเดล, คอลเลกชัน และไฟล์ที่ต้องการอัปโหลด');
+      alert('Please select Model, Collection and file');
       return;
     }
 
@@ -224,7 +217,7 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Upload failed');
       }
 
-      alert('อัปโหลดไฟล์สำเร็จ');
+      alert('Upload file successfully');
       setFile(null);
       
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -235,7 +228,7 @@ const TrainingDashboard: React.FC = () => {
       
     } catch (error) {
       console.error('Upload error:', error);
-      alert('การอัปโหลดไฟล์ล้มเหลว');
+      alert('Upload file failed');
     } finally {
       setIsUploading(false);
     }
@@ -244,7 +237,7 @@ const TrainingDashboard: React.FC = () => {
   // New function to delete an entire file.
   // It sends a DELETE request for each document chunk associated with the file.
   const handleDeleteFile = async (file: UploadedFile) => {
-    if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบไฟล์ "${file.filename}"? การลบจะทำให้ลบทุกส่วนของไฟล์`)) {
+    if (!window.confirm(`Are you sure you want to delete file "${file.filename}"? This will delete all its chunks.`)) {
       return;
     }
     try {
@@ -252,24 +245,23 @@ const TrainingDashboard: React.FC = () => {
         const response = await fetch(`${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            'Accept-Language': 'th-TH'
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           }
         });
         if (!response.ok) {
           throw new Error('Failed to delete one of the file chunks');
         }
       }
-      alert(`ลบไฟล์ "${file.filename}" เรียบร้อยแล้ว`);
+      alert(`File "${file.filename}" deleted successfully.`);
       fetchUploadedFiles();
     } catch (error) {
       console.error('Error deleting file:', error);
-      alert('เกิดข้อผิดพลาดในการลบไฟล์');
+      alert('Error deleting file');
     }
   };
 
   const handleDeleteCollection = async (collectionName: string) => {
-    if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบคอลเลกชัน "${collectionName}"?`)) {
+    if (!window.confirm(`Are you sure you want to delete Collection "${collectionName}"?`)) {
       return;
     }
 
@@ -280,7 +272,6 @@ const TrainingDashboard: React.FC = () => {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            'Accept-Language': 'th-TH'
           },
         }
       );
@@ -292,7 +283,7 @@ const TrainingDashboard: React.FC = () => {
       fetchCollections();
     } catch (error) {
       console.error('Error:', error);
-      alert('ไม่สามารถลบคอลเลกชันได้');
+      alert('Cannot delete collection');
     }
   };
 
@@ -311,7 +302,7 @@ const TrainingDashboard: React.FC = () => {
     }
 
     if (!urls.trim() || !selectedModel || !selectedCollection) {
-      alert('กรุณาเลือกโมเดล, คอลเลกชัน และระบุ URL');
+      alert('Please select Model, Collection and URLs');
       return;
     }
 
@@ -324,8 +315,7 @@ const TrainingDashboard: React.FC = () => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json',
-          'Accept-Language': 'th-TH'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           urls: urlList,
@@ -338,23 +328,23 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('URL processing failed');
       }
 
-      alert('ประมวลผล URL สำเร็จ');
+      alert('URLs processed successfully');
       setUrls('');
     } catch (error) {
       console.error('URL processing error:', error);
-      alert('ประมวลผล URL ไม่สำเร็จ');
+      alert('Failed to process URLs');
     } finally {
       setIsProcessingUrls(false);
     }
   };
 
   return (
-    <div className="p-6" style={{ fontFamily: "'Sarabun', sans-serif" }}>
-      <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">แดชบอร์ดการฝึกอบรม</h1>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training Dashboard</h1>
       
       <div className="space-y-4 mb-6">
         <div>
-          <label className="block text-gray-700 dark:text-white mb-2">เลือกโมเดล:</label>
+          <label className="block text-gray-700 dark:text-white mb-2">Choose Model:</label>
           {loadingModels ? (
             <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
           ) : (
@@ -364,7 +354,7 @@ const TrainingDashboard: React.FC = () => {
               onChange={(e) => setSelectedModel(e.target.value)}
               disabled={models.length === 1}
             >
-              <option value="">-- เลือกโมเดล --</option>
+              <option value="">-- Choose Model --</option>
               {models.map(model => (
                 <option key={model} value={model}>{model}</option>
               ))}
@@ -374,12 +364,12 @@ const TrainingDashboard: React.FC = () => {
 
         <div>
           <div className="flex justify-between items-center mb-2">
-            <label className="block text-gray-700 dark:text-white">เลือกคอลเลกชัน:</label>
+            <label className="block text-gray-700 dark:text-white">Choose Collection:</label>
             <button
               onClick={() => setShowNewCollectionForm(true)}
               className="text-blue-600 hover:text-blue-800"
             >
-              + สร้างคอลเลกชันใหม่
+              + Create New Collection
             </button>
           </div>
           
@@ -392,7 +382,7 @@ const TrainingDashboard: React.FC = () => {
                 onChange={(e) => setSelectedCollection(e.target.value)}
                 className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
-                <option value="">-- เลือกคอลเลกชัน --</option>
+                <option value="">-- Choose Collection --</option>
                 {getFilteredCollections().map(collection => (
                   <option key={collection.name} value={collection.name}>
                     {collection.name} 
@@ -404,7 +394,7 @@ const TrainingDashboard: React.FC = () => {
                 <button
                   onClick={() => handleDeleteCollection(selectedCollection)}
                   className="mt-1 p-2 text-red-600 hover:text-red-800"
-                  title="ลบคอลเลกชัน"
+                  title="Delete Collection"
                 >
                   <FaTrash />
                 </button>
@@ -416,16 +406,16 @@ const TrainingDashboard: React.FC = () => {
         {showNewCollectionForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white p-6 rounded-lg">
-              <h2 className="text-xl mb-4">สร้างคอลเลกชันใหม่</h2>
+              <h2 className="text-xl mb-4">Create New Collection</h2>
               <input
                 type="text"
                 value={newCollectionName}
                 onChange={(e) => setNewCollectionName(e.target.value)}
                 className="border p-2 rounded w-full mb-4"
-                placeholder="ชื่อคอลเลกชัน"
+                placeholder="Collection Name"
               />
               <div className="mb-4">
-                <label>สิทธิ์คอลเลกชัน:</label>
+                <label>Collection Permission:</label>
                 <select 
                   value={newCollectionPermission}
                   onChange={(e) => setNewCollectionPermission(e.target.value as CollectionPermission)}
@@ -441,13 +431,13 @@ const TrainingDashboard: React.FC = () => {
                   onClick={() => setShowNewCollectionForm(false)}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800"
                 >
-                  ยกเลิก
+                  Cancel
                 </button>
                 <button
                   onClick={handleCreateCollection}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
-                  สร้าง
+                  Create
                 </button>
               </div>
             </div>
@@ -465,7 +455,7 @@ const TrainingDashboard: React.FC = () => {
                     : 'bg-gray-200 text-gray-700'
                 }`}
               >
-                <FaFile /> อัปโหลดไฟล์
+                <FaFile /> File Upload
               </button>
               <button
                 onClick={() => setTrainingMode('url')}
@@ -475,7 +465,7 @@ const TrainingDashboard: React.FC = () => {
                     : 'bg-gray-200 text-gray-700'
                 }`}
               >
-                <FaGlobe /> ฝึกอบรมด้วย URL
+                <FaGlobe /> URL Training
               </button>
             </div>
 
@@ -503,15 +493,15 @@ const TrainingDashboard: React.FC = () => {
                       ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
                     `}
                   >
-                    {isUploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
+                    {isUploading ? 'Uploading...' : 'Upload'}
                   </button>
                 </form>
 
                 {/* New section: File overview */}
                 <div className="mt-6">
-                  <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">ไฟล์ที่อัปโหลด</h2>
+                  <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Uploaded Files</h2>
                   {uploadedFiles.length === 0 ? (
-                    <p className="text-gray-600 dark:text-gray-300">ยังไม่มีไฟล์ที่อัปโหลด</p>
+                    <p className="text-gray-600 dark:text-gray-300">No files uploaded yet.</p>
                   ) : (
                     <ul className="space-y-4">
                       {uploadedFiles.map((file, index) => (
@@ -519,16 +509,16 @@ const TrainingDashboard: React.FC = () => {
                           <div>
                             <p className="font-semibold text-gray-800 dark:text-white">{file.filename}</p>
                             <p className="text-sm text-gray-600 dark:text-gray-300">
-                              อัปโหลดเมื่อ: {new Date(file.timestamp).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}
+                              Uploaded on: {new Date(file.timestamp).toLocaleString()}
                             </p>
                             <p className="text-sm text-gray-600 dark:text-gray-300">
-                              ชิ้นส่วน: {file.ids.length}
+                              Chunks: {file.ids.length}
                             </p>
                           </div>
                           <button
                             onClick={() => handleDeleteFile(file)}
                             className="p-2 text-red-600 hover:text-red-800"
-                            title="ลบไฟล์"
+                            title="Delete File"
                           >
                             <FaTrash />
                           </button>
@@ -544,7 +534,7 @@ const TrainingDashboard: React.FC = () => {
                   <textarea
                     value={urls}
                     onChange={(e) => setUrls(e.target.value)}
-                    placeholder="ระบุ URL (หนึ่ง URL ต่อบรรทัด)"
+                    placeholder="Enter URLs (1 URL per line)"
                     className="w-full h-40 p-2 border rounded"
                     disabled={isProcessingUrls}
                   />
@@ -556,7 +546,7 @@ const TrainingDashboard: React.FC = () => {
                     ${isProcessingUrls ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
                   `}
                 >
-                  {isProcessingUrls ? 'กำลังประมวลผล URL...' : 'ประมวลผล URL'}
+                  {isProcessingUrls ? 'Processing URLs...' : 'Process URLs'}
                 </button>
               </form>
             )}
