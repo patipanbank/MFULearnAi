@@ -207,8 +207,7 @@ const TrainingDashboard: React.FC = () => {
       const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Accept-Language': 'th-TH'
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: formData
       });
@@ -245,8 +244,7 @@ const TrainingDashboard: React.FC = () => {
         const response = await fetch(`${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            'Accept-Language': 'th-TH'
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           }
         });
         if (!response.ok) {
@@ -508,7 +506,9 @@ const TrainingDashboard: React.FC = () => {
                       {uploadedFiles.map((file, index) => (
                         <li key={index} className="flex justify-between items-center p-4 border rounded dark:border-gray-600">
                           <div>
-                            <p className="font-semibold text-gray-800 dark:text-white">{file.filename}</p>
+                            <p className="font-semibold text-gray-800 dark:text-white">
+                              {decodeURIComponent(file.filename)}
+                            </p>
                             <p className="text-sm text-gray-600 dark:text-gray-300">
                               Uploaded on: {new Date(file.timestamp).toLocaleString()}
                             </p>
