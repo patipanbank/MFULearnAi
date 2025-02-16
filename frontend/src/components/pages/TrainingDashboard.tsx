@@ -9,6 +9,14 @@ interface CollectionWithMetadata {
   createdBy: string;
 }
 
+// New interface representing an uploaded file, grouping its document chunks
+interface UploadedFile {
+  filename: string;
+  uploadedBy: string;
+  timestamp: string;
+  ids: string[];
+}
+
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   // const [loading, setLoading] = useState(false);
@@ -26,10 +34,20 @@ const TrainingDashboard: React.FC = () => {
   const [isProcessingUrls, setIsProcessingUrls] = useState(false);
   const [newCollectionPermission, setNewCollectionPermission] = useState(CollectionPermission.PRIVATE);
 
+  // New state to hold the list of uploaded files
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
   useEffect(() => {
     fetchModels();
     fetchCollections();
   }, []);
+
+  // Whenever a collection is selected update the file overview
+  useEffect(() => {
+    if (selectedCollection) {
+      fetchUploadedFiles();
+    }
+  }, [selectedCollection]);
 
   const fetchModels = async () => {
     try {
@@ -88,6 +106,49 @@ const TrainingDashboard: React.FC = () => {
       
       return collection.createdBy === userData.nameID;
     });
+  };
+
+  // New function to fetch uploaded files from the selected collection.
+  // It groups document chunks by file (using filename and uploadedBy).
+  const fetchUploadedFiles = async () => {
+    if (!selectedCollection) return;
+    try {
+      const response = await fetch(
+        `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(selectedCollection)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        }
+      );
+      if (!response.ok) {
+        throw new Error('Failed to fetch uploaded files');
+      }
+      const data = await response.json();
+      // Expected response structure: { ids: string[], documents: string[], metadatas: any[] }
+      const fileMap: Map<string, UploadedFile> = new Map();
+
+      if (data && Array.isArray(data.ids) && Array.isArray(data.metadatas)) {
+        for (let i = 0; i < data.ids.length; i++) {
+          const id = data.ids[i];
+          const metadata = data.metadatas[i];
+          const key = `${metadata.filename}_${metadata.uploadedBy}`;
+          if (fileMap.has(key)) {
+            fileMap.get(key)!.ids.push(id);
+          } else {
+            fileMap.set(key, {
+              filename: metadata.filename,
+              uploadedBy: metadata.uploadedBy,
+              timestamp: metadata.timestamp,
+              ids: [id]
+            });
+          }
+        }
+      }
+      setUploadedFiles(Array.from(fileMap.values()));
+    } catch (error) {
+      console.error('Error fetching uploaded files:', error);
+    }
   };
 
   const handleCreateCollection = async (e: React.FormEvent) => {
@@ -161,11 +222,40 @@ const TrainingDashboard: React.FC = () => {
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
       
+      // Refresh the file overview after a successful upload
+      fetchUploadedFiles();
+      
     } catch (error) {
       console.error('Upload error:', error);
       alert('Upload file failed');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // New function to delete an entire file.
+  // It sends a DELETE request for each document chunk associated with the file.
+  const handleDeleteFile = async (file: UploadedFile) => {
+    if (!window.confirm(`Are you sure you want to delete file "${file.filename}"? This will delete all its chunks.`)) {
+      return;
+    }
+    try {
+      for (const id of file.ids) {
+        const response = await fetch(`${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to delete one of the file chunks');
+        }
+      }
+      alert(`File "${file.filename}" deleted successfully.`);
+      fetchUploadedFiles();
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      alert('Error deleting file');
     }
   };
 
@@ -379,31 +469,64 @@ const TrainingDashboard: React.FC = () => {
             </div>
 
             {trainingMode === 'file' ? (
-              <form onSubmit={handleFileUpload}>
-                <div className="mb-4">
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100"
-                    disabled={isUploading}
-                    accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
-                  />
+              <>
+                <form onSubmit={handleFileUpload}>
+                  <div className="mb-4">
+                    <input
+                      type="file"
+                      onChange={handleFileChange}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100"
+                      disabled={isUploading}
+                      accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!file || isUploading || !selectedModel || !selectedCollection}
+                    className={`px-4 py-2 rounded text-white
+                      ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
+                    `}
+                  >
+                    {isUploading ? 'Uploading...' : 'Upload'}
+                  </button>
+                </form>
+
+                {/* New section: File overview */}
+                <div className="mt-6">
+                  <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Uploaded Files</h2>
+                  {uploadedFiles.length === 0 ? (
+                    <p className="text-gray-600 dark:text-gray-300">No files uploaded yet.</p>
+                  ) : (
+                    <ul className="space-y-4">
+                      {uploadedFiles.map((file, index) => (
+                        <li key={index} className="flex justify-between items-center p-4 border rounded dark:border-gray-600">
+                          <div>
+                            <p className="font-semibold text-gray-800 dark:text-white">{file.filename}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              Uploaded on: {new Date(file.timestamp).toLocaleString()}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              Chunks: {file.ids.length}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteFile(file)}
+                            className="p-2 text-red-600 hover:text-red-800"
+                            title="Delete File"
+                          >
+                            <FaTrash />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <button
-                  type="submit"
-                  disabled={!file || isUploading || !selectedModel || !selectedCollection}
-                  className={`px-4 py-2 rounded text-white
-                    ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
-                  `}
-                >
-                  {isUploading ? 'Uploading...' : 'Upload'}
-                </button>
-              </form>
+              </>
             ) : (
               <form onSubmit={handleUrlSubmit}>
                 <div className="mb-4">
