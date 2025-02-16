@@ -245,7 +245,8 @@ const TrainingDashboard: React.FC = () => {
         const response = await fetch(`${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Accept-Language': 'th-TH'
           }
         });
         if (!response.ok) {
