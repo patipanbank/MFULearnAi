@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
-import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
+import { FaTrash, FaGlobe, FaFile, FaSpinner } from 'react-icons/fa';
 import { CollectionPermission } from '../../types/collection';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 interface CollectionWithMetadata {
@@ -38,6 +38,8 @@ const TrainingDashboard: React.FC = () => {
 
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  // New state to track files being deleted
+  const [deletingFileKeys, setDeletingFileKeys] = useState<string[]>([]);
 
   useEffect(() => {
     fetchModels();
@@ -156,7 +158,7 @@ const TrainingDashboard: React.FC = () => {
   const handleCreateCollection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCollectionName.trim()) {
-      alert('Please enter collection name');
+      toast.error('Please enter collection name');
       return;
     }
 
@@ -175,12 +177,13 @@ const TrainingDashboard: React.FC = () => {
         setSelectedCollection(newCollectionName);
         setNewCollectionName('');
         setShowNewCollectionForm(false);
+        toast.success(`Collection "${newCollectionName}" created successfully.`);
       } else {
-        alert('Failed to create collection');
+        toast.error('Failed to create collection');
       }
     } catch (error) {
       console.error('Error creating collection:', error);
-      alert('Error creating collection');
+      toast.error('Error creating collection');
     }
   };
 
@@ -193,7 +196,7 @@ const TrainingDashboard: React.FC = () => {
     }
 
     if (!file || !selectedModel || !selectedCollection) {
-      alert('Please select Model, Collection and file');
+      toast.error('Please select Model, Collection and file');
       return;
     }
 
@@ -218,7 +221,7 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Upload failed');
       }
 
-      alert('Upload file successfully');
+      toast.success('Upload file successfully');
       setFile(null);
       
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -229,7 +232,7 @@ const TrainingDashboard: React.FC = () => {
       
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload file failed');
+      toast.error('Upload file failed');
     } finally {
       setIsUploading(false);
     }
@@ -238,9 +241,16 @@ const TrainingDashboard: React.FC = () => {
   // New function to delete an entire file.
   // It sends a DELETE request for each document chunk associated with the file.
   const handleDeleteFile = async (file: UploadedFile) => {
-    if (!window.confirm(`Are you sure you want to delete file "${file.filename}"? This will delete all its chunks.`)) {
+    const fileKey = `${file.filename}_${file.uploadedBy}`;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete file "${decodeURIComponent(file.filename)}"? This will delete all its chunks.`
+      )
+    ) {
       return;
     }
+    setDeletingFileKeys((prev) => [...prev, fileKey]);
+
     try {
       for (const id of file.ids) {
         const response = await fetch(`${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`, {
@@ -253,11 +263,13 @@ const TrainingDashboard: React.FC = () => {
           throw new Error('Failed to delete one of the file chunks');
         }
       }
-      alert(`File "${file.filename}" deleted successfully.`);
+      toast.success(`File "${decodeURIComponent(file.filename)}" deleted successfully.`);
       fetchUploadedFiles();
     } catch (error) {
       console.error('Error deleting file:', error);
-      alert('Error deleting file');
+      toast.error('Error deleting file');
+    } finally {
+      setDeletingFileKeys((prev) => prev.filter((key) => key !== fileKey));
     }
   };
 
@@ -282,9 +294,10 @@ const TrainingDashboard: React.FC = () => {
       }
 
       fetchCollections();
+      toast.success(`Collection "${collectionName}" deleted successfully.`);
     } catch (error) {
       console.error('Error:', error);
-      alert('Cannot delete collection');
+      toast.error('Cannot delete collection');
     }
   };
 
@@ -303,7 +316,7 @@ const TrainingDashboard: React.FC = () => {
     }
 
     if (!urls.trim() || !selectedModel || !selectedCollection) {
-      alert('Please select Model, Collection and URLs');
+      toast.error('Please select Model, Collection and URLs');
       return;
     }
 
@@ -329,11 +342,11 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('URL processing failed');
       }
 
-      alert('URLs processed successfully');
+      toast.success('URLs processed successfully');
       setUrls('');
     } catch (error) {
       console.error('URL processing error:', error);
-      alert('Failed to process URLs');
+      toast.error('Failed to process URLs');
     } finally {
       setIsProcessingUrls(false);
     }
@@ -405,8 +418,8 @@ const TrainingDashboard: React.FC = () => {
         </div>
 
         {showNewCollectionForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg">
               <h2 className="text-xl mb-4">Create New Collection</h2>
               <input
                 type="text"
@@ -506,7 +519,10 @@ const TrainingDashboard: React.FC = () => {
                   ) : (
                     <ul className="space-y-4">
                       {uploadedFiles.map((file, index) => (
-                        <li key={index} className="flex justify-between items-center p-4 border rounded dark:border-gray-600">
+                        <li
+                          key={index}
+                          className="flex justify-between items-center p-4 border rounded dark:border-gray-600"
+                        >
                           <div>
                             <p className="font-semibold text-gray-800 dark:text-white">
                               {decodeURIComponent(file.filename)}
@@ -520,10 +536,14 @@ const TrainingDashboard: React.FC = () => {
                           </div>
                           <button
                             onClick={() => handleDeleteFile(file)}
-                            className="p-2 text-red-600 hover:text-red-800"
+                            className="p-2"
                             title="Delete File"
                           >
-                            <FaTrash />
+                            {deletingFileKeys.includes(`${file.filename}_${file.uploadedBy}`) ? (
+                              <FaSpinner className="animate-spin text-blue-600" title="Deleting..." />
+                            ) : (
+                              <FaTrash className="text-red-600 hover:text-red-800" />
+                            )}
                           </button>
                         </li>
                       ))}
