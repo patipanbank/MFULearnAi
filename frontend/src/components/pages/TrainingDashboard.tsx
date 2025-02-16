@@ -519,7 +519,7 @@ const TrainingDashboard: React.FC = () => {
               </form>
             )}
 
-            {/* NEW: Uploaded Files overview shown regardless of training mode */}
+            {/* Uploaded Files overview shown regardless of training mode */}
             <div className="mt-6">
               <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Uploaded Files</h2>
               {uploadedFiles.length === 0 ? (
@@ -534,6 +534,9 @@ const TrainingDashboard: React.FC = () => {
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-300">
                           Uploaded on: {new Date(file.timestamp).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          Uploaded by: {file.uploadedBy}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-300">
                           Chunks: {file.ids.length}
