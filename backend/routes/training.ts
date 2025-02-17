@@ -36,8 +36,8 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
 
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
+    const ws = (req as any).ws; // รับ WebSocket จาก middleware
 
-    // แปลงชื่อไฟล์เป็น UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
     console.log(`Processing file: ${filename}`);
@@ -59,7 +59,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     }));
 
     console.log(`Adding documents to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents);
+    await chromaService.addDocuments(collectionName, documents, ws);
     
     res.json({ 
       message: 'File processed successfully',

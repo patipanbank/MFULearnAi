@@ -37,9 +37,30 @@ const TrainingDashboard: React.FC = () => {
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
+  const [uploadProgress, setUploadProgress] = useState<{
+    total: number;
+    current: number;
+    status: 'started' | 'processing' | 'completed';
+    filename: string;
+  } | null>(null);
+
   useEffect(() => {
     fetchModels();
     fetchCollections();
+
+    // เพิ่ม WebSocket listener
+    const ws = new WebSocket(config.wsUrl);
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'upload_progress') {
+        setUploadProgress(data.data);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
   }, []);
 
   // Whenever a collection is selected update the file overview
@@ -566,6 +587,23 @@ const TrainingDashboard: React.FC = () => {
           </div>
         )}
       </div>
+      {uploadProgress && (
+        <div className="mt-4 p-4 border rounded">
+          <h3 className="font-semibold">Processing: {uploadProgress.filename}</h3>
+          <div className="w-full bg-gray-200 rounded h-2 mt-2">
+            <div 
+              className="bg-blue-600 h-2 rounded"
+              style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+            />
+          </div>
+          <p className="text-sm mt-2">
+            {uploadProgress.status === 'started' && 'Starting upload...'}
+            {uploadProgress.status === 'processing' && 
+              `Processing batch ${uploadProgress.current}/${uploadProgress.total}`}
+            {uploadProgress.status === 'completed' && 'Upload completed!'}
+          </p>
+        </div>
+      )}
     </div>
   );
 };
