@@ -257,11 +257,19 @@ class ChromaService {
       if (collection) {
         const results = await collection.get();
         if (results && results.ids && results.ids.length > 0) {
-          // ลบ chunks ทั้งหมด
+          // ลบ chunks ทั้งหมด พร้อมกับ log การลบแต่ละไฟล์
+          for (let i = 0; i < results.ids.length; i++) {
+            const metadata = results.metadatas?.[i];
+            if (metadata && metadata.filename) {
+              console.log(`กำลังลบไฟล์: ${metadata.filename} (id: ${results.ids[i]}) จาก collection ${collectionName}`);
+            } else {
+              console.log(`กำลังลบเอกสารที่ id: ${results.ids[i]} จาก collection ${collectionName}`);
+            }
+          }
           await collection.delete({
             ids: results.ids
           });
-          console.log(`Deleted ${results.ids.length} chunks from collection ${collectionName}`);
+          console.log(`ลบ chunks จำนวน ${results.ids.length} จาก collection ${collectionName} เสร็จสิ้น`);
         }
       }
 
@@ -274,7 +282,7 @@ class ChromaService {
       // ลบจาก MongoDB
       await Collection.deleteOne({ name: collectionName });
       
-      console.log(`Collection ${collectionName} deleted successfully`);
+      console.log(`ลบ collection ${collectionName} เสร็จสิ้น`);
     } catch (error) {
       console.error(`Error deleting collection ${collectionName}:`, error);
       throw error;
