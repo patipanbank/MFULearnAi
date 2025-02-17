@@ -46,11 +46,7 @@ class ChromaService {
     }
   }
 
-  async addDocuments(
-    collectionName: string, 
-    documents: Array<{text: string, metadata: any}>,
-    progressCallback?: (progress: { message: string, batch: number, totalBatches: number }) => void
-  ): Promise<void> {
+  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
     const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
     
     if (this.processingFiles.has(fileKey)) {
@@ -102,13 +98,7 @@ class ChromaService {
       // เพิ่มข้อมูลทีละ batch
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
-        const progressMessage = `Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`;
-        console.log(progressMessage);
-        progressCallback?.({
-          message: progressMessage,
-          batch: i + 1,
-          totalBatches: batches.length
-        });
+        console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
         
         const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
         const texts = batch.map(doc => doc.text);
@@ -126,11 +116,7 @@ class ChromaService {
         }
       }
       
-      progressCallback?.({
-        message: 'Documents added successfully',
-        batch: batches.length,
-        totalBatches: batches.length
-      });
+      console.log('Documents added successfully');
     } finally {
       this.processingFiles.delete(fileKey);
     }
@@ -269,7 +255,7 @@ class ChromaService {
       // ลบจาก MongoDB
       await Collection.deleteOne({ name: collectionName });
       
-      console.log(`Collection ${collectionName} and all its documents deleted successfully`);
+      console.log(`Collection ${collectionName} deleted successfully`);
     } catch (error) {
       console.error(`Error deleting collection ${collectionName}:`, error);
       throw error;

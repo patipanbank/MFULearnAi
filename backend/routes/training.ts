@@ -106,7 +106,6 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
-    const ws = (req as any).ws;
 
     // ตรวจสอบและสร้าง collection ถ้ายังไม่มี
     await chromaService.ensureCollectionExists(collectionName, user);
@@ -120,12 +119,12 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     // แปลงชื่อไฟล์เป็น UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
-    ws?.send(JSON.stringify({ type: 'training_progress', message: `Processing file: ${filename}` }));
+    console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
     
-    ws?.send(JSON.stringify({ type: 'training_progress', message: `Text length (${text.length}) exceeds chunk size (2000), splitting into chunks` }));
+    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
-    ws?.send(JSON.stringify({ type: 'training_progress', message: `Created ${chunks.length} chunks` }));
+    console.log(`Created ${chunks.length} chunks`);
 
     const documents = chunks.map(chunk => ({
       text: chunk,
@@ -138,10 +137,8 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
       }
     }));
 
-    ws?.send(JSON.stringify({ type: 'training_progress', message: `Adding documents to collection ${collectionName}` }));
-    await chromaService.addDocuments(collectionName, documents, (progress) => {
-      ws?.send(JSON.stringify({ type: 'training_progress', ...progress }));
-    });
+    console.log(`Adding documents to collection ${collectionName}`);
+    await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
       message: 'File processed successfully',
@@ -283,11 +280,9 @@ router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, 
       return;
     }
 
-    // ลบ collection และข้อมูลทั้งหมด
+    // ลบ collection
     await chromaService.deleteCollection(name);
-    res.json({ 
-      message: 'Collection deleted successfully' 
-    });
+    res.json({ message: 'Collection deleted successfully' });
   } catch (error) {
     console.error('Error deleting collection:', error);
     res.status(500).json({ error: 'Failed to delete collection' });
