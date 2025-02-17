@@ -61,8 +61,9 @@ export class ChatService {
 
       // Get the embedding vector for the query.
       const embedding = await titanEmbedService.embedText(trimmedQuery);
+      console.log("Embedding vector:", embedding, "dimension:", embedding.length);
       if (!embedding || embedding.length === 0) {
-        console.warn('Empty embedding received for query:', trimmedQuery);
+        console.warn("Empty embedding received for query:", trimmedQuery);
         return '';
       }
       
