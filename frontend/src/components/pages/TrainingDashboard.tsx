@@ -223,6 +223,9 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Failed to update collection');
       }
       await fetchCollections();
+      console.log(
+        `Collection updated: previous name: "${selectedCollection}", new name: "${editCollectionName}", new permission: "${editCollectionPermission}"`
+      );
       setSelectedCollection(editCollectionName);
       setShowEditCollectionForm(false);
       alert('Collection updated successfully');
