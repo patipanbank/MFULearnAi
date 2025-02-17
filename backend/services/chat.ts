@@ -61,7 +61,7 @@ export class ChatService {
       
       // Get the embedding vector for the query.
       const embedding: number[] = await titanEmbedService.embedText(trimmedQuery);
-      console.log('Embedding vector:', embedding, 'Dimension:', embedding.length);
+      console.log('Query Embedding vector:', embedding, 'Dimension:', embedding.length);
       
       // Verify the embedding is not empty and has the expected dimension.
       const expectedDimension = 512; // Adjust if your model returns a different dimension.

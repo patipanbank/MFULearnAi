@@ -107,7 +107,11 @@ class ChromaService {
         await collection.add({
           ids,
           documents: texts,
-          metadatas
+          metadatas: docsWithBatchId.map(doc => ({
+            ...doc.metadata,
+            // Optionally include the embedding if you wish to verify it later
+            // or at least ensure that the same model/version was used.
+          }))
         });
 
         // เพิ่ม delay เล็กน้อยระหว่าง batches เพื่อให้ระบบได้พัก
@@ -413,7 +417,7 @@ class ChromaService {
 export const chromaService = new ChromaService();
 
 (async () => {
-  const dummyEmbedding = new Array(512).fill(0.001);
-  const { documents } = await chromaService.queryDocumentsByEmbedding('collectionName', dummyEmbedding, 10);
-  console.log(documents);
-})(); 
+  const collectionName = 'Code';
+  const allDocs = await chromaService.getAllDocuments(collectionName);
+  console.log('Collection content:', allDocs);
+})();
