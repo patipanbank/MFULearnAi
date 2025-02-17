@@ -61,18 +61,31 @@ export class TitanEmbedService {
 
   /**
    * Helper function to convert a response stream into a string.
-   * It first checks if the stream is already a string or Buffer.
-   * Otherwise, it attempts to use the web stream API (getReader)
-   * or the async iterable protocol.
+   * It now checks for various types such as Buffer, ArrayBuffer, typed arrays,
+   * an SDK-specific transform method, the web stream API (getReader),
+   * and async iterable streams.
    */
   private async streamToString(stream: any): Promise<string> {
-    // If stream is a string, return it directly.
+    // If stream is already a string, return it.
     if (typeof stream === 'string') {
       return stream;
     }
-    // If stream is a Buffer, convert and return.
+    // If stream is a Buffer.
     if (Buffer.isBuffer(stream)) {
       return stream.toString('utf8');
+    }
+    // If stream is an ArrayBuffer.
+    if (stream instanceof ArrayBuffer) {
+      return Buffer.from(new Uint8Array(stream)).toString('utf8');
+    }
+    // If stream is a typed array (e.g. Uint8Array).
+    if (ArrayBuffer.isView(stream)) {
+      return Buffer.from(new Uint8Array(stream.buffer, stream.byteOffset, stream.byteLength)).toString("utf8");
+    }
+    // If stream has an SDK-specific method to transform to byte array.
+    if (typeof stream.transformToByteArray === "function") {
+      const data = await stream.transformToByteArray();
+      return Buffer.from(data).toString("utf8");
     }
     // If stream supports the web stream API.
     if (typeof stream.getReader === "function") {
@@ -89,11 +102,9 @@ export class TitanEmbedService {
     if (Symbol.asyncIterator in stream) {
       let result = "";
       for await (const chunk of stream) {
-        result += typeof chunk === "string"
-          ? chunk
-          : Buffer.isBuffer(chunk)
-            ? chunk.toString("utf8")
-            : Buffer.from(chunk).toString("utf8");
+        result += typeof chunk === "string" 
+          ? chunk 
+          : (Buffer.isBuffer(chunk) ? chunk.toString("utf8") : Buffer.from(chunk).toString("utf8"));
       }
       return result;
     }
