@@ -8,7 +8,6 @@ import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
 import iconv from 'iconv-lite';
-import WebSocket from 'ws';
 
 const router = Router();
 const upload = multer({ 
@@ -103,7 +102,7 @@ router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Reques
 // เฉพาะ Staff เท่านั้นที่เข้าถึงได้
 router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
 
-router.post('/documents', roleGuard(['Staffs']), upload.array('files'), async (req: Request, res: Response): Promise<void> => {
+router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
@@ -111,80 +110,44 @@ router.post('/documents', roleGuard(['Staffs']), upload.array('files'), async (r
     // ตรวจสอบและสร้าง collection ถ้ายังไม่มี
     await chromaService.ensureCollectionExists(collectionName, user);
 
-    const files = Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat();
-    if (!files || files.length === 0) {
-      res.status(400).json({ error: 'No files uploaded' });
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'No file uploaded' });
       return;
     }
 
-    let processedCount = 0;
-    const totalFiles = files.length;
-
-    // แก้ไขฟังก์ชัน sendProgress เพื่อส่งข้อมูล batch
-    const sendProgress = (status: string, batchNumber?: number, totalBatches?: number) => {
-      const progress = {
-        type: 'processing_progress',
-        progress: {
-          status,
-          current: batchNumber || 0,
-          total: totalBatches || 0,
-          action: 'upload'
-        }
-      };
-      req.app.get('wss').clients.forEach((client: any) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(progress));
-        }
-      });
-    };
-
-    // ส่ง progress ตาม batch ที่กำลังประมวลผล
-    const batchSize = 100;
-    const totalBatches = Math.ceil(totalFiles / batchSize);
+    // แปลงชื่อไฟล์เป็น UTF-8
+    const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
-    for (let i = 0; i < totalFiles; i += batchSize) {
-      const batch = files.slice(i, i + batchSize);
-      const currentBatch = Math.floor(i / batchSize) + 1;
-      
-      sendProgress('processing', currentBatch, totalBatches);
-      for (const file of batch) {
-        // แปลงชื่อไฟล์เป็น UTF-8
-        const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
-        
-        console.log(`Processing file: ${filename}`);
-        const text = await documentService.processFile(file);
-        
-        console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
-        const chunks = splitTextIntoChunks(text);
-        console.log(`Created ${chunks.length} chunks`);
+    console.log(`Processing file: ${filename}`);
+    const text = await documentService.processFile(file);
+    
+    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
+    const chunks = splitTextIntoChunks(text);
+    console.log(`Created ${chunks.length} chunks`);
 
-        const documents = chunks.map(chunk => ({
-          text: chunk,
-          metadata: {
-            filename: filename,
-            uploadedBy: user.username,
-            timestamp: new Date().toISOString(),
-            modelId,
-            collectionName
-          }
-        }));
-
-        console.log(`Adding documents to collection ${collectionName}`);
-        await chromaService.addDocuments(collectionName, documents);
-        processedCount++;
+    const documents = chunks.map(chunk => ({
+      text: chunk,
+      metadata: {
+        filename: filename,
+        uploadedBy: user.username,
+        timestamp: new Date().toISOString(),
+        modelId,
+        collectionName
       }
-    }
+    }));
 
-    sendProgress('completed');
+    console.log(`Adding documents to collection ${collectionName}`);
+    await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
-      message: 'Files processed successfully',
-      processedFiles: totalFiles
+      message: 'File processed successfully',
+      chunks: chunks.length
     });
 
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'Error processing documents' });
+    res.status(500).json({ error: 'Error processing document' });
   }
 });
 
@@ -320,7 +283,7 @@ router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, 
     // ลบ collection และข้อมูลทั้งหมด
     await chromaService.deleteCollection(name);
     res.json({ 
-      message: 'Collection and all its documents deleted successfully' 
+      message: 'Collection deleted successfully' 
     });
   } catch (error) {
     console.error('Error deleting collection:', error);
@@ -404,29 +367,7 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
 router.delete('/documents/all/:collectionName', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { collectionName } = req.params;
-    
-    // ส่ง progress การลบ
-    const sendDeleteProgress = (status: string, current: number, total: number) => {
-      const progress = {
-        type: 'processing_progress',
-        progress: {
-          status,
-          current,
-          total,
-          action: 'delete'
-        }
-      };
-      req.app.get('wss').clients.forEach((client: any) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(progress));
-        }
-      });
-    };
-
-    sendDeleteProgress('started', 0, 1);
     await chromaService.deleteAllDocuments(collectionName);
-    sendDeleteProgress('completed', 1, 1);
-
     res.status(200).json({ message: 'All documents deleted successfully' });
   } catch (error) {
     console.error('Error deleting all documents:', error);

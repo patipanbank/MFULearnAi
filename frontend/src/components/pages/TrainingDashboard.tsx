@@ -17,14 +17,6 @@ interface UploadedFile {
   ids: string[];
 }
 
-// เพิ่ม interface สำหรับ progress
-interface ProcessingProgress {
-  status: 'started' | 'processing' | 'completed';
-  current: number;
-  total: number;
-  action: 'upload' | 'delete';
-}
-
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   // const [loading, setLoading] = useState(false);
@@ -52,13 +44,6 @@ const TrainingDashboard: React.FC = () => {
     filename: string;
   } | null>(null);
 
-  const [processingProgress, setProcessingProgress] = useState<ProcessingProgress>({
-    status: 'started',
-    current: 0,
-    total: 0,
-    action: 'upload'
-  });
-
   useEffect(() => {
     fetchModels();
     fetchCollections();
@@ -85,26 +70,6 @@ const TrainingDashboard: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCollection]);
-
-  // เพิ่ม WebSocket connection
-  useEffect(() => {
-    const ws = new WebSocket(config.wsUrl);
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'processing_progress') {
-          setProcessingProgress(data.progress);
-        }
-      } catch (error) {
-        console.error('WebSocket message error:', error);
-      }
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, []);
 
   const fetchModels = async () => {
     try {
@@ -637,22 +602,6 @@ const TrainingDashboard: React.FC = () => {
             {uploadProgress.status === 'processing' && 
               `Processing batch ${uploadProgress.current}/${uploadProgress.total}`}
             {uploadProgress.status === 'completed' && 'Upload completed!'}
-          </p>
-        </div>
-      )}
-      {processingProgress.current > 0 && (
-        <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded h-2 mt-2">
-            <div 
-              className="bg-blue-600 h-2 rounded"
-              style={{ width: `${(processingProgress.current / processingProgress.total) * 100}%` }}
-            />
-          </div>
-          <p className="text-sm mt-2">
-            {processingProgress.status === 'started' && 'Starting processing...'}
-            {processingProgress.status === 'processing' && 
-              `Processing batch ${processingProgress.current}/${processingProgress.total}`}
-            {processingProgress.status === 'completed' && 'Processing completed!'}
           </p>
         </div>
       )}
