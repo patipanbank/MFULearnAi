@@ -49,39 +49,41 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
+  async addDocuments(collectionName: string, documents: Array<{ text: string, metadata: any }>): Promise<void> {
     const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
-    
+
     if (this.processingFiles.has(fileKey)) {
       console.log(`File ${fileKey} is already being processed`);
       return;
     }
 
     this.processingFiles.add(fileKey);
-    
+
     try {
       console.log(`Adding documents to collection ${collectionName}`);
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
-      
-      // สร้าง unique ID สำหรับชุดข้อมูลนี้
+
+      // Create a unique batch ID for this file upload
       const batchId = `batch_${Date.now()}`;
       
-      // เพิ่ม batchId เข้าไปใน metadata
+      // Enhance each document to include a batchId and a 'processed' flag,
+      // and extract the computed embedding (which should have been added when processing the file)
       const docsWithBatchId = documents.map(doc => ({
-        ...doc,
+        text: doc.text,
         metadata: {
           ...doc.metadata,
-          batchId
-        }
+          batchId,
+          processed: true  // Mark document as fully processed
+        },
+        embedding: doc.metadata.embedding // Explicitly separate out the precomputed embedding
       }));
 
-      // ตรวจสอบข้อมูลที่มีอยู่
+      // Check for duplicate files (avoid re-uploading)
       const existingDocs = await collection.get();
       const existingMetadata = existingDocs.metadatas || [];
       
-      // เช็คว่ามีไฟล์นี้อยู่แล้วหรือไม่
-      const fileExists = existingMetadata.some((existing: DocumentMetadata) => 
+      const fileExists = existingMetadata.some((existing: DocumentMetadata) =>
         existing.filename === documents[0].metadata.filename &&
         existing.uploadedBy === documents[0].metadata.uploadedBy
       );
@@ -91,34 +93,35 @@ class ChromaService {
         return;
       }
 
-      // แบ่ง chunks เป็น batches ขนาด 100 chunks ต่อ batch
+      // Split document chunks into batches (100 chunks per batch)
       const BATCH_SIZE = 100;
       const batches = [];
       for (let i = 0; i < docsWithBatchId.length; i += BATCH_SIZE) {
         batches.push(docsWithBatchId.slice(i, i + BATCH_SIZE));
       }
 
-      // เพิ่มข้อมูลทีละ batch
+      // Process and add each batch, now with embeddings
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
         console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
-        
+
         const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
         const texts = batch.map(doc => doc.text);
         const metadatas = batch.map(doc => doc.metadata);
+        const embeddings = batch.map(doc => doc.embedding); // Explicitly retrieve the embedding values
 
         await collection.add({
           ids,
           documents: texts,
-          metadatas
+          metadatas,
+          embeddings  // Pass the vector embeddings for similarity search
         });
 
-        // เพิ่ม delay เล็กน้อยระหว่าง batches เพื่อให้ระบบได้พัก
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
-      
+
       console.log('Documents added successfully');
     } finally {
       this.processingFiles.delete(fileKey);
