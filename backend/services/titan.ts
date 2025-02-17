@@ -61,22 +61,33 @@ export class TitanEmbedService {
 
   /**
    * Helper function to convert a response stream into a string.
-   * It checks for both web streams (using getReader) and async iterable streams.
+   * It first checks if the stream is already a string or Buffer.
+   * Otherwise, it attempts to use the web stream API (getReader)
+   * or the async iterable protocol.
    */
   private async streamToString(stream: any): Promise<string> {
-    let result = "";
-
-    // If stream supports the web stream API (getReader)
+    // If stream is a string, return it directly.
+    if (typeof stream === 'string') {
+      return stream;
+    }
+    // If stream is a Buffer, convert and return.
+    if (Buffer.isBuffer(stream)) {
+      return stream.toString('utf8');
+    }
+    // If stream supports the web stream API.
     if (typeof stream.getReader === "function") {
+      let result = "";
       const reader = stream.getReader();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         result += typeof value === "string" ? value : Buffer.from(value).toString("utf8");
       }
+      return result;
     }
-    // Otherwise, if stream is async iterable (Node streams or similar)
-    else if (Symbol.asyncIterator in stream) {
+    // If stream is async iterable.
+    if (Symbol.asyncIterator in stream) {
+      let result = "";
       for await (const chunk of stream) {
         result += typeof chunk === "string"
           ? chunk
@@ -84,11 +95,10 @@ export class TitanEmbedService {
             ? chunk.toString("utf8")
             : Buffer.from(chunk).toString("utf8");
       }
-    } else {
-      throw new Error("Stream is not async iterable or a web stream");
+      return result;
     }
-
-    return result;
+    
+    throw new Error("Stream is not async iterable, not a web stream, nor a Buffer or string");
   }
 }
 
