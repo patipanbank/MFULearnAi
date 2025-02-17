@@ -43,17 +43,15 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     
     console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
-    
-    // Split text into chunks
+
+    // Split file text into manageable chunks
     console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
     console.log(`Created ${chunks.length} chunks`);
 
-    // For each chunk, generate an embedding and then include it in metadata.
-    // (Note: Depending on your embedding output, adjust property names below.)
-    const documents = await Promise.all(chunks.map(async chunk => {
-      // Get the embedding directly without needing to access .embedding property.
-      const embedding = await titanEmbedService.embedText(chunk);
+    // For each chunk, compute its embedding using TitanEmbedService
+    const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(chunks.map(async chunk => {
+      const embedding: number[] = await titanEmbedService.embedText(chunk);
       return {
         text: chunk,
         metadata: {
@@ -61,17 +59,17 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
-          collectionName,
-          embedding // Directly assign the returned embedding (an array of numbers)
-        }
-      }
+          collectionName
+        },
+        embedding
+      };
     }));
 
-    console.log(`Adding documents with embeddings to collection ${collectionName}`);
+    console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
-      message: 'File processed successfully with embeddings',
+      message: 'File processed successfully with vector embeddings',
       chunks: chunks.length
     });
 
@@ -134,9 +132,8 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     const chunks = splitTextIntoChunks(text);
     console.log(`Created ${chunks.length} chunks`);
 
-    const documents = await Promise.all(chunks.map(async chunk => {
-      // Get the embedding directly without needing to access .embedding property.
-      const embedding = await titanEmbedService.embedText(chunk);
+    const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(chunks.map(async chunk => {
+      const embedding: number[] = await titanEmbedService.embedText(chunk);
       return {
         text: chunk,
         metadata: {
@@ -144,10 +141,10 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
-          collectionName,
-          embedding // Directly assign the returned embedding (an array of numbers)
-        }
-      }
+          collectionName
+        },
+        embedding
+      };
     }));
 
     console.log(`Adding documents with embeddings to collection ${collectionName}`);
@@ -348,17 +345,18 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       // สร้าง filename จาก URL
       const filename = new URL(url).hostname + new URL(url).pathname;
       
-      const documents = chunks.map(chunk => ({
+      const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(chunks.map(async (chunk) => ({
         text: chunk,
         metadata: {
-          filename: filename, // เพิ่ม filename
+          filename: filename,
           source: url,
           uploadedBy: user.username,
           timestamp: new Date().toISOString(),
           modelId,
           collectionName
-        }
-      }));
+        },
+        embedding: await titanEmbedService.embedText(chunk)
+      })));
 
       await chromaService.addDocuments(collectionName, documents);
     }

@@ -49,7 +49,11 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: Array<{ text: string, metadata: any }>): Promise<void> {
+  /**
+   * Adds an array of documents (with precomputed embeddings) to ChromaDB.
+   * Each document must have an `embedding` property in addition to text and metadata.
+   */
+  async addDocuments(collectionName: string, documents: Array<{ text: string, metadata: any, embedding: number[] }>): Promise<void> {
     const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
 
     if (this.processingFiles.has(fileKey)) {
@@ -66,23 +70,22 @@ class ChromaService {
 
       // Create a unique batch ID for this file upload
       const batchId = `batch_${Date.now()}`;
-      
-      // Enhance each document to include a batchId and a 'processed' flag,
-      // and extract the computed embedding (which should have been added when processing the file)
+
+      // Enhance each document with a batchId and a 'processed' flag.
       const docsWithBatchId = documents.map(doc => ({
         text: doc.text,
         metadata: {
           ...doc.metadata,
           batchId,
-          processed: true  // Mark document as fully processed
+          processed: true // Mark as fully processed
         },
-        embedding: doc.metadata.embedding // Explicitly separate out the precomputed embedding
+        embedding: doc.embedding // Use the precomputed embedding
       }));
 
-      // Check for duplicate files (avoid re-uploading)
+      // Check for duplicate files (avoid duplicate ingestion)
       const existingDocs = await collection.get();
       const existingMetadata = existingDocs.metadatas || [];
-      
+
       const fileExists = existingMetadata.some((existing: DocumentMetadata) =>
         existing.filename === documents[0].metadata.filename &&
         existing.uploadedBy === documents[0].metadata.uploadedBy
@@ -108,13 +111,13 @@ class ChromaService {
         const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
         const texts = batch.map(doc => doc.text);
         const metadatas = batch.map(doc => doc.metadata);
-        const embeddings = batch.map(doc => doc.embedding); // Explicitly retrieve the embedding values
+        const embeddings = batch.map(doc => doc.embedding); // Retrieve the embedding values
 
         await collection.add({
           ids,
           documents: texts,
           metadatas,
-          embeddings  // Pass the vector embeddings for similarity search
+          embeddings // Store the actual vector embeddings for similarity search
         });
 
         if (i < batches.length - 1) {
@@ -133,10 +136,10 @@ class ChromaService {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
 
-      // Explicitly embed the query text using the TitanEmbedService
+      // Embed the query explicitly using TitanEmbedService
       const queryEmbedding = await this.titanEmbedService.embedText(query);
 
-      // Use the embedded query vector for the similarity search
+      // Use the embedded query vector for the similarity search:
       const results = await collection.query({
         queryEmbeddings: [queryEmbedding],
         nResults: n_results,
