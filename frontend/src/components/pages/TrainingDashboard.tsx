@@ -37,30 +37,9 @@ const TrainingDashboard: React.FC = () => {
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  const [uploadProgress, setUploadProgress] = useState<{
-    total: number;
-    current: number;
-    status: 'started' | 'processing' | 'completed';
-    filename: string;
-  } | null>(null);
-
   useEffect(() => {
     fetchModels();
     fetchCollections();
-
-    // เพิ่ม WebSocket listener
-    const ws = new WebSocket(config.wsUrl);
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'upload_progress') {
-        setUploadProgress(data.data);
-      }
-    };
-
-    return () => {
-      ws.close();
-    };
   }, []);
 
   // Whenever a collection is selected update the file overview
@@ -282,7 +261,7 @@ const TrainingDashboard: React.FC = () => {
   };
 
   const handleDeleteCollection = async (collectionName: string) => {
-    if (!window.confirm(`Are you sure you want to delete collection "${collectionName}"`)) {
+    if (!window.confirm(`Are you sure you want to delete Collection "${collectionName}"?`)) {
       return;
     }
 
@@ -301,11 +280,10 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Failed to delete collection');
       }
 
-      alert(`Collection "${collectionName}" deleted successfully`);
       fetchCollections();
     } catch (error) {
       console.error('Error:', error);
-      alert('Failed to delete collection');
+      alert('Cannot delete collection');
     }
   };
 
@@ -362,15 +340,6 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  const formatPermissionLabel = (permission: CollectionPermission): string => {
-    const permissionMap = {
-      [CollectionPermission.PUBLIC]: 'Public',
-      [CollectionPermission.STAFF_ONLY]: 'Staff Only',
-      [CollectionPermission.PRIVATE]: 'Private'
-    };
-    return `(${permissionMap[permission]})`;
-  };
-
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training Dashboard</h1>
@@ -418,7 +387,8 @@ const TrainingDashboard: React.FC = () => {
                 <option value="">-- Choose Collection --</option>
                 {getFilteredCollections().map(collection => (
                   <option key={collection.name} value={collection.name}>
-                    {collection.name} {formatPermissionLabel(collection.permission)}
+                    {collection.name} 
+                    {collection.permission !== CollectionPermission.PUBLIC && ' (Restricted)'}
                   </option>
                 ))}
               </select>
@@ -588,23 +558,6 @@ const TrainingDashboard: React.FC = () => {
           </div>
         )}
       </div>
-      {uploadProgress && (
-        <div className="mt-4 p-4 border rounded">
-          <h3 className="font-semibold">Processing: {uploadProgress.filename}</h3>
-          <div className="w-full bg-gray-200 rounded h-2 mt-2">
-            <div 
-              className="bg-blue-600 h-2 rounded"
-              style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
-            />
-          </div>
-          <p className="text-sm mt-2">
-            {uploadProgress.status === 'started' && 'Starting upload...'}
-            {uploadProgress.status === 'processing' && 
-              `Processing batch ${uploadProgress.current}/${uploadProgress.total}`}
-            {uploadProgress.status === 'completed' && 'Upload completed!'}
-          </p>
-        </div>
-      )}
     </div>
   );
 };
