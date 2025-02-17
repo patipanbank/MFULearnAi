@@ -410,4 +410,10 @@ class ChromaService {
   }
 }
 
-export const chromaService = new ChromaService(); 
+export const chromaService = new ChromaService();
+
+(async () => {
+  const dummyEmbedding = new Array(512).fill(0.001);
+  const { documents } = await chromaService.queryDocumentsByEmbedding('collectionName', dummyEmbedding, 10);
+  console.log(documents);
+})(); 
