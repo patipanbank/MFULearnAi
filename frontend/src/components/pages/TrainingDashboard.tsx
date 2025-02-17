@@ -239,20 +239,23 @@ const TrainingDashboard: React.FC = () => {
   const handleDeleteFile = async (file: UploadedFile) => {
     if (!selectedCollection) return;
 
-    // เพิ่มการยืนยันก่อนลบ
-    if (!window.confirm(`Are you sure you want to delete "${decodeURIComponent(file.filename)}"?`)) {
+    if (!window.confirm(`Are you sure you want to delete file "${decodeURIComponent(file.filename)}"?`)) {
       return;
     }
 
     try {
-      // แสดง loading state
       const button = document.querySelector(`button[title="Delete File"]`);
       if (button) {
         button.innerHTML = '<span class="animate-spin">⌛</span>';
         button.setAttribute('disabled', 'true');
       }
 
-      // ลบไฟล์ทีละ chunk
+      // หา element ที่แสดงจำนวน chunks
+      const chunksElement = button?.closest('li')?.querySelector('p:last-child');
+      const totalChunks = file.ids.length;
+      let deletedChunks = 0;
+
+      // ลบไฟล์ทีละ chunk และอัพเดทการแสดงผล
       for (const id of file.ids) {
         await fetch(
           `${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`,
@@ -263,19 +266,20 @@ const TrainingDashboard: React.FC = () => {
             }
           }
         );
+
+        deletedChunks++;
+        if (chunksElement) {
+          chunksElement.textContent = `Chunks: ${totalChunks - deletedChunks} (Deleting: ${deletedChunks}/${totalChunks})`;
+        }
       }
 
-      // อัพเดทรายการไฟล์
       await fetchUploadedFiles();
-      
-      // แจ้งเตือนเมื่อลบเสร็จ
       alert(`Delete file "${decodeURIComponent(file.filename)}" successfully`);
 
     } catch (error) {
       console.error('Error deleting file:', error);
       alert('Error deleting file');
     } finally {
-      // คืนค่า button กลับเป็นปกติ
       const button = document.querySelector(`button[title="Delete File"]`);
       if (button) {
         button.innerHTML = '<svg>...</svg>'; // FaTrash icon
