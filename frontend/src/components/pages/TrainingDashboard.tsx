@@ -651,9 +651,8 @@ const TrainingDashboard: React.FC = () => {
           <p className="text-sm mt-2">
             {processingProgress.status === 'started' && 'Starting processing...'}
             {processingProgress.status === 'processing' && 
-              `Processing ${processingProgress.action === 'upload' ? 'upload' : 'delete'} ${processingProgress.current}/${processingProgress.total}`}
-            {processingProgress.status === 'completed' && 
-              `${processingProgress.action === 'upload' ? 'Upload' : 'Delete'} completed!`}
+              `Processing batch ${processingProgress.current}/${processingProgress.total}`}
+            {processingProgress.status === 'completed' && 'Processing completed!'}
           </p>
         </div>
       )}

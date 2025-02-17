@@ -103,7 +103,7 @@ router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Reques
 // เฉพาะ Staff เท่านั้นที่เข้าถึงได้
 router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
 
-router.post('/documents', roleGuard(['Students', 'Staffs']), upload.array('files'), async (req: Request, res: Response): Promise<void> => {
+router.post('/documents', roleGuard(['Staffs']), upload.array('files'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
@@ -120,14 +120,14 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.array('files
     let processedCount = 0;
     const totalFiles = files.length;
 
-    // ส่ง progress ผ่าน WebSocket
-    const sendProgress = (status: string) => {
+    // แก้ไขฟังก์ชัน sendProgress เพื่อส่งข้อมูล batch
+    const sendProgress = (status: string, batchNumber?: number, totalBatches?: number) => {
       const progress = {
         type: 'processing_progress',
         progress: {
           status,
-          current: processedCount,
-          total: totalFiles,
+          current: batchNumber || 0,
+          total: totalBatches || 0,
           action: 'upload'
         }
       };
@@ -138,34 +138,41 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.array('files
       });
     };
 
-    sendProgress('started');
-
-    for (const file of files) {
-      // แปลงชื่อไฟล์เป็น UTF-8
-      const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
+    // ส่ง progress ตาม batch ที่กำลังประมวลผล
+    const batchSize = 100;
+    const totalBatches = Math.ceil(totalFiles / batchSize);
+    
+    for (let i = 0; i < totalFiles; i += batchSize) {
+      const batch = files.slice(i, i + batchSize);
+      const currentBatch = Math.floor(i / batchSize) + 1;
       
-      console.log(`Processing file: ${filename}`);
-      const text = await documentService.processFile(file);
-      
-      console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
-      const chunks = splitTextIntoChunks(text);
-      console.log(`Created ${chunks.length} chunks`);
+      sendProgress('processing', currentBatch, totalBatches);
+      for (const file of batch) {
+        // แปลงชื่อไฟล์เป็น UTF-8
+        const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
+        
+        console.log(`Processing file: ${filename}`);
+        const text = await documentService.processFile(file);
+        
+        console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
+        const chunks = splitTextIntoChunks(text);
+        console.log(`Created ${chunks.length} chunks`);
 
-      const documents = chunks.map(chunk => ({
-        text: chunk,
-        metadata: {
-          filename: filename,
-          uploadedBy: user.username,
-          timestamp: new Date().toISOString(),
-          modelId,
-          collectionName
-        }
-      }));
+        const documents = chunks.map(chunk => ({
+          text: chunk,
+          metadata: {
+            filename: filename,
+            uploadedBy: user.username,
+            timestamp: new Date().toISOString(),
+            modelId,
+            collectionName
+          }
+        }));
 
-      console.log(`Adding documents to collection ${collectionName}`);
-      await chromaService.addDocuments(collectionName, documents);
-      processedCount++;
-      sendProgress('processing');
+        console.log(`Adding documents to collection ${collectionName}`);
+        await chromaService.addDocuments(collectionName, documents);
+        processedCount++;
+      }
     }
 
     sendProgress('completed');
