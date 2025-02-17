@@ -389,12 +389,19 @@ class ChromaService {
         this.collections.set(collectionName, collection);
       }
       
-      const result = await collection.query({
-        queryEmbeddings: [embedding],
+      // Construct the query payload so that it includes only the queryEmbeddings key.
+      const queryPayload: Record<string, any> = {
         nResults: limit,
-        include: ["documents"]
-      });
+        include: ["documents"],
+        // Only provide queryEmbeddings; do not include queryTexts.
+        queryEmbeddings: [embedding]
+      };
       
+      console.log("Query payload:", queryPayload);
+      
+      const result = await collection.query(queryPayload);
+      
+      // The returned documents are nested in an array (the first element holds our documents).
       return { documents: result.documents ? (result.documents[0] as string[]) : [] };
     } catch (error) {
       console.error("Error in queryDocumentsByEmbedding:", error);

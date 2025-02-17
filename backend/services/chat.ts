@@ -54,30 +54,24 @@ export class ChatService {
 
   private async getContext(query: string, collectionName: string): Promise<string> {
     try {
-      // Validate inputs.
       if (!collectionName || !query.trim()) return '';
-
-      // Start a timer to track performance (optional).
+      
       console.time('embeddingAndQuery');
-
-      // Use the trimmed query for embedding.
       const trimmedQuery = query.trim();
       
-      // Get the embedding vector for the query.
+      // Retrieve the embedding from your Titan embed service.
       const embedding: number[] = await titanEmbedService.embedText(trimmedQuery);
       console.log('Embedding vector:', embedding, 'Dimension:', embedding.length);
       
-      // Verify that the embedding is valid.
       if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
         console.warn(`No valid embedding returned for query: "${trimmedQuery}".`);
         return '';
       }
-
-      // Query the documents collection using queryEmbeddings only.
-      // Ensure that you are not mixing in any alternative query parameters.
+      
+      // Query the documents collection using only the embedding.
       const { documents } = await chromaService.queryDocumentsByEmbedding(collectionName, embedding, 10);
       
-      // Join and return the retrieved document contexts.
+      // Join the document contexts.
       return documents.join('\n\n');
     } catch (error) {
       console.error('Error getting embedded context:', error);
