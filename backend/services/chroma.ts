@@ -88,17 +88,33 @@ class ChromaService {
         return;
       }
 
-      // ถ้าไม่มีข้อมูลซ้ำ ให้เพิ่มข้อมูลใหม่
-      console.log(`Adding ${docsWithBatchId.length} new documents`);
-      const ids = docsWithBatchId.map((_, i) => `${batchId}_${i}`);
-      const texts = docsWithBatchId.map(doc => doc.text);
-      const metadatas = docsWithBatchId.map(doc => doc.metadata);
+      // แบ่ง chunks เป็น batches ขนาด 100 chunks ต่อ batch
+      const BATCH_SIZE = 100;
+      const batches = [];
+      for (let i = 0; i < docsWithBatchId.length; i += BATCH_SIZE) {
+        batches.push(docsWithBatchId.slice(i, i + BATCH_SIZE));
+      }
 
-      await collection.add({
-        ids,
-        documents: texts,
-        metadatas
-      });
+      // เพิ่มข้อมูลทีละ batch
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+        
+        const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
+        const texts = batch.map(doc => doc.text);
+        const metadatas = batch.map(doc => doc.metadata);
+
+        await collection.add({
+          ids,
+          documents: texts,
+          metadatas
+        });
+
+        // เพิ่ม delay เล็กน้อยระหว่าง batches เพื่อให้ระบบได้พัก
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
       
       console.log('Documents added successfully');
     } finally {
