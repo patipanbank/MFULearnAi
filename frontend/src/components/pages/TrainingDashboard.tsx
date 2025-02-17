@@ -47,6 +47,7 @@ const TrainingDashboard: React.FC = () => {
     if (selectedCollection) {
       fetchUploadedFiles();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCollection]);
 
   const fetchModels = async () => {
