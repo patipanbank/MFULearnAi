@@ -106,11 +106,8 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
-
-    // ตรวจสอบและสร้าง collection ถ้ายังไม่มี
-    await chromaService.ensureCollectionExists(collectionName, user);
-
     const file = req.file;
+
     if (!file) {
       res.status(400).json({ error: 'No file uploaded' });
       return;
@@ -122,24 +119,32 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
     
-    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
-    console.log(`Created ${chunks.length} chunks`);
-
-    const documents = chunks.map(chunk => ({
+    const totalChunks = chunks.length;
+    
+    const documents = chunks.map((chunk, index) => ({
       text: chunk,
       metadata: {
         filename: filename,
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
-        collectionName
+        collectionName,
+        progress: Math.round(((index + 1) / totalChunks) * 100)
       }
     }));
 
-    console.log(`Adding documents to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents);
-    
+    // เพิ่ม chunks ทีละชุด พร้อมส่งความคืบหน้า
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+      const batch = documents.slice(i, i + BATCH_SIZE);
+      await chromaService.addDocuments(collectionName, batch);
+      
+      // ส่งความคืบหน้าให้ client
+      const progress = Math.round(((i + batch.length) / documents.length) * 100);
+      res.write(JSON.stringify({ progress }));
+    }
+
     res.json({ 
       message: 'File processed successfully',
       chunks: chunks.length
