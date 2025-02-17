@@ -130,11 +130,8 @@ class ChromaService {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       
-      // Explicitly embed the query using the same embedding model used for documents.
-      const queryEmbedding = await this.titanEmbedService.embedText(query);
-      
       const results = await collection.query({
-        queryEmbeddings: [queryEmbedding],
+        queryTexts: [query],
         nResults: n_results,
         where: { processed: true }
       });
