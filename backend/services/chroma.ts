@@ -1,7 +1,6 @@
 import { ChromaClient } from 'chromadb';
 import { Collection } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
-import { WebSocket } from 'ws';
 
 interface DocumentMetadata {
   filename: string;
@@ -47,7 +46,7 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>, ws?: WebSocket): Promise<void> {
+  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
     const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
     
     if (this.processingFiles.has(fileKey)) {
@@ -62,7 +61,10 @@ class ChromaService {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       
+      // สร้าง unique ID สำหรับชุดข้อมูลนี้
       const batchId = `batch_${Date.now()}`;
+      
+      // เพิ่ม batchId เข้าไปใน metadata
       const docsWithBatchId = documents.map(doc => ({
         ...doc,
         metadata: {
@@ -71,9 +73,11 @@ class ChromaService {
         }
       }));
 
+      // ตรวจสอบข้อมูลที่มีอยู่
       const existingDocs = await collection.get();
       const existingMetadata = existingDocs.metadatas || [];
       
+      // เช็คว่ามีไฟล์นี้อยู่แล้วหรือไม่
       const fileExists = existingMetadata.some((existing: DocumentMetadata) => 
         existing.filename === documents[0].metadata.filename &&
         existing.uploadedBy === documents[0].metadata.uploadedBy
@@ -84,40 +88,18 @@ class ChromaService {
         return;
       }
 
+      // แบ่ง chunks เป็น batches ขนาด 100 chunks ต่อ batch
       const BATCH_SIZE = 100;
       const batches = [];
       for (let i = 0; i < docsWithBatchId.length; i += BATCH_SIZE) {
         batches.push(docsWithBatchId.slice(i, i + BATCH_SIZE));
       }
 
-      if (ws) {
-        ws.send(JSON.stringify({
-          type: 'upload_progress',
-          data: {
-            total: batches.length,
-            current: 0,
-            status: 'started',
-            filename: documents[0].metadata.filename
-          }
-        }));
-      }
-
+      // เพิ่มข้อมูลทีละ batch
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
         console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
         
-        if (ws) {
-          ws.send(JSON.stringify({
-            type: 'upload_progress',
-            data: {
-              total: batches.length,
-              current: i + 1,
-              status: 'processing',
-              filename: documents[0].metadata.filename
-            }
-          }));
-        }
-
         const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
         const texts = batch.map(doc => doc.text);
         const metadatas = batch.map(doc => doc.metadata);
@@ -128,21 +110,10 @@ class ChromaService {
           metadatas
         });
 
+        // เพิ่ม delay เล็กน้อยระหว่าง batches เพื่อให้ระบบได้พัก
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
-      }
-
-      if (ws) {
-        ws.send(JSON.stringify({
-          type: 'upload_progress',
-          data: {
-            total: batches.length,
-            current: batches.length,
-            status: 'completed',
-            filename: documents[0].metadata.filename
-          }
-        }));
       }
       
       console.log('Documents added successfully');
