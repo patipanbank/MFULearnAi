@@ -282,7 +282,7 @@ const TrainingDashboard: React.FC = () => {
   };
 
   const handleDeleteCollection = async (collectionName: string) => {
-    if (!window.confirm(`คุณแน่ใจหรือไม่ที่จะลบ Collection "${collectionName}" และข้อมูลทั้งหมดในนั้น?`)) {
+    if (!window.confirm(`Are you sure you want to delete collection "${collectionName}"`)) {
       return;
     }
 
@@ -301,11 +301,11 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Failed to delete collection');
       }
 
-      alert(`Collection "${collectionName}" และข้อมูลทั้งหมดถูกลบเรียบร้อยแล้ว`);
+      alert(`Collection "${collectionName}" deleted successfully`);
       fetchCollections();
     } catch (error) {
       console.error('Error:', error);
-      alert('ไม่สามารถลบ collection ได้');
+      alert('Failed to delete collection');
     }
   };
 
