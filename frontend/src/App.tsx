@@ -6,7 +6,7 @@ import Login from './components/login/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
 import RoleGuard from './components/guards/RoleGuard';
-import TrainingHistory from './components/pages/TrainingHistory';
+// import TrainingHistory from './components/pages/TrainingHistory';
 import './index.css';
  
 
@@ -39,7 +39,7 @@ const App = () => {
             </AuthGuard>
           }
         />
-        <Route
+        {/* <Route
           path="/training-history"
           element={
             <AuthGuard>
@@ -50,7 +50,7 @@ const App = () => {
               </RoleGuard>
             </AuthGuard>
           }
-        />
+        /> */}
       </Routes>
     </Router>
   );
