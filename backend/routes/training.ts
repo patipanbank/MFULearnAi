@@ -280,9 +280,11 @@ router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, 
       return;
     }
 
-    // ลบ collection
+    // ลบ collection และข้อมูลทั้งหมด
     await chromaService.deleteCollection(name);
-    res.json({ message: 'Collection deleted successfully' });
+    res.json({ 
+      message: 'Collection and all its documents deleted successfully' 
+    });
   } catch (error) {
     console.error('Error deleting collection:', error);
     res.status(500).json({ error: 'Failed to delete collection' });
