@@ -390,12 +390,30 @@ const TrainingDashboard: React.FC = () => {
   const renderStatus = () => {
     if (status.status === 'idle') return null;
 
+    const getStatusColor = () => {
+      switch (status.status) {
+        case 'error':
+          return 'bg-red-600';
+        case 'completed':
+          return 'bg-green-600';
+        default:
+          return 'bg-blue-600';
+      }
+    };
+
     return (
-      <div className="mt-4 p-4 border rounded">
-        <h3 className="font-semibold">{status.message}</h3>
-        <div className="w-full bg-gray-200 rounded h-2 mt-2">
+      <div className="mt-4 p-4 border rounded dark:border-gray-700">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+            {status.message}
+          </h3>
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {status.progress}%
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div 
-            className="bg-blue-600 h-2 rounded transition-all duration-500"
+            className={`${getStatusColor()} h-2 rounded-full transition-all duration-500`}
             style={{ width: `${status.progress}%` }}
           />
         </div>

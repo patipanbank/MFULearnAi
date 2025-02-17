@@ -28,6 +28,7 @@ const upload = multer({
 });
 
 const uploadHandler = async (req: Request, res: Response): Promise<void> => {
+  const ws = (req as any).ws;
   try {
     const file = req.file;
     if (!file) {
@@ -37,7 +38,6 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
 
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
-    const ws = (req as any).ws;
 
     // แปลงชื่อไฟล์เป็น UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
@@ -54,6 +54,18 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     }
 
     const text = await documentService.processFile(file);
+    
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'training_status',
+        data: {
+          status: 'processing',
+          message: `Processing text: ${text.length} characters`,
+          progress: 20
+        }
+      }));
+    }
+
     const chunks = splitTextIntoChunks(text);
 
     if (ws) {
@@ -62,7 +74,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
         data: {
           status: 'chunking',
           message: `Created ${chunks.length} chunks`,
-          progress: 33
+          progress: 40
         }
       }));
     }
@@ -78,27 +90,35 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       }
     }));
 
-    // ส่งสถานะการเพิ่มเอกสาร
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'training_status',
-        data: {
-          status: 'adding',
-          message: `Adding documents to collection ${collectionName}`,
-          progress: 66
-        }
-      }));
+    // แบ่ง documents เป็น batches
+    const batchSize = 100;
+    const batches = [];
+    for (let i = 0; i < documents.length; i += batchSize) {
+      batches.push(documents.slice(i, i + batchSize));
     }
 
-    await chromaService.addDocuments(collectionName, documents);
+    // ประมวลผลทีละ batch และส่งสถานะ
+    for (let i = 0; i < batches.length; i++) {
+      if (ws) {
+        const progress = 40 + ((i + 1) / batches.length * 60); // progress 40-100%
+        ws.send(JSON.stringify({
+          type: 'training_status',
+          data: {
+            status: 'adding',
+            message: `Processing batch ${i + 1}/${batches.length} (${batches[i].length} documents)`,
+            progress: Math.round(progress)
+          }
+        }));
+      }
+      await chromaService.addDocuments(collectionName, batches[i]);
+    }
 
-    // ส่งสถานะเสร็จสิ้น
     if (ws) {
       ws.send(JSON.stringify({
         type: 'training_status',
         data: {
           status: 'completed',
-          message: 'Training completed successfully',
+          message: `Successfully processed ${documents.length} documents`,
           progress: 100
         }
       }));
@@ -107,12 +127,13 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     res.json({ message: 'File processed successfully' });
   } catch (error) {
     console.error('Upload error:', error);
-    if ((req as any).ws) {
-      (req as any).ws.send(JSON.stringify({
+    if (ws) {
+      ws.send(JSON.stringify({
         type: 'training_status',
         data: {
           status: 'error',
-          message: (error as Error).message
+          message: (error as Error).message,
+          progress: 0
         }
       }));
     }
