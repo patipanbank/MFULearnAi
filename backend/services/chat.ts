@@ -1,6 +1,6 @@
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
-import { titanEmbedService } from './titan';
+import { titanEmbedService } from '../services/titan';
 import { ChatMessage } from '../types/chat';
 
 
@@ -8,16 +8,21 @@ export class ChatService {
   private systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
 
   private isRelevantQuestion(query: string): boolean {
-    return (true);
+    return true;
   }
 
-  async *generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): AsyncGenerator<string> {
+  async *generateResponse(
+    messages: ChatMessage[],
+    query: string,
+    modelId: string,
+    collectionName: string
+  ): AsyncGenerator<string> {
     try {
       console.log('Starting generateResponse:', {
         modelId,
         collectionName,
         messagesCount: messages.length,
-        query
+        query,
       });
 
       if (!this.isRelevantQuestion(query)) {
@@ -26,19 +31,18 @@ export class ChatService {
         return;
       }
 
-      console.log('Getting context for query:', query);
+      // Embed the question to create a vector representation and then retrieve context.
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context length:', context.length);
 
       const augmentedMessages = [
         {
           role: 'system' as const,
-          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
+          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`,
         },
-        ...messages
+        ...messages,
       ];
 
-      // ส่ง response แบบ streaming ทันที
       for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
         yield chunk;
       }
@@ -52,14 +56,14 @@ export class ChatService {
     try {
       if (!collectionName) return '';
 
-      // Embed the user query
-      const queryEmbedding = await titanEmbedService.embedText(query);
-
-      // Use the embedding to query ChromaDB (update chromaService.queryDocumentsByEmbedding accordingly)
-      const results = await chromaService.queryDocumentsByEmbedding(collectionName, queryEmbedding, 10);
+      // Get the embedding vector for the query.
+      const embedding = await titanEmbedService.embedText(query);
+      // Use a vector search on the documents collection.
+      // (Make sure that `queryDocumentsByEmbedding` is implemented on your Chroma service.)
+      const results = await chromaService.queryDocumentsByEmbedding(collectionName, embedding, 10);
       return results.documents.join('\n\n');
     } catch (error) {
-      console.error('Error getting context:', error);
+      console.error('Error getting embedded context:', error);
       return '';
     } finally {
       if (process.env.NODE_ENV !== 'production') {
