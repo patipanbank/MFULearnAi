@@ -1,6 +1,7 @@
 import { ChromaClient } from 'chromadb';
 import { Collection } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
+import { TitanEmbedService } from '../services/titan';
 
 interface DocumentMetadata {
   filename: string;
@@ -14,11 +15,13 @@ class ChromaService {
   private client: ChromaClient;
   private collections: Map<string, any> = new Map();
   private processingFiles = new Set<string>();
+  private titanEmbedService: TitanEmbedService;
 
   constructor() {
     this.client = new ChromaClient({
       path: process.env.CHROMA_URL || 'http://chroma:8000'
     });
+    this.titanEmbedService = new TitanEmbedService();
   }
 
   async initCollection(collectionName: string): Promise<void> {
@@ -126,8 +129,12 @@ class ChromaService {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
+      
+      // Explicitly embed the query using the same embedding model used for documents.
+      const queryEmbedding = await this.titanEmbedService.embedText(query);
+      
       const results = await collection.query({
-        queryTexts: [query],
+        queryEmbeddings: [queryEmbedding],
         nResults: n_results,
         where: { processed: true }
       });
