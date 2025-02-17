@@ -1,6 +1,7 @@
 import { ChromaClient } from 'chromadb';
 import { Collection } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
+import WebSocket from 'ws';
 
 interface DocumentMetadata {
   filename: string;
@@ -14,6 +15,7 @@ class ChromaService {
   private client: ChromaClient;
   private collections: Map<string, any> = new Map();
   private processingFiles = new Set<string>();
+  private wsClients: Map<string, WebSocket> = new Map();
 
   constructor() {
     this.client = new ChromaClient({
@@ -46,7 +48,22 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
+  addWSClient(userId: string, ws: WebSocket) {
+    this.wsClients.set(userId, ws);
+  }
+
+  removeWSClient(userId: string) {
+    this.wsClients.delete(userId);
+  }
+
+  private sendProgress(userId: string, data: any) {
+    const ws = this.wsClients.get(userId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(data));
+    }
+  }
+
+  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>, userId: string): Promise<void> {
     const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
     
     if (this.processingFiles.has(fileKey)) {
@@ -61,10 +78,7 @@ class ChromaService {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       
-      // สร้าง unique ID สำหรับชุดข้อมูลนี้
       const batchId = `batch_${Date.now()}`;
-      
-      // เพิ่ม batchId เข้าไปใน metadata
       const docsWithBatchId = documents.map(doc => ({
         ...doc,
         metadata: {
@@ -73,29 +87,19 @@ class ChromaService {
         }
       }));
 
-      // ตรวจสอบข้อมูลที่มีอยู่
-      const existingDocs = await collection.get();
-      const existingMetadata = existingDocs.metadatas || [];
-      
-      // เช็คว่ามีไฟล์นี้อยู่แล้วหรือไม่
-      const fileExists = existingMetadata.some((existing: DocumentMetadata) => 
-        existing.filename === documents[0].metadata.filename &&
-        existing.uploadedBy === documents[0].metadata.uploadedBy
-      );
+      this.sendProgress(userId, {
+        type: 'upload_start',
+        total: documents.length,
+        filename: documents[0].metadata.filename
+      });
 
-      if (fileExists) {
-        console.log(`File ${documents[0].metadata.filename} already exists, skipping upload`);
-        return;
-      }
-
-      // แบ่ง chunks เป็น batches ขนาด 100 chunks ต่อ batch
       const BATCH_SIZE = 100;
       const batches = [];
       for (let i = 0; i < docsWithBatchId.length; i += BATCH_SIZE) {
         batches.push(docsWithBatchId.slice(i, i + BATCH_SIZE));
       }
 
-      // เพิ่มข้อมูลทีละ batch
+      let processedChunks = 0;
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
         console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
@@ -110,12 +114,25 @@ class ChromaService {
           metadatas
         });
 
-        // เพิ่ม delay เล็กน้อยระหว่าง batches เพื่อให้ระบบได้พัก
+        processedChunks += batch.length;
+        
+        this.sendProgress(userId, {
+          type: 'upload_progress',
+          processed: processedChunks,
+          total: documents.length,
+          filename: documents[0].metadata.filename
+        });
+
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
       
+      this.sendProgress(userId, {
+        type: 'upload_complete',
+        filename: documents[0].metadata.filename
+      });
+
       console.log('Documents added successfully');
     } finally {
       this.processingFiles.delete(fileKey);
@@ -235,13 +252,11 @@ class ChromaService {
 
   async deleteCollection(collectionName: string): Promise<void> {
     try {
-      // ลบข้อมูลทั้งหมดใน collection ก่อน
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       if (collection) {
         const results = await collection.get();
         if (results && results.ids && results.ids.length > 0) {
-          // ลบ chunks ทั้งหมด
           await collection.delete({
             ids: results.ids
           });
@@ -249,13 +264,11 @@ class ChromaService {
         }
       }
 
-      // ลบ collection จาก ChromaDB
       await this.client.deleteCollection({
         name: collectionName
       });
       this.collections.delete(collectionName);
 
-      // ลบจาก MongoDB
       await Collection.deleteOne({ name: collectionName });
       
       console.log(`Collection ${collectionName} deleted successfully`);
@@ -265,10 +278,8 @@ class ChromaService {
     }
   }
 
-  // เพิ่มเมธอดสำหรับลบหลาย collections พร้อมกัน
   async deleteCollections(collectionNames: string[]): Promise<void> {
     try {
-      // ลบทีละ collection
       for (const name of collectionNames) {
         await this.deleteCollection(name);
       }
@@ -281,10 +292,8 @@ class ChromaService {
 
   async createCollection(name: string, permission: CollectionPermission, createdBy: string) {
     try {
-      // 1. สร้าง collection ใน ChromaDB
       const collection = await this.client.createCollection({ name });
       
-      // 2. บันทึก metadata ใน MongoDB
       await Collection.create({
         name,
         permission,
@@ -323,15 +332,12 @@ class ChromaService {
 
   async checkCollectionAccess(collectionName: string, user: { nameID: string, groups: string[] }) {
     try {
-      // ค้นหา collection จาก MongoDB
       const collection = await Collection.findOne({ name: collectionName });
       
-      // ถ้าไม่พบ collection
       if (!collection) {
         return false;
       }
 
-      // ตรวจสอบสิทธิ์
       switch (collection.permission) {
         case CollectionPermission.PUBLIC:
           return true;
@@ -348,7 +354,6 @@ class ChromaService {
     }
   }
 
-  // เพิ่มเมธอดสำหรับตรวจสอบการมีอยู่ของ collection
   async ensureCollectionExists(name: string, user: { nameID: string }) {
     try {
       let collection = await Collection.findOne({ name });

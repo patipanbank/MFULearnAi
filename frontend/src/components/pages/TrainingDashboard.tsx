@@ -36,6 +36,11 @@ const TrainingDashboard: React.FC = () => {
 
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<{
+    filename: string;
+    processed: number;
+    total: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchModels();
@@ -49,6 +54,38 @@ const TrainingDashboard: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCollection]);
+
+  useEffect(() => {
+    // เชื่อมต่อ WebSocket
+    const ws = new WebSocket(`${config.wsUrl}/ws`);
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      switch (data.type) {
+        case 'upload_start':
+          setUploadProgress({
+            filename: data.filename,
+            processed: 0,
+            total: data.total
+          });
+          break;
+        case 'upload_progress':
+          setUploadProgress({
+            filename: data.filename,
+            processed: data.processed,
+            total: data.total
+          });
+          break;
+        case 'upload_complete':
+          setUploadProgress(null);
+          fetchUploadedFiles();
+          break;
+      }
+    };
+
+    return () => ws.close();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchModels = async () => {
     try {
@@ -368,6 +405,28 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  // แสดงความคืบหน้าในการอัพโหลด
+  const renderUploadProgress = () => {
+    if (!uploadProgress) return null;
+
+    const percentage = Math.round((uploadProgress.processed / uploadProgress.total) * 100);
+    
+    return (
+      <div className="mt-4 p-4 border rounded">
+        <p className="font-semibold">Uploading: {decodeURIComponent(uploadProgress.filename)}</p>
+        <div className="w-full bg-gray-200 rounded h-4 mt-2">
+          <div 
+            className="bg-blue-600 h-4 rounded" 
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+        <p className="text-sm mt-1">
+          Processing chunks: {uploadProgress.processed}/{uploadProgress.total} ({percentage}%)
+        </p>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training Dashboard</h1>
@@ -586,6 +645,7 @@ const TrainingDashboard: React.FC = () => {
           </div>
         )}
       </div>
+      {renderUploadProgress()}
     </div>
   );
 };
