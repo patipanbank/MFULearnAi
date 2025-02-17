@@ -59,19 +59,25 @@ export class ChatService {
       console.time('embeddingAndQuery');
       const trimmedQuery = query.trim();
       
-      // Retrieve the embedding from your Titan embed service.
+      // Get the embedding vector for the query.
       const embedding: number[] = await titanEmbedService.embedText(trimmedQuery);
       console.log('Embedding vector:', embedding, 'Dimension:', embedding.length);
       
+      // Verify the embedding is not empty and has the expected dimension.
+      const expectedDimension = 512; // Adjust if your model returns a different dimension.
       if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
         console.warn(`No valid embedding returned for query: "${trimmedQuery}".`);
         return '';
       }
+      if (embedding.length !== expectedDimension) {
+        console.error(`Embedding dimension mismatch. Expected ${expectedDimension}, but got ${embedding.length}.`);
+        return '';
+      }
       
-      // Query the documents collection using only the embedding.
+      // Query the document collection using only the embedding.
       const { documents } = await chromaService.queryDocumentsByEmbedding(collectionName, embedding, 10);
       
-      // Join the document contexts.
+      // Join and return the retrieved document contexts.
       return documents.join('\n\n');
     } catch (error) {
       console.error('Error getting embedded context:', error);
