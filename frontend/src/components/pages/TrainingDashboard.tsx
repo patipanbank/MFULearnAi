@@ -204,28 +204,17 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (isUploading) {
-      console.log('Upload already in progress');
-      return;
-    }
+  const handleFileUpload = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!file || !selectedModel || !selectedCollection) return;
 
-    if (!file || !selectedModel || !selectedCollection) {
-      alert('Please select Model, Collection and file');
-      return;
-    }
-
-    setIsUploading(true);
-    console.log('Starting upload...');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('modelId', selectedModel);
+    formData.append('collectionName', selectedCollection);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('modelId', selectedModel);
-      formData.append('collectionName', selectedCollection);
-
+      setIsUploading(true); // เริ่มอัปโหลด
       const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
         headers: {
@@ -238,20 +227,13 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Upload failed');
       }
 
-      alert('Upload file successfully');
+      await response.json();
       setFile(null);
-      
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-      
-      // Refresh the file overview after a successful upload
-      fetchUploadedFiles();
-      
+      await fetchUploadedFiles();
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload file failed');
     } finally {
-      setIsUploading(false);
+      setIsUploading(false); // เสร็จสิ้นการอัปโหลด
     }
   };
 
@@ -308,12 +290,12 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setFile(files[0]);
-    }
-  };
+  // const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const files = e.target.files;
+  //   if (files && files.length > 0) {
+  //     setFile(files[0]);
+  //   }
+  // };
 
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -505,25 +487,39 @@ const TrainingDashboard: React.FC = () => {
                 <div className="mb-4">
                   <input
                     type="file"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                    id="fileInput"
+                    accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
                     disabled={isUploading}
-                    accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
                   />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('fileInput')?.click()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    disabled={isUploading}
+                  >
+                    Choose File
+                  </button>
+                  {file && <span className="ml-2">{file.name}</span>}
                 </div>
                 <button
                   type="submit"
-                  disabled={!file || isUploading || !selectedModel || !selectedCollection}
-                  className={`px-4 py-2 rounded text-white
-                    ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
-                  `}
+                  disabled={!file || isUploading}
+                  className={`px-4 py-2 rounded text-white ${
+                    !file || isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
-                  {isUploading ? 'Uploading...' : 'Upload'}
+                  {uploadProgress ? (
+                    <span>
+                      {uploadProgress.status === 'started' && 'Starting...'}
+                      {uploadProgress.status === 'processing' && 
+                        `Processing batch ${uploadProgress.current}/${uploadProgress.total}`}
+                      {uploadProgress.status === 'completed' && 'Completed!'}
+                    </span>
+                  ) : (
+                    'Upload'
+                  )}
                 </button>
               </form>
             ) : (
