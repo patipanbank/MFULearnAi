@@ -97,16 +97,13 @@ router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, re
 router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const collections = await Collection.find({}).select('name permission createdBy');
-    res.json(
-      collections.map(collection => ({
-        id: collection._id,
-        name: collection.name,
-        permission: collection.permission,
-        createdBy: collection.createdBy
-      }))
-    );
+    res.json(collections.map(collection => ({
+      name: collection.name,
+      permission: collection.permission,
+      createdBy: collection.createdBy
+    })));
   } catch (error) {
-    console.error('Error fetching collections:', error);
+    console.error('Error:', error);
     res.status(500).json({ error: 'Error fetching collections' });
   }
 });
@@ -248,108 +245,57 @@ router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: R
   }
 });
 
-// =================================================
-// Collection Endpoints (using collection ID consistently)
-// =================================================
-
-// GET /collections - List all collections with ID information
-router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
-  try {
-    const collections = await Collection.find({}).select('name permission createdBy');
-    res.json(
-      collections.map(collection => ({
-        id: collection._id,
-        name: collection.name,
-        permission: collection.permission,
-        createdBy: collection.createdBy
-      }))
-    );
-  } catch (error) {
-    console.error('Error fetching collections:', error);
-    res.status(500).json({ error: 'Error fetching collections' });
-  }
-});
-
-// POST /collections - Create a new collection
+// Create new collection
 router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
   try {
     const { name, permission } = req.body;
-    const user = (req as any).user;
-    
-    // Create the collection. createCollection returns the newly saved document including the _id.
-    const newCollection = await chromaService.createCollection(name, permission, user.nameID);
-    
-    console.log(`Collection created: id: ${newCollection._id}, name: "${newCollection.name}"`);
-    
-    res.status(201).json({
-      message: 'Collection created successfully',
-      collection: {
-        id: newCollection._id,
-        name: newCollection.name,
-        permission: newCollection.permission,
-        createdBy: newCollection.createdBy
-      }
-    });
+    const user = (req as any).user; // จาก roleGuard middleware
+
+    const collection = await chromaService.createCollection(
+      name,
+      permission,
+      user.nameID
+    );
+
+    res.status(201).json({ message: 'Collection created successfully' });
   } catch (error) {
     console.error('Error creating collection:', error);
     res.status(500).json({ error: 'Failed to create collection' });
   }
 });
 
-// PUT /collections/:id - Update (edit) collection details using collection ID
-router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+// Cleanup endpoint
+router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const { name: newName, permission } = req.body;
-    const user = (req as any).user;
-    
-    // Look up the collection using its unique ID
-    const collection = await Collection.findById(id);
-    if (!collection) {
-      res.status(404).json({ error: 'Collection not found' });
-      return;
-    }
-    
-    // Check permission: only Staffs or the owner of the collection can update it
-    if (!user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
-      res.status(403).json({ error: 'Permission denied' });
-      return;
-    }
-    
-    // Update collection details (ID remains unchanged)
-    collection.name = newName;
-    collection.permission = permission;
-    await collection.save();
-    
-    console.log(`Collection updated: id: "${id}", new name: "${newName}", new permission: "${permission}"`);
-    res.json({ message: 'Collection updated successfully' });
+    await chromaService.deleteDocumentsWithoutModelOrCollection();
+    res.status(200).json({ message: 'Cleanup completed successfully' });
   } catch (error) {
-    console.error('Error updating collection:', error);
-    res.status(500).json({ error: 'Failed to update collection' });
+    console.error('Error during cleanup:', error);
+    res.status(500).json({ error: 'Failed to cleanup documents' });
   }
 });
 
-// DELETE /collections/:id - Delete a single collection by its ID
-router.delete('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+// endpoint สำหรับลบ collection
+router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { name } = req.params;
     const user = (req as any).user;
-    
-    // Look up the collection using its unique ID
-    const collection = await Collection.findById(id);
+
+    // ตรวจสอบสิทธิ์ก่อนลบ
+    const collection = await Collection.findOne({ name });
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
     }
-    
-    // Check permission: only Staffs or the owner can delete the collection
+
+    // ตรวจสอบว่าเป็น Staff หรือเจ้าของ collection
     if (!user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
       res.status(403).json({ error: 'Permission denied' });
       return;
     }
-    
-    // Delete the collection using its name in ChromaDB
-    await chromaService.deleteCollection(collection.name);
+
+    // ลบ collection
+    await chromaService.deleteCollection(name);
     res.json({ message: 'Collection deleted successfully' });
   } catch (error) {
     console.error('Error deleting collection:', error);
@@ -357,32 +303,27 @@ router.delete('/collections/:id', roleGuard(['Staffs']), async (req: Request, re
   }
 });
 
-// DELETE /collections - Delete multiple collections using an array of collection IDs
+// endpoint สำหรับลบหลาย collections
 router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
   try {
-    const { collections } = req.body; // expecting an array of collection IDs
+    const { collections } = req.body;
     const user = (req as any).user;
-    
+
     if (!Array.isArray(collections)) {
       res.status(400).json({ error: 'Invalid collections array' });
       return;
     }
-    
-    const collectionNames: string[] = [];
-    for (const id of collections) {
-      const coll = await Collection.findById(id);
-      if (!coll) {
-        res.status(404).json({ error: `Collection not found for id: ${id}` });
+
+    // ตรวจสอบสิทธิ์สำหรับแต่ละ collection
+    for (const name of collections) {
+      const collection = await Collection.findOne({ name });
+      if (collection && !user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
+        res.status(403).json({ error: `Permission denied for collection: ${name}` });
         return;
       }
-      if (!user.groups.includes('Staffs') && coll.createdBy !== user.nameID) {
-        res.status(403).json({ error: `Permission denied for collection with id: ${id}` });
-        return;
-      }
-      collectionNames.push(coll.name);
     }
-    
-    await chromaService.deleteCollections(collectionNames);
+
+    await chromaService.deleteCollections(collections);
     res.json({ message: 'Collections deleted successfully' });
   } catch (error) {
     console.error('Error deleting collections:', error);

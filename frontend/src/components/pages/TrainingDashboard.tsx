@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
-import { FaTrash, FaGlobe, FaFile, FaEdit } from 'react-icons/fa';
+import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
 import { CollectionPermission } from '../../types/collection';
 
 interface CollectionWithMetadata {
@@ -37,11 +37,6 @@ const TrainingDashboard: React.FC = () => {
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  // New states for Collection Editor
-  const [showEditCollectionForm, setShowEditCollectionForm] = useState(false);
-  const [editCollectionName, setEditCollectionName] = useState('');
-  const [editCollectionPermission, setEditCollectionPermission] = useState(CollectionPermission.PRIVATE);
-
   useEffect(() => {
     fetchModels();
     fetchCollections();
@@ -52,7 +47,7 @@ const TrainingDashboard: React.FC = () => {
     if (selectedCollection) {
       fetchUploadedFiles();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCollection]);
 
   const fetchModels = async () => {
@@ -188,53 +183,6 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  // Opens the Collection Editor modal by populating its fields from the selected collection
-  const handleEditCollectionOpen = () => {
-    const collection = collections.find(cs => cs.name === selectedCollection);
-    if (collection) {
-      setEditCollectionName(collection.name);
-      setEditCollectionPermission(collection.permission);
-    } else {
-      setEditCollectionName(selectedCollection);
-      setEditCollectionPermission(CollectionPermission.PRIVATE);
-    }
-    setShowEditCollectionForm(true);
-  };
-
-  // Updates a collection; assumes there's an API endpoint supporting PUT method for updating
-  const handleEditCollection = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(
-        `${config.apiUrl}/api/training/collections/${encodeURIComponent(selectedCollection)}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          },
-          body: JSON.stringify({
-            name: editCollectionName,
-            permission: editCollectionPermission
-          })
-        }
-      );
-      if (!response.ok) {
-        throw new Error('Failed to update collection');
-      }
-      await fetchCollections();
-      console.log(
-        `Collection updated: previous name: "${selectedCollection}", new name: "${editCollectionName}", new permission: "${editCollectionPermission}"`
-      );
-      setSelectedCollection(editCollectionName);
-      setShowEditCollectionForm(false);
-      alert('Collection updated successfully');
-    } catch (error) {
-      console.error('Error updating collection:', error);
-      alert('Error updating collection');
-    }
-  };
-
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -252,10 +200,10 @@ const TrainingDashboard: React.FC = () => {
     console.log('Starting upload...');
 
     try {
-      const controller = new AbortController(); // Create controller for aborting if necessary
+      const controller = new AbortController(); // สร้าง controller สำหรับ abort
       const timeoutId = setTimeout(() => {
         controller.abort();
-      }, 3600000); // timeout 1 hour (3600000 ms)
+      }, 3600000); // timeout 1 ชั่วโมง (3600000 ms)
 
       const formData = new FormData();
       formData.append('file', file);
@@ -268,10 +216,10 @@ const TrainingDashboard: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: formData,
-        signal: controller.signal // use the controller's signal
+        signal: controller.signal // ใช้ signal จาก controller
       });
 
-      clearTimeout(timeoutId); // cancel timeout when response has been received
+      clearTimeout(timeoutId); // ยกเลิก timeout เมื่อได้รับ response
 
       if (!response.ok) {
         throw new Error('Upload failed');
@@ -291,8 +239,11 @@ const TrainingDashboard: React.FC = () => {
       
     } catch (error) {
       console.error('Upload error:', error);
+      // ตรวจสอบว่าเป็น error จาก timeout หรือไม่
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Upload is still processing...');
+        // ไม่แสดง alert error เพราะการอัพโหลดยังดำเนินอยู่
+        // แต่อาจจะแสดงข้อความว่ากำลังประมวลผลแทน
         alert('File is being processed. Please wait...');
       } else {
         alert('Upload file failed');
@@ -318,12 +269,12 @@ const TrainingDashboard: React.FC = () => {
         button.setAttribute('disabled', 'true');
       }
 
-      // Find element that shows chunk count
+      // หา element ที่แสดงจำนวน chunks
       const chunksElement = button?.closest('li')?.querySelector('p:last-child');
       const totalChunks = file.ids.length;
       let deletedChunks = 0;
 
-      // Delete file chunk by chunk and update UI
+      // ลบไฟล์ทีละ chunk และอัพเดทการแสดงผล
       for (const id of file.ids) {
         await fetch(
           `${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`,
@@ -350,7 +301,7 @@ const TrainingDashboard: React.FC = () => {
     } finally {
       const button = document.querySelector(`button[title="Delete File"]`);
       if (button) {
-        button.innerHTML = '<svg>...</svg>'; // FaTrash icon markup placeholder
+        button.innerHTML = '<svg>...</svg>'; // FaTrash icon
         button.removeAttribute('disabled');
       }
     }
@@ -489,22 +440,13 @@ const TrainingDashboard: React.FC = () => {
                 ))}
               </select>
               {selectedCollection && (
-                <>
-                  <button
-                    onClick={handleEditCollectionOpen}
-                    className="mt-1 p-2 text-blue-600 hover:text-blue-800"
-                    title="Edit Collection"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteCollection(selectedCollection)}
-                    className="mt-1 p-2 text-red-600 hover:text-red-800"
-                    title="Delete Collection"
-                  >
-                    <FaTrash />
-                  </button>
-                </>
+                <button
+                  onClick={() => handleDeleteCollection(selectedCollection)}
+                  className="mt-1 p-2 text-red-600 hover:text-red-800"
+                  title="Delete Collection"
+                >
+                  <FaTrash />
+                </button>
               )}
             </div>
           )}
@@ -545,47 +487,6 @@ const TrainingDashboard: React.FC = () => {
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
                   Create
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showEditCollectionForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg">
-              <h2 className="text-xl mb-4">Edit Collection</h2>
-              <input
-                type="text"
-                value={editCollectionName}
-                onChange={(e) => setEditCollectionName(e.target.value)}
-                className="border p-2 rounded w-full mb-4"
-                placeholder="Collection Name"
-              />
-              <div className="mb-4">
-                <label>Collection Permission:</label>
-                <select 
-                  value={editCollectionPermission}
-                  onChange={(e) => setEditCollectionPermission(e.target.value as CollectionPermission)}
-                  className="ml-2 p-2 border rounded"
-                >
-                  <option value={CollectionPermission.PUBLIC}>Public</option>
-                  <option value={CollectionPermission.STAFF_ONLY}>Staff Only</option>
-                  <option value={CollectionPermission.PRIVATE}>Private</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowEditCollectionForm(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleEditCollection}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Save Changes
                 </button>
               </div>
             </div>
