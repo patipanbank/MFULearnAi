@@ -8,6 +8,7 @@ import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
 import iconv from 'iconv-lite';
+import { WebSocket } from 'ws';
 
 const router = Router();
 const upload = multer({ 
@@ -36,21 +37,40 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
 
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
+    const ws = (req as any).ws;
 
     // แปลงชื่อไฟล์เป็น UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
-    console.log(`Processing file: ${filename}`);
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'training_status',
+        data: {
+          status: 'processing',
+          message: `Processing file: ${filename}`,
+          progress: 0
+        }
+      }));
+    }
+
     const text = await documentService.processFile(file);
-    
-    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
-    console.log(`Created ${chunks.length} chunks`);
+
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'training_status',
+        data: {
+          status: 'chunking',
+          message: `Created ${chunks.length} chunks`,
+          progress: 33
+        }
+      }));
+    }
 
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename: filename,
+        filename,
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
@@ -58,17 +78,45 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       }
     }));
 
-    console.log(`Adding documents to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents);
-    
-    res.json({ 
-      message: 'File processed successfully',
-      chunks: chunks.length
-    });
+    // ส่งสถานะการเพิ่มเอกสาร
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'training_status',
+        data: {
+          status: 'adding',
+          message: `Adding documents to collection ${collectionName}`,
+          progress: 66
+        }
+      }));
+    }
 
+    await chromaService.addDocuments(collectionName, documents);
+
+    // ส่งสถานะเสร็จสิ้น
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'training_status',
+        data: {
+          status: 'completed',
+          message: 'Training completed successfully',
+          progress: 100
+        }
+      }));
+    }
+
+    res.json({ message: 'File processed successfully' });
   } catch (error) {
     console.error('Upload error:', error);
-    res.status(500).json({ error: 'Error processing upload' });
+    if ((req as any).ws) {
+      (req as any).ws.send(JSON.stringify({
+        type: 'training_status',
+        data: {
+          status: 'error',
+          message: (error as Error).message
+        }
+      }));
+    }
+    res.status(500).json({ error: 'File processing failed' });
   }
 };
 
@@ -266,27 +314,65 @@ router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, 
   try {
     const { name } = req.params;
     const user = (req as any).user;
+    const ws = (req as any).ws;
 
-    // ตรวจสอบสิทธิ์ก่อนลบ
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'delete_status',
+        data: {
+          status: 'started',
+          message: `Starting deletion of collection ${name}`,
+          progress: 0
+        }
+      }));
+    }
+
+    // ตรวจสอบสิทธิ์
     const collection = await Collection.findOne({ name });
     if (!collection) {
-      res.status(404).json({ error: 'Collection not found' });
-      return;
+      throw new Error('Collection not found');
     }
 
-    // ตรวจสอบว่าเป็น Staff หรือเจ้าของ collection
     if (!user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
-      res.status(403).json({ error: 'Permission denied' });
-      return;
+      throw new Error('Permission denied');
     }
 
-    // ลบ collection และข้อมูลทั้งหมด
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'delete_status',
+        data: {
+          status: 'deleting',
+          message: 'Deleting documents...',
+          progress: 50
+        }
+      }));
+    }
+
     await chromaService.deleteCollection(name);
-    res.json({ 
-      message: 'Collection and all its documents deleted successfully' 
-    });
+
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'delete_status',
+        data: {
+          status: 'completed',
+          message: 'Collection deleted successfully',
+          progress: 100
+        }
+      }));
+    }
+
+    res.json({ message: 'Collection deleted successfully' });
   } catch (error) {
     console.error('Error deleting collection:', error);
+    if ((req as any).ws) {
+      (req as any).ws.send(JSON.stringify({
+        type: 'delete_status',
+        data: {
+          status: 'error',
+          message: (error as Error).message
+        }
+      }));
+    }
     res.status(500).json({ error: 'Failed to delete collection' });
   }
 });

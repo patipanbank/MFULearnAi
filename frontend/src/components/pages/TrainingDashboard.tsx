@@ -17,6 +17,13 @@ interface UploadedFile {
   ids: string[];
 }
 
+// เพิ่ม interface สำหรับสถานะ
+interface StatusState {
+  status: 'idle' | 'processing' | 'chunking' | 'adding' | 'deleting' | 'completed' | 'error';
+  message: string;
+  progress: number;
+}
+
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   // const [loading, setLoading] = useState(false);
@@ -37,24 +44,32 @@ const TrainingDashboard: React.FC = () => {
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  const [uploadProgress, setUploadProgress] = useState<{
-    total: number;
-    current: number;
-    status: 'started' | 'processing' | 'completed';
-    filename: string;
-  } | null>(null);
+  // const [uploadProgress, setUploadProgress] = useState<{
+  //   total: number;
+  //   current: number;
+  //   status: 'started' | 'processing' | 'completed';
+  //   filename: string;
+  // } | null>(null);
+
+  const [status, setStatus] = useState<StatusState>({
+    status: 'idle',
+    message: '',
+    progress: 0
+  });
 
   useEffect(() => {
     fetchModels();
     fetchCollections();
 
-    // เพิ่ม WebSocket listener
     const ws = new WebSocket(config.wsUrl);
     
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.type === 'upload_progress') {
-        setUploadProgress(data.data);
+      if (data.type === 'training_status' || data.type === 'delete_status') {
+        setStatus(data.data);
+        if (data.data.status === 'completed') {
+          fetchCollections(); // รีเฟรชรายการ collections
+        }
       }
     };
 
@@ -371,6 +386,23 @@ const TrainingDashboard: React.FC = () => {
     return `(${permissionMap[permission]})`;
   };
 
+  // แสดงสถานะการทำงาน
+  const renderStatus = () => {
+    if (status.status === 'idle') return null;
+
+    return (
+      <div className="mt-4 p-4 border rounded">
+        <h3 className="font-semibold">{status.message}</h3>
+        <div className="w-full bg-gray-200 rounded h-2 mt-2">
+          <div 
+            className="bg-blue-600 h-2 rounded transition-all duration-500"
+            style={{ width: `${status.progress}%` }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training Dashboard</h1>
@@ -588,23 +620,7 @@ const TrainingDashboard: React.FC = () => {
           </div>
         )}
       </div>
-      {uploadProgress && (
-        <div className="mt-4 p-4 border rounded">
-          <h3 className="font-semibold">Processing: {uploadProgress.filename}</h3>
-          <div className="w-full bg-gray-200 rounded h-2 mt-2">
-            <div 
-              className="bg-blue-600 h-2 rounded"
-              style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
-            />
-          </div>
-          <p className="text-sm mt-2">
-            {uploadProgress.status === 'started' && 'Starting upload...'}
-            {uploadProgress.status === 'processing' && 
-              `Processing batch ${uploadProgress.current}/${uploadProgress.total}`}
-            {uploadProgress.status === 'completed' && 'Upload completed!'}
-          </p>
-        </div>
-      )}
+      {renderStatus()}
     </div>
   );
 };
