@@ -392,7 +392,8 @@ class ChromaService {
       const result = await collection.query({
         queryEmbeddings: [embedding],
         nResults: limit,
-        include: ["documents"]
+        include: ["documents"],
+        minScore: 0
       });
       
       return { documents: result.documents ? (result.documents[0] as string[]) : [] };

@@ -54,12 +54,19 @@ export class ChatService {
 
   private async getContext(query: string, collectionName: string): Promise<string> {
     try {
-      if (!collectionName) return '';
+      if (!collectionName || !query.trim()) return '';
+
+      // Trim the query text.
+      const trimmedQuery = query.trim();
 
       // Get the embedding vector for the query.
-      const embedding = await titanEmbedService.embedText(query);
+      const embedding = await titanEmbedService.embedText(trimmedQuery);
+      if (!embedding || embedding.length === 0) {
+        console.warn('Empty embedding received for query:', trimmedQuery);
+        return '';
+      }
+      
       // Use a vector search on the documents collection.
-      // (Make sure that `queryDocumentsByEmbedding` is implemented on your Chroma service.)
       const results = await chromaService.queryDocumentsByEmbedding(collectionName, embedding, 10);
       return results.documents.join('\n\n');
     } catch (error) {
