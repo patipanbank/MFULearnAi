@@ -97,13 +97,21 @@ class ChromaService {
         const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
         const texts = batch.map(doc => doc.text);
         
-        // Generate embeddings for each document
-        const embeddings = await Promise.all(batch.map(doc => titanEmbedService.embedText(doc.text)));
+        // Generate embeddings and validate dimensions.
+        const embeddings = await Promise.all(
+          batch.map(async (doc, idx) => {
+            const embedding = await titanEmbedService.embedText(doc.text);
+            const expectedDim = 512; // Adjust if your model uses a different dimension.
+            if (!embedding || embedding.length !== expectedDim) {
+              throw new Error(`Invalid embedding dimension for document at index ${idx}. Expected ${expectedDim}, but got ${embedding ? embedding.length : 'none'}.`);
+            }
+            return embedding;
+          })
+        );
         
         const metadatas = batch.map(doc => doc.metadata);
 
-        // Log lengths for debugging
-        console.log('IDs:', ids.length, 'Texts:', texts.length, 'Embeddings:', embeddings.length, 'Metadatas:', metadatas.length);
+        console.log('Payload lengths:', ids.length, texts.length, embeddings.length, metadatas.length);
         
         // Ensure all lengths match before adding
         if (ids.length !== texts.length || texts.length !== embeddings.length || embeddings.length !== metadatas.length) {
