@@ -54,29 +54,36 @@ export class ChatService {
 
   private async getContext(query: string, collectionName: string): Promise<string> {
     try {
+      // Validate inputs.
       if (!collectionName || !query.trim()) return '';
 
-      // Trim the query text.
-      const trimmedQuery = query.trim();
+      // Start a timer to track performance (optional).
+      console.time('embeddingAndQuery');
 
+      // Use the trimmed query for embedding.
+      const trimmedQuery = query.trim();
+      
       // Get the embedding vector for the query.
-      const embedding = await titanEmbedService.embedText(trimmedQuery);
-      console.log("Embedding vector:", embedding, "dimension:", embedding.length);
-      if (!embedding || embedding.length === 0) {
-        console.warn("Empty embedding received for query:", trimmedQuery);
+      const embedding: number[] = await titanEmbedService.embedText(trimmedQuery);
+      console.log('Embedding vector:', embedding, 'Dimension:', embedding.length);
+      
+      // Verify that the embedding is valid.
+      if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
+        console.warn(`No valid embedding returned for query: "${trimmedQuery}".`);
         return '';
       }
+
+      // Query the documents collection using queryEmbeddings only.
+      // Ensure that you are not mixing in any alternative query parameters.
+      const { documents } = await chromaService.queryDocumentsByEmbedding(collectionName, embedding, 10);
       
-      // Use a vector search on the documents collection.
-      const results = await chromaService.queryDocumentsByEmbedding(collectionName, embedding, 10);
-      return results.documents.join('\n\n');
+      // Join and return the retrieved document contexts.
+      return documents.join('\n\n');
     } catch (error) {
       console.error('Error getting embedded context:', error);
       return '';
     } finally {
-      if (process.env.NODE_ENV !== 'production') {
-        console.timeEnd('operation');
-      }
+      console.timeEnd('embeddingAndQuery');
     }
   }
 }
