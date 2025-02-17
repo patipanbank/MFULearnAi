@@ -368,6 +368,41 @@ class ChromaService {
       throw error;
     }
   }
+
+  /**
+   * Queries documents by embedding using a vector search.
+   *
+   * @param collectionName - The name of the collection to search.
+   * @param embedding - The embedding vector.
+   * @param limit - The number of results to return.
+   * @returns An object with a "documents" field which is an array of strings.
+   */
+  async queryDocumentsByEmbedding(
+    collectionName: string,
+    embedding: number[],
+    limit: number
+  ): Promise<{ documents: string[] }> {
+    try {
+      // Reuse existing collection if available, otherwise get or create it.
+      let collection = this.collections.get(collectionName);
+      if (!collection) {
+        collection = await this.client.getOrCreateCollection({ name: collectionName });
+        this.collections.set(collectionName, collection);
+      }
+      
+      // Perform the query
+      const result = await collection.query({
+        queryEmbedding: embedding,
+        topK: limit,
+        includeDocuments: true,
+      });
+      
+      return { documents: result.documents as string[] };
+    } catch (error) {
+      console.error("Error in queryDocumentsByEmbedding:", error);
+      throw error;
+    }
+  }
 }
 
 export const chromaService = new ChromaService(); 
