@@ -46,7 +46,11 @@ class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documents: Array<{text: string, metadata: any}>): Promise<void> {
+  async addDocuments(
+    collectionName: string, 
+    documents: Array<{text: string, metadata: any}>,
+    progressCallback?: (progress: { message: string, batch: number, totalBatches: number }) => void
+  ): Promise<void> {
     const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
     
     if (this.processingFiles.has(fileKey)) {
@@ -98,7 +102,13 @@ class ChromaService {
       // เพิ่มข้อมูลทีละ batch
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
-        console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+        const progressMessage = `Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`;
+        console.log(progressMessage);
+        progressCallback?.({
+          message: progressMessage,
+          batch: i + 1,
+          totalBatches: batches.length
+        });
         
         const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
         const texts = batch.map(doc => doc.text);
@@ -116,7 +126,11 @@ class ChromaService {
         }
       }
       
-      console.log('Documents added successfully');
+      progressCallback?.({
+        message: 'Documents added successfully',
+        batch: batches.length,
+        totalBatches: batches.length
+      });
     } finally {
       this.processingFiles.delete(fileKey);
     }

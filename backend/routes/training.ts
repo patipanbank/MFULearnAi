@@ -106,6 +106,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
+    const ws = (req as any).ws;
 
     // ตรวจสอบและสร้าง collection ถ้ายังไม่มี
     await chromaService.ensureCollectionExists(collectionName, user);
@@ -119,12 +120,12 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     // แปลงชื่อไฟล์เป็น UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
-    console.log(`Processing file: ${filename}`);
+    ws?.send(JSON.stringify({ type: 'training_progress', message: `Processing file: ${filename}` }));
     const text = await documentService.processFile(file);
     
-    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
+    ws?.send(JSON.stringify({ type: 'training_progress', message: `Text length (${text.length}) exceeds chunk size (2000), splitting into chunks` }));
     const chunks = splitTextIntoChunks(text);
-    console.log(`Created ${chunks.length} chunks`);
+    ws?.send(JSON.stringify({ type: 'training_progress', message: `Created ${chunks.length} chunks` }));
 
     const documents = chunks.map(chunk => ({
       text: chunk,
@@ -137,8 +138,10 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
       }
     }));
 
-    console.log(`Adding documents to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents);
+    ws?.send(JSON.stringify({ type: 'training_progress', message: `Adding documents to collection ${collectionName}` }));
+    await chromaService.addDocuments(collectionName, documents, (progress) => {
+      ws?.send(JSON.stringify({ type: 'training_progress', ...progress }));
+    });
     
     res.json({ 
       message: 'File processed successfully',

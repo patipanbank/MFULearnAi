@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
 import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
 import { CollectionPermission } from '../../types/collection';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 interface CollectionWithMetadata {
   name: string;
@@ -36,6 +37,10 @@ const TrainingDashboard: React.FC = () => {
 
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [trainingProgress, setTrainingProgress] = useState<string[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  
+  const ws = useWebSocket();
 
   useEffect(() => {
     fetchModels();
@@ -49,6 +54,22 @@ const TrainingDashboard: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCollection]);
+
+  useEffect(() => {
+    if (ws) {
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'training_progress') {
+          if (data.message) {
+            setTrainingProgress(prev => [...prev, data.message]);
+          }
+          if (data.batch && data.totalBatches) {
+            setUploadProgress({ current: data.batch, total: data.totalBatches });
+          }
+        }
+      };
+    }
+  }, [ws]);
 
   const fetchModels = async () => {
     try {
@@ -183,8 +204,14 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  const resetProgress = () => {
+    setTrainingProgress([]);
+    setUploadProgress(null);
+  };
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    resetProgress();
     
     if (isUploading) {
       console.log('Upload already in progress');
@@ -558,6 +585,32 @@ const TrainingDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {(trainingProgress.length > 0 || uploadProgress) && (
+        <div className="mt-4 p-4 border rounded bg-gray-50 dark:bg-gray-800">
+          <h3 className="text-lg font-semibold mb-2">Upload Progress</h3>
+          
+          {uploadProgress && (
+            <div className="mb-4">
+              <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                <div 
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                ></div>
+              </div>
+              <p className="text-sm mt-1 text-gray-600 dark:text-gray-400">
+                {uploadProgress.current} / {uploadProgress.total} batches
+              </p>
+            </div>
+          )}
+          
+          <div className="max-h-40 overflow-y-auto text-sm">
+            {trainingProgress.map((message, index) => (
+              <p key={index} className="text-gray-600 dark:text-gray-400">{message}</p>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
