@@ -44,17 +44,35 @@ const TrainingDashboard: React.FC = () => {
     filename: string;
   } | null>(null);
 
+  const [deleteProgress, setDeleteProgress] = useState<{
+    status: 'started' | 'deleting_documents' | 'completed' | 'error';
+    collection: string;
+    total?: number;
+    error?: string;
+  } | null>(null);
+
   useEffect(() => {
     fetchModels();
     fetchCollections();
 
-    // เพิ่ม WebSocket listener
     const ws = new WebSocket(config.wsUrl);
     
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'upload_progress') {
-        setUploadProgress(data.data);
+        setUploadProgress({
+          total: data.total,
+          current: data.current,
+          status: data.status,
+          filename: data.filename
+        });
+      } else if (data.type === 'delete_progress') {
+        setDeleteProgress({
+          status: data.status,
+          collection: data.collection,
+          total: data.total,
+          error: data.error
+        });
       }
     };
 
@@ -602,6 +620,27 @@ const TrainingDashboard: React.FC = () => {
             {uploadProgress.status === 'processing' && 
               `Processing batch ${uploadProgress.current}/${uploadProgress.total}`}
             {uploadProgress.status === 'completed' && 'Upload completed!'}
+            {/* {uploadProgress.status === 'error' && 'Error occurred during upload'} */}
+          </p>
+        </div>
+      )}
+
+      {deleteProgress && (
+        <div className="mt-4 p-4 border rounded">
+          <h3 className="font-semibold">Deleting: {deleteProgress.collection}</h3>
+          {deleteProgress.total && (
+            <div className="w-full bg-gray-200 rounded h-2 mt-2">
+              <div 
+                className="bg-red-600 h-2 rounded"
+                style={{ width: '100%' }}
+              />
+            </div>
+          )}
+          <p className="text-sm mt-2">
+            {deleteProgress.status === 'started' && 'Starting deletion...'}
+            {deleteProgress.status === 'deleting_documents' && 'Deleting documents...'}
+            {deleteProgress.status === 'completed' && 'Deletion completed!'}
+            {deleteProgress.status === 'error' && `Error: ${deleteProgress.error}`}
           </p>
         </div>
       )}

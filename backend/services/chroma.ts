@@ -1,6 +1,7 @@
 import { ChromaClient } from 'chromadb';
 import { Collection } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
+import { wsClients } from '../server';
 
 interface DocumentMetadata {
   filename: string;
@@ -88,35 +89,37 @@ class ChromaService {
         return;
       }
 
-      // แบ่ง chunks เป็น batches ขนาด 100 chunks ต่อ batch
-      const BATCH_SIZE = 100;
-      const batches = [];
-      for (let i = 0; i < docsWithBatchId.length; i += BATCH_SIZE) {
-        batches.push(docsWithBatchId.slice(i, i + BATCH_SIZE));
-      }
+      const totalChunks = documents.length;
+      let processedChunks = 0;
 
-      // เพิ่มข้อมูลทีละ batch
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      // แบ่งเป็น batches
+      for (let i = 0; i < documents.length; i += 100) {
+        const batch = documents.slice(i, i + 100);
         
-        const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
-        const texts = batch.map(doc => doc.text);
-        const metadatas = batch.map(doc => doc.metadata);
-
-        await collection.add({
-          ids,
-          documents: texts,
-          metadatas
+        this.broadcastProgress({
+          type: 'upload_progress',
+          status: 'processing',
+          filename: documents[0].metadata.filename,
+          current: processedChunks,
+          total: totalChunks
         });
 
-        // เพิ่ม delay เล็กน้อยระหว่าง batches เพื่อให้ระบบได้พัก
-        if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        // Process batch
+        await collection.add({
+          ids: batch.map(doc => `${batchId}_${processedChunks++}`),
+          documents: batch.map(doc => doc.text),
+          metadatas: batch.map(doc => doc.metadata)
+        });
       }
-      
-      console.log('Documents added successfully');
+
+      this.broadcastProgress({
+        type: 'upload_progress',
+        status: 'completed',
+        filename: documents[0].metadata.filename,
+        current: totalChunks,
+        total: totalChunks
+      });
+
     } finally {
       this.processingFiles.delete(fileKey);
     }
@@ -235,29 +238,52 @@ class ChromaService {
 
   async deleteCollection(collectionName: string): Promise<void> {
     try {
+      this.broadcastProgress({
+        type: 'delete_progress',
+        status: 'started',
+        collection: collectionName
+      });
+
       // ลบข้อมูลทั้งหมดใน collection ก่อน
       const collection = this.collections.get(collectionName);
       if (collection) {
         const results = await collection.get();
         if (results && results.ids && results.ids.length > 0) {
+          this.broadcastProgress({
+            type: 'delete_progress',
+            status: 'deleting_documents',
+            collection: collectionName,
+            total: results.ids.length
+          });
+
           await collection.delete({
             ids: results.ids
           });
         }
       }
-  
+
       // ลบ collection จาก ChromaDB
       await this.client.deleteCollection({
         name: collectionName
       });
       this.collections.delete(collectionName);
-  
+
       // ลบจาก MongoDB
       await Collection.deleteOne({ name: collectionName });
       
-      console.log(`Collection ${collectionName} and all its documents deleted successfully`);
+      this.broadcastProgress({
+        type: 'delete_progress',
+        status: 'completed',
+        collection: collectionName
+      });
+
     } catch (error) {
-      console.error(`Error deleting collection ${collectionName}:`, error);
+      this.broadcastProgress({
+        type: 'delete_progress',
+        status: 'error',
+        collection: collectionName,
+        error: (error as Error).message
+      });
       throw error;
     }
   }
@@ -364,6 +390,14 @@ class ChromaService {
       console.error('Error ensuring collection exists:', error);
       throw error;
     }
+  }
+
+  private broadcastProgress(data: any) {
+    wsClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(data));
+      }
+    });
   }
 }
 

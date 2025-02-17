@@ -11,8 +11,12 @@ import trainingRoutes from './routes/training';
 import chatRoutes from './routes/chat';
 import bodyParser from 'body-parser';
 import compression from 'compression';
+import { WebSocketServer } from 'ws';
+import http from 'http';
 
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 
 // Connect to MongoDB
 connectDB();
@@ -74,7 +78,26 @@ app.use((req, res, next) => {
   }
 });
 
+// เก็บ WebSocket connections
+export const wsClients = new Set<WebSocket>();
+
+wss.on('connection', (ws) => {
+  console.log('Client connected to WebSocket');
+  wsClients.add(ws as any);
+
+  ws.on('close', () => {
+    console.log('Client disconnected from WebSocket');
+    wsClients.delete(ws as any);
+  });
+});
+
 const PORT = process.env.PORT || 5000;
+const WS_PORT = process.env.WS_PORT || 5001;
+
+server.listen(WS_PORT, () => {
+  console.log(`WebSocket server running on port ${WS_PORT}`);
+});
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`HTTP server running on port ${PORT}`);
 }); 
