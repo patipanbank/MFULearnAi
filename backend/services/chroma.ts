@@ -236,22 +236,25 @@ class ChromaService {
   async deleteCollection(collectionName: string): Promise<void> {
     try {
       // ลบข้อมูลทั้งหมดใน collection ก่อน
+      await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       if (collection) {
         const results = await collection.get();
         if (results && results.ids && results.ids.length > 0) {
+          // ลบ chunks ทั้งหมด
           await collection.delete({
             ids: results.ids
           });
+          console.log(`Deleted ${results.ids.length} chunks from collection ${collectionName}`);
         }
       }
-  
+
       // ลบ collection จาก ChromaDB
       await this.client.deleteCollection({
         name: collectionName
       });
       this.collections.delete(collectionName);
-  
+
       // ลบจาก MongoDB
       await Collection.deleteOne({ name: collectionName });
       
