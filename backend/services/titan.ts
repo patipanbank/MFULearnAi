@@ -45,7 +45,7 @@ export class TitanEmbedService {
       if (!response.body) {
         throw new Error("Empty response body");
       }
-      // Convert the streaming response body into a string
+      // Use async iteration to convert the streaming response body into a string.
       const responseText = await this.streamToString(response.body);
       console.log("Titan embedding response:", responseText);
       const result = JSON.parse(responseText);
@@ -60,15 +60,14 @@ export class TitanEmbedService {
   }
 
   /**
-   * Helper function to convert a stream into a string.
+   * Helper function to convert an async iterable stream into a string.
    */
-  private streamToString(stream: any): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-      stream.on("error", reject);
-      stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    });
+  private async streamToString(stream: any): Promise<string> {
+    let result = "";
+    for await (const chunk of stream) {
+      result += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+    }
+    return result;
   }
 }
 
