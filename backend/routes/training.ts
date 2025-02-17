@@ -59,7 +59,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     }));
 
     console.log(`Adding documents to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents, user.nameID);
+    await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
       message: 'File processed successfully',
@@ -138,7 +138,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     }));
 
     console.log(`Adding documents to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents, user.nameID);
+    await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
       message: 'File processed successfully',
@@ -347,7 +347,7 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
         }
       }));
 
-      await chromaService.addDocuments(collectionName, documents, user.nameID);
+      await chromaService.addDocuments(collectionName, documents);
     }
 
     res.json({ 
