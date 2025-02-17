@@ -129,12 +129,17 @@ class ChromaService {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
-      
+
+      // Explicitly embed the query text using the TitanEmbedService
+      const queryEmbedding = await this.titanEmbedService.embedText(query);
+
+      // Use the embedded query vector for the similarity search
       const results = await collection.query({
-        queryTexts: [query],
+        queryEmbeddings: [queryEmbedding],
         nResults: n_results,
         where: { processed: true }
       });
+
       return results;
     } catch (error) {
       console.error('Error querying ChromaDB:', error);
