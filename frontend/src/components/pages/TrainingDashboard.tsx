@@ -237,26 +237,50 @@ const TrainingDashboard: React.FC = () => {
   // New function to delete an entire file.
   // It sends a DELETE request for each document chunk associated with the file.
   const handleDeleteFile = async (file: UploadedFile) => {
-    if (!window.confirm(`Are you sure you want to delete file "${file.filename}"? This will delete all its chunks.`)) {
+    if (!selectedCollection) return;
+
+    // เพิ่มการยืนยันก่อนลบ
+    if (!window.confirm(`Are you sure you want to delete "${decodeURIComponent(file.filename)}"?`)) {
       return;
     }
+
     try {
-      for (const id of file.ids) {
-        const response = await fetch(`${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to delete one of the file chunks');
-        }
+      // แสดง loading state
+      const button = document.querySelector(`button[title="Delete File"]`);
+      if (button) {
+        button.innerHTML = '<span class="animate-spin">⌛</span>';
+        button.setAttribute('disabled', 'true');
       }
-      alert(`File "${file.filename}" deleted successfully.`);
-      fetchUploadedFiles();
+
+      // ลบไฟล์ทีละ chunk
+      for (const id of file.ids) {
+        await fetch(
+          `${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            }
+          }
+        );
+      }
+
+      // อัพเดทรายการไฟล์
+      await fetchUploadedFiles();
+      
+      // แจ้งเตือนเมื่อลบเสร็จ
+      alert(`Delete file "${decodeURIComponent(file.filename)}" successfully`);
+
     } catch (error) {
       console.error('Error deleting file:', error);
       alert('Error deleting file');
+    } finally {
+      // คืนค่า button กลับเป็นปกติ
+      const button = document.querySelector(`button[title="Delete File"]`);
+      if (button) {
+        button.innerHTML = '<svg>...</svg>'; // FaTrash icon
+        button.removeAttribute('disabled');
+      }
     }
   };
 
