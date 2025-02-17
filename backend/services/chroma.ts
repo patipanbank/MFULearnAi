@@ -383,7 +383,6 @@ class ChromaService {
     limit: number
   ): Promise<{ documents: string[] }> {
     try {
-      console.time('operation');
       let collection = this.collections.get(collectionName);
       if (!collection) {
         collection = await this.client.getOrCreateCollection({ name: collectionName });
@@ -391,12 +390,11 @@ class ChromaService {
       }
       
       const result = await collection.query({
-        query_embeddings: [embedding],
-        n_results: limit,
+        queryEmbeddings: [embedding],
+        nResults: limit,
         include: ["documents"]
       });
       
-      console.timeEnd('operation');
       return { documents: result.documents ? (result.documents[0] as string[]) : [] };
     } catch (error) {
       console.error("Error in queryDocumentsByEmbedding:", error);
