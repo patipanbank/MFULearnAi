@@ -383,21 +383,20 @@ class ChromaService {
     limit: number
   ): Promise<{ documents: string[] }> {
     try {
-      // Reuse existing collection if available, otherwise get or create it.
       let collection = this.collections.get(collectionName);
       if (!collection) {
         collection = await this.client.getOrCreateCollection({ name: collectionName });
         this.collections.set(collectionName, collection);
       }
-      
-      // Perform the query
+      // Wrap the embedding in an array and use "queryEmbeddings".
       const result = await collection.query({
-        queryEmbedding: embedding,
+        queryEmbeddings: [embedding],
         topK: limit,
         includeDocuments: true,
       });
       
-      return { documents: result.documents as string[] };
+      // Returned documents are expected to be in the first slot.
+      return { documents: result.documents ? (result.documents[0] as string[]) : [] };
     } catch (error) {
       console.error("Error in queryDocumentsByEmbedding:", error);
       throw error;
