@@ -66,7 +66,10 @@ class ChromaService {
       const docsWithBatchId = documents.map(doc => ({
         ...doc,
         metadata: {
-          ...doc.metadata,
+          ...(() => {
+            const { embedding, ...rest } = doc.metadata;
+            return rest;
+          })(),
           batchId
         }
       }));
@@ -109,7 +112,11 @@ class ChromaService {
           })
         );
         
-        const metadatas = batch.map(doc => doc.metadata);
+        // Remove any residual 'embedding' field from metadata.
+        const metadatas = batch.map(doc => {
+          const { embedding, ...otherMeta } = doc.metadata;
+          return otherMeta;
+        });
 
         console.log('Payload lengths:', ids.length, texts.length, embeddings.length, metadatas.length);
         
