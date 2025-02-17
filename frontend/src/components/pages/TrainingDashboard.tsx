@@ -37,9 +37,6 @@ const TrainingDashboard: React.FC = () => {
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  // New state to hold the upload progress
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-
   useEffect(() => {
     fetchModels();
     fetchCollections();
@@ -188,42 +185,52 @@ const TrainingDashboard: React.FC = () => {
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !selectedModel || !selectedCollection) return;
+    
+    if (isUploading) {
+      console.log('Upload already in progress');
+      return;
+    }
+
+    if (!file || !selectedModel || !selectedCollection) {
+      alert('Please select Model, Collection and file');
+      return;
+    }
+
+    setIsUploading(true);
+    console.log('Starting upload...');
 
     try {
-      setIsUploading(true);
-      setUploadProgress(0);
-      
       const formData = new FormData();
       formData.append('file', file);
       formData.append('modelId', selectedModel);
       formData.append('collectionName', selectedCollection);
 
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${config.apiUrl}/api/training/documents`);
-        xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('auth_token')}`);
-        
-        xhr.upload.onprogress = (event) => {
-          const percent = (event.loaded / event.total) * 100;
-          setUploadProgress(Math.round(percent));
-        };
-        
-        xhr.onload = () => resolve(xhr.response);
-        xhr.onerror = () => reject(xhr.statusText);
-        xhr.send(formData);
+      const response = await fetch(`${config.apiUrl}/api/training/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: formData
       });
 
-      setFile(null);
-      await fetchUploadedFiles();
-      alert('อัปโหลดไฟล์เสร็จสมบูรณ์');
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
 
+      alert('Upload file successfully');
+      setFile(null);
+      
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      
+      // Refresh the file overview after a successful upload
+      fetchUploadedFiles();
+      
     } catch (error) {
       console.error('Upload error:', error);
-      alert('เกิดข้อผิดพลาดในการอัปโหลดไฟล์');
+      alert('Upload file failed');
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -507,20 +514,6 @@ const TrainingDashboard: React.FC = () => {
                     disabled={isUploading}
                     accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
                   />
-                  {/* เพิ่ม Progress Bar */}
-                  {isUploading && (
-                    <div className="mt-2">
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                        <div 
-                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadProgress}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1 text-center">
-                        {uploadProgress}% Completed
-                      </p>
-                    </div>
-                  )}
                 </div>
                 <button
                   type="submit"
@@ -529,7 +522,7 @@ const TrainingDashboard: React.FC = () => {
                     ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
                   `}
                 >
-                  {isUploading ? `Uploading... ${uploadProgress}%` : 'Upload'}
+                  {isUploading ? 'Uploading...' : 'Upload'}
                 </button>
               </form>
             ) : (
