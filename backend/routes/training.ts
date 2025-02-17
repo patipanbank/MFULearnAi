@@ -50,20 +50,22 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     console.log(`Created ${chunks.length} chunks`);
 
     // For each chunk, compute its embedding using TitanEmbedService
-    const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(chunks.map(async chunk => {
-      const embedding: number[] = await titanEmbedService.embedText(chunk);
-      return {
-        text: chunk,
-        metadata: {
-          filename: filename,
-          uploadedBy: user.username,
-          timestamp: new Date().toISOString(),
-          modelId,
-          collectionName
-        },
-        embedding
-      };
-    }));
+    const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(
+      chunks.map(async (chunk) => {
+        const embedResult = await titanEmbedService.embedText(chunk);
+        return {
+          text: chunk,
+          metadata: {
+            filename,
+            uploadedBy: user.username,
+            timestamp: new Date().toISOString(),
+            modelId,
+            collectionName
+          },
+          embedding: embedResult
+        };
+      })
+    );
 
     console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
@@ -132,20 +134,22 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     const chunks = splitTextIntoChunks(text);
     console.log(`Created ${chunks.length} chunks`);
 
-    const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(chunks.map(async chunk => {
-      const embedding: number[] = await titanEmbedService.embedText(chunk);
-      return {
-        text: chunk,
-        metadata: {
-          filename: filename,
-          uploadedBy: user.username,
-          timestamp: new Date().toISOString(),
-          modelId,
-          collectionName
-        },
-        embedding
-      };
-    }));
+    const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(
+      chunks.map(async (chunk) => {
+        const embedResult = await titanEmbedService.embedText(chunk);
+        return {
+          text: chunk,
+          metadata: {
+            filename,
+            uploadedBy: user.username,
+            timestamp: new Date().toISOString(),
+            modelId,
+            collectionName
+          },
+          embedding: embedResult
+        };
+      })
+    );
 
     console.log(`Adding documents with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
@@ -345,18 +349,23 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       // สร้าง filename จาก URL
       const filename = new URL(url).hostname + new URL(url).pathname;
       
-      const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(chunks.map(async (chunk) => ({
-        text: chunk,
-        metadata: {
-          filename: filename,
-          source: url,
-          uploadedBy: user.username,
-          timestamp: new Date().toISOString(),
-          modelId,
-          collectionName
-        },
-        embedding: await titanEmbedService.embedText(chunk)
-      })));
+      const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(
+        chunks.map(async (chunk) => {
+          const embedResult = await titanEmbedService.embedText(chunk);
+          return {
+            text: chunk,
+            metadata: {
+              filename: filename,
+              source: url,
+              uploadedBy: user.username,
+              timestamp: new Date().toISOString(),
+              modelId,
+              collectionName
+            },
+            embedding: embedResult
+          };
+        })
+      );
 
       await chromaService.addDocuments(collectionName, documents);
     }
