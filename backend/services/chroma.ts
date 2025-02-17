@@ -128,7 +128,8 @@ class ChromaService {
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
         queryTexts: [query],
-        nResults: n_results
+        nResults: n_results,
+        where: { processed: true }
       });
       return results;
     } catch (error) {
