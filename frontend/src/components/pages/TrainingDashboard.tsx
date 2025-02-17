@@ -388,7 +388,7 @@ const TrainingDashboard: React.FC = () => {
                 {getFilteredCollections().map(collection => (
                   <option key={collection.name} value={collection.name}>
                     {collection.name} 
-                    {collection.permission !== CollectionPermission.PUBLIC && ' (Restricted)'}
+                    {collection.permission && ` (${collection.permission})`}
                   </option>
                 ))}
               </select>
