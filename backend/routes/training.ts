@@ -393,15 +393,15 @@ router.delete('/documents/all/:collectionName', roleGuard(['Staffs']), async (re
   }
 });
 
-// Endpoint to update (edit) collection details
-router.put('/collections/:name', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+// Endpoint to update (edit) collection details using collection ID instead of name
+router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response) => {
   try {
-    const { name } = req.params;
+    const { id } = req.params;
     const { name: newName, permission } = req.body;
     const user = (req as any).user;
 
-    // Look up the collection by the old name
-    const collection = await Collection.findOne({ name });
+    // Look up the collection using its ID
+    const collection = await Collection.findById(id);
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -413,7 +413,7 @@ router.put('/collections/:name', roleGuard(['Staffs']), async (req: Request, res
       return;
     }
 
-    // Update collection details in the database (This may vary depending on your schema)
+    // Update collection details (updating the name won't affect the identity)
     collection.name = newName;
     collection.permission = permission;
     await collection.save();
