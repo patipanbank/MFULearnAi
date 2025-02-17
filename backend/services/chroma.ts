@@ -389,10 +389,11 @@ class ChromaService {
         this.collections.set(collectionName, collection);
       }
       
-      // Build the payload with only `query_embeddings`.
-      const payload: Record<string, any> = {
-        query_embeddings: [embedding],
-        n_results: limit,
+      // Build the payload using camelCase keys.
+      const payload = {
+        // Supply only queryEmbeddings, not queryTexts.
+        queryEmbeddings: [embedding],
+        nResults: limit,
         include: ["documents"]
       };
       
@@ -400,7 +401,7 @@ class ChromaService {
       
       const result = await collection.query(payload);
       
-      // Expecting result.documents to be an array of arrays; use the first element.
+      // The returned documents are usually in an array at index 0.
       return { documents: result.documents ? (result.documents[0] as string[]) : [] };
     } catch (error) {
       console.error("Error in queryDocumentsByEmbedding:", error);
