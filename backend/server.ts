@@ -11,7 +11,6 @@ import trainingRoutes from './routes/training';
 import chatRoutes from './routes/chat';
 import bodyParser from 'body-parser';
 import compression from 'compression';
-import { WebSocket, WebSocketServer } from 'ws';
 
 const app = express();
 
@@ -73,18 +72,6 @@ app.use((req, res, next) => {
   } else {
     compression()(req, res, next);
   }
-});
-
-const wss = new WebSocketServer({ port: Number(process.env.WS_PORT) || 5001 });
-
-wss.on('connection', (ws: WebSocket) => {
-  console.log('Client connected');
-  
-  // เพิ่ม middleware เพื่อแนบ ws กับ request
-  app.use((req: any, res, next) => {
-    req.ws = ws;
-    next();
-  });
 });
 
 const PORT = process.env.PORT || 5000;

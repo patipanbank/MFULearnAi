@@ -8,7 +8,6 @@ import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
 import iconv from 'iconv-lite';
-import { WebSocket } from 'ws';
 
 const router = Router();
 const upload = multer({ 
@@ -28,7 +27,6 @@ const upload = multer({
 });
 
 const uploadHandler = async (req: Request, res: Response): Promise<void> => {
-  const ws = (req as any).ws;
   try {
     const file = req.file;
     if (!file) {
@@ -42,47 +40,17 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     // แปลงชื่อไฟล์เป็น UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'training_status',
-        data: {
-          status: 'processing',
-          message: `Processing file: ${filename}`,
-          progress: 0
-        }
-      }));
-    }
-
+    console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
     
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'training_status',
-        data: {
-          status: 'processing',
-          message: `Processing text: ${text.length} characters`,
-          progress: 20
-        }
-      }));
-    }
-
+    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
-
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'training_status',
-        data: {
-          status: 'chunking',
-          message: `Created ${chunks.length} chunks`,
-          progress: 40
-        }
-      }));
-    }
+    console.log(`Created ${chunks.length} chunks`);
 
     const documents = chunks.map(chunk => ({
       text: chunk,
       metadata: {
-        filename,
+        filename: filename,
         uploadedBy: user.username,
         timestamp: new Date().toISOString(),
         modelId,
@@ -90,54 +58,17 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
       }
     }));
 
-    // แบ่ง documents เป็น batches
-    const batchSize = 100;
-    const batches = [];
-    for (let i = 0; i < documents.length; i += batchSize) {
-      batches.push(documents.slice(i, i + batchSize));
-    }
+    console.log(`Adding documents to collection ${collectionName}`);
+    await chromaService.addDocuments(collectionName, documents);
+    
+    res.json({ 
+      message: 'File processed successfully',
+      chunks: chunks.length
+    });
 
-    // ประมวลผลทีละ batch และส่งสถานะ
-    for (let i = 0; i < batches.length; i++) {
-      if (ws) {
-        const progress = 40 + ((i + 1) / batches.length * 60); // progress 40-100%
-        ws.send(JSON.stringify({
-          type: 'training_status',
-          data: {
-            status: 'adding',
-            message: `Processing batch ${i + 1}/${batches.length} (${batches[i].length} documents)`,
-            progress: Math.round(progress)
-          }
-        }));
-      }
-      await chromaService.addDocuments(collectionName, batches[i]);
-    }
-
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'training_status',
-        data: {
-          status: 'completed',
-          message: `Successfully processed ${documents.length} documents`,
-          progress: 100
-        }
-      }));
-    }
-
-    res.json({ message: 'File processed successfully' });
   } catch (error) {
     console.error('Upload error:', error);
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'training_status',
-        data: {
-          status: 'error',
-          message: (error as Error).message,
-          progress: 0
-        }
-      }));
-    }
-    res.status(500).json({ error: 'File processing failed' });
+    res.status(500).json({ error: 'Error processing upload' });
   }
 };
 
@@ -335,65 +266,27 @@ router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, 
   try {
     const { name } = req.params;
     const user = (req as any).user;
-    const ws = (req as any).ws;
 
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'delete_status',
-        data: {
-          status: 'started',
-          message: `Starting deletion of collection ${name}`,
-          progress: 0
-        }
-      }));
-    }
-
-    // ตรวจสอบสิทธิ์
+    // ตรวจสอบสิทธิ์ก่อนลบ
     const collection = await Collection.findOne({ name });
     if (!collection) {
-      throw new Error('Collection not found');
+      res.status(404).json({ error: 'Collection not found' });
+      return;
     }
 
+    // ตรวจสอบว่าเป็น Staff หรือเจ้าของ collection
     if (!user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
-      throw new Error('Permission denied');
+      res.status(403).json({ error: 'Permission denied' });
+      return;
     }
 
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'delete_status',
-        data: {
-          status: 'deleting',
-          message: 'Deleting documents...',
-          progress: 50
-        }
-      }));
-    }
-
+    // ลบ collection และข้อมูลทั้งหมด
     await chromaService.deleteCollection(name);
-
-    if (ws) {
-      ws.send(JSON.stringify({
-        type: 'delete_status',
-        data: {
-          status: 'completed',
-          message: 'Collection deleted successfully',
-          progress: 100
-        }
-      }));
-    }
-
-    res.json({ message: 'Collection deleted successfully' });
+    res.json({ 
+      message: 'Collection and all its documents deleted successfully' 
+    });
   } catch (error) {
     console.error('Error deleting collection:', error);
-    if ((req as any).ws) {
-      (req as any).ws.send(JSON.stringify({
-        type: 'delete_status',
-        data: {
-          status: 'error',
-          message: (error as Error).message
-        }
-      }));
-    }
     res.status(500).json({ error: 'Failed to delete collection' });
   }
 });

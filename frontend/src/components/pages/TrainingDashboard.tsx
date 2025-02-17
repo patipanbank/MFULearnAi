@@ -17,13 +17,6 @@ interface UploadedFile {
   ids: string[];
 }
 
-// เพิ่ม interface สำหรับสถานะ
-interface StatusState {
-  status: 'idle' | 'processing' | 'chunking' | 'adding' | 'deleting' | 'completed' | 'error';
-  message: string;
-  progress: number;
-}
-
 const TrainingDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   // const [loading, setLoading] = useState(false);
@@ -44,32 +37,24 @@ const TrainingDashboard: React.FC = () => {
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  // const [uploadProgress, setUploadProgress] = useState<{
-  //   total: number;
-  //   current: number;
-  //   status: 'started' | 'processing' | 'completed';
-  //   filename: string;
-  // } | null>(null);
-
-  const [status, setStatus] = useState<StatusState>({
-    status: 'idle',
-    message: '',
-    progress: 0
-  });
+  const [uploadProgress, setUploadProgress] = useState<{
+    total: number;
+    current: number;
+    status: 'started' | 'processing' | 'completed';
+    filename: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchModels();
     fetchCollections();
 
+    // เพิ่ม WebSocket listener
     const ws = new WebSocket(config.wsUrl);
     
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.type === 'training_status' || data.type === 'delete_status') {
-        setStatus(data.data);
-        if (data.data.status === 'completed') {
-          fetchCollections(); // รีเฟรชรายการ collections
-        }
+      if (data.type === 'upload_progress') {
+        setUploadProgress(data.data);
       }
     };
 
@@ -386,41 +371,6 @@ const TrainingDashboard: React.FC = () => {
     return `(${permissionMap[permission]})`;
   };
 
-  // แสดงสถานะการทำงาน
-  const renderStatus = () => {
-    if (status.status === 'idle') return null;
-
-    const getStatusColor = () => {
-      switch (status.status) {
-        case 'error':
-          return 'bg-red-600';
-        case 'completed':
-          return 'bg-green-600';
-        default:
-          return 'bg-blue-600';
-      }
-    };
-
-    return (
-      <div className="mt-4 p-4 border rounded dark:border-gray-700">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-            {status.message}
-          </h3>
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            {status.progress}%
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-          <div 
-            className={`${getStatusColor()} h-2 rounded-full transition-all duration-500`}
-            style={{ width: `${status.progress}%` }}
-          />
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training Dashboard</h1>
@@ -638,7 +588,23 @@ const TrainingDashboard: React.FC = () => {
           </div>
         )}
       </div>
-      {renderStatus()}
+      {uploadProgress && (
+        <div className="mt-4 p-4 border rounded">
+          <h3 className="font-semibold">Processing: {uploadProgress.filename}</h3>
+          <div className="w-full bg-gray-200 rounded h-2 mt-2">
+            <div 
+              className="bg-blue-600 h-2 rounded"
+              style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+            />
+          </div>
+          <p className="text-sm mt-2">
+            {uploadProgress.status === 'started' && 'Starting upload...'}
+            {uploadProgress.status === 'processing' && 
+              `Processing batch ${uploadProgress.current}/${uploadProgress.total}`}
+            {uploadProgress.status === 'completed' && 'Upload completed!'}
+          </p>
+        </div>
+      )}
     </div>
   );
 };
