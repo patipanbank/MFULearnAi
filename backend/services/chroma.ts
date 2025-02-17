@@ -389,15 +389,12 @@ class ChromaService {
         this.collections.set(collectionName, collection);
       }
       
-      // Wrap the embedding in an array and include an empty "where" clause.
       const result = await collection.query({
         queryEmbeddings: [embedding],
         nResults: limit,
-        include: ["documents"],
-        where: {}
+        include: ["documents"]
       });
       
-      // Returned documents are expected to be in the first slot.
       return { documents: result.documents ? (result.documents[0] as string[]) : [] };
     } catch (error) {
       console.error("Error in queryDocumentsByEmbedding:", error);
