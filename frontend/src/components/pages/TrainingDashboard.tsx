@@ -200,6 +200,11 @@ const TrainingDashboard: React.FC = () => {
     console.log('Starting upload...');
 
     try {
+      const controller = new AbortController(); // สร้าง controller สำหรับ abort
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 3600000); // timeout 1 ชั่วโมง (3600000 ms)
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('modelId', selectedModel);
@@ -210,12 +215,18 @@ const TrainingDashboard: React.FC = () => {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
-        body: formData
+        body: formData,
+        signal: controller.signal // ใช้ signal จาก controller
       });
+
+      clearTimeout(timeoutId); // ยกเลิก timeout เมื่อได้รับ response
 
       if (!response.ok) {
         throw new Error('Upload failed');
       }
+
+      const result = await response.json();
+      console.log('Upload result:', result);
 
       alert('Upload file successfully');
       setFile(null);
@@ -228,7 +239,15 @@ const TrainingDashboard: React.FC = () => {
       
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload file failed');
+      // ตรวจสอบว่าเป็น error จาก timeout หรือไม่
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Upload is still processing...');
+        // ไม่แสดง alert error เพราะการอัพโหลดยังดำเนินอยู่
+        // แต่อาจจะแสดงข้อความว่ากำลังประมวลผลแทน
+        alert('File is being processed. Please wait...');
+      } else {
+        alert('Upload file failed');
+      }
     } finally {
       setIsUploading(false);
     }
