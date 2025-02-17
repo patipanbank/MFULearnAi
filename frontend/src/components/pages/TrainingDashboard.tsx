@@ -340,6 +340,15 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  const formatPermissionLabel = (permission: CollectionPermission): string => {
+    const permissionMap = {
+      [CollectionPermission.PUBLIC]: 'Public',
+      [CollectionPermission.STAFF_ONLY]: 'Staff Only',
+      [CollectionPermission.PRIVATE]: 'Private'
+    };
+    return `(${permissionMap[permission]})`;
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training Dashboard</h1>
@@ -387,8 +396,7 @@ const TrainingDashboard: React.FC = () => {
                 <option value="">-- Choose Collection --</option>
                 {getFilteredCollections().map(collection => (
                   <option key={collection.name} value={collection.name}>
-                    {collection.name} 
-                    {collection.permission !== CollectionPermission.PUBLIC && ' (Restricted)'}
+                    {collection.name} {formatPermissionLabel(collection.permission)}
                   </option>
                 ))}
               </select>
