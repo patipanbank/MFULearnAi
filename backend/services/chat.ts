@@ -1,6 +1,5 @@
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
-import { titanEmbedService } from '../services/titan';
 import { ChatMessage } from '../types/chat';
 
 
@@ -8,21 +7,16 @@ export class ChatService {
   private systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
 
   private isRelevantQuestion(query: string): boolean {
-    return true;
+    return (true);
   }
 
-  async *generateResponse(
-    messages: ChatMessage[],
-    query: string,
-    modelId: string,
-    collectionName: string
-  ): AsyncGenerator<string> {
+  async *generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): AsyncGenerator<string> {
     try {
       console.log('Starting generateResponse:', {
         modelId,
         collectionName,
         messagesCount: messages.length,
-        query,
+        query
       });
 
       if (!this.isRelevantQuestion(query)) {
@@ -31,18 +25,19 @@ export class ChatService {
         return;
       }
 
-      // Embed the question to create a vector representation and then retrieve context.
+      console.log('Getting context for query:', query);
       const context = await this.getContext(query, collectionName);
       console.log('Retrieved context length:', context.length);
 
       const augmentedMessages = [
         {
           role: 'system' as const,
-          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`,
+          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
         },
-        ...messages,
+        ...messages
       ];
 
+      // ส่ง response แบบ streaming ทันที
       for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
         yield chunk;
       }
@@ -54,36 +49,18 @@ export class ChatService {
 
   private async getContext(query: string, collectionName: string): Promise<string> {
     try {
-      if (!collectionName || !query.trim()) return '';
-      
-      console.time('embeddingAndQuery');
-      const trimmedQuery = query.trim();
-      
-      // Get the embedding vector for the query.
-      const embedding: number[] = await titanEmbedService.embedText(trimmedQuery);
-      console.log('Query Embedding vector:', embedding, 'Dimension:', embedding.length);
-      
-      // Verify the embedding is not empty and has the expected dimension.
-      const expectedDimension = 512; // Adjust if your model returns a different dimension.
-      if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
-        console.warn(`No valid embedding returned for query: "${trimmedQuery}".`);
+      if (!collectionName) {
         return '';
       }
-      if (embedding.length !== expectedDimension) {
-        console.error(`Embedding dimension mismatch. Expected ${expectedDimension}, but got ${embedding.length}.`);
-        return '';
-      }
-      
-      // Query the document collection using only the embedding.
-      const { documents } = await chromaService.queryDocumentsByEmbedding(collectionName, embedding, 10);
-      
-      // Join and return the retrieved document contexts.
-      return documents.join('\n\n');
+      const results = await chromaService.queryDocuments(collectionName, query, 10);
+      return results.documents.join('\n\n');
     } catch (error) {
-      console.error('Error getting embedded context:', error);
+      console.error('Error getting context:', error);
       return '';
     } finally {
-      console.timeEnd('embeddingAndQuery');
+      if (process.env.NODE_ENV !== 'production') {
+        console.timeEnd('operation');
+      }
     }
   }
 }
