@@ -62,10 +62,7 @@ class ChromaService {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
 
-      // Create a unique batchId for this set of documents.
       const batchId = `batch_${Date.now()}`;
-
-      // Append the batchId to each document's metadata.
       const docsWithBatchId = documents.map(doc => ({
         ...doc,
         metadata: {
@@ -74,7 +71,6 @@ class ChromaService {
         }
       }));
 
-      // Check if a document with this fileKey already exists.
       const existingDocs = await collection.get();
       const existingMetadata = existingDocs.metadatas || [];
 
@@ -88,32 +84,41 @@ class ChromaService {
         return;
       }
 
-      // Split documents into batches of BATCH_SIZE.
       const BATCH_SIZE = 100;
       const batches = [];
       for (let i = 0; i < docsWithBatchId.length; i += BATCH_SIZE) {
         batches.push(docsWithBatchId.slice(i, i + BATCH_SIZE));
       }
 
-      // Process each batch.
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
         console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
 
         const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
         const texts = batch.map(doc => doc.text);
-        // Generate embeddings for each document in the batch.
+        
+        // Generate embeddings for each document
         const embeddings = await Promise.all(batch.map(doc => titanEmbedService.embedText(doc.text)));
+        
         const metadatas = batch.map(doc => doc.metadata);
 
+        // Log lengths for debugging
+        console.log('IDs:', ids.length, 'Texts:', texts.length, 'Embeddings:', embeddings.length, 'Metadatas:', metadatas.length);
+        
+        // Ensure all lengths match before adding
+        if (ids.length !== texts.length || texts.length !== embeddings.length || embeddings.length !== metadatas.length) {
+          throw new Error('Payload arrays lengths mismatch: please check document insertion logic.');
+        }
+        
+        // Add to collection
         await collection.add({
           ids,
           documents: texts,
-          embeddings,  // Save embeddings with the documents.
+          embeddings, 
           metadatas
         });
 
-        // Introduce a small delay between batches.
+        // Delay between batches
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
