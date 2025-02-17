@@ -288,6 +288,15 @@ const MFUChatbot: React.FC = () => {
         collectionName: selectedCollection
       }));
 
+      // Embed the user's question into a vector
+      try {
+        const embeddingVector = await embedQuestion(inputMessage.trim());
+        console.log("User question vector:", embeddingVector);
+        // You can now use this vector for further processing (e.g. similarity search)
+      } catch (error) {
+        console.error("Embedding failed:", error);
+      }
+
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev, {
@@ -474,6 +483,18 @@ const MFUChatbot: React.FC = () => {
         </div>
       </div>
     );
+  };
+
+  const embedQuestion = async (question: string): Promise<number[]> => {
+    const response = await fetch(`${config.apiUrl}/api/embed`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ inputText: question })
+    });
+    const data = await response.json();
+    return data.embedding;
   };
 
   return (

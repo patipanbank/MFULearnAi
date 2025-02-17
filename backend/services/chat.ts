@@ -1,5 +1,6 @@
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
+import { titanEmbedService } from './titan';
 import { ChatMessage } from '../types/chat';
 
 
@@ -49,10 +50,13 @@ export class ChatService {
 
   private async getContext(query: string, collectionName: string): Promise<string> {
     try {
-      if (!collectionName) {
-        return '';
-      }
-      const results = await chromaService.queryDocuments(collectionName, query, 10);
+      if (!collectionName) return '';
+
+      // Embed the user query
+      const queryEmbedding = await titanEmbedService.embedText(query);
+
+      // Use the embedding to query ChromaDB (update chromaService.queryDocumentsByEmbedding accordingly)
+      const results = await chromaService.queryDocumentsByEmbedding(collectionName, queryEmbedding, 10);
       return results.documents.join('\n\n');
     } catch (error) {
       console.error('Error getting context:', error);
