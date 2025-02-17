@@ -251,38 +251,38 @@ class ChromaService {
 
   async deleteCollection(collectionName: string): Promise<void> {
     try {
-      // ลบข้อมูลทั้งหมดใน collection ก่อน
+      // Delete all documents in the collection first
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       if (collection) {
         const results = await collection.get();
         if (results && results.ids && results.ids.length > 0) {
-          // ลบ chunks ทั้งหมด พร้อมกับ log การลบแต่ละไฟล์
+          // Delete all document chunks and log each deletion
           for (let i = 0; i < results.ids.length; i++) {
             const metadata = results.metadatas?.[i];
             if (metadata && metadata.filename) {
-              console.log(`กำลังลบไฟล์: ${metadata.filename} (id: ${results.ids[i]}) จาก collection ${collectionName}`);
+              console.log(`Deleting file: ${metadata.filename} (id: ${results.ids[i]}) from collection ${collectionName}`);
             } else {
-              console.log(`กำลังลบเอกสารที่ id: ${results.ids[i]} จาก collection ${collectionName}`);
+              console.log(`Deleting document with id: ${results.ids[i]} from collection ${collectionName}`);
             }
           }
           await collection.delete({
             ids: results.ids
           });
-          console.log(`ลบ chunks จำนวน ${results.ids.length} จาก collection ${collectionName} เสร็จสิ้น`);
+          console.log(`Deleted ${results.ids.length} chunks from collection ${collectionName}`);
         }
       }
 
-      // ลบ collection จาก ChromaDB
+      // Delete collection from ChromaDB
       await this.client.deleteCollection({
         name: collectionName
       });
       this.collections.delete(collectionName);
 
-      // ลบจาก MongoDB
+      // Delete from MongoDB
       await Collection.deleteOne({ name: collectionName });
       
-      console.log(`ลบ collection ${collectionName} เสร็จสิ้น`);
+      console.log(`Collection ${collectionName} deleted successfully`);
     } catch (error) {
       console.error(`Error deleting collection ${collectionName}:`, error);
       throw error;
