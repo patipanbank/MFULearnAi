@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import { documentService } from '../services/document';
 import { chromaService } from '../services/chroma';
+import { embeddingService } from '../services/embedding';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
@@ -37,32 +38,41 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
 
-    // แปลงชื่อไฟล์เป็น UTF-8
+    // Decode the filename to UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
     console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
     
+    // Split text into chunks
     console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
     console.log(`Created ${chunks.length} chunks`);
 
-    const documents = chunks.map(chunk => ({
-      text: chunk,
-      metadata: {
-        filename: filename,
-        uploadedBy: user.username,
-        timestamp: new Date().toISOString(),
-        modelId,
-        collectionName
+    // For each chunk, generate an embedding and then include it in metadata.
+    // (Note: Depending on your embedding output, adjust property names below.)
+    const documents = await Promise.all(chunks.map(async chunk => {
+      // Call the embedding service for this chunk
+      const embedResult = await embeddingService.embedText(chunk);
+      return {
+        text: chunk,
+        metadata: {
+          filename: filename,
+          uploadedBy: user.username,
+          timestamp: new Date().toISOString(),
+          modelId,
+          collectionName,
+          // Here we assume embedResult has an "embedding" field (adjust as needed)
+          embedding: embedResult.embedding
+        }
       }
     }));
 
-    console.log(`Adding documents to collection ${collectionName}`);
+    console.log(`Adding documents with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
-      message: 'File processed successfully',
+      message: 'File processed successfully with embeddings',
       chunks: chunks.length
     });
 
@@ -107,7 +117,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
 
-    // ตรวจสอบและสร้าง collection ถ้ายังไม่มี
+    // Check and create collection if needed
     await chromaService.ensureCollectionExists(collectionName, user);
 
     const file = req.file;
@@ -116,32 +126,35 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
       return;
     }
 
-    // แปลงชื่อไฟล์เป็น UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     
     console.log(`Processing file: ${filename}`);
     const text = await documentService.processFile(file);
     
-    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
+    console.log(`Text length (${text.length}) exceeds chunk size, splitting into chunks`);
     const chunks = splitTextIntoChunks(text);
     console.log(`Created ${chunks.length} chunks`);
 
-    const documents = chunks.map(chunk => ({
-      text: chunk,
-      metadata: {
-        filename: filename,
-        uploadedBy: user.username,
-        timestamp: new Date().toISOString(),
-        modelId,
-        collectionName
+    const documents = await Promise.all(chunks.map(async chunk => {
+      const embedResult = await embeddingService.embedText(chunk);
+      return {
+        text: chunk,
+        metadata: {
+          filename: filename,
+          uploadedBy: user.username,
+          timestamp: new Date().toISOString(),
+          modelId,
+          collectionName,
+          embedding: embedResult.embedding
+        }
       }
     }));
 
-    console.log(`Adding documents to collection ${collectionName}`);
+    console.log(`Adding documents with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
-      message: 'File processed successfully',
+      message: 'File processed successfully with embeddings',
       chunks: chunks.length
     });
 
