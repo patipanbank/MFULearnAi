@@ -388,11 +388,12 @@ class ChromaService {
         collection = await this.client.getOrCreateCollection({ name: collectionName });
         this.collections.set(collectionName, collection);
       }
-      // Wrap the embedding in an array and use "queryEmbeddings".
+      
+      // Wrap the embedding in an array and use the correct parameter names.
       const result = await collection.query({
         queryEmbeddings: [embedding],
-        topK: limit,
-        includeDocuments: true,
+        nResults: limit,
+        include: ["documents"]
       });
       
       // Returned documents are expected to be in the first slot.
