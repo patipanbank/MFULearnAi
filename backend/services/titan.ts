@@ -45,7 +45,7 @@ export class TitanEmbedService {
       if (!response.body) {
         throw new Error("Empty response body");
       }
-      // Use async iteration to convert the streaming response body into a string.
+      
       const responseText = await this.streamToString(response.body);
       console.log("Titan embedding response:", responseText);
       const result = JSON.parse(responseText);
@@ -60,13 +60,34 @@ export class TitanEmbedService {
   }
 
   /**
-   * Helper function to convert an async iterable stream into a string.
+   * Helper function to convert a response stream into a string.
+   * It checks for both web streams (using getReader) and async iterable streams.
    */
   private async streamToString(stream: any): Promise<string> {
     let result = "";
-    for await (const chunk of stream) {
-      result += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+
+    // If stream supports the web stream API (getReader)
+    if (typeof stream.getReader === "function") {
+      const reader = stream.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += typeof value === "string" ? value : Buffer.from(value).toString("utf8");
+      }
     }
+    // Otherwise, if stream is async iterable (Node streams or similar)
+    else if (Symbol.asyncIterator in stream) {
+      for await (const chunk of stream) {
+        result += typeof chunk === "string"
+          ? chunk
+          : Buffer.isBuffer(chunk)
+            ? chunk.toString("utf8")
+            : Buffer.from(chunk).toString("utf8");
+      }
+    } else {
+      throw new Error("Stream is not async iterable or a web stream");
+    }
+
     return result;
   }
 }

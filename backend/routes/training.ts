@@ -4,7 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import { documentService } from '../services/document';
 import { chromaService } from '../services/chroma';
-import { embeddingService } from '../services/embedding';
+import { titanEmbedService } from '../services/titan';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, CollectionPermission } from '../models/Collection';
@@ -52,8 +52,8 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
     // For each chunk, generate an embedding and then include it in metadata.
     // (Note: Depending on your embedding output, adjust property names below.)
     const documents = await Promise.all(chunks.map(async chunk => {
-      // Call the embedding service for this chunk
-      const embedResult = await embeddingService.embedText(chunk);
+      // Get the embedding directly without needing to access .embedding property.
+      const embedding = await titanEmbedService.embedText(chunk);
       return {
         text: chunk,
         metadata: {
@@ -62,8 +62,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
           timestamp: new Date().toISOString(),
           modelId,
           collectionName,
-          // Here we assume embedResult has an "embedding" field (adjust as needed)
-          embedding: embedResult.embedding
+          embedding // Directly assign the returned embedding (an array of numbers)
         }
       }
     }));
@@ -136,7 +135,8 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
     console.log(`Created ${chunks.length} chunks`);
 
     const documents = await Promise.all(chunks.map(async chunk => {
-      const embedResult = await embeddingService.embedText(chunk);
+      // Get the embedding directly without needing to access .embedding property.
+      const embedding = await titanEmbedService.embedText(chunk);
       return {
         text: chunk,
         metadata: {
@@ -145,7 +145,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
           timestamp: new Date().toISOString(),
           modelId,
           collectionName,
-          embedding: embedResult.embedding
+          embedding // Directly assign the returned embedding (an array of numbers)
         }
       }
     }));
