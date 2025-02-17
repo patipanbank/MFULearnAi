@@ -393,4 +393,37 @@ router.delete('/documents/all/:collectionName', roleGuard(['Staffs']), async (re
   }
 });
 
+// Endpoint to update (edit) collection details
+router.put('/collections/:name', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+  try {
+    const { name } = req.params;
+    const { name: newName, permission } = req.body;
+    const user = (req as any).user;
+
+    // Look up the collection by the old name
+    const collection = await Collection.findOne({ name });
+    if (!collection) {
+      res.status(404).json({ error: 'Collection not found' });
+      return;
+    }
+
+    // Optional: Check if the user has permissions to update this collection
+    if (!user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
+      res.status(403).json({ error: 'Permission denied' });
+      return;
+    }
+
+    // Update collection details in the database (This may vary depending on your schema)
+    collection.name = newName;
+    collection.permission = permission;
+    await collection.save();
+
+    // Respond with success
+    res.json({ message: 'Collection updated successfully' });
+  } catch (error) {
+    console.error('Error updating collection:', error);
+    res.status(500).json({ error: 'Failed to update collection' });
+  }
+});
+
 export default router; 
