@@ -52,7 +52,7 @@ export class ChatService {
       if (!collectionName) {
         return '';
       }
-      const results = await chromaService.queryDocuments(collectionName, query, 10);
+      const results = await chromaService.queryDocuments(collectionName, query, 5);
       return results.documents.join('\n\n');
     } catch (error) {
       console.error('Error getting context:', error);

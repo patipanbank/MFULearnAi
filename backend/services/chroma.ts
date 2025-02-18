@@ -131,7 +131,7 @@ class ChromaService {
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, n_results: number = 10) {
+  async queryDocuments(collectionName: string, query: string, n_results: number = 5) {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
@@ -153,7 +153,7 @@ class ChromaService {
     }
   }
 
-  async queryCollection(collectionName: string, text: string, nResults: number = 10) {
+  async queryCollection(collectionName: string, text: string, nResults: number = 5) {
     await this.initCollection(collectionName);
     const collection = this.collections.get(collectionName);
     return collection.query({
@@ -168,7 +168,7 @@ class ChromaService {
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
         queryTexts: [query],
-        nResults: 10,
+        nResults: 5,
         minScore: 0.7,
         where: {},
         include: ["documents", "metadatas", "distances"]
