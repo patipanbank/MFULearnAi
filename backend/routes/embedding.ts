@@ -8,7 +8,7 @@ const router = Router();
  * Expects: { inputText: string }
  * Returns: { embedding: number[] }
  */
-router.post('/embed', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { inputText } = req.body;
     if (!inputText) {
