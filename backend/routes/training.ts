@@ -316,7 +316,7 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
       return;
     }
 
-    const collection: ICollection | null = await Collection.findOne({ name: collectionName });
+    const collection: HydratedDocument<ICollection> | null = await Collection.findOne({ name: collectionName }).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -362,7 +362,7 @@ router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: R
       return;
     }
 
-    const collection: ICollection | null = await Collection.findOne({ name: collectionName });
+    const collection: HydratedDocument<ICollection> | null = await Collection.findOne({ name: collectionName }).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
