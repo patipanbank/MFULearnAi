@@ -186,10 +186,10 @@ router.get('/collections', async (req: Request, res: Response) => {
     const user = (req as any).user;
     
     // ดึงข้อมูล collections จาก MongoDB
-    const collections: CollectionDocument[] = await CollectionModel.find({});
+    const collections = await CollectionModel.find({});
     
     // กรองตามสิทธิ์
-    const accessibleCollections = collections.filter((collection: CollectionDocument) => {
+    const accessibleCollections = collections.filter(collection => {
       switch (collection.permission) {
         case CollectionPermission.PUBLIC:
           return true;
@@ -203,7 +203,7 @@ router.get('/collections', async (req: Request, res: Response) => {
     });
 
     // ส่งเฉพาะชื่อ collection ที่มีสิทธิ์
-    res.json(accessibleCollections.map((c: CollectionDocument) => c.name));
+    res.json(accessibleCollections.map(c => c.name));
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
