@@ -206,7 +206,7 @@ router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: 
     const { name: newName, permission } = req.body;
     const user = (req as any).user;
     
-    const collection = await Collection.findById(id);
+    const collection: ICollection | null = await Collection.findById(id);
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -239,7 +239,7 @@ router.delete('/collections/:id', roleGuard(['Staffs']), async (req: Request, re
     const { id } = req.params;
     const user = (req as any).user;
     
-    const collection = await Collection.findById(id);
+    const collection: ICollection | null = await Collection.findById(id);
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -273,7 +273,7 @@ router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: R
     
     const collectionNames: string[] = [];
     for (const id of collections) {
-      const coll = await Collection.findById(id);
+      const coll: ICollection | null = await Collection.findById(id);
       if (!coll) {
         res.status(404).json({ error: `Collection not found for id: ${id}` });
         return;
