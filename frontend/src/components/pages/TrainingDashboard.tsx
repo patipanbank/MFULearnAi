@@ -85,7 +85,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     <div className="mt-4 flex items-center">
       <input
         type="text"
-        placeholder="Search Knowledge"
+        placeholder="Search Collection"
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
         className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -420,10 +420,14 @@ const TrainingDashboard: React.FC = () => {
       if (!response.ok) throw new Error('Failed to fetch files');
       const data = await response.json();
       console.log('Fetched files:', data);
-      if (data.files) {
+      if (data.documents && Array.isArray(data.documents)) {
+        setUploadedFiles(data.documents);
+      } else if (data.files && Array.isArray(data.files)) {
         setUploadedFiles(data.files);
-      } else {
+      } else if (Array.isArray(data)) {
         setUploadedFiles(data);
+      } else {
+        setUploadedFiles([]);
       }
     } catch (error) {
       console.error('Error fetching uploaded files:', error);
