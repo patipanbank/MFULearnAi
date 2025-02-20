@@ -11,6 +11,10 @@ import { Collection, CollectionPermission } from '../models/Collection';
 import iconv from 'iconv-lite';
 
 const router = Router();
+
+// -------------------------------------------------
+// Multer Configuration for File Uploads
+// -------------------------------------------------
 const upload = multer({ 
   dest: 'uploads/',
   limits: {
@@ -27,175 +31,295 @@ const upload = multer({
   }
 });
 
-const uploadHandler = async (req: Request, res: Response): Promise<void> => {
+// -------------------------------------------------
+// Helper Functions
+// -------------------------------------------------
+
+/**
+ * Checks if the given user is allowed to access or modify the collection.
+ * Returns true if the user is in the 'Staffs' group or is the owner.
+ */
+async function checkCollectionAccess(user: any, collection: any): Promise<boolean> {
+  return user.groups.includes('Staffs') || collection.createdBy === user.nameID;
+}
+
+/**
+ * Processes a file upload:
+ * 1. Decodes the filename.
+ * 2. Extracts text from the file.
+ * 3. Splits the text into chunks.
+ * 4. Embeds each chunk.
+ * 5. Returns the array of document objects.
+ */
+async function processFileDocuments(file: Express.Multer.File, user: any, modelId: string, collectionName: string): Promise<{ text: string; metadata: any; embedding: number[] }[]> {
+  // Decode filename to UTF-8
+  const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
+  console.log(`Processing file: ${filename}`);
+  const text = await documentService.processFile(file);
+  console.log(`Text length (${text.length}) exceeds chunk size; splitting into chunks`);
+  const chunks = splitTextIntoChunks(text);
+  console.log(`Created ${chunks.length} chunks`);
+
+  const documents = await Promise.all(
+    chunks.map(async (chunk) => {
+      const embedResult = await titanEmbedService.embedText(chunk);
+      return {
+        text: chunk,
+        metadata: {
+          filename,
+          uploadedBy: user.username,
+          timestamp: new Date().toISOString(),
+          modelId,
+          collectionName
+        },
+        embedding: embedResult
+      };
+    })
+  );
+  return documents;
+}
+
+// -------------------------------------------------
+// File Upload Endpoints
+// -------------------------------------------------
+
+/**
+ * POST /upload
+ * Staff-only endpoint that processes a file upload and stores document chunks with embeddings.
+ */
+router.post('/upload', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
     const file = req.file;
     if (!file) {
       res.status(400).json({ error: 'No file uploaded' });
       return;
     }
-
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
 
-    // Decode the filename to UTF-8
-    const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
-    
-    console.log(`Processing file: ${filename}`);
-    const text = await documentService.processFile(file);
-
-    // Split file text into manageable chunks
-    console.log(`Text length (${text.length}) exceeds chunk size (2000), splitting into chunks`);
-    const chunks = splitTextIntoChunks(text);
-    console.log(`Created ${chunks.length} chunks`);
-
-    // For each chunk, compute its embedding using TitanEmbedService
-    const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(
-      chunks.map(async (chunk) => {
-        const embedResult = await titanEmbedService.embedText(chunk);
-        return {
-          text: chunk,
-          metadata: {
-            filename,
-            uploadedBy: user.username,
-            timestamp: new Date().toISOString(),
-            modelId,
-            collectionName
-          },
-          embedding: embedResult
-        };
-      })
-    );
-
+    const documents = await processFileDocuments(file, user, modelId, collectionName);
     console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
       message: 'File processed successfully with vector embeddings',
-      chunks: chunks.length
+      chunks: documents.length
     });
-
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Error processing upload' });
   }
-};
-
-// อนุญาตทั้ง Students และ Staffs ให้เข้าถึง models และ collections ได้
-router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
-  try {
-    const models = [
-      'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    ];
-    res.json(models);
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Error fetching models' });
-  }
 });
 
-router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
-  try {
-    const collections = await Collection.find({}).select('name permission createdBy');
-    res.json(collections.map(collection => ({
-      name: collection.name,
-      permission: collection.permission,
-      createdBy: collection.createdBy
-    })));
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Error fetching collections' });
-  }
-});
-
-// เฉพาะ Staff เท่านั้นที่เข้าถึงได้
-router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
-
+/**
+ * POST /documents
+ * Endpoint for Students and Staffs to upload a file.
+ * Also ensures collection exists before processing.
+ */
 router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file'), async (req: Request, res: Response) => {
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
 
-    // Check and create collection if needed
+    // Ensure the collection exists (creates if needed)
     await chromaService.ensureCollectionExists(collectionName, user);
 
     const file = req.file;
     if (!file) {
-      res.status(400).json({ error: 'No file uploaded' });
-      return;
+      return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
-    
-    console.log(`Processing file: ${filename}`);
-    const text = await documentService.processFile(file);
-    
-    console.log(`Text length (${text.length}) exceeds chunk size, splitting into chunks`);
-    const chunks = splitTextIntoChunks(text);
-    console.log(`Created ${chunks.length} chunks`);
-
-    const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(
-      chunks.map(async (chunk) => {
-        const embedResult = await titanEmbedService.embedText(chunk);
-        return {
-          text: chunk,
-          metadata: {
-            filename,
-            uploadedBy: user.username,
-            timestamp: new Date().toISOString(),
-            modelId,
-            collectionName
-          },
-          embedding: embedResult
-        };
-      })
-    );
-
+    const documents = await processFileDocuments(file, user, modelId, collectionName);
     console.log(`Adding documents with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
       message: 'File processed successfully with embeddings',
-      chunks: chunks.length
+      chunks: documents.length
     });
-
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error processing document:', error);
     res.status(500).json({ error: 'Error processing document' });
   }
 });
 
+// -------------------------------------------------
+// Collection Endpoints (Using Collection ID consistently)
+// -------------------------------------------------
+
+/**
+ * GET /collections
+ * Lists all collections with ID, name, permission, and createdBy.
+ */
+router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+  try {
+    const collections = await Collection.find({}).select('name permission createdBy');
+    res.json(
+      collections.map(collection => ({
+        id: collection._id,
+        name: collection.name,
+        permission: collection.permission,
+        createdBy: collection.createdBy
+      }))
+    );
+  } catch (error) {
+    console.error('Error fetching collections:', error);
+    res.status(500).json({ error: 'Error fetching collections' });
+  }
+});
+
+/**
+ * POST /collections
+ * Creates a new collection.
+ */
+router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+  try {
+    const { name, permission } = req.body;
+    const user = (req as any).user;
+    
+    const newCollection = await chromaService.createCollection(name, permission, user.nameID);
+    console.log(`Collection created: id: ${newCollection._id}, name: "${newCollection.name}"`);
+    
+    res.status(201).json({
+      message: 'Collection created successfully',
+      collection: {
+        id: newCollection._id,
+        name: newCollection.name,
+        permission: newCollection.permission,
+        createdBy: newCollection.createdBy
+      }
+    });
+  } catch (error) {
+    console.error('Error creating collection:', error);
+    res.status(500).json({ error: 'Failed to create collection' });
+  }
+});
+
+/**
+ * PUT /collections/:id
+ * Updates a collection using its MongoDB identifier.
+ */
+router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name: newName, permission } = req.body;
+    const user = (req as any).user;
+    
+    const collection = await Collection.findById(id);
+    if (!collection) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+    
+    if (!(await checkCollectionAccess(user, collection))) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    
+    // Update collection details without changing its MongoDB ID.
+    collection.name = newName;
+    collection.permission = permission;
+    await collection.save();
+    
+    console.log(`Collection updated: id: "${id}", new name: "${newName}", new permission: "${permission}"`);
+    res.json({ message: 'Collection updated successfully' });
+  } catch (error) {
+    console.error('Error updating collection:', error);
+    res.status(500).json({ error: 'Failed to update collection' });
+  }
+});
+
+/**
+ * DELETE /collections/:id
+ * Deletes a single collection using its MongoDB identifier.
+ */
+router.delete('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = (req as any).user;
+    
+    const collection = await Collection.findById(id);
+    if (!collection) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+    
+    if (!(await checkCollectionAccess(user, collection))) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    
+    await chromaService.deleteCollection(collection.name);
+    res.json({ message: 'Collection deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting collection:', error);
+    res.status(500).json({ error: 'Failed to delete collection' });
+  }
+});
+
+/**
+ * DELETE /collections
+ * Deletes multiple collections given an array of collection IDs.
+ */
+router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+  try {
+    const { collections } = req.body; // Expects an array of collection IDs
+    const user = (req as any).user;
+    
+    if (!Array.isArray(collections)) {
+      return res.status(400).json({ error: 'Invalid collections array' });
+    }
+    
+    const collectionNames: string[] = [];
+    for (const id of collections) {
+      const coll = await Collection.findById(id);
+      if (!coll) {
+        return res.status(404).json({ error: `Collection not found for id: ${id}` });
+      }
+      if (!(await checkCollectionAccess(user, coll))) {
+        return res.status(403).json({ error: `Permission denied for collection with id: ${id}` });
+      }
+      collectionNames.push(coll.name);
+    }
+    
+    await chromaService.deleteCollections(collectionNames);
+    res.json({ message: 'Collections deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting collections:', error);
+    res.status(500).json({ error: 'Failed to delete collections' });
+  }
+});
+
+// -------------------------------------------------
+// Document Endpoints
+// -------------------------------------------------
+
+/**
+ * GET /documents
+ * Retrieves documents for a given collection (provided via query parameter).
+ */
 router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
     const { collectionName } = req.query;
     const user = (req as any).user;
 
     if (!collectionName || typeof collectionName !== 'string') {
-      res.status(400).json({ error: 'Collection name is required' });
-      return;
+      return res.status(400).json({ error: 'Collection name is required' });
     }
 
-    // ตรวจสอบว่า collection มีอยู่จริง
     const collection = await Collection.findOne({ name: collectionName });
     if (!collection) {
-      res.status(404).json({ error: 'Collection not found' });
-      return;
+      return res.status(404).json({ error: 'Collection not found' });
     }
 
-    // ตรวจสอบสิทธิ์การเข้าถึง
+    // Check user permission based on collection permission settings.
     const canAccess = 
       collection.permission === CollectionPermission.PUBLIC ||
       (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
       collection.createdBy === user.nameID;
 
     if (!canAccess) {
-      res.status(403).json({ error: 'No permission to access this collection' });
-      return;
+      return res.status(403).json({ error: 'No permission to access this collection' });
     }
 
     const documents = await chromaService.getAllDocuments(collectionName);
-    
-    // เพิ่มข้อมูล permission และ createdBy
+    // Enhance each metadata with permission and createdBy fields.
     documents.metadatas = documents.metadatas.map(metadata => ({
       ...metadata,
       permission: collection.permission,
@@ -204,34 +328,33 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
 
     res.json(documents);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error fetching documents:', error);
     res.status(500).json({ error: 'Error fetching documents' });
   }
 });
 
-// แก้ไข endpoint สำหรับลบเอกสาร
-router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+/**
+ * DELETE /documents/:id
+ * Deletes a single document given its ID and the collectionName in query.
+ */
+router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { collectionName } = req.query;
     const user = (req as any).user;
-
+    
     if (!id || !collectionName || typeof collectionName !== 'string') {
       res.status(400).json({ error: 'Missing document ID or collection name' });
       return;
     }
 
-    // ตรวจสอบสิทธิ์การลบ
     const collection = await Collection.findOne({ name: collectionName });
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
     }
 
-    const canDelete = 
-      user.groups.includes('Staffs') || 
-      collection.createdBy === user.nameID;
-
+    const canDelete = user.groups.includes('Staffs') || collection.createdBy === user.nameID;
     if (!canDelete) {
       res.status(403).json({ error: 'No permission to delete this document' });
       return;
@@ -240,97 +363,35 @@ router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: R
     await chromaService.deleteDocument(collectionName, id);
     res.status(200).json({ message: 'Document deleted successfully' });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error deleting document:', error);
     res.status(500).json({ error: 'Failed to delete document' });
   }
 });
 
-// Create new collection
-router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+/**
+ * DELETE /documents/all/:collectionName
+ * Deletes all documents for the provided collection.
+ */
+router.delete('/documents/all/:collectionName', roleGuard(['Staffs']), async (req: Request, res: Response) => {
   try {
-    const { name, permission } = req.body;
-    const user = (req as any).user; // จาก roleGuard middleware
-
-    const collection = await chromaService.createCollection(
-      name,
-      permission,
-      user.nameID
-    );
-
-    res.status(201).json({ message: 'Collection created successfully' });
+    const { collectionName } = req.params;
+    await chromaService.deleteAllDocuments(collectionName);
+    res.status(200).json({ message: 'All documents deleted successfully' });
   } catch (error) {
-    console.error('Error creating collection:', error);
-    res.status(500).json({ error: 'Failed to create collection' });
+    console.error('Error deleting all documents:', error);
+    res.status(500).json({ error: 'Failed to delete all documents' });
   }
 });
 
-// Cleanup endpoint
-router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
-  try {
-    await chromaService.deleteDocumentsWithoutModelOrCollection();
-    res.status(200).json({ message: 'Cleanup completed successfully' });
-  } catch (error) {
-    console.error('Error during cleanup:', error);
-    res.status(500).json({ error: 'Failed to cleanup documents' });
-  }
-});
+// -------------------------------------------------
+// URL Processing Endpoint
+// -------------------------------------------------
 
-// endpoint สำหรับลบ collection
-router.delete('/collections/:name', roleGuard(['Staffs']), async (req: Request, res: Response) => {
-  try {
-    const { name } = req.params;
-    const user = (req as any).user;
-
-    // ตรวจสอบสิทธิ์ก่อนลบ
-    const collection = await Collection.findOne({ name });
-    if (!collection) {
-      res.status(404).json({ error: 'Collection not found' });
-      return;
-    }
-
-    // ตรวจสอบว่าเป็น Staff หรือเจ้าของ collection
-    if (!user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
-      res.status(403).json({ error: 'Permission denied' });
-      return;
-    }
-
-    // ลบ collection
-    await chromaService.deleteCollection(name);
-    res.json({ message: 'Collection deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting collection:', error);
-    res.status(500).json({ error: 'Failed to delete collection' });
-  }
-});
-
-// endpoint สำหรับลบหลาย collections
-router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
-  try {
-    const { collections } = req.body;
-    const user = (req as any).user;
-
-    if (!Array.isArray(collections)) {
-      res.status(400).json({ error: 'Invalid collections array' });
-      return;
-    }
-
-    // ตรวจสอบสิทธิ์สำหรับแต่ละ collection
-    for (const name of collections) {
-      const collection = await Collection.findOne({ name });
-      if (collection && !user.groups.includes('Staffs') && collection.createdBy !== user.nameID) {
-        res.status(403).json({ error: `Permission denied for collection: ${name}` });
-        return;
-      }
-    }
-
-    await chromaService.deleteCollections(collections);
-    res.json({ message: 'Collections deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting collections:', error);
-    res.status(500).json({ error: 'Failed to delete collections' });
-  }
-});
-
+/**
+ * POST /add-urls
+ * Downloads content from provided URLs, splits each content into chunks,
+ * embeds them, and adds them to the specified collection.
+ */
 router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { urls, modelId, collectionName } = req.body;
@@ -345,17 +406,16 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
     
     for (const { url, content } of scrapedContents) {
       const chunks = splitTextIntoChunks(content);
-      
-      // สร้าง filename จาก URL
+      // Create a deterministic filename from URL components.
       const filename = new URL(url).hostname + new URL(url).pathname;
       
-      const documents: { text: string; metadata: any; embedding: number[] }[] = await Promise.all(
+      const documents = await Promise.all(
         chunks.map(async (chunk) => {
           const embedResult = await titanEmbedService.embedText(chunk);
           return {
             text: chunk,
             metadata: {
-              filename: filename,
+              filename,
               source: url,
               uploadedBy: user.username,
               timestamp: new Date().toISOString(),
@@ -366,7 +426,6 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
           };
         })
       );
-
       await chromaService.addDocuments(collectionName, documents);
     }
 
@@ -374,22 +433,27 @@ router.post('/add-urls', roleGuard(['Staffs']), async (req: Request, res: Respon
       message: 'URLs processed successfully',
       processedUrls: scrapedContents.length
     });
-
   } catch (error) {
     console.error('URL processing error:', error);
-    res.status(500).json({ error: (error as Error).message || 'Error processing URLs' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Error processing URLs' });
   }
 });
 
-// เพิ่ม endpoint สำหรับลบข้อมูลทั้งหมดในคอลเลกชัน
-router.delete('/documents/all/:collectionName', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+// -------------------------------------------------
+// Cleanup Endpoint
+// -------------------------------------------------
+
+/**
+ * DELETE /cleanup
+ * Removes documents that do not have a model or collection reference.
+ */
+router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { collectionName } = req.params;
-    await chromaService.deleteAllDocuments(collectionName);
-    res.status(200).json({ message: 'All documents deleted successfully' });
+    await chromaService.deleteDocumentsWithoutModelOrCollection();
+    res.status(200).json({ message: 'Cleanup completed successfully' });
   } catch (error) {
-    console.error('Error deleting all documents:', error);
-    res.status(500).json({ error: 'Failed to delete all documents' });
+    console.error('Error during cleanup:', error);
+    res.status(500).json({ error: 'Failed to cleanup documents' });
   }
 });
 

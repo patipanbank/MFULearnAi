@@ -3,10 +3,15 @@ import { config } from '../../config/config';
 import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
 import { CollectionPermission } from '../../types/collection';
 
-interface CollectionWithMetadata {
+/**
+ * Interface representing a collection card.
+ * (Assumes the API returns a `created` property; if not, a fallback is provided.)
+ */
+interface Collection {
+  id: string;
   name: string;
-  permission: CollectionPermission;
   createdBy: string;
+  created: string; // ISO date string representing when the collection was updated/created.
 }
 
 // New interface representing an uploaded file, grouping its document chunks
@@ -17,11 +22,11 @@ interface UploadedFile {
   ids: string[];
 }
 
-const TrainingDashboard: React.FC = () => {
+const KnowledgeDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   // const [loading, setLoading] = useState(false);
   const [models, setModels] = useState<string[]>([]);
-  const [collections, setCollections] = useState<CollectionWithMetadata[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -36,6 +41,9 @@ const TrainingDashboard: React.FC = () => {
 
   // New state to hold the list of uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
+  // State for the search query to filter collections.
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     fetchModels();
@@ -85,7 +93,12 @@ const TrainingDashboard: React.FC = () => {
         throw new Error('Failed to fetch collections');
       }
       const data = await response.json();
-      setCollections(data);
+      // If the API response does not include a created timestamp, use the current date as a fallback.
+      const collectionsWithDate: Collection[] = data.map((collection: any) => ({
+        ...collection,
+        created: collection.created || new Date().toISOString()
+      }));
+      setCollections(collectionsWithDate);
       if (data.length === 1) {
         setSelectedCollection(data[0].name);
       }
@@ -387,226 +400,65 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  /**
+   * Converts an ISO date string into a relative time format.
+   * For example, returns "Updated 5 minutes ago", "Updated 2 hours ago", etc.
+   */
+  const getRelativeTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const seconds = diff / 1000;
+    if (seconds < 60) return 'Updated just now';
+    const minutes = seconds / 60;
+    if (minutes < 60) return `Updated ${Math.floor(minutes)} minutes ago`;
+    const hours = minutes / 60;
+    if (hours < 24) return `Updated ${Math.floor(hours)} hours ago`;
+    const days = hours / 24;
+    return `Updated ${Math.floor(days)} days ago`;
+  };
+
+  // Filter collections by the search query (ignoring case).
+  const filteredCollections = collections.filter(collection =>
+    collection.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training Dashboard</h1>
-      
-      <div className="space-y-4 mb-6">
-        <div>
-          <label className="block text-gray-700 dark:text-white mb-2">Choose Model:</label>
-          {loadingModels ? (
-            <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
-          ) : (
-            <select 
-              className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              disabled={models.length === 1}
-            >
-              <option value="">-- Choose Model --</option>
-              {models.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-          )}
-        </div>
+    <div className="container mx-auto p-4 font-sans">
+      {/* Header area: Displays the page title and search bar */}
+      <header className="flex flex-col md:flex-row items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold mb-4 md:mb-0">Knowledge 11</h1>
+        <input
+          type="text"
+          placeholder="Search Knowledge"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="border border-gray-300 rounded px-4 py-2 w-full md:w-1/3"
+        />
+      </header>
 
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-gray-700 dark:text-white">Choose Collection:</label>
-            <button
-              onClick={() => setShowNewCollectionForm(true)}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              + Create New Collection
-            </button>
+      {/* Grid of Collection Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        {filteredCollections.map((collection) => (
+          <div 
+            key={collection.id} 
+            className="border border-gray-200 rounded p-4 shadow hover:shadow-md transition-shadow duration-200"
+          >
+            {/* "COLLECTION" label */}
+            <div className="text-xs font-bold text-gray-500 uppercase mb-1">COLLECTION</div>
+            {/* Title */}
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              {collection.name}
+            </h2>
+            {/* Author name */}
+            <p className="text-sm text-gray-600 mb-1">By {collection.createdBy}</p>
+            {/* Date/Time updated info */}
+            <p className="text-sm text-gray-500">{getRelativeTime(collection.created)}</p>
           </div>
-          
-          {loadingCollections ? (
-            <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedCollection}
-                onChange={(e) => setSelectedCollection(e.target.value)}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">-- Choose Collection --</option>
-                {getFilteredCollections().map(collection => (
-                  <option key={collection.name} value={collection.name}>
-                    {collection.name} 
-                    {collection.permission && ` (${collection.permission})`}
-                  </option>
-                ))}
-              </select>
-              {selectedCollection && (
-                <button
-                  onClick={() => handleDeleteCollection(selectedCollection)}
-                  className="mt-1 p-2 text-red-600 hover:text-red-800"
-                  title="Delete Collection"
-                >
-                  <FaTrash />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {showNewCollectionForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg">
-              <h2 className="text-xl mb-4">Create New Collection</h2>
-              <input
-                type="text"
-                value={newCollectionName}
-                onChange={(e) => setNewCollectionName(e.target.value)}
-                className="border p-2 rounded w-full mb-4"
-                placeholder="Collection Name"
-              />
-              <div className="mb-4">
-                <label>Collection Permission:</label>
-                <select 
-                  value={newCollectionPermission}
-                  onChange={(e) => setNewCollectionPermission(e.target.value as CollectionPermission)}
-                  className="ml-2 p-2 border rounded"
-                >
-                  <option value={CollectionPermission.PUBLIC}>Public</option>
-                  <option value={CollectionPermission.STAFF_ONLY}>Staff Only</option>
-                  <option value={CollectionPermission.PRIVATE}>Private</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowNewCollectionForm(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateCollection}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Create
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {selectedModel && selectedCollection && (
-          <div className="mt-6">
-            <div className="flex gap-4 mb-4">
-              <button
-                onClick={() => setTrainingMode('file')}
-                className={`flex items-center gap-2 px-4 py-2 rounded ${
-                  trainingMode === 'file' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-700'
-                }`}
-              >
-                <FaFile /> File Upload
-              </button>
-              <button
-                onClick={() => setTrainingMode('url')}
-                className={`flex items-center gap-2 px-4 py-2 rounded ${
-                  trainingMode === 'url' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-700'
-                }`}
-              >
-                <FaGlobe /> URL Training
-              </button>
-            </div>
-
-            {trainingMode === 'file' ? (
-              <form onSubmit={handleFileUpload}>
-                <div className="mb-4">
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100"
-                    disabled={isUploading}
-                    accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={!file || isUploading || !selectedModel || !selectedCollection}
-                  className={`px-4 py-2 rounded text-white
-                    ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
-                  `}
-                >
-                  {isUploading ? 'Uploading...' : 'Upload'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleUrlSubmit}>
-                <div className="mb-4">
-                  <textarea
-                    value={urls}
-                    onChange={(e) => setUrls(e.target.value)}
-                    placeholder="Enter URLs (1 URL per line)"
-                    className="w-full h-40 p-2 border rounded"
-                    disabled={isProcessingUrls}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={!urls.trim() || isProcessingUrls}
-                  className={`px-4 py-2 rounded text-white
-                    ${isProcessingUrls ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
-                  `}
-                >
-                  {isProcessingUrls ? 'Processing URLs...' : 'Process URLs'}
-                </button>
-              </form>
-            )}
-
-            {/* Uploaded Files overview shown regardless of training mode */}
-            <div className="mt-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Uploaded Files</h2>
-              {uploadedFiles.length === 0 ? (
-                <p className="text-gray-600 dark:text-gray-300">No files uploaded yet.</p>
-              ) : (
-                <ul className="space-y-4">
-                  {uploadedFiles.map((file, index) => (
-                    <li key={index} className="flex justify-between items-center p-4 border rounded dark:border-gray-600">
-                      <div>
-                        <p className="font-semibold text-gray-800 dark:text-white">
-                          {decodeURIComponent(file.filename)}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Uploaded on: {new Date(file.timestamp).toLocaleString()}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Uploaded by: {file.uploadedBy}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Chunks: {file.ids.length}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteFile(file)}
-                        className="p-2 text-red-600 hover:text-red-800"
-                        title="Delete File"
-                      >
-                        <FaTrash />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
+        ))}
       </div>
     </div>
   );
 };
 
-export default TrainingDashboard; 
+export default KnowledgeDashboard; 
