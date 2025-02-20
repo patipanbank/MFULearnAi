@@ -3,7 +3,7 @@ import mongoose, { Document } from 'mongoose';
 export enum CollectionPermission {
   PUBLIC = 'PUBLIC',
   STAFF_ONLY = 'STAFF_ONLY',
-  PRIVATE = 'private'
+  PRIVATE = 'PRIVATE'
 }
 
 export interface ICollection extends Document {
@@ -25,4 +25,4 @@ const collectionSchema = new mongoose.Schema({
   created: { type: Date, default: Date.now }
 });
 
-export const Collection = mongoose.model<ICollection>('Collection', collectionSchema); 
+export const Collection = mongoose.model<ICollection>('Collection', collectionSchema);  
