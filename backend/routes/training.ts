@@ -304,7 +304,8 @@ router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: R
 
 /**
  * GET /documents
- * Retrieves documents for a given collection (provided via query parameter).
+ * Retrieves documents for a given collection (provided via query parameter)
+ * and groups document chunks by filename.
  */
 router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
@@ -314,14 +315,14 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
       res.status(400).json({ error: 'Collection name is required' });
       return;
     }
-
+    
     const collection: CollectionDocument | null = await CollectionModel.findOne({ name: collectionName }).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
     }
-
-    // Check user permission based on collection permission settings.
+    
+    // Check user permission based on collection settings.
     const canAccess = 
       collection.permission === CollectionPermission.PUBLIC ||
       (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
@@ -330,16 +331,36 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
       res.status(403).json({ error: 'No permission to access this collection' });
       return;
     }
-
-    const documents = await chromaService.getAllDocuments(collectionName);
-    // Enhance each metadata with permission and createdBy fields.
-    documents.metadatas = documents.metadatas.map(metadata => ({
-      ...metadata,
-      permission: collection.permission,
-      createdBy: collection.createdBy
-    }));
-
-    res.json(documents);
+    
+    // Get raw document data from ChromaDB via our service.
+    const docsData = await chromaService.getAllDocuments(collectionName);
+    // docsData contains: { ids: string[], documents: string[], metadatas: Record<string, any>[] }
+    
+    // Group the document chunks by filename.
+    const filesMap: {
+      [filename: string]: { filename: string; uploadedBy: string; timestamp: string; ids: string[] }
+    } = {};
+    
+    for (let i = 0; i < docsData.metadatas.length; i++) {
+      const metadata = docsData.metadatas[i];
+      const id = docsData.ids[i];
+      // Expect metadata to include filename (set in the file processing code)
+      if (metadata && metadata.filename) {
+        const filename = metadata.filename;
+        if (!filesMap[filename]) {
+          filesMap[filename] = {
+            filename,
+            uploadedBy: metadata.uploadedBy,
+            timestamp: metadata.timestamp,
+            ids: []
+          };
+        }
+        filesMap[filename].ids.push(id);
+      }
+    }
+    
+    const filesArray = Object.values(filesMap);
+    res.json(filesArray);
   } catch (error) {
     console.error('Error fetching documents:', error);
     res.status(500).json({ error: 'Error fetching documents' });
