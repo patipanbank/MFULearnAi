@@ -9,7 +9,7 @@ import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, ICollection, CollectionPermission } from '../models/Collection';
 import iconv from 'iconv-lite';
-import { Document } from 'mongoose';
+import { Document, HydratedDocument } from 'mongoose';
 
 const router = Router();
 
@@ -208,14 +208,13 @@ router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: 
     const { name: newName, permission } = req.body;
     const user = (req as any).user;
 
-    // Use .exec() to ensure the returned value is typed as ICollection | null
-    const collection: ICollection | null = await Collection.findById(id).exec();
+    // Use .exec() so the promise resolves to a properly typed HydratedDocument<ICollection> | null
+    const collection: HydratedDocument<ICollection> | null = await Collection.findById(id).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
     }
 
-    // Check user access
     const canAccess =
       collection.permission === CollectionPermission.PUBLIC ||
       (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
