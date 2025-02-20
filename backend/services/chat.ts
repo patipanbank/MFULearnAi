@@ -4,7 +4,8 @@ import { ChatMessage } from '../types/chat';
 
 
 export class ChatService {
-  private systemPrompt = `You are DinDin, a male AI. Keep responses brief and to the point.`;
+  private systemPrompt = ``;
+  // You are DinDin, a male AI. Keep responses brief and to the point.
 
   private isRelevantQuestion(query: string): boolean {
     return (true);
