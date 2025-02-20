@@ -470,8 +470,8 @@ router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Respo
 router.get('/example/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    // Retrieve a properly typed document instance
-    const collection: ICollection | null = await Collection.findById(id).exec();
+    // Use .exec() so that findById returns a properly typed Promise<ICollection | null>
+    const collection = await Collection.findById(id).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -479,7 +479,8 @@ router.get('/example/:id', async (req: Request, res: Response): Promise<void> =>
 
     const canAccess =
       collection.permission === CollectionPermission.PUBLIC ||
-      (collection.permission === CollectionPermission.STAFF_ONLY && (req as any).user.groups.includes('Staffs')) ||
+      (collection.permission === CollectionPermission.STAFF_ONLY &&
+        (req as any).user.groups.includes('Staffs')) ||
       collection.createdBy === (req as any).user.nameID;
 
     res.status(200).json({
