@@ -7,7 +7,7 @@ import { chromaService } from '../services/chroma';
 import { titanEmbedService } from '../services/titan';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
-import { Collection, CollectionPermission } from '../models/Collection';
+import { Collection, ICollection, CollectionPermission } from '../models/Collection';
 import iconv from 'iconv-lite';
 
 const router = Router();
@@ -310,7 +310,7 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
       return;
     }
 
-    const collection = await Collection.findOne({ name: collectionName });
+    const collection: ICollection | null = await Collection.findOne({ name: collectionName });
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -356,7 +356,7 @@ router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: R
       return;
     }
 
-    const collection = await Collection.findOne({ name: collectionName });
+    const collection: ICollection | null = await Collection.findOne({ name: collectionName });
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
