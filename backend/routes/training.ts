@@ -9,6 +9,7 @@ import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
 import { Collection, ICollection, CollectionPermission } from '../models/Collection';
 import iconv from 'iconv-lite';
+import { Document } from 'mongoose';
 
 const router = Router();
 
@@ -154,10 +155,10 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
  */
 router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const collections = await Collection.find({}).lean();  // Use lean() to get plain objects
+    const collections = await Collection.find({}).lean() as (ICollection & { _id: any })[];
     res.json(
       collections.map(collection => ({
-        id: collection._id.toString(), // Convert ObjectId to string
+        id: collection._id.toString(),
         name: collection.name,
         permission: collection.permission,
         createdBy: collection.createdBy,
@@ -179,7 +180,7 @@ router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Res
     const { name, permission } = req.body;
     const user = (req as any).user;
     
-    const newCollection = await chromaService.createCollection(name, permission, user.nameID);
+    const newCollection = await chromaService.createCollection(name, permission, user.nameID) as ICollection;
     console.log(`Collection created: id: ${newCollection._id}, name: "${newCollection.name}"`);
     
     res.status(201).json({
