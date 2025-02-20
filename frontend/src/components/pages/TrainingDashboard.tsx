@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
-import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 // ----------------------
 // Type Definitions
