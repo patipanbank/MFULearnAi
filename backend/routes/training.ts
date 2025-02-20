@@ -87,7 +87,7 @@ async function processFileDocuments(file: Express.Multer.File, user: any, modelI
  * POST /upload
  * Staff-only endpoint that processes a file upload and stores document chunks with embeddings.
  */
-router.post('/upload', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response) => {
+router.post('/upload', roleGuard(['Staffs']), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     const file = req.file;
     if (!file) {
@@ -116,7 +116,7 @@ router.post('/upload', roleGuard(['Staffs']), upload.single('file'), async (req:
  * Endpoint for Students and Staffs to upload a file.
  * Also ensures collection exists before processing.
  */
-router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file'), async (req: Request, res: Response) => {
+router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
@@ -126,7 +126,8 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
 
     const file = req.file;
     if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
     }
 
     const documents = await processFileDocuments(file, user, modelId, collectionName);
@@ -199,7 +200,7 @@ router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Res
  * PUT /collections/:id
  * Updates a collection using its MongoDB identifier.
  */
-router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { name: newName, permission } = req.body;
@@ -207,11 +208,13 @@ router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: 
     
     const collection = await Collection.findById(id);
     if (!collection) {
-      return res.status(404).json({ error: 'Collection not found' });
+      res.status(404).json({ error: 'Collection not found' });
+      return;
     }
     
     if (!(await checkCollectionAccess(user, collection))) {
-      return res.status(403).json({ error: 'Permission denied' });
+      res.status(403).json({ error: 'Permission denied' });
+      return;
     }
     
     // Update collection details without changing its MongoDB ID.
@@ -231,18 +234,20 @@ router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: 
  * DELETE /collections/:id
  * Deletes a single collection using its MongoDB identifier.
  */
-router.delete('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+router.delete('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const user = (req as any).user;
     
     const collection = await Collection.findById(id);
     if (!collection) {
-      return res.status(404).json({ error: 'Collection not found' });
+      res.status(404).json({ error: 'Collection not found' });
+      return;
     }
     
     if (!(await checkCollectionAccess(user, collection))) {
-      return res.status(403).json({ error: 'Permission denied' });
+      res.status(403).json({ error: 'Permission denied' });
+      return;
     }
     
     await chromaService.deleteCollection(collection.name);
@@ -257,23 +262,25 @@ router.delete('/collections/:id', roleGuard(['Staffs']), async (req: Request, re
  * DELETE /collections
  * Deletes multiple collections given an array of collection IDs.
  */
-router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: Response) => {
+router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { collections } = req.body; // Expects an array of collection IDs
     const user = (req as any).user;
-    
     if (!Array.isArray(collections)) {
-      return res.status(400).json({ error: 'Invalid collections array' });
+      res.status(400).json({ error: 'Invalid collections array' });
+      return;
     }
     
     const collectionNames: string[] = [];
     for (const id of collections) {
       const coll = await Collection.findById(id);
       if (!coll) {
-        return res.status(404).json({ error: `Collection not found for id: ${id}` });
+        res.status(404).json({ error: `Collection not found for id: ${id}` });
+        return;
       }
       if (!(await checkCollectionAccess(user, coll))) {
-        return res.status(403).json({ error: `Permission denied for collection with id: ${id}` });
+        res.status(403).json({ error: `Permission denied for collection with id: ${id}` });
+        return;
       }
       collectionNames.push(coll.name);
     }
@@ -294,18 +301,19 @@ router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: R
  * GET /documents
  * Retrieves documents for a given collection (provided via query parameter).
  */
-router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { collectionName } = req.query;
     const user = (req as any).user;
-
     if (!collectionName || typeof collectionName !== 'string') {
-      return res.status(400).json({ error: 'Collection name is required' });
+      res.status(400).json({ error: 'Collection name is required' });
+      return;
     }
 
     const collection = await Collection.findOne({ name: collectionName });
     if (!collection) {
-      return res.status(404).json({ error: 'Collection not found' });
+      res.status(404).json({ error: 'Collection not found' });
+      return;
     }
 
     // Check user permission based on collection permission settings.
@@ -313,9 +321,9 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
       collection.permission === CollectionPermission.PUBLIC ||
       (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
       collection.createdBy === user.nameID;
-
     if (!canAccess) {
-      return res.status(403).json({ error: 'No permission to access this collection' });
+      res.status(403).json({ error: 'No permission to access this collection' });
+      return;
     }
 
     const documents = await chromaService.getAllDocuments(collectionName);
