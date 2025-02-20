@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH } from 'react-icons/fa';
-import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 // ----------------------
 // Type Definitions
@@ -81,8 +80,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 }) => (
   <header className="mb-6">
     <div className="flex items-center justify-between">
-      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Knowledge 11</h1>
-      <DarkModeToggle />
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Collection</h1>
     </div>
     <div className="mt-4 flex items-center">
       <input
