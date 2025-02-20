@@ -180,7 +180,7 @@ router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Res
     const { name, permission } = req.body;
     const user = (req as any).user;
     
-    const newCollection = await chromaService.createCollection(name, permission, user.nameID) as ICollection;
+    const newCollection = await chromaService.createCollection(name, permission, user.nameID) as HydratedDocument<ICollection>;
     console.log(`Collection created: id: ${newCollection._id}, name: "${newCollection.name}"`);
     
     res.status(201).json({
@@ -208,7 +208,7 @@ router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: 
     const { name: newName, permission } = req.body;
     const user = (req as any).user;
 
-    // Use .exec() so the promise resolves to a properly typed HydratedDocument<ICollection> | null
+    // Use .exec() to ensure the returned value is typed as HydratedDocument<ICollection> | null
     const collection: HydratedDocument<ICollection> | null = await Collection.findById(id).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
