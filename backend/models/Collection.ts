@@ -6,11 +6,12 @@ export enum CollectionPermission {
   PRIVATE = 'private'
 }
 
-export interface Collection extends Document {
+export interface ICollection extends Document {
+  _id: string;
   name: string;
   permission: CollectionPermission;
   createdBy: string;
-  // Other properties if needed.
+  created: Date;
 }
 
 const collectionSchema = new mongoose.Schema({
@@ -24,4 +25,4 @@ const collectionSchema = new mongoose.Schema({
   created: { type: Date, default: Date.now }
 });
 
-export const Collection = mongoose.model('Collection', collectionSchema); 
+export const Collection = mongoose.model<ICollection>('Collection', collectionSchema); 
