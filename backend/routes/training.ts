@@ -7,9 +7,9 @@ import { chromaService } from '../services/chroma';
 import { titanEmbedService } from '../services/titan';
 import { splitTextIntoChunks } from '../utils/textUtils';
 import { webScraperService } from '../services/webScraper';
-import { Collection, ICollection, CollectionPermission } from '../models/Collection';
+import { CollectionModel, CollectionDocument } from '../models/Collection';
 import iconv from 'iconv-lite';
-import { Document, HydratedDocument } from 'mongoose';
+import { CollectionPermission } from '../models/Collection';
 
 const router = Router();
 
@@ -155,14 +155,14 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
  */
 router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const collections = await Collection.find({}).lean() as (ICollection & { _id: any })[];
+    const collections = await CollectionModel.find({}).lean() as (CollectionDocument & { _id: any })[];
     res.json(
       collections.map(collection => ({
         id: collection._id.toString(),
         name: collection.name,
         permission: collection.permission,
         createdBy: collection.createdBy,
-        created: collection.created
+        createdAt: collection.createdAt
       }))
     );
   } catch (error) {
@@ -180,13 +180,13 @@ router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Res
     const { name, permission } = req.body;
     const user = (req as any).user;
     
-    const newCollection = await chromaService.createCollection(name, permission, user.nameID) as HydratedDocument<ICollection>;
+    const newCollection = await chromaService.createCollection(name, permission, user.nameID);
     console.log(`Collection created: id: ${newCollection._id}, name: "${newCollection.name}"`);
     
     res.status(201).json({
       message: 'Collection created successfully',
       collection: {
-        id: newCollection._id.toString(),
+        id: newCollection.id.toString(),
         name: newCollection.name,
         permission: newCollection.permission,
         createdBy: newCollection.createdBy
@@ -208,8 +208,7 @@ router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: 
     const { name: newName, permission } = req.body;
     const user = (req as any).user;
 
-    // Use .exec() to ensure the returned value is typed as HydratedDocument<ICollection> | null
-    const collection: HydratedDocument<ICollection> | null = await Collection.findById(id).exec();
+    const collection: CollectionDocument | null = await CollectionModel.findById(id).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -245,7 +244,7 @@ router.delete('/collections/:id', roleGuard(['Staffs']), async (req: Request, re
     const { id } = req.params;
     const user = (req as any).user;
     
-    const collection: ICollection | null = await Collection.findById(id);
+    const collection: CollectionDocument | null = await CollectionModel.findById(id);
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -279,7 +278,7 @@ router.delete('/collections', roleGuard(['Staffs']), async (req: Request, res: R
     
     const collectionNames: string[] = [];
     for (const id of collections) {
-      const coll: ICollection | null = await Collection.findById(id);
+      const coll: CollectionDocument | null = await CollectionModel.findById(id);
       if (!coll) {
         res.status(404).json({ error: `Collection not found for id: ${id}` });
         return;
@@ -316,7 +315,7 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
       return;
     }
 
-    const collection: HydratedDocument<ICollection> | null = await Collection.findOne({ name: collectionName }).exec();
+    const collection: CollectionDocument | null = await CollectionModel.findOne({ name: collectionName }).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -362,7 +361,7 @@ router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: R
       return;
     }
 
-    const collection: HydratedDocument<ICollection> | null = await Collection.findOne({ name: collectionName }).exec();
+    const collection: CollectionDocument | null = await CollectionModel.findOne({ name: collectionName }).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
@@ -474,8 +473,8 @@ router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Respo
 router.get('/example/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    // Use .exec() so that findById returns a properly typed Promise<ICollection | null>
-    const collection = await Collection.findById(id).exec();
+    // Use .exec() so that findById returns a properly typed Promise<CollectionDocument | null>
+    const collection = await CollectionModel.findById(id).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;

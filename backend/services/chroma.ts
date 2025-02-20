@@ -1,7 +1,8 @@
 import { ChromaClient } from 'chromadb';
-import { Collection } from '../models/Collection';
+import { ICollection, CollectionModel, CollectionDocument } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
 import { TitanEmbedService } from '../services/titan';
+import { HydratedDocument } from 'mongoose';
 
 interface DocumentMetadata {
   filename: string;
@@ -131,7 +132,7 @@ class ChromaService {
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, n_results: number = 5) {
+  async queryDocuments(collectionName: string, query: string, n_results: number = 10) {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
@@ -153,7 +154,7 @@ class ChromaService {
     }
   }
 
-  async queryCollection(collectionName: string, text: string, nResults: number = 5) {
+  async queryCollection(collectionName: string, text: string, nResults: number = 10) {
     await this.initCollection(collectionName);
     const collection = this.collections.get(collectionName);
     return collection.query({
@@ -168,7 +169,7 @@ class ChromaService {
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
         queryTexts: [query],
-        nResults: 5,
+        nResults: 10,
         minScore: 0.7,
         where: {},
         include: ["documents", "metadatas", "distances"]
@@ -280,7 +281,7 @@ class ChromaService {
       this.collections.delete(collectionName);
 
       // Delete from MongoDB
-      await Collection.deleteOne({ name: collectionName });
+      await CollectionModel.deleteOne({ name: collectionName });
       
       console.log(`Collection ${collectionName} deleted successfully`);
     } catch (error) {
@@ -303,20 +304,20 @@ class ChromaService {
     }
   }
 
-  async createCollection(name: string, permission: CollectionPermission, createdBy: string) {
+  async createCollection(name: string, permission: CollectionPermission, createdBy: string): Promise<HydratedDocument<CollectionDocument>> {
     try {
-      // 1. สร้าง collection ใน ChromaDB
-      const collection = await this.client.createCollection({ name });
+      // 1. Create the collection in ChromaDB
+      await this.client.createCollection({ name });
       
-      // 2. บันทึก metadata ใน MongoDB
-      await Collection.create({
+      // 2. Save the collection metadata into MongoDB and get the created document (includes _id)
+      const newCollection = await CollectionModel.create({
         name,
         permission,
         createdBy,
         created: new Date()
       });
-
-      return collection;
+      
+      return newCollection;
     } catch (error) {
       console.error('Error creating collection:', error);
       throw error;
@@ -348,7 +349,7 @@ class ChromaService {
   async checkCollectionAccess(collectionName: string, user: { nameID: string, groups: string[] }) {
     try {
       // ค้นหา collection จาก MongoDB
-      const collection = await Collection.findOne({ name: collectionName });
+      const collection = await CollectionModel.findOne({ name: collectionName });
       
       // ถ้าไม่พบ collection
       if (!collection) {
@@ -375,10 +376,10 @@ class ChromaService {
   // เพิ่มเมธอดสำหรับตรวจสอบการมีอยู่ของ collection
   async ensureCollectionExists(name: string, user: { nameID: string }) {
     try {
-      let collection = await Collection.findOne({ name });
+      let collection = await CollectionModel.findOne({ name });
       
       if (!collection) {
-        collection = await Collection.create({
+        collection = await CollectionModel.create({
           name,
           permission: CollectionPermission.PUBLIC,
           createdBy: user.nameID,

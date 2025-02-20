@@ -1,4 +1,4 @@
-import mongoose, { Document } from 'mongoose';
+import { Document, Schema, model } from 'mongoose';
 
 export enum CollectionPermission {
   PUBLIC = 'PUBLIC',
@@ -6,23 +6,22 @@ export enum CollectionPermission {
   PRIVATE = 'PRIVATE'
 }
 
-export interface ICollection extends Document {
-  _id: string;
+export interface ICollection {
   name: string;
-  permission: CollectionPermission;
+  permission: string;
   createdBy: string;
-  created: Date;
+  createdAt?: Date;  // Optional since Mongoose adds it automatically
+  updatedAt?: Date;  // Optional since Mongoose adds it automatically
+  // add other fields as needed
 }
 
-const collectionSchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
-  permission: { 
-    type: String,
-    enum: Object.values(CollectionPermission),
-    default: CollectionPermission.PRIVATE
-  },
-  createdBy: { type: String, required: true }, // nameID ของผู้สร้าง
-  created: { type: Date, default: Date.now }
-});
+export type CollectionDocument = ICollection & Document;
 
-export const Collection = mongoose.model<ICollection>('Collection', collectionSchema);  
+const collectionSchema = new Schema<CollectionDocument>({
+  name: { type: String, required: true },
+  permission: { type: String, required: true },
+  createdBy: { type: String, required: true },
+  // add default values if needed
+}, { timestamps: true });
+
+export const CollectionModel = model<CollectionDocument>('Collection', collectionSchema);  
