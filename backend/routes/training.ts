@@ -154,10 +154,10 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
  */
 router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
   try {
-    const collections = await Collection.find({});
+    const collections = await Collection.find({}).lean();  // Use lean() to get plain objects
     res.json(
       collections.map(collection => ({
-        id: collection.id,
+        id: collection._id.toString(), // Convert ObjectId to string
         name: collection.name,
         permission: collection.permission,
         createdBy: collection.createdBy,
@@ -180,12 +180,12 @@ router.post('/collections', roleGuard(['Staffs']), async (req: Request, res: Res
     const user = (req as any).user;
     
     const newCollection = await chromaService.createCollection(name, permission, user.nameID);
-    console.log(`Collection created: id: ${newCollection.id}, name: "${newCollection.name}"`);
+    console.log(`Collection created: id: ${newCollection._id}, name: "${newCollection.name}"`);
     
     res.status(201).json({
       message: 'Collection created successfully',
       collection: {
-        id: newCollection.id,
+        id: newCollection._id.toString(),
         name: newCollection.name,
         permission: newCollection.permission,
         createdBy: newCollection.createdBy
