@@ -1,9 +1,16 @@
-import mongoose from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 
 export enum CollectionPermission {
-  PUBLIC = 'public',
-  STAFF_ONLY = 'staff_only', 
+  PUBLIC = 'PUBLIC',
+  STAFF_ONLY = 'STAFF_ONLY',
   PRIVATE = 'private'
+}
+
+export interface Collection extends Document {
+  name: string;
+  permission: CollectionPermission;
+  createdBy: string;
+  // Other properties if needed.
 }
 
 const collectionSchema = new mongoose.Schema({
