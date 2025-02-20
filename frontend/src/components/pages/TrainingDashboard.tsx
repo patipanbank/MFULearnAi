@@ -156,12 +156,11 @@ const CollectionModal: React.FC<{
   collection: Collection;
   onClose: () => void;
   uploadedFiles: UploadedFile[];
-  file: File | null;
   onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onFileUpload: (e: FormEvent) => void;
   uploadLoading: boolean;
   onShowSettings: () => void;
-}> = ({ collection, onClose, uploadedFiles, file, onFileChange, onFileUpload, uploadLoading, onShowSettings }) => (
+}> = ({ collection, onClose, uploadedFiles, onFileChange, onFileUpload, uploadLoading, onShowSettings }) => (
   <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
     <div className="bg-white rounded p-6 w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-full">
       <button onClick={onClose} className="absolute top-2 right-2" title="Close">
@@ -211,14 +210,13 @@ const CollectionModal: React.FC<{
 
 // --- Settings Modal Component ---
 const SettingsModal: React.FC<{
-  collection: Collection;
   updatedCollectionName: string;
   updatedCollectionPermission: string;
   onNameChange: (value: string) => void;
   onPermissionChange: (value: string) => void;
   onClose: () => void;
   onSubmit: (e: FormEvent) => void;
-}> = ({ collection, updatedCollectionName, updatedCollectionPermission, onNameChange, onPermissionChange, onClose, onSubmit }) => (
+}> = ({ updatedCollectionName, updatedCollectionPermission, onNameChange, onPermissionChange, onClose, onSubmit }) => (
   <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-60">
     <div className="bg-white rounded p-6 w-80">
       <div className="flex justify-between items-center mb-4">
@@ -510,7 +508,6 @@ const KnowledgeDashboard: React.FC = () => {
           collection={selectedCollection}
           onClose={() => setSelectedCollection(null)}
           uploadedFiles={uploadedFiles}
-          file={file}
           onFileChange={handleFileChange}
           onFileUpload={handleFileUpload}
           uploadLoading={uploadLoading}
@@ -520,7 +517,6 @@ const KnowledgeDashboard: React.FC = () => {
 
       {showSettings && selectedCollection && (
         <SettingsModal
-          collection={selectedCollection}
           updatedCollectionName={updatedCollectionName}
           updatedCollectionPermission={updatedCollectionPermission}
           onNameChange={setUpdatedCollectionName}
