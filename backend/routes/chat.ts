@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
-import { Collection, CollectionPermission } from '../models/Collection';
+import { CollectionModel, CollectionPermission, CollectionDocument } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
 
 const router = Router();
@@ -186,10 +186,10 @@ router.get('/collections', async (req: Request, res: Response) => {
     const user = (req as any).user;
     
     // ดึงข้อมูล collections จาก MongoDB
-    const collections = await Collection.find({});
+    const collections: CollectionDocument[] = await CollectionModel.find({});
     
     // กรองตามสิทธิ์
-    const accessibleCollections = collections.filter(collection => {
+    const accessibleCollections = collections.filter((collection: CollectionDocument) => {
       switch (collection.permission) {
         case CollectionPermission.PUBLIC:
           return true;
@@ -203,7 +203,7 @@ router.get('/collections', async (req: Request, res: Response) => {
     });
 
     // ส่งเฉพาะชื่อ collection ที่มีสิทธิ์
-    res.json(accessibleCollections.map(c => c.name));
+    res.json(accessibleCollections.map((c: CollectionDocument) => c.name));
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
