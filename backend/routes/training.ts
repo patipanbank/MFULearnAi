@@ -207,24 +207,29 @@ router.put('/collections/:id', roleGuard(['Staffs']), async (req: Request, res: 
     const { id } = req.params;
     const { name: newName, permission } = req.body;
     const user = (req as any).user;
-    
-    const collection: ICollection | null = await Collection.findById(id);
+
+    // Use .exec() to ensure the returned value is typed as ICollection | null
+    const collection: ICollection | null = await Collection.findById(id).exec();
     if (!collection) {
       res.status(404).json({ error: 'Collection not found' });
       return;
     }
-    
-    if (!(await checkCollectionAccess(user, collection))) {
+
+    // Check user access
+    const canAccess =
+      collection.permission === CollectionPermission.PUBLIC ||
+      (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
+      collection.createdBy === user.nameID;
+    if (!canAccess) {
       res.status(403).json({ error: 'Permission denied' });
       return;
     }
     
-    // Update collection details without changing its MongoDB ID.
+    // Update collection details
     collection.name = newName;
     collection.permission = permission;
     await collection.save();
     
-    console.log(`Collection updated: id: "${id}", new name: "${newName}", new permission: "${permission}"`);
     res.json({ message: 'Collection updated successfully' });
   } catch (error) {
     console.error('Error updating collection:', error);
