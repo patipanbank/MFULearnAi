@@ -467,4 +467,29 @@ router.delete('/cleanup', roleGuard(['Staffs']), async (req: Request, res: Respo
   }
 });
 
+router.get('/example/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    // Retrieve a properly typed document instance
+    const collection: ICollection | null = await Collection.findById(id).exec();
+    if (!collection) {
+      res.status(404).json({ error: 'Collection not found' });
+      return;
+    }
+
+    const canAccess =
+      collection.permission === CollectionPermission.PUBLIC ||
+      (collection.permission === CollectionPermission.STAFF_ONLY && (req as any).user.groups.includes('Staffs')) ||
+      collection.createdBy === (req as any).user.nameID;
+
+    res.status(200).json({
+      id: collection._id,
+      canAccess,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router; 
