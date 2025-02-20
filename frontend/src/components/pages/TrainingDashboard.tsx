@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH } from 'react-icons/fa';
+import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 // ----------------------
 // Type Definitions
@@ -51,10 +52,10 @@ const BaseModal: React.FC<BaseModalProps> = ({
   children,
 }) => (
   <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div className={`relative bg-white rounded p-6 ${containerClasses}`}>
+    <div className={`relative bg-white dark:bg-gray-800 rounded p-6 ${containerClasses}`}>
       <button
         onClick={onClose}
-        className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+        className="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
         title="Close"
       >
         <FaTimes size={20} />
@@ -78,15 +79,18 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onSearchChange,
   onNewCollectionToggle,
 }) => (
-  <header className="flex flex-col md:flex-row items-center justify-between mb-6">
-    <div className="flex items-center w-full">
-      <h1 className="text-3xl font-bold mr-4">Knowledge 11</h1>
+  <header className="mb-6">
+    <div className="flex items-center justify-between">
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Knowledge 11</h1>
+      <DarkModeToggle />
+    </div>
+    <div className="mt-4 flex items-center">
       <input
         type="text"
         placeholder="Search Knowledge"
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="border border-gray-300 rounded px-4 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       <button
         type="button"
@@ -101,9 +105,9 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 );
 
 // ----------------------
-// New Collection Form Component
+// New Collection Modal Component
 // ----------------------
-interface NewCollectionFormProps {
+interface NewCollectionModalProps {
   newCollectionName: string;
   newCollectionPermission: string;
   onNameChange: (value: string) => void;
@@ -112,7 +116,7 @@ interface NewCollectionFormProps {
   onCancel: () => void;
 }
 
-const NewCollectionForm: React.FC<NewCollectionFormProps> = ({
+const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
   newCollectionName,
   newCollectionPermission,
   onNameChange,
@@ -120,35 +124,45 @@ const NewCollectionForm: React.FC<NewCollectionFormProps> = ({
   onSubmit,
   onCancel,
 }) => (
-  <form onSubmit={onSubmit} className="mb-4 flex flex-col sm:flex-row items-center">
-    <input
-      type="text"
-      placeholder="New Collection Name"
-      value={newCollectionName}
-      onChange={(e) => onNameChange(e.target.value)}
-      className="border border-gray-300 rounded px-4 py-2 flex-grow mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-    <select
-      value={newCollectionPermission}
-      onChange={(e) => onPermissionChange(e.target.value)}
-      className="border border-gray-300 rounded px-4 py-2 mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-    >
-      <option value="PRIVATE">Private</option>
-      <option value="STAFF_ONLY">Staff Only</option>
-      <option value="PUBLIC">Public</option>
-    </select>
-    <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-150">
-      Create
-    </button>
-    <button
-      type="button"
-      onClick={onCancel}
-      className="ml-2 text-red-500 text-xl hover:text-red-600 transition duration-150"
-      title="Cancel"
-    >
-      <FaTimes />
-    </button>
-  </form>
+  <BaseModal onClose={onCancel} containerClasses="w-80">
+    <div className="mb-4">
+      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">
+        Create New Collection
+      </h3>
+    </div>
+    <form onSubmit={onSubmit}>
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="New Collection Name"
+          value={newCollectionName}
+          onChange={(e) => onNameChange(e.target.value)}
+          className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div className="mb-4">
+        <select
+          value={newCollectionPermission}
+          onChange={(e) => onPermissionChange(e.target.value)}
+          className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="PRIVATE">Private</option>
+          <option value="STAFF_ONLY">Staff Only</option>
+          <option value="PUBLIC">Public</option>
+        </select>
+      </div>
+      <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-150">
+        Create Collection
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="mt-2 w-full text-red-500 hover:text-red-600 transition duration-150"
+      >
+        Cancel
+      </button>
+    </form>
+  </BaseModal>
 );
 
 // ----------------------
@@ -172,7 +186,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   onDelete,
 }) => (
   <div
-    className="relative border border-gray-200 rounded p-4 shadow transform hover:scale-105 hover:shadow-lg transition duration-200 cursor-pointer"
+    className="relative border border-gray-200 dark:border-gray-700 rounded p-4 shadow transform hover:scale-105 hover:shadow-lg transition duration-200 cursor-pointer bg-white dark:bg-gray-900"
     onClick={onSelect}
   >
     <button
@@ -180,19 +194,19 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
         e.stopPropagation();
         onDropdownToggle();
       }}
-      className="absolute top-2 right-2 p-1 text-gray-600 hover:text-gray-800 transition duration-150"
+      className="absolute top-2 right-2 p-1 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 transition duration-150"
       title="Options"
     >
       <FaEllipsisH />
     </button>
     {activeDropdown && (
-      <div className="absolute top-10 right-2 bg-white border border-gray-300 rounded shadow z-10">
+      <div className="absolute top-10 right-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow z-10">
         <button
           onClick={(e) => {
             e.stopPropagation();
             onSettings();
           }}
-          className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
+          className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left text-gray-800 dark:text-gray-100"
         >
           Settings
         </button>
@@ -201,16 +215,16 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
             e.stopPropagation();
             onDelete();
           }}
-          className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
+          className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left text-gray-800 dark:text-gray-100"
         >
           Delete
         </button>
       </div>
     )}
-    <div className="text-xs font-bold text-gray-500 uppercase mb-1">Collection</div>
-    <h2 className="text-xl font-semibold text-gray-800 mb-2">{collection.name}</h2>
-    <p className="text-sm text-gray-600 mb-1">By {collection.createdBy}</p>
-    <p className="text-sm text-gray-500">{getRelativeTime(collection.created)}</p>
+    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Collection</div>
+    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">{collection.name}</h2>
+    <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">By {collection.createdBy}</p>
+    <p className="text-sm text-gray-500 dark:text-gray-400">{getRelativeTime(collection.created)}</p>
   </div>
 );
 
@@ -236,27 +250,24 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   uploadLoading,
   onShowSettings,
 }) => (
-  <BaseModal
-    onClose={onClose}
-    containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-full"
-  >
+  <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-full">
     <div className="flex justify-between items-center mb-6">
-      <h2 className="text-2xl font-bold">{collection.name}</h2>
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{collection.name}</h2>
       <button
         onClick={onShowSettings}
-        className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 transition duration-150"
+        className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-150"
         title="Collection Settings"
       >
-        <FaCog size={20} />
+        <FaCog size={20} className="text-gray-800 dark:text-gray-100" />
       </button>
     </div>
     <section className="mb-6">
-      <h3 className="text-xl font-semibold mb-2">Upload File</h3>
+      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Upload File</h3>
       <form onSubmit={onFileUpload} className="flex flex-col sm:flex-row items-start sm:items-center">
         <input
           type="file"
           onChange={onFileChange}
-          className="mb-2 sm:mb-0 sm:mr-2 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mb-2 sm:mb-0 sm:mr-2 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-gray-100 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           type="submit"
@@ -268,22 +279,22 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
       </form>
     </section>
     <section>
-      <h3 className="text-xl font-semibold mb-2">Files in the Collection</h3>
+      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Files in the Collection</h3>
       {uploadedFiles.length > 0 ? (
         <ul className="space-y-2">
           {uploadedFiles.map((fileItem, index) => (
-            <li key={index} className="border border-gray-300 rounded p-2">
-              <div className="font-semibold">{fileItem.filename}</div>
-              <div className="text-sm text-gray-600">Uploaded by: {fileItem.uploadedBy}</div>
-              <div className="text-sm text-gray-500">
+            <li key={index} className="border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-800">
+              <div className="font-semibold text-gray-800 dark:text-gray-100">{fileItem.filename}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Uploaded by: {fileItem.uploadedBy}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 At: {new Date(fileItem.timestamp).toLocaleString()}
               </div>
-              <div className="text-sm text-gray-400">Chunks: {fileItem.ids.length}</div>
+              <div className="text-sm text-gray-400 dark:text-gray-300">Chunks: {fileItem.ids.length}</div>
             </li>
           ))}
         </ul>
       ) : (
-        <p>No files uploaded yet.</p>
+        <p className="text-gray-600 dark:text-gray-300">No files uploaded yet.</p>
       )}
     </section>
   </BaseModal>
@@ -311,24 +322,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => (
   <BaseModal onClose={onClose} containerClasses="w-80">
     <div className="mb-4">
-      <h3 className="text-xl font-semibold mb-2">Collection Settings</h3>
+      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Collection Settings</h3>
     </div>
     <form onSubmit={onSubmit}>
       <div className="mb-4">
-        <label className="block mb-1">Collection Name</label>
+        <label className="block mb-1 text-gray-800 dark:text-gray-100">Collection Name</label>
         <input
           type="text"
           value={updatedCollectionName}
           onChange={(e) => onNameChange(e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
       <div className="mb-4">
-        <label className="block mb-1">Permission</label>
+        <label className="block mb-1 text-gray-800 dark:text-gray-100">Permission</label>
         <select
           value={updatedCollectionPermission}
           onChange={(e) => onPermissionChange(e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="PRIVATE">Private</option>
           <option value="STAFF_ONLY">Staff Only</option>
@@ -349,7 +360,8 @@ const TrainingDashboard: React.FC = () => {
   // Dashboard state
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showNewCollectionForm, setShowNewCollectionForm] = useState<boolean>(false);
+  
+  const [showNewCollectionModal, setShowNewCollectionModal] = useState<boolean>(false);
   const [newCollectionName, setNewCollectionName] = useState<string>('');
   const [newCollectionPermission, setNewCollectionPermission] = useState<string>('PRIVATE');
 
@@ -409,7 +421,12 @@ const TrainingDashboard: React.FC = () => {
       );
       if (!response.ok) throw new Error('Failed to fetch files');
       const data = await response.json();
-      setUploadedFiles(data);
+      console.log('Fetched files:', data);
+      if (data.files) {
+        setUploadedFiles(data.files);
+      } else {
+        setUploadedFiles(data);
+      }
     } catch (error) {
       console.error('Error fetching uploaded files:', error);
     }
@@ -454,7 +471,7 @@ const TrainingDashboard: React.FC = () => {
       if (!response.ok) throw new Error('Failed to create collection');
       await fetchCollections();
       setNewCollectionName('');
-      setShowNewCollectionForm(false);
+      setShowNewCollectionModal(false);
     } catch (error) {
       console.error('Error creating collection:', error);
       alert('Error creating collection');
@@ -563,25 +580,11 @@ const TrainingDashboard: React.FC = () => {
       <DashboardHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onNewCollectionToggle={() => setShowNewCollectionForm((prev) => !prev)}
+        onNewCollectionToggle={() => setShowNewCollectionModal(true)}
       />
 
-      {showNewCollectionForm && (
-        <NewCollectionForm
-          newCollectionName={newCollectionName}
-          newCollectionPermission={newCollectionPermission}
-          onNameChange={setNewCollectionName}
-          onPermissionChange={setNewCollectionPermission}
-          onSubmit={handleCreateCollection}
-          onCancel={() => {
-            setShowNewCollectionForm(false);
-            setNewCollectionName('');
-          }}
-        />
-      )}
-
       {isCollectionsLoading ? (
-        <div className="text-center py-8 text-gray-600">Loading collections...</div>
+        <div className="text-center py-8 text-gray-600 dark:text-gray-300">Loading collections...</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {filteredCollections.map((collection) => (
@@ -627,6 +630,20 @@ const TrainingDashboard: React.FC = () => {
           onPermissionChange={setUpdatedCollectionPermission}
           onClose={() => setShowSettings(false)}
           onSubmit={handleUpdateSettings}
+        />
+      )}
+
+      {showNewCollectionModal && (
+        <NewCollectionModal
+          newCollectionName={newCollectionName}
+          newCollectionPermission={newCollectionPermission}
+          onNameChange={setNewCollectionName}
+          onPermissionChange={setNewCollectionPermission}
+          onSubmit={handleCreateCollection}
+          onCancel={() => {
+            setShowNewCollectionModal(false);
+            setNewCollectionName('');
+          }}
         />
       )}
     </div>
