@@ -1,7 +1,10 @@
-import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH } from 'react-icons/fa';
 
+// ----------------------
+// Type Definitions
+// ----------------------
 interface Collection {
   id: string;
   name: string;
@@ -17,7 +20,9 @@ interface UploadedFile {
   ids: string[];
 }
 
-// Utility function to generate a relative time string.
+// ----------------------
+// Utility Functions
+// ----------------------
 const getRelativeTime = (dateString: string): string => {
   const date = new Date(dateString);
   const now = new Date();
@@ -31,12 +36,48 @@ const getRelativeTime = (dateString: string): string => {
   return `Updated ${Math.floor(diffDays)} days ago`;
 };
 
-// --- Dashboard Header Component ---
-const DashboardHeader: React.FC<{
+// ----------------------
+// Reusable Modal Component
+// ----------------------
+interface BaseModalProps {
+  onClose: () => void;
+  containerClasses?: string;
+  children: React.ReactNode;
+}
+
+const BaseModal: React.FC<BaseModalProps> = ({
+  onClose,
+  containerClasses = '',
+  children,
+}) => (
+  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+    <div className={`relative bg-white rounded p-6 ${containerClasses}`}>
+      <button
+        onClick={onClose}
+        className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+        title="Close"
+      >
+        <FaTimes size={20} />
+      </button>
+      {children}
+    </div>
+  </div>
+);
+
+// ----------------------
+// Dashboard Header Component
+// ----------------------
+interface DashboardHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onNewCollectionToggle: () => void;
-}> = ({ searchQuery, onSearchChange, onNewCollectionToggle }) => (
+}
+
+const DashboardHeader: React.FC<DashboardHeaderProps> = ({
+  searchQuery,
+  onSearchChange,
+  onNewCollectionToggle,
+}) => (
   <header className="flex flex-col md:flex-row items-center justify-between mb-6">
     <div className="flex items-center w-full">
       <h1 className="text-3xl font-bold mr-4">Knowledge 11</h1>
@@ -45,12 +86,12 @@ const DashboardHeader: React.FC<{
         placeholder="Search Knowledge"
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="border border-gray-300 rounded px-4 py-2 flex-grow"
+        className="border border-gray-300 rounded px-4 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       <button
         type="button"
         onClick={onNewCollectionToggle}
-        className="ml-2 text-xl p-2 bg-blue-500 rounded-full text-white"
+        className="ml-2 text-xl p-2 bg-blue-500 rounded-full text-white hover:bg-blue-600 transition duration-150"
         title="Create Collection"
       >
         <FaPlus />
@@ -59,39 +100,50 @@ const DashboardHeader: React.FC<{
   </header>
 );
 
-// --- New Collection Form Component ---
-const NewCollectionForm: React.FC<{
+// ----------------------
+// New Collection Form Component
+// ----------------------
+interface NewCollectionFormProps {
   newCollectionName: string;
   newCollectionPermission: string;
   onNameChange: (value: string) => void;
   onPermissionChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   onCancel: () => void;
-}> = ({ newCollectionName, newCollectionPermission, onNameChange, onPermissionChange, onSubmit, onCancel }) => (
-  <form onSubmit={onSubmit} className="mb-4 flex items-center">
+}
+
+const NewCollectionForm: React.FC<NewCollectionFormProps> = ({
+  newCollectionName,
+  newCollectionPermission,
+  onNameChange,
+  onPermissionChange,
+  onSubmit,
+  onCancel,
+}) => (
+  <form onSubmit={onSubmit} className="mb-4 flex flex-col sm:flex-row items-center">
     <input
       type="text"
       placeholder="New Collection Name"
       value={newCollectionName}
       onChange={(e) => onNameChange(e.target.value)}
-      className="border border-gray-300 rounded px-4 py-2 w-full mr-2"
+      className="border border-gray-300 rounded px-4 py-2 flex-grow mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
     />
     <select
       value={newCollectionPermission}
       onChange={(e) => onPermissionChange(e.target.value)}
-      className="border border-gray-300 rounded px-4 py-2 mr-2"
+      className="border border-gray-300 rounded px-4 py-2 mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
       <option value="PRIVATE">Private</option>
       <option value="STAFF_ONLY">Staff Only</option>
       <option value="PUBLIC">Public</option>
     </select>
-    <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+    <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-150">
       Create
     </button>
     <button
       type="button"
       onClick={onCancel}
-      className="ml-2 text-red-500 text-xl"
+      className="ml-2 text-red-500 text-xl hover:text-red-600 transition duration-150"
       title="Cancel"
     >
       <FaTimes />
@@ -99,17 +151,28 @@ const NewCollectionForm: React.FC<{
   </form>
 );
 
-// --- Collection Card Component ---
-const CollectionCard: React.FC<{
+// ----------------------
+// Collection Card Component
+// ----------------------
+interface CollectionCardProps {
   collection: Collection;
   onSelect: () => void;
   activeDropdown: boolean;
   onDropdownToggle: () => void;
   onSettings: () => void;
   onDelete: () => void;
-}> = ({ collection, onSelect, activeDropdown, onDropdownToggle, onSettings, onDelete }) => (
+}
+
+const CollectionCard: React.FC<CollectionCardProps> = ({
+  collection,
+  onSelect,
+  activeDropdown,
+  onDropdownToggle,
+  onSettings,
+  onDelete,
+}) => (
   <div
-    className="relative border border-gray-200 rounded p-4 shadow hover:shadow-md transition-shadow duration-200 cursor-pointer"
+    className="relative border border-gray-200 rounded p-4 shadow transform hover:scale-105 hover:shadow-lg transition duration-200 cursor-pointer"
     onClick={onSelect}
   >
     <button
@@ -117,13 +180,13 @@ const CollectionCard: React.FC<{
         e.stopPropagation();
         onDropdownToggle();
       }}
-      className="absolute top-2 right-2 p-1 text-gray-600 hover:text-gray-800"
+      className="absolute top-2 right-2 p-1 text-gray-600 hover:text-gray-800 transition duration-150"
       title="Options"
     >
       <FaEllipsisH />
     </button>
     {activeDropdown && (
-      <div className="absolute top-8 right-2 bg-white border border-gray-300 rounded shadow z-10">
+      <div className="absolute top-10 right-2 bg-white border border-gray-300 rounded shadow z-10">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -144,15 +207,17 @@ const CollectionCard: React.FC<{
         </button>
       </div>
     )}
-    <div className="text-xs font-bold text-gray-500 uppercase mb-1">COLLECTION</div>
+    <div className="text-xs font-bold text-gray-500 uppercase mb-1">Collection</div>
     <h2 className="text-xl font-semibold text-gray-800 mb-2">{collection.name}</h2>
     <p className="text-sm text-gray-600 mb-1">By {collection.createdBy}</p>
     <p className="text-sm text-gray-500">{getRelativeTime(collection.created)}</p>
   </div>
 );
 
-// --- Collection Modal (File Management) Component ---
-const CollectionModal: React.FC<{
+// ----------------------
+// Collection Modal (File Management)
+// ----------------------
+interface CollectionModalProps {
   collection: Collection;
   onClose: () => void;
   uploadedFiles: UploadedFile[];
@@ -160,167 +225,186 @@ const CollectionModal: React.FC<{
   onFileUpload: (e: FormEvent) => void;
   uploadLoading: boolean;
   onShowSettings: () => void;
-}> = ({ collection, onClose, uploadedFiles, onFileChange, onFileUpload, uploadLoading, onShowSettings }) => (
-  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div className="bg-white rounded p-6 w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-full">
-      <button onClick={onClose} className="absolute top-2 right-2" title="Close">
-        <FaTimes size={20} />
+}
+
+const CollectionModal: React.FC<CollectionModalProps> = ({
+  collection,
+  onClose,
+  uploadedFiles,
+  onFileChange,
+  onFileUpload,
+  uploadLoading,
+  onShowSettings,
+}) => (
+  <BaseModal
+    onClose={onClose}
+    containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-full"
+  >
+    <div className="flex justify-between items-center mb-6">
+      <h2 className="text-2xl font-bold">{collection.name}</h2>
+      <button
+        onClick={onShowSettings}
+        className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 transition duration-150"
+        title="Collection Settings"
+      >
+        <FaCog size={20} />
       </button>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">{collection.name}</h2>
-        <button
-          onClick={onShowSettings}
-          className="p-2 bg-gray-200 rounded-full hover:bg-gray-300"
-          title="Collection Settings"
-        >
-          <FaCog size={20} />
-        </button>
-      </div>
-      <section className="mb-6">
-        <h3 className="text-xl font-semibold mb-2">Upload File</h3>
-        <form onSubmit={onFileUpload} className="flex flex-col sm:flex-row items-start sm:items-center">
-          <input type="file" onChange={onFileChange} className="mb-2 sm:mb-0 sm:mr-2" />
-          <button type="submit" disabled={uploadLoading} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
-            {uploadLoading ? 'Uploading...' : 'Upload'}
-          </button>
-        </form>
-      </section>
-      <section>
-        <h3 className="text-xl font-semibold mb-2">Files in the Collection</h3>
-        {uploadedFiles.length > 0 ? (
-          <ul className="space-y-2">
-            {uploadedFiles.map((fileItem, index) => (
-              <li key={index} className="border border-gray-300 rounded p-2">
-                <div className="font-semibold">{fileItem.filename}</div>
-                <div className="text-sm text-gray-600">Uploaded by: {fileItem.uploadedBy}</div>
-                <div className="text-sm text-gray-500">
-                  At: {new Date(fileItem.timestamp).toLocaleString()}
-                </div>
-                <div className="text-sm text-gray-400">Chunks: {fileItem.ids.length}</div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No files uploaded yet.</p>
-        )}
-      </section>
     </div>
-  </div>
+    <section className="mb-6">
+      <h3 className="text-xl font-semibold mb-2">Upload File</h3>
+      <form onSubmit={onFileUpload} className="flex flex-col sm:flex-row items-start sm:items-center">
+        <input
+          type="file"
+          onChange={onFileChange}
+          className="mb-2 sm:mb-0 sm:mr-2 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          type="submit"
+          disabled={uploadLoading}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-150"
+        >
+          {uploadLoading ? 'Uploading...' : 'Upload'}
+        </button>
+      </form>
+    </section>
+    <section>
+      <h3 className="text-xl font-semibold mb-2">Files in the Collection</h3>
+      {uploadedFiles.length > 0 ? (
+        <ul className="space-y-2">
+          {uploadedFiles.map((fileItem, index) => (
+            <li key={index} className="border border-gray-300 rounded p-2">
+              <div className="font-semibold">{fileItem.filename}</div>
+              <div className="text-sm text-gray-600">Uploaded by: {fileItem.uploadedBy}</div>
+              <div className="text-sm text-gray-500">
+                At: {new Date(fileItem.timestamp).toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-400">Chunks: {fileItem.ids.length}</div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No files uploaded yet.</p>
+      )}
+    </section>
+  </BaseModal>
 );
 
-// --- Settings Modal Component ---
-const SettingsModal: React.FC<{
+// ----------------------
+// Settings Modal Component
+// ----------------------
+interface SettingsModalProps {
   updatedCollectionName: string;
   updatedCollectionPermission: string;
   onNameChange: (value: string) => void;
   onPermissionChange: (value: string) => void;
   onClose: () => void;
   onSubmit: (e: FormEvent) => void;
-}> = ({ updatedCollectionName, updatedCollectionPermission, onNameChange, onPermissionChange, onClose, onSubmit }) => (
-  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-60">
-    <div className="bg-white rounded p-6 w-80">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-semibold">Collection Settings</h3>
-        <button onClick={onClose} title="Close">
-          <FaTimes size={20} />
-        </button>
-      </div>
-      <form onSubmit={onSubmit}>
-        <div className="mb-4">
-          <label className="block mb-1">Collection Name</label>
-          <input
-            type="text"
-            value={updatedCollectionName}
-            onChange={(e) => onNameChange(e.target.value)}
-            className="w-full border border-gray-300 rounded px-2 py-1"
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-1">Permission</label>
-          <select
-            value={updatedCollectionPermission}
-            onChange={(e) => onPermissionChange(e.target.value)}
-            className="w-full border border-gray-300 rounded px-2 py-1"
-          >
-            <option value="PRIVATE">Private</option>
-            <option value="STAFF_ONLY">Staff Only</option>
-            <option value="PUBLIC">Public</option>
-          </select>
-        </div>
-        <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded w-full">
-          Save Changes
-        </button>
-      </form>
+}
+
+const SettingsModal: React.FC<SettingsModalProps> = ({
+  updatedCollectionName,
+  updatedCollectionPermission,
+  onNameChange,
+  onPermissionChange,
+  onClose,
+  onSubmit,
+}) => (
+  <BaseModal onClose={onClose} containerClasses="w-80">
+    <div className="mb-4">
+      <h3 className="text-xl font-semibold mb-2">Collection Settings</h3>
     </div>
-  </div>
+    <form onSubmit={onSubmit}>
+      <div className="mb-4">
+        <label className="block mb-1">Collection Name</label>
+        <input
+          type="text"
+          value={updatedCollectionName}
+          onChange={(e) => onNameChange(e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div className="mb-4">
+        <label className="block mb-1">Permission</label>
+        <select
+          value={updatedCollectionPermission}
+          onChange={(e) => onPermissionChange(e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="PRIVATE">Private</option>
+          <option value="STAFF_ONLY">Staff Only</option>
+          <option value="PUBLIC">Public</option>
+        </select>
+      </div>
+      <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded w-full transition duration-150">
+        Save Changes
+      </button>
+    </form>
+  </BaseModal>
 );
 
-// --- Main Dashboard Component ---
-const KnowledgeDashboard: React.FC = () => {
-  // Dashboard state variables.
+// ----------------------
+// Main Dashboard Component
+// ----------------------
+const TrainingDashboard: React.FC = () => {
+  // Dashboard state
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showNewCollectionForm, setShowNewCollectionForm] = useState<boolean>(false);
   const [newCollectionName, setNewCollectionName] = useState<string>('');
   const [newCollectionPermission, setNewCollectionPermission] = useState<string>('PRIVATE');
 
-  // Selected collection and dropdown state.
+  // Selected collection and dropdown state
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
 
-  // File upload and management state.
+  // File upload and management state
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
 
-  // Settings modal state.
+  // Settings modal state
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [updatedCollectionName, setUpdatedCollectionName] = useState<string>('');
   const [updatedCollectionPermission, setUpdatedCollectionPermission] = useState<string>('PRIVATE');
 
-  // Fetch collections on mount.
-  useEffect(() => {
-    fetchCollections();
-  }, []);
+  // Loading state for collections
+  const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
 
-  // When a collection is selected, update settings and fetch its files.
-  useEffect(() => {
-    if (selectedCollection) {
-      setUpdatedCollectionName(selectedCollection.name);
-      setUpdatedCollectionPermission(selectedCollection.permission || 'PRIVATE');
-      fetchUploadedFiles(selectedCollection.name);
-    }
-  }, [selectedCollection]);
+  const authToken = localStorage.getItem('auth_token');
 
-  // Fetch collections from the API.
-  const fetchCollections = async () => {
+  // ----------------------
+  // API Calls
+  // ----------------------
+  const fetchCollections = useCallback(async () => {
+    setIsCollectionsLoading(true);
     try {
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+          'Authorization': `Bearer ${authToken}`,
+        },
       });
       if (!response.ok) throw new Error('Failed to fetch collections');
       const data = await response.json();
       const collectionsWithDate: Collection[] = data.map((collection: any) => ({
         ...collection,
-        created: collection.created || new Date().toISOString()
+        created: collection.created || new Date().toISOString(),
       }));
       setCollections(collectionsWithDate);
     } catch (error) {
       console.error('Error fetching collections:', error);
+    } finally {
+      setIsCollectionsLoading(false);
     }
-  };
+  }, [authToken]);
 
-  // Fetch files for a given collection.
-  const fetchUploadedFiles = async (collectionName: string) => {
+  const fetchUploadedFiles = useCallback(async (collectionName: string) => {
     try {
       const response = await fetch(
         `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          }
+            'Authorization': `Bearer ${authToken}`,
+          },
         }
       );
       if (!response.ok) throw new Error('Failed to fetch files');
@@ -329,9 +413,26 @@ const KnowledgeDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error fetching uploaded files:', error);
     }
-  };
+  }, [authToken]);
 
-  // Create a new collection.
+  // ----------------------
+  // Effects
+  // ----------------------
+  useEffect(() => {
+    fetchCollections();
+  }, [fetchCollections]);
+
+  useEffect(() => {
+    if (selectedCollection) {
+      setUpdatedCollectionName(selectedCollection.name);
+      setUpdatedCollectionPermission(selectedCollection.permission || 'PRIVATE');
+      fetchUploadedFiles(selectedCollection.name);
+    }
+  }, [selectedCollection, fetchUploadedFiles]);
+
+  // ----------------------
+  // Event Handlers
+  // ----------------------
   const handleCreateCollection = async (e: FormEvent) => {
     e.preventDefault();
     if (!newCollectionName.trim()) {
@@ -343,15 +444,15 @@ const KnowledgeDashboard: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           name: newCollectionName,
-          permission: newCollectionPermission
-        })
+          permission: newCollectionPermission,
+        }),
       });
       if (!response.ok) throw new Error('Failed to create collection');
-      fetchCollections();
+      await fetchCollections();
       setNewCollectionName('');
       setShowNewCollectionForm(false);
     } catch (error) {
@@ -360,14 +461,12 @@ const KnowledgeDashboard: React.FC = () => {
     }
   };
 
-  // Handle file selection.
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
     }
   };
 
-  // Handle file upload.
   const handleFileUpload = async (e: FormEvent) => {
     e.preventDefault();
     if (!file || !selectedCollection) {
@@ -380,12 +479,13 @@ const KnowledgeDashboard: React.FC = () => {
       formData.append('file', file);
       formData.append('modelId', 'default');
       formData.append('collectionName', selectedCollection.name);
+
       const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${authToken}`,
         },
-        body: formData
+        body: formData,
       });
       if (response.ok) {
         alert('File uploaded successfully');
@@ -401,7 +501,6 @@ const KnowledgeDashboard: React.FC = () => {
     }
   };
 
-  // Update collection settings.
   const handleUpdateSettings = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedCollection) return;
@@ -410,12 +509,12 @@ const KnowledgeDashboard: React.FC = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           name: updatedCollectionName,
-          permission: updatedCollectionPermission
-        })
+          permission: updatedCollectionPermission,
+        }),
       });
       if (response.ok) {
         alert('Collection updated successfully');
@@ -431,15 +530,14 @@ const KnowledgeDashboard: React.FC = () => {
     }
   };
 
-  // Delete a collection.
   const handleDeleteCollection = async (collection: Collection) => {
     if (!window.confirm(`Are you sure you want to delete collection "${collection.name}"?`)) return;
     try {
       const response = await fetch(`${config.apiUrl}/api/training/collections/${collection.id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+          'Authorization': `Bearer ${authToken}`,
+        },
       });
       if (!response.ok) throw new Error('Failed to delete collection');
       alert('Collection deleted successfully');
@@ -453,17 +551,19 @@ const KnowledgeDashboard: React.FC = () => {
     }
   };
 
-  // Filter collections based on the search query.
-  const filteredCollections = collections.filter(collection =>
+  const filteredCollections = collections.filter((collection) =>
     collection.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ----------------------
+  // Render
+  // ----------------------
   return (
     <div className="container mx-auto p-4 font-sans relative">
       <DashboardHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onNewCollectionToggle={() => setShowNewCollectionForm(!showNewCollectionForm)}
+        onNewCollectionToggle={() => setShowNewCollectionForm((prev) => !prev)}
       />
 
       {showNewCollectionForm && (
@@ -480,28 +580,32 @@ const KnowledgeDashboard: React.FC = () => {
         />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 relative">
-        {filteredCollections.map((collection) => (
-          <CollectionCard
-            key={collection.id}
-            collection={collection}
-            onSelect={() => setSelectedCollection(collection)}
-            activeDropdown={activeDropdownId === collection.id}
-            onDropdownToggle={() =>
-              setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
-            }
-            onSettings={() => {
-              setSelectedCollection(collection);
-              setShowSettings(true);
-              setActiveDropdownId(null);
-            }}
-            onDelete={() => {
-              setActiveDropdownId(null);
-              handleDeleteCollection(collection);
-            }}
-          />
-        ))}
-      </div>
+      {isCollectionsLoading ? (
+        <div className="text-center py-8 text-gray-600">Loading collections...</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {filteredCollections.map((collection) => (
+            <CollectionCard
+              key={collection.id}
+              collection={collection}
+              onSelect={() => setSelectedCollection(collection)}
+              activeDropdown={activeDropdownId === collection.id}
+              onDropdownToggle={() =>
+                setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
+              }
+              onSettings={() => {
+                setSelectedCollection(collection);
+                setShowSettings(true);
+                setActiveDropdownId(null);
+              }}
+              onDelete={() => {
+                setActiveDropdownId(null);
+                handleDeleteCollection(collection);
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {selectedCollection && (
         <CollectionModal
@@ -529,4 +633,4 @@ const KnowledgeDashboard: React.FC = () => {
   );
 };
 
-export default KnowledgeDashboard;
+export default TrainingDashboard;
