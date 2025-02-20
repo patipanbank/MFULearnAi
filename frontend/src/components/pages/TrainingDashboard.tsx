@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { config } from '../../config/config';
-import { FaPlus, FaTimes, FaCog, FaEllipsisH } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
+import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 // ----------------------
 // Type Definitions
@@ -80,7 +81,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 }) => (
   <header className="mb-6">
     <div className="flex items-center justify-between">
-      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Collection</h1>
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Knowledge 11</h1>
     </div>
     <div className="mt-4 flex items-center">
       <input
@@ -237,6 +238,7 @@ interface CollectionModalProps {
   onFileUpload: (e: FormEvent) => void;
   uploadLoading: boolean;
   onShowSettings: () => void;
+  onDeleteFile: (file: UploadedFile) => void;
 }
 
 const CollectionModal: React.FC<CollectionModalProps> = ({
@@ -247,6 +249,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   onFileUpload,
   uploadLoading,
   onShowSettings,
+  onDeleteFile,
 }) => (
   <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-full">
     <div className="flex justify-between items-center mb-6">
@@ -281,7 +284,15 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
       {uploadedFiles.length > 0 ? (
         <ul className="space-y-2">
           {uploadedFiles.map((fileItem, index) => (
-            <li key={index} className="border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-800">
+            <li key={index} className="relative border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-800">
+              <button
+                type="button"
+                onClick={() => onDeleteFile(fileItem)}
+                className="absolute top-2 right-2 text-red-500 hover:text-red-600 transition duration-150"
+                title="Delete File"
+              >
+                <FaTrash size={18} />
+              </button>
               <div className="font-semibold text-gray-800 dark:text-gray-100">{fileItem.filename}</div>
               <div className="text-sm text-gray-600 dark:text-gray-300">Uploaded by: {fileItem.uploadedBy}</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -570,6 +581,27 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteFile = async (fileToDelete: UploadedFile) => {
+    if (!selectedCollection) return;
+    if (!window.confirm(`Are you sure you want to delete the file ${fileToDelete.filename}?`)) return;
+    
+    // Delete each chunk for this file
+    for (const chunkId of fileToDelete.ids) {
+      try {
+        await fetch(`${config.apiUrl}/api/training/documents/${chunkId}?collectionName=${encodeURIComponent(selectedCollection.name)}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
+      } catch (error) {
+        console.error(`Error deleting chunk ${chunkId}:`, error);
+      }
+    }
+    // Refresh the file list after deletion
+    fetchUploadedFiles(selectedCollection.name);
+  };
+
   const filteredCollections = collections.filter((collection) =>
     collection.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -621,6 +653,7 @@ const TrainingDashboard: React.FC = () => {
           onFileUpload={handleFileUpload}
           uploadLoading={uploadLoading}
           onShowSettings={() => setShowSettings(true)}
+          onDeleteFile={handleDeleteFile}
         />
       )}
 
