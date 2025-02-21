@@ -362,7 +362,7 @@ const MFUChatbot: React.FC = () => {
       const payload = {
         messages: [...messages, userMessage],
         modelId: selectedModel.id,
-        collections: collectionsToQuery,
+        collections: selectedModel.collections,
       };
 
       wsRef.current.onmessage = (event) => {
