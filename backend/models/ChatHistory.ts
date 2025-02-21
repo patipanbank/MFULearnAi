@@ -18,7 +18,6 @@ interface IChatMessage {
 }
 
 interface IChatHistory {
-  chatId: string;
   userId: string;
   modelId: string;
   collectionName: string;
@@ -36,10 +35,9 @@ interface IChatHistory {
 }
 
 const chatHistorySchema = new mongoose.Schema({
-  chatId: { type: String, required: true },
   userId: { type: String, required: true },
-  modelId: { type: String, default: '' },
-  collectionName: { type: String, default: '' },
+  modelId: { type: String, required: true },
+  collectionName: { type: String, required: true },
   messages: [{
     id: { type: Number, required: true },
     role: { type: String, enum: ['user', 'assistant', 'system'], required: true },

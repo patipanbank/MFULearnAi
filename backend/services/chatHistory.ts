@@ -1,5 +1,4 @@
 import { ChatHistory } from '../models/ChatHistory';
-import mongoose from 'mongoose';
 
 class ChatHistoryService {
   async getChatHistory(userId: string) {
@@ -23,36 +22,7 @@ class ChatHistoryService {
     }
   }
 
-  async createNewChat(userId: string) {
-    try {
-      const chatId = new mongoose.Types.ObjectId().toString();
-      const newChat = new ChatHistory({
-        chatId,
-        userId,
-        messages: [],
-        modelId: '',
-        collectionName: ''
-      });
-      await newChat.save();
-      return chatId;
-    } catch (error) {
-      console.error('Error creating new chat:', error);
-      throw error;
-    }
-  }
-
-  async getAllChats(userId: string) {
-    try {
-      return await ChatHistory.find({ userId })
-        .sort({ updatedAt: -1 })
-        .select('chatId modelId collectionName messages.content updatedAt');
-    } catch (error) {
-      console.error('Error getting all chats:', error);
-      throw error;
-    }
-  }
-
-  async saveChatMessage(chatId: string, userId: string, modelId: string, collectionName: string, messages: any[]) {
+  async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[]) {
     try {
       const processedMessages = messages.map((msg, index) => ({
         id: index + 1,
@@ -67,7 +37,7 @@ class ChatHistoryService {
       }));
 
       const history = await ChatHistory.findOneAndUpdate(
-        { chatId, userId },
+        { userId, modelId, collectionName },
         { 
           userId,
           modelId,
