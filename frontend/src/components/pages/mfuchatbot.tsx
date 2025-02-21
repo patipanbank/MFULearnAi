@@ -608,7 +608,34 @@ const MFUChatbot: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 pb-8">
             <div className="flex gap-3 items-end">
-              {/* Clear Chat Button */}
+              <div className="flex-1 flex flex-col gap-3">
+                {/* Selected Images Preview */}
+                {selectedImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedImages.map((image, index) => (
+                      <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt={`Selected ${index + 1}`}
+                          className="w-20 h-20 object-cover rounded-xl 
+                          transition-all duration-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
+                          rounded-full w-6 h-6 flex items-center justify-center text-sm"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input Area */}
+                <div className="flex gap-3 items-center">
+                   {/* Clear Chat Button */}
               <div className="flex-shrink-0 flex items-center">
                 <button
                   type="button"
@@ -644,34 +671,6 @@ const MFUChatbot: React.FC = () => {
                   <FaPlus className="h-5 w-5" />
                 </label>
               </div>
-
-              <div className="flex-1 flex flex-col gap-3">
-                {/* Selected Images Preview */}
-                {selectedImages.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedImages.map((image, index) => (
-                      <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
-                        <img
-                          src={URL.createObjectURL(image)}
-                          alt={`Selected ${index + 1}`}
-                          className="w-20 h-20 object-cover rounded-xl 
-                          transition-all duration-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
-                          rounded-full w-6 h-6 flex items-center justify-center text-sm"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Input Area */}
-                <div className="flex gap-3 items-center">
                   <textarea
                     ref={textareaRef}
                     value={inputMessage}
