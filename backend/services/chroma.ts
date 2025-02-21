@@ -32,7 +32,7 @@ class ChromaService {
           name: collectionName
         });
         this.collections.set(collectionName, collection);
-        console.log(`ChromaService: Collection '${collectionName}' initialized successfully.`);
+        console.log(`ChromaService: Collection '${collectionName}' initialized.`);
       }
     } catch (error) {
       console.error(`ChromaService: Error initializing collection '${collectionName}':`, error);
@@ -133,7 +133,7 @@ class ChromaService {
   }
 
   /**
-   * Computes and returns the query embedding vector for the given query text.
+   * Computes and returns the query embedding vector using the Titan embedding service.
    */
   async getQueryEmbedding(query: string): Promise<number[]> {
     try {
@@ -146,32 +146,33 @@ class ChromaService {
   }
 
   /**
-   * Performs a similarity search on the specified collection using the provided query embedding.
-   * Returns concatenated document chunks as a single string.
+   * Performs a similarity search on the specified collection
+   * using the provided query embedding, retrieving at most n_results.
+   * Returns the concatenated document text from the top results.
    */
   async queryDocumentsWithEmbedding(collectionName: string, queryEmbedding: number[], n_results: number): Promise<string> {
     try {
-      // Ensure that the collection exists.
+      // Make sure the collection exists.
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       if (!collection) {
         throw new Error(`ChromaService: Collection '${collectionName}' not found.`);
       }
-      console.log(`ChromaService: Querying collection '${collectionName}' for ${n_results} results.`);
+      console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results.`);
 
-      // Perform similarity search; adjust the method call as per your actual client API.
+      // Query for similarities.
       const queryResult = await collection.query({
         queryEmbedding,
         n_results
       });
-      console.log(`ChromaService: Raw query result for '${collectionName}':`, queryResult);
+      console.log(`ChromaService: Raw results for '${collectionName}':`, queryResult);
 
-      // Assume queryResult is an array of document objects with a 'text' property.
+      // Assume each result has a 'text' field. Join the texts.
       const documentChunks: string[] = queryResult.map((doc: any) => doc.text);
       const concatenatedContext = documentChunks.join("\n\n");
       return concatenatedContext;
     } catch (error) {
-      console.error(`ChromaService: Error querying documents in collection '${collectionName}':`, error);
+      console.error(`ChromaService: Error querying documents in '${collectionName}':`, error);
       return '';
     }
   }

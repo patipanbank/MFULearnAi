@@ -13,19 +13,60 @@ export class ChatService {
   }
 
   /**
-   * Sanitizes a collection name by replacing disallowed characters.
-   * IMPORTANT: Ensure that the sanitized name is exactly the same as the identifier
-   * used during file uploads and stored in ChromaDB.
+   * Sanitizes a collection name so that it exactly matches the name used during file uploads.
+   * For example, replace any disallowed characters (like ':' with '-').
    */
   private sanitizeCollectionName(name: string): string {
     return name.replace(/:/g, '-');
   }
 
   /**
+   * Retrieves context from all collections selected in the model.
+   * For each collection, it queries for at most 5 related document chunks (vectors).
+   */
+  private async getContext(query: string, collectionNames: string[]): Promise<string> {
+    if (collectionNames.length === 0) {
+      console.log("getContext: No collections provided. Returning empty context.");
+      return '';
+    }
+
+    // Sanitize each collection name and log the transformation.
+    const sanitizedCollections = collectionNames.map(name => {
+      const sanitized = this.sanitizeCollectionName(name);
+      console.log(`getContext: Original collection name '${name}' sanitized to '${sanitized}'`);
+      return sanitized;
+    });
+    console.log("getContext: Querying all selected collections:", sanitizedCollections);
+
+    // Precompute the query embedding once.
+    const queryEmbedding = await chromaService.getQueryEmbedding(query);
+    console.log("getContext: Computed query embedding:", queryEmbedding);
+
+    // For each collection, query for at most 5 related document chunks.
+    const contexts = await Promise.all(
+      sanitizedCollections.map(async (collectionName) => {
+        try {
+          // Here n_results = 5 ensuring that from this collection, only the top 5 related items are returned.
+          const result = await chromaService.queryDocumentsWithEmbedding(collectionName, queryEmbedding, 5);
+          console.log(`getContext: Retrieved context from '${collectionName}':`, result);
+          return result;
+        } catch (error) {
+          console.error(`getContext: Error querying '${collectionName}':`, error);
+          return "";
+        }
+      })
+    );
+
+    // Concatenate all context strings (and filter out empty ones)
+    const finalContext = contexts.filter(ctx => ctx.trim().length > 0).join("\n\n");
+    console.log("getContext: Final combined context:", finalContext);
+    return finalContext;
+  }
+
+  /**
    * Generates a chat response.
-   * Retrieves the selected model from the database; if the model is custom, it
-   * uses its associated collections for context retrieval. Then, it augments the
-   * messages with the retrieved context and streams the response.
+   * Loads the model to determine which collections to query, retrieves context,
+   * augments the messages, and then streams the response.
    */
   async *generateResponse(
     messages: ChatMessage[],
@@ -33,19 +74,19 @@ export class ChatService {
     modelId: string
   ): AsyncGenerator<string> {
     try {
-      // Load the model data (custom model or default model).
+      // Retrieve the model (either custom or default) from the backend.
       const model = await modelService.getModelById(modelId);
       let collections: string[] = [];
       if (model) {
-        collections = model.collections;
-      }      
-      console.log("Generating response for model with collections:", collections);
+        collections = model.collections; // If a custom model, there will be one or more collections.
+      }
+      console.log("Generating response using the following collections:", collections);
 
-      // Retrieve context from all collections.
+      // Retrieve context across all collections.
       const context = await this.getContext(query, collections);
-      console.log('Retrieved context length:', context.length);
+      console.log("Retrieved context length:", context.length);
 
-      // Augment messages with system prompt and retrieved context.
+      // Augment the chat messages with system instructions and retrieved context.
       const augmentedMessages = [
         {
           role: "system" as const,
@@ -54,7 +95,7 @@ export class ChatService {
         ...messages,
       ];
 
-      // Stream responses using the chosen chat model.
+      // Stream the final response using your chat model.
       for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
         yield chunk;
       }
@@ -62,47 +103,6 @@ export class ChatService {
       console.error("Error in generateResponse:", error);
       throw error;
     }
-  }
-
-  /**
-   * Retrieves context from collections.
-   * Precomputes the query embedding once and then applies it to each sanitized collection.
-   */
-  private async getContext(query: string, collectionNames: string[]): Promise<string> {
-    if (collectionNames.length === 0) {
-      console.log("getContext: No collections provided. Returning empty context.");
-      return '';
-    }
-
-    // Sanitize each collection name and log the mapping.
-    const sanitizedCollections = collectionNames.map(name => {
-      const sanitized = this.sanitizeCollectionName(name);
-      console.log(`getContext: Original collection name: '${name}' sanitized to: '${sanitized}'`);
-      return sanitized;
-    });
-    console.log("getContext: Querying collections:", sanitizedCollections);
-
-    // Precompute the query embedding once.
-    const queryEmbedding = await chromaService.getQueryEmbedding(query);
-    console.log("getContext: Computed query embedding:", queryEmbedding);
-
-    // Query each collection using the precomputed embedding.
-    const contexts = await Promise.all(
-      sanitizedCollections.map(async (collectionName) => {
-        try {
-          const result = await chromaService.queryDocumentsWithEmbedding(collectionName, queryEmbedding, 5);
-          console.log(`getContext: Result for collection '${collectionName}':`, result);
-          return result;
-        } catch (error) {
-          console.error(`getContext: Error querying collection '${collectionName}':`, error);
-          return "";
-        }
-      })
-    );
-
-    const finalContext = contexts.filter(ctx => ctx.trim().length > 0).join("\n\n");
-    console.log("getContext: Final concatenated context:", finalContext);
-    return finalContext;
   }
 }
 
