@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
 import { config } from '../../config/config';
-import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser, FaCog } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser } from 'react-icons/fa';
 
 // Utility function for relative time
 const getRelativeTime = (dateString: string): string => {
@@ -297,33 +297,6 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
               dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
                 Collections for {model.name}
               </h3>
-              <button
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 
-                dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
-                transition-all duration-200"
-                title="Settings"
-              >
-                <FaCog size={18} />
-              </button>
-              <button
-                onClick={handleConfirm}
-                id="confirm-button"
-                className="p-2.5 text-green-600 dark:text-green-400 hover:text-green-700 
-                dark:hover:text-green-300 transition-all duration-200 rounded-lg
-                hover:bg-green-50 dark:hover:bg-green-900/30 transform active:scale-95"
-                title="Confirm Selection"
-              >
-                <FaCheck size={20} />
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 
-                dark:hover:text-gray-200 transition-colors duration-200 rounded-lg
-                hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="Cancel"
-              >
-                <FaTimes size={20} />
-              </button>
             </div>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               Select the collections to include in this model
