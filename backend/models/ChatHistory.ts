@@ -38,8 +38,8 @@ interface IChatHistory {
 const chatHistorySchema = new mongoose.Schema({
   chatId: { type: String, required: true },
   userId: { type: String, required: true },
-  modelId: { type: String, required: true },
-  collectionName: { type: String, required: true },
+  modelId: { type: String, default: '' },
+  collectionName: { type: String, default: '' },
   messages: [{
     id: { type: Number, required: true },
     role: { type: String, enum: ['user', 'assistant', 'system'], required: true },
