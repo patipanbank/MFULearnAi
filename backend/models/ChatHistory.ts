@@ -4,6 +4,7 @@ const chatHistorySchema = new mongoose.Schema({
   userId: { type: String, required: true },
   modelId: { type: String, required: true },
   collectionName: { type: String, required: true },
+  title: { type: String, default: 'New Chat' },
   messages: [{
     id: { type: Number, required: true },
     role: { type: String, enum: ['user', 'assistant', 'system'], required: true },
@@ -20,6 +21,8 @@ const chatHistorySchema = new mongoose.Schema({
       similarity: Number
     }]
   }],
+  isActive: { type: Boolean, default: true },
+  lastUpdated: { type: Date, default: Date.now },
   sources: [{
     modelId: { type: String },
     collectionName: { type: String },

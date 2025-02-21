@@ -1,7 +1,9 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 // import { FaComments, FaBars, FaCog, FaHistory, FaSignOutAlt } from 'react-icons/fa';
 import { FaComments, FaBars, FaCog, FaSignOutAlt } from 'react-icons/fa';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
+import { useState, useEffect } from 'react';
+import { config } from '../../config/config';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -9,8 +11,56 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
-  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const navigate = useNavigate();
+  interface UserData {
+    groups?: string[];
+  }
+
+  const userData: UserData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const isStaff = userData.groups?.includes('Staffs');
+  
+  interface Chat {
+    _id: string;
+    title: string;
+    createdAt: string;
+  }
+
+  const [chats, setChats] = useState<Chat[]>([]);
+  
+  useEffect(() => {
+    fetchChats();
+  }, []);
+
+  const fetchChats = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/list`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const data = await response.json();
+      setChats(data);
+    } catch (error) {
+      console.error('Error fetching chats:', error);
+    }
+  };
+
+  const createNewChat = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/new`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const newChat = await response.json();
+      setChats([newChat, ...chats]);
+      // นำทางไปยังแชทใหม่
+      navigate(`/chat/${newChat._id}`);
+    } catch (error) {
+      console.error('Error creating new chat:', error);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -56,6 +106,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </div>
 
       <div className="flex-1 px-4 py-2">
+        <button
+          onClick={createNewChat}
+          className="w-full mb-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+        >
+          New Chat
+        </button>
+        
+        <div className="space-y-2">
+          {chats.map(chat => (
+            <Link
+              key={chat._id}
+              to={`/chat/${chat._id}`}
+              className="block px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              {chat.title}
+            </Link>
+          ))}
+        </div>
+
         <nav>
           <Link
             to="/mfuchatbot"

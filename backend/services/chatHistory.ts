@@ -64,6 +64,35 @@ class ChatHistoryService {
       throw error;
     }
   }
+
+  async createNewChat(userId: string) {
+    const chat = new ChatHistory({
+      userId,
+      modelId: '',
+      collectionName: '',
+      title: 'New Chat',
+      messages: []
+    });
+    return await chat.save();
+  }
+
+  async getChatList(userId: string) {
+    return await ChatHistory.find({ 
+      userId 
+    }).sort({ lastUpdated: -1 });
+  }
+
+  async updateChatTitle(chatId: string, title: string) {
+    return await ChatHistory.findByIdAndUpdate(
+      chatId,
+      { title },
+      { new: true }
+    );
+  }
+
+  async getChat(chatId: string) {
+    return await ChatHistory.findById(chatId);
+  }
 }
 
 export const chatHistoryService = new ChatHistoryService(); 

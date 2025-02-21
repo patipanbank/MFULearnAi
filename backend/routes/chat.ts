@@ -210,4 +210,34 @@ router.get('/collections', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/new', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const newChat = await chatHistoryService.createNewChat(userId);
+    res.json(newChat);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create new chat' });
+  }
+});
+
+router.get('/list', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const chats = await chatHistoryService.getChatList(userId);
+    res.json(chats);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get chat list' });
+  }
+});
+
+router.put('/title/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const { title } = req.body;
+    const chat = await chatHistoryService.updateChatTitle(req.params.chatId, title);
+    res.json(chat);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update chat title' });
+  }
+});
+
 export default router;
