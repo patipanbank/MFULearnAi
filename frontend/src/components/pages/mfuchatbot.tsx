@@ -632,21 +632,19 @@ const MFUChatbot: React.FC = () => {
             </button>
 
             {/* Image Upload Button */}
-            <div className="flex items-center">
-              <label className="cursor-pointer flex items-center justify-center w-9 h-9
+            <label className="flex items-center justify-center w-9 h-9 cursor-pointer
               text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300
               rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
               dark:hover:bg-gray-700 transition-all duration-200">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <FaPlus className="w-4 h-4" />
-              </label>
-            </div>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <FaPlus className="h-4 w-4" />
+            </label>
 
             <div className="flex-1 flex flex-col gap-3">
               {/* Selected Images Preview */}
