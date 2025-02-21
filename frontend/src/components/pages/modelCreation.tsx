@@ -301,7 +301,6 @@ const ModelCreation: React.FC = () => {
         });
         if (!response.ok) throw new Error('Failed to fetch models');
         const modelsFromBackend = await response.json();
-        // Convert the fetched models as needed before saving to state
         setModels(modelsFromBackend.map((model: any) => ({
           id: model._id,
           name: model.name,
@@ -447,9 +446,7 @@ const ModelCreation: React.FC = () => {
           }}
         />
       )}
-      {editingModel && isCollectionsLoading ? (
-        <div className="text-center py-4">Loading collections...</div>
-      ) : editingModel && (
+      {editingModel && !isCollectionsLoading && (
         <ModelCollectionsModal
           model={editingModel}
           availableCollections={availableCollections}
