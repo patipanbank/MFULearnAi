@@ -6,7 +6,7 @@ import Login from './components/login/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
 import RoleGuard from './components/guards/RoleGuard';
-// import TrainingHistory from './components/pages/TrainingHistory';
+import ModelCreation from './components/pages/modelCreation';
 import './index.css';
  
 
@@ -39,18 +39,18 @@ const App = () => {
             </AuthGuard>
           }
         />
-        {/* <Route
-          path="/training-history"
+        <Route
+          path="/modelCreation"
           element={
             <AuthGuard>
               <RoleGuard allowedGroups={['Staffs']}>
                 <MainLayout>
-                  <TrainingHistory />
+                  <ModelCreation />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>
           }
-        /> */}
+        />
       </Routes>
     </Router>
   );
