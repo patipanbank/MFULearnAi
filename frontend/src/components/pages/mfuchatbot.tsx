@@ -5,7 +5,7 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 interface Source {
@@ -32,15 +32,15 @@ interface Message {
   sources?: Source[];
 }
 
-interface ChatSession {
-  _id: string;
-  title: string;
-  messages: ChatMessage[];
-  modelId: string;
-  collectionName: string;
-  created: Date;
-  lastUpdated: Date;
-}
+// interface ChatSession {
+//   _id: string;
+//   title: string;
+//   messages: ChatMessage[];
+//   modelId: string;
+//   collectionName: string;
+//   created: Date;
+//   lastUpdated: Date;
+// }
 
 interface ChatMessage {
   id: number;
@@ -73,7 +73,8 @@ const LoadingDots = () => (
 
 const MFUChatbot: React.FC = () => {
   const { sessionId } = useParams();
-  const [, setCurrentSession] = useState<ChatSession | null>(null);
+  const navigate = useNavigate();
+  // const [, setCurrentSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -86,7 +87,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
-  // const navigate = useNavigate();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -166,18 +166,22 @@ const MFUChatbot: React.FC = () => {
   useEffect(() => {
     if (sessionId) {
       loadChatSession(sessionId);
-    } else {
-      setMessages([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   const loadChatSession = async (id: string) => {
     try {
-      const response = await axios.get(`${config.apiUrl}/api/chat/sessions/${id}`);
-      setCurrentSession(response.data);
-      setMessages(response.data.messages);
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.get(`${config.apiUrl}/api/chat/sessions/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      setMessages(response.data.messages || []);
     } catch (error) {
       console.error('Error loading chat session:', error);
+      navigate('/chat');
     }
   };
 

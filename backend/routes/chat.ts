@@ -242,4 +242,25 @@ router.get('/sessions', roleGuard(['Students', 'Staffs', 'Admin']), async (req: 
   }
 });
 
+// ดึงข้อมูล chat session เฉพาะ
+router.get('/sessions/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response)  => {
+  try {
+    const userId = (req as any).user.username;
+    const session = await ChatHistory.findOne({ 
+      _id: req.params.id,
+      userId 
+    });
+    
+    if (!session) {
+      res.status(404).json({ error: 'Chat session not found' });
+      return;
+    }
+    
+    res.json(session);
+  } catch (error) {
+    console.error('Error fetching chat session:', error);
+    res.status(500).json({ error: 'Failed to fetch chat session' });
+  }
+});
+
 export default router;
