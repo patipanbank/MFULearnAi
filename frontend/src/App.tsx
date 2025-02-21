@@ -7,6 +7,7 @@ import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
 import RoleGuard from './components/guards/RoleGuard';
 // import TrainingHistory from './components/pages/TrainingHistory';
+import AdminLogin from './components/login/AdminLogin';
 import './index.css';
  
 
@@ -32,6 +33,19 @@ const App = () => {
           element={
             <AuthGuard>
               <RoleGuard allowedGroups={['Staffs']}>
+                <MainLayout>
+                  <TrainingDashboard />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['Admin']}>
                 <MainLayout>
                   <TrainingDashboard />
                 </MainLayout>

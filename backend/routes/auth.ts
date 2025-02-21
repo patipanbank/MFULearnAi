@@ -1,10 +1,11 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import passport from 'passport';
 import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
 import { connectDB } from '../lib/mongodb';
 import User from '../models/User';
-import { guest_login } from '../controllers/user_controller';
+// import { guest_login } from '../controllers/user_controller';
+import bcrypt from 'bcrypt';
 
 const router = Router();
 
@@ -195,7 +196,7 @@ router.get('/metadata', (req, res) => {
   res.send(metadata);
 });
 
-router.post('/test', guest_login);
+// router.post('/test', guest_login);
 
 router.post('/saml/callback', (req, res, next) => {
   console.log('=== SAML Callback Debug ===');
@@ -203,6 +204,56 @@ router.post('/saml/callback', (req, res, next) => {
   console.log('Body:', req.body);
   console.log('=========================');
   next();
+});
+
+router.post('/admin/login', async (req: Request, res: Response):Promise<void> => {
+  try {
+    const { username, password } = req.body;
+
+    // ตรวจสอบว่ามีข้อมูลครบไหม
+    if (!username || !password) {
+      res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบ' });
+      return;
+    }
+
+    const user = await User.findOne({ username, isAdmin: true });
+    if (!user) {
+      res.status(401).json({ message: 'ไม่พบบัญชีผู้ใช้' });
+      return;
+    }
+    // ใช้ method comparePassword ที่เราสร้างไว้ใน User model
+    const isMatch = await (user as any).comparePassword(password);
+    if (!isMatch) {
+      res.status(401).json({ message: 'รหัสผ่านไม่ถูกต้อง' });
+      return;
+    }
+
+    // สร้าง token
+    const token = jwt.sign(
+      { 
+        userId: user._id,
+        username: user.username,
+        isAdmin: user.isAdmin,
+        groups: user.groups
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '1d' }
+    );
+
+    // ส่งข้อมูลกลับ
+    res.json({ 
+      token,
+      user: {
+        username: user.username,
+        isAdmin: user.isAdmin,
+        groups: user.groups
+      }
+    });
+
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
+  }
 });
 
 export default router;

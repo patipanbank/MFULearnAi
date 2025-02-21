@@ -1,8 +1,10 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
-export interface IUser  {
+export interface IUser extends mongoose.Document {
   nameID?: string;
   username?: string;
+  password?: string;
   email?: string;
   firstName?: string;
   lastName?: string;
@@ -10,8 +12,11 @@ export interface IUser  {
   role?: string;
   created?: Date;
   updated?: Date;
+  isAdmin?: boolean;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
-const Role = ['Students', 'Staffs'];
+
+const Role = ['Students', 'Staffs', 'Admin'];
 
 const userSchema = new mongoose.Schema({
   nameID: {
@@ -26,6 +31,10 @@ const userSchema = new mongoose.Schema({
     unique: true,
     index: true
   },
+  password: {
+    type: String,
+    required: false,
+  },
   email: {
     type: String,
     required: false,
@@ -36,8 +45,8 @@ const userSchema = new mongoose.Schema({
   lastName: String,
   groups: {
     type: [String],
-    default: ['Students'],
-    index: true
+    enum: Role,
+    default: ['Students']
   },
   role: { 
     type: String, 
@@ -51,11 +60,21 @@ const userSchema = new mongoose.Schema({
   updated: {
     type: Date,
     default: Date.now
-  }
+  },
+  // password: { type: String },
+  isAdmin: { type: Boolean, default: false },
 });
 
 userSchema.methods.hasRole = function(roles: string[]) {
   return this.groups.some((group: string) => roles.includes(group));
+};
+
+userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw error;
+  }
 };
 
 export default mongoose.model('User', userSchema);
