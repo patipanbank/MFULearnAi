@@ -214,61 +214,74 @@ passport.deserializeUser((user: any, done) => {
 router.get('/login/saml', passport.authenticate('saml'));
 
 router.post('/saml/callback', 
-  passport.authenticate('saml', { 
-    session: false,
-    failureRedirect: '/login',
-    failureFlash: true
-  }) as RequestHandler,
-  (async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      console.log('=== SAML Authentication Success ===');
-      console.log('User:', req.user);
+  (req: Request, res: Response, next: NextFunction) => {
+    passport.authenticate('saml', (err: Error | null, user: { userData: SamlUserData; token?: string } | false, info: any) => {
+      if (err) {
+        console.error('SAML Authentication Error:', err);
+        return res.redirect('/login?error=' + encodeURIComponent(err.message));
+      }
       
-      const userData = req.user?.userData;
-      if (!userData) {
-        console.error('No user data in request');
-        throw new Error('No user data provided');
+      if (!user) {
+        console.error('No user data received from SAML');
+        return res.redirect('/login?error=authentication_failed');
       }
 
-      const role = mapGroupToRole(userData.groups || []);
+      req.logIn(user, async (loginErr) => {
+        if (loginErr) {
+          console.error('Login Error:', loginErr);
+          return res.redirect('/login?error=' + encodeURIComponent(loginErr.message));
+        }
 
-      const userInfo = {
-        nameID: userData.nameID,
-        username: userData.username,
-        email: userData.email,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
-        role: role
-      };
+        try {
+          const userData = user.userData;
+          if (!userData) {
+            throw new Error('No user data provided');
+          }
 
-      await User.findOneAndUpdate(
-        { nameID: userInfo.nameID },
-        {
-          ...userInfo,
-          groups: userData.groups || [],
-          updated: new Date()
-        },
-        { upsert: true }
-      );
+          const role = mapGroupToRole(userData.groups || []);
 
-      const token = jwt.sign(
-        userInfo,
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-      );
+          const userInfo = {
+            nameID: userData.nameID,
+            username: userData.username,
+            email: userData.email,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            role: role
+          };
 
-      const encodedUserData = Buffer.from(JSON.stringify(userInfo)).toString('base64');
-      
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth-callback`);
-      redirectUrl.searchParams.append('token', token);
-      redirectUrl.searchParams.append('user_data', encodedUserData);
+          await User.findOneAndUpdate(
+            { nameID: userInfo.nameID },
+            {
+              ...userInfo,
+              groups: userData.groups || [],
+              updated: new Date()
+            },
+            { upsert: true }
+          );
 
-      res.redirect(redirectUrl.toString());
-    } catch (error) {
-      console.error('SAML Callback Error:', error);
-      next(error);
-    }
-  }) as RequestHandler);
+          const token = jwt.sign(
+            userInfo,
+            process.env.JWT_SECRET || 'your-secret-key',
+            { expiresIn: '7d' }
+          );
+
+          const encodedUserData = Buffer.from(JSON.stringify(userInfo)).toString('base64');
+          
+          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const redirectUrl = new URL(`${frontendUrl}/auth-callback`);
+          redirectUrl.searchParams.append('token', token);
+          redirectUrl.searchParams.append('user_data', encodedUserData);
+
+          console.log('Redirecting to:', redirectUrl.toString());
+          res.redirect(redirectUrl.toString());
+        } catch (error) {
+          console.error('SAML Callback Error:', error);
+          res.redirect('/login?error=processing_failed');
+        }
+      });
+    })(req, res, next);
+  }
+);
 
 const getMeHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -335,14 +348,6 @@ router.get('/metadata', (req, res) => {
 });
 
 router.post('/test', guest_login);
-
-router.post('/saml/callback', (req, res, next) => {
-  console.log('=== SAML Callback Debug ===');
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  console.log('=========================');
-  next();
-});
 
 // Add debug route
 router.get('/debug/saml-config', (req, res) => {
