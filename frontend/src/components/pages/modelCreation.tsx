@@ -47,63 +47,58 @@ const BaseModal: React.FC<{
 interface ModelCardProps {
   model: Model;
   onClick: () => void;
-  onRename: () => void;
-  onDelete: () => void;
+  onRename: (modelId: string) => void;
+  onDelete: (modelId: string) => void;
 }
 const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelete }) => {
-  // State to control the visibility of the dropdown menu.
-  const [showMenu, setShowMenu] = useState(false);
-
-  // Toggle the dropdown menu, ensuring that clicking the icon doesn't trigger the card onClick handler.
-  const toggleMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    setShowMenu((prev) => !prev);
-  };
+  const [showMenu, setShowMenu] = useState<boolean>(false);
 
   return (
     <div
       className="relative border border-gray-200 dark:border-gray-700 rounded p-4 shadow transform hover:scale-105 hover:shadow-lg transition duration-200 cursor-pointer bg-white dark:bg-gray-900"
       onClick={onClick}
     >
-      {/* Top-right menu icon */}
+      {/* Ellipsis button */}
       <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowMenu(!showMenu);
+        }}
         className="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
-        onClick={toggleMenu}
-        title="Model Options"
+        title="Options"
       >
-        <FaEllipsisH size={16} />
+        <FaEllipsisH />
       </button>
-      {/* Dropdown menu */}
+
       {showMenu && (
-        <div className="absolute top-8 right-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-10">
+        <div className="absolute top-8 right-2 bg-white dark:bg-gray-800 border border-gray-300 rounded shadow z-10">
           <button
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
             onClick={(e) => {
               e.stopPropagation();
-              onRename();
+              onRename(model.id);
               setShowMenu(false);
             }}
+            className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
           >
-            Rename Model
+            Rename
           </button>
           <button
-            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
             onClick={(e) => {
               e.stopPropagation();
-              onDelete();
+              onDelete(model.id);
               setShowMenu(false);
             }}
+            className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
           >
-            Delete Model
+            Delete
           </button>
         </div>
       )}
+
       <div className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
         Model
       </div>
-      <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
-        {model.name}
-      </h2>
+      <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">{model.name}</h2>
       {model.collections.length > 0 ? (
         <p className="text-sm text-gray-600 dark:text-gray-300">
           Collections: {model.collections.join(', ')}
@@ -229,6 +224,55 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
 };
 
 /* -------------------------------
+   Edit Model Modal Component
+---------------------------------*/
+interface EditModelModalProps {
+  model: Model;
+  onNameChange: (value: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  onCancel: () => void;
+}
+
+const EditModelModal: React.FC<EditModelModalProps> = ({
+  model,
+  onNameChange,
+  onSubmit,
+  onCancel,
+}) => (
+  <BaseModal onClose={onCancel} containerClasses="w-80">
+    <div className="mb-4">
+      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">
+        Rename Model
+      </h3>
+    </div>
+    <form onSubmit={onSubmit}>
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Model Name"
+          value={model.name}
+          onChange={(e) => onNameChange(e.target.value)}
+          className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <button
+        type="submit"
+        className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-150"
+      >
+        Save Changes
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="mt-2 w-full text-red-500 hover:text-red-600 transition duration-150"
+      >
+        Cancel
+      </button>
+    </form>
+  </BaseModal>
+);
+
+/* -------------------------------
    Main Model Creation Component
 ---------------------------------*/
 const ModelCreation: React.FC = () => {
@@ -236,6 +280,8 @@ const ModelCreation: React.FC = () => {
   const [showNewModelModal, setShowNewModelModal] = useState<boolean>(false);
   const [newModelName, setNewModelName] = useState<string>('');
   const [editingModel, setEditingModel] = useState<Model | null>(null);
+  // New state for renaming model
+  const [editingModelForRename, setEditingModelForRename] = useState<Model | null>(null);
   
   // For the model collections modal
   const [availableCollections, setAvailableCollections] = useState<Collection[]>([]);
@@ -325,6 +371,34 @@ const ModelCreation: React.FC = () => {
     setShowNewModelModal(false);
   };
 
+  // Handler for when a model's ellipsis menu "Rename" is clicked.
+  const handleRenameModel = (modelId: string) => {
+    const modelToEdit = models.find((m) => m.id === modelId);
+    if (modelToEdit) {
+      setEditingModelForRename(modelToEdit);
+    }
+  };
+
+  // Handler for updating the model's name.
+  const handleUpdateModelName = (e: FormEvent) => {
+    e.preventDefault();
+    if (editingModelForRename) {
+      setModels((prevModels) =>
+        prevModels.map((m) =>
+          m.id === editingModelForRename.id ? editingModelForRename : m
+        )
+      );
+      setEditingModelForRename(null);
+    }
+  };
+
+  // Handler for deleting the model.
+  const handleDeleteModel = (modelId: string) => {
+    if (window.confirm('Are you sure you want to delete this model?')) {
+      setModels((prevModels) => prevModels.filter((m) => m.id !== modelId));
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 font-sans">
       <header className="mb-6 flex justify-between items-center">
@@ -343,8 +417,8 @@ const ModelCreation: React.FC = () => {
             key={model.id}
             model={model}
             onClick={() => openEditCollections(model)}
-            onRename={() => {}}
-            onDelete={() => {}}
+            onRename={handleRenameModel}
+            onDelete={handleDeleteModel}
           />
         ))}
       </div>
@@ -371,6 +445,16 @@ const ModelCreation: React.FC = () => {
           toggleCollectionSelection={toggleCollectionSelection}
           onConfirm={confirmCollections}
           onClose={() => setEditingModel(null)}
+        />
+      )}
+      {editingModelForRename && (
+        <EditModelModal
+          model={editingModelForRename}
+          onNameChange={(value) =>
+            setEditingModelForRename({ ...editingModelForRename, name: value })
+          }
+          onSubmit={handleUpdateModelName}
+          onCancel={() => setEditingModelForRename(null)}
         />
       )}
     </div>
