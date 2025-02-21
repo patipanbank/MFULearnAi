@@ -56,6 +56,15 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const [chatHistories, setChatHistories] = useState<Array<{
+    id: string;
+    chatName: string;
+    lastMessage: string;
+    updatedAt: string;
+  }>>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [newChatName, setNewChatName] = useState('');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -159,6 +168,24 @@ const MFUChatbot: React.FC = () => {
 
     loadChatHistory();
   }, []);
+
+  useEffect(() => {
+    fetchChatHistories();
+  }, []);
+
+  const fetchChatHistories = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/histories`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const data = await response.json();
+      setChatHistories(data);
+    } catch (error) {
+      console.error('Error fetching chat histories:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
@@ -497,223 +524,310 @@ const MFUChatbot: React.FC = () => {
     return data.embedding;
   };
 
+  const handleNewChat = async () => {
+    if (!newChatName.trim()) return;
+    
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/histories`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          chatName: newChatName,
+          modelId: selectedModel,
+          collectionName: selectedCollection
+        })
+      });
+      
+      const newChat = await response.json();
+      setChatHistories(prev => [newChat, ...prev]);
+      setCurrentChatId(newChat.id);
+      setShowNewChatModal(false);
+      setNewChatName('');
+      setMessages([]);
+    } catch (error) {
+      console.error('Error creating new chat:', error);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <div className="flex flex-col items-center justify-center mb-1">
-              <img
-                src="/mfu_logo_chatbot.PNG"
-                alt="MFU Logo"
-                className="w-24 h-24 mb-2 object-contain"
-              />
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-0">
-                  Welcome to
-                </h1>
-                <div className="text-2xl font-bold -mt-1 mb-0">
-                  <span style={{
-                    background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
-                    MFU
-                  </span>{' '}
-                  <span className="text-gray-800 dark:text-white">Chat{''}</span>
-                  <span style={{
-                    background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
-                    AI
-                  </span>
-                </div>
-              </div>
+    <div className="flex h-full">
+      {/* Sidebar for chat histories */}
+      <div className="w-64 border-r border-gray-200 dark:border-gray-700 p-4">
+        <button
+          onClick={() => setShowNewChatModal(true)}
+          className="w-full mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          New Chat
+        </button>
+        
+        <div className="space-y-2">
+          {chatHistories.map(chat => (
+            <div
+              key={chat.id}
+              onClick={() => setCurrentChatId(chat.id)}
+              className={`p-2 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 
+                ${currentChatId === chat.id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+            >
+              <div className="font-medium">{chat.chatName}</div>
+              <div className="text-sm text-gray-500 truncate">{chat.lastMessage}</div>
             </div>
-            <p className="text-gray-600 dark:text-gray-300 -mt-1">How can I help you today?</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {messages.map((message) => (
-              <div key={message.id} className="message relative">
-                <div className={`flex items-start gap-3 ${
-                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                }`}>
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-                      : 'bg-transparent'
-                  } flex items-center justify-center`}>
-                    {message.role === 'user' ? (
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <img
-                        src="/dindin.PNG"
-                        alt="AI Assistant"
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-
-                  <div className={`flex flex-col space-y-2 max-w-[80%] ${
-                    message.role === 'user' ? 'items-end' : 'items-start'
-                  }`}>
-                    <div className="text-sm text-gray-500">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </div>
-                    <div className={`rounded-lg p-3 ${
-                      message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
-                    }`}>
-                      {message.role === 'assistant' && message.content === '' && isLoading ? (
-                        <LoadingDots />
-                      ) : (
-                        <MessageContent message={message} />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                  <div className="ml-2 mt-1">
-                    <button
-                      onClick={() => {
-                        const sourceInfo = message.sources?.map(source =>
-                          `Model: ${source.modelId}\n` +
-                          `Collection: ${source.collectionName}\n` +
-                          `File: ${source.filename}\n` +
-                          `Source: ${source.source || 'N/A'}\n` +
-                          `Similarity: ${(source.similarity * 100).toFixed(1)}%`
-                        ).join('\n\n');
-                        alert(sourceInfo);
-                      }}
-                      className="text-xs text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      View Sources ({message.sources.length})
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
+          ))}
+        </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
-        <div className="p-2 md:p-4 border-b">
-          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Model</option>
-              {models.map(model => (
-                <option key={model} value={model}>
-                  {modelNames[model]}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Select Collection</option>
-              {collections.map(collection => (
-                <option key={collection} value={collection}>
-                  {collection}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={clearChat}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors whitespace-nowrap"
-            >
-              Clear Chat
-            </button>
+      {/* New Chat Modal */}
+      {showNewChatModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg">
+            <h3 className="text-lg font-medium mb-4">New Chat</h3>
+            <input
+              type="text"
+              value={newChatName}
+              onChange={(e) => setNewChatName(e.target.value)}
+              placeholder="Enter chat name"
+              className="w-full p-2 border rounded mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowNewChatModal(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleNewChat}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Create
+              </button>
+            </div>
           </div>
         </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="p-2 md:p-4">
-          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <div className="flex items-center gap-2 p-2">
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <RiImageAddFill className="w-6 h-6 text-gray-500 dark:text-white hover:text-gray-700 dark:hover:text-gray-300" />
-              </label>
-
-              {selectedImages.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedImages.map((image, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt={`Selected ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                      >
-                        ×
-                      </button>
+      {/* Main chat area */}
+      <div className="flex-1">
+        <div className="flex flex-col h-[calc(100vh-4rem)]">
+          <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full">
+                <div className="flex flex-col items-center justify-center mb-1">
+                  <img
+                    src="/mfu_logo_chatbot.PNG"
+                    alt="MFU Logo"
+                    className="w-24 h-24 mb-2 object-contain"
+                  />
+                  <div className="text-center">
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-0">
+                      Welcome to
+                    </h1>
+                    <div className="text-2xl font-bold -mt-1 mb-0">
+                      <span style={{
+                        background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text'
+                      }}>
+                        MFU
+                      </span>{' '}
+                      <span className="text-gray-800 dark:text-white">Chat{''}</span>
+                      <span style={{
+                        background: 'linear-gradient(to right, #00FFFF, #0099FF)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text'
+                      }}>
+                        AI
+                      </span>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              )}
-            </div>
+                <p className="text-gray-600 dark:text-gray-300 -mt-1">How can I help you today?</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {messages.map((message) => (
+                  <div key={message.id} className="message relative">
+                    <div className={`flex items-start gap-3 ${
+                      message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                    }`}>
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
+                        message.role === 'user'
+                          ? 'bg-gradient-to-r from-red-600 to-yellow-400'
+                          : 'bg-transparent'
+                      } flex items-center justify-center`}>
+                        {message.role === 'user' ? (
+                          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <img
+                            src="/dindin.PNG"
+                            alt="AI Assistant"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
 
-            <div className="flex-1">
-              <div className="flex gap-2">
-                <textarea
-                  ref={textareaRef}
-                  value={inputMessage}
-                  onChange={(e) => handleInputChange(e)}
-                  onKeyDown={(e) => handleKeyDown(e)}
-                  onPaste={handlePaste}
-                  className="flex-1 min-w-0 p-2 text-sm md:text-base border rounded resize-none"
-                  placeholder={selectedImages.length > 0 ? "Please describe or ask about these images..." : "Type a message..."}
-                  rows={1}
-                  required
-                />
+                      <div className={`flex flex-col space-y-2 max-w-[80%] ${
+                        message.role === 'user' ? 'items-end' : 'items-start'
+                      }`}>
+                        <div className="text-sm text-gray-500">
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </div>
+                        <div className={`rounded-lg p-3 ${
+                          message.role === 'user'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
+                        }`}>
+                          {message.role === 'assistant' && message.content === '' && isLoading ? (
+                            <LoadingDots />
+                          ) : (
+                            <MessageContent message={message} />
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-                <button
-                  type="submit"
-                  disabled={!canSubmit()}
-                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  style={{ minHeight: '40px' }}
+                    {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                      <div className="ml-2 mt-1">
+                        <button
+                          onClick={() => {
+                            const sourceInfo = message.sources?.map(source =>
+                              `Model: ${source.modelId}\n` +
+                              `Collection: ${source.collectionName}\n` +
+                              `File: ${source.filename}\n` +
+                              `Source: ${source.source || 'N/A'}\n` +
+                              `Similarity: ${(source.similarity * 100).toFixed(1)}%`
+                            ).join('\n\n');
+                            alert(sourceInfo);
+                          }}
+                          className="text-xs text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          View Sources ({message.sources.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+
+          <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
+            <div className="p-2 md:p-4 border-b">
+              <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 >
-                  {isLoading ? (
-                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <GrSend className="w-5 h-5" />
-                  )}
+                  <option value="">Model</option>
+                  {models.map(model => (
+                    <option key={model} value={model}>
+                      {modelNames[model]}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selectedCollection}
+                  onChange={(e) => setSelectedCollection(e.target.value)}
+                  className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="">Select Collection</option>
+                  {collections.map(collection => (
+                    <option key={collection} value={collection}>
+                      {collection}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={clearChat}
+                  className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors whitespace-nowrap"
+                >
+                  Clear Chat
                 </button>
               </div>
             </div>
+
+            <form onSubmit={handleSubmit} className="p-2 md:p-4">
+              <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
+                <div className="flex items-center gap-2 p-2">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <RiImageAddFill className="w-6 h-6 text-gray-500 dark:text-white hover:text-gray-700 dark:hover:text-gray-300" />
+                  </label>
+
+                  {selectedImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedImages.map((image, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={URL.createObjectURL(image)}
+                            alt={`Selected ${index + 1}`}
+                            className="w-20 h-20 object-cover rounded"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <div className="flex gap-2">
+                    <textarea
+                      ref={textareaRef}
+                      value={inputMessage}
+                      onChange={(e) => handleInputChange(e)}
+                      onKeyDown={(e) => handleKeyDown(e)}
+                      onPaste={handlePaste}
+                      className="flex-1 min-w-0 p-2 text-sm md:text-base border rounded resize-none"
+                      placeholder={selectedImages.length > 0 ? "Please describe or ask about these images..." : "Type a message..."}
+                      rows={1}
+                      required
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={!canSubmit()}
+                      className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
+                          ? 'bg-blue-500 text-white hover:bg-blue-600'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                      style={{ minHeight: '40px' }}
+                    >
+                      {isLoading ? (
+                        <BiLoaderAlt className="w-6 h-6 animate-spin" />
+                      ) : (
+                        <GrSend className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
