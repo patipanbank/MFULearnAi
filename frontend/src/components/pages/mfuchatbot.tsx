@@ -133,18 +133,20 @@ const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
 
   return (
     <div>
-      <div className={`grid gap-2 auto-cols-fr ${
+      <div className={`grid gap-3 auto-cols-fr ${
         message.images && message.images.length > 0 
           ? `grid-cols-${Math.min(message.images.length, 3)} w-fit`
           : ''
       }`}>
         {message.images?.map((img, index) => (
-          <img
-            key={index}
-            src={`data:${img.mediaType};base64,${img.data}`}
-            alt="Uploaded content"
-            className="max-w-[200px] w-full h-auto rounded-lg object-contain"
-          />
+          <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
+            <img
+              src={`data:${img.mediaType};base64,${img.data}`}
+              alt="Uploaded content"
+              className="max-w-[200px] w-full h-auto rounded-xl object-contain shadow-md 
+              hover:shadow-xl transition-all duration-300"
+            />
+          </div>
         ))}
       </div>
       <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
@@ -490,63 +492,60 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Chat history / messages container */}
-      <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
+      <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40 
+      bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="flex flex-col items-center justify-center mb-1">
-              <img
-                src="/mfu_logo_chatbot.PNG"
-                alt="MFU Logo"
-                className="w-24 h-24 mb-2 object-contain"
-              />
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-0">
+              <div className="w-24 h-24 mb-4 rounded-2xl shadow-xl overflow-hidden transform 
+              hover:scale-105 transition-all duration-300">
+                <img
+                  src="/mfu_logo_chatbot.PNG"
+                  alt="MFU Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="text-center space-y-2">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 
+                dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
                   Welcome to
                 </h1>
-                <div className="text-2xl font-bold -mt-1 mb-0">
-                  <span style={{
-                    background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
+                <div className="text-3xl font-bold">
+                  <span className="bg-gradient-to-r from-red-600 to-yellow-400 bg-clip-text text-transparent">
                     MFU
                   </span>{' '}
-                  <span className="text-gray-800 dark:text-white">Chat</span>{' '}
-                  <span style={{
-                    background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
+                  <span className="bg-gradient-to-r from-gray-900 to-gray-700 
+                  dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">Chat</span>{' '}
+                  <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">
                     AI
                   </span>
                 </div>
               </div>
             </div>
-            <p className="text-gray-600 dark:text-gray-300 -mt-1">How can I help you today?</p>
+            <p className="text-lg text-gray-600 dark:text-gray-300 mt-4">
+              How can I help you today?
+            </p>
           </div>
         ) : (
           <div className="space-y-6">
             {messages.map((message) => (
-              <div key={message.id} className="message relative">
-                <div className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
+              <div key={message.id} className="message relative transform transition-all duration-200">
+                <div className={`flex items-start gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden shadow-md 
+                  transform hover:scale-105 transition-all duration-200 ${
                     message.role === 'user'
-                      ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-                      : 'bg-transparent'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700'
+                      : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800'
                   } flex items-center justify-center`}>
                     {message.role === 'user' ? (
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd"
-                              d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                              clipRule="evenodd" />
+                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                       </svg>
                     ) : (
                       <img
                         src="/dindin.PNG"
                         alt="AI Assistant"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transform hover:scale-110 transition-all duration-200"
                       />
                     )}
                   </div>
@@ -554,12 +553,14 @@ const MFUChatbot: React.FC = () => {
                   <div className={`flex flex-col space-y-2 max-w-[80%] ${
                     message.role === 'user' ? 'items-end' : 'items-start'
                   }`}>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       {new Date(message.timestamp).toLocaleTimeString()}
                     </div>
-                    <div className={`rounded-lg p-3 ${message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 dark:text-white'}`}>
+                    <div className={`rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-200 ${
+                      message.role === 'user'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                        : 'bg-white dark:bg-gray-800 dark:text-white border border-gray-200 dark:border-gray-700'
+                    }`}>
                       {(message.role === 'assistant' && message.content === '' && isLoading)
                         ? <LoadingDots />
                         : <MessageContent message={message} />
@@ -569,7 +570,7 @@ const MFUChatbot: React.FC = () => {
                 </div>
 
                 {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                  <div className="ml-2 mt-1">
+                  <div className="ml-14 mt-2">
                     <button
                       onClick={() => {
                         const sourceInfo = message.sources?.map(source =>
@@ -581,7 +582,10 @@ const MFUChatbot: React.FC = () => {
                         ).join('\n\n');
                         alert(sourceInfo);
                       }}
-                      className="text-xs text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 
+                      dark:hover:text-blue-300 flex items-center gap-2 px-3 py-1.5 rounded-lg 
+                      bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 
+                      transition-all duration-200"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -597,10 +601,11 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      {/* Chat controls (model selection, and clear chat) */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
-        <div className="p-2 md:p-4 border-b">
-          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
+      {/* Chat controls */}
+      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 
+      border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] shadow-lg">
+        <div className="p-3 md:p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
             <select
               value={selectedModel?.id || ''}
               onChange={(e) => {
@@ -608,11 +613,12 @@ const MFUChatbot: React.FC = () => {
                 const model = models.find((m) => m.id === modelId);
                 if (model) {
                   setSelectedModel(model);
-                  console.log("Model changed:", model);
-                  console.log("Model Collections:", model.collections);
                 }
               }}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="px-4 py-2 text-sm md:text-base rounded-lg border border-gray-300 
+              dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              flex-1 max-w-[200px] focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 
+              focus:border-transparent transition-all duration-200"
             >
               <option value="">Select Model</option>
               {models.map((model) => (
@@ -623,7 +629,9 @@ const MFUChatbot: React.FC = () => {
             </select>
             <button
               onClick={clearChat}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors whitespace-nowrap"
+              className="px-4 py-2 text-sm md:text-base rounded-lg font-medium text-white 
+              bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 
+              transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg"
             >
               Clear Chat
             </button>
@@ -631,10 +639,10 @@ const MFUChatbot: React.FC = () => {
         </div>
 
         {/* Chat input form */}
-        <form onSubmit={handleSubmit} className="p-2 md:p-4">
-          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <div className="flex items-center gap-2 p-2">
-              <label className="cursor-pointer">
+        <form onSubmit={handleSubmit} className="p-3 md:p-4">
+          <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
+            <div className="flex items-center gap-3 p-2">
+              <label className="cursor-pointer transform hover:scale-110 transition-all duration-200">
                 <input
                   type="file"
                   accept="image/*"
@@ -642,21 +650,24 @@ const MFUChatbot: React.FC = () => {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <RiImageAddFill className="w-6 h-6 text-gray-500 dark:text-white hover:text-gray-700 dark:hover:text-gray-300" />
+                <RiImageAddFill className="w-6 h-6 text-blue-600 dark:text-blue-400 
+                hover:text-blue-700 dark:hover:text-blue-300" />
               </label>
               {selectedImages.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {selectedImages.map((image, index) => (
-                    <div key={index} className="relative">
+                    <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
                       <img
                         src={URL.createObjectURL(image)}
                         alt={`Selected ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded"
+                        className="w-20 h-20 object-cover rounded-xl shadow-md group-hover:shadow-lg"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
+                        rounded-full w-6 h-6 flex items-center justify-center text-sm shadow-md 
+                        transform hover:scale-110 transition-all duration-200"
                       >
                         ×
                       </button>
@@ -667,26 +678,34 @@ const MFUChatbot: React.FC = () => {
             </div>
 
             <div className="flex-1">
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <textarea
                   ref={textareaRef}
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e)}
+                  onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
-                  className="flex-1 min-w-0 p-2 text-sm md:text-base border rounded resize-none"
-                  placeholder={selectedImages.length > 0 ? "Please describe or ask about these images..." : "Type a message..."}
+                  className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-xl border border-gray-300 
+                  dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                  placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
+                  focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent 
+                  transition-all duration-200"
+                  placeholder={selectedImages.length > 0 
+                    ? "Please describe or ask about these images..." 
+                    : "Type a message..."}
                   rows={1}
                   required
                 />
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  style={{ minHeight: '40px' }}
+                  className={`px-4 py-2 rounded-xl font-medium flex items-center justify-center 
+                  transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg 
+                  min-h-[44px] min-w-[44px] ${
+                    canSubmit()
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   {isLoading ? (
                     <BiLoaderAlt className="w-6 h-6 animate-spin" />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, FormEvent } from 'react';
 import { config } from '../../config/config';
-import { FaPlus, FaTimes, FaCheck, FaEllipsisH } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser } from 'react-icons/fa';
 
 /* -------------------------------
    Type Definitions
@@ -56,8 +56,9 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
 
   return (
     <div
-      className="relative border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-lg 
-      transform hover:scale-105 transition duration-200 cursor-pointer bg-white dark:bg-gray-800"
+      className="relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md 
+      hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 cursor-pointer 
+      border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
       onClick={onClick}
     >
       <button
@@ -65,26 +66,29 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
           e.stopPropagation();
           setShowMenu(!showMenu);
         }}
-        className="absolute top-2 right-2 p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 
-        dark:hover:text-gray-200 transition-colors duration-200"
+        className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
+        dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
+        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
         title="Options"
       >
-        <FaEllipsisH />
+        <FaEllipsisH size={16} />
       </button>
 
       {showMenu && (
-        <div className="absolute top-8 right-2 bg-white dark:bg-gray-700 border border-gray-200 
-        dark:border-gray-600 rounded-lg shadow-lg z-10 overflow-hidden">
+        <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
+        shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
+        backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onRename(model.id);
               setShowMenu(false);
             }}
-            className="block w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 
+            className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
             hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
           >
-            Rename
+            <FaEdit className="mr-2" size={14} />
+            <span>Rename</span>
           </button>
           <button
             onClick={(e) => {
@@ -92,27 +96,40 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
               onDelete(model.id);
               setShowMenu(false);
             }}
-            className="block w-full px-4 py-2 text-left text-red-600 dark:text-red-400 
+            className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
             hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
           >
-            Delete
+            <FaTrash className="mr-2" size={14} />
+            <span>Delete</span>
           </button>
         </div>
       )}
 
-      <div className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-        Model
+      <div className="flex flex-col h-full">
+        <div className="mb-4">
+          <div className="inline-block px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-md
+            text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
+            {model.modelType}
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+            {model.name}
+          </h2>
+        </div>
+        <div className="mt-auto space-y-2">
+          <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+            <FaLayerGroup className="mr-2" size={14} />
+            <span>{model.collections.length} Collections</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {model.collections.map((collection, index) => (
+              <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs 
+              font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                {collection}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">{model.name}</h2>
-      {model.collections.length > 0 ? (
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          Collections: {model.collections.join(', ')}
-        </p>
-      ) : (
-        <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-          No collections selected
-        </p>
-      )}
     </div>
   );
 };
@@ -136,23 +153,29 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
   onSubmit,
   onCancel,
 }) => (
-  <BaseModal onClose={onCancel} containerClasses="w-96">
+  <BaseModal onClose={onCancel} containerClasses="w-[28rem]">
     <div className="mb-6">
       <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
         Create New Model
       </h3>
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        Create a new model to organize your collections and training data.
+      </p>
     </div>
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Model Name
+        </label>
         <input
           type="text"
-          placeholder="New Model Name"
+          placeholder="Enter model name"
           value={newModelName}
           onChange={(e) => onNameChange(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 
           bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
           focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-          placeholder-gray-500 dark:placeholder-gray-400"
+          placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
         />
       </div>
       <div>
@@ -162,9 +185,10 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
         <select
           value={newModelType}
           onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal')}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 
           bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+          transition-all duration-200"
         >
           <option value="official">Official</option>
           <option value="personal">Personal</option>
@@ -173,18 +197,19 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
       <div className="flex flex-col space-y-2 pt-4">
         <button
           type="submit"
-          className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
-          dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
-          transform transition-all duration-200"
+          className="w-full px-4 py-2.5 rounded-lg font-medium text-white
+          bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 
+          dark:from-blue-500 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 
+          transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-lg"
         >
           Create Model
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 
           text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
-          transform transition-all duration-200"
+          transform hover:scale-[1.02] transition-all duration-200"
         >
           Cancel
         </button>
@@ -215,58 +240,72 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   toggleCollectionSelection,
   onConfirm,
   onClose,
-}) => {
-  const filteredCollections = availableCollections.filter((col) =>
-    col.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  return (
-    <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 max-h-[80vh] overflow-y-auto">
-      <div className="flex justify-between items-center mb-6">
+}) => (
+  <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 max-h-[80vh] overflow-y-auto">
+    <div className="flex justify-between items-center mb-6">
+      <div>
         <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-          Select Collections for: {model.name}
+          Collections for {model.name}
         </h3>
-        <button 
-          onClick={onConfirm} 
-          className="p-2 text-green-600 dark:text-green-400 hover:text-green-700 
-          dark:hover:text-green-300 transition-colors duration-200"
-          title="Confirm"
-        >
-          <FaCheck size={24} />
-        </button>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          Select the collections to include in this model
+        </p>
       </div>
+      <button 
+        onClick={onConfirm} 
+        className="p-2.5 text-green-600 dark:text-green-400 hover:text-green-700 
+        dark:hover:text-green-300 transition-colors duration-200 rounded-lg
+        hover:bg-green-50 dark:hover:bg-green-900/30"
+        title="Confirm"
+      >
+        <FaCheck size={20} />
+      </button>
+    </div>
+    <div className="relative mb-6">
       <input
         type="text"
-        placeholder="Search Collections"
+        placeholder="Search collections..."
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="w-full px-4 py-2 mb-6 rounded-lg border border-gray-300 dark:border-gray-600 
+        className="w-full px-4 py-2.5 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 
         bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+        placeholder-gray-500 dark:placeholder-gray-400
         focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-        placeholder-gray-500 dark:placeholder-gray-400"
+        transition-all duration-200"
       />
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {filteredCollections.map((collection) => (
-          <div
-            key={collection.id}
-            onClick={() => toggleCollectionSelection(collection.name)}
-            className={`p-4 rounded-lg cursor-pointer border transition-all duration-200
-              ${selectedCollections.includes(collection.name)
-                ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
-              }`}
-          >
-            <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-              {collection.name}
-            </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              By {collection.createdBy}
-            </p>
-          </div>
-        ))}
+      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+        <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
       </div>
-    </BaseModal>
-  );
-};
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      {availableCollections.map((collection) => (
+        <div
+          key={collection.id}
+          onClick={() => toggleCollectionSelection(collection.name)}
+          className={`p-4 rounded-lg cursor-pointer border transition-all duration-200
+            transform hover:scale-[1.02] ${
+            selectedCollections.includes(collection.name)
+              ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30 shadow-md'
+              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
+            }`}
+        >
+          <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            {collection.name}
+          </h4>
+          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+            <FaUser className="mr-2" size={12} />
+            <span>{collection.createdBy}</span>
+          </div>
+          <div className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+            {getRelativeTime(collection.created)}
+          </div>
+        </div>
+      ))}
+    </div>
+  </BaseModal>
+);
 
 /* -------------------------------
    Edit Model Modal Component
@@ -284,40 +323,47 @@ const EditModelModal: React.FC<EditModelModalProps> = ({
   onSubmit,
   onCancel,
 }) => (
-  <BaseModal onClose={onCancel} containerClasses="w-96">
+  <BaseModal onClose={onCancel} containerClasses="w-[28rem]">
     <div className="mb-6">
       <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
         Rename Model
       </h3>
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        Update the name of your model
+      </p>
     </div>
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Model Name
+        </label>
         <input
           type="text"
-          placeholder="Model Name"
+          placeholder="Enter new name"
           value={model.name}
           onChange={(e) => onNameChange(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 
           bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
           focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-          placeholder-gray-500 dark:placeholder-gray-400"
+          placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
         />
       </div>
       <div className="flex flex-col space-y-2 pt-4">
         <button
           type="submit"
-          className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
-          dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
-          transform transition-all duration-200"
+          className="w-full px-4 py-2.5 rounded-lg font-medium text-white
+          bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 
+          dark:from-blue-500 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 
+          transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-lg"
         >
           Save Changes
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 
           text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
-          transform transition-all duration-200"
+          transform hover:scale-[1.02] transition-all duration-200"
         >
           Cancel
         </button>
@@ -559,17 +605,28 @@ const ModelCreation: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 font-sans">
-      <header className="mb-8 flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Models</h1>
-        <button
-          onClick={() => setShowNewModelModal(true)}
-          className="p-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 
-          dark:hover:text-blue-300 transition-colors duration-200"
-          title="Create Model"
-        >
-          <FaPlus size={24} />
-        </button>
+      <header className="mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Models</h1>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              Create and manage your models for training and chat
+            </p>
+          </div>
+          <button
+            onClick={() => setShowNewModelModal(true)}
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
+            hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 
+            dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-lg 
+            transition-all duration-200 space-x-2 shadow-md hover:shadow-lg 
+            transform hover:scale-105"
+          >
+            <FaPlus size={16} />
+            <span className="font-medium">New Model</span>
+          </button>
+        </div>
       </header>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {models.map((model) => (
           <ModelCard
@@ -581,6 +638,8 @@ const ModelCreation: React.FC = () => {
           />
         ))}
       </div>
+
+      {/* Modals */}
       {showNewModelModal && (
         <NewModelModal
           newModelName={newModelName}
@@ -595,6 +654,7 @@ const ModelCreation: React.FC = () => {
           }}
         />
       )}
+
       {editingModel && !isCollectionsLoading && (
         <ModelCollectionsModal
           model={editingModel}
@@ -607,6 +667,7 @@ const ModelCreation: React.FC = () => {
           onClose={() => setEditingModel(null)}
         />
       )}
+
       {editingModelForRename && (
         <EditModelModal
           model={editingModelForRename}
