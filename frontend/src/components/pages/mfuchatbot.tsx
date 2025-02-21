@@ -414,23 +414,23 @@ const MFUChatbot: React.FC = () => {
   /* -------------------------------
      Clear Chat History (calls DELETE /api/chat/clear)
   ---------------------------------*/
-  const clearChat = async () => {
-    try {
-      const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to clear chat history');
-      }
-      setMessages([]);
-      setHistory([]);
-    } catch (error) {
-      console.error('Error clearing chat:', error);
-    }
-  };
+  // const clearChat = async () => {
+  //   try {
+  //     const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+  //       }
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error('Failed to clear chat history');
+  //     }
+  //     setMessages([]);
+  //     setHistory([]);
+  //   } catch (error) {
+  //     console.error('Error clearing chat:', error);
+  //   }
+  // };
 
   /* -------------------------------
      File/Image Handlers
@@ -604,6 +604,7 @@ const MFUChatbot: React.FC = () => {
       {/* Chat controls */}
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 
       border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] shadow-lg">
+        {/* Model Selector Section */}
         <div className="p-3 md:p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
           <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
             <select
@@ -615,10 +616,10 @@ const MFUChatbot: React.FC = () => {
                   setSelectedModel(model);
                 }
               }}
-              className="px-4 py-2 text-sm md:text-base rounded-lg border border-gray-300 
+              className="px-4 py-2.5 text-sm md:text-base rounded-xl border border-gray-300 
               dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
               flex-1 max-w-[200px] focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 
-              focus:border-transparent transition-all duration-200"
+              focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <option value="">Select Model</option>
               {models.map((model) => (
@@ -627,22 +628,15 @@ const MFUChatbot: React.FC = () => {
                 </option>
               ))}
             </select>
-            <button
-              onClick={clearChat}
-              className="px-4 py-2 text-sm md:text-base rounded-lg font-medium text-white 
-              bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 
-              transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg"
-            >
-              Clear Chat
-            </button>
           </div>
         </div>
 
-        {/* Chat input form */}
+        {/* Chat Input Form */}
         <form onSubmit={handleSubmit} className="p-3 md:p-4">
           <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <div className="flex items-center gap-3 p-2">
-              <label className="cursor-pointer transform hover:scale-110 transition-all duration-200">
+            <div className="flex items-center">
+              <label className="cursor-pointer transform hover:scale-110 transition-all duration-200 
+              p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
                 <input
                   type="file"
                   accept="image/*"
@@ -653,8 +647,12 @@ const MFUChatbot: React.FC = () => {
                 <RiImageAddFill className="w-6 h-6 text-blue-600 dark:text-blue-400 
                 hover:text-blue-700 dark:hover:text-blue-300" />
               </label>
+            </div>
+
+            <div className="flex-1 flex flex-col gap-3">
+              {/* Selected Images Preview */}
               {selectedImages.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2">
                   {selectedImages.map((image, index) => (
                     <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
                       <img
@@ -675,9 +673,8 @@ const MFUChatbot: React.FC = () => {
                   ))}
                 </div>
               )}
-            </div>
 
-            <div className="flex-1">
+              {/* Input Area */}
               <div className="flex gap-3">
                 <textarea
                   ref={textareaRef}
@@ -689,7 +686,7 @@ const MFUChatbot: React.FC = () => {
                   dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
                   placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
                   focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent 
-                  transition-all duration-200"
+                  transition-all duration-200 shadow-sm hover:shadow-md"
                   placeholder={selectedImages.length > 0 
                     ? "Please describe or ask about these images..." 
                     : "Type a message..."}
@@ -699,7 +696,7 @@ const MFUChatbot: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className={`px-4 py-2 rounded-xl font-medium flex items-center justify-center 
+                  className={`p-3 rounded-xl font-medium flex items-center justify-center 
                   transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg 
                   min-h-[44px] min-w-[44px] ${
                     canSubmit()
