@@ -24,7 +24,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const fetchChatSessions = async () => {
     try {
-      const response = await axios.get(`${config.apiUrl}/api/chat/sessions`);
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.get(`${config.apiUrl}/api/chat/sessions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setChatSessions(response.data);
     } catch (error) {
       console.error('Error fetching chat sessions:', error);
@@ -45,7 +50,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const handleNewChat = async () => {
     try {
-      const response = await axios.post(`${config.apiUrl}/api/chat/sessions/new`);
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.post(`${config.apiUrl}/api/chat/sessions/new`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       navigate(`/chat/${response.data._id}`);
     } catch (error) {
       console.error('Error creating new chat:', error);
