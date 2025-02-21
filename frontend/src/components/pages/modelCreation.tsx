@@ -191,6 +191,10 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
     if (token) {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       setUserRole(tokenPayload.role || '');
+      // Set default model type based on user role
+      if (tokenPayload.role !== 'Staffs' && newModelType !== 'personal') {
+        onTypeChange('personal');
+      }
     }
   }, []);
 
@@ -220,27 +224,25 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
             placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Model Type
-          </label>
-          <select
-            value={newModelType}
-            onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal' | 'staff_only')}
-            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 
-            bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-            focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-            transition-all duration-200"
-          >
-            {userRole === 'Staffs' && (
-              <>
-                <option value="official">Official</option>
-                <option value="staff_only">Staff Only</option>
-              </>
-            )}
-            <option value="personal">Personal</option>
-          </select>
-        </div>
+        {userRole === 'Staffs' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Model Type
+            </label>
+            <select
+              value={newModelType}
+              onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal' | 'staff_only')}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+              transition-all duration-200"
+            >
+              <option value="official">Official</option>
+              <option value="staff_only">Staff Only</option>
+              <option value="personal">Personal</option>
+            </select>
+          </div>
+        )}
         <div className="flex flex-col space-y-2 pt-4">
           <button
             type="submit"
@@ -533,19 +535,28 @@ const ModelCreation: React.FC = () => {
     }
   }, []);
 
-  // Load models from database and localStorage
+  // Load models with permission filtering
   useEffect(() => {
     const fetchModels = async () => {
       try {
         const authToken = localStorage.getItem('auth_token');
+        if (!authToken) throw new Error('No auth token found');
+
+        // Get user role from token
+        const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
+        const userRole = tokenPayload.role || '';
+
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: { 'Authorization': `Bearer ${authToken}` },
         });
         if (!response.ok) throw new Error('Failed to fetch models');
         const modelsFromBackend = await response.json();
         
-        // Map models from backend
-        const dbModels = modelsFromBackend.map((model: any) => ({
+        // Filter models based on user role
+        const filteredModels = modelsFromBackend.filter((model: any) => {
+          if (userRole === 'Staffs') return true;
+          return model.modelType === 'official' || model.modelType === 'personal';
+        }).map((model: any) => ({
           id: model._id,
           name: model.name,
           collections: model.collections,
@@ -556,7 +567,7 @@ const ModelCreation: React.FC = () => {
         const storedPersonalModels: Model[] = JSON.parse(localStorage.getItem('personalModels') || '[]');
         
         // Combine models
-        setModels([...dbModels, ...storedPersonalModels]);
+        setModels([...filteredModels, ...storedPersonalModels]);
       } catch (error) {
         console.error('Error fetching models:', error);
       }
@@ -811,14 +822,14 @@ const ModelCreation: React.FC = () => {
         // Staff can see all collections
         if (userRole === 'Staffs') return true;
         
-        // Users can see:
+        // For regular users:
         // 1. Their own collections
-        // 2. Collections with public permission
-        // 3. Collections they have explicit permission for
+        // 2. Public collections
+        // 3. Collections where they are explicitly listed in permissions
         return (
           collection.createdBy === userId ||
           collection.permission === 'public' ||
-          (collection.permission && collection.permission.includes(userId))
+          (Array.isArray(collection.permission) && collection.permission.includes(userId))
         );
       });
 
