@@ -288,16 +288,15 @@ const ModelCreation: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
+  const [newModelType, setNewModelType] = useState<'official' | 'personal'>('official');
 
   // Load models from localStorage or create a default model if none exist
   useEffect(() => {
-    const fetchModels = async () => {
+    const fetchOfficialModels = async () => {
       try {
         const authToken = localStorage.getItem('auth_token');
         const response = await fetch(`${config.apiUrl}/api/models`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-          },
+          headers: { 'Authorization': `Bearer ${authToken}` },
         });
         if (!response.ok) throw new Error('Failed to fetch models');
         const modelsFromBackend = await response.json();
@@ -310,8 +309,13 @@ const ModelCreation: React.FC = () => {
         console.error('Error fetching models:', error);
       }
     };
-
-    fetchModels();
+    fetchOfficialModels();
+    
+    // Load personal models stored in localStorage.
+    const storedPersonalModels: Model[] = JSON.parse(localStorage.getItem('personalModels') || '[]');
+    if (storedPersonalModels.length > 0) {
+      setModels(prev => [...prev, ...storedPersonalModels]);
+    }
   }, []);
 
   // Update localStorage whenever the models list changes
@@ -368,19 +372,56 @@ const ModelCreation: React.FC = () => {
   };
 
   // Create a new model
-  const handleCreateModel = (e: FormEvent) => {
+  const handleCreateModel = async (e: FormEvent) => {
     e.preventDefault();
     if (!newModelName.trim()) {
       alert('Please enter a model name');
       return;
     }
-    const newModel: Model = {
-      id: Date.now().toString(),
-      name: newModelName.trim(),
-      collections: [],
-    };
-    setModels((prev) => [...prev, newModel]);
+    if (newModelType === 'official') {
+      try {
+        const authToken = localStorage.getItem('auth_token');
+
+        // Parse the stored user data (adjust the key as necessary).
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        
+        const response = await fetch(`${config.apiUrl}/api/models`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            name: newModelName.trim(),
+            createdBy: userData.nameID, // use the value from localStorage
+            modelType: 'official'
+          }),
+        });
+        if (!response.ok) throw new Error('Failed to create model');
+        const createdModel = await response.json();
+        setModels((prev) => [
+          ...prev,
+          {
+            id: createdModel._id,
+            name: createdModel.name,
+            collections: createdModel.collections,
+          },
+        ]);
+      } catch (error) {
+        console.error('Error creating official model:', error);
+        alert('Error creating official model');
+      }
+    } else {
+      // Create personal model locally.
+      const newModel: Model = {
+        id: Date.now().toString(),
+        name: newModelName.trim(),
+        collections: [],
+      };
+      setModels((prev) => [...prev, newModel]);
+    }
     setNewModelName('');
+    setNewModelType('official');
     setShowNewModelModal(false);
   };
 
