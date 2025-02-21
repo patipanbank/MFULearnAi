@@ -36,13 +36,13 @@ wss.on('connection', (ws: WebSocket) => {
 
   ws.on('message', async (message: string) => {
     try {
-      const { messages, modelId, collectionName } = JSON.parse(message);
+      const { messages, modelId, collections } = JSON.parse(message);
       const lastMessage = messages[messages.length - 1];
       const query = lastMessage.content;
 
       console.log('Starting response generation');
       
-      for await (const content of chatService.generateResponse(messages, query, modelId)) {
+      for await (const content of chatService.generateResponse(messages, query, modelId, collections)) {
         console.log('Sending chunk:', content);
         ws.send(JSON.stringify({ content }));
       }
