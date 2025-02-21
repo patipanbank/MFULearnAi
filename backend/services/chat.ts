@@ -70,38 +70,44 @@ export class ChatService {
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
-    modelId: string,
-    realtimeCollections?: string[]
+    modelId: string
   ): AsyncGenerator<string> {
-    let collections: string[] = [];
-    if (realtimeCollections && realtimeCollections.length > 0) {
-      collections = realtimeCollections;
-    } else {
+    try {
+      // Retrieve the model (custom or default) from the backend.
       const model = await modelService.getModelById(modelId);
+      let collections: string[] = [];
       if (model) {
         collections = model.collections;
       }
-    }
+      
+      // Do not force a fallback: if there are no collections, skip vector query.
+      if (collections.length === 0) {
+        console.warn("No collections provided for this model; skipping vector context retrieval.");
+      }
     
-    // Retrieve context only if collections are provided.
-    let context = "";
-    if (collections.length > 0) {
-      context = await this.getContext(query, collections);
-      console.log("Retrieved context length:", context.length);
-    }
+      // Retrieve context only if collections are provided.
+      let context = "";
+      if (collections.length > 0) {
+        context = await this.getContext(query, collections);
+        console.log("Retrieved context length:", context.length);
+      }
 
-    // Augment chat messages with system prompt and retrieved context (if any).
-    const augmentedMessages = [
-      {
-        role: "system" as const,
-        content: `${this.systemPrompt}\n\nContext from documents:\n${context}`,
-      },
-      ...messages,
-    ];
+      // Augment chat messages with system prompt and retrieved context (if any).
+      const augmentedMessages = [
+        {
+          role: "system" as const,
+          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`,
+        },
+        ...messages,
+      ];
 
-    // Stream the final response using the chat model.
-    for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
-      yield chunk;
+      // Stream the final response using the chat model.
+      for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
+        yield chunk;
+      }
+    } catch (error) {
+      console.error("Error in generateResponse:", error);
+      throw error;
     }
   }
 }
