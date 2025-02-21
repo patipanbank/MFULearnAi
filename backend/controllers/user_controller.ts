@@ -1,18 +1,26 @@
-import { getUserbynameID,createUser } from "../services/user_service";
+import { getUserbynameID, createUser } from "../services/user_service";
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from "../config/config";
-const guest_login = async (req: Request, res: Response):Promise<void> => {
+import { UserRole } from "../models/User";
+
+const guest_login = async (req: Request, res: Response): Promise<void> => {
     try {
-        const body:{nameID:string} = await req.body;
+        const body: { nameID: string } = await req.body;
         if (!body) {
-           res.status(400).json({ message: 'nameID is required' });
+            res.status(400).json({ message: 'nameID is required' });
+            return;
         }
+
         let user = await getUserbynameID(body.nameID);
         if (!user) {
-            // for testing purpose
-            user = await createUser({nameID: body.nameID,role:'Staffs'});
-        }   
+            user = await createUser({ nameID: body.nameID, role: 'STAFF' as UserRole });
+            if (!user) {
+                res.status(500).json({ message: 'Failed to create user' });
+                return;
+            }
+        }
+
         const userData = {
             nameID: user.nameID,
             username: user.username || 'guest',
@@ -20,7 +28,8 @@ const guest_login = async (req: Request, res: Response):Promise<void> => {
             firstName: user.firstName || 'Guest',
             lastName: user.lastName || 'User',
             groups: [user.role]
-          };
+        };
+
         const token = jwt.sign(
             { 
                 nameID: userData.nameID,
@@ -33,11 +42,11 @@ const guest_login = async (req: Request, res: Response):Promise<void> => {
             JWT_SECRET,
             { expiresIn: '1h' }
         );
-        const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
 
+        const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
         const redirectUrl = `/auth-callback?token=${token}&user_data=${encodedUserData}`;
         res.status(200).send(redirectUrl.toString());
-    } catch (error:any) {
+    } catch (error: any) {
         res.status(500).json({ message: error.message });
     }
 }

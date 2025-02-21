@@ -13,6 +13,11 @@ interface Collection {
   permission?: string;
 }
 
+interface UserInfo {
+  username: string;
+  role: 'USER' | 'STAFF' | 'ADMIN';
+}
+
 interface UploadedFile {
   filename: string;
   uploadedBy: string;
@@ -694,12 +699,33 @@ const TrainingDashboard: React.FC = () => {
   // Loading state for collections
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
 
+  // Add user info state
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+
   const authToken = localStorage.getItem('auth_token');
 
   // ----------------------
   // API Calls
   // ----------------------
+  const fetchUserInfo = useCallback(async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch user info');
+      const data = await response.json();
+      setUserInfo(data);
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+    }
+  }, [authToken]);
+
   const fetchCollections = useCallback(async () => {
+    if (!userInfo) return;
+    
     setIsCollectionsLoading(true);
     try {
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
@@ -715,13 +741,26 @@ const TrainingDashboard: React.FC = () => {
         throw new Error(data.message || 'Failed to fetch collections');
       }
 
-      // Validate data structure
       if (!Array.isArray(data)) {
         throw new Error('Invalid data format received from server');
       }
 
       const collectionsWithDate: Collection[] = data
-        .filter((collection: MongoCollection) => collection._id && collection.name)
+        .filter((collection: MongoCollection) => {
+          if (!collection._id || !collection.name) return false;
+          
+          // Filter based on permissions
+          switch (collection.permission) {
+            case 'PUBLIC':
+              return true;
+            case 'STAFF_ONLY':
+              return userInfo.role === 'STAFF' || userInfo.role === 'ADMIN';
+            case 'PRIVATE':
+              return collection.createdBy === userInfo.username || userInfo.role === 'ADMIN';
+            default:
+              return false;
+          }
+        })
         .map((collection: MongoCollection): Collection => ({
           id: collection._id.toString(),
           name: collection.name,
@@ -737,7 +776,7 @@ const TrainingDashboard: React.FC = () => {
     } finally {
       setIsCollectionsLoading(false);
     }
-  }, [authToken]);
+  }, [authToken, userInfo]);
 
   const fetchUploadedFiles = useCallback(async (collectionName: string) => {
     try {
@@ -792,8 +831,14 @@ const TrainingDashboard: React.FC = () => {
   // Effects
   // ----------------------
   useEffect(() => {
-    fetchCollections();
-  }, [fetchCollections]);
+    fetchUserInfo();
+  }, [fetchUserInfo]);
+
+  useEffect(() => {
+    if (userInfo) {
+      fetchCollections();
+    }
+  }, [fetchCollections, userInfo]);
 
   useEffect(() => {
     if (selectedCollection) {

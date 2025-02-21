@@ -1,18 +1,51 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
 import passport from 'passport';
 import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
 import { connectDB } from '../lib/mongodb';
-import User from '../models/User';
+import User, { UserRole } from '../models/User';
 import { guest_login } from '../controllers/user_controller';
 
 const router = Router();
+
+interface SamlUserData {
+  nameID: string;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  groups?: string[];
+}
+
+interface AuthRequest extends Request {
+  user?: {
+    userData: SamlUserData;
+    token?: string;
+  };
+}
 
 // เพิ่ม logging middleware
 router.use('/saml/callback', (req, res, next) => {
   console.log('SAML Callback Request:', req.body);
   next();
 });
+
+// Define role mapping function
+const mapGroupToRole = (groups: string[]): UserRole => {
+  // Admin group check
+  const isAdmin = groups.some(group => 
+    group === 'S-1-5-21-893890582-1041674030-1199480097-13779' // Replace with actual admin group ID
+  );
+  
+  // Staff group check (anyone not in student group is staff)
+  const isStudent = groups.some(group => 
+    group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
+  );
+
+  if (isAdmin) return 'ADMIN';
+  if (!isStudent) return 'STAFF';
+  return 'USER';
+};
 
 const samlStrategy = new SamlStrategy(
   {
@@ -63,13 +96,7 @@ const samlStrategy = new SamlStrategy(
       // }
 
        // เพิ่มฟังก์ชันแปลง group เป็น role
-       const mapGroupToRole = (groups: string[]) => {
-        const isStudent = groups.some(group => 
-          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
-        );
-        return isStudent ? 'Students' : 'Staffs';
-      };
-      const user = await User.findOneAndUpdate(
+       const user = await User.findOneAndUpdate(
         { username },
         {
           nameID,
@@ -120,40 +147,43 @@ passport.deserializeUser((user: any, done) => {
 
 router.get('/login/saml', passport.authenticate('saml'));
 
-router.post('/saml/callback',
-  passport.authenticate('saml', { session: false }),
-  async (req: any, res) => {
+router.post('/saml/callback', 
+  passport.authenticate('saml', { session: false }) as RequestHandler,
+  (async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const mapGroupToRole = (groups: string[]) => {
-        const isStudent = groups.some(group => 
-          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
-        );
-        return isStudent ? 'Students' : 'Staffs';
+      const userData = req.user?.userData;
+      if (!userData) {
+        throw new Error('No user data provided');
+      }
+
+      const role = mapGroupToRole(userData.groups || []);
+
+      const userInfo = {
+        nameID: userData.nameID,
+        username: userData.username,
+        email: userData.email,
+        firstName: userData.first_name,
+        lastName: userData.last_name,
+        role: role
       };
 
-        const userData = {
-          nameID: req.user.userData.nameID,
-          username: req.user.userData.username,
-          email: req.user.userData.email,
-          firstName: req.user.userData.first_name,
-          lastName: req.user.userData.last_name,
-          groups: [mapGroupToRole(req.user.userData.groups || [])]
-        };
+      await User.findOneAndUpdate(
+        { username: userInfo.username },
+        {
+          ...userInfo,
+          groups: userData.groups || [],
+          updated: new Date()
+        },
+        { upsert: true }
+      );
 
       const token = jwt.sign(
-        { 
-          nameID: userData.nameID,
-          username: userData.username,
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          groups: userData.groups
-        },
+        userInfo,
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '7d' }
       );
 
-      const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
+      const encodedUserData = Buffer.from(JSON.stringify(userInfo)).toString('base64');
       
       const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth-callback`);
       redirectUrl.searchParams.append('token', token);
@@ -161,11 +191,37 @@ router.post('/saml/callback',
 
       res.redirect(redirectUrl.toString());
     } catch (error) {
-      console.error('SAML callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
+      next(error);
     }
+  }) as RequestHandler);
+
+const getMeHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      res.status(401).json({ message: 'No token provided' });
+      return;
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+    
+    const user = await User.findOne({ username: decoded.username });
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    res.json({
+      username: user.username,
+      role: user.role as UserRole
+    });
+  } catch (error) {
+    next(error);
   }
-);
+};
+
+router.get('/me', getMeHandler);
 
 router.post('/logout', (req, res) => {
   req.logout(() => {

@@ -1,51 +1,42 @@
-import User, { IUser } from '../models/User';
+import User, { UserRole } from '../models/User';
+
+interface CreateUserParams {
+    nameID: string;
+    username?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    role: UserRole;
+    groups?: string[];
+}
 
 // Create a new user
-export const createUser = async (userData: IUser) : Promise<{
-    nameID: string;
-    username: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role: string;
-    groups: string[];
-}> => {
+export const createUser = async (params: CreateUserParams) => {
     try {
-        const user = new User(userData);
-        await user.save();
-        return {
-            nameID: user.nameID,
-            username: user.username || 'guest',
-            email: user.email || 'guest@localhost',
-            firstName: user.firstName || 'Guest',
-            lastName: user.lastName || 'User',
-            role: user.role,
-            groups: user.groups,
-        };
-    } catch (error: any) {
-        throw new Error(`Error creating user: ${error.message}`);
+        const user = new User({
+            nameID: params.nameID,
+            username: params.username || 'guest',
+            email: params.email || 'guest@localhost',
+            firstName: params.firstName || 'Guest',
+            lastName: params.lastName || 'User',
+            role: params.role,
+            groups: params.groups || []
+        });
+        return await user.save();
+    } catch (error) {
+        console.error('Error creating user:', error);
+        return null;
     }
 };
 
 export const getUserbynameID = async (nameID: string) => {
     try {
-        const user = await User.findOne({nameID: nameID});
-        if (!user) {
-           return null;
-        }
-        return {
-            nameID: user.nameID,
-            username: user.username || 'guest',
-            email: user.email || 'guest@localhost',
-            firstName: user.firstName || 'Guest',
-            lastName: user.lastName || 'User',
-            role: user.role,
-            groups: user.groups,
-        };
-    } catch (error:any) {
-        throw new Error(`Error fetching user: ${error.message}`);
+        return await User.findOne({ nameID });
+    } catch (error) {
+        console.error('Error finding user:', error);
+        return null;
     }
-}
+};
 
 // Read a user by ID
 export const getUserById = async (id: string) => {
@@ -73,18 +64,18 @@ export const updateUserById = async (id: string, updateData: any) => {
     }
 };
 
-export const updateUserBynameID = async (nameID: string, updateData: IUser) => {
+export const updateUserBynameID = async (nameID: string, updateData: Partial<CreateUserParams>) => {
     try {
-        const user = await User.findOne({nameID: nameID});
+        const user = await User.findOne({nameID});
         if (!user) {
             throw new Error('User not found');
         }
-        user.username = updateData.username || user.username ;
-        user.email = updateData.email || user.email;
-        user.firstName = updateData.firstName || user.firstName;
-        user.lastName = updateData.lastName || user.lastName;
-        user.groups = updateData.groups || user.groups;
-        user.role = updateData.role || user.role;
+        if (updateData.username) user.username = updateData.username;
+        if (updateData.email) user.email = updateData.email;
+        if (updateData.firstName) user.firstName = updateData.firstName;
+        if (updateData.lastName) user.lastName = updateData.lastName;
+        if (updateData.groups) user.groups = updateData.groups;
+        if (updateData.role) user.role = updateData.role;
         user.updated = new Date();
         await user.save();
         return user;
