@@ -176,17 +176,18 @@ const MFUChatbot: React.FC = () => {
     setMessages(history);
   }, [history]);
 
-  // Load models from localStorage (the same key used by the model creation page)
+  // Load models from localStorage only once upon component mount.
   useEffect(() => {
     const storedModels = localStorage.getItem('models');
     if (storedModels) {
-      const localModels: Model[] = JSON.parse(storedModels);
-      setModels(localModels);
-      if (!selectedModel && localModels.length > 0) {
-        setSelectedModel(localModels[0]);
+      const parsedModels: Model[] = JSON.parse(storedModels);
+      setModels(parsedModels);
+      // Set the default selected model on mount. Adjust as needed.
+      if (parsedModels.length > 0) {
+        setSelectedModel(parsedModels[0]);
       }
     }
-  }, [selectedModel]);
+  }, []); // Dependency array is empty to ensure one-time execution
 
   // Scroll to bottom when messages update
   const scrollToBottom = () => {
@@ -352,6 +353,18 @@ const MFUChatbot: React.FC = () => {
       // (Make sure your model has collections. If not, no context will be queried.)
       const collectionsToQuery: string[] = selectedModel.collections;
 
+      // Debug logging to verify that the correct model and its collections are being sent.
+      console.log('Selected Model:', selectedModel);
+      console.log('Model Collections (for vector query):', collectionsToQuery);
+
+      // Prepare the payload.
+      // NOTE: The collection names here must exactly match what was used during file upload and what the backend expects.
+      const payload = {
+        messages: [...messages, userMessage],
+        modelId: selectedModel.id,
+        collections: collectionsToQuery,
+      };
+
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -382,13 +395,7 @@ const MFUChatbot: React.FC = () => {
       };
 
       // Send the payload including both the selected model's ID and its collections.
-      wsRef.current.send(
-        JSON.stringify({
-          messages: [...messages, userMessage],
-          modelId: selectedModel.id,
-          collections: collectionsToQuery,
-        })
-      );
+      wsRef.current.send(JSON.stringify(payload));
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       const errorMessage: Message = {
