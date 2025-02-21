@@ -605,8 +605,8 @@ const MFUChatbot: React.FC = () => {
 
       {/* Chat Input Form - Fixed at bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-800">
-        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6">
-          <form onSubmit={handleSubmit} className="bg-gray-800 rounded-t-2xl p-4">
+        <div className="max-w-4xl mx-auto">
+          <form onSubmit={handleSubmit} className="bg-gray-800 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6">
             <div className="flex gap-3">
               {/* Clear Chat Button */}
               <button
