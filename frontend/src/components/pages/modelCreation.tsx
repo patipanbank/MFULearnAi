@@ -362,39 +362,47 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
               <div
                 key={collection.id}
                 onClick={() => toggleCollectionSelection(collection.name)}
-                className={`group p-4 rounded-xl cursor-pointer border-2 transition-all duration-300
+                className={`group p-4 rounded-xl cursor-pointer border transition-all duration-300
                   transform hover:scale-[1.02] ${
                   selectedCollections.includes(collection.name)
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/30 shadow-md'
+                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/30'
                     : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
                   }`}
               >
-                <div className="flex items-start justify-between">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
-                    {collection.name}
-                  </h4>
-                  <div className={`w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                    selectedCollections.includes(collection.name)
-                      ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
-                      : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-300 dark:group-hover:border-blue-600'
-                  }`}>
-                    {selectedCollections.includes(collection.name) && (
-                      <FaCheck size={12} className="text-white" />
-                    )}
+                <div className="flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 flex-1 mr-3">
+                      {collection.name}
+                    </h4>
+                    <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                      selectedCollections.includes(collection.name)
+                        ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
+                        : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-300 dark:group-hover:border-blue-600'
+                    }`}>
+                      {selectedCollections.includes(collection.name) && (
+                        <FaCheck size={12} className="text-white" />
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-2 mt-auto">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                      <FaUser className="mr-2" size={12} />
+                      <span className="truncate">{collection.createdBy}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 dark:text-gray-500">
+                        {getRelativeTime(collection.created)}
+                      </span>
+                      {collection.permission === 'public' && (
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 rounded-full">
+                          Public
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-2">
-                  <FaUser className="mr-2" size={12} />
-                  <span className="truncate">{collection.createdBy}</span>
-                </div>
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-500">
-                  {getRelativeTime(collection.created)}
-                </div>
-                {collection.permission === 'public' && (
-                  <span className="mt-2 inline-block px-2 py-1 text-xs font-medium text-green-600 bg-green-100 rounded-full">
-                    Public
-                  </span>
-                )}
               </div>
             ))
           )}
