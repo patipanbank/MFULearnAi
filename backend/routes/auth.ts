@@ -85,25 +85,45 @@ const samlStrategy = new SamlStrategy(
   async function(req: any, profile: any, done: any) {
     try {
       console.log('=== SAML Profile Debug ===');
-      console.log(JSON.stringify(profile, null, 2));
+      console.log('Raw Profile:', profile);
+      console.log('Profile JSON:', JSON.stringify(profile, null, 2));
+      console.log('Available Keys:', Object.keys(profile));
 
-      // Extract user information from profile
-      const nameID = profile.nameID || profile.nameId;
+      // Extract user information from profile with more fallbacks
+      const nameID = profile.nameID || 
+                    profile.nameId || 
+                    profile.nameid ||
+                    profile['urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'];
+
       const username = profile['User.Username'] || 
                       profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
-                      profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'];
+                      profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'] ||
+                      profile.uid ||
+                      profile.username ||
+                      profile.email?.split('@')[0];
+
       const email = profile['User.Email'] || 
                    profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
-                   profile['emailaddress'];
+                   profile.email ||
+                   profile.emailaddress ||
+                   profile.mail;
+
       const firstName = profile['first_name'] || 
                        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'] ||
-                       profile['givenname'];
+                       profile.givenname ||
+                       profile.firstname ||
+                       profile['given_name'];
+
       const lastName = profile['last_name'] || 
                       profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'] ||
-                      profile['surname'];
+                      profile.surname ||
+                      profile.lastname ||
+                      profile['family_name'];
+
       const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || 
+                    profile['http://schemas.microsoft.com/ws/2008/06/identity/claims/groups'] ||
                     profile['groups'] ||
-                    profile['http://schemas.microsoft.com/ws/2008/06/identity/claims/groups'] || 
+                    profile.memberOf ||
                     [];
 
       console.log('=== Extracted Values ===');
@@ -116,26 +136,40 @@ const samlStrategy = new SamlStrategy(
         groups
       });
 
-      if (!nameID || !username) {
-        console.error('Missing required fields:', { nameID, username });
-        return done(new Error('Missing required user information'));
+      // If we don't have nameID but have email, use email as nameID
+      const finalNameID = nameID || email;
+      const finalUsername = username || email?.split('@')[0] || finalNameID;
+
+      if (!finalNameID) {
+        console.error('Missing nameID and no fallback available');
+        console.error('Available profile data:', profile);
+        return done(new Error('Missing required user information: nameID'));
+      }
+
+      if (!finalUsername) {
+        console.error('Missing username and no fallback available');
+        console.error('Available profile data:', profile);
+        return done(new Error('Missing required user information: username'));
       }
 
       // Update user in database
       const user = await User.findOneAndUpdate(
-        { username },
+        { username: finalUsername },
         {
-          nameID,
-          username,
-          email,
-          firstName,
-          lastName,
+          nameID: finalNameID,
+          username: finalUsername,
+          email: email || `${finalUsername}@mfu.ac.th`,
+          firstName: firstName || '',
+          lastName: lastName || '',
           groups: Array.isArray(groups) ? groups : [groups],
           role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]),
           updated: new Date()
         },
         { upsert: true, new: true }
       );
+
+      console.log('=== Created/Updated User ===');
+      console.log(user);
 
       const token = jwt.sign(
         { 
@@ -161,6 +195,7 @@ const samlStrategy = new SamlStrategy(
 
     } catch (error) {
       console.error('SAML Strategy Error:', error);
+      console.error('Stack trace:', error instanceof Error ? error.stack : '');
       return done(error);
     }
   }
@@ -307,6 +342,39 @@ router.post('/saml/callback', (req, res, next) => {
   console.log('Body:', req.body);
   console.log('=========================');
   next();
+});
+
+// Add debug route
+router.get('/debug/saml-config', (req, res) => {
+  try {
+    // Only show non-sensitive configuration
+    const debugConfig = {
+      issuer: samlConfig.issuer,
+      callbackUrl: samlConfig.callbackUrl,
+      entryPoint: samlConfig.entryPoint,
+      identifierFormat: samlConfig.identifierFormat,
+      wantAssertionsSigned: samlConfig.wantAssertionsSigned,
+      acceptedClockSkewMs: samlConfig.acceptedClockSkewMs,
+      validateInResponseTo: samlConfig.validateInResponseTo,
+      disableRequestedAuthnContext: samlConfig.disableRequestedAuthnContext,
+      authnContext: samlConfig.authnContext,
+      forceAuthn: samlConfig.forceAuthn,
+      passReqToCallback: samlConfig.passReqToCallback,
+      additionalParams: samlConfig.additionalParams,
+      signatureAlgorithm: samlConfig.signatureAlgorithm
+    };
+
+    res.json({
+      config: debugConfig,
+      env: {
+        FRONTEND_URL: process.env.FRONTEND_URL,
+        NODE_ENV: process.env.NODE_ENV
+      }
+    });
+  } catch (error) {
+    console.error('Error in debug route:', error);
+    res.status(500).json({ error: 'Error getting debug info' });
+  }
 });
 
 export default router;
