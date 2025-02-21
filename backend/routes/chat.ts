@@ -212,9 +212,9 @@ router.get('/collections', async (req: Request, res: Response) => {
 });
 
 // สร้าง chat session ใหม่
-router.post('/sessions/new', roleGuard(['*']), async (req: Request, res: Response) => {
+router.post('/sessions/new', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id; // จาก roleGuard middleware
+    const userId = (req as any).user.username; // ใช้ username แทน id ตาม format เดิม
     const newChat = new ChatHistory({
       userId,
       title: 'New Chat',
@@ -229,9 +229,9 @@ router.post('/sessions/new', roleGuard(['*']), async (req: Request, res: Respons
 });
 
 // ดึงประวัติการสนทนา
-router.get('/sessions', roleGuard(['*']), async (req: Request, res: Response) => {
+router.get('/sessions', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as any).user.username;
     const sessions = await ChatHistory.find({ userId })
       .select('title created lastUpdated')
       .sort({ lastUpdated: -1 });
