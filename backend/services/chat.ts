@@ -4,6 +4,7 @@ import { ChatMessage } from '../types/chat';
 import { ChatHistory } from '../models/ChatHistory';
 import { HydratedDocument } from 'mongoose';
 import { CollectionModel } from '../models/Collection';
+import { ModelModel } from '../models/Model';
 
 interface QueryResult {
   text: string;
@@ -66,17 +67,25 @@ export class ChatService {
   }
 
   /**
-   * Looks up collection names from MongoDB using collection IDs
+   * Gets collection names for a model ID or returns the collection names if directly provided
    */
-  private async getCollectionNames(collectionIds: string[]): Promise<string[]> {
+  private async resolveCollections(modelIdOrCollections: string | string[]): Promise<string[]> {
     try {
-      const collections = await CollectionModel.find({
-        _id: { $in: collectionIds }
-      }).select('name');
-      
-      return collections.map(col => col.name);
+      if (Array.isArray(modelIdOrCollections)) {
+        return modelIdOrCollections; // Collection names directly provided
+      }
+
+      // Try to find the model and get its collections
+      const model = await ModelModel.findById(modelIdOrCollections);
+      if (!model) {
+        console.error('Model not found:', modelIdOrCollections);
+        return [];
+      }
+
+      console.log('Found model collections:', model.collections);
+      return model.collections;
     } catch (error) {
-      console.error('Error looking up collection names:', error);
+      console.error('Error resolving collections:', error);
       return [];
     }
   }
@@ -139,41 +148,35 @@ export class ChatService {
     );
   }
 
-  private async getContext(query: string, collectionNames: string | string[]): Promise<string> {
-    const collectionsArray: string[] =
-      typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
-    if (collectionsArray.length === 0) return '';
-
-    // Look up collection names if IDs are provided
-    const actualCollectionNames = await this.getCollectionNames(collectionsArray);
-    if (actualCollectionNames.length === 0) {
-      console.error('No valid collections found for IDs:', collectionsArray);
+  private async getContext(query: string, modelIdOrCollections: string | string[]): Promise<string> {
+    // Get collection names from model ID or use provided collection names
+    const collectionNames = await this.resolveCollections(modelIdOrCollections);
+    if (collectionNames.length === 0) {
+      console.error('No collections found for:', modelIdOrCollections);
       return '';
     }
 
-    const sanitizedCollections = actualCollectionNames.map(name => 
+    console.log('Resolved collection names:', collectionNames);
+
+    const sanitizedCollections = collectionNames.map(name => 
       this.sanitizeCollectionName(name)
     );
 
     console.log('Querying collections:', sanitizedCollections);
 
-    // Compute query embedding once for all collections
     const queryEmbedding = await chromaService.getQueryEmbedding(query);
     
-    // Create batches of collection queries
     const batches: string[][] = [];
     for (let i = 0; i < sanitizedCollections.length; i += this.BATCH_SIZE) {
       batches.push(sanitizedCollections.slice(i, i + this.BATCH_SIZE));
     }
 
-    // Process batches sequentially, but collections within batch in parallel
     let allResults: CollectionQueryResult[] = [];
     for (const batch of batches) {
       const batchResults = await this.processBatch(batch, queryEmbedding);
       allResults = allResults.concat(batchResults);
     }
 
-    // Sort all sources by similarity and update chat history
     const allSources = allResults
       .flatMap(r => r.sources)
       .sort((a, b) => b.similarity - a.similarity);
@@ -183,7 +186,6 @@ export class ChatService {
       await this.currentChatHistory.save();
     }
 
-    // Join contexts, prioritizing those with higher similarity
     const contexts = allResults
       .filter(r => r.sources.length > 0)
       .sort((a, b) => {
@@ -199,11 +201,11 @@ export class ChatService {
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
-    customCollectionNames: string | string[]
+    modelIdOrCollections: string | string[]
   ): AsyncGenerator<string> {
     try {
-      console.log("Starting generateResponse with custom collections:", customCollectionNames);
-      const context = await this.getContext(query, customCollectionNames);
+      console.log("Starting generateResponse with:", modelIdOrCollections);
+      const context = await this.getContext(query, modelIdOrCollections);
       console.log('Retrieved context length:', context.length);
 
       const augmentedMessages = [
