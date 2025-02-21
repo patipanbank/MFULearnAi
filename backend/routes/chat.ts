@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
-import { CollectionModel, CollectionPermission, CollectionDocument } from '../models/Collection';
+import { CollectionModel, CollectionPermission} from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
 
 const router = Router();
@@ -42,7 +42,7 @@ wss.on('connection', (ws: WebSocket) => {
 
       console.log('Starting response generation');
       
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      for await (const content of chatService.generateResponse(messages, query, modelId)) {
         console.log('Sending chunk:', content);
         ws.send(JSON.stringify({ content }));
       }
@@ -91,7 +91,7 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     try {
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      for await (const content of chatService.generateResponse(messages, query, modelId)) {
         console.log('Sending chunk:', content);
         sendChunk(content);
       }
