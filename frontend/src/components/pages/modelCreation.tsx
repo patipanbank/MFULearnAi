@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, FormEvent } from 'react';
+import React, { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser } from 'react-icons/fa';
 
@@ -258,72 +258,161 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   toggleCollectionSelection,
   onConfirm,
   onClose,
-}) => (
-  <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 max-h-[80vh] overflow-y-auto">
-    <div className="flex justify-between items-center mb-6">
-      <div>
-        <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-          Collections for {model.name}
-        </h3>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Select the collections to include in this model
-        </p>
-      </div>
-      <button 
-        onClick={onConfirm} 
-        className="p-2.5 text-green-600 dark:text-green-400 hover:text-green-700 
-        dark:hover:text-green-300 transition-colors duration-200 rounded-lg
-        hover:bg-green-50 dark:hover:bg-green-900/30"
-        title="Confirm"
-      >
-        <FaCheck size={20} />
-      </button>
-    </div>
-    <div className="relative mb-6">
-      <input
-        type="text"
-        placeholder="Search collections..."
-        value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
-        className="w-full px-4 py-2.5 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 
-        bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-        placeholder-gray-500 dark:placeholder-gray-400
-        focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-        transition-all duration-200"
-      />
-      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-        <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-        </svg>
-      </div>
-    </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      {availableCollections.map((collection) => (
-        <div
-          key={collection.id}
-          onClick={() => toggleCollectionSelection(collection.name)}
-          className={`p-4 rounded-lg cursor-pointer border transition-all duration-200
-            transform hover:scale-[1.02] ${
-            selectedCollections.includes(collection.name)
-              ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30 shadow-md'
-              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
-            }`}
-        >
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            {collection.name}
-          </h4>
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-            <FaUser className="mr-2" size={12} />
-            <span>{collection.createdBy}</span>
+}) => {
+  // Add ref for click outside detection
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  // Handle confirm with animation
+  const handleConfirm = () => {
+    const button = document.getElementById('confirm-button');
+    if (button) {
+      button.classList.add('scale-95');
+      setTimeout(() => {
+        button.classList.remove('scale-95');
+        onConfirm();
+      }, 150);
+    }
+  };
+
+  return (
+    <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 max-h-[80vh] overflow-y-auto">
+      <div ref={modalRef} className="relative">
+        {/* Header Section */}
+        <div className="flex justify-between items-center mb-6 pb-4 border-b dark:border-gray-700">
+          <div>
+            <h3 className="text-2xl font-semibold bg-gradient-to-r from-gray-900 to-gray-700 
+            dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+              Collections for {model.name}
+            </h3>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              Select the collections to include in this model
+            </p>
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+              {selectedCollections.length} collections selected
+            </div>
           </div>
-          <div className="mt-2 text-xs text-gray-500 dark:text-gray-500">
-            {getRelativeTime(collection.created)}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="p-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 
+              dark:hover:text-gray-200 transition-colors duration-200 rounded-lg
+              hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Cancel"
+            >
+              <FaTimes size={20} />
+            </button>
+            <button
+              id="confirm-button"
+              onClick={handleConfirm}
+              className="p-2.5 text-green-600 dark:text-green-400 hover:text-green-700 
+              dark:hover:text-green-300 transition-all duration-200 rounded-lg
+              hover:bg-green-50 dark:hover:bg-green-900/30 transform active:scale-95"
+              title="Confirm Selection"
+            >
+              <FaCheck size={20} />
+            </button>
           </div>
         </div>
-      ))}
-    </div>
-  </BaseModal>
-);
+
+        {/* Search Section */}
+        <div className="relative mb-6">
+          <input
+            type="text"
+            placeholder="Search collections..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-full px-4 py-3 pl-12 rounded-xl border border-gray-300 dark:border-gray-600 
+            bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+            placeholder-gray-500 dark:placeholder-gray-400
+            focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+            transition-all duration-200 shadow-sm hover:shadow-md"
+          />
+          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+            <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* Collections Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {availableCollections.map((collection) => (
+            <div
+              key={collection.id}
+              onClick={() => toggleCollectionSelection(collection.name)}
+              className={`group p-4 rounded-xl cursor-pointer border-2 transition-all duration-300
+                transform hover:scale-[1.02] ${
+                selectedCollections.includes(collection.name)
+                  ? 'border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/30 shadow-md'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
+                }`}
+            >
+              <div className="flex items-start justify-between">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+                  {collection.name}
+                </h4>
+                <div className={`w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                  selectedCollections.includes(collection.name)
+                    ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
+                    : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-300 dark:group-hover:border-blue-600'
+                }`}>
+                  {selectedCollections.includes(collection.name) && (
+                    <FaCheck size={12} className="text-white" />
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-2">
+                <FaUser className="mr-2" size={12} />
+                <span className="truncate">{collection.createdBy}</span>
+              </div>
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                {getRelativeTime(collection.created)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom Action Bar */}
+        <div className="sticky bottom-0 left-0 right-0 mt-6 pt-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800 
+        flex justify-between items-center">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            {selectedCollections.length} collections selected
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+              transition-all duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 
+              hover:from-blue-700 hover:to-blue-800 text-white font-medium 
+              transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
+            >
+              Confirm Selection
+            </button>
+          </div>
+        </div>
+      </div>
+    </BaseModal>
+  );
+};
 
 /* -------------------------------
    Edit Model Modal Component
