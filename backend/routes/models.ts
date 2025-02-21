@@ -26,10 +26,11 @@ router.get('/', roleGuard(['Staffs']), async (req: Request, res: Response): Prom
  */
 router.post('/', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, createdBy, modelType } = req.body;
+    const { name, modelType } = req.body;
+    const user = (req as any).user;  // Get user from request (set by roleGuard)
     
     // Validate required fields
-    if (!name || !createdBy || !modelType) {
+    if (!name || !modelType) {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
@@ -52,7 +53,7 @@ router.post('/', roleGuard(['Staffs']), async (req: Request, res: Response): Pro
           const newCollection = await chromaService.createCollection(
             collection.name,
             CollectionPermission.STAFF_ONLY,
-            createdBy
+            user.nameID  // Use user.nameID from request
           );
           collections.push(newCollection.name);
         } catch (error) {
@@ -65,7 +66,7 @@ router.post('/', roleGuard(['Staffs']), async (req: Request, res: Response): Pro
     // Create the model with the collections
     const model = await ModelModel.create({
       name,
-      createdBy,
+      createdBy: user.nameID,  // Use user.nameID from request
       modelType,
       collections,
     });

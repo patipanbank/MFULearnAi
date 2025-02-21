@@ -393,16 +393,15 @@ const ModelCreation: React.FC = () => {
       alert('Please enter a model name');
       return;
     }
+
     if (newModelType === 'official') {
       try {
         const authToken = localStorage.getItem('auth_token');
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        // Use nameID or fallback to username if needed.
-        const createdBy = userData.nameID || userData.username;
-        if (!createdBy) {
-          alert('User data is missing. Please log in again.');
+        if (!authToken) {
+          alert('Authentication token not found. Please login again.');
           return;
         }
+
         const response = await fetch(`${config.apiUrl}/api/models`, {
           method: 'POST',
           headers: {
@@ -411,14 +410,15 @@ const ModelCreation: React.FC = () => {
           },
           body: JSON.stringify({
             name: newModelName.trim(),
-            createdBy,
             modelType: 'official'
           }),
         });
+
         if (!response.ok) {
           const errMsg = await response.text();
           throw new Error(errMsg || 'Failed to create model');
         }
+
         const createdModel = await response.json();
         setModels((prev) => [
           ...prev,
