@@ -485,11 +485,11 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full">
+    <div className="flex flex-col h-screen w-full ml-[64px]">
       {/* Chat history / messages container */}
       <div className={`flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 
       ${messages.length === 0 ? 'flex items-center justify-center' : 'pt-4'} 
-      bg-gray-800 pb-[120px] w-full
+      bg-gray-800 pb-[120px]
       [&::-webkit-scrollbar]:w-3
       [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
       [&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-surface-tertiary,#2b2b2b)]
@@ -604,7 +604,7 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       {/* Chat Input Form */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 w-full">
+      <div className="fixed bottom-0 right-0 bg-gray-800 border-t border-gray-700 w-[calc(100%-64px)]">
         <div className="max-w-4xl mx-auto w-full">
           <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-4">
             <div className="flex gap-3 items-end">
