@@ -607,9 +607,9 @@ const MFUChatbot: React.FC = () => {
       <div className="flex-shrink-0 bg-gray-800">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 pb-8">
-            <div className="flex gap-3 items-start">
+            <div className="flex gap-3 items-bottom">
               {/* Clear Chat Button */}
-              <div className="flex items-center mt-2">
+              <div className="flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -617,20 +617,20 @@ const MFUChatbot: React.FC = () => {
                       clearChat();
                     }
                   }}
-                  className="flex items-center justify-center w-9 h-9 text-red-600 
+                  className="flex items-center justify-center w-10 h-10 text-red-600 
                   hover:text-red-700 dark:text-red-400 dark:hover:text-red-300
                   rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
                   dark:hover:bg-gray-700 transition-all duration-200"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
               </div>
 
               {/* Image Upload Button */}
-              <div className="flex items-center">
-                <label className="flex items-center justify-center w-9 h-9 cursor-pointer
+              <div className="flex-shrink-0">
+                <label className="flex items-center justify-center w-10 h-10 cursor-pointer
                   text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300
                   rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
                   dark:hover:bg-gray-700 transition-all duration-200">
@@ -641,7 +641,7 @@ const MFUChatbot: React.FC = () => {
                     onChange={handleFileSelect}
                     className="hidden"
                   />
-                  <FaPlus className="h-4 w-4" />
+                  <FaPlus className="h-5 w-5" />
                 </label>
               </div>
 
@@ -661,8 +661,7 @@ const MFUChatbot: React.FC = () => {
                           type="button"
                           onClick={() => handleRemoveImage(index)}
                           className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
-                          rounded-full w-6 h-6 flex items-center justify-center text-sm
-                          transform hover:scale-110 transition-all duration-200"
+                          rounded-full w-6 h-6 flex items-center justify-center text-sm"
                         >
                           ×
                         </button>
@@ -672,7 +671,7 @@ const MFUChatbot: React.FC = () => {
                 )}
 
                 {/* Input Area */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
                   <textarea
                     ref={textareaRef}
                     value={inputMessage}
@@ -683,30 +682,42 @@ const MFUChatbot: React.FC = () => {
                     dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
                     placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
                     focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-                    min-h-[44px] overflow-y-auto"
+                    min-h-[44px] max-h-[120px] overflow-y-auto
+                    [&::-webkit-scrollbar]:w-2
+                    [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
+                    [&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-surface-tertiary,#2b2b2b)]
+                    [&::-webkit-scrollbar-thumb]:rounded-full
+                    [&::-webkit-scrollbar-thumb]:border-2
+                    [&::-webkit-scrollbar-thumb]:border-[var(--sidebar-surface-secondary,#1f1f1f)]
+                    [&::-webkit-scrollbar-thumb]:hover:bg-[var(--sidebar-icon,#a4a4a4)]
+                    scrollbar-thin
+                    scrollbar-track-[var(--sidebar-surface-secondary,#1f1f1f)]
+                    scrollbar-thumb-[var(--sidebar-surface-tertiary,#2b2b2b)]
+                    hover:scrollbar-thumb-[var(--sidebar-icon,#a4a4a4)]"
                     placeholder={selectedImages.length > 0 
                       ? "Please describe or ask about these images..." 
                       : "Ask anything..."}
                     rows={1}
                     required
                   />
-                  <button
-                    type="submit"
-                    disabled={!canSubmit()}
-                    className={`p-3 rounded-full font-medium flex items-center justify-center 
-                    transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg 
-                    min-h-[44px] min-w-[44px] ${
-                      canSubmit()
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {isLoading ? (
-                      <BiLoaderAlt className="w-6 h-6 animate-spin" />
-                    ) : (
-                      <GrSend className="w-5 h-5" />
-                    )}
-                  </button>
+                  <div className="flex-shrink-0">
+                    <button
+                      type="submit"
+                      disabled={!canSubmit()}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full
+                      transition-all duration-200 ${
+                        canSubmit()
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {isLoading ? (
+                        <BiLoaderAlt className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <GrSend className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
