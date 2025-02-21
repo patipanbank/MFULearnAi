@@ -30,10 +30,15 @@ interface Message {
   sources?: Source[];
 }
 
-const modelNames: { [key: string]: string } = {
-  'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
+interface Model {
+  id: string;
+  name: string;
+  modelType: 'official' | 'personal';
+}
 
-};
+// const modelNames: { [key: string]: string } = {
+//   'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
+// };
 
 const LoadingDots = () => (
   <div className="flex items-center space-x-1">
@@ -50,10 +55,8 @@ const MFUChatbot: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [models, setModels] = useState<string[]>([]);
-  const [collections, setCollections] = useState<string[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
-  const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -91,7 +94,7 @@ const MFUChatbot: React.FC = () => {
   }, [inputMessage]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchModels = async () => {
       try {
         const token = localStorage.getItem('auth_token');
         if (!token) {
@@ -99,37 +102,50 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
-        const headers = {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        };
+        // Fetch official models from the database
+        const response = await fetch(`${config.apiUrl}/api/models`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-        const [modelsRes, collectionsRes] = await Promise.all([
-          fetch(`${config.apiUrl}/api/training/models`, { headers }),
-          fetch(`${config.apiUrl}/api/chat/collections`, { headers })
-        ]);
-
-        if (!modelsRes.ok || !collectionsRes.ok) {
-          throw new Error('Failed to fetch data');
+        if (!response.ok) {
+          throw new Error('Failed to fetch models');
         }
 
-        const modelsData = await modelsRes.json();
-        const collectionsData = await collectionsRes.json();
+        const officialModels = await response.json();
+        
+        // Get personal models from localStorage
+        const storedPersonalModels = JSON.parse(localStorage.getItem('personalModels') || '[]');
 
-        setModels(Array.isArray(modelsData) ? modelsData : []);
-        setCollections(Array.isArray(collectionsData) ? collectionsData : []);
+        // Combine both types of models
+        const allModels = [
+          ...officialModels.map((model: any) => ({
+            id: model._id,
+            name: model.name,
+            modelType: 'official'
+          })),
+          ...storedPersonalModels.map((model: any) => ({
+            id: model.id,
+            name: model.name,
+            modelType: 'personal'
+          }))
+        ];
 
-        if (Array.isArray(collectionsData) && collectionsData.length > 0) {
-          setSelectedCollection(collectionsData[0]);
+        setModels(allModels);
+
+        // Set the first model as selected if available
+        if (allModels.length > 0) {
+          setSelectedModel(allModels[0].id);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching models:', error);
         setModels([]);
-        setCollections([]);
       }
     };
 
-    fetchData();
+    fetchModels();
   }, []);
 
   useEffect(() => {
@@ -149,7 +165,6 @@ const MFUChatbot: React.FC = () => {
           if (history.messages) {
             setMessages(history.messages);
             setSelectedModel(history.modelId || '');
-            setSelectedCollection(history.collectionName || '');
           }
         }
       } catch (error) {
@@ -284,8 +299,7 @@ const MFUChatbot: React.FC = () => {
 
       wsRef.current.send(JSON.stringify({
         messages: [...messages, userMessage],
-        modelId: selectedModel,
-        collectionName: selectedCollection
+        modelId: selectedModel
       }));
 
       // Embed the user's question into a vector
@@ -329,8 +343,7 @@ const MFUChatbot: React.FC = () => {
         },
         body: JSON.stringify({
           messages,
-          modelId: selectedModel,
-          collectionName: selectedCollection
+          modelId: selectedModel
         })
       });
     } catch (error) {
@@ -402,7 +415,6 @@ const MFUChatbot: React.FC = () => {
     return (
       !isLoading &&
       selectedModel &&
-      selectedCollection &&
       inputMessage.trim()
     );
   };
@@ -615,24 +627,12 @@ const MFUChatbot: React.FC = () => {
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[200px] md:max-w-[250px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="">Model</option>
+              <option value="">Select Model</option>
               {models.map(model => (
-                <option key={model} value={model}>
-                  {modelNames[model]}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Select Collection</option>
-              {collections.map(collection => (
-                <option key={collection} value={collection}>
-                  {collection}
+                <option key={model.id} value={model.id}>
+                  {model.name} ({model.modelType})
                 </option>
               ))}
             </select>
