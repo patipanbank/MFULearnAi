@@ -607,9 +607,9 @@ const MFUChatbot: React.FC = () => {
       <div className="flex-shrink-0 bg-gray-800">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-4">
-            <div className="flex gap-3 items-end">
+            <div className="flex gap-3 items-center">
               {/* Clear Chat Button */}
-              <div className="flex flex-col justify-center">
+              <div className="flex items-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -629,7 +629,7 @@ const MFUChatbot: React.FC = () => {
               </div>
 
               {/* Image Upload Button */}
-              <div className="flex flex-col "justify-center>
+              <div className="flex items-center">
                 <label className="flex items-center justify-center w-9 h-9 cursor-pointer
                   text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300
                   rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
