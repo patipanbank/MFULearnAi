@@ -159,18 +159,18 @@ class ChromaService {
       }
       console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results.`);
 
-      // Use 'queryEmbeddings' (an array) to query.
+      // Use the 'queryEmbeddings' key (an array) for the query.
       const queryResult = await collection.query({
         queryEmbeddings: [queryEmbedding],
         n_results
       });
       console.log(`ChromaService: Raw results for '${collectionName}':`, queryResult);
 
-      // Instead of calling .map on the whole queryResult, get the documents array.
+      // Check that the 'documents' field is available and is an array.
       if (!queryResult.documents || !Array.isArray(queryResult.documents)) {
         throw new Error("ChromaService: queryResult.documents is not an array.");
       }
-      // Flatten the documents array (each individual result may be returned as a nested array)
+      // Flatten the documents array (which might be nested) into a single-level array.
       const documentChunks: string[] = queryResult.documents.flat();
       const concatenatedContext = documentChunks.join("\n\n");
       return concatenatedContext;
