@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
 
@@ -137,70 +137,89 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
   onPermissionChange,
   onSubmit,
   onCancel,
-}) => (
-  <BaseModal onClose={onCancel} containerClasses="w-96">
-    <div className="mb-6">
-      <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-        Create New Collection
-      </h3>
-      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-        Create a new collection to organize your training documents.
-      </p>
-    </div>
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Collection Name
-        </label>
-        <input
-          type="text"
-          placeholder="Enter collection name"
-          value={newCollectionName}
-          onChange={(e) => onNameChange(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-          placeholder-gray-500 dark:placeholder-gray-400"
-        />
+}) => {
+  // Add ref for click outside detection
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onCancel();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onCancel]);
+
+  return (
+    <BaseModal onClose={onCancel} containerClasses="w-[28rem]">
+      <div ref={modalRef} className="relative">
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            Create New Collection
+          </h3>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Create a new collection to organize your training documents.
+          </p>
+        </div>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Collection Name
+            </label>
+            <input
+              type="text"
+              placeholder="Enter collection name"
+              value={newCollectionName}
+              onChange={(e) => onNameChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+              placeholder-gray-500 dark:placeholder-gray-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Access Permission
+            </label>
+            <select
+              value={newCollectionPermission}
+              onChange={(e) => onPermissionChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            >
+              <option value="PRIVATE">Private - Only you can access</option>
+              <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
+              <option value="PUBLIC">Public - Everyone can access</option>
+            </select>
+          </div>
+          <div className="flex flex-col space-y-2 pt-4">
+            <button
+              type="submit"
+              className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
+              dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
+              transform transition-all duration-200"
+            >
+              Create Collection
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+              transform transition-all duration-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Access Permission
-        </label>
-        <select
-          value={newCollectionPermission}
-          onChange={(e) => onPermissionChange(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-        >
-          <option value="PRIVATE">Private - Only you can access</option>
-          <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
-          <option value="PUBLIC">Public - Everyone can access</option>
-        </select>
-      </div>
-      <div className="flex flex-col space-y-2 pt-4">
-        <button
-          type="submit"
-          className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
-          dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
-          transform transition-all duration-200"
-        >
-          Create Collection
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-          text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
-          transform transition-all duration-200"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  </BaseModal>
-);
+    </BaseModal>
+  );
+};
 
 // ----------------------
 // Collection Card Component
@@ -280,12 +299,10 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
         </h2>
       </div>
       <div className="mt-auto space-y-1">
-        <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center">
-          <span className="mr-2">👤</span>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           {collection.createdBy}
         </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
-          <span className="mr-2">🕒</span>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           {getRelativeTime(collection.created)}
         </p>
       </div>
@@ -316,154 +333,172 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   uploadLoading,
   onShowSettings,
   onDeleteFile,
-}) => (
-  <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-[80vh]">
-    <div className="flex justify-between items-center mb-8">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{collection.name}</h2>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Manage documents and settings for this collection
-        </p>
-      </div>
-      <button
-        onClick={onShowSettings}
-        className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
-        text-gray-600 dark:text-gray-300 transition-all duration-200
-        border border-gray-200 dark:border-gray-700"
-        title="Collection Settings"
-      >
-        <FaCog size={18} />
-      </button>
-    </div>
+}) => {
+  // Add ref for click outside detection
+  const modalRef = useRef<HTMLDivElement>(null);
 
-    {/* File Upload Section */}
-    <section className="mb-8 bg-gradient-to-br from-gray-50 to-gray-100 
-    dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl p-6 
-    border-2 border-dashed border-gray-300 dark:border-gray-600">
-      <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-        Upload Document
-      </h3>
-      <form onSubmit={onFileUpload} className="space-y-4">
-        <div className="relative">
-          <input
-            type="file"
-            onChange={onFileChange}
-            className="block w-full text-gray-600 dark:text-gray-300
-            file:mr-4 file:py-2.5 file:px-4
-            file:rounded-lg file:border-0
-            file:text-sm file:font-semibold
-            file:bg-blue-50 file:text-blue-700
-            dark:file:bg-blue-900/30 dark:file:text-blue-400
-            hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40
-            file:cursor-pointer cursor-pointer
-            focus:outline-none transition-colors duration-200"
-            accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
-          />
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX (Max 100MB)
-          </p>
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  return (
+    <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-[80vh]">
+      <div ref={modalRef} className="relative">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{collection.name}</h2>
+              <button
+                onClick={onShowSettings}
+                className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
+                text-gray-600 dark:text-gray-300 transition-all duration-200
+                border border-gray-200 dark:border-gray-700"
+                title="Collection Settings"
+              >
+                <FaCog size={18} />
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Manage documents and settings for this collection
+            </p>
+          </div>
         </div>
-        <button
-          type="submit"
-          disabled={uploadLoading}
-          className={`w-full sm:w-auto px-6 py-2.5 rounded-lg font-medium text-white
-          transition-all duration-200 flex items-center justify-center space-x-2
-          ${uploadLoading 
-            ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
-            : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
-          }`}
-        >
-          {uploadLoading ? (
-            <>
-              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>Uploading...</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-              </svg>
-              <span>Upload Document</span>
-            </>
-          )}
-        </button>
-      </form>
-    </section>
 
-    {/* Files List Section */}
-    <section className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-          Documents in Collection
-        </h3>
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-      
-      {uploadedFiles.length > 0 ? (
-        <div className="space-y-3">
-          {uploadedFiles.map((fileItem, index) => (
-            <div 
-              key={index} 
-              className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm 
-              border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md 
-              transition-all duration-200"
+        {/* File Upload Section */}
+        <section className="mb-8 bg-gradient-to-br from-gray-50 to-gray-100 
+        dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl p-6 
+        border-2 border-dashed border-gray-300 dark:border-gray-600">
+          <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+            Upload Document
+          </h3>
+          <form onSubmit={onFileUpload} className="space-y-4">
+            <div className="relative">
+              <input
+                type="file"
+                onChange={onFileChange}
+                className="block w-full text-gray-600 dark:text-gray-300
+                file:mr-4 file:py-2.5 file:px-4
+                file:rounded-lg file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                dark:file:bg-blue-900/30 dark:file:text-blue-400
+                hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40
+                file:cursor-pointer cursor-pointer
+                focus:outline-none transition-colors duration-200"
+                accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
+              />
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX (Max 100MB)
+              </p>
+            </div>
+            <button
+              type="submit"
+              disabled={uploadLoading}
+              className={`w-full sm:w-auto px-6 py-2.5 rounded-lg font-medium text-white
+              transition-all duration-200 flex items-center justify-center space-x-2
+              ${uploadLoading 
+                ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
+              }`}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {fileItem.filename}
-                  </h4>
-                  <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
-                    <p className="text-gray-600 dark:text-gray-300 flex items-center">
-                      <span className="mr-2">👤</span>
-                      {fileItem.uploadedBy}
-                    </p>
-                    <p className="text-gray-500 dark:text-gray-400 flex items-center">
-                      <span className="mr-2">🕒</span>
-                      {new Date(fileItem.timestamp).toLocaleString()}
-                    </p>
-                    <p className="text-gray-500 dark:text-gray-400 flex items-center">
-                      <span className="mr-2">📄</span>
-                      {fileItem.ids.length} chunks
-                    </p>
+              {uploadLoading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                  </svg>
+                  <span>Upload Document</span>
+                </>
+              )}
+            </button>
+          </form>
+        </section>
+
+        {/* Files List Section */}
+        <section className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              Documents in Collection
+            </h3>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          
+          {uploadedFiles.length > 0 ? (
+            <div className="space-y-3">
+              {uploadedFiles.map((fileItem, index) => (
+                <div 
+                  key={index} 
+                  className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm 
+                  border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md 
+                  transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {fileItem.filename}
+                      </h4>
+                      <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
+                        <p className="text-gray-600 dark:text-gray-300">
+                          {fileItem.uploadedBy}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          {new Date(fileItem.timestamp).toLocaleString()}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          {fileItem.ids.length} chunks
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onDeleteFile(fileItem)}
+                      className="ml-4 p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
+                      dark:hover:text-red-400 transition-colors duration-200 rounded-lg 
+                      hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title="Delete Document"
+                    >
+                      <FaTrash size={16} />
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => onDeleteFile(fileItem)}
-                  className="ml-4 p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
-                  dark:hover:text-red-400 transition-colors duration-200 rounded-lg 
-                  hover:bg-gray-100 dark:hover:bg-gray-700"
-                  title="Delete Document"
-                >
-                  <FaTrash size={16} />
-                </button>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 
-        dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl border-2 border-dashed 
-        border-gray-300 dark:border-gray-600">
-          <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-          </svg>
-          <p className="mt-4 text-base font-medium text-gray-600 dark:text-gray-400">
-            No documents uploaded yet
-          </p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-            Upload a document to get started with your collection
-          </p>
-        </div>
-      )}
-    </section>
-  </BaseModal>
-);
+          ) : (
+            <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 
+            dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl border-2 border-dashed 
+            border-gray-300 dark:border-gray-600">
+              <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+              </svg>
+              <p className="mt-4 text-base font-medium text-gray-600 dark:text-gray-400">
+                No documents uploaded yet
+              </p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
+                Upload a document to get started with your collection
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
+    </BaseModal>
+  );
+};
 
 // ----------------------
 // Settings Modal Component
@@ -484,69 +519,88 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onPermissionChange,
   onClose,
   onSubmit,
-}) => (
-  <BaseModal onClose={onClose} containerClasses="w-96">
-    <div className="mb-6">
-      <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-        Collection Settings
-      </h3>
-      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-        Update your collection settings and permissions.
-      </p>
-    </div>
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Collection Name
-        </label>
-        <input
-          type="text"
-          value={updatedCollectionName}
-          onChange={(e) => onNameChange(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-          placeholder-gray-500 dark:placeholder-gray-400"
-        />
+}) => {
+  // Add ref for click outside detection
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  return (
+    <BaseModal onClose={onClose} containerClasses="w-96">
+      <div ref={modalRef} className="relative">
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            Collection Settings
+          </h3>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Update your collection settings and permissions.
+          </p>
+        </div>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Collection Name
+            </label>
+            <input
+              type="text"
+              value={updatedCollectionName}
+              onChange={(e) => onNameChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+              placeholder-gray-500 dark:placeholder-gray-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Access Permission
+            </label>
+            <select
+              value={updatedCollectionPermission}
+              onChange={(e) => onPermissionChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            >
+              <option value="PRIVATE">Private - Only you can access</option>
+              <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
+              <option value="PUBLIC">Public - Everyone can access</option>
+            </select>
+          </div>
+          <div className="flex flex-col space-y-2 pt-4">
+            <button
+              type="submit"
+              className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
+              dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
+              transform transition-all duration-200"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+              transform transition-all duration-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Access Permission
-        </label>
-        <select
-          value={updatedCollectionPermission}
-          onChange={(e) => onPermissionChange(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-        >
-          <option value="PRIVATE">Private - Only you can access</option>
-          <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
-          <option value="PUBLIC">Public - Everyone can access</option>
-        </select>
-      </div>
-      <div className="flex flex-col space-y-2 pt-4">
-        <button
-          type="submit"
-          className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
-          dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
-          transform transition-all duration-200"
-        >
-          Save Changes
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-          text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
-          transform transition-all duration-200"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  </BaseModal>
-);
+    </BaseModal>
+  );
+};
 
 // ----------------------
 // Main Dashboard Component
