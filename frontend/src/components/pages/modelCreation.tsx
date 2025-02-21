@@ -115,13 +115,17 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
 ---------------------------------*/
 interface NewModelModalProps {
   newModelName: string;
+  newModelType: 'official' | 'personal';
   onNameChange: (value: string) => void;
+  onTypeChange: (value: 'official' | 'personal') => void;
   onSubmit: (e: FormEvent) => void;
   onCancel: () => void;
 }
 const NewModelModal: React.FC<NewModelModalProps> = ({
   newModelName,
+  newModelType,
   onNameChange,
+  onTypeChange,
   onSubmit,
   onCancel,
 }) => (
@@ -140,6 +144,17 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
           onChange={(e) => onNameChange(e.target.value)}
           className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+      </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700">Model Type</label>
+        <select
+          value={newModelType}
+          onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal')}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="official">Official</option>
+          <option value="personal">Personal</option>
+        </select>
       </div>
       <button
         type="submit"
@@ -381,10 +396,13 @@ const ModelCreation: React.FC = () => {
     if (newModelType === 'official') {
       try {
         const authToken = localStorage.getItem('auth_token');
-
-        // Parse the stored user data (adjust the key as necessary).
         const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        
+        // Use nameID or fallback to username if needed.
+        const createdBy = userData.nameID || userData.username;
+        if (!createdBy) {
+          alert('User data is missing. Please log in again.');
+          return;
+        }
         const response = await fetch(`${config.apiUrl}/api/models`, {
           method: 'POST',
           headers: {
@@ -393,11 +411,14 @@ const ModelCreation: React.FC = () => {
           },
           body: JSON.stringify({
             name: newModelName.trim(),
-            createdBy: userData.nameID, // use the value from localStorage
+            createdBy,
             modelType: 'official'
           }),
         });
-        if (!response.ok) throw new Error('Failed to create model');
+        if (!response.ok) {
+          const errMsg = await response.text();
+          throw new Error(errMsg || 'Failed to create model');
+        }
         const createdModel = await response.json();
         setModels((prev) => [
           ...prev,
@@ -419,6 +440,10 @@ const ModelCreation: React.FC = () => {
         collections: [],
       };
       setModels((prev) => [...prev, newModel]);
+      // Persist the personal model in localStorage.
+      const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
+      storedPersonal.push(newModel);
+      localStorage.setItem('personalModels', JSON.stringify(storedPersonal));
     }
     setNewModelName('');
     setNewModelType('official');
@@ -479,11 +504,14 @@ const ModelCreation: React.FC = () => {
       {showNewModelModal && (
         <NewModelModal
           newModelName={newModelName}
+          newModelType={newModelType}
           onNameChange={setNewModelName}
+          onTypeChange={setNewModelType}
           onSubmit={handleCreateModel}
           onCancel={() => {
             setShowNewModelModal(false);
             setNewModelName('');
+            setNewModelType('official');
           }}
         />
       )}
