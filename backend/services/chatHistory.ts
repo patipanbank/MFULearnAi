@@ -22,7 +22,7 @@ class ChatHistoryService {
     }
   }
 
-  async saveChatMessage(userId: string, modelId: string, collectionName: string, chatName: string, messages: any[]) {
+  async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[]) {
     try {
       const processedMessages = messages.map((msg, index) => ({
         id: index + 1,
@@ -37,12 +37,11 @@ class ChatHistoryService {
       }));
 
       const history = await ChatHistory.findOneAndUpdate(
-        { userId, modelId, collectionName, chatName },
+        { userId, modelId, collectionName },
         { 
           userId,
           modelId,
           collectionName,
-          chatName,
           messages: processedMessages,
           updatedAt: new Date()
         },
@@ -62,26 +61,6 @@ class ChatHistoryService {
       return { success: true, message: 'Chat history cleared successfully' };
     } catch (error) {
       console.error('Error clearing chat history:', error);
-      throw error;
-    }
-  }
-
-  async getAllChatHistories(userId: string) {
-    try {
-      const histories = await ChatHistory.find({ 
-        userId: userId 
-      }).sort({ updatedAt: -1 });
-
-      return histories.map(history => ({
-        id: history._id,
-        chatName: history.chatName,
-        modelId: history.modelId,
-        collectionName: history.collectionName,
-        lastMessage: history.messages[history.messages.length - 1]?.content || '',
-        updatedAt: history.updatedAt
-      }));
-    } catch (error) {
-      console.error('Error getting chat histories:', error);
       throw error;
     }
   }

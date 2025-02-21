@@ -128,7 +128,6 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: 
       userId,
       modelId,
       collectionName,
-      messages[messages.length - 1].content.substring(0, 50) + '...', // ใช้ข้อความแรกเป็นชื่อ chat
       messages.map((msg: any) => ({
         ...msg,
         images: msg.images ? msg.images.map((img: any) => ({
@@ -208,42 +207,6 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
-  }
-});
-
-router.get('/histories', verifyToken, async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const histories = await chatHistoryService.getAllChatHistories(user.userId);
-    res.json(histories);
-  } catch (error) {
-    console.error('Error getting chat histories:', error);
-    res.status(500).json({ error: 'Failed to get chat histories' });
-  }
-});
-
-router.post('/histories', verifyToken, async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const { chatName, modelId, collectionName } = req.body;
-    
-    const newHistory = await chatHistoryService.saveChatMessage(
-      user.userId,
-      modelId,
-      collectionName,
-      chatName,
-      []
-    );
-    
-    res.json({
-      id: newHistory._id,
-      chatName: newHistory.chatName,
-      lastMessage: '',
-      updatedAt: newHistory.updatedAt
-    });
-  } catch (error) {
-    console.error('Error creating new chat:', error);
-    res.status(500).json({ error: 'Failed to create new chat' });
   }
 });
 
