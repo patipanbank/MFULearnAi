@@ -21,8 +21,8 @@ export class ChatService {
   }
 
   /**
-   * Retrieves context from all collections selected in the model.
-   * For each collection, it queries for at most 5 related document chunks (vectors).
+   * Retrieves context from all collections provided.
+   * For each collection, it queries for at most 5 related document chunks.
    */
   private async getContext(query: string, collectionNames: string[]): Promise<string> {
     if (collectionNames.length === 0) {
@@ -36,7 +36,7 @@ export class ChatService {
       console.log(`getContext: Original collection name '${name}' sanitized to '${sanitized}'`);
       return sanitized;
     });
-    console.log("getContext: Querying all selected collections:", sanitizedCollections);
+    console.log("getContext: Querying collections:", sanitizedCollections);
 
     // Precompute the query embedding once.
     const queryEmbedding = await chromaService.getQueryEmbedding(query);
@@ -46,7 +46,7 @@ export class ChatService {
     const contexts = await Promise.all(
       sanitizedCollections.map(async (collectionName) => {
         try {
-          // Here n_results = 5 ensuring that from this collection, only the top 5 related items are returned.
+          // n_results = 5 ensures that from this collection, only the top 5 related items are returned.
           const result = await chromaService.queryDocumentsWithEmbedding(collectionName, queryEmbedding, 5);
           console.log(`getContext: Retrieved context from '${collectionName}':`, result);
           return result;
@@ -57,7 +57,6 @@ export class ChatService {
       })
     );
 
-    // Concatenate all context strings (and filter out empty ones)
     const finalContext = contexts.filter(ctx => ctx.trim().length > 0).join("\n\n");
     console.log("getContext: Final combined context:", finalContext);
     return finalContext;
@@ -65,8 +64,8 @@ export class ChatService {
 
   /**
    * Generates a chat response.
-   * Loads the model to determine which collections to query, retrieves context,
-   * augments the messages, and then streams the response.
+   * Loads the model to determine which collections to query _only_ if the model contains collections.
+   * If the model has no collections (e.g. default model), no vector context will be appended.
    */
   async *generateResponse(
     messages: ChatMessage[],
@@ -74,24 +73,26 @@ export class ChatService {
     modelId: string
   ): AsyncGenerator<string> {
     try {
+      // Retrieve the model (custom or default) from the backend.
       const model = await modelService.getModelById(modelId);
       let collections: string[] = [];
       if (model) {
         collections = model.collections;
       }
-
-      // Fallback: if no collections are set, use the 'code' collection by default.
-      if (collections.length === 0) {
-        console.warn("No collections in model; using fallback collection 'code'.");
-        collections = ['code'];
-      }
       
-      console.log("Generating response using the following collections:", collections);
+      // Do not force a fallback: if there are no collections, skip vector query.
+      if (collections.length === 0) {
+        console.warn("No collections provided for this model; skipping vector context retrieval.");
+      }
+    
+      // Retrieve context only if collections are provided.
+      let context = "";
+      if (collections.length > 0) {
+        context = await this.getContext(query, collections);
+        console.log("Retrieved context length:", context.length);
+      }
 
-      // Retrieve context from all (or fallback) collections.
-      const context = await this.getContext(query, collections);
-      console.log('Retrieved context length:', context.length);
-
+      // Augment chat messages with system prompt and retrieved context (if any).
       const augmentedMessages = [
         {
           role: "system" as const,
@@ -100,6 +101,7 @@ export class ChatService {
         ...messages,
       ];
 
+      // Stream the final response using the chat model.
       for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
         yield chunk;
       }
