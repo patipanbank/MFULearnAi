@@ -6,6 +6,7 @@ import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
 import mongoose from 'mongoose';
+import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const router = Router();
 const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
-    
+
     if (!token) {
       res.status(401).json({ error: 'No token provided' });
       return;
@@ -42,7 +43,7 @@ wss.on('connection', (ws: WebSocket) => {
       const query = lastMessage.content;
 
       console.log('Starting response generation');
-      
+
       for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
         console.log('Sending chunk:', content);
         ws.send(JSON.stringify({ content }));
@@ -82,7 +83,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // 4. ส่ง empty chunk เพื่อให้ frontend เริ่มอ่าน stream
     sendChunk('');
-    
+
     console.log('Starting response generation');
     console.log('Starting generateResponse:', {
       modelId,
@@ -105,14 +106,14 @@ router.post('/', async (req: Request, res: Response) => {
     res.end();
   } catch (error) {
     console.error('Chat error details:', error);
-    
+
     // ถ้ายังไม่ได้ส่ง headers
     if (!res.headersSent) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
     }
-    
+
     const errorData = JSON.stringify({ content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง' });
     res.write(`data: ${errorData}\n\n`);
     res.end();
@@ -176,7 +177,7 @@ router.post('/chat', async (req, res) => {
   try {
     const { messages, modelId } = req.body;
     const text = messages[messages.length - 1].content;
-    
+
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -186,10 +187,10 @@ router.post('/chat', async (req, res) => {
 router.get('/collections', async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    
+
     // ดึงข้อมูล collections จาก MongoDB
     const collections = await Collection.find({});
-    
+
     // กรองตามสิทธิ์
     const accessibleCollections = collections.filter(collection => {
       switch (collection.permission) {
@@ -231,6 +232,23 @@ router.get('/all', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error getting all chats:', error);
     res.status(500).json({ error: 'Failed to get chats' });
+  }
+});
+
+router.get('/history/:chatId', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const { chatId } = req.params;
+
+    const chat = await ChatHistory.findOne({ chatId, userId });
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+    }
+
+    res.json(chat);
+  } catch (error) {
+    console.error('Error getting chat:', error);
+    res.status(500).json({ error: 'Failed to get chat' });
   }
 });
 
