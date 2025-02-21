@@ -289,22 +289,16 @@ const ModelCreation: React.FC = () => {
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
 
-  // For backend integration, fetch models from the API rather than localStorage
+  // Load models from localStorage or create a default model if none exist
   useEffect(() => {
-    (async () => {
-      try {
-        const authToken = localStorage.getItem('auth_token');
-        const response = await fetch(`${config.apiUrl}/api/model`, {
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setModels(data);
-        }
-      } catch (error) {
-        console.error('Error fetching models:', error);
-      }
-    })();
+    const storedModels = localStorage.getItem('models');
+    if (storedModels) {
+      setModels(JSON.parse(storedModels));
+    } else {
+      const defaultModel: Model = { id: 'default', name: 'Default Model', collections: [] };
+      setModels([defaultModel]);
+      localStorage.setItem('models', JSON.stringify([defaultModel]));
+    }
   }, []);
 
   // Update localStorage whenever the models list changes
