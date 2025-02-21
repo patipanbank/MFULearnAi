@@ -31,7 +31,7 @@ const App = () => {
           path="/training"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['STAFF', 'ADMIN']}>
+              <RoleGuard allowedRoles={['STAFF', 'ADMIN']}>
                 <MainLayout>
                   <TrainingDashboard />
                 </MainLayout>

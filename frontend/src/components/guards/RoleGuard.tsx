@@ -1,15 +1,28 @@
 import { Navigate } from 'react-router-dom';
 
+type UserRole = 'ADMIN' | 'STAFF' | 'USER';
+
 interface RoleGuardProps {
   children: React.ReactNode;
-  allowedGroups: string[];
+  allowedRoles: UserRole[];
 }
 
-const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedGroups }) => {
+const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) => {
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const userGroups = userData.groups || [];
+  const userRole = userData.role as UserRole;
 
-  if (!userGroups.some((group: string) => allowedGroups.includes(group))) {
+  console.log('RoleGuard check:', {
+    userRole,
+    allowedRoles,
+    userData
+  });
+
+  const hasAllowedRole = allowedRoles.some(role => 
+    userRole === role || 
+    (role === 'STAFF' && userRole === 'ADMIN') // ADMIN can do anything STAFF can do
+  );
+
+  if (!hasAllowedRole) {
     return <Navigate to="/mfuchatbot" replace />;
   }
 
