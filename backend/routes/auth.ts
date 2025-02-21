@@ -24,9 +24,14 @@ interface AuthRequest extends Request {
   };
 }
 
-// เพิ่ม logging middleware
+// Add enhanced logging middleware
 router.use('/saml/callback', (req, res, next) => {
-  console.log('SAML Callback Request:', req.body);
+  console.log('=== SAML Callback Request Debug ===');
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('================================');
   next();
 });
 
@@ -174,11 +179,19 @@ passport.deserializeUser((user: any, done) => {
 router.get('/login/saml', passport.authenticate('saml'));
 
 router.post('/saml/callback', 
-  passport.authenticate('saml', { session: false }) as RequestHandler,
+  passport.authenticate('saml', { 
+    session: false,
+    failureRedirect: '/login',
+    failureFlash: true
+  }) as RequestHandler,
   (async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      console.log('=== SAML Authentication Success ===');
+      console.log('User:', req.user);
+      
       const userData = req.user?.userData;
       if (!userData) {
+        console.error('No user data in request');
         throw new Error('No user data provided');
       }
 
@@ -217,6 +230,7 @@ router.post('/saml/callback',
 
       res.redirect(redirectUrl.toString());
     } catch (error) {
+      console.error('SAML Callback Error:', error);
       next(error);
     }
   }) as RequestHandler);
