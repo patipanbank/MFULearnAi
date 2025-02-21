@@ -487,7 +487,8 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       {/* Chat history / messages container */}
-      <div className="flex-1 overflow-y-auto px-6 md:px-8 lg:px-12 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40 
+      <div className={`flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 
+      ${messages.length === 0 ? 'flex items-center justify-center' : 'pt-4'} 
       bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800
       [&::-webkit-scrollbar]:w-3
       [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
@@ -499,9 +500,9 @@ const MFUChatbot: React.FC = () => {
       scrollbar-thin
       scrollbar-track-[var(--sidebar-surface-secondary,#1f1f1f)]
       scrollbar-thumb-[var(--sidebar-surface-tertiary,#2b2b2b)]
-      hover:scrollbar-thumb-[var(--sidebar-icon,#a4a4a4)]">
+      hover:scrollbar-thumb-[var(--sidebar-icon,#a4a4a4)]`}>
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full">
+          <div className="flex flex-col items-center justify-center w-full max-w-2xl mx-auto px-4">
             <div className="flex flex-col items-center justify-center mb-1">
               <div className="w-24 h-24 mb-4 rounded-2xl shadow-xl overflow-hidden transform 
               hover:scale-105 transition-all duration-300">
@@ -533,7 +534,7 @@ const MFUChatbot: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 max-w-4xl mx-auto pb-24">
             {messages.map((message) => (
               <div key={message.id} className="message relative transform transition-all duration-200">
                 <div className={`flex items-start gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -607,11 +608,10 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      {/* Chat Input Form */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 
-      border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] shadow-lg px-6 md:px-8 lg:px-12">
-        <form onSubmit={handleSubmit} className="p-3 md:p-4">
-          <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
+      {/* Chat Input Form - Now part of the main container */}
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4">
+          <div className="flex gap-3">
             {/* Image Upload Button */}
             <div className="flex items-center">
               <label className="cursor-pointer flex items-center justify-center w-9 h-9
