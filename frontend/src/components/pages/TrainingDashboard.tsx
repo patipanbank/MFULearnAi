@@ -341,7 +341,11 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        onClose();
+        // Only close if settings modal is not open
+        const settingsModal = document.querySelector('[data-modal="settings"]');
+        if (!settingsModal?.contains(event.target as Node)) {
+          onClose();
+        }
       }
     };
 
@@ -351,7 +355,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
 
   return (
     <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-[80vh]">
-      <div ref={modalRef} className="relative">
+      <div ref={modalRef} data-modal="collection" className="relative">
         <div className="flex justify-between items-center mb-8">
           <div>
             <div className="flex items-center gap-3">
@@ -527,6 +531,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        event.stopPropagation(); // Prevent event from reaching collection modal
         onClose();
       }
     };
@@ -537,7 +542,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <BaseModal onClose={onClose} containerClasses="w-96">
-      <div ref={modalRef} className="relative">
+      <div ref={modalRef} data-modal="settings" className="relative">
         <div className="mb-6">
           <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             Collection Settings
