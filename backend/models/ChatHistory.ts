@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const chatHistorySchema = new mongoose.Schema({
   userId: { type: String, required: true },
   modelId: { type: String, required: true },
-  collectionName: { type: String, required: true },
+  collectionName: { type: String, default: '' },
   title: { type: String, default: 'New Chat' },
   messages: [{
     id: { type: Number, required: true },

@@ -1,4 +1,5 @@
 import { ChatHistory } from '../models/ChatHistory';
+import { Collection } from '../models/Collection';
 
 class ChatHistoryService {
   async getChatHistory(userId: string) {
@@ -71,10 +72,12 @@ class ChatHistoryService {
         throw new Error('userId is required');
       }
 
+      const defaultCollection = await this.getDefaultCollection();
+
       const chat = new ChatHistory({
         userId,
         modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0', // default model
-        collectionName: '', // can be empty initially
+        collectionName: defaultCollection, // ใช้ collection เริ่มต้น
         title: 'New Chat',
         messages: [],
         isActive: true,
@@ -90,6 +93,18 @@ class ChatHistoryService {
     } catch (error) {
       console.error('Error in createNewChat:', error);
       throw error;
+    }
+  }
+
+  // เพิ่มฟังก์ชันสำหรับดึง collection เริ่มต้น
+  private async getDefaultCollection(): Promise<string> {
+    try {
+      // ดึง collection แรกจากฐานข้อมูล
+      const collections = await Collection.find().limit(1);
+      return collections.length > 0 ? collections[0].name : 'default';
+    } catch (error) {
+      console.error('Error getting default collection:', error);
+      return 'default';
     }
   }
 
