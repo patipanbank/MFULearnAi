@@ -37,19 +37,29 @@ router.use('/saml/callback', (req, res, next) => {
 
 // Define role mapping function
 const mapGroupToRole = (groups: string[]): UserRole => {
+  console.log('Mapping groups to role:', groups);
+  
   // Admin group check
   const isAdmin = groups.some(group => 
-    group === 'S-1-5-21-893890582-1041674030-1199480097-13779' // Replace with actual admin group ID
+    group === 'S-1-5-21-893890582-1041674030-1199480097-13779' // Admin group
   );
   
-  // Staff group check (anyone not in student group is staff)
+  // Staff group check
+  const isStaff = groups.some(group => 
+    group === 'S-1-5-21-893890582-1041674030-1199480097-513' // Staff group
+  );
+  
+  // Student group check
   const isStudent = groups.some(group => 
-    group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
+    group === 'S-1-5-21-893890582-1041674030-1199480097-43779' // Student group
   );
 
+  console.log('Role mapping results:', { isAdmin, isStaff, isStudent });
+
   if (isAdmin) return 'ADMIN';
-  if (!isStudent) return 'STAFF';
-  return 'USER';
+  if (isStaff) return 'STAFF';
+  if (isStudent) return 'USER';
+  return 'USER'; // Default role
 };
 
 if (!process.env.SAML_SP_ENTITY_ID || !process.env.SAML_SP_ACS_URL || !process.env.SAML_IDP_SSO_URL) {
@@ -158,7 +168,7 @@ const samlStrategy = new SamlStrategy(
         {
           nameID: finalNameID,
           username: finalUsername,
-          email: email || `${finalUsername}@mfu.ac.th`,
+          email: email || finalUsername,
           firstName: firstName || '',
           lastName: lastName || '',
           groups: Array.isArray(groups) ? groups : [groups],
