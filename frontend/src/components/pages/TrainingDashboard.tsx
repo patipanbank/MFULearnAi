@@ -340,12 +340,14 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const settingsModal = document.querySelector('[data-modal="settings"]');
+      // If settings modal is open, don't handle click outside for collection modal
+      if (settingsModal) {
+        return;
+      }
+      
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        // Only close if settings modal is not open
-        const settingsModal = document.querySelector('[data-modal="settings"]');
-        if (!settingsModal?.contains(event.target as Node)) {
-          onClose();
-        }
+        onClose();
       }
     };
 
@@ -531,13 +533,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        event.stopPropagation(); // Prevent event from reaching collection modal
+        event.preventDefault();
+        event.stopPropagation();
         onClose();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside, true); // Using capture phase
+    return () => document.removeEventListener('mousedown', handleClickOutside, true);
   }, [onClose]);
 
   return (
