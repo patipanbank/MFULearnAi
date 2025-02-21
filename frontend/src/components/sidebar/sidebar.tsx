@@ -51,14 +51,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const createNewChat = async () => {
     try {
-      const response = await fetch(`${config.apiUrl}/api/chat/new`, {
+      const response = await fetch(`${config.apiUrl}/api/chat/new-chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           'Content-Type': 'application/json'
         }
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const newChat = await response.json();
+      console.log('New chat created:', newChat);
+      
       await fetchChatHistory();
       navigate(`/chat/${newChat._id}`);
     } catch (error) {

@@ -211,25 +211,41 @@ router.get('/collections', async (req: Request, res: Response) => {
   }
 });
 
-// สร้างแชทใหม่
-router.post('/new', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+// สร้างแชทใหม่ - แก้ endpoint จาก /new เป็น /new-chat
+router.post('/new-chat', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const userId = (req.user as any)?.username;
-    const { modelId, collectionName } = req.body;
+    // ดึง username จาก token
+    const userId = (req.user as any)?.username || 'anonymous';
     
     const newChat = new ChatHistory({
       userId,
-      modelId: modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-      collectionName: collectionName || '',
+      modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+      collectionName: '',
       title: 'New Chat',
       messages: []
     });
 
-    await newChat.save();
-    res.json(newChat);
+    const savedChat = await newChat.save();
+    console.log('Created new chat:', savedChat); // เพิ่ม log
+    res.json(savedChat);
   } catch (error) {
     console.error('Error creating new chat:', error);
-    res.status(500).json({ error: 'Failed to create new chat' });
+    res.status(500).json({ error: String(error) });
+  }
+});
+
+// ดึงข้อความแชทตาม ID
+router.get('/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { chatId } = req.params;
+    const chat = await ChatHistory.findById(chatId);
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    res.json(chat);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch chat' });
   }
 });
 
