@@ -489,7 +489,7 @@ const MFUChatbot: React.FC = () => {
       {/* Chat history / messages container */}
       <div className={`flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 
       ${messages.length === 0 ? 'flex items-center justify-center' : 'pt-4'} 
-      bg-gray-800
+      bg-gray-800 pb-[180px]
       [&::-webkit-scrollbar]:w-3
       [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
       [&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-surface-tertiary,#2b2b2b)]
