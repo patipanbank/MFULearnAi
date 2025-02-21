@@ -171,16 +171,6 @@ const samlStrategy = new SamlStrategy(
       console.log('=== Created/Updated User ===');
       console.log(user);
 
-      const token = jwt.sign(
-        { 
-          userId: user._id,
-          username: user.username,
-          role: user.role
-        },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
-      );
-
       const userData = {
         nameID: user.nameID,
         username: user.username,
@@ -190,6 +180,26 @@ const samlStrategy = new SamlStrategy(
         groups: user.groups,
         role: user.role
       };
+
+      const dbUser = await User.findOne({ nameID: userData.nameID });
+      if (!dbUser) {
+        throw new Error('User not found in database');
+      }
+
+      const token = jwt.sign(
+        {
+          userId: dbUser._id,
+          nameID: userData.nameID,
+          username: userData.username,
+          email: userData.email,
+          firstName: userData.first_name,
+          lastName: userData.last_name,
+          role: userData.role,
+          groups: userData.groups || []
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
 
       return done(null, { token, userData });
 
@@ -259,8 +269,22 @@ router.post('/saml/callback',
             { upsert: true }
           );
 
+          const dbUser = await User.findOne({ nameID: userInfo.nameID });
+          if (!dbUser) {
+            throw new Error('User not found in database');
+          }
+
           const token = jwt.sign(
-            userInfo,
+            {
+              userId: dbUser._id,
+              nameID: userInfo.nameID,
+              username: userInfo.username,
+              email: userInfo.email,
+              firstName: userInfo.firstName,
+              lastName: userInfo.lastName,
+              role: userInfo.role,
+              groups: userData.groups || []
+            },
             process.env.JWT_SECRET || 'your-secret-key',
             { expiresIn: '7d' }
           );
@@ -294,15 +318,21 @@ const getMeHandler = async (req: Request, res: Response, next: NextFunction) => 
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
     
-    const user = await User.findOne({ username: decoded.username });
+    const user = await User.findOne({ nameID: decoded.nameID });
     if (!user) {
       res.status(404).json({ message: 'User not found' });
       return;
     }
 
     res.json({
+      userId: user._id,
+      nameID: user.nameID,
       username: user.username,
-      role: user.role as UserRole
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      groups: user.groups
     });
   } catch (error) {
     next(error);
