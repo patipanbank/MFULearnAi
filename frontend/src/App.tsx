@@ -43,11 +43,9 @@ const App = () => {
           path="/modelCreation"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Staffs']}>
                 <MainLayout>
                   <ModelCreation />
                 </MainLayout>
-              </RoleGuard>
             </AuthGuard>
           }
         />

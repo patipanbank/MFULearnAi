@@ -59,6 +59,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -632,64 +633,26 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
-        <div className="p-2 md:p-4 border-b">
-          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[200px] md:max-w-[250px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Select Model</option>
-              {models.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.name} ({model.modelType})
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={clearChat}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors whitespace-nowrap"
-            >
-              Clear Chat
-            </button>
-          </div>
-        </div>
-
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <div className="flex items-center gap-2 p-2">
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <RiImageAddFill className="w-6 h-6 text-gray-500 dark:text-white hover:text-gray-700 dark:hover:text-gray-300" />
-              </label>
+            <button
+              type="button"
+              className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+              onClick={() => {
+                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                fileInput?.click();
+              }}
+            >
+              <RiImageAddFill className="w-5 h-5 text-gray-500 dark:text-white" />
+            </button>
 
-              {selectedImages.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedImages.map((image, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt={`Selected ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
 
             <div className="flex-1">
               <div className="flex gap-2">
@@ -699,7 +662,9 @@ const MFUChatbot: React.FC = () => {
                   onChange={(e) => handleInputChange(e)}
                   onKeyDown={(e) => handleKeyDown(e)}
                   onPaste={handlePaste}
-                  className="flex-1 min-w-0 p-2 text-sm md:text-base border rounded resize-none"
+                  className="flex-1 min-w-0 p-2 text-sm md:text-base rounded-2xl border border-gray-300 dark:border-gray-600 
+                    bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
+                    focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none"
                   placeholder={selectedImages.length > 0 ? "Please describe or ask about these images..." : "Type a message..."}
                   rows={1}
                   required
@@ -708,22 +673,95 @@ const MFUChatbot: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${
+                    canSubmit()
+                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  style={{ minHeight: '40px' }}
+                  }`}
                 >
                   {isLoading ? (
-                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
+                    <BiLoaderAlt className="w-5 h-5 animate-spin" />
                   ) : (
-                    <GrSend className="w-5 h-5" />
+                    <GrSend className="w-5 h-5" style={{ filter: canSubmit() ? 'brightness(0) invert(1)' : 'none' }} />
                   )}
                 </button>
               </div>
             </div>
           </div>
+
+          {selectedImages.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2 max-w-[90%] lg:max-w-[80%] mx-auto pl-12">
+              {selectedImages.map((image, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={URL.createObjectURL(image)}
+                    alt={`Selected ${index + 1}`}
+                    className="w-20 h-20 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </form>
+
+        <div className="p-2 md:p-4 border-t dark:border-gray-700">
+          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
+            <div className="relative">
+              <button
+                type="button"
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 
+                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {selectedModel ? models.find(m => m.id === selectedModel)?.name || 'Select Model' : 'Select Model'}
+                </span>
+              </button>
+
+              {isModelDropdownOpen && (
+                <div 
+                  className="absolute bottom-full left-0 right-0 mb-2 p-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                    bg-white dark:bg-gray-700 shadow-lg z-50"
+                >
+                  {models.map(model => (
+                    <button
+                      key={model.id}
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600
+                        text-gray-900 dark:text-white transition-colors"
+                      onClick={() => {
+                        setSelectedModel(model.id);
+                        setIsModelDropdownOpen(false);
+                      }}
+                    >
+                      {model.name} ({model.modelType})
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={clearChat}
+              className="px-4 py-2 text-sm bg-red-500 text-white rounded-full hover:bg-red-600 
+                transition-colors whitespace-nowrap flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Clear Chat
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
