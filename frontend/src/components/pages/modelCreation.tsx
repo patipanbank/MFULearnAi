@@ -116,6 +116,7 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
 interface NewModelModalProps {
   newModelName: string;
   newModelType: 'official' | 'personal';
+  allowedModelTypes: ('official' | 'personal')[];
   onNameChange: (value: string) => void;
   onTypeChange: (value: 'official' | 'personal') => void;
   onSubmit: (e: FormEvent) => void;
@@ -124,6 +125,7 @@ interface NewModelModalProps {
 const NewModelModal: React.FC<NewModelModalProps> = ({
   newModelName,
   newModelType,
+  allowedModelTypes,
   onNameChange,
   onTypeChange,
   onSubmit,
@@ -146,14 +148,21 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
         />
       </div>
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700">Model Type</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Model Type
+        </label>
         <select
           value={newModelType}
-          onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal')}
+          onChange={(e) =>
+            onTypeChange(e.target.value as 'official' | 'personal')
+          }
           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
         >
-          <option value="official">Official</option>
-          <option value="personal">Personal</option>
+          {allowedModelTypes.map((type) => (
+            <option key={type} value={type}>
+              {type === 'official' ? 'Official' : 'Personal'}
+            </option>
+          ))}
         </select>
       </div>
       <button
@@ -305,13 +314,23 @@ const ModelCreation: React.FC = () => {
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
   const [newModelType, setNewModelType] = useState<'official' | 'personal'>('official');
 
+  // Retrieve user data from localStorage
+  const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+  const isStaff = userData.groups && userData.groups.includes('Staffs');
+  // Non-staff get only personal; staff get both.
+  const allowedModelTypes: ('official' | 'personal')[] = isStaff
+    ? ['official', 'personal']
+    : ['personal'];
+
   // Load models from localStorage or create a default model if none exist
   useEffect(() => {
-    const fetchOfficialModels = async () => {
+    const fetchModels = async () => {
       try {
         const authToken = localStorage.getItem('auth_token');
         const response = await fetch(`${config.apiUrl}/api/models`, {
-          headers: { 'Authorization': `Bearer ${authToken}` },
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
         });
         if (!response.ok) throw new Error('Failed to fetch models');
         const modelsFromBackend = await response.json();
@@ -324,7 +343,7 @@ const ModelCreation: React.FC = () => {
         console.error('Error fetching models:', error);
       }
     };
-    fetchOfficialModels();
+    fetchModels();
     
     // Load personal models stored in localStorage.
     const storedPersonalModels: Model[] = JSON.parse(localStorage.getItem('personalModels') || '[]');
@@ -386,7 +405,7 @@ const ModelCreation: React.FC = () => {
     }
   };
 
-  // Create a new model
+  // Handle create model (calls API for official models, local storage for personal)
   const handleCreateModel = async (e: FormEvent) => {
     e.preventDefault();
     if (!newModelName.trim()) {
@@ -396,8 +415,6 @@ const ModelCreation: React.FC = () => {
     if (newModelType === 'official') {
       try {
         const authToken = localStorage.getItem('auth_token');
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        // Use nameID or fallback to username if needed.
         const createdBy = userData.nameID || userData.username;
         if (!createdBy) {
           alert('User data is missing. Please log in again.');
@@ -412,7 +429,7 @@ const ModelCreation: React.FC = () => {
           body: JSON.stringify({
             name: newModelName.trim(),
             createdBy,
-            modelType: 'official'
+            modelType: 'official',
           }),
         });
         if (!response.ok) {
@@ -431,22 +448,24 @@ const ModelCreation: React.FC = () => {
       } catch (error) {
         console.error('Error creating official model:', error);
         alert('Error creating official model');
+        return;
       }
     } else {
-      // Create personal model locally.
-      const newModel: Model = {
+      // For personal model, create and persist locally.
+      const personalModel: Model = {
         id: Date.now().toString(),
         name: newModelName.trim(),
         collections: [],
       };
-      setModels((prev) => [...prev, newModel]);
-      // Persist the personal model in localStorage.
+      setModels((prev) => [...prev, personalModel]);
       const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
-      storedPersonal.push(newModel);
+      storedPersonal.push(personalModel);
       localStorage.setItem('personalModels', JSON.stringify(storedPersonal));
     }
+    // Reset values and close modal.
     setNewModelName('');
-    setNewModelType('official');
+    // Always reset to personal for non-staff; staff can pick both.
+    setNewModelType(isStaff ? 'official' : 'personal');
     setShowNewModelModal(false);
   };
 
@@ -505,13 +524,15 @@ const ModelCreation: React.FC = () => {
         <NewModelModal
           newModelName={newModelName}
           newModelType={newModelType}
+          allowedModelTypes={allowedModelTypes}
           onNameChange={setNewModelName}
           onTypeChange={setNewModelType}
           onSubmit={handleCreateModel}
           onCancel={() => {
             setShowNewModelModal(false);
             setNewModelName('');
-            setNewModelType('official');
+            // Reset to 'official' only for staff; else personal.
+            setNewModelType(isStaff ? 'official' : 'personal');
           }}
         />
       )}
