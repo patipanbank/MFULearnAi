@@ -1,4 +1,5 @@
 import { Schema, model, Document } from 'mongoose';
+import { Request } from 'express';
 
 export interface IModel extends Document {
   name: string;
@@ -19,4 +20,12 @@ const ModelSchema = new Schema<IModel>(
   { timestamps: true }
 );
 
-export const ModelModel = model<IModel>('Model', ModelSchema); 
+export const ModelModel = model<IModel>('Model', ModelSchema);
+
+export interface RequestWithUser extends Request {
+  user: {
+    _id: string;
+    role: string;
+    groups: string[];
+  };
+} 
