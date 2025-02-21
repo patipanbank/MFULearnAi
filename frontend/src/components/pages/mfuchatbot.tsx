@@ -489,7 +489,7 @@ const MFUChatbot: React.FC = () => {
       {/* Chat history / messages container */}
       <div className={`flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 
       ${messages.length === 0 ? 'flex items-center justify-center' : 'pt-4'} 
-      bg-gray-800
+      bg-gray-800 pb-[100px]
       [&::-webkit-scrollbar]:w-3
       [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
       [&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-surface-tertiary,#2b2b2b)]
@@ -603,108 +603,110 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      {/* Chat Input Form - Now part of the main container */}
-      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6 dark:bg-gray-800">
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl p-4">
-          <div className="flex gap-3">
-            {/* Clear Chat Button */}
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Are you sure you want to clear the chat history?')) {
-                  clearChat();
-                }
-              }}
-              className="flex items-center justify-center w-9 h-9 text-red-600 
-              hover:text-red-700 dark:text-red-400 dark:hover:text-red-300
-              rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
-              dark:hover:bg-gray-700 transition-all duration-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+      {/* Chat Input Form - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-800">
+        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6">
+          <form onSubmit={handleSubmit} className="bg-gray-800 rounded-t-2xl p-4">
+            <div className="flex gap-3">
+              {/* Clear Chat Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to clear the chat history?')) {
+                    clearChat();
+                  }
+                }}
+                className="flex items-center justify-center w-9 h-9 text-red-600 
+                hover:text-red-700 dark:text-red-400 dark:hover:text-red-300
+                rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
+                dark:hover:bg-gray-700 transition-all duration-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
 
-            {/* Image Upload Button */}
-            <label className="flex items-center justify-center w-9 h-9 cursor-pointer
-              text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300
-              rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
-              dark:hover:bg-gray-700 transition-all duration-200">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <FaPlus className="h-4 w-4" />
-            </label>
-
-            <div className="flex-1 flex flex-col gap-3">
-              {/* Selected Images Preview */}
-              {selectedImages.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedImages.map((image, index) => (
-                    <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt={`Selected ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded-xl 
-                        transition-all duration-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
-                        rounded-full w-6 h-6 flex items-center justify-center text-sm
-                        transform hover:scale-110 transition-all duration-200"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Input Area */}
-              <div className="flex gap-3">
-                <textarea
-                  ref={textareaRef}
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onPaste={handlePaste}
-                  className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-3xl border border-gray-300 
-                  dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-                  placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
-                  focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                  placeholder={selectedImages.length > 0 
-                    ? "Please describe or ask about these images..." 
-                    : "Ask anything..."}
-                  rows={1}
-                  required
+              {/* Image Upload Button */}
+              <label className="flex items-center justify-center w-9 h-9 cursor-pointer
+                text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300
+                rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
+                dark:hover:bg-gray-700 transition-all duration-200">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
                 />
-                <button
-                  type="submit"
-                  disabled={!canSubmit()}
-                  className={`p-3 rounded-full font-medium flex items-center justify-center 
-                  transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg 
-                  min-h-[44px] min-w-[44px] ${
-                    canSubmit()
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {isLoading ? (
-                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <GrSend className="w-5 h-5" />
-                  )}
-                </button>
+                <FaPlus className="h-4 w-4" />
+              </label>
+
+              <div className="flex-1 flex flex-col gap-3">
+                {/* Selected Images Preview */}
+                {selectedImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedImages.map((image, index) => (
+                      <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt={`Selected ${index + 1}`}
+                          className="w-20 h-20 object-cover rounded-xl 
+                          transition-all duration-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
+                          rounded-full w-6 h-6 flex items-center justify-center text-sm
+                          transform hover:scale-110 transition-all duration-200"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input Area */}
+                <div className="flex gap-3">
+                  <textarea
+                    ref={textareaRef}
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
+                    className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-3xl border border-gray-300 
+                    dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                    placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
+                    focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                    placeholder={selectedImages.length > 0 
+                      ? "Please describe or ask about these images..." 
+                      : "Ask anything..."}
+                    rows={1}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={!canSubmit()}
+                    className={`p-3 rounded-full font-medium flex items-center justify-center 
+                    transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg 
+                    min-h-[44px] min-w-[44px] ${
+                      canSubmit()
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {isLoading ? (
+                      <BiLoaderAlt className="w-6 h-6 animate-spin" />
+                    ) : (
+                      <GrSend className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
