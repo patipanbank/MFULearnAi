@@ -65,16 +65,6 @@ const App = () => {
             </AuthGuard>
           }
         /> */}
-        <Route
-          path="/chat/:chatId"
-          element={
-            <AuthGuard>
-              <MainLayout>
-                <MFUChatbot />
-              </MainLayout>
-            </AuthGuard>
-          }
-        />
       </Routes>
     </Router>
   );
