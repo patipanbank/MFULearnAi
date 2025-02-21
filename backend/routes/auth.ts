@@ -108,7 +108,7 @@ const samlStrategy = new SamlStrategy(
   }
 );
 
-passport.use(samlStrategy as unknown as passport.Strategy);
+passport.use(samlStrategy);
 
 passport.serializeUser((user: any, done) => {
   done(null, user);
