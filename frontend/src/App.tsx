@@ -45,7 +45,7 @@ const App = () => {
             <AuthGuard>
               <RoleGuard allowedGroups={['Staffs']}>
                 <MainLayout>
-                  <ModelCreation />
+                  <ModelCreation userRole="staff" />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>
