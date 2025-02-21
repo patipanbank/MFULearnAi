@@ -58,40 +58,37 @@ wss.on('connection', (ws: WebSocket) => {
 router.post('/', async (req: Request, res: Response) => {
   console.log('Received chat request');
 
-  // 1. ส่ง headers ทันทีก่อนทำอย่างอื่น
+  // Set up the event-stream headers for SSE
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
 
-  // 2. ส่ง initial response เพื่อเริ่ม stream
-  res.write(':\n\n');  // Keep-alive ping
+  // Initial keep-alive response
+  res.write(':\n\n');
   console.log('Sent initial response');
 
   try {
-    const { messages, modelId, collectionName } = req.body;
+    // Extract collections along with modelId (adjust naming if needed)
+    const { messages, modelId, collections } = req.body;
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
-    // 3. ฟังก์ชันสำหรับส่งข้อมูล
+    // Function to send a chunk to the frontend
     const sendChunk = (content: string) => {
       const data = JSON.stringify({ content });
       res.write(`data: ${data}\n\n`);
     };
 
-    // 4. ส่ง empty chunk เพื่อให้ frontend เริ่มอ่าน stream
+    // Send an initial empty chunk
     sendChunk('');
     
     console.log('Starting response generation');
-    console.log('Starting generateResponse:', {
-      modelId,
-      collectionName,
-      messagesCount: messages.length,
-      query
-    });
+    console.log('Generating response with:', { modelId, collections, messagesCount: messages.length, query });
 
+    // Pass collections (if provided) to generateResponse
     try {
-      for await (const content of chatService.generateResponse(messages, query, modelId)) {
+      for await (const content of chatService.generateResponse(messages, query, modelId, collections)) {
         console.log('Sending chunk:', content);
         sendChunk(content);
       }
@@ -105,7 +102,7 @@ router.post('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Chat error details:', error);
     
-    // ถ้ายังไม่ได้ส่ง headers
+    // Handle error response even if headers were not sent
     if (!res.headersSent) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
