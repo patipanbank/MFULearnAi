@@ -143,8 +143,8 @@ const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
             <img
               src={`data:${img.mediaType};base64,${img.data}`}
               alt="Uploaded content"
-              className="max-w-[200px] w-full h-auto rounded-xl object-contain shadow-md 
-              hover:shadow-xl transition-all duration-300"
+              className="max-w-[200px] w-full h-auto rounded-xl object-contain 
+              transition-all duration-300"
             />
           </div>
         ))}
@@ -556,7 +556,7 @@ const MFUChatbot: React.FC = () => {
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       {new Date(message.timestamp).toLocaleTimeString()}
                     </div>
-                    <div className={`rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-200 ${
+                    <div className={`rounded-2xl p-4 shadow-md hover:shadow-lg transition-all duration-200 w-full ${
                       message.role === 'user'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'bg-white dark:bg-gray-800 dark:text-white border border-gray-200 dark:border-gray-700'
@@ -658,13 +658,14 @@ const MFUChatbot: React.FC = () => {
                       <img
                         src={URL.createObjectURL(image)}
                         alt={`Selected ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded-xl shadow-md group-hover:shadow-lg"
+                        className="w-20 h-20 object-cover rounded-xl 
+                        transition-all duration-200"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(index)}
                         className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
-                        rounded-full w-6 h-6 flex items-center justify-center text-sm shadow-md 
+                        rounded-full w-6 h-6 flex items-center justify-center text-sm
                         transform hover:scale-110 transition-all duration-200"
                       >
                         ×
