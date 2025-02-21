@@ -118,7 +118,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const { messages, modelId, collectionName } = req.body;
     const userId = (req.user as any)?.username || '';
@@ -143,7 +143,7 @@ router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, 
   }
 });
 
-router.get('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username || '';
     const history = await chatHistoryService.getChatHistory(userId);

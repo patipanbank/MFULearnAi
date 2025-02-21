@@ -82,7 +82,7 @@ const uploadHandler = async (req: Request, res: Response): Promise<void> => {
 };
 
 // อนุญาตทั้ง Students และ Staffs ให้เข้าถึง models และ collections ได้
-router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.get('/models', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const models = [
       'anthropic.claude-3-5-sonnet-20240620-v1:0',
@@ -94,7 +94,7 @@ router.get('/models', roleGuard(['Students', 'Staffs']), async (req: Request, re
   }
 });
 
-router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.get('/collections', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const collections = await Collection.find({}).select('name permission createdBy');
     res.json(collections.map(collection => ({
@@ -109,9 +109,9 @@ router.get('/collections', roleGuard(['Students', 'Staffs']), async (req: Reques
 });
 
 // เฉพาะ Staff เท่านั้นที่เข้าถึงได้
-router.post('/upload', roleGuard(['Staffs']), upload.single('file'), uploadHandler);
+router.post('/upload', roleGuard(['Students', 'Staffs', 'Admin']), upload.single('file'), uploadHandler);
 
-router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file'), async (req: Request, res: Response) => {
+router.post('/documents', roleGuard(['Students', 'Staffs', 'Admin']), upload.single('file'), async (req: Request, res: Response) => {
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
@@ -165,7 +165,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs']), upload.single('file
   }
 });
 
-router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.get('/documents', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const { collectionName } = req.query;
     const user = (req as any).user;
@@ -210,7 +210,7 @@ router.get('/documents', roleGuard(['Students', 'Staffs']), async (req: Request,
 });
 
 // แก้ไข endpoint สำหรับลบเอกสาร
-router.delete('/documents/:id', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.delete('/documents/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { collectionName } = req.query;
