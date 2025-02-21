@@ -489,7 +489,7 @@ const MFUChatbot: React.FC = () => {
       {/* Chat history / messages container */}
       <div className={`flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 
       ${messages.length === 0 ? 'flex items-center justify-center' : 'pt-4'} 
-      bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800
+      bg-gray-800
       [&::-webkit-scrollbar]:w-3
       [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
       [&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-surface-tertiary,#2b2b2b)]
@@ -628,7 +628,7 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       {/* Chat Input Form - Now part of the main container */}
-      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6">
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6 dark:bg-gray-800">
         <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4">
           <div className="flex gap-3">
             {/* Image Upload Button */}
@@ -685,7 +685,7 @@ const MFUChatbot: React.FC = () => {
                   dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
                   placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
                   focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent 
-                  transition-all duration-200 shadow-sm hover:shadow-md"
+                  transition-all duration-200"
                   placeholder={selectedImages.length > 0 
                     ? "Please describe or ask about these images..." 
                     : "Ask anything..."}
