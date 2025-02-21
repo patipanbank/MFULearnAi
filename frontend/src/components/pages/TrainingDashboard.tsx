@@ -835,6 +835,14 @@ const TrainingDashboard: React.FC = () => {
             }
           );
 
+          if (response.status === 404) {
+            // Collection no longer exists - close the view and refresh collections
+            setSelectedCollection(null);
+            setShowSettings(false);
+            fetchCollections();
+            return;
+          }
+
           if (!response.ok) {
             throw new Error('Failed to fetch collection update');
           }
@@ -870,6 +878,8 @@ const TrainingDashboard: React.FC = () => {
           await fetchUploadedFiles(updatedData.name);
         } catch (error) {
           console.error('Error in real-time update:', error);
+          // If there's any other error, we'll keep the UI state as is
+          // and let the next polling interval try again
         }
       }
     };
