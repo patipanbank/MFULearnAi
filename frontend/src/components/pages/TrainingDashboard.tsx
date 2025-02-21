@@ -80,7 +80,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 }) => (
   <header className="mb-6">
     <div className="flex items-center justify-between">
-      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Knowledge 11</h1>
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Collection</h1>
     </div>
     <div className="mt-4 flex items-center">
       <input
@@ -93,7 +93,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       <button
         type="button"
         onClick={onNewCollectionToggle}
-        className="ml-2 text-xl p-2 bg-blue-500 rounded-full text-white hover:bg-blue-600 transition duration-150"
+        className="ml-2 text-xl p-2 text-blue-500 hover:text-blue-600 transition duration-150"
         title="Create Collection"
       >
         <FaPlus />
