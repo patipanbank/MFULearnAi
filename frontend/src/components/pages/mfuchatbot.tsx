@@ -539,27 +539,21 @@ const MFUChatbot: React.FC = () => {
             {messages.map((message) => (
               <div key={message.id} className="message relative transform transition-all duration-200">
                 <div className={`flex items-start gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden shadow-md 
-                  transform hover:scale-105 transition-all duration-200 ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700'
-                      : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800'
-                  } flex items-center justify-center`}>
-                    {message.role === 'user' ? (
-                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
+                  {message.role === 'assistant' && (
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden shadow-md 
+                    transform hover:scale-105 transition-all duration-200 
+                    bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800
+                    flex items-center justify-center`}>
                       <img
                         src="/dindin.PNG"
                         alt="AI Assistant"
                         className="w-full h-full object-cover transform hover:scale-110 transition-all duration-200"
                       />
-                    )}
-                  </div>
+                    </div>
+                  )}
 
-                  <div className={`flex flex-col space-y-2 max-w-[80%] ${
-                    message.role === 'user' ? 'items-end' : 'items-start'
+                  <div className={`flex flex-col space-y-2 ${message.role === 'user' ? 'items-end' : 'items-start'} ${
+                    message.role === 'assistant' ? 'max-w-[80%] ml-0' : 'max-w-[80%] mr-0'
                   }`}>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       {new Date(message.timestamp).toLocaleTimeString()}
@@ -611,7 +605,7 @@ const MFUChatbot: React.FC = () => {
 
       {/* Chat Input Form - Now part of the main container */}
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6 dark:bg-gray-800">
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl p-4">
           <div className="flex gap-3">
             {/* Clear Chat Button */}
             <button
@@ -683,8 +677,7 @@ const MFUChatbot: React.FC = () => {
                   className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-3xl border border-gray-300 
                   dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
                   placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
-                  focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent 
-                  transition-all duration-200"
+                  focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                   placeholder={selectedImages.length > 0 
                     ? "Please describe or ask about these images..." 
                     : "Ask anything..."}
