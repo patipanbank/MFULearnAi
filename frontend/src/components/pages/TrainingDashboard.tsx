@@ -317,15 +317,11 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
       )}
       <div className="flex flex-col h-full">
         <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
-              {getPermissionLabel(collection.permission)}
-            </span>
-          </div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
             {collection.name}
           </h2>
         </div>
+        <span className={`absolute bottom-4 right-4 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>{getPermissionLabel(collection.permission)}</span>
         <div className="mt-auto space-y-1">
           <p className="text-sm text-gray-600 dark:text-gray-300">
             {collection.createdBy}
@@ -766,12 +762,19 @@ const TrainingDashboard: React.FC = () => {
         throw new Error(errorData || 'Failed to update collection');
       }
 
-      const updatedCollection = await response.json();
+      // Handle possible 204 No Content responses
+      let updatedCollection;
+      if (response.status === 204) {
+        // If no content returned, use the updated values directly
+        updatedCollection = { name: updatedCollectionName, permission: updatedCollectionPermission };
+      } else {
+        updatedCollection = await response.json();
+      }
 
-      // First close the settings modal to prevent any state updates on unmounted component
+      // Close the settings modal before updating state
       setShowSettings(false);
 
-      // Then update the collections list with the new data
+      // Update the collections list with new data
       setCollections(prevCollections =>
         prevCollections.map(col =>
           col.id === selectedCollection.id
@@ -779,7 +782,7 @@ const TrainingDashboard: React.FC = () => {
                 ...col,
                 name: updatedCollection.name,
                 permission: updatedCollection.permission,
-                // Preserve other fields that might not be returned by the API
+                // Preserve other fields
                 created: col.created,
                 createdBy: col.createdBy,
               }
@@ -788,7 +791,7 @@ const TrainingDashboard: React.FC = () => {
       );
 
       // Update the selected collection if it's currently open
-      setSelectedCollection(prev => 
+      setSelectedCollection(prev =>
         prev?.id === selectedCollection.id
           ? {
               ...prev,
@@ -798,7 +801,7 @@ const TrainingDashboard: React.FC = () => {
           : prev
       );
 
-      // Refresh the uploaded files with the new collection name
+      // Refresh uploaded files if the collection name has changed
       if (updatedCollection.name !== selectedCollection.name) {
         await fetchUploadedFiles(updatedCollection.name);
       }

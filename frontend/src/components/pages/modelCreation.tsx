@@ -151,11 +151,6 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
 
       <div className="flex flex-col h-full">
         <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getModelTypeStyle(model.modelType)}`}>
-              {model.modelType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-            </span>
-          </div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
             {model.name}
           </h2>
@@ -175,6 +170,7 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
           </div>
         </div>
       </div>
+      <span className={`absolute bottom-4 right-4 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getModelTypeStyle(model.modelType)}`}>{model.modelType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</span>
     </div>
   );
 };
@@ -309,6 +305,34 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
 }) => {
   const [isConfirming, setIsConfirming] = useState(false);
 
+  const getPermissionStyle = (permission?: string | string[]) => {
+    if (Array.isArray(permission)) {
+      return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
+    }
+    switch (permission) {
+      case 'private':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
+      case 'public':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+      default:
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
+    }
+  };
+
+  const getPermissionLabel = (permission?: string | string[]) => {
+    if (Array.isArray(permission)) {
+      return 'Shared';
+    }
+    switch (permission) {
+      case 'private':
+        return 'Private';
+      case 'public':
+        return 'Public';
+      default:
+        return 'Unknown';
+    }
+  };
+
   // Filter collections based on search query
   const filteredCollections = availableCollections.filter(collection =>
     collection.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -387,9 +411,16 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
               >
                 <div className="flex flex-col h-full">
                   <div className="flex items-start justify-between mb-3">
-                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 flex-1 mr-3">
-                      {collection.name}
-                    </h4>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
+                          {getPermissionLabel(collection.permission)}
+                        </span>
+                      </div>
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+                        {collection.name}
+                      </h4>
+                    </div>
                     <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
                       selectedCollections.includes(collection.name)
                         ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
@@ -407,27 +438,8 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
                       <span className="truncate">{collection.createdBy}</span>
                     </div>
                     
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-500">
-                        {getRelativeTime(collection.created)}
-                      </span>
-                      <div className="flex gap-2">
-                        {collection.permission === 'private' && (
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded-full">
-                            Private
-                          </span>
-                        )}
-                        {collection.permission === 'public' && (
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 rounded-full">
-                            Public
-                          </span>
-                        )}
-                        {Array.isArray(collection.permission) && (
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 rounded-full">
-                            Shared
-                          </span>
-                        )}
-                      </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-500">
+                      {getRelativeTime(collection.created)}
                     </div>
                   </div>
                 </div>
@@ -749,12 +761,13 @@ const ModelCreation: React.FC = () => {
   // Confirm the selection and update the model
   const confirmCollections = async () => {
     if (!editingModel) return;
-
+    
     try {
-      // Validate selection
+      // Validate selection: Allow saving even if no collection is selected after confirmation.
       if (selectedCollections.length === 0) {
-        alert('Please select at least one collection');
-        return;
+        if (!window.confirm('No collections selected. Do you want to save the model without any collections?')) {
+          return;
+        }
       }
 
       // Validate that all selected collections exist in available collections
