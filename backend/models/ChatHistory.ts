@@ -21,7 +21,6 @@ interface IChatHistory {
   userId: string;
   modelId: string;
   collectionName: string;
-  title: string;
   messages: IChatMessage[];
   createdAt: Date;
   updatedAt: Date;
@@ -39,7 +38,6 @@ const chatHistorySchema = new mongoose.Schema({
   userId: { type: String, required: true },
   modelId: { type: String, required: true },
   collectionName: { type: String, required: true },
-  title: { type: String, default: 'New Chat' },
   messages: [{
     id: { type: Number, required: true },
     role: { type: String, enum: ['user', 'assistant', 'system'], required: true },

@@ -5,7 +5,6 @@ import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
-import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -208,82 +207,6 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
-  }
-});
-
-// สร้างแชทใหม่ - แก้ endpoint จาก /new เป็น /new-chat
-router.post('/new-chat', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    // ดึง username จาก token
-    const userId = (req.user as any)?.username || 'anonymous';
-    
-    const newChat = new ChatHistory({
-      userId,
-      modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-      collectionName: '',
-      title: 'New Chat',
-      messages: []
-    });
-
-    const savedChat = await newChat.save();
-    console.log('Created new chat:', savedChat); // เพิ่ม log
-    res.json(savedChat);
-  } catch (error) {
-    console.error('Error creating new chat:', error);
-    res.status(500).json({ error: String(error) });
-  }
-});
-
-// ดึงข้อความแชทตาม ID
-router.get('/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { chatId } = req.params;
-    const chat = await ChatHistory.findById(chatId);
-    if (!chat) {
-      res.status(404).json({ error: 'Chat not found' });
-      return;
-    }
-    res.json(chat);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch chat' });
-  }
-});
-
-// ดึงประวัติแชททั้งหมด
-router.get('/history/all', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username;
-    const chats = await ChatHistory.find({ userId })
-      .sort({ createdAt: -1 })
-      .select('_id title modelId collectionName createdAt');
-    res.json(chats);
-  } catch (error) {
-    console.error('Error fetching chat history:', error);
-    res.status(500).json({ error: 'Failed to fetch chat history' });
-  }
-});
-// แก้ไขชื่อแชท
-router.put('/rename/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { chatId } = req.params;
-    const { title } = req.body;
-    const userId = (req.user as any)?.username;
-
-    const chat = await ChatHistory.findOneAndUpdate(
-      { _id: chatId, userId },
-      { title },
-      { new: true }
-    );
-
-    if (!chat) {
-      res.status(404).json({ error: 'Chat not found' });
-      return;
-    }
-
-    res.json(chat);
-  } catch (error) {
-    console.error('Error renaming chat:', error);
-    res.status(500).json({ error: 'Failed to rename chat' });
   }
 });
 
