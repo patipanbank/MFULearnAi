@@ -184,19 +184,21 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
   onSubmit,
   onCancel,
 }) => {
-  const [userRole, setUserRole] = useState<string>('');
+  const [isStaffUser, setIsStaffUser] = useState<boolean>(false);
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (token) {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      setUserRole(tokenPayload.role || '');
+      const isStaff = tokenPayload.groups?.includes('Staffs') || false;
+      setIsStaffUser(isStaff);
+      
       // Set default model type based on user role
-      if (tokenPayload.role !== 'Staffs' && newModelType !== 'personal') {
+      if (!isStaff && newModelType !== 'personal') {
         onTypeChange('personal');
       }
     }
-  }, []);
+  }, [newModelType, onTypeChange]);
 
   return (
     <BaseModal onClose={onCancel} containerClasses="w-[28rem]" zIndex={52}>
@@ -224,7 +226,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
             placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
           />
         </div>
-        {userRole === 'Staffs' && (
+        {isStaffUser && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Model Type
@@ -395,11 +397,23 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
                       <span className="text-xs text-gray-500 dark:text-gray-500">
                         {getRelativeTime(collection.created)}
                       </span>
-                      {collection.permission === 'public' && (
-                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 rounded-full">
-                          Public
-                        </span>
-                      )}
+                      <div className="flex gap-2">
+                        {collection.permission === 'private' && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded-full">
+                            Private
+                          </span>
+                        )}
+                        {collection.permission === 'public' && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 rounded-full">
+                            Public
+                          </span>
+                        )}
+                        {Array.isArray(collection.permission) && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 rounded-full">
+                            Shared
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -552,7 +566,7 @@ const ModelCreation: React.FC = () => {
 
         // Get user role from token
         const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
-        const userRole = tokenPayload.role || '';
+        const isStaffUser = tokenPayload.groups?.includes('Staffs') || false;
 
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: { 'Authorization': `Bearer ${authToken}` },
@@ -562,7 +576,7 @@ const ModelCreation: React.FC = () => {
         
         // Filter models based on user role
         const filteredModels = modelsFromBackend.filter((model: any) => {
-          if (userRole === 'Staffs') return true;
+          if (isStaffUser) return true; // Staff can see all models
           return model.modelType === 'official' || model.modelType === 'personal';
         }).map((model: any) => ({
           id: model._id,
@@ -814,7 +828,7 @@ const ModelCreation: React.FC = () => {
 
       // Get user info from token
       const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
-      const userRole = tokenPayload.role || '';
+      const isStaffUser = tokenPayload.groups?.includes('Staffs') || false;
       const userId = tokenPayload.sub || '';
 
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
@@ -827,8 +841,8 @@ const ModelCreation: React.FC = () => {
 
       // Filter collections based on permissions
       const filteredCollections = data.filter((collection: Collection) => {
-        // Staff can see all collections
-        if (userRole === 'Staffs') return true;
+        // Staff can see all collections (public, private, and with specific permissions)
+        if (isStaffUser) return true;
         
         // For regular users:
         // 1. Their own collections
