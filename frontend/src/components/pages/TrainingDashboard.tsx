@@ -663,6 +663,7 @@ const TrainingDashboard: React.FC = () => {
   // Dashboard state
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isFilesLoading, setIsFilesLoading] = useState<boolean>(false);
   
   const [showNewCollectionModal, setShowNewCollectionModal] = useState<boolean>(false);
   const [newCollectionName, setNewCollectionName] = useState<string>('');
@@ -731,10 +732,8 @@ const TrainingDashboard: React.FC = () => {
   }, [authToken]);
 
   const fetchUploadedFiles = useCallback(async (collectionName: string) => {
-    const [isLoading, setIsLoading] = useState(false);
-    
     try {
-      setIsLoading(true);
+      setIsFilesLoading(true);
       const response = await fetch(
         `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
         {
@@ -777,7 +776,7 @@ const TrainingDashboard: React.FC = () => {
       console.error('Error fetching uploaded files:', error);
       alert(error instanceof Error ? error.message : 'Failed to fetch files');
     } finally {
-      setIsLoading(false);
+      setIsFilesLoading(false);
     }
   }, [authToken]);
 
