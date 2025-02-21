@@ -51,22 +51,41 @@ export class ChatService {
   }
 
   private async getContext(query: string, collectionNames: string | string[]): Promise<string> {
+    // Convert collectionNames to an array if it's not already one.
     const collectionsArray: string[] =
       typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
     if (collectionsArray.length === 0) return '';
 
-    const sanitizedCollections = collectionsArray.map((name) => this.sanitizeCollectionName(name));
+    // Debug: Log the received collection names.
+    console.log("getContext: Received collectionNames:", collectionNames);
 
-    // Precompute the query embedding once rather than per collection.
+    // Sanitize each collection name and log the transformation.
+    const sanitizedCollections = collectionsArray.map((name) => {
+      const sanitized = this.sanitizeCollectionName(name);
+      console.log(`getContext: Sanitized '${name}' to '${sanitized}'`);
+      return sanitized;
+    });
+
+    console.log("getContext: Querying collections:", sanitizedCollections);
+
+    // Precompute the query embedding once and log the result.
     const queryEmbedding = await chromaService.getQueryEmbedding(query);
+    console.log("getContext: Computed query embedding:", queryEmbedding);
 
-    // Use the precomputed embedding to query each collection.
+    // Query each collection using the precomputed embedding and log individual results.
     const contexts = await Promise.all(
       sanitizedCollections.map(name =>
-        chromaService.queryDocumentsWithEmbedding(name, queryEmbedding, 5)
+        chromaService.queryDocumentsWithEmbedding(name, queryEmbedding, 5).then(result => {
+          console.log(`getContext: Result for collection '${name}':`, result);
+          return result;
+        })
       )
     );
-    return contexts.join("\n\n");
+
+    // Join all context pieces and log the final concatenated context.
+    const finalContext = contexts.join("\n\n");
+    console.log("getContext: Final concatenated context:", finalContext);
+    return finalContext;
   }
 }
 
