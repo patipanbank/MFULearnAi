@@ -4,6 +4,7 @@ import User from '../models/User';
 
 export interface RequestWithUser extends Request {
   user: Express.User;
+  samlLogoutRequest?: any;
 }
 
 export const roleGuard = (allowedGroups: string[]): RequestHandler => 
