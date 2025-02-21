@@ -1,8 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ModelModel, ModelDocument } from '../models/Model';
-import { CollectionModel, CollectionPermission } from '../models/Collection';
 import { roleGuard } from '../middleware/roleGuard';
-import { chromaService } from '../services/chroma';
 
 const router = Router();
 
@@ -35,40 +33,12 @@ router.post('/', roleGuard(['Staffs']), async (req: Request, res: Response): Pro
       return;
     }
 
-    let collections: string[] = [];
-
-    // If it's an official model, create default collections
-    if (modelType === 'official') {
-      // Create default collections for official model
-      const defaultCollections = [
-        { name: `${name}_general`, description: 'General information' },
-        { name: `${name}_faq`, description: 'Frequently asked questions' },
-        { name: `${name}_policies`, description: 'Policies and procedures' }
-      ];
-
-      // Create collections in both ChromaDB and MongoDB
-      for (const collection of defaultCollections) {
-        try {
-          // Create in ChromaDB and MongoDB using chromaService
-          const newCollection = await chromaService.createCollection(
-            collection.name,
-            CollectionPermission.STAFF_ONLY,
-            user.nameID  // Use user.nameID from request
-          );
-          collections.push(newCollection.name);
-        } catch (error) {
-          console.error(`Error creating collection ${collection.name}:`, error);
-          // Continue with other collections even if one fails
-        }
-      }
-    }
-
-    // Create the model with the collections
+    // Create the model with empty collections array
     const model = await ModelModel.create({
       name,
-      createdBy: user.nameID,  // Use user.nameID from request
+      createdBy: user.nameID,
       modelType,
-      collections,
+      collections: [], // Start with empty collections array
     });
 
     res.status(201).json(model);
@@ -107,43 +77,19 @@ router.put('/:id', roleGuard(['Staffs']), async (req: Request, res: Response): P
 
 /**
  * DELETE /api/models/:id
- * Deletes a model and its associated collections if they were automatically created
+ * Deletes a model
  */
 router.delete('/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const model = await ModelModel.findById(id);
+    const model = await ModelModel.findByIdAndDelete(id);
 
     if (!model) {
       res.status(404).json({ error: 'Model not found' });
       return;
     }
 
-    // If it's an official model, delete its auto-created collections
-    if (model.modelType === 'official') {
-      const defaultCollectionPrefixes = [
-        `${model.name}_general`,
-        `${model.name}_faq`,
-        `${model.name}_policies`
-      ];
-
-      // Delete collections from both ChromaDB and MongoDB
-      for (const collectionName of model.collections) {
-        if (defaultCollectionPrefixes.some(prefix => collectionName.startsWith(prefix))) {
-          try {
-            await chromaService.deleteCollection(collectionName);
-          } catch (error) {
-            console.error(`Error deleting collection ${collectionName}:`, error);
-            // Continue with other deletions even if one fails
-          }
-        }
-      }
-    }
-
-    // Delete the model
-    await ModelModel.findByIdAndDelete(id);
-
-    res.json({ message: 'Model and associated collections deleted successfully' });
+    res.json({ message: 'Model deleted successfully' });
   } catch (error) {
     console.error('Error deleting model:', error);
     res.status(500).json({ error: 'Error deleting model' });

@@ -250,59 +250,130 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   onShowSettings,
   onDeleteFile,
 }) => (
-  <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-full">
-    <div className="flex justify-between items-center mb-6">
-      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{collection.name}</h2>
+  <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-[80vh]">
+    <div className="flex justify-between items-center mb-8">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{collection.name}</h2>
       <button
         onClick={onShowSettings}
-        className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-150"
+        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 
+        text-gray-600 dark:text-gray-300 transition-all duration-200"
         title="Collection Settings"
       >
-        <FaCog size={20} className="text-gray-800 dark:text-gray-100" />
+        <FaCog size={20} />
       </button>
     </div>
-    <section className="mb-6">
-      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Upload File</h3>
-      <form onSubmit={onFileUpload} className="flex flex-col sm:flex-row items-start sm:items-center">
-        <input
-          type="file"
-          onChange={onFileChange}
-          className="mb-2 sm:mb-0 sm:mr-2 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-gray-100 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+
+    {/* File Upload Section */}
+    <section className="mb-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border-2 border-dashed border-gray-300 dark:border-gray-600">
+      <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+        Upload Document
+      </h3>
+      <form onSubmit={onFileUpload} className="space-y-4">
+        <div className="relative">
+          <input
+            type="file"
+            onChange={onFileChange}
+            className="block w-full text-gray-600 dark:text-gray-300
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-lg file:border-0
+            file:text-sm file:font-semibold
+            file:bg-blue-50 file:text-blue-700
+            dark:file:bg-blue-900/30 dark:file:text-blue-400
+            hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40
+            file:cursor-pointer cursor-pointer
+            focus:outline-none"
+            accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
+          />
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX (Max 100MB)
+          </p>
+        </div>
         <button
           type="submit"
           disabled={uploadLoading}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-150"
+          className={`w-full sm:w-auto px-6 py-2.5 rounded-lg font-medium text-white
+          transition-all duration-200 flex items-center justify-center space-x-2
+          ${uploadLoading 
+            ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'
+          }`}
         >
-          {uploadLoading ? 'Uploading...' : 'Upload'}
+          {uploadLoading ? (
+            <>
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Uploading...</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+              <span>Upload Document</span>
+            </>
+          )}
         </button>
       </form>
     </section>
-    <section>
-      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Files in the Collection</h3>
+
+    {/* Files List Section */}
+    <section className="space-y-4">
+      <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+        Documents in Collection
+      </h3>
+      
       {uploadedFiles.length > 0 ? (
-        <ul className="space-y-2">
+        <div className="space-y-3">
           {uploadedFiles.map((fileItem, index) => (
-            <li key={index} className="relative border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-800">
-              <button
-                type="button"
-                onClick={() => onDeleteFile(fileItem)}
-                className="absolute top-2 right-2 text-red-500 hover:text-red-600 transition duration-150"
-                title="Delete File"
-              >
-                <FaTrash size={18} />
-              </button>
-              <div className="font-semibold text-gray-800 dark:text-gray-100">{fileItem.filename}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Uploaded by: {fileItem.uploadedBy}</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                At: {new Date(fileItem.timestamp).toLocaleString()}
+            <div 
+              key={index} 
+              className="group relative bg-white dark:bg-gray-800 rounded-lg shadow-sm 
+              border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-all duration-200"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
+                    {fileItem.filename}
+                  </h4>
+                  <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
+                    <p className="text-gray-600 dark:text-gray-300">
+                      Uploaded by: {fileItem.uploadedBy}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      {new Date(fileItem.timestamp).toLocaleString()}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Chunks: {fileItem.ids.length}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onDeleteFile(fileItem)}
+                  className="ml-4 p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
+                  dark:hover:text-red-400 transition-colors duration-200 rounded-full 
+                  hover:bg-gray-100 dark:hover:bg-gray-700"
+                  title="Delete Document"
+                >
+                  <FaTrash size={16} />
+                </button>
               </div>
-              <div className="text-sm text-gray-400 dark:text-gray-300">Chunks: {fileItem.ids.length}</div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : (
-        <p className="text-gray-600 dark:text-gray-300">No files uploaded yet.</p>
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+          <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+          </svg>
+          <p className="mt-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+            No documents uploaded yet
+          </p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
+            Upload a document to get started
+          </p>
+        </div>
       )}
     </section>
   </BaseModal>
