@@ -78,7 +78,7 @@ export class ChatService {
       const model = await modelService.getModelById(modelId);
       let collectionsToQuery: string[] = [];
       if (model) {
-        collectionsToQuery = collections || model.collections;
+        collectionsToQuery = collections || [model.collection.collectionName];
       }
       
       // Do not force a fallback: if there are no collections, skip vector query.

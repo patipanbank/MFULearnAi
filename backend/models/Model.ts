@@ -1,23 +1,22 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema, model, Document } from 'mongoose';
 
 export interface IModel extends Document {
-  _id: string; // Use string for _id
   name: string;
-  collections: string[]; // The collection names used for vector queries.
-  createdBy: string;
-  created: Date;
-  // Optional: distinguish between official and local model
-  modelType?: 'official' | 'local';
+  type: 'personal' | 'official';
+  collections: string[];
+  createdBy: Schema.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-const modelSchema = new Schema<IModel>({
-  // Set _id to type String; a default value is generated as a string version of an ObjectId.
-  _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
-  name: { type: String, required: true },
-  collections: { type: [String], default: [] },
-  createdBy: { type: String, required: true },
-  created: { type: Date, default: Date.now },
-  modelType: { type: String, enum: ['official', 'local'], default: 'official' }
-});
+const ModelSchema = new Schema<IModel>(
+  {
+    name: { type: String, required: true },
+    type: { type: String, enum: ['personal', 'official'], required: true },
+    collections: { type: [String], default: [] },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true }
+);
 
-export const ModelModel = mongoose.model<IModel>('Model', modelSchema); 
+export const ModelModel = model<IModel>('Model', ModelSchema); 
