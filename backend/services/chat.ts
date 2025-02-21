@@ -3,6 +3,7 @@ import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 import { ChatHistory } from '../models/ChatHistory';
 import { HydratedDocument } from 'mongoose';
+import { CollectionModel } from '../models/Collection';
 
 interface QueryResult {
   text: string;
@@ -62,6 +63,22 @@ export class ChatService {
    */
   private sanitizeCollectionName(name: string): string {
     return name.replace(/:/g, '-');
+  }
+
+  /**
+   * Looks up collection names from MongoDB using collection IDs
+   */
+  private async getCollectionNames(collectionIds: string[]): Promise<string[]> {
+    try {
+      const collections = await CollectionModel.find({
+        _id: { $in: collectionIds }
+      }).select('name');
+      
+      return collections.map(col => col.name);
+    } catch (error) {
+      console.error('Error looking up collection names:', error);
+      return [];
+    }
   }
 
   private async processBatch(
@@ -127,9 +144,18 @@ export class ChatService {
       typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
     if (collectionsArray.length === 0) return '';
 
-    const sanitizedCollections = collectionsArray.map(name => 
+    // Look up collection names if IDs are provided
+    const actualCollectionNames = await this.getCollectionNames(collectionsArray);
+    if (actualCollectionNames.length === 0) {
+      console.error('No valid collections found for IDs:', collectionsArray);
+      return '';
+    }
+
+    const sanitizedCollections = actualCollectionNames.map(name => 
       this.sanitizeCollectionName(name)
     );
+
+    console.log('Querying collections:', sanitizedCollections);
 
     // Compute query embedding once for all collections
     const queryEmbedding = await chromaService.getQueryEmbedding(query);
