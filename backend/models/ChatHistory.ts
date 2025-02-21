@@ -1,39 +1,5 @@
 import mongoose from 'mongoose';
 
-interface IChatMessage {
-  id: number;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: Date;
-  images?: Array<{
-    data: string;
-    mediaType: string;
-  }>;
-  sources?: {
-    modelId: string;
-    collectionName: string;
-    filename: string;
-    similarity: number;
-  }[];
-}
-
-interface IChatHistory {
-  userId: string;
-  modelId: string;
-  collectionName: string;
-  messages: IChatMessage[];
-  createdAt: Date;
-  updatedAt: Date;
-  sources: {
-    modelId: string;
-    collectionName: string;
-    documents: {
-      filename: string;
-      similarity: number;
-    }[];
-  }[];
-}
-
 const chatHistorySchema = new mongoose.Schema({
   userId: { type: String, required: true },
   modelId: { type: String, required: true },
