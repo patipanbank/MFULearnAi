@@ -85,6 +85,19 @@ interface ModelCardProps {
 const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelete }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
 
+  const getModelTypeStyle = (type: string) => {
+    switch (type) {
+      case 'official':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+      case 'staff_only':
+        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'personal':
+        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
+      default:
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
+    }
+  };
+
   return (
     <div
       className="relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md 
@@ -138,9 +151,10 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
 
       <div className="flex flex-col h-full">
         <div className="mb-4">
-          <div className="inline-block px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-md
-            text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
-            {model.modelType}
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getModelTypeStyle(model.modelType)}`}>
+              {model.modelType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+            </span>
           </div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
             {model.name}

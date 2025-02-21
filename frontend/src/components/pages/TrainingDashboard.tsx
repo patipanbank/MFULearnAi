@@ -240,75 +240,104 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   onDropdownToggle,
   onSettings,
   onDelete,
-}) => (
-  <div
-    className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm 
-    hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 
-    dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
-    transform hover:scale-[1.02]"
-    onClick={onSelect}
-  >
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onDropdownToggle();
-      }}
-      className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 
-      dark:text-gray-500 dark:hover:text-gray-300 rounded-full
-      hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-      title="Options"
+}) => {
+  const getPermissionStyle = (permission?: string) => {
+    switch (permission) {
+      case 'PRIVATE':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
+      case 'STAFF_ONLY':
+        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'PUBLIC':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+      default:
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
+    }
+  };
+
+  const getPermissionLabel = (permission?: string) => {
+    switch (permission) {
+      case 'PRIVATE':
+        return 'Private';
+      case 'STAFF_ONLY':
+        return 'Staff Only';
+      case 'PUBLIC':
+        return 'Public';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  return (
+    <div
+      className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm 
+      hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 
+      dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
+      transform hover:scale-[1.02]"
+      onClick={onSelect}
     >
-      <FaEllipsisH size={16} />
-    </button>
-    {activeDropdown && (
-      <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
-      shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
-      backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onSettings();
-          }}
-          className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
-          hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-        >
-          <FaCog className="mr-2" size={14} />
-          <span>Settings</span>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
-          hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-        >
-          <FaTrash className="mr-2" size={14} />
-          <span>Delete</span>
-        </button>
-      </div>
-    )}
-    <div className="flex flex-col h-full">
-      <div className="mb-4">
-        <div className="inline-block px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-md
-          text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
-          Collection
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDropdownToggle();
+        }}
+        className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 
+        dark:text-gray-500 dark:hover:text-gray-300 rounded-full
+        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+        title="Options"
+      >
+        <FaEllipsisH size={16} />
+      </button>
+      {activeDropdown && (
+        <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
+        shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
+        backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSettings();
+            }}
+            className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+          >
+            <FaCog className="mr-2" size={14} />
+            <span>Settings</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
+            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+          >
+            <FaTrash className="mr-2" size={14} />
+            <span>Delete</span>
+          </button>
         </div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
-          {collection.name}
-        </h2>
-      </div>
-      <div className="mt-auto space-y-1">
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          {collection.createdBy}
-        </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {getRelativeTime(collection.created)}
-        </p>
+      )}
+      <div className="flex flex-col h-full">
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
+              {getPermissionLabel(collection.permission)}
+            </span>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+            {collection.name}
+          </h2>
+        </div>
+        <div className="mt-auto space-y-1">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {collection.createdBy}
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {getRelativeTime(collection.created)}
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ----------------------
 // Collection Modal (File Management)
@@ -533,14 +562,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        event.preventDefault();
-        event.stopPropagation();
         onClose();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside, true); // Using capture phase
-    return () => document.removeEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
   return (
@@ -554,7 +581,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             Update your collection settings and permissions.
           </p>
         </div>
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onSubmit(e);
+        }} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Collection Name
@@ -596,7 +627,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
               className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
               text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
               transform transition-all duration-200"
@@ -727,12 +762,16 @@ const TrainingDashboard: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update collection');
+        const errorData = await response.text();
+        throw new Error(errorData || 'Failed to update collection');
       }
 
       const updatedCollection = await response.json();
 
-      // Update the collections list with the new data
+      // First close the settings modal to prevent any state updates on unmounted component
+      setShowSettings(false);
+
+      // Then update the collections list with the new data
       setCollections(prevCollections =>
         prevCollections.map(col =>
           col.id === selectedCollection.id
@@ -759,9 +798,6 @@ const TrainingDashboard: React.FC = () => {
           : prev
       );
 
-      // Close the settings modal
-      setShowSettings(false);
-
       // Refresh the uploaded files with the new collection name
       if (updatedCollection.name !== selectedCollection.name) {
         await fetchUploadedFiles(updatedCollection.name);
@@ -769,7 +805,7 @@ const TrainingDashboard: React.FC = () => {
 
     } catch (error) {
       console.error('Error updating collection:', error);
-      alert('Failed to update collection. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to update collection. Please try again.');
     }
   };
 
