@@ -78,26 +78,36 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onSearchChange,
   onNewCollectionToggle,
 }) => (
-  <header className="mb-6">
-    <div className="flex items-center justify-between">
-      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Collection</h1>
-    </div>
-    <div className="mt-4 flex items-center">
-      <input
-        type="text"
-        placeholder="Search Collection"
-        value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
-        className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
+  <header className="mb-8">
+    <div className="flex items-center justify-between mb-6">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Training Dashboard</h1>
       <button
-        type="button"
         onClick={onNewCollectionToggle}
-        className="ml-2 text-xl p-2 text-blue-500 hover:text-blue-600 transition duration-150"
+        className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 
+        dark:hover:bg-blue-600 text-white rounded-lg transition-all duration-200 space-x-2"
         title="Create Collection"
       >
-        <FaPlus />
+        <FaPlus size={16} />
+        <span className="font-medium">New Collection</span>
       </button>
+    </div>
+    <div className="relative">
+      <input
+        type="text"
+        placeholder="Search collections..."
+        value={searchQuery}
+        onChange={(e) => onSearchChange(e.target.value)}
+        className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 
+        bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+        placeholder-gray-500 dark:placeholder-gray-400
+        focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+        transition-all duration-200"
+      />
+      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+        <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+      </div>
     </div>
   </header>
 );
@@ -122,43 +132,66 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
   onSubmit,
   onCancel,
 }) => (
-  <BaseModal onClose={onCancel} containerClasses="w-80">
-    <div className="mb-4">
-      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">
+  <BaseModal onClose={onCancel} containerClasses="w-96">
+    <div className="mb-6">
+      <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
         Create New Collection
       </h3>
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        Create a new collection to organize your training documents.
+      </p>
     </div>
-    <form onSubmit={onSubmit}>
-      <div className="mb-4">
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Collection Name
+        </label>
         <input
           type="text"
-          placeholder="New Collection Name"
+          placeholder="Enter collection name"
           value={newCollectionName}
           onChange={(e) => onNameChange(e.target.value)}
-          className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+          placeholder-gray-500 dark:placeholder-gray-400"
         />
       </div>
-      <div className="mb-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Access Permission
+        </label>
         <select
           value={newCollectionPermission}
           onChange={(e) => onPermissionChange(e.target.value)}
-          className="w-full border border-gray-300 dark:border-gray-600 rounded px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
         >
-          <option value="PRIVATE">Private</option>
-          <option value="STAFF_ONLY">Staff Only</option>
-          <option value="PUBLIC">Public</option>
+          <option value="PRIVATE">Private - Only you can access</option>
+          <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
+          <option value="PUBLIC">Public - Everyone can access</option>
         </select>
       </div>
-      <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-150">
-        Create Collection
-      </button>
-      <button
-        type="button"
-        onClick={onCancel}
-        className="mt-2 w-full text-red-500 hover:text-red-600 transition duration-150"
-      >
-        Cancel
-      </button>
+      <div className="flex flex-col space-y-2 pt-4">
+        <button
+          type="submit"
+          className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
+          dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
+          transform transition-all duration-200"
+        >
+          Create Collection
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+          transform transition-all duration-200"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   </BaseModal>
 );
@@ -184,7 +217,9 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   onDelete,
 }) => (
   <div
-    className="relative border border-gray-200 dark:border-gray-700 rounded p-4 shadow transform hover:scale-105 hover:shadow-lg transition duration-200 cursor-pointer bg-white dark:bg-gray-900"
+    className="group relative bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm 
+    hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 
+    dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
     onClick={onSelect}
   >
     <button
@@ -192,37 +227,58 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
         e.stopPropagation();
         onDropdownToggle();
       }}
-      className="absolute top-2 right-2 p-1 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 transition duration-150"
+      className="absolute top-3 right-3 p-2 text-gray-400 hover:text-gray-600 
+      dark:text-gray-500 dark:hover:text-gray-300 rounded-full
+      hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
       title="Options"
     >
-      <FaEllipsisH />
+      <FaEllipsisH size={16} />
     </button>
     {activeDropdown && (
-      <div className="absolute top-10 right-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow z-10">
+      <div className="absolute top-12 right-3 bg-white dark:bg-gray-700 rounded-lg 
+      shadow-lg border border-gray-200 dark:border-gray-600 overflow-hidden z-20">
         <button
           onClick={(e) => {
             e.stopPropagation();
             onSettings();
           }}
-          className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left text-gray-800 dark:text-gray-100"
+          className="flex items-center w-full px-4 py-2 text-gray-700 dark:text-gray-200 
+          hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
         >
-          Settings
+          <FaCog className="mr-2" size={14} />
+          <span>Settings</span>
         </button>
         <button
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left text-gray-800 dark:text-gray-100"
+          className="flex items-center w-full px-4 py-2 text-red-600 dark:text-red-400 
+          hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
         >
-          Delete
+          <FaTrash className="mr-2" size={14} />
+          <span>Delete</span>
         </button>
       </div>
     )}
-    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Collection</div>
-    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">{collection.name}</h2>
-    <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">By {collection.createdBy}</p>
-    <p className="text-sm text-gray-500 dark:text-gray-400">{getRelativeTime(collection.created)}</p>
+    <div className="flex flex-col h-full">
+      <div className="mb-4">
+        <div className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-1">
+          Collection
+        </div>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+          {collection.name}
+        </h2>
+      </div>
+      <div className="mt-auto">
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+          Created by {collection.createdBy}
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {getRelativeTime(collection.created)}
+        </p>
+      </div>
+    </div>
   </div>
 );
 
@@ -399,35 +455,65 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onSubmit,
 }) => (
-  <BaseModal onClose={onClose} containerClasses="w-80">
-    <div className="mb-4">
-      <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Collection Settings</h3>
+  <BaseModal onClose={onClose} containerClasses="w-96">
+    <div className="mb-6">
+      <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+        Collection Settings
+      </h3>
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        Update your collection settings and permissions.
+      </p>
     </div>
-    <form onSubmit={onSubmit}>
-      <div className="mb-4">
-        <label className="block mb-1 text-gray-800 dark:text-gray-100">Collection Name</label>
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Collection Name
+        </label>
         <input
           type="text"
           value={updatedCollectionName}
           onChange={(e) => onNameChange(e.target.value)}
-          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+          placeholder-gray-500 dark:placeholder-gray-400"
         />
       </div>
-      <div className="mb-4">
-        <label className="block mb-1 text-gray-800 dark:text-gray-100">Permission</label>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Access Permission
+        </label>
         <select
           value={updatedCollectionPermission}
           onChange={(e) => onPermissionChange(e.target.value)}
-          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
         >
-          <option value="PRIVATE">Private</option>
-          <option value="STAFF_ONLY">Staff Only</option>
-          <option value="PUBLIC">Public</option>
+          <option value="PRIVATE">Private - Only you can access</option>
+          <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
+          <option value="PUBLIC">Public - Everyone can access</option>
         </select>
       </div>
-      <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded w-full transition duration-150">
-        Save Changes
-      </button>
+      <div className="flex flex-col space-y-2 pt-4">
+        <button
+          type="submit"
+          className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
+          dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
+          transform transition-all duration-200"
+        >
+          Save Changes
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+          text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+          transform transition-all duration-200"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   </BaseModal>
 );
@@ -530,6 +616,190 @@ const TrainingDashboard: React.FC = () => {
     }
   }, [selectedCollection, fetchUploadedFiles]);
 
+  // Update settings handler with real-time sync
+  const handleUpdateSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedCollection) return;
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/training/collections/${selectedCollection.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          name: updatedCollectionName,
+          permission: updatedCollectionPermission,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update collection');
+      }
+
+      const updatedCollection = await response.json();
+
+      // Update the collections list with the new data
+      setCollections(prevCollections =>
+        prevCollections.map(col =>
+          col.id === selectedCollection.id
+            ? {
+                ...col,
+                name: updatedCollection.name,
+                permission: updatedCollection.permission,
+                // Preserve other fields that might not be returned by the API
+                created: col.created,
+                createdBy: col.createdBy,
+              }
+            : col
+        )
+      );
+
+      // Update the selected collection if it's currently open
+      setSelectedCollection(prev => 
+        prev?.id === selectedCollection.id
+          ? {
+              ...prev,
+              name: updatedCollection.name,
+              permission: updatedCollection.permission,
+            }
+          : prev
+      );
+
+      // Close the settings modal
+      setShowSettings(false);
+
+      // Refresh the uploaded files with the new collection name
+      if (updatedCollection.name !== selectedCollection.name) {
+        await fetchUploadedFiles(updatedCollection.name);
+      }
+
+    } catch (error) {
+      console.error('Error updating collection:', error);
+      alert('Failed to update collection. Please try again.');
+    }
+  };
+
+  // Add real-time update effect
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const updateCollectionData = async () => {
+      if (selectedCollection) {
+        try {
+          const response = await fetch(
+            `${config.apiUrl}/api/training/collections/${selectedCollection.id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${authToken}`,
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch collection update');
+          }
+
+          const updatedData = await response.json();
+
+          // Update collection in the list
+          setCollections(prevCollections =>
+            prevCollections.map(col =>
+              col.id === selectedCollection.id
+                ? {
+                    ...col,
+                    ...updatedData,
+                    // Preserve fields that might not be returned by the API
+                    created: col.created,
+                    createdBy: col.createdBy,
+                  }
+                : col
+            )
+          );
+
+          // Update selected collection if it's open
+          setSelectedCollection(prev =>
+            prev?.id === selectedCollection.id
+              ? {
+                  ...prev,
+                  ...updatedData,
+                }
+              : prev
+          );
+
+          // Refresh files if collection is selected
+          await fetchUploadedFiles(updatedData.name);
+        } catch (error) {
+          console.error('Error in real-time update:', error);
+        }
+      }
+    };
+
+    // Set up polling interval for real-time updates
+    if (selectedCollection) {
+      intervalId = setInterval(updateCollectionData, 5000); // Poll every 5 seconds
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [selectedCollection, authToken, fetchUploadedFiles]);
+
+  // Modify the collection selection handler
+  const handleCollectionSelect = async (collection: Collection) => {
+    setSelectedCollection(collection);
+    try {
+      // Fetch fresh data when selecting a collection
+      const response = await fetch(
+        `${config.apiUrl}/api/training/collections/${collection.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch collection details');
+      }
+
+      const freshData = await response.json();
+
+      // Update collection in the list
+      setCollections(prevCollections =>
+        prevCollections.map(col =>
+          col.id === collection.id
+            ? {
+                ...col,
+                ...freshData,
+                // Preserve fields that might not be returned by the API
+                created: col.created,
+                createdBy: col.createdBy,
+              }
+            : col
+        )
+      );
+
+      // Update selected collection
+      setSelectedCollection(prev =>
+        prev?.id === collection.id
+          ? {
+              ...prev,
+              ...freshData,
+            }
+          : prev
+      );
+
+      // Fetch associated files
+      await fetchUploadedFiles(freshData.name);
+    } catch (error) {
+      console.error('Error fetching collection details:', error);
+    }
+  };
+
   // ----------------------
   // Event Handlers
   // ----------------------
@@ -601,35 +871,6 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  const handleUpdateSettings = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!selectedCollection) return;
-    try {
-      const response = await fetch(`${config.apiUrl}/api/training/collections/${selectedCollection.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          name: updatedCollectionName,
-          permission: updatedCollectionPermission,
-        }),
-      });
-      if (response.ok) {
-        alert('Collection updated successfully');
-        setSelectedCollection({ ...selectedCollection, name: updatedCollectionName, permission: updatedCollectionPermission });
-        setShowSettings(false);
-        fetchCollections();
-        fetchUploadedFiles(updatedCollectionName);
-      } else {
-        alert('Failed to update collection');
-      }
-    } catch (error) {
-      console.error('Error updating collection:', error);
-    }
-  };
-
   const handleDeleteCollection = async (collection: Collection) => {
     if (!window.confirm(`Are you sure you want to delete collection "${collection.name}"?`)) return;
     try {
@@ -695,7 +936,7 @@ const TrainingDashboard: React.FC = () => {
             <CollectionCard
               key={collection.id}
               collection={collection}
-              onSelect={() => setSelectedCollection(collection)}
+              onSelect={() => handleCollectionSelect(collection)}
               activeDropdown={activeDropdownId === collection.id}
               onDropdownToggle={() =>
                 setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
