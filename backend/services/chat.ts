@@ -56,8 +56,15 @@ export class ChatService {
     if (collectionsArray.length === 0) return '';
 
     const sanitizedCollections = collectionsArray.map((name) => this.sanitizeCollectionName(name));
+
+    // Precompute the query embedding once rather than per collection.
+    const queryEmbedding = await chromaService.getQueryEmbedding(query);
+
+    // Use the precomputed embedding to query each collection.
     const contexts = await Promise.all(
-      sanitizedCollections.map((name) => chromaService.queryDocuments(name, query, 5))
+      sanitizedCollections.map(name =>
+        chromaService.queryDocumentsWithEmbedding(name, queryEmbedding, 5)
+      )
     );
     return contexts.join("\n\n");
   }

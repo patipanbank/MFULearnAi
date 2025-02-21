@@ -132,21 +132,49 @@ class ChromaService {
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, n_results: number = 10) {
+  // ──────────────────────────────────────────────────────────────
+  // New method: Computes and returns the embedding vector for a given query.
+  async getQueryEmbedding(query: string): Promise<number[]> {
+    try {
+      const embedding = await this.titanEmbedService.embedText(query);
+      return embedding;
+    } catch (error) {
+      console.error('Error computing query embedding:', error);
+      throw error;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // New method: Performs a similarity search on a collection using a provided embedding.
+  // Returns concatenated document chunks.
+  async queryDocumentsWithEmbedding(collectionName: string, queryEmbedding: number[], n_results: number = 10): Promise<string> {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
-
-      // Embed the query explicitly using TitanEmbedService
-      const queryEmbedding = await this.titanEmbedService.embedText(query);
-
-      // Use the embedded query vector for the similarity search:
       const results = await collection.query({
         queryEmbeddings: [queryEmbedding],
         nResults: n_results,
         where: { processed: true }
       });
+      const concatenated = results.documents ? results.documents.join("\n\n") : "";
+      return concatenated;
+    } catch (error) {
+      console.error(`Error querying collection ${collectionName} with embedding:`, error);
+      throw error;
+    }
+  }
 
+  async queryDocuments(collectionName: string, query: string, n_results: number = 10) {
+    try {
+      await this.initCollection(collectionName);
+      const collection = this.collections.get(collectionName);
+      // This method is now deprecated in favor of queryDocumentsWithEmbedding.
+      const queryEmbedding = await this.titanEmbedService.embedText(query);
+      const results = await collection.query({
+        queryEmbeddings: [queryEmbedding],
+        nResults: n_results,
+        where: { processed: true }
+      });
       return results;
     } catch (error) {
       console.error('Error querying ChromaDB:', error);
