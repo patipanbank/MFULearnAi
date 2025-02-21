@@ -1,4 +1,8 @@
 declare namespace Express {
+  export interface Request {
+    samlLogoutRequest?: any;
+  }
+  
   export interface User {
     _id: string;
     role: string;
