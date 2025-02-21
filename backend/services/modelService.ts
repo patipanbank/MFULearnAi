@@ -59,6 +59,14 @@ export class ModelService {
     }
     return model;
   }
+
+  async deleteModel(modelId: string): Promise<IModel | null> {
+    return await ModelModel.findByIdAndDelete(modelId);
+  }
+
+  async getModelsByUser(userId: string): Promise<IModel[]> {
+    return await ModelModel.find({ createdBy: userId });
+  }
 }
 
 export const modelService = new ModelService(); 

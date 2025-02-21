@@ -309,11 +309,12 @@ const ModelCreation: React.FC = () => {
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
 
   // For backend integration, fetch models from the API rather than localStorage
+  const MODEL_ROUTE = `${config.apiUrl}/api/model`;
   useEffect(() => {
     (async () => {
       try {
         const authToken = localStorage.getItem('auth_token');
-        const response = await fetch(`${config.apiUrl}/api/model`, {
+        const response = await fetch(MODEL_ROUTE, {
           headers: { 'Authorization': `Bearer ${authToken}` }
         });
         if (response.ok) {
