@@ -1,27 +1,16 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 // import { FaComments, FaBars, FaCog, FaHistory, FaSignOutAlt } from 'react-icons/fa';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaPlus, FaPen } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt } from 'react-icons/fa';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
-import { useState, useEffect } from 'react';
-import { config } from '../../config/config';
 
 interface SidebarProps {
   onClose?: () => void;
-}
-
-interface ChatHistory {
-  _id: string;
-  title: string;
-  created: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const isStaff = userData.groups?.includes('Staffs');
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
@@ -34,57 +23,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       window.location.href = '/login';
     }
   };
-
-  const fetchChatHistory = async () => {
-    try {
-      const response = await fetch(`${config.apiUrl}/api/chat/chat-history`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      const data = await response.json();
-      setChatHistory(data);
-    } catch (error) {
-      console.error('Failed to fetch chat history:', error);
-    }
-  };
-
-  const createNewChat = async () => {
-    try {
-      const response = await fetch(`${config.apiUrl}/api/chat/new-chat`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      const newChat = await response.json();
-      navigate(`/chat/${newChat._id}`);
-      fetchChatHistory();
-    } catch (error) {
-      console.error('Failed to create new chat:', error);
-    }
-  };
-
-  const renameChat = async (chatId: string, newTitle: string) => {
-    try {
-      await fetch(`${config.apiUrl}/api/chat/rename-chat/${chatId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({ title: newTitle })
-      });
-      setEditingId(null);
-      fetchChatHistory();
-    } catch (error) {
-      console.error('Failed to rename chat:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchChatHistory();
-  }, []);
 
   return (
     <aside className="flex flex-col h-full">
@@ -159,51 +97,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             </Link>
           )} */}
         </nav>
-
-        <div className="p-4">
-          <button
-            onClick={createNewChat}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 p-2 rounded"
-          >
-            <FaPlus /> New Chat
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {chatHistory.map((chat) => (
-            <div key={chat._id} className="p-2 hover:bg-gray-700">
-              {editingId === chat._id ? (
-                <input
-                  type="text"
-                  defaultValue={chat.title}
-                  onBlur={(e) => renameChat(chat._id, e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      renameChat(chat._id, e.currentTarget.value);
-                    }
-                  }}
-                  className="bg-gray-600 text-white p-1 rounded w-full"
-                  autoFocus
-                />
-              ) : (
-                <div className="flex items-center justify-between">
-                  <Link to={`/chat/${chat._id}`} className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <FaComments />
-                      <span>{chat.title}</span>
-                    </div>
-                  </Link>
-                  <button
-                    onClick={() => setEditingId(chat._id)}
-                    className="p-1 hover:bg-gray-600 rounded"
-                  >
-                    <FaPen size={12} />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="flex-none p-4 border-t">
