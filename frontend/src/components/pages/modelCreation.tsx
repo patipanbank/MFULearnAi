@@ -31,7 +31,7 @@ interface Collection {
   name: string;
   createdBy: string;
   created: string;
-  permission?: string;
+  permission: 'public' | 'private' | string[] | undefined;
 }
 
 /* -------------------------------
@@ -289,15 +289,23 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   onConfirm,
   onClose,
 }) => {
-  // Handle confirm with animation
-  const handleConfirm = () => {
-    const button = document.getElementById('confirm-button');
-    if (button) {
-      button.classList.add('scale-95');
-      setTimeout(() => {
-        button.classList.remove('scale-95');
-        onConfirm();
-      }, 150);
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  // Filter collections based on search query
+  const filteredCollections = availableCollections.filter(collection =>
+    collection.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Handle confirm with loading state
+  const handleConfirm = async () => {
+    if (isConfirming) return;
+    setIsConfirming(true);
+    try {
+      await onConfirm();
+    } catch (error) {
+      console.error('Error confirming collections:', error);
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -340,41 +348,54 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
         </div>
 
         {/* Collections Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {availableCollections.map((collection) => (
-            <div
-              key={collection.id}
-              onClick={() => toggleCollectionSelection(collection.name)}
-              className={`group p-4 rounded-xl cursor-pointer border-2 transition-all duration-300
-                transform hover:scale-[1.02] ${
-                selectedCollections.includes(collection.name)
-                  ? 'border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/30 shadow-md'
-                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
-                }`}
-            >
-              <div className="flex items-start justify-between">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
-                  {collection.name}
-                </h4>
-                <div className={`w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                  selectedCollections.includes(collection.name)
-                    ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
-                    : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-300 dark:group-hover:border-blue-600'
-                }`}>
-                  {selectedCollections.includes(collection.name) && (
-                    <FaCheck size={12} className="text-white" />
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-2">
-                <FaUser className="mr-2" size={12} />
-                <span className="truncate">{collection.createdBy}</span>
-              </div>
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-500">
-                {getRelativeTime(collection.created)}
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 min-h-[300px]">
+          {filteredCollections.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 py-8">
+              <FaLayerGroup size={48} className="mb-4 opacity-50" />
+              <p className="text-lg font-medium">No collections found</p>
+              <p className="text-sm mt-2">Try adjusting your search query</p>
             </div>
-          ))}
+          ) : (
+            filteredCollections.map((collection) => (
+              <div
+                key={collection.id}
+                onClick={() => toggleCollectionSelection(collection.name)}
+                className={`group p-4 rounded-xl cursor-pointer border-2 transition-all duration-300
+                  transform hover:scale-[1.02] ${
+                  selectedCollections.includes(collection.name)
+                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/30 shadow-md'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
+                  }`}
+              >
+                <div className="flex items-start justify-between">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+                    {collection.name}
+                  </h4>
+                  <div className={`w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                    selectedCollections.includes(collection.name)
+                      ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
+                      : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-300 dark:group-hover:border-blue-600'
+                  }`}>
+                    {selectedCollections.includes(collection.name) && (
+                      <FaCheck size={12} className="text-white" />
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  <FaUser className="mr-2" size={12} />
+                  <span className="truncate">{collection.createdBy}</span>
+                </div>
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                  {getRelativeTime(collection.created)}
+                </div>
+                {collection.permission === 'public' && (
+                  <span className="mt-2 inline-block px-2 py-1 text-xs font-medium text-green-600 bg-green-100 rounded-full">
+                    Public
+                  </span>
+                )}
+              </div>
+            ))
+          )}
         </div>
 
         {/* Bottom Action Bar */}
@@ -389,16 +410,28 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
               text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
               transition-all duration-200"
+              disabled={isConfirming}
             >
               Cancel
             </button>
             <button
               onClick={handleConfirm}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 
-              hover:from-blue-700 hover:to-blue-800 text-white font-medium 
-              transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
+              disabled={isConfirming || selectedCollections.length === 0}
+              className={`px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 
+              text-white font-medium transition-all duration-200 transform 
+              ${isConfirming ? 'opacity-75 cursor-not-allowed' : 'hover:from-blue-700 hover:to-blue-800 hover:scale-[1.02] shadow-md hover:shadow-lg'}`}
             >
-              Confirm Selection
+              {isConfirming ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Confirming...
+                </span>
+              ) : (
+                'Confirm Selection'
+              )}
             </button>
           </div>
         </div>
@@ -667,13 +700,89 @@ const ModelCreation: React.FC = () => {
   };
 
   // Confirm the selection and update the model
-  const confirmCollections = () => {
-    if (editingModel) {
-      const updatedModel: Model = { ...editingModel, collections: selectedCollections };
-      setModels((prev) =>
-        prev.map((m) => (m.id === editingModel.id ? updatedModel : m))
+  const confirmCollections = async () => {
+    if (!editingModel) return;
+
+    try {
+      // Validate selection
+      if (selectedCollections.length === 0) {
+        alert('Please select at least one collection');
+        return;
+      }
+
+      // Validate that all selected collections exist in available collections
+      const validCollections = selectedCollections.every(collectionName => 
+        availableCollections.some(collection => collection.name === collectionName)
       );
-      setEditingModel(null);
+
+      if (!validCollections) {
+        alert('Some selected collections are no longer available');
+        return;
+      }
+
+      if (editingModel.modelType === 'personal') {
+        // Update personal model in localStorage
+        const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
+        const updatedPersonal = storedPersonal.map((m: Model) =>
+          m.id === editingModel.id ? { ...m, collections: selectedCollections } : m
+        );
+        localStorage.setItem('personalModels', JSON.stringify(updatedPersonal));
+
+        // Update state
+        setModels(prev =>
+          prev.map(m =>
+            m.id === editingModel.id ? { ...m, collections: selectedCollections } : m
+          )
+        );
+
+        // Clear editing state
+        setEditingModel(null);
+        setSelectedCollections([]);
+      } else {
+        // Update official/staff model in database
+        const authToken = localStorage.getItem('auth_token');
+        if (!authToken) {
+          alert('Authentication token not found. Please login again.');
+          return;
+        }
+
+        const response = await fetch(`${config.apiUrl}/api/models/${editingModel.id}/collections`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            collections: selectedCollections,
+            modelType: editingModel.modelType
+          }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => null);
+          throw new Error(errData?.message || 'Failed to update model collections');
+        }
+
+        // Get updated model from response
+        const updatedModel = await response.json();
+
+        // Update state with response data
+        setModels(prev =>
+          prev.map(m =>
+            m.id === editingModel.id ? {
+              ...m,
+              collections: updatedModel.collections || selectedCollections
+            } : m
+          )
+        );
+
+        // Clear editing state
+        setEditingModel(null);
+        setSelectedCollections([]);
+      }
+    } catch (error) {
+      console.error('Error updating collections:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update collections. Please try again.');
     }
   };
 
@@ -682,6 +791,13 @@ const ModelCreation: React.FC = () => {
     setIsCollectionsLoading(true);
     try {
       const authToken = localStorage.getItem('auth_token');
+      if (!authToken) throw new Error('No auth token found');
+
+      // Get user info from token
+      const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
+      const userRole = tokenPayload.role || '';
+      const userId = tokenPayload.sub || '';
+
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -689,9 +805,27 @@ const ModelCreation: React.FC = () => {
       });
       if (!response.ok) throw new Error('Failed to fetch collections');
       const data = await response.json();
-      setAvailableCollections(data);
+
+      // Filter collections based on permissions
+      const filteredCollections = data.filter((collection: Collection) => {
+        // Staff can see all collections
+        if (userRole === 'Staffs') return true;
+        
+        // Users can see:
+        // 1. Their own collections
+        // 2. Collections with public permission
+        // 3. Collections they have explicit permission for
+        return (
+          collection.createdBy === userId ||
+          collection.permission === 'public' ||
+          (collection.permission && collection.permission.includes(userId))
+        );
+      });
+
+      setAvailableCollections(filteredCollections);
     } catch (error) {
       console.error('Error fetching collections:', error);
+      alert('Failed to fetch collections. Please try again.');
     } finally {
       setIsCollectionsLoading(false);
     }
