@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
+import { BiLoaderAlt } from 'react-icons/bi';
 
 const ModelCreation: React.FC = () => {
   const [modelName, setModelName] = useState('');
@@ -9,34 +10,36 @@ const ModelCreation: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Fetch collections to populate the dropdown for custom model creation.
+  // Fetch collections only when modelType is custom.
   useEffect(() => {
-    const fetchCollections = async () => {
-      const token = localStorage.getItem('auth_token');
-      if (!token) return;
-      try {
-        const response = await fetch(`${config.apiUrl}/api/chat/collections`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const collectionsData = await response.json();
-          if (Array.isArray(collectionsData)) {
-            setCollections(collectionsData);
-            // Select the first collection by default if available.
-            if (collectionsData.length && modelType === 'custom' && !selectedCollection) {
-              setSelectedCollection(collectionsData[0]);
+    if (modelType === 'custom') {
+      const fetchCollections = async () => {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+        try {
+          const response = await fetch(`${config.apiUrl}/api/chat/collections`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (response.ok) {
+            const collectionsData = await response.json();
+            if (Array.isArray(collectionsData)) {
+              setCollections(collectionsData);
+              if (collectionsData.length > 0 && !selectedCollection) {
+                setSelectedCollection(collectionsData[0]);
+              }
             }
+          } else {
+            console.error('Failed to fetch collections');
+            setMessage('Failed to fetch collections.');
           }
-        } else {
-          console.error('Failed to fetch collections');
+        } catch (err) {
+          console.error(err);
+          setMessage('Error occurred while fetching collections.');
         }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchCollections();
-  }, [modelType, selectedCollection]);
+      };
+      fetchCollections();
+    }
+  }, [modelType]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,8 +56,7 @@ const ModelCreation: React.FC = () => {
       return;
     }
 
-    // Build the payload. For a custom model, include the chosen collection name;
-    // the default model will not include any collection.
+    // Build the payload. For a custom model, include the chosen collection name.
     const payload: any = {
       name: modelName,
       type: modelType,
@@ -76,7 +78,7 @@ const ModelCreation: React.FC = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        await response.json();
         setMessage('Model created successfully!');
         setModelName('');
       } else {
@@ -173,9 +175,9 @@ const ModelCreation: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors"
+            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
           >
-            {loading ? 'Creating...' : 'Create Model'}
+            {loading ? <BiLoaderAlt className="w-6 h-6 animate-spin" /> : 'Create Model'}
           </button>
         </form>
       </div>
