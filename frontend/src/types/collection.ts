@@ -1,12 +1,13 @@
 export enum CollectionPermission {
-  PUBLIC = 'public',
-  STAFF_ONLY = 'staff_only',
-  PRIVATE = 'private'
+  PUBLIC = 'PUBLIC',
+  STAFF_ONLY = 'STAFF_ONLY',
+  PRIVATE = 'PRIVATE'
 }
 
 export interface Collection {
+  id: string;
   name: string;
-  permission: CollectionPermission;
+  permission: CollectionPermission | string;
   createdBy: string;
-  created: Date;
+  created: string;
 } 

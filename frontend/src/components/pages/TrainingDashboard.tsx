@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
+import { Collection, CollectionPermission } from '../../types/collection';
 
 // ----------------------
 // Type Definitions
 // ----------------------
-interface Collection {
-  id: string;
-  name: string;
-  createdBy: string;
-  created: string;
-  permission?: string;
-}
-
 interface UserInfo {
   username: string;
   role: 'USER' | 'STAFF' | 'ADMIN';
@@ -30,6 +23,7 @@ interface MongoCollection {
   name: string;
   createdBy?: string;
   created?: string;
+  createdAt?: string;
   permission?: string;
 }
 
@@ -728,6 +722,8 @@ const TrainingDashboard: React.FC = () => {
     
     setIsCollectionsLoading(true);
     try {
+      console.log('Fetching collections with user info:', userInfo);
+      
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -735,43 +731,68 @@ const TrainingDashboard: React.FC = () => {
         },
       });
       
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch collections');
+        const errorText = await response.text();
+        console.error('Failed to fetch collections:', response.status, errorText);
+        throw new Error(`Failed to fetch collections: ${errorText}`);
       }
 
+      const data = await response.json();
+      console.log('Raw collections data:', data);
+
       if (!Array.isArray(data)) {
+        console.error('Invalid data format received:', data);
         throw new Error('Invalid data format received from server');
       }
 
-      const collectionsWithDate: Collection[] = data
+      const collectionsWithDate = data
         .filter((collection: MongoCollection) => {
-          if (!collection._id || !collection.name) return false;
+          if (!collection._id || !collection.name) {
+            console.log('Filtering out collection due to missing id or name:', collection);
+            return false;
+          }
           
-          // Filter based on permissions
-          switch (collection.permission) {
-            case 'PUBLIC':
+          const permission = collection.permission?.toUpperCase();
+          console.log(`Checking permission for collection "${collection.name}":`, {
+            permission,
+            userRole: userInfo.role,
+            createdBy: collection.createdBy,
+            username: userInfo.username
+          });
+          
+          switch (permission) {
+            case CollectionPermission.PUBLIC:
+              console.log(`Collection "${collection.name}" is public - allowing access`);
               return true;
-            case 'STAFF_ONLY':
-              return userInfo.role === 'STAFF' || userInfo.role === 'ADMIN';
-            case 'PRIVATE':
-              return collection.createdBy === userInfo.username || userInfo.role === 'ADMIN';
+            case CollectionPermission.STAFF_ONLY:
+              const hasStaffAccess = userInfo.role === 'STAFF' || userInfo.role === 'ADMIN';
+              console.log(`Collection "${collection.name}" is staff only - access granted:`, hasStaffAccess);
+              return hasStaffAccess;
+            case CollectionPermission.PRIVATE:
+              const hasPrivateAccess = collection.createdBy === userInfo.username || userInfo.role === 'ADMIN';
+              console.log(`Collection "${collection.name}" is private - access granted:`, hasPrivateAccess);
+              return hasPrivateAccess;
             default:
+              console.log(`Collection "${collection.name}" has unknown permission:`, permission);
               return false;
           }
         })
-        .map((collection: MongoCollection): Collection => ({
-          id: collection._id.toString(),
-          name: collection.name,
-          createdBy: collection.createdBy || 'Unknown',
-          created: collection.created || new Date().toISOString(),
-          permission: collection.permission || 'PRIVATE',
-        }));
+        .map((collection: MongoCollection): Collection => {
+          const mappedCollection = {
+            id: collection._id.toString(),
+            name: collection.name,
+            createdBy: collection.createdBy || 'Unknown',
+            created: collection.created || collection.createdAt || new Date().toISOString(),
+            permission: collection.permission || CollectionPermission.PRIVATE,
+          };
+          console.log('Mapped collection:', mappedCollection);
+          return mappedCollection;
+        });
 
+      console.log('Final filtered collections:', collectionsWithDate);
       setCollections(collectionsWithDate);
     } catch (error) {
-      console.error('Error fetching collections:', error);
+      console.error('Error in fetchCollections:', error);
       alert(error instanceof Error ? error.message : 'Failed to fetch collections');
     } finally {
       setIsCollectionsLoading(false);
