@@ -212,25 +212,24 @@ router.get('/collections', async (req: Request, res: Response) => {
 });
 
 // สร้าง chat session ใหม่
-router.post('/sessions/new', verifyToken, async (req: Request, res: Response) => {
+router.post('/sessions/new', roleGuard(['*']), async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as any).user.id; // จาก roleGuard middleware
     const newChat = new ChatHistory({
       userId,
-      title: 'New Chat', // สามารถให้ผู้ใช้ตั้งชื่อภายหลัง
-      messages: [],
-      modelId: req.body.modelId,
-      collectionName: req.body.collectionName
+      title: 'New Chat',
+      messages: []
     });
     await newChat.save();
     res.json(newChat);
   } catch (error) {
+    console.error('Error creating new chat:', error);
     res.status(500).json({ error: 'Failed to create new chat' });
   }
 });
 
-// ดึงประวัติการสนทนาทั้งหมด
-router.get('/sessions', verifyToken, async (req: Request, res: Response) => {
+// ดึงประวัติการสนทนา
+router.get('/sessions', roleGuard(['*']), async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
     const sessions = await ChatHistory.find({ userId })
@@ -238,6 +237,7 @@ router.get('/sessions', verifyToken, async (req: Request, res: Response) => {
       .sort({ lastUpdated: -1 });
     res.json(sessions);
   } catch (error) {
+    console.error('Error fetching chat sessions:', error);
     res.status(500).json({ error: 'Failed to fetch chat sessions' });
   }
 });
