@@ -5,7 +5,6 @@ import { config } from '../../config/config';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FaPlus } from 'react-icons/fa';
-import Header from '../header/header';
 
 /* -------------------------------
    Type Definitions
@@ -491,214 +490,242 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <>
-      <Header 
-        selectedModel={selectedModel}
-        models={models}
-        onModelSelect={setSelectedModel}
-        showModelSelector={true}
-      />
-      <div className="flex flex-col h-[calc(100vh-4rem)]">
-        {/* Chat history / messages container */}
-        <div className="flex-1 overflow-y-auto px-6 md:px-8 lg:px-12 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40 
-        bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="flex flex-col items-center justify-center mb-1">
-                <div className="w-24 h-24 mb-4 rounded-2xl shadow-xl overflow-hidden transform 
-                hover:scale-105 transition-all duration-300">
-                  <img
-                    src="/mfu_logo_chatbot.PNG"
-                    alt="MFU Logo"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="text-center space-y-2">
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 
-                  dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
-                    Welcome to
-                  </h1>
-                  <div className="text-3xl font-bold">
-                    <span className="bg-gradient-to-r from-red-600 to-yellow-400 bg-clip-text text-transparent">
-                      MFU
-                    </span>{' '}
-                    <span className="bg-gradient-to-r from-gray-900 to-gray-700 
-                    dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">Chat</span>{' '}
-                    <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">
-                      AI
-                    </span>
-                  </div>
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
+      {/* Model Selector Section - Moved to top left */}
+      <div className="fixed top-4 left-4 z-10">
+        <select
+          value={selectedModel?.id || ''}
+          onChange={(e) => {
+            const modelId = e.target.value;
+            const model = models.find((m) => m.id === modelId);
+            if (model) {
+              setSelectedModel(model);
+            }
+          }}
+          className="px-4 py-2.5 text-sm rounded-xl border-0 bg-white dark:bg-gray-700 
+          text-gray-900 dark:text-gray-100 hover:border hover:border-gray-300 dark:hover:border-gray-600
+          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all duration-200 
+          shadow-sm hover:shadow-md"
+        >
+          <option value="">Select Model</option>
+          {models.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Chat history / messages container */}
+      <div className="flex-1 overflow-y-auto px-6 md:px-8 lg:px-12 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40 
+      bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800
+      [&::-webkit-scrollbar]:w-3
+      [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
+      [&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-surface-tertiary,#2b2b2b)]
+      [&::-webkit-scrollbar-thumb]:rounded-full
+      [&::-webkit-scrollbar-thumb]:border-2
+      [&::-webkit-scrollbar-thumb]:border-[var(--sidebar-surface-secondary,#1f1f1f)]
+      [&::-webkit-scrollbar-thumb]:hover:bg-[var(--sidebar-icon,#a4a4a4)]
+      scrollbar-thin
+      scrollbar-track-[var(--sidebar-surface-secondary,#1f1f1f)]
+      scrollbar-thumb-[var(--sidebar-surface-tertiary,#2b2b2b)]
+      hover:scrollbar-thumb-[var(--sidebar-icon,#a4a4a4)]">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full">
+            <div className="flex flex-col items-center justify-center mb-1">
+              <div className="w-24 h-24 mb-4 rounded-2xl shadow-xl overflow-hidden transform 
+              hover:scale-105 transition-all duration-300">
+                <img
+                  src="/mfu_logo_chatbot.PNG"
+                  alt="MFU Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="text-center space-y-2">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 
+                dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                  Welcome to
+                </h1>
+                <div className="text-3xl font-bold">
+                  <span className="bg-gradient-to-r from-red-600 to-yellow-400 bg-clip-text text-transparent">
+                    MFU
+                  </span>{' '}
+                  <span className="bg-gradient-to-r from-gray-900 to-gray-700 
+                  dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">Chat</span>{' '}
+                  <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">
+                    AI
+                  </span>
                 </div>
               </div>
-              <p className="text-lg text-gray-600 dark:text-gray-300 mt-4">
-                How can I help you today?
-              </p>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {messages.map((message) => (
-                <div key={message.id} className="message relative transform transition-all duration-200">
-                  <div className={`flex items-start gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden shadow-md 
-                    transform hover:scale-105 transition-all duration-200 ${
+            <p className="text-lg text-gray-600 dark:text-gray-300 mt-4">
+              How can I help you today?
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {messages.map((message) => (
+              <div key={message.id} className="message relative transform transition-all duration-200">
+                <div className={`flex items-start gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden shadow-md 
+                  transform hover:scale-105 transition-all duration-200 ${
+                    message.role === 'user'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700'
+                      : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800'
+                  } flex items-center justify-center`}>
+                    {message.role === 'user' ? (
+                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <img
+                        src="/dindin.PNG"
+                        alt="AI Assistant"
+                        className="w-full h-full object-cover transform hover:scale-110 transition-all duration-200"
+                      />
+                    )}
+                  </div>
+
+                  <div className={`flex flex-col space-y-2 max-w-[80%] ${
+                    message.role === 'user' ? 'items-end' : 'items-start'
+                  }`}>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </div>
+                    <div className={`rounded-2xl p-4 shadow-md hover:shadow-lg transition-all duration-200 w-full ${
                       message.role === 'user'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700'
-                        : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800'
-                    } flex items-center justify-center`}>
-                      {message.role === 'user' ? (
-                        <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                        </svg>
-                      ) : (
-                        <img
-                          src="/dindin.PNG"
-                          alt="AI Assistant"
-                          className="w-full h-full object-cover transform hover:scale-110 transition-all duration-200"
-                        />
-                      )}
-                    </div>
-
-                    <div className={`flex flex-col space-y-2 max-w-[80%] ${
-                      message.role === 'user' ? 'items-end' : 'items-start'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                        : 'bg-white dark:bg-gray-800 dark:text-white border border-gray-200 dark:border-gray-700'
                     }`}>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </div>
-                      <div className={`rounded-2xl p-4 shadow-md hover:shadow-lg transition-all duration-200 w-full ${
-                        message.role === 'user'
-                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
-                          : 'bg-white dark:bg-gray-800 dark:text-white border border-gray-200 dark:border-gray-700'
-                      }`}>
-                        {(message.role === 'assistant' && message.content === '' && isLoading)
-                          ? <LoadingDots />
-                          : <MessageContent message={message} />
-                        }
-                      </div>
+                      {(message.role === 'assistant' && message.content === '' && isLoading)
+                        ? <LoadingDots />
+                        : <MessageContent message={message} />
+                      }
                     </div>
                   </div>
-
-                  {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                    <div className="ml-14 mt-2">
-                      <button
-                        onClick={() => {
-                          const sourceInfo = message.sources?.map(source =>
-                            `Model: ${source.modelId}\n` +
-                            `Collection: ${source.collectionName}\n` +
-                            `File: ${source.filename}\n` +
-                            `Source: ${source.source || 'N/A'}\n` +
-                            `Similarity: ${(source.similarity * 100).toFixed(1)}%`
-                          ).join('\n\n');
-                          alert(sourceInfo);
-                        }}
-                        className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 
-                        dark:hover:text-blue-300 flex items-center gap-2 px-3 py-1.5 rounded-lg 
-                        bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 
-                        transition-all duration-200"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        View Sources ({message.sources.length})
-                      </button>
-                    </div>
-                  )}
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
 
-        {/* Chat Input Form */}
-        <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 
-        border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] shadow-lg px-6 md:px-8 lg:px-12">
-          <form onSubmit={handleSubmit} className="p-3 md:p-4">
-            <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
-              {/* Image Upload Button */}
-              <div className="flex items-center">
-                <label className="cursor-pointer flex items-center justify-center w-9 h-9
-                rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
-                dark:hover:bg-gray-700 transition-all duration-200">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <FaPlus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                </label>
-              </div>
-
-              <div className="flex-1 flex flex-col gap-3">
-                {/* Selected Images Preview */}
-                {selectedImages.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedImages.map((image, index) => (
-                      <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
-                        <img
-                          src={URL.createObjectURL(image)}
-                          alt={`Selected ${index + 1}`}
-                          className="w-20 h-20 object-cover rounded-xl 
-                          transition-all duration-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
-                          rounded-full w-6 h-6 flex items-center justify-center text-sm
-                          transform hover:scale-110 transition-all duration-200"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                  <div className="ml-14 mt-2">
+                    <button
+                      onClick={() => {
+                        const sourceInfo = message.sources?.map(source =>
+                          `Model: ${source.modelId}\n` +
+                          `Collection: ${source.collectionName}\n` +
+                          `File: ${source.filename}\n` +
+                          `Source: ${source.source || 'N/A'}\n` +
+                          `Similarity: ${(source.similarity * 100).toFixed(1)}%`
+                        ).join('\n\n');
+                        alert(sourceInfo);
+                      }}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 
+                      dark:hover:text-blue-300 flex items-center gap-2 px-3 py-1.5 rounded-lg 
+                      bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 
+                      transition-all duration-200"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      View Sources ({message.sources.length})
+                    </button>
                   </div>
                 )}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
 
-                {/* Input Area */}
-                <div className="flex gap-3">
-                  <textarea
-                    ref={textareaRef}
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    onPaste={handlePaste}
-                    className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-3xl border border-gray-300 
-                    dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-                    placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
-                    focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent 
-                    transition-all duration-200 shadow-sm hover:shadow-md"
-                    placeholder={selectedImages.length > 0 
-                      ? "Please describe or ask about these images..." 
-                      : "Ask anything..."}
-                    rows={1}
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={!canSubmit()}
-                    className={`p-3 rounded-full font-medium flex items-center justify-center 
-                    transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg 
-                    min-h-[44px] min-w-[44px] ${
-                      canSubmit()
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {isLoading ? (
-                      <BiLoaderAlt className="w-6 h-6 animate-spin" />
-                    ) : (
-                      <GrSend className="w-5 h-5" />
-                    )}
-                  </button>
+      {/* Chat Input Form */}
+      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 
+      border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] shadow-lg px-6 md:px-8 lg:px-12">
+        <form onSubmit={handleSubmit} className="p-3 md:p-4">
+          <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
+            {/* Image Upload Button */}
+            <div className="flex items-center">
+              <label className="cursor-pointer flex items-center justify-center w-9 h-9
+              rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
+              dark:hover:bg-gray-700 transition-all duration-200">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <FaPlus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              </label>
+            </div>
+
+            <div className="flex-1 flex flex-col gap-3">
+              {/* Selected Images Preview */}
+              {selectedImages.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedImages.map((image, index) => (
+                    <div key={index} className="relative group transform hover:scale-105 transition-all duration-200">
+                      <img
+                        src={URL.createObjectURL(image)}
+                        alt={`Selected ${index + 1}`}
+                        className="w-20 h-20 object-cover rounded-xl 
+                        transition-all duration-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white 
+                        rounded-full w-6 h-6 flex items-center justify-center text-sm
+                        transform hover:scale-110 transition-all duration-200"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 </div>
+              )}
+
+              {/* Input Area */}
+              <div className="flex gap-3">
+                <textarea
+                  ref={textareaRef}
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-3xl border border-gray-300 
+                  dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                  placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
+                  focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent 
+                  transition-all duration-200 shadow-sm hover:shadow-md"
+                  placeholder={selectedImages.length > 0 
+                    ? "Please describe or ask about these images..." 
+                    : "Ask anything..."}
+                  rows={1}
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={!canSubmit()}
+                  className={`p-3 rounded-full font-medium flex items-center justify-center 
+                  transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg 
+                  min-h-[44px] min-w-[44px] ${
+                    canSubmit()
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {isLoading ? (
+                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <GrSend className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
-    </>
+    </div>
   );
 };
 
