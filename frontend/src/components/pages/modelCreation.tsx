@@ -486,6 +486,10 @@ const ModelCreation: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    localStorage.setItem('models', JSON.stringify(models));
+  }, [models]);
+
   return (
     <div className="container mx-auto p-4 font-sans">
       <header className="mb-6 flex justify-between items-center">
