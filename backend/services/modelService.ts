@@ -27,6 +27,18 @@ export class ModelService {
   async updateModelCollections(modelId: string, collections: string[]): Promise<IModel | null> {
     return await ModelModel.findByIdAndUpdate(modelId, { collections }, { new: true });
   }
+
+  // Add a collection to a model if it isn't already there.
+  async addCollectionToModel(modelId: string, collectionName: string): Promise<IModel | null> {
+    const model = await ModelModel.findById(modelId);
+    if (model) {
+      if (!model.collections.includes(collectionName)) {
+        model.collections.push(collectionName);
+        await model.save();
+      }
+    }
+    return model;
+  }
 }
 
 export const modelService = new ModelService(); 

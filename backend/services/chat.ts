@@ -74,19 +74,24 @@ export class ChatService {
     modelId: string
   ): AsyncGenerator<string> {
     try {
-      // Retrieve the model (either custom or default) from the backend.
       const model = await modelService.getModelById(modelId);
       let collections: string[] = [];
       if (model) {
-        collections = model.collections; // If a custom model, there will be one or more collections.
+        collections = model.collections;
       }
+
+      // Fallback: if no collections are set, use the 'code' collection by default.
+      if (collections.length === 0) {
+        console.warn("No collections in model; using fallback collection 'code'.");
+        collections = ['code'];
+      }
+      
       console.log("Generating response using the following collections:", collections);
 
-      // Retrieve context across all collections.
+      // Retrieve context from all (or fallback) collections.
       const context = await this.getContext(query, collections);
-      console.log("Retrieved context length:", context.length);
+      console.log('Retrieved context length:', context.length);
 
-      // Augment the chat messages with system instructions and retrieved context.
       const augmentedMessages = [
         {
           role: "system" as const,
@@ -95,7 +100,6 @@ export class ChatService {
         ...messages,
       ];
 
-      // Stream the final response using your chat model.
       for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
         yield chunk;
       }
