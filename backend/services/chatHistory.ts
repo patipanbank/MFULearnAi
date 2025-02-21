@@ -66,14 +66,31 @@ class ChatHistoryService {
   }
 
   async createNewChat(userId: string) {
-    const chat = new ChatHistory({
-      userId,
-      modelId: '',
-      collectionName: '',
-      title: 'New Chat',
-      messages: []
-    });
-    return await chat.save();
+    try {
+      if (!userId) {
+        throw new Error('userId is required');
+      }
+
+      const chat = new ChatHistory({
+        userId,
+        modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0', // default model
+        collectionName: '', // can be empty initially
+        title: 'New Chat',
+        messages: [],
+        isActive: true,
+        lastUpdated: new Date()
+      });
+
+      const savedChat = await chat.save();
+      if (!savedChat) {
+        throw new Error('Failed to save new chat');
+      }
+
+      return savedChat;
+    } catch (error) {
+      console.error('Error in createNewChat:', error);
+      throw error;
+    }
   }
 
   async getChatList(userId: string) {

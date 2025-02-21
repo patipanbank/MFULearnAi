@@ -213,10 +213,29 @@ router.get('/collections', async (req: Request, res: Response) => {
 router.post('/new', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username;
+    
+    // ตรวจสอบว่ามี userId หรือไม่
+    if (!userId) {
+     res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // สร้าง chat ใหม่พร้อม default values
     const newChat = await chatHistoryService.createNewChat(userId);
-    res.json(newChat);
+    
+    // ตรวจสอบว่าสร้างสำเร็จหรือไม่
+    if (!newChat) {
+      res.status(500).json({ error: 'Failed to create new chat' });
+    }
+
+    // ส่งข้อมูล chat กลับไป
+    res.status(200).json(newChat);
+
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create new chat' });
+    console.error('Error creating new chat:', error);
+    res.status(500).json({ 
+      error: 'Failed to create new chat',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
