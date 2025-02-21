@@ -607,9 +607,9 @@ const MFUChatbot: React.FC = () => {
       <div className="flex-shrink-0 bg-gray-800">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 pb-8">
-            <div className="flex gap-3 items-bottom">
+            <div className="flex gap-3 items-end">
               {/* Clear Chat Button */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex items-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -629,7 +629,7 @@ const MFUChatbot: React.FC = () => {
               </div>
 
               {/* Image Upload Button */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 items-bottom">
                 <label className="flex items-center justify-center w-10 h-10 cursor-pointer
                   text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300
                   rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
@@ -684,6 +684,8 @@ const MFUChatbot: React.FC = () => {
                     focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
                     min-h-[44px] max-h-[120px] overflow-y-auto
                     [&::-webkit-scrollbar]:w-2
+                    [&::-webkit-scrollbar]:hidden
+                    hover:[&::-webkit-scrollbar]:block
                     [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
                     [&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-surface-tertiary,#2b2b2b)]
                     [&::-webkit-scrollbar-thumb]:rounded-full
