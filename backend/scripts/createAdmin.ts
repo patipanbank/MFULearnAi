@@ -15,7 +15,9 @@ async function createAdminUser() {
       groups: ['Admin'],
       email: 'admin@mfu.ac.th',
       firstName: 'Admin',
-      lastName: 'User'
+      lastName: 'User',
+      nameID: 'admin',
+      role: 'Admin'
     });
 
     await adminUser.save();
