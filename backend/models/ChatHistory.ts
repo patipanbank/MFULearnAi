@@ -53,8 +53,8 @@ const chatHistorySchema = new mongoose.Schema({
       similarity: Number
     }]
   }],
-  modelId: { type: String, required: true },
-  collectionName: { type: String, required: true },
+  modelId: String,
+  collectionName: String,
   created: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now },
   sources: [{
