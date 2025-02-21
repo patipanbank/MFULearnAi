@@ -607,39 +607,43 @@ const MFUChatbot: React.FC = () => {
       <div className="flex-shrink-0 bg-gray-800">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-4">
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-end">
               {/* Clear Chat Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to clear the chat history?')) {
-                    clearChat();
-                  }
-                }}
-                className="flex items-center justify-center w-9 h-9 text-red-600 
-                hover:text-red-700 dark:text-red-400 dark:hover:text-red-300
-                rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
-                dark:hover:bg-gray-700 transition-all duration-200"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+              <div className="flex flex-col justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to clear the chat history?')) {
+                      clearChat();
+                    }
+                  }}
+                  className="flex items-center justify-center w-9 h-9 text-red-600 
+                  hover:text-red-700 dark:text-red-400 dark:hover:text-red-300
+                  rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
+                  dark:hover:bg-gray-700 transition-all duration-200"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
 
               {/* Image Upload Button */}
-              <label className="flex items-center justify-center w-9 h-9 cursor-pointer
-                text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300
-                rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
-                dark:hover:bg-gray-700 transition-all duration-200">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <FaPlus className="h-4 w-4" />
-              </label>
+              <div className="flex flex-col justify-end">
+                <label className="flex items-center justify-center w-9 h-9 cursor-pointer
+                  text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300
+                  rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
+                  dark:hover:bg-gray-700 transition-all duration-200">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <FaPlus className="h-4 w-4" />
+                </label>
+              </div>
 
               <div className="flex-1 flex flex-col gap-3">
                 {/* Selected Images Preview */}
