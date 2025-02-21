@@ -209,8 +209,8 @@ const MFUChatbot: React.FC = () => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      const lineHeight = 10;
-      const maxLines = 6;
+      const lineHeight = 24; // Increased line height for better readability
+      const maxLines = 5; // Cap at 5 lines
       const maxHeight = lineHeight * maxLines;
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
@@ -606,10 +606,10 @@ const MFUChatbot: React.FC = () => {
       {/* Chat Input Form */}
       <div className="flex-shrink-0 bg-gray-800">
         <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-4">
-            <div className="flex gap-3 items-center">
+          <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 pb-8">
+            <div className="flex gap-3 items-start">
               {/* Clear Chat Button */}
-              <div className="flex items-center">
+              <div className="flex items-center mt-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -679,10 +679,11 @@ const MFUChatbot: React.FC = () => {
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
-                    className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-3xl border border-gray-300 
+                    className="flex-1 min-w-0 p-4 text-sm md:text-base rounded-3xl border border-gray-300 
                     dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
                     placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
-                    focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                    focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+                    min-h-[44px] overflow-y-auto"
                     placeholder={selectedImages.length > 0 
                       ? "Please describe or ask about these images..." 
                       : "Ask anything..."}
