@@ -5,64 +5,50 @@ import { ChatMessage } from '../types/chat';
 
 export class ChatService {
   private systemPrompt = ``;
+  private chatModel = bedrockService.chatModel;
   // You are DinDin, a male AI. Keep responses brief and to the point.
 
   private isRelevantQuestion(query: string): boolean {
     return (true);
   }
 
-  async *generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): AsyncGenerator<string> {
+  async *generateResponse(
+    messages: ChatMessage[],
+    query: string,
+    customCollectionNames: string[]
+  ): AsyncGenerator<string> {
     try {
-      console.log('Starting generateResponse:', {
-        modelId,
-        collectionName,
-        messagesCount: messages.length,
-        query
-      });
-
-      if (!this.isRelevantQuestion(query)) {
-        console.log('Query not relevant');
-        yield 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
-        return;
-      }
-
-      console.log('Getting context for query:', query);
-      const context = await this.getContext(query, collectionName);
+      console.log("Starting generateResponse with custom collections:", customCollectionNames);
+      // Retrieve context from all selected collections (custom model)
+      const context = await this.getContext(query, customCollectionNames);
       console.log('Retrieved context length:', context.length);
 
+      // Augment messages using the default chat system prompt and retrieved context
       const augmentedMessages = [
         {
-          role: 'system' as const,
+          role: "system" as const,
           content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
         },
         ...messages
       ];
 
-      // ส่ง response แบบ streaming ทันที
-      for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
+      // Always use the default chat model (chat model is separate from the custom model)
+      for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
         yield chunk;
       }
     } catch (error) {
-      console.error('Error in generateResponse:', error);
+      console.error("Error in generateResponse:", error);
       throw error;
     }
   }
 
-  private async getContext(query: string, collectionName: string): Promise<string> {
-    try {
-      if (!collectionName) {
-        return '';
-      }
-      const results = await chromaService.queryDocuments(collectionName, query, 5);
-      return results.documents.join('\n\n');
-    } catch (error) {
-      console.error('Error getting context:', error);
-      return '';
-    } finally {
-      if (process.env.NODE_ENV !== 'production') {
-        console.timeEnd('operation');
-      }
-    }
+  private async getContext(query: string, collectionNames: string[]): Promise<string> {
+    if (!collectionNames || collectionNames.length === 0) return '';
+    // Run separate queries against each collection and join the contexts.
+    const contexts = await Promise.all(
+      collectionNames.map(name => chromaService.queryDocuments(name, query, 5))
+    );
+    return contexts.join("\n\n");
   }
 }
 

@@ -4,8 +4,11 @@ import { ChatMessage } from '../types/chat';
 export class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
-    claude35: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
   };
+
+  // Use this.chatModel in your ChatService; users won't select this one.
+  public chatModel = this.models.claude35;
 
   constructor() {
     this.client = new BedrockRuntimeClient({
@@ -22,10 +25,10 @@ export class BedrockService {
       if (modelId === this.models.claude35) {
         yield* this.claudeChat(messages);
       } else {
-        throw new Error('Unsupported model');
+        throw new Error("Unsupported model");
       }
     } catch (error) {
-      console.error('Bedrock chat error:', error);
+      console.error("Bedrock chat error:", error);
       throw error;
     }
   }
