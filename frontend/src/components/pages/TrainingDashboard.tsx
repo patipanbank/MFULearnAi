@@ -20,6 +20,21 @@ interface UploadedFile {
   ids: string[];
 }
 
+interface MongoCollection {
+  _id: string;
+  name: string;
+  createdBy?: string;
+  created?: string;
+  permission?: string;
+}
+
+interface MongoFile {
+  filename: string;
+  uploadedBy?: string;
+  timestamp?: string;
+  ids?: string[];
+}
+
 // ----------------------
 // Utility Functions
 // ----------------------
@@ -681,46 +696,88 @@ const TrainingDashboard: React.FC = () => {
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
         },
       });
-      if (!response.ok) throw new Error('Failed to fetch collections');
+      
       const data = await response.json();
-      const collectionsWithDate: Collection[] = data.map((collection: any) => ({
-        ...collection,
-        created: collection.created || new Date().toISOString(),
-      }));
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch collections');
+      }
+
+      // Validate data structure
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid data format received from server');
+      }
+
+      const collectionsWithDate: Collection[] = data
+        .filter((collection: MongoCollection) => collection._id && collection.name)
+        .map((collection: MongoCollection): Collection => ({
+          id: collection._id.toString(),
+          name: collection.name,
+          createdBy: collection.createdBy || 'Unknown',
+          created: collection.created || new Date().toISOString(),
+          permission: collection.permission || 'PRIVATE',
+        }));
+
       setCollections(collectionsWithDate);
     } catch (error) {
       console.error('Error fetching collections:', error);
+      alert(error instanceof Error ? error.message : 'Failed to fetch collections');
     } finally {
       setIsCollectionsLoading(false);
     }
   }, [authToken]);
 
   const fetchUploadedFiles = useCallback(async (collectionName: string) => {
+    const [isLoading, setIsLoading] = useState(false);
+    
     try {
+      setIsLoading(true);
       const response = await fetch(
         `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
           },
         }
       );
-      if (!response.ok) throw new Error('Failed to fetch files');
+      
       const data = await response.json();
-      console.log('Fetched files:', data);
-      if (data.documents && Array.isArray(data.documents)) {
-        setUploadedFiles(data.documents);
-      } else if (data.files && Array.isArray(data.files)) {
-        setUploadedFiles(data.files);
-      } else if (Array.isArray(data)) {
-        setUploadedFiles(data);
-      } else {
-        setUploadedFiles([]);
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch files');
       }
+
+      // Normalize the data structure
+      let normalizedFiles: MongoFile[] = [];
+
+      if (data.documents && Array.isArray(data.documents)) {
+        normalizedFiles = data.documents;
+      } else if (data.files && Array.isArray(data.files)) {
+        normalizedFiles = data.files;
+      } else if (Array.isArray(data)) {
+        normalizedFiles = data;
+      }
+
+      // Validate and transform each file
+      const validFiles: UploadedFile[] = normalizedFiles
+        .filter((file: MongoFile) => file.filename && file.ids)
+        .map((file: MongoFile): UploadedFile => ({
+          filename: file.filename,
+          uploadedBy: file.uploadedBy || 'Unknown',
+          timestamp: file.timestamp || new Date().toISOString(),
+          ids: Array.isArray(file.ids) ? file.ids : [],
+        }));
+
+      setUploadedFiles(validFiles);
     } catch (error) {
       console.error('Error fetching uploaded files:', error);
+      alert(error instanceof Error ? error.message : 'Failed to fetch files');
+    } finally {
+      setIsLoading(false);
     }
   }, [authToken]);
 
@@ -911,12 +968,6 @@ const TrainingDashboard: React.FC = () => {
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          alert(`Collection "${collection.name}" not found. It might have been deleted.`);
-          setCollections(prevCollections => prevCollections.filter(col => col.id !== collection.id));
-          setSelectedCollection(null);
-          return;
-        }
         throw new Error('Failed to fetch collection details');
       }
 
