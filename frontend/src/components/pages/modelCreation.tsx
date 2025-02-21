@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, FormEvent } from 'react';
 import { config } from '../../config/config';
-import { FaPlus, FaTimes, FaCheck } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaCheck, FaEllipsisH } from 'react-icons/fa';
 
 /* -------------------------------
    Type Definitions
@@ -47,25 +47,73 @@ const BaseModal: React.FC<{
 interface ModelCardProps {
   model: Model;
   onClick: () => void;
+  onRename: () => void;
+  onDelete: () => void;
 }
-const ModelCard: React.FC<ModelCardProps> = ({ model, onClick }) => (
-  <div
-    className="border border-gray-200 dark:border-gray-700 rounded p-4 shadow transform hover:scale-105 hover:shadow-lg transition duration-200 cursor-pointer bg-white dark:bg-gray-900"
-    onClick={onClick}
-  >
-    <div className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-      Model
+const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelete }) => {
+  // State to control the visibility of the dropdown menu.
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Toggle the dropdown menu, ensuring that clicking the icon doesn't trigger the card onClick handler.
+  const toggleMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setShowMenu((prev) => !prev);
+  };
+
+  return (
+    <div
+      className="relative border border-gray-200 dark:border-gray-700 rounded p-4 shadow transform hover:scale-105 hover:shadow-lg transition duration-200 cursor-pointer bg-white dark:bg-gray-900"
+      onClick={onClick}
+    >
+      {/* Top-right menu icon */}
+      <button
+        className="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+        onClick={toggleMenu}
+        title="Model Options"
+      >
+        <FaEllipsisH size={16} />
+      </button>
+      {/* Dropdown menu */}
+      {showMenu && (
+        <div className="absolute top-8 right-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-10">
+          <button
+            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRename();
+              setShowMenu(false);
+            }}
+          >
+            Rename Model
+          </button>
+          <button
+            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+              setShowMenu(false);
+            }}
+          >
+            Delete Model
+          </button>
+        </div>
+      )}
+      <div className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+        Model
+      </div>
+      <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+        {model.name}
+      </h2>
+      {model.collections.length > 0 ? (
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          Collections: {model.collections.join(', ')}
+        </p>
+      ) : (
+        <p className="text-sm text-gray-600 dark:text-gray-300">No collections selected</p>
+      )}
     </div>
-    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">{model.name}</h2>
-    {model.collections.length > 0 ? (
-      <p className="text-sm text-gray-600 dark:text-gray-300">
-        Collections: {model.collections.join(', ')}
-      </p>
-    ) : (
-      <p className="text-sm text-gray-600 dark:text-gray-300">No collections selected</p>
-    )}
-  </div>
-);
+  );
+};
 
 /* -------------------------------
    New Model Modal Component
@@ -291,7 +339,13 @@ const ModelCreation: React.FC = () => {
       </header>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {models.map((model) => (
-          <ModelCard key={model.id} model={model} onClick={() => openEditCollections(model)} />
+          <ModelCard
+            key={model.id}
+            model={model}
+            onClick={() => openEditCollections(model)}
+            onRename={() => {}}
+            onDelete={() => {}}
+          />
         ))}
       </div>
       {showNewModelModal && (
