@@ -2,12 +2,8 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
-interface RequestWithUser extends Request {
-  user: {
-    id: string;
-    groups: string[];
-    // เพิ่ม properties อื่นๆ ตามที่จำเป็น
-  };
+export interface RequestWithUser extends Request {
+  user: Express.User;
 }
 
 export const roleGuard = (allowedGroups: string[]): RequestHandler => 
