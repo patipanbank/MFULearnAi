@@ -44,10 +44,10 @@ const LoadingDots = () => (
   </div>
 );
 
-const modelNames: { [key: string]: string } = {
-  'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
+//const modelNames: { [key: string]: string } = {
+  //'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
   // Add more mappings as needed
-};
+//};
 
 /* -------------------------------
    Custom Hooks for API Integration
@@ -208,7 +208,6 @@ const MFUChatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
-  const [selectedCollection, setSelectedCollection] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -217,11 +216,11 @@ const MFUChatbot: React.FC = () => {
   // When chat history loads, synchronize with messages state.
   useEffect(() => {
     setMessages(history);
-    if (collections.length > 0 && !selectedCollection) {
+    if (collections.length > 0 && !selectedModel) {
       // Set default collection (first accessible one)
-      setSelectedCollection(collections[0]);
+      setSelectedModel(collections[0]);
     }
-  }, [history, collections, selectedCollection]);
+  }, [history, collections, selectedModel]);
 
   // Scroll to bottom when messages update
   const scrollToBottom = () => {
@@ -313,8 +312,7 @@ const MFUChatbot: React.FC = () => {
         },
         body: JSON.stringify({
           messages,
-          modelId: selectedModel,
-          collectionName: selectedCollection
+          modelId: selectedModel
         })
       });
       // Update the history hook state as well
@@ -332,7 +330,6 @@ const MFUChatbot: React.FC = () => {
     return (
       !isLoading &&
       selectedModel &&
-      selectedCollection &&
       inputMessage.trim().length > 0
     );
   };
@@ -412,11 +409,10 @@ const MFUChatbot: React.FC = () => {
         }
       };
 
-      // Send payload: messages, selected model and collection.
+      // Send payload: messages, selected model.
       wsRef.current.send(JSON.stringify({
         messages: [...messages, userMessage],
-        modelId: selectedModel,
-        collectionName: selectedCollection
+        modelId: selectedModel
       }));
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -619,31 +615,19 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      {/* Chat controls (model selection, collection selection, and clear chat) */}
+      {/* Chat controls (model selection, and clear chat) */}
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
         <div className="p-2 md:p-4 border-b">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
               <option value="">Model</option>
-              {models.map(model => (
-                <option key={model} value={model}>
-                  {modelNames[model]}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Select Collection</option>
-              {collections.map(collection => (
-                <option key={collection} value={collection}>
-                  {collection}
+              {models.map((modelName) => (
+                <option key={modelName} value={modelName}>
+                  {modelName}
                 </option>
               ))}
             </select>
