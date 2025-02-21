@@ -32,10 +32,10 @@ class ChromaService {
           name: collectionName
         });
         this.collections.set(collectionName, collection);
-        console.log(`ChromaDB collection ${collectionName} initialized successfully`);
+        console.log(`ChromaService: Collection '${collectionName}' initialized successfully.`);
       }
     } catch (error) {
-      console.error(`Error initializing ChromaDB collection ${collectionName}:`, error);
+      console.error(`ChromaService: Error initializing collection '${collectionName}':`, error);
       throw error;
     }
   }
@@ -132,35 +132,47 @@ class ChromaService {
     }
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // New method: Computes and returns the embedding vector for a given query.
+  /**
+   * Computes and returns the query embedding vector for the given query text.
+   */
   async getQueryEmbedding(query: string): Promise<number[]> {
     try {
       const embedding = await this.titanEmbedService.embedText(query);
       return embedding;
     } catch (error) {
-      console.error('Error computing query embedding:', error);
+      console.error("ChromaService: Error computing query embedding:", error);
       throw error;
     }
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // New method: Performs a similarity search on a collection using a provided embedding.
-  // Returns concatenated document chunks.
-  async queryDocumentsWithEmbedding(collectionName: string, queryEmbedding: number[], n_results: number = 10): Promise<string> {
+  /**
+   * Performs a similarity search on the specified collection using the provided query embedding.
+   * Returns concatenated document chunks as a single string.
+   */
+  async queryDocumentsWithEmbedding(collectionName: string, queryEmbedding: number[], n_results: number): Promise<string> {
     try {
+      // Ensure that the collection exists.
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
-      const results = await collection.query({
-        queryEmbeddings: [queryEmbedding],
-        nResults: n_results,
-        where: { processed: true }
+      if (!collection) {
+        throw new Error(`ChromaService: Collection '${collectionName}' not found.`);
+      }
+      console.log(`ChromaService: Querying collection '${collectionName}' for ${n_results} results.`);
+
+      // Perform similarity search; adjust the method call as per your actual client API.
+      const queryResult = await collection.query({
+        queryEmbedding,
+        n_results
       });
-      const concatenated = results.documents ? results.documents.join("\n\n") : "";
-      return concatenated;
+      console.log(`ChromaService: Raw query result for '${collectionName}':`, queryResult);
+
+      // Assume queryResult is an array of document objects with a 'text' property.
+      const documentChunks: string[] = queryResult.map((doc: any) => doc.text);
+      const concatenatedContext = documentChunks.join("\n\n");
+      return concatenatedContext;
     } catch (error) {
-      console.error(`Error querying collection ${collectionName} with embedding:`, error);
-      throw error;
+      console.error(`ChromaService: Error querying documents in collection '${collectionName}':`, error);
+      return '';
     }
   }
 

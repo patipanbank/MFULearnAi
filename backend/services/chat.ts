@@ -1,7 +1,7 @@
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
-
+import { modelService } from './modelService';
 
 export class ChatService {
   private systemPrompt = ``;
@@ -13,34 +13,48 @@ export class ChatService {
   }
 
   /**
-   * Sanitizes a collection name by replacing invalid characters.
-   * Here we replace any colon (:) with a hyphen (-) to conform to ChromaDB's requirements.
+   * Sanitizes a collection name by replacing disallowed characters.
+   * IMPORTANT: Ensure that the sanitized name is exactly the same as the identifier
+   * used during file uploads and stored in ChromaDB.
    */
   private sanitizeCollectionName(name: string): string {
     return name.replace(/:/g, '-');
   }
 
+  /**
+   * Generates a chat response.
+   * Retrieves the selected model from the database; if the model is custom, it
+   * uses its associated collections for context retrieval. Then, it augments the
+   * messages with the retrieved context and streams the response.
+   */
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
-    customCollectionNames: string | string[]
+    modelId: string
   ): AsyncGenerator<string> {
     try {
-      console.log("Starting generateResponse with custom collections:", customCollectionNames);
-      // Retrieve context from all selected collections (custom model)
-      const context = await this.getContext(query, customCollectionNames);
+      // Load the model data (custom model or default model).
+      const model = await modelService.getModelById(modelId);
+      let collections: string[] = [];
+      if (model) {
+        collections = model.collections;
+      }      
+      console.log("Generating response for model with collections:", collections);
+
+      // Retrieve context from all collections.
+      const context = await this.getContext(query, collections);
       console.log('Retrieved context length:', context.length);
 
-      // Augment messages using the default chat system prompt and retrieved context
+      // Augment messages with system prompt and retrieved context.
       const augmentedMessages = [
         {
           role: "system" as const,
-          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
+          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`,
         },
-        ...messages
+        ...messages,
       ];
 
-      // Always use the default chat model
+      // Stream responses using the chosen chat model.
       for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
         yield chunk;
       }
@@ -50,40 +64,43 @@ export class ChatService {
     }
   }
 
-  private async getContext(query: string, collectionNames: string | string[]): Promise<string> {
-    // Convert collectionNames to an array if it's not already one.
-    const collectionsArray: string[] =
-      typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
-    if (collectionsArray.length === 0) return '';
+  /**
+   * Retrieves context from collections.
+   * Precomputes the query embedding once and then applies it to each sanitized collection.
+   */
+  private async getContext(query: string, collectionNames: string[]): Promise<string> {
+    if (collectionNames.length === 0) {
+      console.log("getContext: No collections provided. Returning empty context.");
+      return '';
+    }
 
-    // Debug: Log the received collection names.
-    console.log("getContext: Received collectionNames:", collectionNames);
-
-    // Sanitize each collection name and log the transformation.
-    const sanitizedCollections = collectionsArray.map((name) => {
+    // Sanitize each collection name and log the mapping.
+    const sanitizedCollections = collectionNames.map(name => {
       const sanitized = this.sanitizeCollectionName(name);
-      console.log(`getContext: Sanitized '${name}' to '${sanitized}'`);
+      console.log(`getContext: Original collection name: '${name}' sanitized to: '${sanitized}'`);
       return sanitized;
     });
-
     console.log("getContext: Querying collections:", sanitizedCollections);
 
-    // Precompute the query embedding once and log the result.
+    // Precompute the query embedding once.
     const queryEmbedding = await chromaService.getQueryEmbedding(query);
     console.log("getContext: Computed query embedding:", queryEmbedding);
 
-    // Query each collection using the precomputed embedding and log individual results.
+    // Query each collection using the precomputed embedding.
     const contexts = await Promise.all(
-      sanitizedCollections.map(name =>
-        chromaService.queryDocumentsWithEmbedding(name, queryEmbedding, 5).then(result => {
-          console.log(`getContext: Result for collection '${name}':`, result);
+      sanitizedCollections.map(async (collectionName) => {
+        try {
+          const result = await chromaService.queryDocumentsWithEmbedding(collectionName, queryEmbedding, 5);
+          console.log(`getContext: Result for collection '${collectionName}':`, result);
           return result;
-        })
-      )
+        } catch (error) {
+          console.error(`getContext: Error querying collection '${collectionName}':`, error);
+          return "";
+        }
+      })
     );
 
-    // Join all context pieces and log the final concatenated context.
-    const finalContext = contexts.join("\n\n");
+    const finalContext = contexts.filter(ctx => ctx.trim().length > 0).join("\n\n");
     console.log("getContext: Final concatenated context:", finalContext);
     return finalContext;
   }
