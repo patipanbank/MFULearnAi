@@ -15,7 +15,7 @@ export class ChatService {
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
-    customCollectionNames: string[]
+    customCollectionNames: string | string[]
   ): AsyncGenerator<string> {
     try {
       console.log("Starting generateResponse with custom collections:", customCollectionNames);
@@ -42,11 +42,13 @@ export class ChatService {
     }
   }
 
-  private async getContext(query: string, collectionNames: string[]): Promise<string> {
-    if (!collectionNames || collectionNames.length === 0) return '';
+  private async getContext(query: string, collectionNames: string | string[]): Promise<string> {
+    // Wrap collectionNames into an array if it's a string
+    const collectionsArray: string[] = typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
+    if (collectionsArray.length === 0) return '';
     // Run separate queries against each collection and join the contexts.
     const contexts = await Promise.all(
-      collectionNames.map(name => chromaService.queryDocuments(name, query, 5))
+      collectionsArray.map(name => chromaService.queryDocuments(name, query, 5))
     );
     return contexts.join("\n\n");
   }
