@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
 import passport from 'passport';
-import { Strategy as SamlStrategy } from 'passport-saml';
+import { Strategy as SamlStrategy, SamlConfig } from 'passport-saml';
 import jwt from 'jsonwebtoken';
 import { connectDB } from '../lib/mongodb';
 import User, { UserRole } from '../models/User';
@@ -47,33 +47,59 @@ const mapGroupToRole = (groups: string[]): UserRole => {
   return 'USER';
 };
 
-const samlStrategy = new SamlStrategy(
-  {
-    issuer: process.env.SAML_SP_ENTITY_ID,
-    callbackUrl: process.env.SAML_SP_ACS_URL,
-    entryPoint: process.env.SAML_IDP_SSO_URL,
-    logoutUrl: process.env.SAML_IDP_SLO_URL,
-    cert: process.env.SAML_CERTIFICATE || '',
-    disableRequestedAuthnContext: true,
-    forceAuthn: false,
-    identifierFormat: null,
-    wantAssertionsSigned: true,
-    acceptedClockSkewMs: -1,
-    validateInResponseTo: false,
-    passReqToCallback: true
+if (!process.env.SAML_SP_ENTITY_ID || !process.env.SAML_SP_ACS_URL || !process.env.SAML_IDP_SSO_URL) {
+  throw new Error('Required SAML configuration is missing');
+}
+
+const samlConfig: SamlConfig = {
+  issuer: process.env.SAML_SP_ENTITY_ID,
+  callbackUrl: process.env.SAML_SP_ACS_URL,
+  entryPoint: process.env.SAML_IDP_SSO_URL,
+  logoutUrl: process.env.SAML_IDP_SLO_URL || undefined,
+  cert: process.env.SAML_CERTIFICATE?.replace(/\\n/g, '\n') || '',
+  disableRequestedAuthnContext: true,
+  forceAuthn: false,
+  identifierFormat: process.env.SAML_IDENTIFIER_FORMAT || 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
+  wantAssertionsSigned: true,
+  acceptedClockSkewMs: 300000, // 5 minutes clock skew
+  validateInResponseTo: false,
+  passReqToCallback: true,
+  signatureAlgorithm: 'sha256',
+  additionalParams: {
+    RelayState: process.env.FRONTEND_URL || ''
   },
+  authnContext: [
+    'urn:oasis:names:tc:SAML:2.0:ac:classes:Password',
+    'urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport'
+  ],
+  racComparison: 'exact'
+};
+
+const samlStrategy = new SamlStrategy(
+  samlConfig,
   async function(req: any, profile: any, done: any) {
     try {
       console.log('=== SAML Profile Debug ===');
       console.log(JSON.stringify(profile, null, 2));
 
-      // ปรับการอ่านค่าให้ตรงกับ SAML response
-      const nameID = profile.nameID;
-      const username = profile['User.Userrname'];
-      const email = profile['User.Email'];
-      const firstName = profile['first_name'];
-      const lastName = profile['last_name'];
-      const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
+      // Extract user information from profile
+      const nameID = profile.nameID || profile.nameId;
+      const username = profile['User.Username'] || 
+                      profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
+                      profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'];
+      const email = profile['User.Email'] || 
+                   profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
+                   profile['emailaddress'];
+      const firstName = profile['first_name'] || 
+                       profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'] ||
+                       profile['givenname'];
+      const lastName = profile['last_name'] || 
+                      profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'] ||
+                      profile['surname'];
+      const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || 
+                    profile['groups'] ||
+                    profile['http://schemas.microsoft.com/ws/2008/06/identity/claims/groups'] || 
+                    [];
 
       console.log('=== Extracted Values ===');
       console.log({
@@ -85,18 +111,13 @@ const samlStrategy = new SamlStrategy(
         groups
       });
 
-      if (!nameID) {
-        console.error('Missing required fields:', { nameID });
+      if (!nameID || !username) {
+        console.error('Missing required fields:', { nameID, username });
         return done(new Error('Missing required user information'));
       }
 
-      // if (!nameID || !email) {
-      //   console.error('Missing required fields:', { nameID, email });
-      //   return done(new Error('Missing required user information'));
-      // }
-
-       // เพิ่มฟังก์ชันแปลง group เป็น role
-       const user = await User.findOneAndUpdate(
+      // Update user in database
+      const user = await User.findOneAndUpdate(
         { username },
         {
           nameID,
@@ -112,7 +133,11 @@ const samlStrategy = new SamlStrategy(
       );
 
       const token = jwt.sign(
-        { userId: user._id },
+        { 
+          userId: user._id,
+          username: user.username,
+          role: user.role
+        },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
@@ -123,7 +148,8 @@ const samlStrategy = new SamlStrategy(
         email: user.email,
         first_name: user.firstName,
         last_name: user.lastName,
-        groups: user.groups
+        groups: user.groups,
+        role: user.role
       };
 
       return done(null, { token, userData });
@@ -246,9 +272,17 @@ router.get('/logout/saml', (req, res) => {
 });
 
 router.get('/metadata', (req, res) => {
-  const metadata = samlStrategy.generateServiceProviderMetadata(null, process.env.SAML_CERTIFICATE);
-  res.type('application/xml');
-  res.send(metadata);
+  try {
+    const metadata = samlStrategy.generateServiceProviderMetadata(
+      null, 
+      process.env.SAML_CERTIFICATE?.replace(/\\n/g, '\n')
+    );
+    res.type('application/xml');
+    res.send(metadata);
+  } catch (error) {
+    console.error('Error generating metadata:', error);
+    res.status(500).send('Error generating metadata');
+  }
 });
 
 router.post('/test', guest_login);
