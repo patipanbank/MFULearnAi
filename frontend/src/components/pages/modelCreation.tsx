@@ -480,19 +480,29 @@ const ModelCreation: React.FC = () => {
   const [showNewModelModal, setShowNewModelModal] = useState<boolean>(false);
   const [newModelName, setNewModelName] = useState<string>('');
   const [editingModel, setEditingModel] = useState<Model | null>(null);
-  // New state for renaming model
   const [editingModelForRename, setEditingModelForRename] = useState<Model | null>(null);
+  const [isStaff, setIsStaff] = useState<boolean>(false);
   
   // For the model collections modal
   const [availableCollections, setAvailableCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
-  const [newModelType, setNewModelType] = useState<'official' | 'personal' | 'staff_only'>('official');
+  const [newModelType, setNewModelType] = useState<'official' | 'personal' | 'staff_only'>('personal');
 
-  // Load models from localStorage or create a default model if none exist
+  // Get user role and permissions on component mount
   useEffect(() => {
-    const fetchOfficialModels = async () => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      setIsStaff(tokenPayload.groups?.includes('Staffs') || false);
+      setNewModelType(tokenPayload.groups?.includes('Staffs') ? 'official' : 'personal');
+    }
+  }, []);
+
+  // Load models from database and localStorage
+  useEffect(() => {
+    const fetchModels = async () => {
       try {
         const authToken = localStorage.getItem('auth_token');
         const response = await fetch(`${config.apiUrl}/api/models`, {
@@ -500,49 +510,144 @@ const ModelCreation: React.FC = () => {
         });
         if (!response.ok) throw new Error('Failed to fetch models');
         const modelsFromBackend = await response.json();
-        setModels(modelsFromBackend.map((model: any) => ({
+        
+        // Map models from backend
+        const dbModels = modelsFromBackend.map((model: any) => ({
           id: model._id,
           name: model.name,
           collections: model.collections,
           modelType: model.modelType,
-        })));
+        }));
+
+        // Get personal models from localStorage
+        const storedPersonalModels: Model[] = JSON.parse(localStorage.getItem('personalModels') || '[]');
+        
+        // Combine models
+        setModels([...dbModels, ...storedPersonalModels]);
       } catch (error) {
         console.error('Error fetching models:', error);
       }
     };
-    fetchOfficialModels();
+    fetchModels();
+  }, []);
+
+  // Handle model creation
+  const handleCreateModel = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newModelName.trim()) {
+      alert('Please enter a model name');
+      return;
+    }
+
+    if (newModelType === 'personal') {
+      // Create personal model locally
+      const newModel: Model = {
+        id: Date.now().toString(),
+        name: newModelName.trim(),
+        collections: [],
+        modelType: 'personal',
+      };
+      setModels((prev) => [...prev, newModel]);
+      
+      // Update localStorage
+      const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
+      storedPersonal.push(newModel);
+      localStorage.setItem('personalModels', JSON.stringify(storedPersonal));
+    } else {
+      try {
+        // Create official or staff_only model in database
+        const authToken = localStorage.getItem('auth_token');
+        if (!authToken) {
+          alert('Authentication token not found. Please login again.');
+          return;
+        }
+
+        const response = await fetch(`${config.apiUrl}/api/models`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            name: newModelName.trim(),
+            modelType: newModelType
+          }),
+        });
+
+        if (!response.ok) {
+          const errMsg = await response.text();
+          throw new Error(errMsg || 'Failed to create model');
+        }
+
+        const createdModel = await response.json();
+        setModels((prev) => [
+          ...prev,
+          {
+            id: createdModel._id,
+            name: createdModel.name,
+            collections: createdModel.collections,
+            modelType: newModelType,
+          },
+        ]);
+      } catch (error) {
+        console.error('Error creating model:', error);
+        alert('Error creating model. Please try again.');
+      }
+    }
     
-    // Load personal models stored in localStorage.
-    const storedPersonalModels: Model[] = JSON.parse(localStorage.getItem('personalModels') || '[]');
-    if (storedPersonalModels.length > 0) {
-      setModels(prev => [...prev, ...storedPersonalModels]);
+    setNewModelName('');
+    setShowNewModelModal(false);
+  };
+
+  // Handle model deletion with proper permissions
+  const handleDeleteModel = async (modelId: string) => {
+    if (!window.confirm('Are you sure you want to delete this model?')) {
+      return;
     }
-  }, []);
 
-  // Update localStorage whenever the models list changes
-  useEffect(() => {
-    localStorage.setItem('models', JSON.stringify(models));
-  }, [models]);
+    const modelToDelete = models.find(m => m.id === modelId);
+    if (!modelToDelete) return;
 
-  // Function to fetch available collections (reuse your training/collections endpoint)
-  const fetchCollections = useCallback(async () => {
-    setIsCollectionsLoading(true);
+    // Check if user has permission to delete
+    if ((modelToDelete.modelType === 'official' || modelToDelete.modelType === 'staff_only') && !isStaff) {
+      alert('You do not have permission to delete this model.');
+      return;
+    }
+
     try {
-      const authToken = localStorage.getItem('auth_token');
-      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch collections');
-      const data = await response.json();
-      setAvailableCollections(data);
+      if (modelToDelete.modelType === 'personal') {
+        // Delete personal model from localStorage
+        const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
+        const updatedPersonal = storedPersonal.filter((m: Model) => m.id !== modelId);
+        localStorage.setItem('personalModels', JSON.stringify(updatedPersonal));
+      } else {
+        // Delete official or staff_only model from database
+        const authToken = localStorage.getItem('auth_token');
+        if (!authToken) {
+          alert('Authentication token not found. Please login again.');
+          return;
+        }
+
+        const response = await fetch(`${config.apiUrl}/api/models/${modelId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errMsg = await response.text();
+          throw new Error(errMsg || 'Failed to delete model');
+        }
+      }
+
+      // Update UI state
+      setModels((prevModels) => prevModels.filter((m) => m.id !== modelId));
     } catch (error) {
-      console.error('Error fetching collections:', error);
-    } finally {
-      setIsCollectionsLoading(false);
+      console.error('Error deleting model:', error);
+      alert('Failed to delete model. Please try again.');
     }
-  }, []);
+  };
 
   // Open the collections modal for editing a model's collections
   const openEditCollections = (model: Model) => {
@@ -572,71 +677,25 @@ const ModelCreation: React.FC = () => {
     }
   };
 
-  // Create a new model
-  const handleCreateModel = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newModelName.trim()) {
-      alert('Please enter a model name');
-      return;
+  // Function to fetch available collections (reuse your training/collections endpoint)
+  const fetchCollections = useCallback(async () => {
+    setIsCollectionsLoading(true);
+    try {
+      const authToken = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch collections');
+      const data = await response.json();
+      setAvailableCollections(data);
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+    } finally {
+      setIsCollectionsLoading(false);
     }
-
-    if (newModelType === 'official') {
-      try {
-        const authToken = localStorage.getItem('auth_token');
-        if (!authToken) {
-          alert('Authentication token not found. Please login again.');
-          return;
-        }
-
-        const response = await fetch(`${config.apiUrl}/api/models`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            name: newModelName.trim(),
-            modelType: 'official'
-          }),
-        });
-
-        if (!response.ok) {
-          const errMsg = await response.text();
-          throw new Error(errMsg || 'Failed to create model');
-        }
-
-        const createdModel = await response.json();
-        setModels((prev) => [
-          ...prev,
-          {
-            id: createdModel._id,
-            name: createdModel.name,
-            collections: createdModel.collections,
-            modelType: 'official',
-          },
-        ]);
-      } catch (error) {
-        console.error('Error creating official model:', error);
-        alert('Error creating official model');
-      }
-    } else {
-      // Create personal model locally.
-      const newModel: Model = {
-        id: Date.now().toString(),
-        name: newModelName.trim(),
-        collections: [],
-        modelType: 'personal',
-      };
-      setModels((prev) => [...prev, newModel]);
-      // Persist the personal model in localStorage.
-      const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
-      storedPersonal.push(newModel);
-      localStorage.setItem('personalModels', JSON.stringify(storedPersonal));
-    }
-    setNewModelName('');
-    setNewModelType('official');
-    setShowNewModelModal(false);
-  };
+  }, []);
 
   // Handler for when a model's ellipsis menu "Rename" is clicked.
   const handleRenameModel = (modelId: string) => {
@@ -656,50 +715,6 @@ const ModelCreation: React.FC = () => {
         )
       );
       setEditingModelForRename(null);
-    }
-  };
-
-  // Handler for deleting the model.
-  const handleDeleteModel = async (modelId: string) => {
-    if (!window.confirm('Are you sure you want to delete this model?')) {
-      return;
-    }
-
-    const modelToDelete = models.find(m => m.id === modelId);
-    if (!modelToDelete) return;
-
-    try {
-      if (modelToDelete.modelType === 'official') {
-        // Delete official model from MongoDB
-        const authToken = localStorage.getItem('auth_token');
-        if (!authToken) {
-          alert('Authentication token not found. Please login again.');
-          return;
-        }
-
-        const response = await fetch(`${config.apiUrl}/api/models/${modelId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-          },
-        });
-
-        if (!response.ok) {
-          const errMsg = await response.text();
-          throw new Error(errMsg || 'Failed to delete model');
-        }
-      } else {
-        // For personal models, update localStorage
-        const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
-        const updatedPersonal = storedPersonal.filter((m: Model) => m.id !== modelId);
-        localStorage.setItem('personalModels', JSON.stringify(updatedPersonal));
-      }
-
-      // Update UI state after successful deletion
-      setModels((prevModels) => prevModels.filter((m) => m.id !== modelId));
-    } catch (error) {
-      console.error('Error deleting model:', error);
-      alert('Failed to delete model. Please try again.');
     }
   };
 
@@ -774,7 +789,7 @@ const ModelCreation: React.FC = () => {
           onCancel={() => {
             setShowNewModelModal(false);
             setNewModelName('');
-            setNewModelType('official');
+            setNewModelType(isStaff ? 'official' : 'personal');
           }}
         />
       )}

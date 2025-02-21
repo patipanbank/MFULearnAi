@@ -6,12 +6,24 @@ const router = Router();
 
 /**
  * GET /api/models
- * Retrieves all models
+ * Retrieves all models (filtered based on user role)
  */
-router.get('/', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+router.get('/', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
+    const user = (req as any).user;
+    const isStaff = user.groups.includes('Staffs');
+    
+    // Get all models
     const models = await ModelModel.find({}).lean();
-    res.json(models);
+    
+    // Filter models based on user role
+    const filteredModels = models.filter(model => 
+      model.modelType === 'official' || 
+      (model.modelType === 'staff_only' && isStaff) ||
+      (model.modelType === 'personal' && model.createdBy === user.nameID)
+    );
+
+    res.json(filteredModels);
   } catch (error) {
     console.error('Error fetching models:', error);
     res.status(500).json({ error: 'Error fetching models' });
@@ -22,14 +34,20 @@ router.get('/', roleGuard(['Staffs']), async (req: Request, res: Response): Prom
  * POST /api/models
  * Creates a new model
  */
-router.post('/', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+router.post('/', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, modelType } = req.body;
-    const user = (req as any).user;  // Get user from request (set by roleGuard)
+    const user = (req as any).user;
     
     // Validate required fields
     if (!name || !modelType) {
       res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
+
+    // Only staff can create official or staff_only models
+    if ((modelType === 'official' || modelType === 'staff_only') && !user.groups.includes('Staffs')) {
+      res.status(403).json({ error: 'Unauthorized to create this type of model' });
       return;
     }
 
