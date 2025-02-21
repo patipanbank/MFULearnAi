@@ -9,7 +9,15 @@ export class ChatService {
   // You are DinDin, a male AI. Keep responses brief and to the point.
 
   private isRelevantQuestion(query: string): boolean {
-    return (true);
+    return true;
+  }
+
+  /**
+   * Sanitizes a collection name by replacing invalid characters.
+   * Here we replace any colon (:) with a hyphen (-) to conform to ChromaDB's requirements.
+   */
+  private sanitizeCollectionName(name: string): string {
+    return name.replace(/:/g, '-');
   }
 
   async *generateResponse(
@@ -32,7 +40,7 @@ export class ChatService {
         ...messages
       ];
 
-      // Always use the default chat model (chat model is separate from the custom model)
+      // Always use the default chat model
       for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
         yield chunk;
       }
@@ -43,12 +51,13 @@ export class ChatService {
   }
 
   private async getContext(query: string, collectionNames: string | string[]): Promise<string> {
-    // Wrap collectionNames into an array if it's a string
-    const collectionsArray: string[] = typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
+    const collectionsArray: string[] =
+      typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
     if (collectionsArray.length === 0) return '';
-    // Run separate queries against each collection and join the contexts.
+
+    const sanitizedCollections = collectionsArray.map((name) => this.sanitizeCollectionName(name));
     const contexts = await Promise.all(
-      collectionsArray.map(name => chromaService.queryDocuments(name, query, 5))
+      sanitizedCollections.map((name) => chromaService.queryDocuments(name, query, 5))
     );
     return contexts.join("\n\n");
   }

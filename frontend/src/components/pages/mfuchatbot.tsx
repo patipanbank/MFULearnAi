@@ -80,7 +80,7 @@ function useChatMetadata() {
           const modelsData = await modelsRes.json();
           setModels(Array.isArray(modelsData) ? modelsData : []);
         }
-        // Get accessible collections. (Uses the new chat endpoint.)
+        // Get accessible collections.
         const collectionsRes = await fetch(`${config.apiUrl}/api/chat/collections`, { headers });
         if (collectionsRes.ok) {
           const collectionsData = await collectionsRes.json();
@@ -381,7 +381,15 @@ const MFUChatbot: React.FC = () => {
         { id: aiMessageId, role: 'assistant', content: '', timestamp: new Date() }
       ]);
 
-      // Set up a local variable to accumulate streaming chunks
+      // Define a mapping from model ID to its associated collections.
+      // In a real project, this could be loaded dynamically with each model's configuration.
+      const modelCollectionMapping: { [key: string]: string[] } = {
+        'anthropic.claude-3-5-sonnet-20240620-v1:0': ['collection1:example', 'collection2:example']
+        // add more mappings as needed
+      };
+      // Get the collections for the selected model.
+      const collectionsToQuery = modelCollectionMapping[selectedModel] || [];
+
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -409,10 +417,11 @@ const MFUChatbot: React.FC = () => {
         }
       };
 
-      // Send payload: messages, selected model.
+      // Send the payload including the associated collections along with the model ID.
       wsRef.current.send(JSON.stringify({
         messages: [...messages, userMessage],
-        modelId: selectedModel
+        modelId: selectedModel,
+        collections: collectionsToQuery
       }));
     } catch (error) {
       console.error('Error in handleSubmit:', error);
