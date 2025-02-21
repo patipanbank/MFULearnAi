@@ -302,16 +302,16 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!canSubmit()) return;
+    if (!canSubmit() || !selectedModel) return;
 
     setIsLoading(true);
-    // Generate new message id(s). (A more robust solution may use UUIDs.)
+    // Generate new message IDs. (In production consider using UUIDs)
     const userMessageId = messages.length + 1;
     const aiMessageId = messages.length + 2;
     let accumulatedContent = '';
 
     try {
-      // (Re)initialize the WebSocket connection using the new chat server endpoint.
+      // (Re)initialize WebSocket connection if needed
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
         await new Promise((resolve, reject) => {
@@ -320,7 +320,7 @@ const MFUChatbot: React.FC = () => {
         });
       }
 
-      // Process attached images (if any)
+      // Process attached images if any
       let processedImages;
       if (selectedImages.length > 0) {
         processedImages = await Promise.all(
@@ -328,45 +328,49 @@ const MFUChatbot: React.FC = () => {
         );
       }
 
+      // Create the user message
       const userMessage: Message = {
         id: userMessageId,
         role: 'user',
         content: inputMessage.trim(),
         timestamp: new Date(),
-        images: processedImages
+        images: processedImages,
       };
 
       // Append the user message and clear the input
-      setMessages(prev => [...prev, userMessage]);
+      setMessages((prev) => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
-      // Add a placeholder assistant message (streaming output will update it)
-      setMessages(prev => [
+      // Add a placeholder assistant message (its content will be updated via streaming)
+      setMessages((prev) => [
         ...prev,
-        { id: aiMessageId, role: 'assistant', content: '', timestamp: new Date() }
+        { id: aiMessageId, role: 'assistant', content: '', timestamp: new Date() },
       ]);
 
-      // Instead of a static mapping, we use the model's associated collections.
-      const collectionsToQuery = selectedModel?.collections || [];
+      // Extract the collections from the selected model.
+      // (Make sure your model has collections. If not, no context will be queried.)
+      const collectionsToQuery: string[] = selectedModel.collections;
 
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.content) {
             accumulatedContent += data.content;
-            setMessages(prev => prev.map(msg =>
-              msg.id === aiMessageId ? { ...msg, content: accumulatedContent } : msg
-            ));
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId ? { ...msg, content: accumulatedContent } : msg
+              )
+            );
           }
           if (data.done) {
-            // Append sources (if provided) and then save updated chat history.
+            // Update the assistant message with sources (if provided) and save chat history.
             const assistantMessage: Message = {
               id: aiMessageId,
               role: 'assistant',
               content: accumulatedContent,
               timestamp: new Date(),
-              sources: data.sources
+              sources: data.sources,
             };
             const updatedMessages = [...messages, userMessage, assistantMessage];
             saveChatHistory(updatedMessages);
@@ -377,21 +381,23 @@ const MFUChatbot: React.FC = () => {
         }
       };
 
-      // Send the payload including the selected model's collections along with the model ID.
-      wsRef.current.send(JSON.stringify({
-        messages: [...messages, userMessage],
-        modelId: selectedModel?.id,
-        collections: collectionsToQuery
-      }));
+      // Send the payload including both the selected model's ID and its collections.
+      wsRef.current.send(
+        JSON.stringify({
+          messages: [...messages, userMessage],
+          modelId: selectedModel.id,
+          collections: collectionsToQuery,
+        })
+      );
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       const errorMessage: Message = {
         id: aiMessageId,
         role: 'assistant',
         content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
       setIsLoading(false);
     }
   };
