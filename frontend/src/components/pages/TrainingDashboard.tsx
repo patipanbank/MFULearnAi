@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
-import MainLayout from '../layouts/MainLayout';
 
 // ----------------------
 // Type Definitions
@@ -81,12 +80,18 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 }) => (
   <header className="mb-8">
     <div className="flex items-center justify-between mb-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Training Dashboard</h1>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Training Dashboard</h1>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          Manage your training collections and documents
+        </p>
+      </div>
       <button
         onClick={onNewCollectionToggle}
-        className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 
-        dark:hover:bg-blue-600 text-white rounded-lg transition-all duration-200 space-x-2"
-        title="Create Collection"
+        className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
+        hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 
+        dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-lg 
+        transition-all duration-200 space-x-2 shadow-md hover:shadow-lg transform hover:scale-105"
       >
         <FaPlus size={16} />
         <span className="font-medium">New Collection</span>
@@ -98,13 +103,13 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         placeholder="Search collections..."
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 
-        bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+        className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 
+        bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
         placeholder-gray-500 dark:placeholder-gray-400
         focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-        transition-all duration-200"
+        transition-all duration-200 shadow-sm"
       />
-      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
         <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
         </svg>
@@ -218,9 +223,10 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   onDelete,
 }) => (
   <div
-    className="group relative bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm 
-    hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 
-    dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
+    className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm 
+    hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 
+    dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
+    transform hover:scale-[1.02]"
     onClick={onSelect}
   >
     <button
@@ -228,7 +234,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
         e.stopPropagation();
         onDropdownToggle();
       }}
-      className="absolute top-3 right-3 p-2 text-gray-400 hover:text-gray-600 
+      className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 
       dark:text-gray-500 dark:hover:text-gray-300 rounded-full
       hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
       title="Options"
@@ -236,14 +242,15 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
       <FaEllipsisH size={16} />
     </button>
     {activeDropdown && (
-      <div className="absolute top-12 right-3 bg-white dark:bg-gray-700 rounded-lg 
-      shadow-lg border border-gray-200 dark:border-gray-600 overflow-hidden z-20">
+      <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
+      shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
+      backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
         <button
           onClick={(e) => {
             e.stopPropagation();
             onSettings();
           }}
-          className="flex items-center w-full px-4 py-2 text-gray-700 dark:text-gray-200 
+          className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
           hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
         >
           <FaCog className="mr-2" size={14} />
@@ -254,7 +261,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
             e.stopPropagation();
             onDelete();
           }}
-          className="flex items-center w-full px-4 py-2 text-red-600 dark:text-red-400 
+          className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
           hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
         >
           <FaTrash className="mr-2" size={14} />
@@ -264,18 +271,21 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
     )}
     <div className="flex flex-col h-full">
       <div className="mb-4">
-        <div className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-1">
+        <div className="inline-block px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-md
+          text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
           Collection
         </div>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
           {collection.name}
         </h2>
       </div>
-      <div className="mt-auto">
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
-          Created by {collection.createdBy}
+      <div className="mt-auto space-y-1">
+        <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center">
+          <span className="mr-2">👤</span>
+          {collection.createdBy}
         </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+          <span className="mr-2">🕒</span>
           {getRelativeTime(collection.created)}
         </p>
       </div>
@@ -309,19 +319,27 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
 }) => (
   <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-[80vh]">
     <div className="flex justify-between items-center mb-8">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{collection.name}</h2>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{collection.name}</h2>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          Manage documents and settings for this collection
+        </p>
+      </div>
       <button
         onClick={onShowSettings}
-        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 
-        text-gray-600 dark:text-gray-300 transition-all duration-200"
+        className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
+        text-gray-600 dark:text-gray-300 transition-all duration-200
+        border border-gray-200 dark:border-gray-700"
         title="Collection Settings"
       >
-        <FaCog size={20} />
+        <FaCog size={18} />
       </button>
     </div>
 
     {/* File Upload Section */}
-    <section className="mb-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border-2 border-dashed border-gray-300 dark:border-gray-600">
+    <section className="mb-8 bg-gradient-to-br from-gray-50 to-gray-100 
+    dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl p-6 
+    border-2 border-dashed border-gray-300 dark:border-gray-600">
       <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
         Upload Document
       </h3>
@@ -331,17 +349,17 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
             type="file"
             onChange={onFileChange}
             className="block w-full text-gray-600 dark:text-gray-300
-            file:mr-4 file:py-2 file:px-4
+            file:mr-4 file:py-2.5 file:px-4
             file:rounded-lg file:border-0
             file:text-sm file:font-semibold
             file:bg-blue-50 file:text-blue-700
             dark:file:bg-blue-900/30 dark:file:text-blue-400
             hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40
             file:cursor-pointer cursor-pointer
-            focus:outline-none"
+            focus:outline-none transition-colors duration-200"
             accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
           />
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX (Max 100MB)
           </p>
         </div>
@@ -352,7 +370,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
           transition-all duration-200 flex items-center justify-center space-x-2
           ${uploadLoading 
             ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
-            : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'
+            : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
           }`}
         >
           {uploadLoading ? (
@@ -377,39 +395,48 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
 
     {/* Files List Section */}
     <section className="space-y-4">
-      <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-        Documents in Collection
-      </h3>
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Documents in Collection
+        </h3>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''}
+        </span>
+      </div>
       
       {uploadedFiles.length > 0 ? (
         <div className="space-y-3">
           {uploadedFiles.map((fileItem, index) => (
             <div 
               key={index} 
-              className="group relative bg-white dark:bg-gray-800 rounded-lg shadow-sm 
-              border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-all duration-200"
+              className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm 
+              border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md 
+              transition-all duration-200"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
                     {fileItem.filename}
                   </h4>
-                  <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
-                    <p className="text-gray-600 dark:text-gray-300">
-                      Uploaded by: {fileItem.uploadedBy}
+                  <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
+                    <p className="text-gray-600 dark:text-gray-300 flex items-center">
+                      <span className="mr-2">👤</span>
+                      {fileItem.uploadedBy}
                     </p>
-                    <p className="text-gray-500 dark:text-gray-400">
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center">
+                      <span className="mr-2">🕒</span>
                       {new Date(fileItem.timestamp).toLocaleString()}
                     </p>
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Chunks: {fileItem.ids.length}
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center">
+                      <span className="mr-2">📄</span>
+                      {fileItem.ids.length} chunks
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => onDeleteFile(fileItem)}
                   className="ml-4 p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
-                  dark:hover:text-red-400 transition-colors duration-200 rounded-full 
+                  dark:hover:text-red-400 transition-colors duration-200 rounded-lg 
                   hover:bg-gray-100 dark:hover:bg-gray-700"
                   title="Delete Document"
                 >
@@ -420,15 +447,17 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+        <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 
+        dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl border-2 border-dashed 
+        border-gray-300 dark:border-gray-600">
           <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
           </svg>
-          <p className="mt-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+          <p className="mt-4 text-base font-medium text-gray-600 dark:text-gray-400">
             No documents uploaded yet
           </p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-            Upload a document to get started
+            Upload a document to get started with your collection
           </p>
         </div>
       )}
@@ -922,80 +951,78 @@ const TrainingDashboard: React.FC = () => {
   // Render
   // ----------------------
   return (
-    <MainLayout>
-      <div className="container mx-auto p-4 font-sans relative">
-        <DashboardHeader
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onNewCollectionToggle={() => setShowNewCollectionModal(true)}
+    <div className="container mx-auto p-4 font-sans relative">
+      <DashboardHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onNewCollectionToggle={() => setShowNewCollectionModal(true)}
+      />
+
+      {isCollectionsLoading ? (
+        <div className="text-center py-8 text-gray-600 dark:text-gray-300">Loading collections...</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {filteredCollections.map((collection) => (
+            <CollectionCard
+              key={collection.id}
+              collection={collection}
+              onSelect={() => handleCollectionSelect(collection)}
+              activeDropdown={activeDropdownId === collection.id}
+              onDropdownToggle={() =>
+                setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
+              }
+              onSettings={() => {
+                setSelectedCollection(collection);
+                setShowSettings(true);
+                setActiveDropdownId(null);
+              }}
+              onDelete={() => {
+                setActiveDropdownId(null);
+                handleDeleteCollection(collection);
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {selectedCollection && (
+        <CollectionModal
+          collection={selectedCollection}
+          onClose={() => setSelectedCollection(null)}
+          uploadedFiles={uploadedFiles}
+          onFileChange={handleFileChange}
+          onFileUpload={handleFileUpload}
+          uploadLoading={uploadLoading}
+          onShowSettings={() => setShowSettings(true)}
+          onDeleteFile={handleDeleteFile}
         />
+      )}
 
-        {isCollectionsLoading ? (
-          <div className="text-center py-8 text-gray-600 dark:text-gray-300">Loading collections...</div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {filteredCollections.map((collection) => (
-              <CollectionCard
-                key={collection.id}
-                collection={collection}
-                onSelect={() => handleCollectionSelect(collection)}
-                activeDropdown={activeDropdownId === collection.id}
-                onDropdownToggle={() =>
-                  setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
-                }
-                onSettings={() => {
-                  setSelectedCollection(collection);
-                  setShowSettings(true);
-                  setActiveDropdownId(null);
-                }}
-                onDelete={() => {
-                  setActiveDropdownId(null);
-                  handleDeleteCollection(collection);
-                }}
-              />
-            ))}
-          </div>
-        )}
+      {showSettings && selectedCollection && (
+        <SettingsModal
+          updatedCollectionName={updatedCollectionName}
+          updatedCollectionPermission={updatedCollectionPermission}
+          onNameChange={setUpdatedCollectionName}
+          onPermissionChange={setUpdatedCollectionPermission}
+          onClose={() => setShowSettings(false)}
+          onSubmit={handleUpdateSettings}
+        />
+      )}
 
-        {selectedCollection && (
-          <CollectionModal
-            collection={selectedCollection}
-            onClose={() => setSelectedCollection(null)}
-            uploadedFiles={uploadedFiles}
-            onFileChange={handleFileChange}
-            onFileUpload={handleFileUpload}
-            uploadLoading={uploadLoading}
-            onShowSettings={() => setShowSettings(true)}
-            onDeleteFile={handleDeleteFile}
-          />
-        )}
-
-        {showSettings && selectedCollection && (
-          <SettingsModal
-            updatedCollectionName={updatedCollectionName}
-            updatedCollectionPermission={updatedCollectionPermission}
-            onNameChange={setUpdatedCollectionName}
-            onPermissionChange={setUpdatedCollectionPermission}
-            onClose={() => setShowSettings(false)}
-            onSubmit={handleUpdateSettings}
-          />
-        )}
-
-        {showNewCollectionModal && (
-          <NewCollectionModal
-            newCollectionName={newCollectionName}
-            newCollectionPermission={newCollectionPermission}
-            onNameChange={setNewCollectionName}
-            onPermissionChange={setNewCollectionPermission}
-            onSubmit={handleCreateCollection}
-            onCancel={() => {
-              setShowNewCollectionModal(false);
-              setNewCollectionName('');
-            }}
-          />
-        )}
-      </div>
-    </MainLayout>
+      {showNewCollectionModal && (
+        <NewCollectionModal
+          newCollectionName={newCollectionName}
+          newCollectionPermission={newCollectionPermission}
+          onNameChange={setNewCollectionName}
+          onPermissionChange={setNewCollectionPermission}
+          onSubmit={handleCreateCollection}
+          onCancel={() => {
+            setShowNewCollectionModal(false);
+            setNewCollectionName('');
+          }}
+        />
+      )}
+    </div>
   );
 };
 

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser, FaCog } from 'react-icons/fa';
-import MainLayout from '../layouts/MainLayout';
 
 // Utility function for relative time
 const getRelativeTime = (dateString: string): string => {
@@ -717,83 +716,81 @@ const ModelCreation: React.FC = () => {
   };
 
   return (
-    <MainLayout>
-      <div className="container mx-auto p-6 font-sans">
-        <header className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Models</h1>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Create and manage your models for training and chat
-              </p>
-            </div>
-            <button
-              onClick={() => setShowNewModelModal(true)}
-              className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
-              hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 
-              dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-lg 
-              transition-all duration-200 space-x-2 shadow-md hover:shadow-lg 
-              transform hover:scale-105"
-            >
-              <FaPlus size={16} />
-              <span className="font-medium">New Model</span>
-            </button>
+    <div className="container mx-auto p-6 font-sans">
+      <header className="mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Models</h1>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              Create and manage your models for training and chat
+            </p>
           </div>
-        </header>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {models.map((model) => (
-            <ModelCard
-              key={model.id}
-              model={model}
-              onClick={() => openEditCollections(model)}
-              onRename={handleRenameModel}
-              onDelete={handleDeleteModel}
-            />
-          ))}
+          <button
+            onClick={() => setShowNewModelModal(true)}
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
+            hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 
+            dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-lg 
+            transition-all duration-200 space-x-2 shadow-md hover:shadow-lg 
+            transform hover:scale-105"
+          >
+            <FaPlus size={16} />
+            <span className="font-medium">New Model</span>
+          </button>
         </div>
+      </header>
 
-        {/* Modals */}
-        {showNewModelModal && (
-          <NewModelModal
-            newModelName={newModelName}
-            newModelType={newModelType}
-            onNameChange={setNewModelName}
-            onTypeChange={setNewModelType}
-            onSubmit={handleCreateModel}
-            onCancel={() => {
-              setShowNewModelModal(false);
-              setNewModelName('');
-              setNewModelType('official');
-            }}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {models.map((model) => (
+          <ModelCard
+            key={model.id}
+            model={model}
+            onClick={() => openEditCollections(model)}
+            onRename={handleRenameModel}
+            onDelete={handleDeleteModel}
           />
-        )}
-
-        {editingModel && !isCollectionsLoading && (
-          <ModelCollectionsModal
-            model={editingModel}
-            availableCollections={availableCollections}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            selectedCollections={selectedCollections}
-            toggleCollectionSelection={toggleCollectionSelection}
-            onConfirm={confirmCollections}
-            onClose={() => setEditingModel(null)}
-          />
-        )}
-
-        {editingModelForRename && (
-          <EditModelModal
-            model={editingModelForRename}
-            onNameChange={(value) =>
-              setEditingModelForRename({ ...editingModelForRename, name: value })
-            }
-            onSubmit={handleUpdateModelName}
-            onCancel={() => setEditingModelForRename(null)}
-          />
-        )}
+        ))}
       </div>
-    </MainLayout>
+
+      {/* Modals */}
+      {showNewModelModal && (
+        <NewModelModal
+          newModelName={newModelName}
+          newModelType={newModelType}
+          onNameChange={setNewModelName}
+          onTypeChange={setNewModelType}
+          onSubmit={handleCreateModel}
+          onCancel={() => {
+            setShowNewModelModal(false);
+            setNewModelName('');
+            setNewModelType('official');
+          }}
+        />
+      )}
+
+      {editingModel && !isCollectionsLoading && (
+        <ModelCollectionsModal
+          model={editingModel}
+          availableCollections={availableCollections}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          selectedCollections={selectedCollections}
+          toggleCollectionSelection={toggleCollectionSelection}
+          onConfirm={confirmCollections}
+          onClose={() => setEditingModel(null)}
+        />
+      )}
+
+      {editingModelForRename && (
+        <EditModelModal
+          model={editingModelForRename}
+          onNameChange={(value) =>
+            setEditingModelForRename({ ...editingModelForRename, name: value })
+          }
+          onSubmit={handleUpdateModelName}
+          onCancel={() => setEditingModelForRename(null)}
+        />
+      )}
+    </div>
   );
 };
 
