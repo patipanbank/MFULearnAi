@@ -33,7 +33,7 @@ interface Message {
 interface Model {
   id: string;
   name: string;
-  modelType: 'official' | 'personal';
+  modelType: 'official' | 'personal' | 'staff_only';
 }
 
 // const modelNames: { [key: string]: string } = {
@@ -102,7 +102,11 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
-        // Fetch official models from the database
+        // Get user role from token
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        const isStaff = tokenPayload.groups?.includes('Staffs');
+
+        // Fetch official and staff-only models from the database
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -114,17 +118,23 @@ const MFUChatbot: React.FC = () => {
           throw new Error('Failed to fetch models');
         }
 
-        const officialModels = await response.json();
+        const dbModels = await response.json();
+        
+        // Filter models based on user role
+        const filteredDbModels = dbModels.filter((model: any) => 
+          model.modelType === 'official' || 
+          (model.modelType === 'staff_only' && isStaff)
+        );
         
         // Get personal models from localStorage
         const storedPersonalModels = JSON.parse(localStorage.getItem('personalModels') || '[]');
 
         // Combine both types of models
         const allModels = [
-          ...officialModels.map((model: any) => ({
+          ...filteredDbModels.map((model: any) => ({
             id: model._id,
             name: model.name,
-            modelType: 'official'
+            modelType: model.modelType
           })),
           ...storedPersonalModels.map((model: any) => ({
             id: model.id,
