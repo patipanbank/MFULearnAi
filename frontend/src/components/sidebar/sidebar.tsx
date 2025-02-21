@@ -10,7 +10,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const isStaff = userData.groups?.includes('Staffs');
+  const isStaff = userData.role === 'STAFF' || userData.role === 'ADMIN';
 
   const handleLogout = async () => {
     try {

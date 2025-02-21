@@ -1,37 +1,30 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import jwt from 'jsonwebtoken';
-import User from '../models/User';
 
-interface RequestWithUser extends Request {
-  user: {
-    id: string;
-    groups: string[];
-    // เพิ่ม properties อื่นๆ ตามที่จำเป็น
-  };
-}
-
-export const roleGuard = (allowedGroups: string[]): RequestHandler => 
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const roleGuard = (allowedRoles: string[]): RequestHandler => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const token = req.headers.authorization?.split(' ')[1];
-      
-      if (!token) {
-        res.status(401).json({ message: 'No token provided' });
+      const user = (req as any).user;
+      if (!user) {
+        res.status(401).json({ message: 'Unauthorized' });
         return;
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as RequestWithUser['user'];
-      (req as RequestWithUser).user = decoded;
+      // Check if user's role matches any of the allowed roles
+      const hasAllowedRole = allowedRoles.some(role => 
+        user.role === role || 
+        (role === 'STAFF' && user.role === 'ADMIN') // ADMIN can do anything STAFF can do
+      );
 
-      if (!decoded.groups || !decoded.groups.some(group => allowedGroups.includes(group))) {
-        res.status(403).json({ message: 'Access denied' });
+      if (!hasAllowedRole) {
+        res.status(403).json({ message: 'Forbidden' });
         return;
       }
 
       next();
     } catch (error) {
-      console.error('Auth error:', error);
-      res.status(401).json({ message: 'Invalid token' });
+      console.error('Role guard error:', error);
+      res.status(500).json({ message: 'Internal server error' });
       return;
     }
-  }; 
+  };
+}; 

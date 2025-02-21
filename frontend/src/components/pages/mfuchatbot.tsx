@@ -120,7 +120,7 @@ const MFUChatbot: React.FC = () => {
 
         // Get user role from token
         const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        const isStaff = tokenPayload.groups?.includes('Staffs');
+        const isStaff = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
 
         // Fetch official and staff-only models from the database
         const response = await fetch(`${config.apiUrl}/api/models`, {

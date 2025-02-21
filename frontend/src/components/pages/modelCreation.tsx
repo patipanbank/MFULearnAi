@@ -200,7 +200,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
     const token = localStorage.getItem('auth_token');
     if (token) {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      const isStaff = tokenPayload.groups?.includes('Staffs') || false;
+      const isStaff = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
       setIsStaffUser(isStaff);
       
       // Set default model type based on user role
@@ -586,8 +586,9 @@ const ModelCreation: React.FC = () => {
     const token = localStorage.getItem('auth_token');
     if (token) {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      setIsStaff(tokenPayload.groups?.includes('Staffs') || false);
-      setNewModelType(tokenPayload.groups?.includes('Staffs') ? 'official' : 'personal');
+      const isStaff = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
+      setIsStaff(isStaff);
+      setNewModelType(tokenPayload.role === 'STAFF' ? 'official' : 'personal');
     }
   }, []);
 
@@ -600,7 +601,7 @@ const ModelCreation: React.FC = () => {
 
         // Get user role from token
         const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
-        const isStaffUser = tokenPayload.groups?.includes('Staffs') || false;
+        const isStaffUser = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
 
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: { 'Authorization': `Bearer ${authToken}` },
@@ -863,7 +864,7 @@ const ModelCreation: React.FC = () => {
 
       // Get user info from token
       const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
-      const isStaffUser = tokenPayload.groups?.includes('Staffs') || false;
+      const isStaffUser = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
       const userId = tokenPayload.sub || '';
 
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {

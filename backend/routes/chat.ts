@@ -118,7 +118,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.post('/history', roleGuard(['USER', 'STAFF', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     const { messages, modelId, collectionName } = req.body;
     const userId = (req.user as any)?.username || '';
@@ -143,7 +143,7 @@ router.post('/history', roleGuard(['Students', 'Staffs']), async (req: Request, 
   }
 });
 
-router.get('/history', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response) => {
+router.get('/history', roleGuard(['USER', 'STAFF', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username || '';
     const history = await chatHistoryService.getChatHistory(userId);
@@ -194,6 +194,7 @@ router.get('/collections', async (req: Request, res: Response) => {
         case CollectionPermission.PUBLIC:
           return true;
         case CollectionPermission.STAFF_ONLY:
+          return user.role === 'STAFF' || user.role === 'ADMIN';
           return user.groups.includes('Staffs');
         case CollectionPermission.PRIVATE:
           return collection.createdBy === user.nameID;

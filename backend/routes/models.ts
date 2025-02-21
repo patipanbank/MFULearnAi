@@ -8,10 +8,10 @@ const router = Router();
  * GET /api/models
  * Retrieves all models (filtered based on user role)
  */
-router.get('/', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response): Promise<void> => {
+router.get('/', roleGuard(['USER', 'STAFF', 'ADMIN']), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    const isStaff = user.groups.includes('Staffs');
+    const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
     
     // Get all models
     const models = await ModelModel.find({}).lean();
@@ -34,10 +34,10 @@ router.get('/', roleGuard(['Students', 'Staffs']), async (req: Request, res: Res
  * POST /api/models
  * Creates a new model
  */
-router.post('/', roleGuard(['Students', 'Staffs']), async (req: Request, res: Response): Promise<void> => {
+router.post('/', roleGuard(['USER', 'STAFF', 'ADMIN']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, modelType } = req.body;
     const user = (req as any).user;
+    const { name, modelType } = req.body;
     
     // Validate required fields
     if (!name || !modelType) {
@@ -46,8 +46,8 @@ router.post('/', roleGuard(['Students', 'Staffs']), async (req: Request, res: Re
     }
 
     // Only staff can create official or staff_only models
-    if ((modelType === 'official' || modelType === 'staff_only') && !user.groups.includes('Staffs')) {
-      res.status(403).json({ error: 'Unauthorized to create this type of model' });
+    if ((modelType === 'official' || modelType === 'staff_only') && user.role !== 'STAFF' && user.role !== 'ADMIN') {
+      res.status(403).json({ message: 'Only staff can create official or staff-only models' });
       return;
     }
 
@@ -70,7 +70,7 @@ router.post('/', roleGuard(['Students', 'Staffs']), async (req: Request, res: Re
  * PUT /api/models/:id
  * Updates a model's collections
  */
-router.put('/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+router.put('/:id', roleGuard(['STAFF', 'ADMIN']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { collections } = req.body;
@@ -97,7 +97,7 @@ router.put('/:id', roleGuard(['Staffs']), async (req: Request, res: Response): P
  * DELETE /api/models/:id
  * Deletes a model
  */
-router.delete('/:id', roleGuard(['Staffs']), async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', roleGuard(['STAFF', 'ADMIN']), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const model = await ModelModel.findByIdAndDelete(id);

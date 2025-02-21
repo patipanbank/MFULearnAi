@@ -20,6 +20,7 @@ interface UploadedFile {
 
 interface MongoCollection {
   _id: string;
+  id?: string;
   name: string;
   createdBy?: string;
   created?: string;
@@ -747,7 +748,7 @@ const TrainingDashboard: React.FC = () => {
 
       const collectionsWithDate = data
         .filter((collection: MongoCollection) => {
-          if (!collection._id || !collection.name) {
+          if (!collection.id && !collection._id || !collection.name) {
             console.log('Filtering out collection due to missing id or name:', collection);
             return false;
           }
@@ -760,30 +761,37 @@ const TrainingDashboard: React.FC = () => {
             username: userInfo.username
           });
           
+          // Staff role check (STAFF or ADMIN)
+          const isStaff = userInfo.role === 'STAFF' || userInfo.role === 'ADMIN';
+          
           switch (permission) {
             case CollectionPermission.PUBLIC:
               console.log(`Collection "${collection.name}" is public - allowing access`);
               return true;
             case CollectionPermission.STAFF_ONLY:
-              const hasStaffAccess = userInfo.role === 'STAFF' || userInfo.role === 'ADMIN';
-              console.log(`Collection "${collection.name}" is staff only - access granted:`, hasStaffAccess);
-              return hasStaffAccess;
+              console.log(`Collection "${collection.name}" is staff only - access granted:`, isStaff);
+              return isStaff;
             case CollectionPermission.PRIVATE:
-              const hasPrivateAccess = collection.createdBy === userInfo.username || userInfo.role === 'ADMIN';
+              const hasPrivateAccess = collection.createdBy === userInfo.username || isStaff;
               console.log(`Collection "${collection.name}" is private - access granted:`, hasPrivateAccess);
               return hasPrivateAccess;
             default:
+              // For backward compatibility, treat undefined permission as PUBLIC
+              if (!permission) {
+                console.log(`Collection "${collection.name}" has no permission - treating as public`);
+                return true;
+              }
               console.log(`Collection "${collection.name}" has unknown permission:`, permission);
-              return false;
+              return isStaff; // Give access to staff for unknown permissions
           }
         })
         .map((collection: MongoCollection): Collection => {
           const mappedCollection = {
-            id: collection._id.toString(),
+            id: collection.id || collection._id.toString(),
             name: collection.name,
             createdBy: collection.createdBy || 'Unknown',
             created: collection.created || collection.createdAt || new Date().toISOString(),
-            permission: collection.permission || CollectionPermission.PRIVATE,
+            permission: collection.permission?.toUpperCase() || CollectionPermission.PUBLIC,
           };
           console.log('Mapped collection:', mappedCollection);
           return mappedCollection;
