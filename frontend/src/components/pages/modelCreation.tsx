@@ -814,7 +814,7 @@ const ModelCreation: React.FC = () => {
           return;
         }
 
-        const response = await fetch(`${config.apiUrl}/api/models/${editingModel.id}/collections`, {
+        const response = await fetch(`${config.apiUrl}/api/models/${editingModel.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
