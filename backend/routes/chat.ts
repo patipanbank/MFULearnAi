@@ -5,6 +5,7 @@ import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
+import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -207,6 +208,48 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
+  }
+});
+
+router.post('/new-chat', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.nameID || '';
+    const newChat = new ChatHistory({
+      userId,
+      title: 'New Chat',
+      messages: []
+    });
+    await newChat.save();
+    res.json(newChat);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create new chat' });
+  }
+});
+
+router.get('/chat-history', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.nameID || '';
+    const chats = await ChatHistory.find({ userId })
+      .sort({ created: -1 })
+      .select('title created _id');
+    res.json(chats);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch chat history' });
+  }
+});
+
+router.put('/rename-chat/:chatId', async (req: Request, res: Response) => {
+  try {
+    const { chatId } = req.params;
+    const { title } = req.body;
+    const chat = await ChatHistory.findByIdAndUpdate(
+      chatId,
+      { title },
+      { new: true }
+    );
+    res.json(chat);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to rename chat' });
   }
 });
 

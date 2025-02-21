@@ -36,6 +36,7 @@ interface IChatHistory {
 
 const chatHistorySchema = new mongoose.Schema({
   userId: { type: String, required: true },
+  title: { type: String, default: 'New Chat' },
   modelId: { type: String, required: true },
   collectionName: { type: String, required: true },
   messages: [{
@@ -61,7 +62,8 @@ const chatHistorySchema = new mongoose.Schema({
       filename: { type: String },
       similarity: { type: Number }
     }]
-  }]
+  }],
+  created: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 export const ChatHistory = mongoose.model('ChatHistory', chatHistorySchema); 

@@ -5,6 +5,7 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useParams } from 'react-router-dom';
 
 interface Source {
   modelId: string;
@@ -56,6 +57,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const { chatId } = useParams();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -159,6 +161,26 @@ const MFUChatbot: React.FC = () => {
 
     loadChatHistory();
   }, []);
+
+  useEffect(() => {
+    if (chatId) {
+      loadChatMessages(chatId);
+    }
+  }, [chatId]);
+
+  const loadChatMessages = async (chatId: string) => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/${chatId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const data = await response.json();
+      setMessages(data.messages);
+    } catch (error) {
+      console.error('Failed to load chat messages:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
