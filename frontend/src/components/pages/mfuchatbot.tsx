@@ -489,7 +489,7 @@ const MFUChatbot: React.FC = () => {
       {/* Chat history / messages container */}
       <div className={`flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 
       ${messages.length === 0 ? 'flex items-center justify-center' : 'pt-4'} 
-      bg-gray-800 pb-[100px]
+      bg-gray-800 pb-[120px]
       [&::-webkit-scrollbar]:w-3
       [&::-webkit-scrollbar-track]:bg-[var(--sidebar-surface-secondary,#1f1f1f)]
       [&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-surface-tertiary,#2b2b2b)]
@@ -604,9 +604,9 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       {/* Chat Input Form - Fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-800">
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 pt-4">
         <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="bg-gray-800 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6">
+          <form onSubmit={handleSubmit} className="bg-gray-800 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-4">
             <div className="flex gap-3">
               {/* Clear Chat Button */}
               <button
