@@ -11,7 +11,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-      <Header />
+      <Header onMenuClick={() => setIsSidebarOpen(true)} />
       <div className="flex h-[calc(100vh-3rem)]">
         {/* Sidebar - hidden on mobile, visible on lg screens */}
         <div className="hidden lg:block w-64 border-r border-gray-200 dark:border-gray-700">
