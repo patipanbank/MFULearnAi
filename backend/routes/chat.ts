@@ -5,7 +5,6 @@ import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
-import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -208,58 +207,6 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
-  }
-});
-
-// สร้าง chat session ใหม่
-router.post('/sessions/new', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.username; // ใช้ username แทน id ตาม format เดิม
-    const newChat = new ChatHistory({
-      userId,
-      title: 'New Chat',
-      messages: []
-    });
-    await newChat.save();
-    res.json(newChat);
-  } catch (error) {
-    console.error('Error creating new chat:', error);
-    res.status(500).json({ error: 'Failed to create new chat' });
-  }
-});
-
-// ดึงประวัติการสนทนา
-router.get('/sessions', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.username;
-    const sessions = await ChatHistory.find({ userId })
-      .select('title created lastUpdated')
-      .sort({ lastUpdated: -1 });
-    res.json(sessions);
-  } catch (error) {
-    console.error('Error fetching chat sessions:', error);
-    res.status(500).json({ error: 'Failed to fetch chat sessions' });
-  }
-});
-
-// ดึงข้อมูล chat session เฉพาะ
-router.get('/sessions/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response)  => {
-  try {
-    const userId = (req as any).user.username;
-    const session = await ChatHistory.findOne({ 
-      _id: req.params.id,
-      userId 
-    });
-    
-    if (!session) {
-      res.status(404).json({ error: 'Chat session not found' });
-      return;
-    }
-    
-    res.json(session);
-  } catch (error) {
-    console.error('Error fetching chat session:', error);
-    res.status(500).json({ error: 'Failed to fetch chat session' });
   }
 });
 
