@@ -47,6 +47,19 @@ export class ModelService {
   async getModelsByUser(userId: string): Promise<IModel[]> {
     return await ModelModel.find({ createdBy: userId });
   }
+
+  async createOfficialModel(userId: string, name: string, collections: any[] = []): Promise<any> {
+    // Implementation to create an official model
+    const modelData = {
+      userId,
+      name,
+      collections,
+      type: 'official'
+    };
+    // For example, using a database model (e.g., Mongoose):
+    // return await Model.create(modelData);
+    return modelData; // Replace with your actual creation logic
+  }
 }
 
 export const modelService = new ModelService(); 
