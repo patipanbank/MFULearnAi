@@ -2,6 +2,20 @@ import React, { useState, useEffect, useCallback, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser } from 'react-icons/fa';
 
+// Utility function for relative time
+const getRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSeconds = (now.getTime() - date.getTime()) / 1000;
+  if (diffSeconds < 60) return 'Created just now';
+  const diffMinutes = diffSeconds / 60;
+  if (diffMinutes < 60) return `Created ${Math.floor(diffMinutes)} minutes ago`;
+  const diffHours = diffMinutes / 60;
+  if (diffHours < 24) return `Created ${Math.floor(diffHours)} hours ago`;
+  const diffDays = diffHours / 24;
+  return `Created ${Math.floor(diffDays)} days ago`;
+};
+
 /* -------------------------------
    Type Definitions
 ---------------------------------*/
@@ -19,6 +33,10 @@ interface Collection {
   created: string;
   permission?: string;
 }
+
+/* -------------------------------
+   Utility Functions
+---------------------------------*/
 
 /* -------------------------------
    Reusable Base Modal Component
