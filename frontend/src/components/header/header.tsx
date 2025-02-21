@@ -6,7 +6,7 @@ const Header: React.FC = () => {
   const userData = userDataString ? JSON.parse(userDataString) : null;
 
   return (
-    <header className="w-full bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+    <header className="w-full bg-white dark:bg-gray-800">
       <div className="flex items-center justify-end px-6 py-3 max-w-[90rem] mx-auto">
         {userData && (
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
