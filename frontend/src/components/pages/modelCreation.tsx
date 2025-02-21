@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
+import React, { useState, useEffect, useCallback, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser } from 'react-icons/fa';
 
@@ -45,11 +45,24 @@ const BaseModal: React.FC<{
   onClose: () => void;
   containerClasses?: string;
   children: React.ReactNode;
-}> = ({ onClose, containerClasses = '', children }) => (
-  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+  zIndex?: number;
+}> = ({ onClose, containerClasses = '', children, zIndex = 50 }) => (
+  <div 
+    className={`fixed inset-0 flex items-center justify-center bg-black bg-opacity-50`}
+    style={{ zIndex }}
+    onClick={(e) => {
+      // Only close if clicking the backdrop (not the modal content)
+      if (e.target === e.currentTarget) {
+        e.stopPropagation(); // Prevent event from reaching other modals
+        onClose();
+      }
+    }}>
     <div className={`relative bg-white dark:bg-gray-800 rounded p-6 ${containerClasses}`}>
       <button
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
         className="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
         title="Close"
       >
@@ -71,23 +84,6 @@ interface ModelCardProps {
 }
 const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelete }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-
-    if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showMenu]);
 
   return (
     <div
@@ -96,51 +92,49 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
       border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
       onClick={onClick}
     >
-      <div ref={menuRef}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowMenu(!showMenu);
-          }}
-          className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
-          dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
-          hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-          title="Options"
-        >
-          <FaEllipsisH size={16} />
-        </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowMenu(!showMenu);
+        }}
+        className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
+        dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
+        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+        title="Options"
+      >
+        <FaEllipsisH size={16} />
+      </button>
 
-        {showMenu && (
-          <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
-          shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
-          backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRename(model.id);
-                setShowMenu(false);
-              }}
-              className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
-              hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-            >
-              <FaEdit className="mr-2" size={14} />
-              <span>Rename</span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(model.id);
-                setShowMenu(false);
-              }}
-              className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
-              hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-            >
-              <FaTrash className="mr-2" size={14} />
-              <span>Delete</span>
-            </button>
-          </div>
-        )}
-      </div>
+      {showMenu && (
+        <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
+        shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
+        backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRename(model.id);
+              setShowMenu(false);
+            }}
+            className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+          >
+            <FaEdit className="mr-2" size={14} />
+            <span>Rename</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(model.id);
+              setShowMenu(false);
+            }}
+            className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
+            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+          >
+            <FaTrash className="mr-2" size={14} />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col h-full">
         <div className="mb-4">
@@ -190,7 +184,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
   onSubmit,
   onCancel,
 }) => (
-  <BaseModal onClose={onCancel} containerClasses="w-[28rem]">
+  <BaseModal onClose={onCancel} containerClasses="w-[28rem]" zIndex={52}>
     <div className="mb-6">
       <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
         Create New Model
@@ -278,21 +272,6 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   onConfirm,
   onClose,
 }) => {
-  // Add ref for click outside detection
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  // Handle click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
-
   // Handle confirm with animation
   const handleConfirm = () => {
     const button = document.getElementById('confirm-button');
@@ -306,8 +285,8 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   };
 
   return (
-    <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 max-h-[80vh] overflow-y-auto">
-      <div ref={modalRef} className="relative">
+    <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 max-h-[80vh] overflow-y-auto" zIndex={50}>
+      <div className="relative">
         {/* Header Section */}
         <div className="flex justify-between items-center mb-6 pb-4 border-b dark:border-gray-700">
           <div>
@@ -427,7 +406,7 @@ const EditModelModal: React.FC<EditModelModalProps> = ({
   onSubmit,
   onCancel,
 }) => (
-  <BaseModal onClose={onCancel} containerClasses="w-[28rem]">
+  <BaseModal onClose={onCancel} containerClasses="w-[28rem]" zIndex={51}>
     <div className="mb-6">
       <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
         Rename Model
@@ -744,21 +723,6 @@ const ModelCreation: React.FC = () => {
       </div>
 
       {/* Modals */}
-      {showNewModelModal && (
-        <NewModelModal
-          newModelName={newModelName}
-          newModelType={newModelType}
-          onNameChange={setNewModelName}
-          onTypeChange={setNewModelType}
-          onSubmit={handleCreateModel}
-          onCancel={() => {
-            setShowNewModelModal(false);
-            setNewModelName('');
-            setNewModelType('official');
-          }}
-        />
-      )}
-
       {editingModel && !isCollectionsLoading && (
         <ModelCollectionsModal
           model={editingModel}
@@ -780,6 +744,21 @@ const ModelCreation: React.FC = () => {
           }
           onSubmit={handleUpdateModelName}
           onCancel={() => setEditingModelForRename(null)}
+        />
+      )}
+
+      {showNewModelModal && (
+        <NewModelModal
+          newModelName={newModelName}
+          newModelType={newModelType}
+          onNameChange={setNewModelName}
+          onTypeChange={setNewModelType}
+          onSubmit={handleCreateModel}
+          onCancel={() => {
+            setShowNewModelModal(false);
+            setNewModelName('');
+            setNewModelType('official');
+          }}
         />
       )}
     </div>
