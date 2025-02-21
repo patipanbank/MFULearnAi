@@ -82,8 +82,8 @@ const MFUChatbot: React.FC = () => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      const lineHeight = 10;
-      const maxLines = 6;
+      const lineHeight = 24;
+      const maxLines = 5;
       const maxHeight = lineHeight * maxLines;
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
@@ -635,25 +635,6 @@ const MFUChatbot: React.FC = () => {
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <button
-              type="button"
-              className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-              onClick={() => {
-                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                fileInput?.click();
-              }}
-            >
-              <RiImageAddFill className="w-5 h-5 text-gray-500 dark:text-white" />
-            </button>
-
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-
             <div className="flex-1">
               <div className="flex gap-2">
                 <textarea
@@ -664,7 +645,14 @@ const MFUChatbot: React.FC = () => {
                   onPaste={handlePaste}
                   className="flex-1 min-w-0 p-2 text-sm md:text-base rounded-2xl border border-gray-300 dark:border-gray-600 
                     bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
-                    focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none"
+                    focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none
+                    scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 
+                    scrollbar-track-transparent hover:scrollbar-thumb-gray-400 
+                    dark:hover:scrollbar-thumb-gray-500 scrollbar-thumb-rounded-full"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'rgb(209 213 219) transparent'
+                  }}
                   placeholder={selectedImages.length > 0 ? "Please describe or ask about these images..." : "Type a message..."}
                   rows={1}
                   required
@@ -690,7 +678,7 @@ const MFUChatbot: React.FC = () => {
           </div>
 
           {selectedImages.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2 max-w-[90%] lg:max-w-[80%] mx-auto pl-12">
+            <div className="flex flex-wrap gap-2 mt-2 max-w-[90%] lg:max-w-[80%] mx-auto">
               {selectedImages.map((image, index) => (
                 <div key={index} className="relative">
                   <img
@@ -749,6 +737,27 @@ const MFUChatbot: React.FC = () => {
                 </div>
               )}
             </div>
+
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              className="px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+              onClick={() => {
+                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                fileInput?.click();
+              }}
+            >
+              <RiImageAddFill className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Add Image</span>
+            </button>
 
             <button
               onClick={clearChat}
