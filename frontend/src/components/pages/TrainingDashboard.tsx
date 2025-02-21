@@ -911,6 +911,12 @@ const TrainingDashboard: React.FC = () => {
       );
 
       if (!response.ok) {
+        if (response.status === 404) {
+          alert(`Collection "${collection.name}" not found. It might have been deleted.`);
+          setCollections(prevCollections => prevCollections.filter(col => col.id !== collection.id));
+          setSelectedCollection(null);
+          return;
+        }
         throw new Error('Failed to fetch collection details');
       }
 
