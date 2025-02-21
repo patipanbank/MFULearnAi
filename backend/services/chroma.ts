@@ -149,9 +149,16 @@ class ChromaService {
    * Performs a similarity search on the specified collection using the provided query embedding.
    * Returns the concatenated document text from the top n_results.
    */
-  async queryDocumentsWithEmbedding(collectionName: string, queryEmbedding: number[], n_results: number): Promise<string> {
+  async queryDocumentsWithEmbedding(collectionName: string, queryEmbedding: number[], n_results: number): Promise<{
+    documents: string[];
+    metadatas: Array<{
+      modelId: string;
+      filename: string;
+      [key: string]: any;
+    }>;
+    distances?: number[];
+  }> {
     try {
-      // Ensure that the collection exists.
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       if (!collection) {
@@ -159,24 +166,55 @@ class ChromaService {
       }
       console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results.`);
 
-      // Use the 'queryEmbeddings' key (an array) for the query.
       const queryResult = await collection.query({
         queryEmbeddings: [queryEmbedding],
-        n_results
+        n_results: n_results * 2, // Request more results initially for better filtering
+        include: ["documents", "metadatas", "distances"],
+        where: { processed: true } // Only include fully processed documents
       });
-      console.log(`ChromaService: Raw results for '${collectionName}':`, queryResult);
 
-      // Check that the 'documents' field is available and is an array.
       if (!queryResult.documents || !Array.isArray(queryResult.documents)) {
         throw new Error("ChromaService: queryResult.documents is not an array.");
       }
-      // Flatten the documents array (which might be nested) into a single-level array.
-      const documentChunks: string[] = queryResult.documents.flat();
-      const concatenatedContext = documentChunks.join("\n\n");
-      return concatenatedContext;
+
+      // Filter results based on similarity score
+      const MIN_SIMILARITY_THRESHOLD = 0.6; // Adjust this threshold as needed
+      const documents = queryResult.documents[0];
+      const distances = queryResult.distances?.[0] || [];
+      const metadatas = queryResult.metadatas?.[0] || [];
+      
+      interface QueryResult {
+        text: string;
+        metadata: {
+          modelId: string;
+          filename: string;
+          [key: string]: any;
+        };
+        similarity: number;
+      }
+
+      const filteredResults = documents
+        .map((doc: string, index: number): QueryResult => ({
+          text: doc,
+          metadata: metadatas[index],
+          similarity: 1 - (distances[index] || 0)
+        }))
+        .filter((result: QueryResult) => result.similarity >= MIN_SIMILARITY_THRESHOLD)
+        .sort((a: QueryResult, b: QueryResult) => b.similarity - a.similarity)
+        .slice(0, n_results);
+
+      return {
+        documents: filteredResults.map((r: QueryResult) => r.text),
+        metadatas: filteredResults.map((r: QueryResult) => r.metadata),
+        distances: filteredResults.map((r: QueryResult) => 1 - r.similarity)
+      };
     } catch (error) {
       console.error(`ChromaService: Error querying documents in '${collectionName}':`, error);
-      return '';
+      return {
+        documents: [],
+        metadatas: [],
+        distances: []
+      };
     }
   }
 

@@ -1,11 +1,55 @@
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
+import { ChatHistory } from '../models/ChatHistory';
+import { HydratedDocument } from 'mongoose';
 
+interface QueryResult {
+  text: string;
+  metadata: {
+    modelId: string;
+    filename: string;
+    [key: string]: any;
+  };
+  similarity: number;
+}
+
+interface ChromaQueryResult {
+  documents: string[];
+  metadatas: Array<{
+    modelId: string;
+    filename: string;
+    [key: string]: any;
+  }>;
+  distances?: number[];
+}
+
+interface CollectionQueryResult {
+  context: string;
+  sources: Array<{
+    modelId: string;
+    collectionName: string;
+    filename: string;
+    similarity: number;
+  }>;
+}
+
+interface IChatHistory {
+  sources: Array<{
+    modelId: string;
+    collectionName: string;
+    filename: string;
+    similarity: number;
+  }>;
+  save(): Promise<void>;
+}
 
 export class ChatService {
   private systemPrompt = ``;
   private chatModel = bedrockService.chatModel;
+  private currentChatHistory?: HydratedDocument<IChatHistory>;
+  private readonly BATCH_SIZE = 3; // Number of collections to query simultaneously
+  private readonly MIN_SIMILARITY_THRESHOLD = 0.6;
   // You are DinDin, a male AI. Keep responses brief and to the point.
 
   private isRelevantQuestion(query: string): boolean {
@@ -20,6 +64,112 @@ export class ChatService {
     return name.replace(/:/g, '-');
   }
 
+  private async processBatch(
+    batch: string[],
+    queryEmbedding: number[]
+  ): Promise<CollectionQueryResult[]> {
+    return Promise.all(
+      batch.map(async (name): Promise<CollectionQueryResult> => {
+        try {
+          const queryResult = await chromaService.queryDocumentsWithEmbedding(
+            name,
+            queryEmbedding,
+            5
+          ) as ChromaQueryResult;
+
+          if (!queryResult?.documents || !queryResult?.metadatas) {
+            return { context: '', sources: [] };
+          }
+
+          const results = queryResult.documents
+            .map((doc: string, index: number): QueryResult => ({
+              text: doc,
+              metadata: queryResult.metadatas[index],
+              similarity: 1 - (queryResult.distances?.[index] || 0)
+            }));
+
+          // Calculate dynamic threshold based on result distribution
+          const similarities = results.map(r => r.similarity);
+          const mean = similarities.reduce((a, b) => a + b, 0) / similarities.length;
+          const stdDev = Math.sqrt(
+            similarities.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / similarities.length
+          );
+          const dynamicThreshold = Math.max(
+            this.MIN_SIMILARITY_THRESHOLD,
+            mean - stdDev
+          );
+
+          const filteredResults = results
+            .filter(result => result.similarity >= dynamicThreshold)
+            .sort((a, b) => b.similarity - a.similarity);
+
+          const sources = filteredResults.map(result => ({
+            modelId: result.metadata.modelId,
+            collectionName: name,
+            filename: result.metadata.filename,
+            similarity: result.similarity
+          }));
+
+          return {
+            context: filteredResults.map(r => r.text).join("\n\n"),
+            sources
+          };
+        } catch (error) {
+          console.error(`Error querying collection ${name}:`, error);
+          return { context: '', sources: [] };
+        }
+      })
+    );
+  }
+
+  private async getContext(query: string, collectionNames: string | string[]): Promise<string> {
+    const collectionsArray: string[] =
+      typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
+    if (collectionsArray.length === 0) return '';
+
+    const sanitizedCollections = collectionsArray.map(name => 
+      this.sanitizeCollectionName(name)
+    );
+
+    // Compute query embedding once for all collections
+    const queryEmbedding = await chromaService.getQueryEmbedding(query);
+    
+    // Create batches of collection queries
+    const batches: string[][] = [];
+    for (let i = 0; i < sanitizedCollections.length; i += this.BATCH_SIZE) {
+      batches.push(sanitizedCollections.slice(i, i + this.BATCH_SIZE));
+    }
+
+    // Process batches sequentially, but collections within batch in parallel
+    let allResults: CollectionQueryResult[] = [];
+    for (const batch of batches) {
+      const batchResults = await this.processBatch(batch, queryEmbedding);
+      allResults = allResults.concat(batchResults);
+    }
+
+    // Sort all sources by similarity and update chat history
+    const allSources = allResults
+      .flatMap(r => r.sources)
+      .sort((a, b) => b.similarity - a.similarity);
+
+    if (this.currentChatHistory) {
+      this.currentChatHistory.sources = allSources;
+      await this.currentChatHistory.save();
+    }
+
+    // Join contexts, prioritizing those with higher similarity
+    const contexts = allResults
+      .filter(r => r.sources.length > 0)
+      .sort((a, b) => {
+        const aMaxSim = Math.max(...a.sources.map(s => s.similarity));
+        const bMaxSim = Math.max(...b.sources.map(s => s.similarity));
+        return bMaxSim - aMaxSim;
+      })
+      .map(r => r.context);
+
+    return contexts.join("\n\n");
+  }
+
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
@@ -27,11 +177,9 @@ export class ChatService {
   ): AsyncGenerator<string> {
     try {
       console.log("Starting generateResponse with custom collections:", customCollectionNames);
-      // Retrieve context from all selected collections (custom model)
       const context = await this.getContext(query, customCollectionNames);
       console.log('Retrieved context length:', context.length);
 
-      // Augment messages using the default chat system prompt and retrieved context
       const augmentedMessages = [
         {
           role: "system" as const,
@@ -40,7 +188,6 @@ export class ChatService {
         ...messages
       ];
 
-      // Always use the default chat model
       for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
         yield chunk;
       }
@@ -48,44 +195,6 @@ export class ChatService {
       console.error("Error in generateResponse:", error);
       throw error;
     }
-  }
-
-  private async getContext(query: string, collectionNames: string | string[]): Promise<string> {
-    // Convert collectionNames to an array if it's not already one.
-    const collectionsArray: string[] =
-      typeof collectionNames === 'string' ? [collectionNames] : collectionNames;
-    if (collectionsArray.length === 0) return '';
-
-    // Debug: Log the received collection names.
-    console.log("getContext: Received collectionNames:", collectionNames);
-
-    // Sanitize each collection name and log the transformation.
-    const sanitizedCollections = collectionsArray.map((name) => {
-      const sanitized = this.sanitizeCollectionName(name);
-      console.log(`getContext: Sanitized '${name}' to '${sanitized}'`);
-      return sanitized;
-    });
-
-    console.log("getContext: Querying collections:", sanitizedCollections);
-
-    // Precompute the query embedding once and log the result.
-    const queryEmbedding = await chromaService.getQueryEmbedding(query);
-    console.log("getContext: Computed query embedding:", queryEmbedding);
-
-    // Query each collection using the precomputed embedding and log individual results.
-    const contexts = await Promise.all(
-      sanitizedCollections.map(name =>
-        chromaService.queryDocumentsWithEmbedding(name, queryEmbedding, 5).then(result => {
-          console.log(`getContext: Result for collection '${name}':`, result);
-          return result;
-        })
-      )
-    );
-
-    // Join all context pieces and log the final concatenated context.
-    const finalContext = contexts.join("\n\n");
-    console.log("getContext: Final concatenated context:", finalContext);
-    return finalContext;
   }
 }
 

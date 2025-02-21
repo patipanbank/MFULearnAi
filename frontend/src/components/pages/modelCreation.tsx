@@ -24,6 +24,8 @@ interface Model {
   name: string;
   collections: string[]; // list of collection names selected in the model
   modelType: 'official' | 'personal' | 'staff_only';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Collection {
@@ -119,19 +121,18 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
       </button>
 
       {showMenu && (
-        <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
-        shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
-        backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
+        <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
+        border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onRename(model.id);
               setShowMenu(false);
             }}
-            className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
-            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+            className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 
+            dark:hover:bg-gray-700 flex items-center space-x-2"
           >
-            <FaEdit className="mr-2" size={14} />
+            <FaEdit size={14} />
             <span>Rename</span>
           </button>
           <button
@@ -140,10 +141,10 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
               onDelete(model.id);
               setShowMenu(false);
             }}
-            className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
-            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+            className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 
+            dark:hover:bg-red-900/30 flex items-center space-x-2"
           >
-            <FaTrash className="mr-2" size={14} />
+            <FaTrash size={14} />
             <span>Delete</span>
           </button>
         </div>
@@ -168,9 +169,18 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
               </span>
             ))}
           </div>
+          <div className="flex justify-between items-center mt-4">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getModelTypeStyle(model.modelType)}`}>
+              {model.modelType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+            </span>
+            {model.createdAt && (
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {getRelativeTime(model.createdAt)}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      <span className={`absolute bottom-4 right-4 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getModelTypeStyle(model.modelType)}`}>{model.modelType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</span>
     </div>
   );
 };
@@ -653,6 +663,8 @@ const ModelCreation: React.FC = () => {
           name: model.name,
           collections: model.collections,
           modelType: model.modelType,
+          createdAt: model.createdAt,
+          updatedAt: model.updatedAt
         }));
 
         // Get personal models from localStorage
@@ -685,6 +697,8 @@ const ModelCreation: React.FC = () => {
         name: newModelName.trim(),
         collections: [],
         modelType: 'personal',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       setModels((prev) => [...prev, newModel]);
       
@@ -726,6 +740,8 @@ const ModelCreation: React.FC = () => {
             name: createdModel.name,
             collections: createdModel.collections,
             modelType: newModelType,
+            createdAt: createdModel.createdAt,
+            updatedAt: createdModel.updatedAt
           },
         ]);
       } catch (error) {
