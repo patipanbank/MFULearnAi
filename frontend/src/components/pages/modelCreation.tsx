@@ -309,11 +309,15 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     if (Array.isArray(permission)) {
       return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
     }
-    switch (permission) {
+    const normalized = permission ? permission.toLowerCase() : '';
+    switch (normalized) {
       case 'private':
         return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
       case 'public':
         return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+      case 'staff_only':
+      case 'staffonly':
+        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
       default:
         return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
     }
@@ -323,11 +327,15 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     if (Array.isArray(permission)) {
       return 'Shared';
     }
-    switch (permission) {
+    const normalized = permission ? permission.toLowerCase() : '';
+    switch (normalized) {
       case 'private':
         return 'Private';
       case 'public':
         return 'Public';
+      case 'staff_only':
+      case 'staffonly':
+        return 'Staff Only';
       default:
         return 'Unknown';
     }

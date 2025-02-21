@@ -765,8 +765,8 @@ const TrainingDashboard: React.FC = () => {
       // Handle possible 204 No Content responses
       let updatedCollection;
       if (response.status === 204) {
-        // If no content returned, use the updated values directly
-        updatedCollection = { name: updatedCollectionName, permission: updatedCollectionPermission };
+        // If no content returned, use the updated values directly, and keep the collection id
+        updatedCollection = { id: selectedCollection.id, name: updatedCollectionName, permission: updatedCollectionPermission };
       } else {
         updatedCollection = await response.json();
       }
@@ -800,6 +800,13 @@ const TrainingDashboard: React.FC = () => {
             }
           : prev
       );
+
+      // Refresh the collections list from the API to ensure consistency
+      try {
+        await fetchCollections();
+      } catch (err) {
+        console.error('Error refreshing collections:', err);
+      }
 
       // Refresh uploaded files if the collection name has changed
       if (updatedCollection.name !== selectedCollection.name) {
