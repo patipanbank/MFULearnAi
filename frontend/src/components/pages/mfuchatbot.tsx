@@ -606,7 +606,11 @@ const MFUChatbot: React.FC = () => {
               onChange={(e) => {
                 const modelId = e.target.value;
                 const model = models.find((m) => m.id === modelId);
-                if (model) setSelectedModel(model);
+                if (model) {
+                  setSelectedModel(model);
+                  console.log("Model changed:", model);
+                  console.log("Model Collections:", model.collections);
+                }
               }}
               className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
