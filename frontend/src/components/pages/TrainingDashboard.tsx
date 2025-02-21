@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
+import MainLayout from '../layouts/MainLayout';
 
 // ----------------------
 // Type Definitions
@@ -921,78 +922,80 @@ const TrainingDashboard: React.FC = () => {
   // Render
   // ----------------------
   return (
-    <div className="container mx-auto p-4 font-sans relative">
-      <DashboardHeader
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onNewCollectionToggle={() => setShowNewCollectionModal(true)}
-      />
-
-      {isCollectionsLoading ? (
-        <div className="text-center py-8 text-gray-600 dark:text-gray-300">Loading collections...</div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {filteredCollections.map((collection) => (
-            <CollectionCard
-              key={collection.id}
-              collection={collection}
-              onSelect={() => handleCollectionSelect(collection)}
-              activeDropdown={activeDropdownId === collection.id}
-              onDropdownToggle={() =>
-                setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
-              }
-              onSettings={() => {
-                setSelectedCollection(collection);
-                setShowSettings(true);
-                setActiveDropdownId(null);
-              }}
-              onDelete={() => {
-                setActiveDropdownId(null);
-                handleDeleteCollection(collection);
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {selectedCollection && (
-        <CollectionModal
-          collection={selectedCollection}
-          onClose={() => setSelectedCollection(null)}
-          uploadedFiles={uploadedFiles}
-          onFileChange={handleFileChange}
-          onFileUpload={handleFileUpload}
-          uploadLoading={uploadLoading}
-          onShowSettings={() => setShowSettings(true)}
-          onDeleteFile={handleDeleteFile}
+    <MainLayout>
+      <div className="container mx-auto p-4 font-sans relative">
+        <DashboardHeader
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onNewCollectionToggle={() => setShowNewCollectionModal(true)}
         />
-      )}
 
-      {showSettings && selectedCollection && (
-        <SettingsModal
-          updatedCollectionName={updatedCollectionName}
-          updatedCollectionPermission={updatedCollectionPermission}
-          onNameChange={setUpdatedCollectionName}
-          onPermissionChange={setUpdatedCollectionPermission}
-          onClose={() => setShowSettings(false)}
-          onSubmit={handleUpdateSettings}
-        />
-      )}
+        {isCollectionsLoading ? (
+          <div className="text-center py-8 text-gray-600 dark:text-gray-300">Loading collections...</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {filteredCollections.map((collection) => (
+              <CollectionCard
+                key={collection.id}
+                collection={collection}
+                onSelect={() => handleCollectionSelect(collection)}
+                activeDropdown={activeDropdownId === collection.id}
+                onDropdownToggle={() =>
+                  setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
+                }
+                onSettings={() => {
+                  setSelectedCollection(collection);
+                  setShowSettings(true);
+                  setActiveDropdownId(null);
+                }}
+                onDelete={() => {
+                  setActiveDropdownId(null);
+                  handleDeleteCollection(collection);
+                }}
+              />
+            ))}
+          </div>
+        )}
 
-      {showNewCollectionModal && (
-        <NewCollectionModal
-          newCollectionName={newCollectionName}
-          newCollectionPermission={newCollectionPermission}
-          onNameChange={setNewCollectionName}
-          onPermissionChange={setNewCollectionPermission}
-          onSubmit={handleCreateCollection}
-          onCancel={() => {
-            setShowNewCollectionModal(false);
-            setNewCollectionName('');
-          }}
-        />
-      )}
-    </div>
+        {selectedCollection && (
+          <CollectionModal
+            collection={selectedCollection}
+            onClose={() => setSelectedCollection(null)}
+            uploadedFiles={uploadedFiles}
+            onFileChange={handleFileChange}
+            onFileUpload={handleFileUpload}
+            uploadLoading={uploadLoading}
+            onShowSettings={() => setShowSettings(true)}
+            onDeleteFile={handleDeleteFile}
+          />
+        )}
+
+        {showSettings && selectedCollection && (
+          <SettingsModal
+            updatedCollectionName={updatedCollectionName}
+            updatedCollectionPermission={updatedCollectionPermission}
+            onNameChange={setUpdatedCollectionName}
+            onPermissionChange={setUpdatedCollectionPermission}
+            onClose={() => setShowSettings(false)}
+            onSubmit={handleUpdateSettings}
+          />
+        )}
+
+        {showNewCollectionModal && (
+          <NewCollectionModal
+            newCollectionName={newCollectionName}
+            newCollectionPermission={newCollectionPermission}
+            onNameChange={setNewCollectionName}
+            onPermissionChange={setNewCollectionPermission}
+            onSubmit={handleCreateCollection}
+            onCancel={() => {
+              setShowNewCollectionModal(false);
+              setNewCollectionName('');
+            }}
+          />
+        )}
+      </div>
+    </MainLayout>
   );
 };
 
