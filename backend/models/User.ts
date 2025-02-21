@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 export type UserRole = 'ADMIN' | 'STAFF' | 'USER';
 
 const userSchema = new mongoose.Schema({
-  nameID: String,
+  nameID: { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
   email: String,
   firstName: String,

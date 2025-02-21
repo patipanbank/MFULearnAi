@@ -154,7 +154,7 @@ const samlStrategy = new SamlStrategy(
 
       // Update user in database
       const user = await User.findOneAndUpdate(
-        { username: finalUsername },
+        { nameID: finalNameID },
         {
           nameID: finalNameID,
           username: finalUsername,
@@ -242,7 +242,7 @@ router.post('/saml/callback',
       };
 
       await User.findOneAndUpdate(
-        { username: userInfo.username },
+        { nameID: userInfo.nameID },
         {
           ...userInfo,
           groups: userData.groups || [],
