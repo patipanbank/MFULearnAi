@@ -5,6 +5,7 @@ import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
+import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -207,6 +208,66 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
+  }
+});
+
+// สร้างแชทใหม่
+router.post('/new', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const { modelId, collectionName } = req.body;
+    
+    const newChat = new ChatHistory({
+      userId,
+      modelId: modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+      collectionName: collectionName || '',
+      title: 'New Chat',
+      messages: []
+    });
+
+    await newChat.save();
+    res.json(newChat);
+  } catch (error) {
+    console.error('Error creating new chat:', error);
+    res.status(500).json({ error: 'Failed to create new chat' });
+  }
+});
+
+// ดึงประวัติแชททั้งหมด
+router.get('/history/all', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const chats = await ChatHistory.find({ userId })
+      .sort({ createdAt: -1 })
+      .select('_id title modelId collectionName createdAt');
+    res.json(chats);
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    res.status(500).json({ error: 'Failed to fetch chat history' });
+  }
+});
+// แก้ไขชื่อแชท
+router.put('/rename/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { chatId } = req.params;
+    const { title } = req.body;
+    const userId = (req.user as any)?.username;
+
+    const chat = await ChatHistory.findOneAndUpdate(
+      { _id: chatId, userId },
+      { title },
+      { new: true }
+    );
+
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+
+    res.json(chat);
+  } catch (error) {
+    console.error('Error renaming chat:', error);
+    res.status(500).json({ error: 'Failed to rename chat' });
   }
 });
 

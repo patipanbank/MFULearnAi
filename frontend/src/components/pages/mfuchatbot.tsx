@@ -5,6 +5,7 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useParams } from 'react-router-dom';
 
 interface Source {
   modelId: string;
@@ -44,6 +45,7 @@ const LoadingDots = () => (
 );
 
 const MFUChatbot: React.FC = () => {
+  const { chatId } = useParams<{ chatId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -133,32 +135,29 @@ const MFUChatbot: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loadChatHistory = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) return;
+    if (chatId) {
+      loadChatMessages();
+    } else {
+      setMessages([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId]);
 
-        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const history = await response.json();
-          if (history.messages) {
-            setMessages(history.messages);
-            setSelectedModel(history.modelId || '');
-            setSelectedCollection(history.collectionName || '');
-          }
+  const loadChatMessages = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/${chatId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
-      } catch (error) {
-        console.error('Error loading chat history:', error);
-      }
-    };
-
-    loadChatHistory();
-  }, []);
+      });
+      const data = await response.json();
+      setMessages(data.messages);
+      setSelectedModel(data.modelId);
+      setSelectedCollection(data.collectionName);
+    } catch (error) {
+      console.error('Failed to load chat messages:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
