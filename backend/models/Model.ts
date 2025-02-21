@@ -28,4 +28,5 @@ export interface RequestWithUser extends Request {
     role: string;
     groups: string[];
   };
+  samlLogoutRequest?: any;
 } 
