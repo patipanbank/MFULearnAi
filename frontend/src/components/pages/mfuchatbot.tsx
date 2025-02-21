@@ -604,7 +604,7 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       {/* Chat Input Form */}
-      <div className="flex-shrink-0 bg-gray-800">
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-800">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 pb-8">
             <div className="flex gap-3 items-end">
