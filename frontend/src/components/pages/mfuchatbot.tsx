@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, FormEvent } from 'react';
 import { BiLoaderAlt } from 'react-icons/bi';
 import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
@@ -33,6 +33,13 @@ interface Message {
   sources?: Source[];
 }
 
+// This is the local model type stored by modelCreation.tsx
+export interface Model {
+  id: string;
+  name: string;
+  collections: string[];
+}
+
 /* -------------------------------
    Utility Components
 ---------------------------------*/
@@ -44,58 +51,9 @@ const LoadingDots = () => (
   </div>
 );
 
-//const modelNames: { [key: string]: string } = {
-  //'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
-  // Add more mappings as needed
-//};
-
 /* -------------------------------
    Custom Hooks for API Integration
 ---------------------------------*/
-
-/**
- * useChatMetadata:
- * Fetches available models from /api/training/models and accessible collections from /api/chat/collections.
- */
-function useChatMetadata() {
-  const [models, setModels] = useState<string[]>([]);
-  const [collections, setCollections] = useState<string[]>([]);
-
-  useEffect(() => {
-    const fetchMetadata = async () => {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        console.error('No auth token found');
-        return;
-      }
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-
-      try {
-        // Get available models
-        const modelsRes = await fetch(`${config.apiUrl}/api/training/models`, { headers });
-        if (modelsRes.ok) {
-          const modelsData = await modelsRes.json();
-          setModels(Array.isArray(modelsData) ? modelsData : []);
-        }
-        // Get accessible collections.
-        const collectionsRes = await fetch(`${config.apiUrl}/api/chat/collections`, { headers });
-        if (collectionsRes.ok) {
-          const collectionsData = await collectionsRes.json();
-          setCollections(Array.isArray(collectionsData) ? collectionsData : []);
-        }
-      } catch (error) {
-        console.error('Error fetching metadata:', error);
-      }
-    };
-
-    fetchMetadata();
-  }, []);
-
-  return { models, collections };
-}
 
 /**
  * useChatHistory:
@@ -201,13 +159,13 @@ const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
 ---------------------------------*/
 const MFUChatbot: React.FC = () => {
   // Local state
-  const { models, collections } = useChatMetadata();
   const { history, setHistory } = useChatHistory();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [selectedModel, setSelectedModel] = useState('anthropic.claude-3-5-sonnet-20240620-v1:0');
+  const [models, setModels] = useState<Model[]>([]);
+  const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -216,11 +174,19 @@ const MFUChatbot: React.FC = () => {
   // When chat history loads, synchronize with messages state.
   useEffect(() => {
     setMessages(history);
-    if (collections.length > 0 && !selectedModel) {
-      // Set default collection (first accessible one)
-      setSelectedModel(collections[0]);
+  }, [history]);
+
+  // Load models from localStorage (the same key used by the model creation page)
+  useEffect(() => {
+    const storedModels = localStorage.getItem('models');
+    if (storedModels) {
+      const localModels: Model[] = JSON.parse(storedModels);
+      setModels(localModels);
+      if (!selectedModel && localModels.length > 0) {
+        setSelectedModel(localModels[0]);
+      }
     }
-  }, [history, collections, selectedModel]);
+  }, [selectedModel]);
 
   // Scroll to bottom when messages update
   const scrollToBottom = () => {
@@ -312,7 +278,7 @@ const MFUChatbot: React.FC = () => {
         },
         body: JSON.stringify({
           messages,
-          modelId: selectedModel
+          modelId: selectedModel?.id
         })
       });
       // Update the history hook state as well
@@ -334,7 +300,7 @@ const MFUChatbot: React.FC = () => {
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canSubmit()) return;
 
@@ -381,14 +347,8 @@ const MFUChatbot: React.FC = () => {
         { id: aiMessageId, role: 'assistant', content: '', timestamp: new Date() }
       ]);
 
-      // Define a mapping from model ID to its associated collections.
-      // In a real project, this could be loaded dynamically with each model's configuration.
-      const modelCollectionMapping: { [key: string]: string[] } = {
-        'anthropic.claude-3-5-sonnet-20240620-v1:0': ['collection1:example', 'collection2:example']
-        // add more mappings as needed
-      };
-      // Get the collections for the selected model.
-      const collectionsToQuery = modelCollectionMapping[selectedModel] || [];
+      // Instead of a static mapping, we use the model's associated collections.
+      const collectionsToQuery = selectedModel?.collections || [];
 
       wsRef.current.onmessage = (event) => {
         try {
@@ -417,10 +377,10 @@ const MFUChatbot: React.FC = () => {
         }
       };
 
-      // Send the payload including the associated collections along with the model ID.
+      // Send the payload including the selected model's collections along with the model ID.
       wsRef.current.send(JSON.stringify({
         messages: [...messages, userMessage],
-        modelId: selectedModel,
+        modelId: selectedModel?.id,
         collections: collectionsToQuery
       }));
     } catch (error) {
@@ -629,14 +589,18 @@ const MFUChatbot: React.FC = () => {
         <div className="p-2 md:p-4 border-b">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
             <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
+              value={selectedModel?.id || ''}
+              onChange={(e) => {
+                const modelId = e.target.value;
+                const model = models.find((m) => m.id === modelId);
+                if (model) setSelectedModel(model);
+              }}
               className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="">Model</option>
-              {models.map((modelName) => (
-                <option key={modelName} value={modelName}>
-                  {modelName}
+              <option value="">Select Model</option>
+              {models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
                 </option>
               ))}
             </select>
