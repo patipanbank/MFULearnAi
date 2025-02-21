@@ -5,6 +5,7 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { FaPlus } from 'react-icons/fa';
 
 /* -------------------------------
    Type Definitions
@@ -491,8 +492,33 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
+      {/* Model Selector Section - Moved to top left */}
+      <div className="fixed top-4 left-4 z-10">
+        <select
+          value={selectedModel?.id || ''}
+          onChange={(e) => {
+            const modelId = e.target.value;
+            const model = models.find((m) => m.id === modelId);
+            if (model) {
+              setSelectedModel(model);
+            }
+          }}
+          className="px-4 py-2.5 text-sm rounded-xl border-0 bg-white dark:bg-gray-700 
+          text-gray-900 dark:text-gray-100 hover:border hover:border-gray-300 dark:hover:border-gray-600
+          focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all duration-200 
+          shadow-sm hover:shadow-md"
+        >
+          <option value="">Select Model</option>
+          {models.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Chat history / messages container */}
-      <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40 
+      <div className="flex-1 overflow-y-auto px-6 md:px-8 lg:px-12 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40 
       bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
@@ -601,42 +627,16 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      {/* Chat controls */}
+      {/* Chat Input Form */}
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 
-      border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] shadow-lg">
-        {/* Model Selector Section */}
-        <div className="p-3 md:p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-          <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <select
-              value={selectedModel?.id || ''}
-              onChange={(e) => {
-                const modelId = e.target.value;
-                const model = models.find((m) => m.id === modelId);
-                if (model) {
-                  setSelectedModel(model);
-                }
-              }}
-              className="px-4 py-2.5 text-sm md:text-base rounded-xl border border-gray-300 
-              dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-              flex-1 max-w-[200px] focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 
-              focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              <option value="">Select Model</option>
-              {models.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Chat Input Form */}
+      border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] shadow-lg px-6 md:px-8 lg:px-12">
         <form onSubmit={handleSubmit} className="p-3 md:p-4">
           <div className="flex gap-3 max-w-[90%] lg:max-w-[80%] mx-auto">
+            {/* Image Upload Button */}
             <div className="flex items-center">
-              <label className="cursor-pointer transform hover:scale-110 transition-all duration-200 
-              p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+              <label className="cursor-pointer flex items-center justify-center w-9 h-9
+              rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 
+              dark:hover:bg-gray-700 transition-all duration-200">
                 <input
                   type="file"
                   accept="image/*"
@@ -644,8 +644,7 @@ const MFUChatbot: React.FC = () => {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <RiImageAddFill className="w-6 h-6 text-blue-600 dark:text-blue-400 
-                hover:text-blue-700 dark:hover:text-blue-300" />
+                <FaPlus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
               </label>
             </div>
 
@@ -683,21 +682,21 @@ const MFUChatbot: React.FC = () => {
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
-                  className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-xl border border-gray-300 
+                  className="flex-1 min-w-0 p-3 text-sm md:text-base rounded-3xl border border-gray-300 
                   dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
                   placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 
                   focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent 
                   transition-all duration-200 shadow-sm hover:shadow-md"
                   placeholder={selectedImages.length > 0 
                     ? "Please describe or ask about these images..." 
-                    : "Type a message..."}
+                    : "Ask anything..."}
                   rows={1}
                   required
                 />
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className={`p-3 rounded-xl font-medium flex items-center justify-center 
+                  className={`p-3 rounded-full font-medium flex items-center justify-center 
                   transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg 
                   min-h-[44px] min-w-[44px] ${
                     canSubmit()
