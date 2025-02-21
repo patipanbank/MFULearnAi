@@ -597,16 +597,51 @@ const ModelCreation: React.FC = () => {
     const fetchModels = async () => {
       try {
         const authToken = localStorage.getItem('auth_token');
-        if (!authToken) throw new Error('No auth token found');
+        if (!authToken) {
+          console.error('No auth token found');
+          return;
+        }
+
+        // Validate token format
+        const tokenParts = authToken.split('.');
+        if (tokenParts.length !== 3) {
+          console.error('Invalid token format');
+          return;
+        }
 
         // Get user role from token
-        const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
+        let tokenPayload;
+        try {
+          tokenPayload = JSON.parse(atob(tokenParts[1]));
+        } catch (e) {
+          console.error('Failed to parse token payload:', e);
+          return;
+        }
+        
         const isStaffUser = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
 
+        console.log('Fetching models with token:', `Bearer ${authToken}`);
         const response = await fetch(`${config.apiUrl}/api/models`, {
-          headers: { 'Authorization': `Bearer ${authToken}` },
+          headers: { 
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          },
         });
-        if (!response.ok) throw new Error('Failed to fetch models');
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Failed to fetch models:', response.status, errorText);
+          
+          if (response.status === 401) {
+            // Token might be expired or invalid
+            localStorage.removeItem('auth_token');
+            window.location.href = '/login';
+            return;
+          }
+          
+          throw new Error(`Failed to fetch models: ${errorText}`);
+        }
+
         const modelsFromBackend = await response.json();
         
         // Filter models based on user role
@@ -627,6 +662,9 @@ const ModelCreation: React.FC = () => {
         setModels([...filteredModels, ...storedPersonalModels]);
       } catch (error) {
         console.error('Error fetching models:', error);
+        if (error instanceof Error) {
+          alert(error.message);
+        }
       }
     };
     fetchModels();

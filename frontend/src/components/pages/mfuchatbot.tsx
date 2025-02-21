@@ -118,10 +118,24 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
+        // Validate token format
+        const tokenParts = token.split('.');
+        if (tokenParts.length !== 3) {
+          console.error('Invalid token format');
+          return;
+        }
+
         // Get user role from token
-        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        let tokenPayload;
+        try {
+          tokenPayload = JSON.parse(atob(tokenParts[1]));
+        } catch (e) {
+          console.error('Failed to parse token payload:', e);
+          return;
+        }
         const isStaff = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
 
+        console.log('Fetching models with token:', `Bearer ${token}`);
         // Fetch official and staff-only models from the database
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: {
@@ -131,7 +145,17 @@ const MFUChatbot: React.FC = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch models');
+          const errorText = await response.text();
+          console.error('Failed to fetch models:', response.status, errorText);
+          
+          if (response.status === 401) {
+            // Token might be expired or invalid
+            localStorage.removeItem('auth_token');
+            window.location.href = '/login';
+            return;
+          }
+          
+          throw new Error(`Failed to fetch models: ${errorText}`);
         }
 
         const dbModels = await response.json();
@@ -167,6 +191,9 @@ const MFUChatbot: React.FC = () => {
         }
       } catch (error) {
         console.error('Error fetching models:', error);
+        if (error instanceof Error) {
+          alert(error.message);
+        }
         setModels([]);
       }
     };
