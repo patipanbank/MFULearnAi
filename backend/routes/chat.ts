@@ -5,6 +5,7 @@ import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
+import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -207,6 +208,37 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
+  }
+});
+
+// สร้าง chat session ใหม่
+router.post('/sessions/new', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const newChat = new ChatHistory({
+      userId,
+      title: 'New Chat', // สามารถให้ผู้ใช้ตั้งชื่อภายหลัง
+      messages: [],
+      modelId: req.body.modelId,
+      collectionName: req.body.collectionName
+    });
+    await newChat.save();
+    res.json(newChat);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create new chat' });
+  }
+});
+
+// ดึงประวัติการสนทนาทั้งหมด
+router.get('/sessions', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const sessions = await ChatHistory.find({ userId })
+      .select('title created lastUpdated')
+      .sort({ lastUpdated: -1 });
+    res.json(sessions);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch chat sessions' });
   }
 });
 

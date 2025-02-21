@@ -18,6 +18,8 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/auth-callback" element={<AuthCallback />} />
         <Route path="/" element={<Navigate to="/mfuchatbot" replace />} />
+        <Route path="/chat" element={<MFUChatbot />} />
+        <Route path="/chat/:sessionId" element={<MFUChatbot />} />
         <Route
           path="/mfuchatbot"
           element={

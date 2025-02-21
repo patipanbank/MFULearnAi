@@ -5,6 +5,8 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
 
 interface Source {
   modelId: string;
@@ -15,6 +17,32 @@ interface Source {
 }
 
 interface Message {
+  id: number;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+  image?: {
+    data: string;
+    mediaType: string;
+  };
+  images?: {
+    data: string;
+    mediaType: string;
+  }[];
+  sources?: Source[];
+}
+
+interface ChatSession {
+  _id: string;
+  title: string;
+  messages: ChatMessage[];
+  modelId: string;
+  collectionName: string;
+  created: Date;
+  lastUpdated: Date;
+}
+
+interface ChatMessage {
   id: number;
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -44,7 +72,9 @@ const LoadingDots = () => (
 );
 
 const MFUChatbot: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { sessionId } = useParams();
+  const [, setCurrentSession] = useState<ChatSession | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -56,6 +86,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  // const navigate = useNavigate();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -133,32 +164,22 @@ const MFUChatbot: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loadChatHistory = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) return;
+    if (sessionId) {
+      loadChatSession(sessionId);
+    } else {
+      setMessages([]);
+    }
+  }, [sessionId]);
 
-        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const history = await response.json();
-          if (history.messages) {
-            setMessages(history.messages);
-            setSelectedModel(history.modelId || '');
-            setSelectedCollection(history.collectionName || '');
-          }
-        }
-      } catch (error) {
-        console.error('Error loading chat history:', error);
-      }
-    };
-
-    loadChatHistory();
-  }, []);
+  const loadChatSession = async (id: string) => {
+    try {
+      const response = await axios.get(`${config.apiUrl}/api/chat/sessions/${id}`);
+      setCurrentSession(response.data);
+      setMessages(response.data.messages);
+    } catch (error) {
+      console.error('Error loading chat session:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
