@@ -70,25 +70,26 @@ export class ChatService {
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
-    modelId: string
+    modelId: string,
+    collections?: string[]
   ): AsyncGenerator<string> {
     try {
       // Retrieve the model (custom or default) from the backend.
       const model = await modelService.getModelById(modelId);
-      let collections: string[] = [];
+      let collectionsToQuery: string[] = [];
       if (model) {
-        collections = model.collections;
+        collectionsToQuery = collections || model.collections;
       }
       
       // Do not force a fallback: if there are no collections, skip vector query.
-      if (collections.length === 0) {
+      if (collectionsToQuery.length === 0) {
         console.warn("No collections provided for this model; skipping vector context retrieval.");
       }
     
       // Retrieve context only if collections are provided.
       let context = "";
-      if (collections.length > 0) {
-        context = await this.getContext(query, collections);
+      if (collectionsToQuery.length > 0) {
+        context = await this.getContext(query, collectionsToQuery);
         console.log("Retrieved context length:", context.length);
       }
 
