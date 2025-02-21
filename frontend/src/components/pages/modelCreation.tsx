@@ -71,6 +71,23 @@ interface ModelCardProps {
 }
 const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelete }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   return (
     <div
@@ -79,49 +96,51 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
       border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
       onClick={onClick}
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowMenu(!showMenu);
-        }}
-        className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
-        dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
-        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-        title="Options"
-      >
-        <FaEllipsisH size={16} />
-      </button>
+      <div ref={menuRef}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMenu(!showMenu);
+          }}
+          className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
+          dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
+          hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+          title="Options"
+        >
+          <FaEllipsisH size={16} />
+        </button>
 
-      {showMenu && (
-        <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
-        shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
-        backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRename(model.id);
-              setShowMenu(false);
-            }}
-            className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
-            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-          >
-            <FaEdit className="mr-2" size={14} />
-            <span>Rename</span>
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(model.id);
-              setShowMenu(false);
-            }}
-            className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
-            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-          >
-            <FaTrash className="mr-2" size={14} />
-            <span>Delete</span>
-          </button>
-        </div>
-      )}
+        {showMenu && (
+          <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
+          shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
+          backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRename(model.id);
+                setShowMenu(false);
+              }}
+              className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
+              hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+            >
+              <FaEdit className="mr-2" size={14} />
+              <span>Rename</span>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(model.id);
+                setShowMenu(false);
+              }}
+              className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
+              hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+            >
+              <FaTrash className="mr-2" size={14} />
+              <span>Delete</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-col h-full">
         <div className="mb-4">
