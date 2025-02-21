@@ -56,6 +56,12 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const [, setCurrentChatId] = useState<string | null>(null);
+  // const [chats, setChats] = useState<Array<{
+  //   chatId: string;
+  //   lastMessage: string;
+  //   updatedAt: Date;
+  // }>>([]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -497,8 +503,32 @@ const MFUChatbot: React.FC = () => {
     return data.embedding;
   };
 
+  const createNewChat = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/new`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const data = await response.json();
+      setCurrentChatId(data.chatId);
+      setMessages([]);
+    } catch (error) {
+      console.error('Error creating new chat:', error);
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
+      <div className="flex justify-between items-center p-4">
+        <button
+          onClick={createNewChat}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+        >
+          New Chat
+        </button>
+      </div>
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">

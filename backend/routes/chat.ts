@@ -5,6 +5,7 @@ import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
+import mongoose from 'mongoose';
 
 const router = Router();
 
@@ -125,6 +126,7 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: 
 
     // แก้ไขการบันทึกประวัติให้รองรับหลายรูป
     const history = await chatHistoryService.saveChatMessage(
+      (req.user as any)?.chatId || new mongoose.Types.ObjectId().toString(),
       userId,
       modelId,
       collectionName,
@@ -207,6 +209,28 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
+  }
+});
+
+router.post('/new', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const chatId = await chatHistoryService.createNewChat(userId);
+    res.json({ chatId });
+  } catch (error) {
+    console.error('Error creating new chat:', error);
+    res.status(500).json({ error: 'Failed to create new chat' });
+  }
+});
+
+router.get('/all', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const chats = await chatHistoryService.getAllChats(userId);
+    res.json(chats);
+  } catch (error) {
+    console.error('Error getting all chats:', error);
+    res.status(500).json({ error: 'Failed to get chats' });
   }
 });
 
