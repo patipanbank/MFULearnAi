@@ -146,13 +146,14 @@ class ChromaService {
   }
 
   /**
-   * Performs a similarity search on the specified collection
-   * using the provided query embedding, retrieving at most n_results.
-   * Returns the concatenated document text from the top results.
+   * Performs a similarity search on the specified collection using the provided query embedding.
+   * Returns the concatenated document text from the top n_results.
+   *
+   * The update here is to use `queryEmbeddings` (an array) to satisfy the API requirement.
    */
   async queryDocumentsWithEmbedding(collectionName: string, queryEmbedding: number[], n_results: number): Promise<string> {
     try {
-      // Make sure the collection exists.
+      // Ensure that the collection exists.
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
       if (!collection) {
@@ -160,14 +161,14 @@ class ChromaService {
       }
       console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results.`);
 
-      // Query for similarities.
+      // Use `queryEmbeddings` (array of embeddings) to query.
       const queryResult = await collection.query({
-        queryEmbedding,
+        queryEmbeddings: [queryEmbedding],
         n_results
       });
       console.log(`ChromaService: Raw results for '${collectionName}':`, queryResult);
 
-      // Assume each result has a 'text' field. Join the texts.
+      // Assume each result has a 'text' field.
       const documentChunks: string[] = queryResult.map((doc: any) => doc.text);
       const concatenatedContext = documentChunks.join("\n\n");
       return concatenatedContext;
