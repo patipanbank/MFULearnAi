@@ -138,6 +138,29 @@ const MFUChatbot: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const loadLatestChat = async () => {
+      if (!chatId && !location.pathname.endsWith('/mfuchatbot')) {
+        try {
+          const response = await fetch(`${config.apiUrl}/api/chat/all`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            }
+          });
+          const chats = await response.json();
+          if (chats && chats.length > 0) {
+            const latestChat = chats[0];
+            window.location.href = `/mfuchatbot?chat=${latestChat.chatId}`;
+          }
+        } catch (error) {
+          console.error('Error loading latest chat:', error);
+        }
+      }
+    };
+
+    loadLatestChat();
+  }, [chatId, location.pathname]);
+
+  useEffect(() => {
     const loadChatById = async () => {
       if (!chatId) return;
       
@@ -150,9 +173,9 @@ const MFUChatbot: React.FC = () => {
         
         if (response.ok) {
           const chatData = await response.json();
-          setMessages(chatData.messages);
-          setSelectedModel(chatData.modelId);
-          setSelectedCollection(chatData.collectionName);
+          setMessages(chatData.messages || []);
+          setSelectedModel(chatData.modelId || '');
+          setSelectedCollection(chatData.collectionName || '');
         }
       } catch (error) {
         console.error('Error loading chat:', error);
