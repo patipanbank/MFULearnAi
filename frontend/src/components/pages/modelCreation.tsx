@@ -695,6 +695,11 @@ const ModelCreation: React.FC = () => {
   // Handle model creation
   const handleCreateModel = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newModelName.trim()) {
+      alert('Please enter a model name');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
@@ -708,10 +713,16 @@ const ModelCreation: React.FC = () => {
       // Use nameID if available, otherwise fall back to username (for admin users)
       const createdBy = (tokenPayload as any).nameID || (tokenPayload as any).username;
       if (!createdBy) {
-        throw new Error('User identifier not found in token');
+        throw new Error('No user identifier found in token');
       }
 
-      console.log('Creating model with createdBy:', createdBy);
+      console.log('Creating model with:', {
+        name: newModelName.trim(),
+        modelType: newModelType,
+        createdBy,
+        userGroups: (tokenPayload as any).groups,
+        isStaff: (tokenPayload as any).groups?.includes('Staffs')
+      });
 
       const response = await fetch(`${config.apiUrl}/api/models`, {
         method: 'POST',
@@ -720,9 +731,9 @@ const ModelCreation: React.FC = () => {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: newModelName,
+          name: newModelName.trim(),
           modelType: newModelType,
-          createdBy,
+          createdBy
         }),
       });
 
@@ -734,10 +745,23 @@ const ModelCreation: React.FC = () => {
       const data = await response.json();
       console.log('Model created successfully:', data);
       
-      // Reset form and show success message
+      // Transform the response to match our frontend Model interface
+      const newModel: Model = {
+        id: data._id,
+        name: data.name,
+        collections: data.collections || [],
+        modelType: data.modelType,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        createdBy: data.createdBy
+      };
+
+      // Update the models list
+      setModels(prev => [...prev, newModel]);
+      
+      // Reset form and close modal
       setNewModelName('');
-      setNewModelType('personal');
-      alert('Model created successfully!');
+      setShowNewModelModal(false);
       
     } catch (error) {
       console.error('Error creating model:', error);
