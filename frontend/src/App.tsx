@@ -8,6 +8,7 @@ import AuthGuard from './components/guards/AuthGuard';
 import RoleGuard from './components/guards/RoleGuard';
 import ModelCreation from './components/pages/modelCreation';
 import './index.css';
+import AdminLogin from './components/login/AdminLogin';
  
 
 const App = () => {
@@ -51,6 +52,31 @@ const App = () => {
             </AuthGuard>
           }
         />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedRoles={['Admin']}>
+                <MainLayout>
+                  <TrainingDashboard />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        {/* <Route
+          path="/training-history"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['Staffs']}>
+                <MainLayout>
+                  <TrainingHistory />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        /> */}
       </Routes>
     </Router>
   );
