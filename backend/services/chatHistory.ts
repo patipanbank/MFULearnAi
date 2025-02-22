@@ -33,8 +33,17 @@ class ChatHistoryService {
         sources: msg.sources || []
       }));
 
+      // เพิ่ม log เพื่อตรวจสอบ
+      console.log('Saving chat message:', {
+        userId,
+        modelId,
+        collectionName,
+        chatId,
+        messagesCount: messages.length
+      });
+
       if (chatId) {
-        // อัพเดทแชทเดิม
+        console.log('Updating existing chat:', chatId);
         const history = await ChatHistory.findByIdAndUpdate(
           chatId,
           {
@@ -43,9 +52,10 @@ class ChatHistoryService {
           },
           { new: true }
         );
+        console.log('Updated chat result:', history?._id);
         return history;
       } else {
-        // สร้างแชทใหม่
+        console.log('Creating new chat');
         const history = await ChatHistory.create({
           userId,
           modelId,
@@ -54,10 +64,11 @@ class ChatHistoryService {
           messages: processedMessages,
           updatedAt: new Date()
         });
+        console.log('Created new chat:', history._id);
         return history;
       }
     } catch (error) {
-      console.error('Error saving chat message:', error);
+      console.error('Error in saveChatMessage:', error);
       throw error;
     }
   }

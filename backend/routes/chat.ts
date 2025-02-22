@@ -124,13 +124,31 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: 
     const { messages, modelId, collectionName, chatId } = req.body;
     const userId = (req.user as any)?.username || '';
 
+    // เพิ่ม log เพื่อตรวจสอบ
+    console.log('Received chat save request:', {
+      userId,
+      modelId,
+      collectionName,
+      chatId,
+      messagesCount: messages.length
+    });
+
     const history = await chatHistoryService.saveChatMessage(
       userId,
       modelId,
       collectionName,
       messages,
-      chatId  // ส่ง chatId ไปด้วย
+      chatId
     );
+
+    if (history) {
+      console.log('Saved chat result:', {
+        _id: history._id,
+        chatId: chatId,
+        isNewChat: !chatId
+      });
+    }
+
     res.json(history);
   } catch (error) {
     console.error('Error saving chat history:', error);

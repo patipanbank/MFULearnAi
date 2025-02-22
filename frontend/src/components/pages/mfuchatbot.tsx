@@ -136,6 +136,8 @@ const MFUChatbot: React.FC = () => {
   const [searchParams] = useSearchParams();
   const chatId = searchParams.get('chat');
 
+  console.log('Current chatId:', chatId);
+
   useEffect(() => {
     const loadChatHistory = async () => {
       try {
@@ -217,6 +219,13 @@ const MFUChatbot: React.FC = () => {
     const aiMessageId = messages.length + 2;
 
     try {
+      console.log('Saving chat with data:', {
+        messages,
+        modelId: selectedModel,
+        collectionName: selectedCollection,
+        chatId
+      });
+
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
         await new Promise((resolve, reject) => {
@@ -322,21 +331,36 @@ const MFUChatbot: React.FC = () => {
 
   const saveChatHistory = async (messages: Message[]) => {
     try {
+      console.log('Saving chat with data:', {
+        messages,
+        modelId: selectedModel,
+        collectionName: selectedCollection,
+        chatId
+      });
+
       const token = localStorage.getItem('auth_token');
-      await fetch(`${config.apiUrl}/api/chat/history`, {
+      const historyResponse = await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           messages,
           modelId: selectedModel,
-          collectionName: selectedCollection
+          collectionName: selectedCollection,
+          chatId
         })
       });
+
+      if (!historyResponse.ok) {
+        throw new Error('Failed to save chat history');
+      }
+
+      const savedChat = await historyResponse.json();
+      console.log('Saved chat response:', savedChat);
     } catch (error) {
-      console.error('Error saving chat history:', error);
+      console.error('Error:', error);
     }
   };
 
