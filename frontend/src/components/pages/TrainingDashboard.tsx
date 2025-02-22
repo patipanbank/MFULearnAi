@@ -535,7 +535,6 @@ const TrainingDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isFilesLoading, setIsFilesLoading] = useState<boolean>(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   
   const [showNewCollectionModal, setShowNewCollectionModal] = useState<boolean>(false);
@@ -601,7 +600,6 @@ const TrainingDashboard: React.FC = () => {
 
   const fetchUploadedFiles = useCallback(async (collectionName: string) => {
     try {
-      setIsFilesLoading(true);
       const response = await fetch(
         `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
         {
@@ -630,8 +628,6 @@ const TrainingDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error fetching uploaded files:', error);
       alert(error instanceof Error ? error.message : 'Failed to fetch files');
-    } finally {
-      setIsFilesLoading(false);
     }
   }, []);
 
@@ -911,7 +907,7 @@ const TrainingDashboard: React.FC = () => {
     if (!selectedCollection) return;
     if (!window.confirm(`Are you sure you want to delete the file ${fileToDelete.filename}?`)) return;
     
-    setIsFilesLoading(true);
+    setUploadLoading(true);
     try {
       for (const chunkId of fileToDelete.ids) {
         const response = await fetch(
@@ -936,7 +932,7 @@ const TrainingDashboard: React.FC = () => {
       console.error('Error deleting file:', error);
       alert('Error deleting file. Please try again.');
     } finally {
-      setIsFilesLoading(false);
+      setUploadLoading(false);
     }
   };
 
