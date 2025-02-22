@@ -690,30 +690,48 @@ const TrainingDashboard: React.FC = () => {
 
   const fetchCollections = useCallback(async () => {
     try {
+      console.log('Starting to fetch collections...');
       setIsCollectionsLoading(true);
+      
+      const token = localStorage.getItem('auth_token');
+      console.log('Using auth token:', token ? 'Token exists' : 'No token found');
+
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
+      console.log('Collection API response status:', response.status);
       if (!response.ok) throw new Error('Failed to fetch collections');
       
       // Type the response data as MongoCollection[]
       const data: MongoCollection[] = await response.json();
+      console.log('Raw collection data from backend:', data);
       
       // Transform MongoCollection to Collection type with safe _id handling
+      console.log('Starting collection data transformation...');
       const transformedCollections: Collection[] = data
-        .filter((mongo: MongoCollection) => mongo._id) // Filter out any items without an _id
-        .map((mongo: MongoCollection) => ({
-          id: mongo.id || (typeof mongo._id === 'string' ? mongo._id : mongo._id.toString()),
-          name: mongo.name,
-          createdBy: mongo.createdBy || 'Unknown',
-          created: mongo.created || mongo.createdAt || new Date().toISOString(),
-          permission: mongo.permission as CollectionPermission || CollectionPermission.PUBLIC
-        }));
+        .filter((mongo: MongoCollection) => {
+          const hasId = Boolean(mongo._id);
+          if (!hasId) console.log('Filtering out collection missing _id:', mongo);
+          return hasId;
+        })
+        .map((mongo: MongoCollection) => {
+          const id = mongo.id || (typeof mongo._id === 'string' ? mongo._id : mongo._id.toString());
+          console.log(`Transforming collection ${mongo.name} with ID ${id}`);
+          return {
+            id,
+            name: mongo.name,
+            createdBy: mongo.createdBy || 'Unknown',
+            created: mongo.created || mongo.createdAt || new Date().toISOString(),
+            permission: mongo.permission as CollectionPermission || CollectionPermission.PUBLIC
+          };
+        });
 
+      console.log('Transformed collections:', transformedCollections);
       setCollections(transformedCollections);
+      console.log('Collections state updated successfully');
     } catch (error) {
       console.error('Error fetching collections:', error);
     } finally {
@@ -1082,7 +1100,7 @@ const TrainingDashboard: React.FC = () => {
 
   // Filter collections based on search
   const filteredCollections = collections.filter((collection) =>
-    collection.name.toLowerCase().includes(searchQuery.toLowerCase())
+    collection.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
   );
 
   return (
