@@ -19,16 +19,6 @@ interface UploadedFile {
   ids: string[];
 }
 
-interface MongoCollection {
-  _id: string | { toString(): string };  // MongoDB ObjectId can be string or object with toString
-  id?: string;
-  name: string;
-  createdBy?: string;
-  created?: string;
-  createdAt?: string;
-  permission?: string;
-}
-
 interface MongoFile {
   filename: string;
   uploadedBy?: string;
@@ -150,6 +140,7 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
 }) => {
   // Add ref for click outside detection
   const modalRef = useRef<HTMLDivElement>(null);
+  const { isStaff } = useAuth();
 
   // Handle click outside
   useEffect(() => {
@@ -202,7 +193,7 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
               focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
             >
               <option value="PRIVATE">Private - Only you can access</option>
-              <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
+              {isStaff && <option value="STAFF_ONLY">Staff Only - All staff members can access</option>}
               <option value="PUBLIC">Public - Everyone can access</option>
             </select>
           </div>
@@ -228,120 +219,6 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
         </form>
       </div>
     </BaseModal>
-  );
-};
-
-// ----------------------
-// Collection Card Component
-// ----------------------
-interface CollectionCardProps {
-  collection: Collection;
-  onSelect: () => void;
-  activeDropdown: boolean;
-  onDropdownToggle: () => void;
-  onSettings: () => void;
-  onDelete: () => void;
-}
-
-const CollectionCard: React.FC<CollectionCardProps> = ({
-  collection,
-  onSelect,
-  activeDropdown,
-  onDropdownToggle,
-  onSettings,
-  onDelete,
-}) => {
-  const getPermissionStyle = (permission?: string) => {
-    switch (permission) {
-      case 'PRIVATE':
-        return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
-      case 'STAFF_ONLY':
-        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
-      case 'PUBLIC':
-        return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-      default:
-        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
-    }
-  };
-
-  const getPermissionLabel = (permission?: string) => {
-    switch (permission) {
-      case 'PRIVATE':
-        return 'Private';
-      case 'STAFF_ONLY':
-        return 'Staff Only';
-      case 'PUBLIC':
-        return 'Public';
-      default:
-        return 'Unknown';
-    }
-  };
-
-  return (
-    <div
-      className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm 
-      hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 
-      dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
-      transform hover:scale-[1.02]"
-      onClick={onSelect}
-    >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDropdownToggle();
-        }}
-        className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 
-        dark:text-gray-500 dark:hover:text-gray-300 rounded-full
-        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-        title="Options"
-      >
-        <FaEllipsisH size={16} />
-      </button>
-      {activeDropdown && (
-        <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
-        shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
-        backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSettings();
-            }}
-            className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
-            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-          >
-            <FaCog className="mr-2" size={14} />
-            <span>Settings</span>
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
-            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-          >
-            <FaTrash className="mr-2" size={14} />
-            <span>Delete</span>
-          </button>
-        </div>
-      )}
-      <div className="flex flex-col h-full">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
-            {collection.name}
-          </h2>
-        </div>
-        <span className={`absolute bottom-4 right-4 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>{getPermissionLabel(collection.permission)}</span>
-        <div className="mt-auto space-y-1">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            {collection.createdBy}
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {getRelativeTime(collection.created)}
-          </p>
-        </div>
-      </div>
-    </div>
   );
 };
 
@@ -663,11 +540,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 // Main Dashboard Component
 // ----------------------
 const TrainingDashboard: React.FC = () => {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFilesLoading, setIsFilesLoading] = useState<boolean>(false);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   
   const [showNewCollectionModal, setShowNewCollectionModal] = useState<boolean>(false);
   const [newCollectionName, setNewCollectionName] = useState<string>('');
@@ -685,8 +562,6 @@ const TrainingDashboard: React.FC = () => {
   const [updatedCollectionPermission, setUpdatedCollectionPermission] = useState<string>('PRIVATE');
 
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
-
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   // Add useEffect to fetch collections on mount
   useEffect(() => {
