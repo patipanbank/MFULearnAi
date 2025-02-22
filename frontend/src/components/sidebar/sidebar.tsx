@@ -13,7 +13,10 @@ interface ChatHistory {
   chatname: string;
   modelId: string;
   collectionName: string;
-  messages: [];
+  messages: {
+    role: 'user' | 'assistant';
+    content: string;
+  }[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
