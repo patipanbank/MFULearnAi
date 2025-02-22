@@ -663,7 +663,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 // Main Dashboard Component
 // ----------------------
 const TrainingDashboard: React.FC = () => {
-  const { isStaff, user } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -768,6 +768,8 @@ const TrainingDashboard: React.FC = () => {
         setUserInfo(userData);
       } catch (error) {
         console.error('Error getting user info:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
