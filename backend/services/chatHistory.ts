@@ -16,10 +16,7 @@ class ChatHistoryService {
 
   async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[]) {
     try {
-      // หาคำถามแรกจากผู้ใช้
       const firstUserMessage = messages.find(msg => msg.role === 'user');
-      
-      // สร้าง chatname จากคำถามแรก (จำกัดความยาวที่ 50 ตัวอักษร)
       const chatname = firstUserMessage 
         ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
         : 'New Chat';
@@ -36,18 +33,15 @@ class ChatHistoryService {
         sources: msg.sources || []
       }));
 
-      const history = await ChatHistory.findOneAndUpdate(
-        { userId, modelId, collectionName },
-        { 
-          userId,
-          modelId,
-          collectionName,
-          chatname,
-          messages: processedMessages,
-          updatedAt: new Date()
-        },
-        { upsert: true, new: true }
-      );
+      // สร้าง chat ใหม่ทุกครั้ง
+      const history = await ChatHistory.create({
+        userId,
+        modelId,
+        collectionName,
+        chatname,
+        messages: processedMessages,
+        updatedAt: new Date()
+      });
 
       return history;
     } catch (error) {
