@@ -164,6 +164,14 @@ const MFUChatbot: React.FC = () => {
     loadChatHistory();
   }, [chatId]);
 
+  useEffect(() => {
+    if (!chatId) {
+      setMessages([]);
+      // setSelectedModel(defaultModel);
+      // setSelectedCollection(defaultCollection);
+    }
+  }, [chatId]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
   };
