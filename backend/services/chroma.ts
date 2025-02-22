@@ -207,7 +207,8 @@ class ChromaService {
       });
 
       // Filter results based on similarity score
-      const MIN_SIMILARITY_THRESHOLD = 0.3; // Lowered from 0.6 to allow more results
+      const MAX_L2_DISTANCE = Math.sqrt(2); // Maximum L2 distance for normalized vectors
+      const MIN_SIMILARITY_THRESHOLD = 0.3; // Minimum similarity threshold
       const documents = queryResult.documents[0];
       const distances = queryResult.distances?.[0] || [];
       const metadatas = queryResult.metadatas?.[0] || [];
@@ -222,10 +223,18 @@ class ChromaService {
         similarity: number;
       }
 
+      // Convert L2 distance to similarity score (0 to 1 range)
+      const l2DistanceToSimilarity = (distance: number): number => {
+        // Clamp distance to max theoretical L2 distance
+        const clampedDistance = Math.min(distance, MAX_L2_DISTANCE);
+        // Convert to similarity score (1 = identical, 0 = orthogonal or opposite)
+        return 1 - (clampedDistance / MAX_L2_DISTANCE);
+      };
+
       // Log raw distances and computed similarities
       const rawScores = distances.map((distance: number, index: number) => ({
         distance,
-        similarity: 1 - (distance || 0),
+        similarity: l2DistanceToSimilarity(distance),
         text: documents[index].substring(0, 100) + '...' // First 100 chars of document
       }));
       console.log(`ChromaService: Raw similarity scores:`, rawScores);
@@ -234,7 +243,7 @@ class ChromaService {
         .map((doc: string, index: number): QueryResult => ({
           text: doc,
           metadata: metadatas[index],
-          similarity: 1 - (distances[index] || 0)
+          similarity: l2DistanceToSimilarity(distances[index] || 0)
         }))
         .filter((result: QueryResult) => result.similarity >= MIN_SIMILARITY_THRESHOLD)
         .sort((a: QueryResult, b: QueryResult) => b.similarity - a.similarity)
