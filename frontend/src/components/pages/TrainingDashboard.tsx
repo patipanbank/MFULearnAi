@@ -698,7 +698,7 @@ const TrainingDashboard: React.FC = () => {
   const fetchCollections = useCallback(async () => {
     try {
       setIsCollectionsLoading(true);
-      const response = await fetch(`${config.apiUrl}/training/collections`, {
+      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
@@ -730,7 +730,7 @@ const TrainingDashboard: React.FC = () => {
     try {
       setIsFilesLoading(true);
       const response = await fetch(
-        `${config.apiUrl}/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
+        `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -766,7 +766,7 @@ const TrainingDashboard: React.FC = () => {
     const fetchTrainingData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${config.apiUrl}/training/history`, {
+        const response = await fetch(`${config.apiUrl}/api/training/history`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           },
@@ -932,7 +932,7 @@ const TrainingDashboard: React.FC = () => {
   const handleCreateCollection = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${config.apiUrl}/training/collections`, {
+      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1050,7 +1050,7 @@ const TrainingDashboard: React.FC = () => {
     if (!selectedCollection) return;
 
     try {
-      const response = await fetch(`${config.apiUrl}/training/collections/${selectedCollection.id}`, {
+      const response = await fetch(`${config.apiUrl}/api/training/collections/${selectedCollection.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
