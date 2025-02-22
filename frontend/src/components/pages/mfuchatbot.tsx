@@ -551,18 +551,6 @@ const MFUChatbot: React.FC = () => {
     );
   };
 
-  const embedQuestion = async (question: string): Promise<number[]> => {
-    const response = await fetch(`${config.apiUrl}/api/embed`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ inputText: question })
-    });
-    const data = await response.json();
-    return data.embedding;
-  };
-
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
