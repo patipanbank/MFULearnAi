@@ -951,9 +951,13 @@ const TrainingDashboard: React.FC = () => {
       // Type the response data
       const newMongoCollection: MongoCollection = await response.json();
       
-      // Transform to Collection type and add to state
+      // Transform to Collection type and add to state with safe _id handling
       const newCollection: Collection = {
-        id: typeof newMongoCollection._id === 'string' ? newMongoCollection._id : newMongoCollection._id.toString(),
+        id: newMongoCollection._id 
+          ? (typeof newMongoCollection._id === 'string' 
+              ? newMongoCollection._id 
+              : newMongoCollection._id?.toString() || 'unknown')
+          : 'unknown',
         name: newMongoCollection.name,
         createdBy: newMongoCollection.createdBy || user?.username || 'Unknown',
         created: newMongoCollection.created || newMongoCollection.createdAt || new Date().toISOString(),
