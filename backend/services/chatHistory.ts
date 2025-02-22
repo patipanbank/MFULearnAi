@@ -14,7 +14,7 @@ class ChatHistoryService {
     }
   }
 
-  async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[], chatId?: string) {
+  async saveChatMessage(userId: string, modelId: string, collectionName: string | undefined, messages: any[], chatId?: string) {
     try {
       const firstUserMessage = messages.find(msg => msg.role === 'user');
       const chatname = firstUserMessage 
@@ -42,28 +42,27 @@ class ChatHistoryService {
         messagesCount: messages.length
       });
 
+      const chatData = {
+        userId,
+        modelId,
+        ...(collectionName && { collectionName }), // Only include if collectionName is provided
+        chatname,
+        messages: processedMessages,
+        updatedAt: new Date()
+      };
+
       if (chatId) {
         console.log('Updating existing chat:', chatId);
         const history = await ChatHistory.findByIdAndUpdate(
           chatId,
-          {
-            messages: processedMessages,
-            updatedAt: new Date()
-          },
+          chatData,
           { new: true }
         );
         console.log('Updated chat result:', history?._id);
         return history;
       } else {
         console.log('Creating new chat');
-        const history = await ChatHistory.create({
-          userId,
-          modelId,
-          collectionName,
-          chatname,
-          messages: processedMessages,
-          updatedAt: new Date()
-        });
+        const history = await ChatHistory.create(chatData);
         console.log('Created new chat:', history._id);
         return history;
       }

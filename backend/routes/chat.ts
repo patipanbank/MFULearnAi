@@ -303,23 +303,35 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { messages, modelId, collectionName } = req.body;
     const userId = (req.user as any)?.username || '';
 
-    // แก้ไขการบันทึกประวัติให้รองรับหลายรูป
+    if (!messages || !Array.isArray(messages)) {
+      res.status(400).json({ error: 'Invalid messages format' });
+      return;
+    }
+
+    if (!modelId) {
+      res.status(400).json({ error: 'ModelId is required' });
+      return;
+    }
+
+    // Process messages with optional images
+    const processedMessages = messages.map((msg: any) => ({
+      ...msg,
+      images: msg.images ? msg.images.map((img: any) => ({
+        data: img.data,
+        mediaType: img.mediaType
+      })) : undefined
+    }));
+
     const history = await chatHistoryService.saveChatMessage(
       userId,
       modelId,
-      collectionName,
-      messages.map((msg: any) => ({
-        ...msg,
-        images: msg.images ? msg.images.map((img: any) => ({
-          data: img.data,
-          mediaType: img.mediaType
-        })) : undefined
-      }))
+      collectionName, // Now optional
+      processedMessages
     );
     res.json(history);
   } catch (error) {
