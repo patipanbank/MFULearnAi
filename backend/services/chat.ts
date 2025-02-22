@@ -342,7 +342,7 @@ Remember: Your responses should be based on the provided context and documents.`
       let retryCount = 0;
       while (retryCount < this.retryConfig.maxRetries) {
         try {
-          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.imageModel : bedrockService.chatModel)) {
+          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
             yield chunk;
           }
           return;
