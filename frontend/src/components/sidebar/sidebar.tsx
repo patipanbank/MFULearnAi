@@ -105,14 +105,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           <div className="mt-4">
             <h3 className="px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Chat History</h3>
             <div className="mt-2 space-y-1">
-              {chatHistories.map((chat, index) => (
-                <Link
-                  key={index}
-                  to={`/mfuchatbot?chat=${index}`}
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
+              {chatHistories.map((chat) => (
+                // <Link
+                //   key={index}
+                //   to={`/mfuchatbot?chat=${index}`}
+                //   className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                // >
+                // </Link>
                   <span className="truncate">{chat.chatname}</span>
-                </Link>
               ))}
             </div>
           </div>
