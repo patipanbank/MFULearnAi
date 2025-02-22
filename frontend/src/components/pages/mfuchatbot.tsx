@@ -299,26 +299,6 @@ const MFUChatbot: React.FC = () => {
         console.error("Embedding failed:", error);
       }
 
-      // บันทึกประวัติการสนทนา
-      const token = localStorage.getItem('auth_token');
-      const historyResponse = await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messages,
-          modelId: selectedModel,
-          collectionName: selectedCollection,
-          chatId: chatId
-        })
-      });
-
-      if (!historyResponse.ok) {
-        throw new Error('Failed to save chat history');
-      }
-
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev, {
