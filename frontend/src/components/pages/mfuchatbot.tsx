@@ -5,6 +5,7 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useSearchParams } from 'react-router-dom';
 
 interface Source {
   modelId: string;
@@ -132,33 +133,34 @@ const MFUChatbot: React.FC = () => {
     fetchData();
   }, []);
 
+  const [searchParams] = useSearchParams();
+  const chatId = searchParams.get('chat');
+
   useEffect(() => {
     const loadChatHistory = async () => {
       try {
+        if (!chatId) return;
+        
         const token = localStorage.getItem('auth_token');
-        if (!token) return;
-
-        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+        const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
 
         if (response.ok) {
-          const history = await response.json();
-          if (history.messages) {
-            setMessages(history.messages);
-            setSelectedModel(history.modelId || '');
-            setSelectedCollection(history.collectionName || '');
-          }
+          const chat = await response.json();
+          setMessages(chat.messages);
+          setSelectedModel(chat.modelId);
+          setSelectedCollection(chat.collectionName);
         }
       } catch (error) {
-        console.error('Error loading chat history:', error);
+        console.error('Error loading chat:', error);
       }
     };
 
     loadChatHistory();
-  }, []);
+  }, [chatId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
