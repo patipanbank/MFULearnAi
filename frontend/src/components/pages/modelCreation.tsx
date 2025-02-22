@@ -717,34 +717,22 @@ const ModelCreation: React.FC = () => {
         iat: '[redacted]'
       });
 
-      // Try to get user identifier in order of preference
-      let createdBy = null;
-      if (tokenPayload.nameID) {
-        createdBy = tokenPayload.nameID;
-        console.log('Using nameID as createdBy:', createdBy);
-      } else if (tokenPayload.username) {
-        createdBy = tokenPayload.username;
-        console.log('Using username as createdBy:', createdBy);
-      } else if (tokenPayload.userId) {
-        createdBy = tokenPayload.userId;
-        console.log('Using userId as createdBy:', createdBy);
-      }
-
-      if (!createdBy) {
-        console.error('No valid user identifier found in token:', tokenPayload);
-        throw new Error('Could not determine user identity. Please try logging in again.');
+      // Get nameID from token payload
+      const nameID = tokenPayload.nameID;
+      if (!nameID) {
+        console.error('nameID not found in token:', tokenPayload);
+        throw new Error('User nameID not found. Please try logging in again.');
       }
 
       console.log('Creating model with:', {
         userGroups: tokenPayload.groups,
         isStaff: tokenPayload.groups?.includes('Staffs'),
         modelType: newModelType,
-        createdBy,
+        nameID,
         requestBody: {
           name: newModelName.trim(),
           modelType: newModelType,
-          createdBy,
-          userId: createdBy
+          createdBy: nameID
         }
       });
 
@@ -758,8 +746,7 @@ const ModelCreation: React.FC = () => {
         body: JSON.stringify({
           name: newModelName.trim(),
           modelType: newModelType,
-          createdBy,
-          userId: createdBy
+          createdBy: nameID
         }),
       });
 
