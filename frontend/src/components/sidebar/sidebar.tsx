@@ -40,33 +40,43 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const isStaff = userData.groups?.includes('Staffs');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
 
-  useEffect(() => {
-    const fetchChatHistories = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data)) {
-            setChatHistories(data);
-          } else if (data.messages) {
-            setChatHistories([data]);
-          } else {
-            setChatHistories([]);
-          }
+  const fetchChatHistories = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error('Error fetching chat histories:', error);
-        setChatHistories([]);
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setChatHistories(data);
+        } else if (data.messages) {
+          setChatHistories([data]);
+        } else {
+          setChatHistories([]);
+        }
       }
-    };
+    } catch (error) {
+      console.error('Error fetching chat histories:', error);
+      setChatHistories([]);
+    }
+  };
 
+  useEffect(() => {
     fetchChatHistories();
+    
+    // เพิ่ม event listener สำหรับอัพเดทแบบ realtime
+    const handleChatUpdate = () => {
+      fetchChatHistories();
+    };
+    
+    window.addEventListener('chatUpdated', handleChatUpdate);
+    return () => {
+      window.removeEventListener('chatUpdated', handleChatUpdate);
+    };
   }, []);
 
   const handleLogout = async () => {
