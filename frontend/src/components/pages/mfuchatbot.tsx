@@ -130,12 +130,12 @@ const MFUChatbot: React.FC = () => {
         // Get user role from token
         let tokenPayload;
         try {
-          tokenPayload = JSON.parse(atob(tokenParts[1]));
+          tokenPayload = JSON.parse(atob(token.split('.')[1]));
         } catch (e) {
           console.error('Failed to parse token payload:', e);
           return;
         }
-        const isStaff = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
+        const isStaff = tokenPayload.role === 'Staffs' || tokenPayload.role === 'ADMIN';
 
         console.log('Fetching models with token:', `Bearer ${token}`);
         // Fetch official and staff-only models from the database
