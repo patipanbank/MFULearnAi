@@ -441,10 +441,10 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40
                 file:cursor-pointer cursor-pointer
                 focus:outline-none transition-colors duration-200"
-                accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
+                accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,.json,.xml"
               />
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX (Max 100MB)
+                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 500MB)
               </p>
             </div>
             <button

@@ -7,6 +7,13 @@ import { CollectionModel, CollectionPermission} from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
 
 const router = Router();
+const HEARTBEAT_INTERVAL = 30000;
+const CLIENT_TIMEOUT = 35000;
+
+interface ExtendedWebSocket extends WebSocket {
+  isAlive: boolean;
+  userId?: string;
+}
 
 // Middleware to verify token
 const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
@@ -29,28 +36,112 @@ const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
 
 router.use(verifyToken);
 
-const wss = new WebSocketServer({ port: 5001 });
+const wss = new WebSocketServer({ 
+  port: 5001,
+  clientTracking: true
+});
 
-wss.on('connection', (ws: WebSocket) => {
-  console.log('Client connected');
+function heartbeat(this: WebSocket) {
+  (this as ExtendedWebSocket).isAlive = true;
+}
 
-  ws.on('message', async (message: string) => {
+const interval = setInterval(() => {
+  wss.clients.forEach((ws: WebSocket) => {
+    const extWs = ws as ExtendedWebSocket;
+    if (!extWs.isAlive) {
+      console.log(`Terminating inactive connection for user: ${extWs.userId}`);
+      return ws.terminate();
+    }
+    extWs.isAlive = false;
+    extWs.ping();
+  });
+}, HEARTBEAT_INTERVAL);
+
+wss.on('close', () => {
+  clearInterval(interval);
+});
+
+wss.on('connection', (ws: WebSocket, req: Request) => {
+  const extWs = ws as ExtendedWebSocket;
+  extWs.isAlive = true;
+  
+  // Extract user ID from token
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+      extWs.userId = decoded.username;
+      console.log(`WebSocket client connected: ${extWs.userId}`);
+    } catch (error) {
+      console.error('Invalid token in WebSocket connection:', error);
+      ws.close(1008, 'Invalid authentication token');
+      return;
+    }
+  } else {
+    ws.close(1008, 'No authentication token provided');
+    return;
+  }
+
+  extWs.on('pong', heartbeat);
+
+  extWs.on('error', (error) => {
+    console.error(`WebSocket error for user ${extWs.userId}:`, error);
+  });
+
+  extWs.on('close', () => {
+    console.log(`WebSocket client disconnected: ${extWs.userId}`);
+  });
+
+  extWs.on('message', async (message: string) => {
     try {
       const { messages, modelId, collectionName } = JSON.parse(message);
       const lastMessage = messages[messages.length - 1];
       const query = lastMessage.content;
 
-      console.log('Starting response generation');
+      console.log(`Processing message from user ${extWs.userId}`);
       
-      for await (const content of chatService.generateResponse(messages, query, modelId)) {
-        console.log('Sending chunk:', content);
-        ws.send(JSON.stringify({ content }));
-      }
+      try {
+        for await (const content of chatService.generateResponse(messages, query, modelId)) {
+          if (extWs.readyState === WebSocket.OPEN) {
+            extWs.send(JSON.stringify({ content }));
+          } else {
+            console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
+            break;
+          }
+        }
 
-      ws.send(JSON.stringify({ done: true }));
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ done: true }));
+          
+          // Save chat history
+          if (extWs.userId) {
+            try {
+              await chatHistoryService.saveChatMessage(
+                extWs.userId,
+                modelId,
+                collectionName,
+                messages
+              );
+            } catch (error) {
+              console.error('Error saving chat history:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error generating response for user ${extWs.userId}:`, error);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ 
+            error: 'An error occurred while generating the response. Please try again.' 
+          }));
+        }
+      }
     } catch (error) {
-      console.error('Error:', error);
-      ws.send(JSON.stringify({ error: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น' }));
+      console.error(`Error processing message from user ${extWs.userId}:`, error);
+      if (extWs.readyState === WebSocket.OPEN) {
+        extWs.send(JSON.stringify({ 
+          error: 'Invalid message format' 
+        }));
+      }
     }
   });
 });

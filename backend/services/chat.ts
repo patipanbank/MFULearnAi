@@ -46,12 +46,50 @@ interface IChatHistory {
   save(): Promise<void>;
 }
 
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
+}
+
 export class ChatService {
-  private systemPrompt = ``;
+  private readonly questionTypes = {
+    FACTUAL: 'factual',
+    ANALYTICAL: 'analytical',
+    CONCEPTUAL: 'conceptual',
+    PROCEDURAL: 'procedural',
+    CLARIFICATION: 'clarification'
+  };
+
+  private systemPrompt = `You are DinDin, a knowledgeable AI assistant. Follow these guidelines:
+1. Be concise and direct in your responses
+2. When citing information, mention the source document
+3. If uncertain, acknowledge the limitations
+4. For complex topics, break down explanations into steps
+5. Use examples when helpful
+6. If the question is unclear, ask for clarification
+7. Stay within the context of provided documents
+8. Maintain a professional and helpful tone
+
+Remember: Your responses should be based on the provided context and documents.`;
+
+  private readonly promptTemplates = {
+    [this.questionTypes.FACTUAL]: 'Provide a direct and accurate answer based on the following context:',
+    [this.questionTypes.ANALYTICAL]: 'Analyze the following information and provide insights:',
+    [this.questionTypes.CONCEPTUAL]: 'Explain the concept using the following context:',
+    [this.questionTypes.PROCEDURAL]: 'Describe the process or steps based on:',
+    [this.questionTypes.CLARIFICATION]: 'To better answer your question, let me clarify based on:'
+  };
+
   private chatModel = bedrockService.chatModel;
   private currentChatHistory?: HydratedDocument<IChatHistory>;
   private readonly BATCH_SIZE = 3; // Number of collections to query simultaneously
   private readonly MIN_SIMILARITY_THRESHOLD = 0.3; // Lowered from 0.6 to match ChromaService
+  private readonly retryConfig: RetryConfig = {
+    maxRetries: 3,
+    baseDelay: 1000,
+    maxDelay: 5000
+  };
   // You are DinDin, a male AI. Keep responses brief and to the point.
 
   private isRelevantQuestion(query: string): boolean {
@@ -92,14 +130,15 @@ export class ChatService {
 
   private async processBatch(
     batch: string[],
-    queryEmbedding: number[]
+    queryEmbedding: number[],
+    imageEmbedding?: number[]
   ): Promise<CollectionQueryResult[]> {
     return Promise.all(
       batch.map(async (name): Promise<CollectionQueryResult> => {
         try {
           const queryResult = await chromaService.queryDocumentsWithEmbedding(
             name,
-            queryEmbedding,
+            imageEmbedding || queryEmbedding,
             5
           ) as ChromaQueryResult;
 
@@ -148,8 +187,28 @@ export class ChatService {
     );
   }
 
-  private async getContext(query: string, modelIdOrCollections: string | string[]): Promise<string> {
-    // Get collection names from model ID or use provided collection names
+  private detectQuestionType(query: string): string {
+    const patterns = {
+      [this.questionTypes.FACTUAL]: /^(what|when|where|who|which|how many|how much)/i,
+      [this.questionTypes.ANALYTICAL]: /^(why|how|what if|what are the implications|analyze|compare|contrast)/i,
+      [this.questionTypes.CONCEPTUAL]: /^(explain|describe|define|what is|what are|how does)/i,
+      [this.questionTypes.PROCEDURAL]: /^(how to|how do|what steps|how can|show me how)/i,
+      [this.questionTypes.CLARIFICATION]: /^(can you clarify|what do you mean|please explain|could you elaborate)/i
+    };
+
+    for (const [type, pattern] of Object.entries(patterns)) {
+      if (pattern.test(query)) {
+        return type;
+      }
+    }
+
+    return this.questionTypes.FACTUAL; // Default to factual if no pattern matches
+  }
+
+  private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
+    const questionType = this.detectQuestionType(query);
+    const promptTemplate = this.promptTemplates[questionType];
+    
     const collectionNames = await this.resolveCollections(modelIdOrCollections);
     if (collectionNames.length === 0) {
       console.error('No collections found for:', modelIdOrCollections);
@@ -157,14 +216,23 @@ export class ChatService {
     }
 
     console.log('Resolved collection names:', collectionNames);
+    console.log('Detected question type:', questionType);
 
     const sanitizedCollections = collectionNames.map(name => 
       this.sanitizeCollectionName(name)
     );
 
-    console.log('Querying collections:', sanitizedCollections);
-
-    const queryEmbedding = await chromaService.getQueryEmbedding(query);
+    let queryEmbedding = await chromaService.getQueryEmbedding(query);
+    let imageEmbedding: number[] | undefined;
+    
+    if (imageBase64) {
+      try {
+        imageEmbedding = await bedrockService.embedImage(imageBase64, query);
+        console.log('Generated image embedding');
+      } catch (error) {
+        console.error('Error generating image embedding:', error);
+      }
+    }
     
     const batches: string[][] = [];
     for (let i = 0; i < sanitizedCollections.length; i += this.BATCH_SIZE) {
@@ -173,7 +241,7 @@ export class ChatService {
 
     let allResults: CollectionQueryResult[] = [];
     for (const batch of batches) {
-      const batchResults = await this.processBatch(batch, queryEmbedding);
+      const batchResults = await this.processBatch(batch, queryEmbedding, imageEmbedding);
       allResults = allResults.concat(batchResults);
     }
 
@@ -195,7 +263,7 @@ export class ChatService {
       })
       .map(r => r.context);
 
-    return contexts.join("\n\n");
+    return `${promptTemplate}\n\n${contexts.join("\n\n")}`;
   }
 
   async *generateResponse(
@@ -205,24 +273,86 @@ export class ChatService {
   ): AsyncGenerator<string> {
     try {
       console.log("Starting generateResponse with:", modelIdOrCollections);
-      const context = await this.getContext(query, modelIdOrCollections);
+      
+      // Extract image from the last message if present
+      const lastMessage = messages[messages.length - 1];
+      const imageBase64 = lastMessage.images?.[0]?.data;
+      
+      const context = await this.retryOperation(
+        async () => this.getContext(query, modelIdOrCollections, imageBase64),
+        'Failed to get context'
+      );
+      
       console.log('Retrieved context length:', context.length);
+
+      const questionType = this.detectQuestionType(query);
+      console.log('Question type:', questionType);
 
       const augmentedMessages = [
         {
           role: "system" as const,
-          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
+          content: this.systemPrompt
+        },
+        {
+          role: "system" as const,
+          content: `Context from documents:\n${context}`
         },
         ...messages
       ];
 
-      for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
-        yield chunk;
+      let retryCount = 0;
+      while (retryCount < this.retryConfig.maxRetries) {
+        try {
+          for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
+            yield chunk;
+          }
+          return;
+        } catch (error) {
+          console.error(`Error in chat generation (Attempt ${retryCount + 1}/${this.retryConfig.maxRetries}):`, error);
+          retryCount++;
+          
+          if (retryCount < this.retryConfig.maxRetries) {
+            const delay = Math.min(
+              this.retryConfig.baseDelay * Math.pow(2, retryCount),
+              this.retryConfig.maxDelay
+            );
+            await new Promise(resolve => setTimeout(resolve, delay));
+            yield "\n[Retrying due to error...]\n";
+          } else {
+            throw error;
+          }
+        }
       }
     } catch (error) {
       console.error("Error in generateResponse:", error);
-      throw error;
+      yield "\nI apologize, but I encountered an error while generating the response. Please try again or contact support if the issue persists.";
     }
+  }
+
+  private async retryOperation<T>(
+    operation: () => Promise<T>,
+    errorMessage: string
+  ): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= this.retryConfig.maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`${errorMessage} (Attempt ${attempt}/${this.retryConfig.maxRetries}):`, error);
+        
+        if (attempt < this.retryConfig.maxRetries) {
+          const delay = Math.min(
+            this.retryConfig.baseDelay * Math.pow(2, attempt - 1),
+            this.retryConfig.maxDelay
+          );
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw new Error(`${errorMessage} after ${this.retryConfig.maxRetries} attempts: ${lastError?.message}`);
   }
 }
 

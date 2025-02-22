@@ -40,8 +40,8 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(bodyParser.json({limit: '50mb'}));
-app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
+app.use(bodyParser.json({limit: '500mb'}));
+app.use(bodyParser.urlencoded({limit: '500mb', extended: true}));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',

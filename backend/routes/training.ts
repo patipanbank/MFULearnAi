@@ -19,15 +19,15 @@ const router = Router();
 const upload = multer({ 
   dest: 'uploads/',
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB
+    fileSize: 500 * 1024 * 1024, // 500MB
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx'];
+    const allowedTypes = ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.json', '.xml'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type'));
+      cb(new Error('Invalid file type. Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML'));
     }
   }
 });
