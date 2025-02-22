@@ -787,6 +787,15 @@ const ModelCreation: React.FC = () => {
       return;
     }
 
+    // Get username from auth token
+    const authToken = localStorage.getItem('auth_token');
+    if (!authToken) {
+      alert('Authentication token not found. Please login again.');
+      return;
+    }
+    const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
+    const username = tokenPayload.username;
+
     if (newModelType === 'personal') {
       // Create personal model locally
       const newModel: Model = {
@@ -796,7 +805,7 @@ const ModelCreation: React.FC = () => {
         modelType: 'personal',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        createdBy: 'Unknown'
+        createdBy: username  // Set the actual username here
       };
       setModels((prev) => [...prev, newModel]);
       
