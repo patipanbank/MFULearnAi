@@ -146,6 +146,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
+  // เพิ่มฟังก์ชันสำหรับตัดข้อความที่ยาวเกินไป
+  const truncateText = (text: string, maxLength: number = 10) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
   return (
     <aside className="flex flex-col h-full">
       <div className="flex-none p-4 border-b">
@@ -226,8 +232,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         to={`/mfuchatbot?chat=${chat._id}`}
                         className={`flex-1 flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
                           ${currentChatId === chat._id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                        title={chat.chatname || 'Untitled Chat'}
                       >
-                        <span className="truncate">{chat.chatname || 'Untitled Chat'}</span>
+                        <span className="truncate">
+                          {truncateText(chat.chatname || 'Untitled Chat')}
+                        </span>
                       </Link>
                       <div className="hidden group-hover:flex items-center pr-2">
                         <button
