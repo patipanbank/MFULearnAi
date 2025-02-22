@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
-import jwtDecode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 
 // Utility function for relative time
 const getRelativeTime = (dateString: string): string => {
@@ -721,7 +721,7 @@ const ModelCreation: React.FC = () => {
         },
         body: JSON.stringify({
           name: newModelName,
-          modelType,
+          modelType: newModelType,
           createdBy,
         }),
       });
