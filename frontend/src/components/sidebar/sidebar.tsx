@@ -40,33 +40,37 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const isStaff = userData.groups?.includes('Staffs');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
 
-  useEffect(() => {
-    const fetchChatHistories = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data)) {
-            setChatHistories(data);
-          } else if (data.messages) {
-            setChatHistories([data]);
-          } else {
-            setChatHistories([]);
-          }
+  const fetchChatHistories = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error('Error fetching chat histories:', error);
-        setChatHistories([]);
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistories(data);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching chat histories:', error);
+    }
+  };
 
+  useEffect(() => {
     fetchChatHistories();
+    
+    // เพิ่ม event listener สำหรับอัพเดท chat histories
+    const handleChatHistoryUpdate = () => {
+      fetchChatHistories();
+    };
+    
+    window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+    
+    return () => {
+      window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+    };
   }, []);
 
   const handleLogout = async () => {
