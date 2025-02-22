@@ -687,10 +687,9 @@ const TrainingDashboard: React.FC = () => {
       if (!selectedCollection?.id) return;
 
       try {
-        console.log(`Attempting to fetch collection ${selectedCollection.id} at ${new Date().toISOString()}`);
-        
+        // Instead of fetching a single collection, fetch all and find the one we need
         const response = await fetch(
-          `${config.apiUrl}/api/training/collections/${selectedCollection.id}`,
+          `${config.apiUrl}/api/training/collections`,
           {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -698,123 +697,52 @@ const TrainingDashboard: React.FC = () => {
           }
         );
 
-        // Enhanced error logging for 404
-        if (response.status === 404) {
-          const errorTime = new Date().toISOString();
-          console.error(`Collection not found error details:
-            - Collection ID: ${selectedCollection.id}
-            - Collection Name: ${selectedCollection.name}
-            - Last Known Update: ${selectedCollection.lastModified || 'Unknown'}
-            - Error Time: ${errorTime}
-            - Created By: ${selectedCollection.createdBy}
-            - Created At: ${selectedCollection.created}
-          `);
-          
-          // Log to backend for tracking
-          try {
-            await fetch(`${config.apiUrl}/api/logs/collection-access`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                collectionId: selectedCollection.id,
-                errorType: '404_NOT_FOUND',
-                timestamp: errorTime,
-                details: {
-                  lastKnownName: selectedCollection.name,
-                  lastKnownUpdate: selectedCollection.lastModified,
-                  createdBy: selectedCollection.createdBy,
-                  createdAt: selectedCollection.created
-                }
-              })
-            });
-          } catch (logError) {
-            console.error('Failed to log collection access error:', logError);
-          }
+        if (!response.ok) {
+          throw new Error(`Failed to fetch collections: ${response.status} ${response.statusText}`);
+        }
 
-          console.log('Collection not found, refreshing collections list');
-          await fetchCollections();
+        const data = await response.json();
+        const updatedCollectionData = data.find((c: any) => c._id === selectedCollection.id || c.id === selectedCollection.id);
+        
+        if (!updatedCollectionData) {
+          // Collection no longer exists
+          console.log(`Collection ${selectedCollection.id} no longer exists, removing from list`);
+          setCollections(prev => prev.filter(c => c.id !== selectedCollection.id));
           setSelectedCollection(null);
           return;
         }
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch collection update: ${response.status} ${response.statusText}`);
-        }
-
-        const updatedData = await response.json();
         const currentTime = new Date().toISOString();
 
-        // Track modifications if there are changes
-        const hasChanges = selectedCollection.name !== updatedData.name || 
-                          selectedCollection.permission !== updatedData.permission;
-
-        const modificationHistory = hasChanges ? [
-          ...(selectedCollection.modificationHistory || []),
-          {
-            timestamp: currentTime,
-            action: 'UPDATE',
-            details: `Name: ${updatedData.name}, Permission: ${updatedData.permission}`
-          }
-        ] : selectedCollection.modificationHistory;
-
-        // Update collections list with history
+        // Update states with fresh data
         setCollections(prevCollections =>
           prevCollections.map(col =>
             col.id === selectedCollection.id
               ? {
                   ...col,
-                  ...updatedData,
-                  id: updatedData._id || col.id,
-                  created: col.created,
-                  createdBy: col.createdBy,
+                  name: updatedCollectionData.name || col.name,
+                  permission: updatedCollectionData.permission || col.permission,
                   lastModified: currentTime,
-                  modificationHistory
                 }
               : col
           )
         );
 
-        // Update selected collection with history
         setSelectedCollection(prev => ({
           ...prev!,
-          ...updatedData,
-          id: updatedData._id || prev!.id,
-          created: prev!.created,
-          createdBy: prev!.createdBy,
+          name: updatedCollectionData.name || prev!.name,
+          permission: updatedCollectionData.permission || prev!.permission,
           lastModified: currentTime,
-          modificationHistory
         }));
 
-        // Log successful update
-        console.log(`Collection ${selectedCollection.id} successfully updated at ${currentTime}`);
-
-        // Refresh files list
-        await fetchUploadedFiles(updatedData.name || selectedCollection.name);
+        await fetchUploadedFiles(updatedCollectionData.name || selectedCollection.name);
 
       } catch (error) {
         console.error('Error in real-time update:', error);
-        // Enhanced error logging
-        console.error(`Detailed error for collection ${selectedCollection.id}:`, {
-          collectionDetails: {
-            id: selectedCollection.id,
-            name: selectedCollection.name,
-            lastModified: selectedCollection.lastModified,
-            createdBy: selectedCollection.createdBy,
-            created: selectedCollection.created
-          },
-          error: error instanceof Error ? {
-            message: error.message,
-            stack: error.stack
-          } : 'Unknown error type'
-        });
       }
     };
 
     if (selectedCollection) {
-      // Start polling
       intervalId = setInterval(updateCollectionData, 5000);
     }
 
@@ -841,10 +769,11 @@ const TrainingDashboard: React.FC = () => {
         }
       );
 
-      // If we get a 404, the collection might have been deleted or ID changed
-      // Just keep using the collection data we already have
+      // If we get a 404, remove this collection from the list as it no longer exists
       if (response.status === 404) {
-        console.log('Collection details not found, using existing data');
+        console.log(`Collection ${collection.id} no longer exists, removing from list`);
+        setCollections(prev => prev.filter(c => c.id !== collection.id));
+        setSelectedCollection(null);
         return;
       }
 
@@ -861,7 +790,7 @@ const TrainingDashboard: React.FC = () => {
             ? {
                 ...col,
                 ...freshData,
-                id: freshData._id || collection.id, // Use new ID if available
+                id: freshData._id || collection.id,
                 created: col.created,
                 createdBy: col.createdBy,
               }
@@ -873,7 +802,7 @@ const TrainingDashboard: React.FC = () => {
       setSelectedCollection(prev => ({
         ...prev!,
         ...freshData,
-        id: freshData._id || collection.id, // Use new ID if available
+        id: freshData._id || collection.id,
         created: collection.created,
         createdBy: collection.createdBy,
       }));
