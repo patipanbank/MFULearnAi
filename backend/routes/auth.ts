@@ -1,157 +1,94 @@
-import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
+import { Router, Request, Response } from 'express';
 import passport from 'passport';
-import { Strategy as SamlStrategy, SamlConfig } from 'passport-saml';
+import { Strategy as SamlStrategy } from 'passport-saml';
 import jwt from 'jsonwebtoken';
 import { connectDB } from '../lib/mongodb';
-import User, { UserRole } from '../models/User';
-import { guest_login } from '../controllers/user_controller';
+import User from '../models/User';
+// import { guest_login } from '../controllers/user_controller';
 
 const router = Router();
 
-interface SamlUserData {
-  nameID: string;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  groups?: string[];
-}
-
-interface AuthRequest extends Request {
-  user?: {
-    userData: SamlUserData;
-    token?: string;
-  };
-}
-
-// Add enhanced logging middleware
+// เพิ่ม logging middleware
 router.use('/saml/callback', (req, res, next) => {
-  console.log('=== SAML Callback Request Debug ===');
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('Body:', JSON.stringify(req.body, null, 2));
-  console.log('Method:', req.method);
-  console.log('URL:', req.url);
-  console.log('================================');
+  console.log('SAML Callback Request:', req.body);
   next();
 });
 
-// Define role mapping function
-const mapGroupToRole = async (groups: string[], nameID: string): Promise<UserRole> => {
-  console.log('=== Role Mapping Debug ===');
-  console.log('Input groups:', groups);
-  
-  // First check if user already exists and has ADMIN role
-  try {
-    const existingUser = await User.findOne({ nameID });
-    if (existingUser && existingUser.role === 'ADMIN') {
-      console.log('Preserving existing ADMIN role for user');
-      return 'ADMIN';
-    }
-  } catch (error) {
-    console.error('Error checking existing user role:', error);
-  }
-
-  // Check if groups is empty or undefined
-  if (!groups || groups.length === 0) {
-    console.log('No groups provided, defaulting to Students role');
-    return 'Students';
-  }
-
-  // Check for student group ID
-  const isStudent = groups.some(group => 
-    group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
-  );
-
-  if (isStudent) {
-    console.log('Found student group ID - assigning Students role');
-    return 'Students';
-  }
-
-  // If not student group, assign Staffs role
-  console.log('No student group found - assigning Staffs role');
-  return 'Staffs';
-};
-
-if (!process.env.SAML_SP_ENTITY_ID || !process.env.SAML_SP_ACS_URL || !process.env.SAML_IDP_SSO_URL) {
-  throw new Error('Required SAML configuration is missing');
-}
-
-const samlConfig: SamlConfig = {
-  issuer: process.env.SAML_SP_ENTITY_ID,
-  callbackUrl: process.env.SAML_SP_ACS_URL,
-  entryPoint: process.env.SAML_IDP_SSO_URL,
-  logoutUrl: process.env.SAML_IDP_SLO_URL || undefined,
-  cert: process.env.SAML_CERTIFICATE?.replace(/\\n/g, '\n') || '',
-  disableRequestedAuthnContext: true,
-  forceAuthn: false,
-  identifierFormat: process.env.SAML_IDENTIFIER_FORMAT || 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
-  wantAssertionsSigned: true,
-  acceptedClockSkewMs: 300000, // 5 minutes clock skew
-  validateInResponseTo: false,
-  passReqToCallback: true,
-  signatureAlgorithm: 'sha256',
-  additionalParams: {
-    RelayState: process.env.FRONTEND_URL || ''
-  },
-  authnContext: [
-    'urn:oasis:names:tc:SAML:2.0:ac:classes:Password',
-    'urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport'
-  ],
-  racComparison: 'exact'
-};
-
 const samlStrategy = new SamlStrategy(
-  samlConfig,
+  {
+    issuer: process.env.SAML_SP_ENTITY_ID,
+    callbackUrl: process.env.SAML_SP_ACS_URL,
+    entryPoint: process.env.SAML_IDP_SSO_URL,
+    logoutUrl: process.env.SAML_IDP_SLO_URL,
+    cert: process.env.SAML_CERTIFICATE || '',
+    disableRequestedAuthnContext: true,
+    forceAuthn: false,
+    identifierFormat: null,
+    wantAssertionsSigned: true,
+    acceptedClockSkewMs: -1,
+    validateInResponseTo: false,
+    passReqToCallback: true
+  },
   async function(req: any, profile: any, done: any) {
     try {
       console.log('=== SAML Profile Debug ===');
-      console.log(profile);
+      console.log(JSON.stringify(profile, null, 2));
 
-      // Extract user information from SAML profile
+      // ปรับการอ่านค่าให้ตรงกับ SAML response
       const nameID = profile.nameID;
-      const email = profile.email || profile['urn:oid:0.9.2342.19200300.100.1.3'];
-      const username = profile.username || profile['urn:oid:0.9.2342.19200300.100.1.1'];
-      const firstName = profile['urn:oid:2.5.4.42'] || profile.firstName;
-      const lastName = profile['urn:oid:2.5.4.4'] || profile.lastName;
-      const groups = profile['urn:oid:1.3.6.1.4.1.5923.1.5.1.1'] || [];
+      const username = profile['User.Userrname'];
+      const email = profile['User.Email'];
+      const firstName = profile['first_name'];
+      const lastName = profile['last_name'];
+      const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
-      // Determine final values with fallbacks
-      const finalNameID = nameID || email || username;
-      const finalUsername = username || email?.split('@')[0] || nameID;
+      console.log('=== Extracted Values ===');
+      console.log({
+        nameID,
+        username,
+        email,
+        firstName,
+        lastName,
+        groups
+      });
 
-      if (!finalNameID) {
-        console.error('Missing nameID and no fallback available');
-        console.error('Available profile data:', profile);
-        return done(new Error('Missing required user information: nameID'));
+      if (!nameID) {
+        console.error('Missing required fields:', { nameID });
+        return done(new Error('Missing required user information'));
       }
 
-      if (!finalUsername) {
-        console.error('Missing username and no fallback available');
-        console.error('Available profile data:', profile);
-        return done(new Error('Missing required user information: username'));
-      }
+      // if (!nameID || !email) {
+      //   console.error('Missing required fields:', { nameID, email });
+      //   return done(new Error('Missing required user information'));
+      // }
 
-      // Get role based on groups
-      const role = await mapGroupToRole(Array.isArray(groups) ? groups : [groups], finalNameID);
-
-      // Update user in database
+       // เพิ่มฟังก์ชันแปลง group เป็น role
+       const mapGroupToRole = (groups: string[]) => {
+        const isStudent = groups.some(group => 
+          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
+        );
+        return isStudent ? 'Students' : 'Staffs';
+      };
       const user = await User.findOneAndUpdate(
-        { nameID: finalNameID },
+        { username },
         {
-          nameID: finalNameID,
-          username: finalUsername,
-          email: email || finalUsername,
-          firstName: firstName || '',
-          lastName: lastName || '',
+          nameID,
+          username,
+          email,
+          firstName,
+          lastName,
           groups: Array.isArray(groups) ? groups : [groups],
-          role: role,
+          role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]),
           updated: new Date()
         },
         { upsert: true, new: true }
       );
 
-      console.log('=== Created/Updated User ===');
-      console.log(user);
+      const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+      );
 
       const userData = {
         nameID: user.nameID,
@@ -159,30 +96,13 @@ const samlStrategy = new SamlStrategy(
         email: user.email,
         first_name: user.firstName,
         last_name: user.lastName,
-        groups: user.groups,
-        role: user.role
+        groups: user.groups
       };
-
-      const token = jwt.sign(
-        {
-          userId: user._id,
-          nameID: userData.nameID,
-          username: userData.username,
-          email: userData.email,
-          firstName: userData.first_name,
-          lastName: userData.last_name,
-          role: userData.role,
-          groups: userData.groups || []
-        },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-      );
 
       return done(null, { token, userData });
 
     } catch (error) {
       console.error('SAML Strategy Error:', error);
-      console.error('Stack trace:', error instanceof Error ? error.stack : '');
       return done(error);
     }
   }
@@ -200,122 +120,52 @@ passport.deserializeUser((user: any, done) => {
 
 router.get('/login/saml', passport.authenticate('saml'));
 
-router.post('/saml/callback', 
-  (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate('saml', async (err: Error | null, user: { userData: SamlUserData; token?: string } | false, info: any) => {
-      if (err) {
-        console.error('SAML Authentication Error:', err);
-        return res.redirect('/login?error=' + encodeURIComponent(err.message));
-      }
+router.post('/saml/callback',
+  passport.authenticate('saml', { session: false }),
+  async (req: any, res) => {
+    try {
+      const mapGroupToRole = (groups: string[]) => {
+        const isStudent = groups.some(group => 
+          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
+        );
+        return isStudent ? 'Students' : 'Staffs';
+      };
+
+        const userData = {
+          nameID: req.user.userData.nameID,
+          username: req.user.userData.username,
+          email: req.user.userData.email,
+          firstName: req.user.userData.first_name,
+          lastName: req.user.userData.last_name,
+          groups: [mapGroupToRole(req.user.userData.groups || [])]
+        };
+
+      const token = jwt.sign(
+        { 
+          nameID: userData.nameID,
+          username: userData.username,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          groups: userData.groups
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+
+      const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
       
-      if (!user) {
-        console.error('No user data received from SAML');
-        return res.redirect('/login?error=authentication_failed');
-      }
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth-callback`);
+      redirectUrl.searchParams.append('token', token);
+      redirectUrl.searchParams.append('user_data', encodedUserData);
 
-      req.logIn(user, async (loginErr) => {
-        if (loginErr) {
-          console.error('Login Error:', loginErr);
-          return res.redirect('/login?error=' + encodeURIComponent(loginErr.message));
-        }
-
-        try {
-          const userData = user.userData;
-          if (!userData) {
-            throw new Error('No user data provided');
-          }
-
-          const role = await mapGroupToRole(userData.groups || [], userData.nameID);
-
-          const userInfo = {
-            nameID: userData.nameID,
-            username: userData.username,
-            email: userData.email,
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-            role: role
-          };
-
-          const updatedUser = await User.findOneAndUpdate(
-            { nameID: userInfo.nameID },
-            {
-              ...userInfo,
-              groups: userData.groups || [],
-              updated: new Date()
-            },
-            { upsert: true, new: true }
-          );
-
-          if (!updatedUser) {
-            throw new Error('User not found in database');
-          }
-
-          const token = jwt.sign(
-            {
-              userId: updatedUser._id,
-              nameID: userInfo.nameID,
-              username: userInfo.username,
-              email: userInfo.email,
-              firstName: userInfo.firstName,
-              lastName: userInfo.lastName,
-              role: userInfo.role,
-              groups: userData.groups || []
-            },
-            process.env.JWT_SECRET || 'your-secret-key',
-            { expiresIn: '7d' }
-          );
-
-          const encodedUserData = Buffer.from(JSON.stringify(userInfo)).toString('base64');
-          
-          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-          const redirectUrl = new URL(`${frontendUrl}/auth-callback`);
-          redirectUrl.searchParams.append('token', token);
-          redirectUrl.searchParams.append('user_data', encodedUserData);
-
-          console.log('Redirecting to:', redirectUrl.toString());
-          res.redirect(redirectUrl.toString());
-        } catch (error) {
-          console.error('SAML Callback Error:', error);
-          res.redirect('/login?error=processing_failed');
-        }
-      });
-    })(req, res, next);
+      res.redirect(redirectUrl.toString());
+    } catch (error) {
+      console.error('SAML callback error:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
+    }
   }
 );
-
-const getMeHandler = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      res.status(401).json({ message: 'No token provided' });
-      return;
-    }
-
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
-    
-    const user = await User.findOne({ nameID: decoded.nameID });
-    if (!user) {
-      res.status(404).json({ message: 'User not found' });
-      return;
-    }
-
-    res.json({
-      userId: user._id,
-      nameID: user.nameID,
-      username: user.username,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      groups: user.groups
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-router.get('/me', getMeHandler);
 
 router.post('/logout', (req, res) => {
   req.logout(() => {
@@ -340,51 +190,68 @@ router.get('/logout/saml', (req, res) => {
 });
 
 router.get('/metadata', (req, res) => {
-  try {
-    const metadata = samlStrategy.generateServiceProviderMetadata(
-      null, 
-      process.env.SAML_CERTIFICATE?.replace(/\\n/g, '\n')
-    );
-    res.type('application/xml');
-    res.send(metadata);
-  } catch (error) {
-    console.error('Error generating metadata:', error);
-    res.status(500).send('Error generating metadata');
-  }
+  const metadata = samlStrategy.generateServiceProviderMetadata(null, process.env.SAML_CERTIFICATE);
+  res.type('application/xml');
+  res.send(metadata);
 });
 
-router.post('/test', guest_login);
+// router.post('/test', guest_login);
 
-// Add debug route
-router.get('/debug/saml-config', (req, res) => {
+router.post('/saml/callback', (req, res, next) => {
+  console.log('=== SAML Callback Debug ===');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('=========================');
+  next();
+});
+
+router.post('/admin/login', async (req: Request, res: Response):Promise<void> => {
   try {
-    // Only show non-sensitive configuration
-    const debugConfig = {
-      issuer: samlConfig.issuer,
-      callbackUrl: samlConfig.callbackUrl,
-      entryPoint: samlConfig.entryPoint,
-      identifierFormat: samlConfig.identifierFormat,
-      wantAssertionsSigned: samlConfig.wantAssertionsSigned,
-      acceptedClockSkewMs: samlConfig.acceptedClockSkewMs,
-      validateInResponseTo: samlConfig.validateInResponseTo,
-      disableRequestedAuthnContext: samlConfig.disableRequestedAuthnContext,
-      authnContext: samlConfig.authnContext,
-      forceAuthn: samlConfig.forceAuthn,
-      passReqToCallback: samlConfig.passReqToCallback,
-      additionalParams: samlConfig.additionalParams,
-      signatureAlgorithm: samlConfig.signatureAlgorithm
-    };
+    const { username, password } = req.body;
 
-    res.json({
-      config: debugConfig,
-      env: {
-        FRONTEND_URL: process.env.FRONTEND_URL,
-        NODE_ENV: process.env.NODE_ENV
+    // ตรวจสอบว่ามีข้อมูลครบไหม
+    if (!username || !password) {
+      res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบ' });
+      return;
+    }
+
+    const user = await User.findOne({ username, role: 'ADMIN' });
+    if (!user) {
+      res.status(401).json({ message: 'ไม่พบบัญชีผู้ใช้' });
+      return;
+    }
+    // ใช้ method comparePassword ที่เราสร้างไว้ใน User model
+    const isMatch = await (user as any).comparePassword(password);
+    if (!isMatch) {
+      res.status(401).json({ message: 'รหัสผ่านไม่ถูกต้อง' });
+      return;
+    }
+
+    // สร้าง token
+    const token = jwt.sign(
+      { 
+        userId: user._id,
+        username: user.username,
+        role: user.role,
+        groups: user.groups
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '1d' }
+    );
+
+    // ส่งข้อมูลกลับ
+    res.json({ 
+      token,
+      user: {
+        username: user.username,
+        role: user.role,
+        groups: user.groups
       }
     });
+
   } catch (error) {
-    console.error('Error in debug route:', error);
-    res.status(500).json({ error: 'Error getting debug info' });
+    console.error('Admin login error:', error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
   }
 });
 
