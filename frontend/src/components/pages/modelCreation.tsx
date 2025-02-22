@@ -710,20 +710,42 @@ const ModelCreation: React.FC = () => {
       const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
       
       // Log the full token payload for debugging
-      console.log('Token payload:', tokenPayload);
-      
-      // Extract user identifiers with fallbacks
-      const userId = tokenPayload.nameID || tokenPayload.userId || tokenPayload.username;
-      if (!userId) {
-        throw new Error('User identification not found in token');
+      console.log('Full token payload:', {
+        ...tokenPayload,
+        // Redact any sensitive information
+        exp: '[redacted]',
+        iat: '[redacted]'
+      });
+
+      // Try to get user identifier in order of preference
+      let createdBy = null;
+      if (tokenPayload.nameID) {
+        createdBy = tokenPayload.nameID;
+        console.log('Using nameID as createdBy:', createdBy);
+      } else if (tokenPayload.username) {
+        createdBy = tokenPayload.username;
+        console.log('Using username as createdBy:', createdBy);
+      } else if (tokenPayload.userId) {
+        createdBy = tokenPayload.userId;
+        console.log('Using userId as createdBy:', createdBy);
+      }
+
+      if (!createdBy) {
+        console.error('No valid user identifier found in token:', tokenPayload);
+        throw new Error('Could not determine user identity. Please try logging in again.');
       }
 
       console.log('Creating model with:', {
         userGroups: tokenPayload.groups,
         isStaff: tokenPayload.groups?.includes('Staffs'),
         modelType: newModelType,
-        userId,
-        createdBy: userId
+        createdBy,
+        requestBody: {
+          name: newModelName.trim(),
+          modelType: newModelType,
+          createdBy,
+          userId: createdBy
+        }
       });
 
       // Create model in database
@@ -736,18 +758,19 @@ const ModelCreation: React.FC = () => {
         body: JSON.stringify({
           name: newModelName.trim(),
           modelType: newModelType,
-          createdBy: userId,
-          userId: userId
+          createdBy,
+          userId: createdBy
         }),
       });
 
       if (!response.ok) {
         const errMsg = await response.text();
-        console.error('Server response:', errMsg);
+        console.error('Server error response:', errMsg);
         throw new Error(errMsg || 'Failed to create model');
       }
 
       const createdModel = await response.json();
+      console.log('Created model response:', createdModel);
       
       // Transform the response to match our frontend Model interface
       const newModel: Model = {
