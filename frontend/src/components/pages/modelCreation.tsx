@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
+import jwtDecode from 'jwt-decode';
 
 // Utility function for relative time
 const getRelativeTime = (dateString: string): string => {
@@ -692,90 +693,55 @@ const ModelCreation: React.FC = () => {
   }, []);
 
   // Handle model creation
-  const handleCreateModel = async (e: FormEvent) => {
+  const handleCreateModel = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newModelName.trim()) {
-      alert('Please enter a model name');
-      return;
-    }
-
-    // Get username from auth token
-    const authToken = localStorage.getItem('auth_token');
-    if (!authToken) {
-      alert('Authentication token not found. Please login again.');
-      return;
-    }
-
     try {
-      const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
-      
-      // Log the full token payload for debugging
-      console.log('Full token payload:', {
-        ...tokenPayload,
-        // Redact any sensitive information
-        exp: '[redacted]',
-        iat: '[redacted]'
-      });
-
-      // Get nameID from token payload
-      const nameID = tokenPayload.nameID;
-      if (!nameID) {
-        console.error('nameID not found in token:', tokenPayload);
-        throw new Error('User nameID not found. Please try logging in again.');
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('No auth token found');
       }
 
-      console.log('Creating model with:', {
-        userGroups: tokenPayload.groups,
-        isStaff: tokenPayload.groups?.includes('Staffs'),
-        modelType: newModelType,
-        nameID,
-        requestBody: {
-          name: newModelName.trim(),
-          modelType: newModelType,
-          createdBy: nameID
-        }
-      });
+      // Decode token and log payload for debugging
+      const tokenPayload = jwtDecode(token);
+      console.log('Full token payload:', tokenPayload);
 
-      // Create model in database
+      // Use nameID if available, otherwise fall back to username (for admin users)
+      const createdBy = (tokenPayload as any).nameID || (tokenPayload as any).username;
+      if (!createdBy) {
+        throw new Error('User identifier not found in token');
+      }
+
+      console.log('Creating model with createdBy:', createdBy);
+
       const response = await fetch(`${config.apiUrl}/api/models`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: newModelName.trim(),
-          modelType: newModelType,
-          createdBy: nameID
+          name: newModelName,
+          modelType,
+          createdBy,
         }),
       });
 
       if (!response.ok) {
-        const errMsg = await response.text();
-        console.error('Server error response:', errMsg);
-        throw new Error(errMsg || 'Failed to create model');
+        const errorData = await response.text();
+        throw new Error(errorData || 'Failed to create model');
       }
 
-      const createdModel = await response.json();
-      console.log('Created model response:', createdModel);
+      const data = await response.json();
+      console.log('Model created successfully:', data);
       
-      // Transform the response to match our frontend Model interface
-      const newModel: Model = {
-        id: createdModel._id,
-        name: createdModel.name,
-        collections: createdModel.collections || [],
-        modelType: createdModel.modelType,
-        createdAt: createdModel.createdAt,
-        updatedAt: createdModel.updatedAt,
-        createdBy: createdModel.createdBy
-      };
-
-      setModels(prev => [...prev, newModel]);
+      // Reset form and show success message
       setNewModelName('');
-      setShowNewModelModal(false);
+      setNewModelType('personal');
+      alert('Model created successfully!');
+      
     } catch (error) {
       console.error('Error creating model:', error);
-      alert(error instanceof Error ? error.message : 'Failed to create model. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to create model');
     }
   };
 
