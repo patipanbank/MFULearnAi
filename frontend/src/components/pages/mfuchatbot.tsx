@@ -497,35 +497,6 @@ const MFUChatbot: React.FC = () => {
     return data.embedding;
   };
 
-  const startNewChat = () => {
-    setMessages([]);
-    setInputMessage('');
-    setSelectedImages([]);
-    setIsLoading(false);
-    
-    // Reset model และ collection เป็นค่าเริ่มต้น (ถ้าต้องการ)
-    if (models.length > 0) {
-      setSelectedModel(models[0]);
-    }
-    if (collections.length > 0) {
-      setSelectedCollection(collections[0]);
-    }
-
-    // บันทึกสถานะใหม่ลง server
-    saveChatHistory([]);
-  };
-
-  useEffect(() => {
-    // เพิ่มการตรวจจับ URL parameter สำหรับ new chat
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('new') === 'true') {
-      startNewChat();
-      // ลบ parameter ออกจาก URL
-      window.history.replaceState({}, '', '/mfuchatbot');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
