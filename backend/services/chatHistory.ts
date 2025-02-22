@@ -14,7 +14,7 @@ class ChatHistoryService {
     }
   }
 
-  async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[]) {
+  async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[], chatId?: string) {
     try {
       const firstUserMessage = messages.find(msg => msg.role === 'user');
       const chatname = firstUserMessage 
@@ -33,17 +33,29 @@ class ChatHistoryService {
         sources: msg.sources || []
       }));
 
-      // สร้าง chat ใหม่ทุกครั้ง
-      const history = await ChatHistory.create({
-        userId,
-        modelId,
-        collectionName,
-        chatname,
-        messages: processedMessages,
-        updatedAt: new Date()
-      });
-
-      return history;
+      if (chatId) {
+        // อัพเดทแชทเดิม
+        const history = await ChatHistory.findByIdAndUpdate(
+          chatId,
+          {
+            messages: processedMessages,
+            updatedAt: new Date()
+          },
+          { new: true }
+        );
+        return history;
+      } else {
+        // สร้างแชทใหม่
+        const history = await ChatHistory.create({
+          userId,
+          modelId,
+          collectionName,
+          chatname,
+          messages: processedMessages,
+          updatedAt: new Date()
+        });
+        return history;
+      }
     } catch (error) {
       console.error('Error saving chat message:', error);
       throw error;

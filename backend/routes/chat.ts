@@ -121,21 +121,15 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const { messages, modelId, collectionName } = req.body;
+    const { messages, modelId, collectionName, chatId } = req.body;
     const userId = (req.user as any)?.username || '';
 
-    // แก้ไขการบันทึกประวัติให้รองรับหลายรูป
     const history = await chatHistoryService.saveChatMessage(
       userId,
       modelId,
       collectionName,
-      messages.map((msg: any) => ({
-        ...msg,
-        images: msg.images ? msg.images.map((img: any) => ({
-          data: img.data,
-          mediaType: img.mediaType
-        })) : undefined
-      }))
+      messages,
+      chatId  // ส่ง chatId ไปด้วย
     );
     res.json(history);
   } catch (error) {
