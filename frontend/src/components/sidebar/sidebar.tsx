@@ -45,6 +45,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [newChatName, setNewChatName] = useState('');
 
+  const handleTokenExpired = () => {
+    localStorage.clear();
+    navigate('/login');
+  };
+
   const fetchChatHistories = async () => {
     try {
       const token = localStorage.getItem('auth_token');
@@ -54,6 +59,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         }
       });
       
+      if (response.status === 401) {
+        handleTokenExpired();
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
@@ -82,6 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     return () => {
       window.removeEventListener('chatUpdated', handleChatUpdate);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogout = async () => {
@@ -107,6 +118,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           'Authorization': `Bearer ${token}`
         }
       });
+
+      if (response.status === 401) {
+        handleTokenExpired();
+        return;
+      }
 
       if (response.ok) {
         // ถ้าลบแชทที่กำลังดูอยู่ ให้กลับไปหน้า New Chat
@@ -136,6 +152,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         },
         body: JSON.stringify({ chatname: newChatName })
       });
+
+      if (response.status === 401) {
+        handleTokenExpired();
+        return;
+      }
 
       if (response.ok) {
         setEditingChatId(null);

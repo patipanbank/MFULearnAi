@@ -57,6 +57,13 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  // const navigate = useNavigate();
+
+    // เพิ่มฟังก์ชันตรวจสอบ token
+    const handleTokenExpired = () => {
+      localStorage.clear(); // เคลียร์ token และข้อมูลทั้งหมด
+      navigate('/login'); // redirect ไปหน้า login
+    };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -361,6 +368,11 @@ const MFUChatbot: React.FC = () => {
           chatId
         })
       });
+      
+      if (historyResponse.status === 401) {
+        handleTokenExpired();
+        return;
+      }
 
       if (historyResponse.ok) {
         const savedChat = await historyResponse.json();
