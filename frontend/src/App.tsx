@@ -32,7 +32,7 @@ const App = () => {
           path="/training"
           element={
             <AuthGuard>
-              <RoleGuard allowedRoles={['Staffs', 'Admin']}>
+              <RoleGuard allowedGroups={['Staffs', 'Admin']}>
                 <MainLayout>
                   <TrainingDashboard />
                 </MainLayout>
@@ -44,7 +44,7 @@ const App = () => {
           path="/modelCreation"
           element={
             <AuthGuard>
-              <RoleGuard allowedRoles={['Staffs', 'Admin']}>
+              <RoleGuard allowedGroups={['Staffs', 'Admin']}>
                 <MainLayout>
                   <ModelCreation />
                 </MainLayout>
@@ -57,7 +57,7 @@ const App = () => {
           path="/admin/dashboard"
           element={
             <AuthGuard>
-              <RoleGuard allowedRoles={['Admin']}>
+              <RoleGuard allowedGroups={['Admin']}>
                 <MainLayout>
                   <TrainingDashboard />
                 </MainLayout>
