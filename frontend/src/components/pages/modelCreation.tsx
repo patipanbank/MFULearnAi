@@ -382,7 +382,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
               </h3>
             </div>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Select the collections to include in this model
+              Select collections to include in this model (optional)
             </p>
           </div>
         </div>
@@ -484,7 +484,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
             </button>
             <button
               onClick={handleConfirm}
-              disabled={isConfirming || selectedCollections.length === 0}
+              disabled={isConfirming}
               className={`px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 
               text-white font-medium transition-all duration-200 transform 
               ${isConfirming ? 'opacity-75 cursor-not-allowed' : 'hover:from-blue-700 hover:to-blue-800 hover:scale-[1.02] shadow-md hover:shadow-lg'}`}
@@ -498,7 +498,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
                   Confirming...
                 </span>
               ) : (
-                'Confirm Selection'
+                'Save Collections'
               )}
             </button>
           </div>
@@ -826,23 +826,7 @@ const ModelCreation: React.FC = () => {
     if (!editingModel) return;
     
     try {
-      // Validate selection: Allow saving even if no collection is selected after confirmation.
-      if (selectedCollections.length === 0) {
-        if (!window.confirm('No collections selected. Do you want to save the model without any collections?')) {
-          return;
-        }
-      }
-
-      // Validate that all selected collections exist in available collections
-      const validCollections = selectedCollections.every(collectionName => 
-        availableCollections.some(collection => collection.name === collectionName)
-      );
-
-      if (!validCollections) {
-        alert('Some selected collections are no longer available');
-        return;
-      }
-
+      // No need to validate or confirm empty collections - it's a valid state
       if (editingModel.modelType === 'personal') {
         // Update personal model in localStorage
         const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
