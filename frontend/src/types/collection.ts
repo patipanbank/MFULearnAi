@@ -7,7 +7,13 @@ export enum CollectionPermission {
 export interface Collection {
   id: string;
   name: string;
-  permission: CollectionPermission | string;
   createdBy: string;
   created: string;
+  permission: CollectionPermission | string[] | undefined;
+  lastModified?: string;
+  modificationHistory?: {
+    timestamp: string;
+    action: string;
+    details: string;
+  }[];
 } 

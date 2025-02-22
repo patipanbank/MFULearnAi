@@ -671,7 +671,11 @@ const TrainingDashboard: React.FC = () => {
   useEffect(() => {
     if (selectedCollection) {
       setUpdatedCollectionName(selectedCollection.name);
-      setUpdatedCollectionPermission(selectedCollection.permission || 'PRIVATE');
+      setUpdatedCollectionPermission(
+        Array.isArray(selectedCollection.permission) 
+          ? 'PRIVATE' 
+          : (selectedCollection.permission?.toString() || 'PRIVATE')
+      );
       fetchUploadedFiles(selectedCollection.name);
     }
   }, [selectedCollection, fetchUploadedFiles]);
@@ -683,6 +687,8 @@ const TrainingDashboard: React.FC = () => {
       if (!selectedCollection?.id) return;
 
       try {
+        console.log(`Attempting to fetch collection ${selectedCollection.id} at ${new Date().toISOString()}`);
+        
         const response = await fetch(
           `${config.apiUrl}/api/training/collections/${selectedCollection.id}`,
           {
@@ -692,8 +698,42 @@ const TrainingDashboard: React.FC = () => {
           }
         );
 
-        // If collection not found, refresh collections list and close modal
+        // Enhanced error logging for 404
         if (response.status === 404) {
+          const errorTime = new Date().toISOString();
+          console.error(`Collection not found error details:
+            - Collection ID: ${selectedCollection.id}
+            - Collection Name: ${selectedCollection.name}
+            - Last Known Update: ${selectedCollection.lastModified || 'Unknown'}
+            - Error Time: ${errorTime}
+            - Created By: ${selectedCollection.createdBy}
+            - Created At: ${selectedCollection.created}
+          `);
+          
+          // Log to backend for tracking
+          try {
+            await fetch(`${config.apiUrl}/api/logs/collection-access`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                collectionId: selectedCollection.id,
+                errorType: '404_NOT_FOUND',
+                timestamp: errorTime,
+                details: {
+                  lastKnownName: selectedCollection.name,
+                  lastKnownUpdate: selectedCollection.lastModified,
+                  createdBy: selectedCollection.createdBy,
+                  createdAt: selectedCollection.created
+                }
+              })
+            });
+          } catch (logError) {
+            console.error('Failed to log collection access error:', logError);
+          }
+
           console.log('Collection not found, refreshing collections list');
           await fetchCollections();
           setSelectedCollection(null);
@@ -701,12 +741,26 @@ const TrainingDashboard: React.FC = () => {
         }
 
         if (!response.ok) {
-          throw new Error('Failed to fetch collection update');
+          throw new Error(`Failed to fetch collection update: ${response.status} ${response.statusText}`);
         }
 
         const updatedData = await response.json();
+        const currentTime = new Date().toISOString();
 
-        // Update collections list
+        // Track modifications if there are changes
+        const hasChanges = selectedCollection.name !== updatedData.name || 
+                          selectedCollection.permission !== updatedData.permission;
+
+        const modificationHistory = hasChanges ? [
+          ...(selectedCollection.modificationHistory || []),
+          {
+            timestamp: currentTime,
+            action: 'UPDATE',
+            details: `Name: ${updatedData.name}, Permission: ${updatedData.permission}`
+          }
+        ] : selectedCollection.modificationHistory;
+
+        // Update collections list with history
         setCollections(prevCollections =>
           prevCollections.map(col =>
             col.id === selectedCollection.id
@@ -716,26 +770,46 @@ const TrainingDashboard: React.FC = () => {
                   id: updatedData._id || col.id,
                   created: col.created,
                   createdBy: col.createdBy,
+                  lastModified: currentTime,
+                  modificationHistory
                 }
               : col
           )
         );
 
-        // Update selected collection
+        // Update selected collection with history
         setSelectedCollection(prev => ({
           ...prev!,
           ...updatedData,
           id: updatedData._id || prev!.id,
           created: prev!.created,
           createdBy: prev!.createdBy,
+          lastModified: currentTime,
+          modificationHistory
         }));
+
+        // Log successful update
+        console.log(`Collection ${selectedCollection.id} successfully updated at ${currentTime}`);
 
         // Refresh files list
         await fetchUploadedFiles(updatedData.name || selectedCollection.name);
 
       } catch (error) {
         console.error('Error in real-time update:', error);
-        // On error, keep existing data and continue polling
+        // Enhanced error logging
+        console.error(`Detailed error for collection ${selectedCollection.id}:`, {
+          collectionDetails: {
+            id: selectedCollection.id,
+            name: selectedCollection.name,
+            lastModified: selectedCollection.lastModified,
+            createdBy: selectedCollection.createdBy,
+            created: selectedCollection.created
+          },
+          error: error instanceof Error ? {
+            message: error.message,
+            stack: error.stack
+          } : 'Unknown error type'
+        });
       }
     };
 
@@ -928,6 +1002,7 @@ const TrainingDashboard: React.FC = () => {
     if (!selectedCollection) return;
 
     try {
+      const currentTime = new Date().toISOString();
       const response = await fetch(`${config.apiUrl}/api/training/collections/${selectedCollection.id}`, {
         method: 'PUT',
         headers: {
@@ -945,36 +1020,69 @@ const TrainingDashboard: React.FC = () => {
         throw new Error(errorData || 'Failed to update collection');
       }
 
-      // Create updated collection object with all necessary fields
-      const updatedCollection = {
+      // Track the changes in history
+      const modificationHistory = [
+        ...(selectedCollection.modificationHistory || []),
+        {
+          timestamp: currentTime,
+          action: 'SETTINGS_UPDATE',
+          details: `Name changed to: ${updatedCollectionName}, Permission changed to: ${updatedCollectionPermission}`
+        }
+      ];
+
+      // Create updated collection object with history
+      const updatedCollection: Collection = {
         id: selectedCollection.id,
         name: updatedCollectionName,
-        permission: updatedCollectionPermission,
+        permission: updatedCollectionPermission as CollectionPermission,
         created: selectedCollection.created,
         createdBy: selectedCollection.createdBy,
+        lastModified: currentTime,
+        modificationHistory
       };
 
       // Close the settings modal before updating state
       setShowSettings(false);
 
-      // Update the collections list with new data
+      // Update states with history
       setCollections(prevCollections =>
         prevCollections.map(col =>
           col.id === selectedCollection.id ? updatedCollection : col
         )
       );
 
-      // Update the selected collection
       setSelectedCollection(updatedCollection);
 
-      // Refresh uploaded files with the new collection name
-      await fetchUploadedFiles(updatedCollectionName);
+      // Log successful update
+      console.log(`Collection ${selectedCollection.id} settings updated:`, {
+        previousName: selectedCollection.name,
+        newName: updatedCollectionName,
+        previousPermission: selectedCollection.permission,
+        newPermission: updatedCollectionPermission,
+        updateTime: currentTime
+      });
 
-      // Refresh the collections list from the API to ensure consistency
+      await fetchUploadedFiles(updatedCollectionName);
       await fetchCollections();
 
     } catch (error) {
       console.error('Error updating collection:', error);
+      // Enhanced error logging
+      console.error(`Failed to update collection ${selectedCollection.id}:`, {
+        attemptedChanges: {
+          name: updatedCollectionName,
+          permission: updatedCollectionPermission
+        },
+        currentState: {
+          name: selectedCollection.name,
+          permission: selectedCollection.permission,
+          lastModified: selectedCollection.lastModified
+        },
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack
+        } : 'Unknown error type'
+      });
       alert(error instanceof Error ? error.message : 'Failed to update collection. Please try again.');
     }
   };
@@ -984,26 +1092,28 @@ const TrainingDashboard: React.FC = () => {
     collection.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
   );
 
-  const getPermissionStyle = (permission?: string) => {
+  const getPermissionStyle = (permission?: CollectionPermission | string[] | undefined) => {
+    if (Array.isArray(permission)) return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
     switch (permission) {
-      case 'PRIVATE':
+      case CollectionPermission.PRIVATE:
         return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
-      case 'STAFF_ONLY':
+      case CollectionPermission.STAFF_ONLY:
         return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
-      case 'PUBLIC':
+      case CollectionPermission.PUBLIC:
         return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
       default:
         return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
     }
   };
 
-  const getPermissionLabel = (permission?: string) => {
+  const getPermissionLabel = (permission?: CollectionPermission | string[] | undefined) => {
+    if (Array.isArray(permission)) return 'Shared';
     switch (permission) {
-      case 'PRIVATE':
+      case CollectionPermission.PRIVATE:
         return 'Private';
-      case 'STAFF_ONLY':
+      case CollectionPermission.STAFF_ONLY:
         return 'Staff Only';
-      case 'PUBLIC':
+      case CollectionPermission.PUBLIC:
         return 'Public';
       default:
         return 'Unknown';
