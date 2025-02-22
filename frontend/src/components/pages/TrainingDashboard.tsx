@@ -760,8 +760,9 @@ const TrainingDashboard: React.FC = () => {
     await fetchUploadedFiles(collection.name);
     
     try {
+      // Instead of fetching a single collection, fetch all and find the one we need
       const response = await fetch(
-        `${config.apiUrl}/api/training/collections/${collection.id}`,
+        `${config.apiUrl}/api/training/collections`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -769,19 +770,20 @@ const TrainingDashboard: React.FC = () => {
         }
       );
 
-      // If we get a 404, remove this collection from the list as it no longer exists
-      if (response.status === 404) {
+      if (!response.ok) {
+        throw new Error('Failed to fetch collections');
+      }
+
+      const data = await response.json();
+      const freshData = data.find((c: any) => c._id === collection.id || c.id === collection.id);
+
+      if (!freshData) {
+        // Collection no longer exists
         console.log(`Collection ${collection.id} no longer exists, removing from list`);
         setCollections(prev => prev.filter(c => c.id !== collection.id));
         setSelectedCollection(null);
         return;
       }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch collection details');
-      }
-
-      const freshData = await response.json();
       
       // Update collections list with fresh data
       setCollections(prevCollections =>
@@ -789,8 +791,8 @@ const TrainingDashboard: React.FC = () => {
           col.id === collection.id
             ? {
                 ...col,
-                ...freshData,
-                id: freshData._id || collection.id,
+                name: freshData.name || col.name,
+                permission: freshData.permission || col.permission,
                 created: col.created,
                 createdBy: col.createdBy,
               }
@@ -801,8 +803,8 @@ const TrainingDashboard: React.FC = () => {
       // Update selected collection with fresh data
       setSelectedCollection(prev => ({
         ...prev!,
-        ...freshData,
-        id: freshData._id || collection.id,
+        name: freshData.name || prev!.name,
+        permission: freshData.permission || prev!.permission,
         created: collection.created,
         createdBy: collection.createdBy,
       }));
