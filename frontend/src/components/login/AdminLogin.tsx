@@ -20,7 +20,7 @@ const AdminLogin: React.FC = () => {
       localStorage.setItem('auth_token', response.data.token);
       localStorage.setItem('user_data', JSON.stringify(response.data.user));
       
-      navigate('/mfuchatbot');
+      navigate('/admin/dashboard');
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data?.message) {
         setError(error.response.data.message);
