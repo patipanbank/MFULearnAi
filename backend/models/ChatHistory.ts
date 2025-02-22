@@ -5,6 +5,10 @@ const chatHistorySchema = new mongoose.Schema({
   modelId: { type: String, required: true },
   collectionName: { type: String, required: false },
   chatname: { type: String, required: true },
+  folder: { type: String, default: 'default' },
+  tags: [{ type: String }],
+  isPinned: { type: Boolean, default: false },
+  lastAccessedAt: { type: Date, default: Date.now },
   messages: [{
     id: { type: Number, required: true },
     role: { type: String, enum: ['user', 'assistant', 'system'], required: true },
@@ -29,6 +33,14 @@ const chatHistorySchema = new mongoose.Schema({
       similarity: { type: Number }
     }]
   }]
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  index: [
+    { userId: 1, updatedAt: -1 },
+    { userId: 1, chatname: 'text' },
+    { userId: 1, tags: 1 },
+    { userId: 1, folder: 1 }
+  ]
+});
 
 export const ChatHistory = mongoose.model('ChatHistory', chatHistorySchema); 

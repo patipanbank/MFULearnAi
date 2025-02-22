@@ -345,12 +345,167 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[])
 router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username || '';
-    const userGroups = (req.user as any)?.groups || [];
-    const history = await chatHistoryService.getChatHistory(userId);
+    const { folder, search } = req.query;
+    
+    let history;
+    if (search) {
+      history = await chatHistoryService.searchChatHistory(userId, search as string);
+    } else {
+      history = await chatHistoryService.getChatHistory(userId, folder as string);
+    }
     res.json(history);
   } catch (error) {
     console.error('Error getting chat history:', error);
     res.status(500).json({ error: 'Failed to get chat history' });
+  }
+});
+
+// Get specific chat
+router.get('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { chatId } = req.params;
+    const chat = await chatHistoryService.getChatById(chatId, userId);
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    res.json(chat);
+  } catch (error) {
+    console.error('Error getting specific chat:', error);
+    res.status(500).json({ error: 'Failed to get chat' });
+  }
+});
+
+// Rename chat
+router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { chatId } = req.params;
+    const { newName } = req.body;
+    
+    if (!newName) {
+      res.status(400).json({ error: 'New name is required' });
+      return;
+    }
+    
+    const chat = await chatHistoryService.renameChatHistory(chatId, userId, newName);
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    res.json(chat);
+  } catch (error) {
+    console.error('Error renaming chat:', error);
+    res.status(500).json({ error: 'Failed to rename chat' });
+  }
+});
+
+// Delete specific chat
+router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { chatId } = req.params;
+    
+    const result = await chatHistoryService.deleteChatHistory(chatId, userId);
+    if (!result) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    res.json({ success: true, message: 'Chat deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting chat:', error);
+    res.status(500).json({ error: 'Failed to delete chat' });
+  }
+});
+
+// Update chat folder
+router.put('/history/:chatId/folder', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { chatId } = req.params;
+    const { folder } = req.body;
+    
+    if (!folder) {
+      res.status(400).json({ error: 'Folder name is required' });
+      return;
+    }
+    
+    const chat = await chatHistoryService.updateChatFolder(chatId, userId, folder);
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    res.json(chat);
+  } catch (error) {
+    console.error('Error updating chat folder:', error);
+    res.status(500).json({ error: 'Failed to update chat folder' });
+  }
+});
+
+// Update chat tags
+router.put('/history/:chatId/tags', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { chatId } = req.params;
+    const { tags } = req.body;
+    
+    if (!Array.isArray(tags)) {
+      res.status(400).json({ error: 'Tags must be an array' });
+      return;
+    }
+    
+    const chat = await chatHistoryService.updateChatTags(chatId, userId, tags);
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    res.json(chat);
+  } catch (error) {
+    console.error('Error updating chat tags:', error);
+    res.status(500).json({ error: 'Failed to update chat tags' });
+  }
+});
+
+// Toggle pin chat
+router.put('/history/:chatId/toggle-pin', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { chatId } = req.params;
+    
+    const chat = await chatHistoryService.togglePinChat(chatId, userId);
+    res.json(chat);
+  } catch (error) {
+    console.error('Error toggling chat pin:', error);
+    res.status(500).json({ error: 'Failed to toggle chat pin' });
+  }
+});
+
+// Export chat
+router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { chatId } = req.params;
+    
+    const exportData = await chatHistoryService.exportChatHistory(userId, chatId);
+    res.json(exportData);
+  } catch (error) {
+    console.error('Error exporting chat:', error);
+    res.status(500).json({ error: 'Failed to export chat' });
+  }
+});
+
+// Import chat
+router.post('/history/import', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const chatData = req.body;
+    
+    const importedChat = await chatHistoryService.importChatHistory(userId, chatData);
+    res.json(importedChat);
+  } catch (error) {
+    console.error('Error importing chat:', error);
+    res.status(500).json({ error: 'Failed to import chat' });
   }
 });
 
