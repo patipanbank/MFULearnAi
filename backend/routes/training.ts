@@ -548,4 +548,18 @@ router.post('/collections/:id/documents/:docId/process-status', roleGuard(['Staf
   // ... existing code ...
 });
 
+/**
+ * GET /history
+ * Gets training history for the user
+ */
+router.get('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+  try {
+    // For now, return empty array since we don't have actual training history yet
+    res.json([]);
+  } catch (error) {
+    console.error('Error fetching training history:', error);
+    res.status(500).json({ error: 'Error fetching training history' });
+  }
+});
+
 export default router; 

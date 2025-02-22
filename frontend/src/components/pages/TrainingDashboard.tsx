@@ -787,22 +787,19 @@ const TrainingDashboard: React.FC = () => {
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
-        const response = await fetch(`${config.apiUrl}/api/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        });
-        
-        if (!response.ok) throw new Error('Failed to fetch user info');
-        const data = await response.json();
-        setUserInfo(data);
+        const userDataStr = localStorage.getItem('user_data');
+        if (!userDataStr) {
+          throw new Error('No user data found');
+        }
+        const userData = JSON.parse(userDataStr);
+        setUserInfo(userData);
       } catch (error) {
-        console.error('Error fetching user info:', error);
+        console.error('Error getting user info:', error);
       }
     };
 
     fetchUserInfo();
-  }, [localStorage.getItem('auth_token')]);
+  }, []);
 
   useEffect(() => {
     if (userInfo) {
