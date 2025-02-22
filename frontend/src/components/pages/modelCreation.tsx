@@ -367,21 +367,28 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   };
 
   // Filter collections based on permissions and model type
-  const filteredCollections = availableCollections.filter(collection => {
-    // Show all collections for staff users
-    if (isStaff) return true;
+  const filteredCollections = availableCollections
+    .filter(collection => {
+      if (!collection || typeof collection !== 'object') return false;
+      
+      // Show all collections for staff users
+      if (isStaff) return true;
 
-    // For personal models, only show public collections
-    if (model.modelType === 'personal') {
-      const permission = typeof collection.permission === 'string' ? collection.permission.toLowerCase() : '';
-      return permission === 'public';
-    }
+      // For personal models, only show public collections
+      if (model.modelType === 'personal') {
+        const permission = collection.permission && typeof collection.permission === 'string' 
+          ? collection.permission.toLowerCase() 
+          : '';
+        return permission === 'public';
+      }
 
-    // For other model types (which shouldn't be accessible to non-staff anyway)
-    return false;
-  }).filter(collection =>
-    collection.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      // For other model types (which shouldn't be accessible to non-staff anyway)
+      return false;
+    })
+    .filter(collection => {
+      if (!collection || !collection.name) return false;
+      return collection.name.toLowerCase().includes((searchQuery || '').toLowerCase());
+    });
 
   // Handle confirm with loading state
   const handleConfirm = async () => {
@@ -889,8 +896,18 @@ const ModelCreation: React.FC = () => {
       if (!response.ok) throw new Error('Failed to fetch collections');
       const data = await response.json();
 
+      // Transform and validate collection data
+      const transformedCollections = data.map((collection: any) => ({
+        id: collection._id?.toString() || collection.id || 'unknown',
+        name: collection.name || '',
+        createdBy: collection.createdBy || 'Unknown',
+        created: collection.created || collection.createdAt || new Date().toISOString(),
+        permission: collection.permission || CollectionPermission.PUBLIC
+      }));
+
       // Filter collections based on user role and permissions
-      const filteredCollections = data.filter((collection: Collection) => {
+      const filteredCollections = transformedCollections.filter((collection: Collection) => {
+        if (!collection.name) return false;
         if (isStaffUser) return true;
         const permission = typeof collection.permission === 'string' ? collection.permission.toLowerCase() : '';
         return permission === 'public';
