@@ -16,7 +16,15 @@ class ChatHistoryService {
           modelId: history.modelId,
           messageCount: history.messages.length,
           lastUpdated: history.updatedAt,
-          collectionName: history.collectionName
+          collectionName: history.collectionName,
+          messages: history.messages.map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            images: msg.images,
+            sources: msg.sources
+          }))
         }))
       }, null, 2));
 
@@ -34,6 +42,8 @@ class ChatHistoryService {
         ? firstUserMessage.content.slice(0, 10) + (firstUserMessage.content.length > 10 ? '...' : '')
         : 'New Chat';
 
+      console.log('Processing messages:', JSON.stringify(messages, null, 2));
+
       const processedMessages = messages.map((msg, index) => ({
         id: index + 1,
         role: msg.role as 'user' | 'assistant' | 'system',
@@ -45,6 +55,8 @@ class ChatHistoryService {
         })) : undefined,
         sources: msg.sources || []
       }));
+
+      console.log('Processed messages:', JSON.stringify(processedMessages, null, 2));
 
       // เพิ่ม log เพื่อตรวจสอบ
       console.log('Saving chat message:', {
