@@ -3,19 +3,11 @@ import { ChatHistory } from '../models/ChatHistory';
 class ChatHistoryService {
   async getChatHistory(userId: string) {
     try {
-      const history = await ChatHistory.findOne({ 
+      const histories = await ChatHistory.find({ 
         userId: userId 
       }).sort({ updatedAt: -1 });
 
-      if (!history) {
-        return { messages: [], modelId: '', collectionName: '' };
-      }
-
-      return {
-        messages: history.messages,
-        modelId: history.modelId,
-        collectionName: history.collectionName
-      };
+      return histories;
     } catch (error) {
       console.error('Error getting chat history:', error);
       throw error;

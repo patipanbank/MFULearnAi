@@ -9,21 +9,36 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
+interface Message {
+  id: number;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+  images?: {
+    data: string;
+    mediaType: string;
+  }[];
+  sources?: {
+    modelId: string;
+    collectionName: string;
+    filename: string;
+    similarity: number;
+  }[];
+}
+
 interface ChatHistory {
+  _id: string;
   chatname: string;
   modelId: string;
   collectionName: string;
-  messages: {
-    role: 'user' | 'assistant';
-    content: string;
-  }[];
+  messages: Message[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const isStaff = userData.groups?.includes('Staffs');
-  const [, setChatHistories] = useState<ChatHistory[]>([]);
+  const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
 
   useEffect(() => {
     const fetchChatHistories = async () => {
@@ -37,10 +52,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         
         if (response.ok) {
           const data = await response.json();
-          setChatHistories(data);
+          if (Array.isArray(data)) {
+            setChatHistories(data);
+          } else if (data.messages) {
+            setChatHistories([data]);
+          } else {
+            setChatHistories([]);
+          }
         }
       } catch (error) {
         console.error('Error fetching chat histories:', error);
+        setChatHistories([]);
       }
     };
 
@@ -105,15 +127,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           <div className="mt-4">
             <h3 className="px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Chat History</h3>
             <div className="mt-2 space-y-1">
-              {/* {chatHistories.map((chat, index) => (
+              {Array.isArray(chatHistories) && chatHistories.map((chat) => (
                 <Link
-                  key={index}
-                  to={`/mfuchatbot?chat=${index}`}
+                  key={chat._id}
+                  to={`/mfuchatbot?chat=${chat._id}`}
                   className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <span className="truncate">{chat.chatname}</span>
+                  <span className="truncate">{chat.chatname || 'Untitled Chat'}</span>
                 </Link>
-              ))} */}
+              ))}
             </div>
           </div>
 
