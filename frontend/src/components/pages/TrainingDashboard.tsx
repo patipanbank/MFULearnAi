@@ -234,7 +234,6 @@ interface CollectionModalProps {
   uploadLoading: boolean;
   onShowSettings: () => void;
   onDeleteFile: (file: UploadedFile) => void;
-  isFilesLoading: boolean;
 }
 
 const CollectionModal: React.FC<CollectionModalProps> = ({
@@ -246,7 +245,6 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   uploadLoading,
   onShowSettings,
   onDeleteFile,
-  isFilesLoading,
 }) => {
   // Add ref for click outside detection
   const modalRef = useRef<HTMLDivElement>(null);
@@ -1189,7 +1187,6 @@ const TrainingDashboard: React.FC = () => {
               uploadLoading={uploadLoading}
               onShowSettings={() => setShowSettings(true)}
               onDeleteFile={handleDeleteFile}
-              isFilesLoading={isFilesLoading}
             />
           )}
 
