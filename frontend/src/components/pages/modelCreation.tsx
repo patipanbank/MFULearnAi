@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, FormEvent } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, FaUser } from 'react-icons/fa';
+import { useAuth } from '../../hooks/useAuth';
 
 // Utility function for relative time
 const getRelativeTime = (dateString: string): string => {
@@ -96,19 +97,10 @@ interface ModelCardProps {
 }
 const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelete }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
-  const [isStaffUser, setIsStaffUser] = useState<boolean>(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      setIsStaffUser(tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin');
-    }
-  }, []);
+  const { isStaff } = useAuth();
 
   const handleCardClick = () => {
-    if (model.modelType === 'official' && !isStaffUser) {
-      // Show sweet alert for non-staff users trying to access official models
+    if (model.modelType === 'official' && !isStaff) {
       window.alert('You do not have permission to access official models');
       return;
     }
@@ -133,7 +125,7 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
       className={`relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md 
       hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 
       border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
-      ${model.modelType === 'official' && !isStaffUser ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+      ${model.modelType === 'official' && !isStaff ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
       onClick={handleCardClick}
     >
       <button
@@ -233,21 +225,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
   onSubmit,
   onCancel,
 }) => {
-  const [isStaffUser, setIsStaffUser] = useState<boolean>(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      const isStaff = tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin';
-      setIsStaffUser(isStaff);
-      
-      // Set default model type based on user role
-      if (!isStaff && newModelType !== 'personal') {
-        onTypeChange('personal');
-      }
-    }
-  }, [newModelType, onTypeChange]);
+  const { isStaff } = useAuth();
 
   return (
     <BaseModal onClose={onCancel} containerClasses="w-[28rem]" zIndex={52}>
@@ -275,7 +253,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
             placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
           />
         </div>
-        {isStaffUser && (
+        {isStaff && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Model Type
@@ -343,7 +321,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   onClose,
 }) => {
   const [isConfirming, setIsConfirming] = useState(false);
-  const [isStaffUser, setIsStaffUser] = useState(false);
+  const { isStaff } = useAuth();
 
   const getPermissionStyle = (permission?: string | string[]) => {
     if (Array.isArray(permission)) {
@@ -381,18 +359,10 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     }
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      setIsStaffUser(tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin');
-    }
-  }, []);
-
   // Filter collections based on permissions and model type
   const filteredCollections = availableCollections.filter(collection => {
     // Show all collections for staff users
-    if (isStaffUser) return true;
+    if (isStaff) return true;
 
     // For personal models, only show public collections
     if (model.modelType === 'personal') {

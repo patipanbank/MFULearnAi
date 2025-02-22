@@ -14,6 +14,11 @@ import { UserRole } from '../models/User';
 
 const router = Router();
 
+// Ensure default collection exists when server starts
+chromaService.ensureDefaultCollection().catch(error => {
+  console.error('Failed to create default collection:', error);
+});
+
 // -------------------------------------------------
 // Multer Configuration for File Uploads
 // -------------------------------------------------

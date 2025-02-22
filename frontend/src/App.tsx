@@ -5,7 +5,7 @@ import TrainingDashboard from './components/pages/TrainingDashboard';
 import Login from './components/login/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
-// import RoleGuard from './components/guards/RoleGuard';
+import RoleGuard from './components/guards/RoleGuard';
 import ModelCreation from './components/pages/modelCreation';
 import './index.css';
  
@@ -31,9 +31,11 @@ const App = () => {
           path="/training"
           element={
             <AuthGuard>
+              <RoleGuard allowedRoles={['Staffs', 'Admin']}>
                 <MainLayout>
                   <TrainingDashboard />
                 </MainLayout>
+              </RoleGuard>
             </AuthGuard>
           }
         />
@@ -41,9 +43,11 @@ const App = () => {
           path="/modelCreation"
           element={
             <AuthGuard>
+              <RoleGuard allowedRoles={['Staffs', 'Admin']}>
                 <MainLayout>
                   <ModelCreation />
                 </MainLayout>
+              </RoleGuard>
             </AuthGuard>
           }
         />

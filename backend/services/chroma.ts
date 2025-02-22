@@ -443,20 +443,38 @@ class ChromaService {
 
   async createCollection(name: string, permission: CollectionPermission, createdBy: string): Promise<HydratedDocument<CollectionDocument>> {
     try {
-      // 1. Create the collection in ChromaDB
-      await this.client.createCollection({ name });
-      
-      // 2. Save the collection metadata into MongoDB and get the created document (includes _id)
-      const newCollection = await CollectionModel.create({
+      // Check if collection already exists
+      const existingCollection = await CollectionModel.findOne({ name });
+      if (existingCollection) {
+        return existingCollection;
+      }
+
+      // Create collection in MongoDB
+      const collection = await CollectionModel.create({
         name,
         permission,
-        createdBy,
-        created: new Date()
+        createdBy
       });
-      
-      return newCollection;
+
+      // Initialize collection in ChromaDB
+      await this.initCollection(name);
+
+      return collection;
     } catch (error) {
       console.error('Error creating collection:', error);
+      throw error;
+    }
+  }
+
+  async ensureDefaultCollection(): Promise<void> {
+    try {
+      const defaultCollection = await CollectionModel.findOne({ name: 'Default' });
+      if (!defaultCollection) {
+        await this.createCollection('Default', CollectionPermission.PUBLIC, 'system');
+        console.log('Created default collection');
+      }
+    } catch (error) {
+      console.error('Error ensuring default collection:', error);
       throw error;
     }
   }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
 import { Collection, CollectionPermission } from '../../types/collection';
+import { useAuth } from '../../hooks/useAuth';
 
 // ----------------------
 // Type Definitions
@@ -33,6 +34,11 @@ interface MongoFile {
   uploadedBy?: string;
   timestamp?: string;
   ids?: string[];
+}
+
+interface TrainingData {
+  username: string;
+  // Add other fields as needed
 }
 
 // ----------------------
@@ -86,12 +92,14 @@ interface DashboardHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onNewCollectionToggle: () => void;
+  loading: boolean;
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   searchQuery,
   onSearchChange,
   onNewCollectionToggle,
+  loading
 }) => (
   <header className="mb-8">
     <div className="flex items-center justify-between mb-6">
@@ -101,33 +109,25 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           Manage your training collections and documents
         </p>
       </div>
-      <button
-        onClick={onNewCollectionToggle}
-        className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
-        hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 
-        dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-lg 
-        transition-all duration-200 space-x-2 shadow-md hover:shadow-lg transform hover:scale-105"
-      >
-        <FaPlus size={16} />
-        <span className="font-medium">New Collection</span>
-      </button>
-    </div>
-    <div className="relative">
-      <input
-        type="text"
-        placeholder="Search collections..."
-        value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
-        className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 
-        bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
-        placeholder-gray-500 dark:placeholder-gray-400
-        focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-        transition-all duration-200 shadow-sm"
-      />
-      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-        <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-        </svg>
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex-1 max-w-md">
+          <input
+            type="text"
+            placeholder="Search collections..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+            disabled={loading}
+          />
+        </div>
+        <button
+          onClick={onNewCollectionToggle}
+          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center"
+          disabled={loading}
+        >
+          <FaPlus className="mr-2" />
+          {loading ? 'Loading...' : 'New Collection'}
+        </button>
       </div>
     </div>
   </header>
@@ -668,7 +668,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 // Main Dashboard Component
 // ----------------------
 const TrainingDashboard: React.FC = () => {
-  // Dashboard state
+  const [trainingData, setTrainingData] = useState<TrainingData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { isStaff, user } = useAuth();
+
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFilesLoading, setIsFilesLoading] = useState<boolean>(false);
@@ -677,199 +680,129 @@ const TrainingDashboard: React.FC = () => {
   const [newCollectionName, setNewCollectionName] = useState<string>('');
   const [newCollectionPermission, setNewCollectionPermission] = useState<string>('PRIVATE');
 
-  // Selected collection and dropdown state
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
 
-  // File upload and management state
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
 
-  // Settings modal state
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [updatedCollectionName, setUpdatedCollectionName] = useState<string>('');
   const [updatedCollectionPermission, setUpdatedCollectionPermission] = useState<string>('PRIVATE');
 
-  // Loading state for collections
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
 
-  // Add user info state
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
-  const authToken = localStorage.getItem('auth_token');
-
-  // ----------------------
-  // API Calls
-  // ----------------------
-  const fetchUserInfo = useCallback(async () => {
-    try {
-      const response = await fetch(`${config.apiUrl}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch user info');
-      const data = await response.json();
-      setUserInfo(data);
-    } catch (error) {
-      console.error('Error fetching user info:', error);
-    }
-  }, [authToken]);
-
   const fetchCollections = useCallback(async () => {
-    if (!userInfo) return;
-    
-    setIsCollectionsLoading(true);
     try {
-      console.log('Fetching collections with user info:', userInfo);
-      
-      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
+      setIsCollectionsLoading(true);
+      const response = await fetch(`${config.apiUrl}/training/collections`, {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
       });
+
+      if (!response.ok) throw new Error('Failed to fetch collections');
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to fetch collections:', response.status, errorText);
-        throw new Error(`Failed to fetch collections: ${errorText}`);
-      }
+      // Type the response data as MongoCollection[]
+      const mongoCollections: MongoCollection[] = await response.json();
+      
+      // Transform MongoCollection to Collection type
+      const transformedCollections: Collection[] = mongoCollections.map(mongo => ({
+        id: mongo._id,
+        name: mongo.name,
+        createdBy: mongo.createdBy || 'Unknown',
+        created: mongo.created || mongo.createdAt || new Date().toISOString(),
+        permission: mongo.permission as CollectionPermission || CollectionPermission.PUBLIC
+      }));
 
-      const data = await response.json();
-      console.log('Raw collections data:', data);
-
-      if (!Array.isArray(data)) {
-        console.error('Invalid data format received:', data);
-        throw new Error('Invalid data format received from server');
-      }
-
-      const collectionsWithDate = data
-        .filter((collection: MongoCollection) => {
-          if (!collection.id && !collection._id || !collection.name) {
-            console.log('Filtering out collection due to missing id or name:', collection);
-            return false;
-          }
-          
-          const permission = collection.permission?.toUpperCase();
-          console.log(`Checking permission for collection "${collection.name}":`, {
-            permission,
-            userRole: userInfo.role,
-            createdBy: collection.createdBy,
-            username: userInfo.username
-          });
-          
-          // Check if user is admin
-          const isAdmin = userInfo.role === 'Admin';
-          
-          // If user is admin, they can access everything
-          if (isAdmin) {
-            return true;
-          }
-
-          switch (permission) {
-            case CollectionPermission.PUBLIC:
-              console.log(`Collection "${collection.name}" is public - allowing access`);
-              return true;
-            case CollectionPermission.STAFF_ONLY:
-              // Only ADMIN and STAFF can access STAFF_ONLY collections
-              const hasStaffAccess = userInfo.role === 'Staffs' || userInfo.role === 'Admin';
-              console.log(`Collection "${collection.name}" is staff only - access granted:`, hasStaffAccess);
-              return hasStaffAccess;
-            case CollectionPermission.PRIVATE:
-              // Only ADMIN and creator can access PRIVATE collections
-              const hasPrivateAccess = collection.createdBy === userInfo.username || isAdmin;
-              console.log(`Collection "${collection.name}" is private - access granted:`, hasPrivateAccess);
-              return hasPrivateAccess;
-            default:
-              // For backward compatibility, treat undefined permission as PUBLIC
-              if (!permission) {
-                console.log(`Collection "${collection.name}" has no permission - treating as public`);
-                return true;
-              }
-              console.log(`Collection "${collection.name}" has unknown permission:`, permission);
-              return isAdmin; // Only give access to admin for unknown permissions
-          }
-        })
-        .map((collection: MongoCollection): Collection => {
-          const mappedCollection = {
-            id: collection.id || collection._id.toString(),
-            name: collection.name,
-            createdBy: collection.createdBy || 'Unknown',
-            created: collection.created || collection.createdAt || new Date().toISOString(),
-            permission: collection.permission?.toUpperCase() || CollectionPermission.PUBLIC,
-          };
-          console.log('Mapped collection:', mappedCollection);
-          return mappedCollection;
-        });
-
-      console.log('Final filtered collections:', collectionsWithDate);
-      setCollections(collectionsWithDate);
+      setCollections(transformedCollections);
     } catch (error) {
-      console.error('Error in fetchCollections:', error);
-      alert(error instanceof Error ? error.message : 'Failed to fetch collections');
+      console.error('Error fetching collections:', error);
     } finally {
       setIsCollectionsLoading(false);
     }
-  }, [authToken, userInfo]);
+  }, []);
 
   const fetchUploadedFiles = useCallback(async (collectionName: string) => {
     try {
       setIsFilesLoading(true);
       const response = await fetch(
-        `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
+        `${config.apiUrl}/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
         {
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
             'Content-Type': 'application/json',
           },
         }
       );
       
-      const data = await response.json();
+      const mongoFiles: MongoFile[] = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch files');
+        throw new Error('Failed to fetch files');
       }
 
-      // Normalize the data structure
-      let normalizedFiles: MongoFile[] = [];
+      // Transform MongoFile[] to UploadedFile[]
+      const transformedFiles: UploadedFile[] = mongoFiles.map(file => ({
+        filename: file.filename,
+        uploadedBy: file.uploadedBy || 'Unknown',
+        timestamp: file.timestamp || new Date().toISOString(),
+        ids: file.ids || []
+      }));
 
-      if (data.documents && Array.isArray(data.documents)) {
-        normalizedFiles = data.documents;
-      } else if (data.files && Array.isArray(data.files)) {
-        normalizedFiles = data.files;
-      } else if (Array.isArray(data)) {
-        normalizedFiles = data;
-      }
-
-      // Validate and transform each file
-      const validFiles: UploadedFile[] = normalizedFiles
-        .filter((file: MongoFile) => file.filename && file.ids)
-        .map((file: MongoFile): UploadedFile => ({
-          filename: file.filename,
-          uploadedBy: file.uploadedBy || 'Unknown',
-          timestamp: file.timestamp || new Date().toISOString(),
-          ids: Array.isArray(file.ids) ? file.ids : [],
-        }));
-
-      setUploadedFiles(validFiles);
+      setUploadedFiles(transformedFiles);
     } catch (error) {
       console.error('Error fetching uploaded files:', error);
       alert(error instanceof Error ? error.message : 'Failed to fetch files');
     } finally {
       setIsFilesLoading(false);
     }
-  }, [authToken]);
+  }, []);
 
-  // ----------------------
-  // Effects
-  // ----------------------
   useEffect(() => {
+    const fetchTrainingData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${config.apiUrl}/training/history`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+        });
+        if (!response.ok) throw new Error('Failed to fetch training data');
+        const data = await response.json();
+        setTrainingData(data);
+      } catch (error) {
+        console.error('Error fetching training data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrainingData();
+  }, []);
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const response = await fetch(`${config.apiUrl}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch user info');
+        const data = await response.json();
+        setUserInfo(data);
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+      }
+    };
+
     fetchUserInfo();
-  }, [fetchUserInfo]);
+  }, [localStorage.getItem('auth_token')]);
 
   useEffect(() => {
     if (userInfo) {
@@ -885,17 +818,246 @@ const TrainingDashboard: React.FC = () => {
     }
   }, [selectedCollection, fetchUploadedFiles]);
 
-  // Update settings handler with real-time sync
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const updateCollectionData = async () => {
+      if (selectedCollection) {
+        try {
+          const response = await fetch(
+            `${config.apiUrl}/api/training/collections/${selectedCollection.id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+              },
+            }
+          );
+
+          if (response.status === 404) {
+            setSelectedCollection(null);
+            setShowSettings(false);
+            fetchCollections();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch collection update');
+          }
+
+          const updatedData = await response.json();
+
+          setCollections(prevCollections =>
+            prevCollections.map(col =>
+              col.id === selectedCollection.id
+                ? {
+                    ...col,
+                    ...updatedData,
+                    created: col.created,
+                    createdBy: col.createdBy,
+                  }
+                : col
+            )
+          );
+
+          setSelectedCollection(prev =>
+            prev?.id === selectedCollection.id
+              ? {
+                  ...prev,
+                  ...updatedData,
+                }
+              : prev
+          );
+
+          await fetchUploadedFiles(updatedData.name);
+        } catch (error) {
+          console.error('Error in real-time update:', error);
+        }
+      }
+    };
+
+    if (selectedCollection) {
+      intervalId = setInterval(updateCollectionData, 5000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [selectedCollection, localStorage.getItem('auth_token'), fetchUploadedFiles]);
+
+  const handleCollectionSelect = async (collection: Collection) => {
+    setSelectedCollection(collection);
+    try {
+      const response = await fetch(
+        `${config.apiUrl}/api/training/collections/${collection.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch collection details');
+      }
+
+      const freshData = await response.json();
+
+      setCollections(prevCollections =>
+        prevCollections.map(col =>
+          col.id === collection.id
+            ? {
+                ...col,
+                ...freshData,
+                created: col.created,
+                createdBy: col.createdBy,
+              }
+            : col
+        )
+      );
+
+      setSelectedCollection(prev =>
+        prev?.id === collection.id
+          ? {
+              ...prev,
+              ...freshData,
+            }
+          : prev
+      );
+
+      await fetchUploadedFiles(freshData.name);
+    } catch (error) {
+      console.error('Error fetching collection details:', error);
+    }
+  };
+
+  const handleCreateCollection = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${config.apiUrl}/training/collections`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: JSON.stringify({
+          name: newCollectionName,
+          permission: newCollectionPermission,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to create collection');
+      
+      // Type the response data
+      const newMongoCollection: MongoCollection = await response.json();
+      
+      // Transform to Collection type and add to state
+      const newCollection: Collection = {
+        id: newMongoCollection._id,
+        name: newMongoCollection.name,
+        createdBy: newMongoCollection.createdBy || user?.username || 'Unknown',
+        created: newMongoCollection.created || newMongoCollection.createdAt || new Date().toISOString(),
+        permission: newMongoCollection.permission as CollectionPermission || CollectionPermission.PUBLIC
+      };
+
+      setCollections(prev => [...prev, newCollection]);
+      setShowNewCollectionModal(false);
+    } catch (error) {
+      console.error('Error creating collection:', error);
+    }
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleFileUpload = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!file || !selectedCollection) {
+      alert('Please choose a file.');
+      return;
+    }
+    setUploadLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('modelId', 'default');
+      formData.append('collectionName', selectedCollection.name);
+
+      const response = await fetch(`${config.apiUrl}/api/training/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: formData,
+      });
+      if (response.ok) {
+        alert('File uploaded successfully');
+        setFile(null);
+        fetchUploadedFiles(selectedCollection.name);
+      } else {
+        alert('Failed to upload file');
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleDeleteCollection = async (collection: Collection) => {
+    if (!window.confirm(`Are you sure you want to delete collection "${collection.name}"?`)) return;
+    try {
+      const response = await fetch(`${config.apiUrl}/api/training/collections/${collection.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to delete collection');
+      alert('Collection deleted successfully');
+      if (selectedCollection && selectedCollection.id === collection.id) {
+        setSelectedCollection(null);
+      }
+      fetchCollections();
+    } catch (error) {
+      console.error('Error deleting collection:', error);
+      alert('Error deleting collection');
+    }
+  };
+
+  const handleDeleteFile = async (fileToDelete: UploadedFile) => {
+    if (!selectedCollection) return;
+    if (!window.confirm(`Are you sure you want to delete the file ${fileToDelete.filename}?`)) return;
+    
+    for (const chunkId of fileToDelete.ids) {
+      try {
+        await fetch(`${config.apiUrl}/api/training/documents/${chunkId}?collectionName=${encodeURIComponent(selectedCollection.name)}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+        });
+      } catch (error) {
+        console.error(`Error deleting chunk ${chunkId}:`, error);
+      }
+    }
+    fetchUploadedFiles(selectedCollection.name);
+  };
+
   const handleUpdateSettings = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedCollection) return;
 
     try {
-      const response = await fetch(`${config.apiUrl}/api/training/collections/${selectedCollection.id}`, {
+      const response = await fetch(`${config.apiUrl}/training/collections/${selectedCollection.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify({
           name: updatedCollectionName,
@@ -942,327 +1104,130 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  // Add real-time update effect
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
+  // Filter training data based on user role
+  const filteredTrainingData = trainingData.filter(data => 
+    isStaff || data.username === user?.username
+  );
 
-    const updateCollectionData = async () => {
-      if (selectedCollection) {
-        try {
-          const response = await fetch(
-            `${config.apiUrl}/api/training/collections/${selectedCollection.id}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${authToken}`,
-              },
-            }
-          );
-
-          if (response.status === 404) {
-            // Collection no longer exists - close the view and refresh collections
-            setSelectedCollection(null);
-            setShowSettings(false);
-            fetchCollections();
-            return;
-          }
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch collection update');
-          }
-
-          const updatedData = await response.json();
-
-          // Update collection in the list
-          setCollections(prevCollections =>
-            prevCollections.map(col =>
-              col.id === selectedCollection.id
-                ? {
-                    ...col,
-                    ...updatedData,
-                    // Preserve fields that might not be returned by the API
-                    created: col.created,
-                    createdBy: col.createdBy,
-                  }
-                : col
-            )
-          );
-
-          // Update selected collection if it's open
-          setSelectedCollection(prev =>
-            prev?.id === selectedCollection.id
-              ? {
-                  ...prev,
-                  ...updatedData,
-                }
-              : prev
-          );
-
-          // Refresh files if collection is selected
-          await fetchUploadedFiles(updatedData.name);
-        } catch (error) {
-          console.error('Error in real-time update:', error);
-          // If there's any other error, we'll keep the UI state as is
-          // and let the next polling interval try again
-        }
-      }
-    };
-
-    // Set up polling interval for real-time updates
-    if (selectedCollection) {
-      intervalId = setInterval(updateCollectionData, 5000); // Poll every 5 seconds
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [selectedCollection, authToken, fetchUploadedFiles]);
-
-  // Modify the collection selection handler
-  const handleCollectionSelect = async (collection: Collection) => {
-    setSelectedCollection(collection);
-    try {
-      // Fetch fresh data when selecting a collection
-      const response = await fetch(
-        `${config.apiUrl}/api/training/collections/${collection.id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch collection details');
-      }
-
-      const freshData = await response.json();
-
-      // Update collection in the list
-      setCollections(prevCollections =>
-        prevCollections.map(col =>
-          col.id === collection.id
-            ? {
-                ...col,
-                ...freshData,
-                // Preserve fields that might not be returned by the API
-                created: col.created,
-                createdBy: col.createdBy,
-              }
-            : col
-        )
-      );
-
-      // Update selected collection
-      setSelectedCollection(prev =>
-        prev?.id === collection.id
-          ? {
-              ...prev,
-              ...freshData,
-            }
-          : prev
-      );
-
-      // Fetch associated files
-      await fetchUploadedFiles(freshData.name);
-    } catch (error) {
-      console.error('Error fetching collection details:', error);
-    }
-  };
-
-  // ----------------------
-  // Event Handlers
-  // ----------------------
-  const handleCreateCollection = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newCollectionName.trim()) {
-      alert('Please enter a collection name');
-      return;
-    }
-    try {
-      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          name: newCollectionName,
-          permission: newCollectionPermission,
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to create collection');
-      await fetchCollections();
-      setNewCollectionName('');
-      setShowNewCollectionModal(false);
-    } catch (error) {
-      console.error('Error creating collection:', error);
-      alert('Error creating collection');
-    }
-  };
-
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleFileUpload = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!file || !selectedCollection) {
-      alert('Please choose a file.');
-      return;
-    }
-    setUploadLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('modelId', 'default');
-      formData.append('collectionName', selectedCollection.name);
-
-      const response = await fetch(`${config.apiUrl}/api/training/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: formData,
-      });
-      if (response.ok) {
-        alert('File uploaded successfully');
-        setFile(null);
-        fetchUploadedFiles(selectedCollection.name);
-      } else {
-        alert('Failed to upload file');
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-    } finally {
-      setUploadLoading(false);
-    }
-  };
-
-  const handleDeleteCollection = async (collection: Collection) => {
-    if (!window.confirm(`Are you sure you want to delete collection "${collection.name}"?`)) return;
-    try {
-      const response = await fetch(`${config.apiUrl}/api/training/collections/${collection.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to delete collection');
-      alert('Collection deleted successfully');
-      if (selectedCollection && selectedCollection.id === collection.id) {
-        setSelectedCollection(null);
-      }
-      fetchCollections();
-    } catch (error) {
-      console.error('Error deleting collection:', error);
-      alert('Error deleting collection');
-    }
-  };
-
-  const handleDeleteFile = async (fileToDelete: UploadedFile) => {
-    if (!selectedCollection) return;
-    if (!window.confirm(`Are you sure you want to delete the file ${fileToDelete.filename}?`)) return;
-    
-    // Delete each chunk for this file
-    for (const chunkId of fileToDelete.ids) {
-      try {
-        await fetch(`${config.apiUrl}/api/training/documents/${chunkId}?collectionName=${encodeURIComponent(selectedCollection.name)}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-          },
-        });
-      } catch (error) {
-        console.error(`Error deleting chunk ${chunkId}:`, error);
-      }
-    }
-    // Refresh the file list after deletion
-    fetchUploadedFiles(selectedCollection.name);
-  };
-
+  // Filter collections based on search
   const filteredCollections = collections.filter((collection) =>
     collection.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // ----------------------
-  // Render
-  // ----------------------
   return (
     <div className="container mx-auto p-4 font-sans relative">
-      <DashboardHeader
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onNewCollectionToggle={() => setShowNewCollectionModal(true)}
-      />
-
-      {isCollectionsLoading ? (
-        <div className="text-center py-8 text-gray-600 dark:text-gray-300">Loading collections...</div>
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[200px]">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <p className="text-gray-600 dark:text-gray-300">Loading training data...</p>
+          </div>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {filteredCollections.map((collection) => (
-            <CollectionCard
-              key={collection.id}
-              collection={collection}
-              onSelect={() => handleCollectionSelect(collection)}
-              activeDropdown={activeDropdownId === collection.id}
-              onDropdownToggle={() =>
-                setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
-              }
-              onSettings={() => {
-                setSelectedCollection(collection);
-                setShowSettings(true);
-                setActiveDropdownId(null);
-              }}
-              onDelete={() => {
-                setActiveDropdownId(null);
-                handleDeleteCollection(collection);
+        <>
+          <DashboardHeader
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onNewCollectionToggle={() => setShowNewCollectionModal(true)}
+            loading={loading || isCollectionsLoading}
+          />
+
+          {/* Training History Section */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              Recent Training Activity
+            </h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+              {filteredTrainingData.length > 0 ? (
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredTrainingData.map((data, index) => (
+                    <div key={index} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {data.username}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                  No training activity found
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Collections Section */}
+          {isCollectionsLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-300">Loading collections...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {filteredCollections.map((collection) => (
+                <CollectionCard
+                  key={collection.id}
+                  collection={collection}
+                  onSelect={() => handleCollectionSelect(collection)}
+                  activeDropdown={activeDropdownId === collection.id}
+                  onDropdownToggle={() =>
+                    setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
+                  }
+                  onSettings={() => {
+                    setSelectedCollection(collection);
+                    setShowSettings(true);
+                    setActiveDropdownId(null);
+                  }}
+                  onDelete={() => {
+                    setActiveDropdownId(null);
+                    handleDeleteCollection(collection);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {selectedCollection && (
+            <CollectionModal
+              collection={selectedCollection}
+              onClose={() => setSelectedCollection(null)}
+              uploadedFiles={uploadedFiles}
+              onFileChange={handleFileChange}
+              onFileUpload={handleFileUpload}
+              uploadLoading={uploadLoading}
+              onShowSettings={() => setShowSettings(true)}
+              onDeleteFile={handleDeleteFile}
+              isFilesLoading={isFilesLoading}
+            />
+          )}
+
+          {showSettings && selectedCollection && (
+            <SettingsModal
+              updatedCollectionName={updatedCollectionName}
+              updatedCollectionPermission={updatedCollectionPermission}
+              onNameChange={setUpdatedCollectionName}
+              onPermissionChange={setUpdatedCollectionPermission}
+              onClose={() => setShowSettings(false)}
+              onSubmit={handleUpdateSettings}
+            />
+          )}
+
+          {showNewCollectionModal && (
+            <NewCollectionModal
+              newCollectionName={newCollectionName}
+              newCollectionPermission={newCollectionPermission}
+              onNameChange={setNewCollectionName}
+              onPermissionChange={setNewCollectionPermission}
+              onSubmit={handleCreateCollection}
+              onCancel={() => {
+                setShowNewCollectionModal(false);
+                setNewCollectionName('');
               }}
             />
-          ))}
-        </div>
-      )}
-
-      {selectedCollection && (
-        <CollectionModal
-          collection={selectedCollection}
-          onClose={() => setSelectedCollection(null)}
-          uploadedFiles={uploadedFiles}
-          onFileChange={handleFileChange}
-          onFileUpload={handleFileUpload}
-          uploadLoading={uploadLoading}
-          onShowSettings={() => setShowSettings(true)}
-          onDeleteFile={handleDeleteFile}
-          isFilesLoading={isFilesLoading}
-        />
-      )}
-
-      {showSettings && selectedCollection && (
-        <SettingsModal
-          updatedCollectionName={updatedCollectionName}
-          updatedCollectionPermission={updatedCollectionPermission}
-          onNameChange={setUpdatedCollectionName}
-          onPermissionChange={setUpdatedCollectionPermission}
-          onClose={() => setShowSettings(false)}
-          onSubmit={handleUpdateSettings}
-        />
-      )}
-
-      {showNewCollectionModal && (
-        <NewCollectionModal
-          newCollectionName={newCollectionName}
-          newCollectionPermission={newCollectionPermission}
-          onNameChange={setNewCollectionName}
-          onPermissionChange={setNewCollectionPermission}
-          onSubmit={handleCreateCollection}
-          onCancel={() => {
-            setShowNewCollectionModal(false);
-            setNewCollectionName('');
-          }}
-        />
+          )}
+        </>
       )}
     </div>
   );
