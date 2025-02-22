@@ -18,7 +18,7 @@ class ChatHistoryService {
     try {
       const firstUserMessage = messages.find(msg => msg.role === 'user');
       const chatname = firstUserMessage 
-        ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
+        ? firstUserMessage.content.slice(0, 10) + (firstUserMessage.content.length > 10 ? '...' : '')
         : 'New Chat';
 
       const processedMessages = messages.map((msg, index) => ({
