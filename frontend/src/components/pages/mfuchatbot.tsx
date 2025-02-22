@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { BiLoaderAlt } from 'react-icons/bi';
 import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
@@ -50,11 +51,12 @@ const LoadingDots = () => (
 );
 
 const MFUChatbot: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
-  const [isNewChat, setIsNewChat] = useState(true);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -209,13 +211,11 @@ const MFUChatbot: React.FC = () => {
   useEffect(() => {
     const loadChatHistory = async () => {
       try {
-        // Check URL parameters for chat ID or new chat
-        const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(location.search);
         const chatId = urlParams.get('chat');
         const isNewChatParam = urlParams.get('new') === 'true';
         
         if (isNewChatParam) {
-          setIsNewChat(true);
           setMessages([]);
           setCurrentChatId(null);
           return;
@@ -254,14 +254,12 @@ const MFUChatbot: React.FC = () => {
               }));
               setMessages(processedMessages);
               setSelectedModel(chat.modelId || '');
-              setIsNewChat(false);
               setCurrentChatId(chat._id);
               console.log('Loaded specific chat:', chat._id, processedMessages);
             }
           } else {
             // If chat not found, redirect to new chat
-            window.history.replaceState({}, '', '/mfuchatbot?new=true');
-            setIsNewChat(true);
+            navigate('/mfuchatbot?new=true', { replace: true });
             setMessages([]);
             setCurrentChatId(null);
           }
@@ -299,28 +297,27 @@ const MFUChatbot: React.FC = () => {
               }));
               setMessages(processedMessages);
               setSelectedModel(latestChat.modelId || '');
-              setIsNewChat(false);
               setCurrentChatId(latestChat._id);
               // Update URL with the chat ID
-              window.history.replaceState({}, '', `/mfuchatbot?chat=${latestChat._id}`);
+              navigate(`/mfuchatbot?chat=${latestChat._id}`, { replace: true });
               console.log('Loaded latest chat:', latestChat._id, processedMessages);
             }
           } else {
-            window.history.replaceState({}, '', '/mfuchatbot?new=true');
-            setIsNewChat(true);
+            navigate('/mfuchatbot?new=true', { replace: true });
             setMessages([]);
             setCurrentChatId(null);
           }
         }
       } catch (error) {
         console.error('Error loading chat history:', error);
-        setIsNewChat(true);
+        setMessages([]);
         setCurrentChatId(null);
+        navigate('/mfuchatbot?new=true', { replace: true });
       }
     };
 
     loadChatHistory();
-  }, []);
+  }, [navigate, location.search]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
@@ -560,9 +557,8 @@ const MFUChatbot: React.FC = () => {
       if (response.ok) {
         const history = await response.json();
         setCurrentChatId(history._id);
-        setIsNewChat(false);
         // Update URL with the new chat ID
-        window.history.replaceState({}, '', `/mfuchatbot?chat=${history._id}`);
+        navigate(`/mfuchatbot?chat=${history._id}`, { replace: true });
         console.log('Saved chat history:', history._id);
       }
     } catch (error) {
@@ -583,7 +579,6 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-
   const clearChat = async () => {
     try {
       const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
@@ -598,10 +593,8 @@ const MFUChatbot: React.FC = () => {
       }
 
       setMessages([]);
-      setIsNewChat(true);
       setCurrentChatId(null);
-      // Update URL to new chat
-      window.history.replaceState({}, '', '/mfuchatbot?new=true');
+      navigate('/mfuchatbot?new=true', { replace: true });
     } catch (error) {
       console.error('Error clearing chat:', error);
     }
