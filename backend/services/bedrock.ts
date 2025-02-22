@@ -12,8 +12,7 @@ export class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
     claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    titanImage: "amazon.titan-embed-image-v1",
-    claudeImage: "anthropic.claude-3-sonnet-20240229-v1:0"  // Using Claude 3 for image generation
+    titanImage: "amazon.titan-image-generator-v1"  // Updated to image generator model
   };
 
   private readonly defaultConfig: ModelConfig = {
@@ -137,6 +136,51 @@ export class BedrockService {
     };
   }
 
+  async generateImage(prompt: string): Promise<string> {
+    try {
+      const command = new InvokeModelCommand({
+        modelId: this.models.titanImage,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify({
+          taskType: "TEXT_IMAGE",
+          textToImageParams: {
+            text: prompt,
+            numberOfImages: 1,
+            imageHeight: 1024,
+            imageWidth: 1024,
+            cfgScale: 8.0,
+            seed: Math.floor(Math.random() * 1000000)
+          },
+          imageGenerationConfig: {
+            numberOfImages: 1,
+            quality: "standard",
+            height: 1024,
+            width: 1024,
+            cfgScale: 8.0
+          }
+        })
+      });
+
+      const response = await this.client.send(command);
+      
+      if (!response.body) {
+        throw new Error("Empty response body");
+      }
+
+      const responseData = JSON.parse(new TextDecoder().decode(response.body));
+      
+      if (!responseData.images || !responseData.images[0]) {
+        throw new Error("No image generated");
+      }
+
+      return responseData.images[0];
+    } catch (error) {
+      console.error("Error generating image:", error);
+      throw error;
+    }
+  }
+
   async *chat(messages: ChatMessage[], modelId: string): AsyncGenerator<string> {
     try {
       const config = this.getModelConfig(messages);
@@ -145,8 +189,23 @@ export class BedrockService {
       const lastMessage = messages[messages.length - 1];
       const isImageGeneration = lastMessage.isImageGeneration;
 
+      if (isImageGeneration) {
+        try {
+          const imageBase64 = await this.generateImage(lastMessage.content);
+          yield JSON.stringify({
+            type: 'generated-image',
+            data: imageBase64
+          });
+          return;
+        } catch (error) {
+          console.error("Error in image generation:", error);
+          yield "I apologize, but I encountered an error while generating the image. Please try again or contact support if the issue persists.";
+          return;
+        }
+      }
+
       const command = new InvokeModelWithResponseStreamCommand({
-        modelId: isImageGeneration ? this.models.claudeImage : this.models.claude35,
+        modelId: this.models.claude35,
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify({
@@ -157,24 +216,17 @@ export class BedrockService {
           stop_sequences: config.stopSequences,
           messages: messages.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'assistant',
-            content: isImageGeneration ? 
-              [
-                {
-                  type: 'text',
-                  text: `Please generate a detailed image based on this description: ${msg.content}`
+            content: msg.images ? [
+              { type: 'text', text: msg.content },
+              ...msg.images.map(img => ({
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: img.mediaType,
+                  data: img.data
                 }
-              ] : 
-              msg.images ? [
-                { type: 'text', text: msg.content },
-                ...msg.images.map(img => ({
-                  type: 'image',
-                  source: {
-                    type: 'base64',
-                    media_type: img.mediaType,
-                    data: img.data
-                  }
-                }))
-              ] : msg.content
+              }))
+            ] : msg.content
           }))
         })
       });

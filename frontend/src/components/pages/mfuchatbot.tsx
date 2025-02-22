@@ -361,6 +361,38 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
+        if (data.type === 'generated-image') {
+          setMessages(prev => {
+            // Find the last assistant message that's empty
+            const lastEmptyAssistantIndex = [...prev].reverse().findIndex(msg => 
+              msg.role === 'assistant' && msg.content === ''
+            );
+            
+            if (lastEmptyAssistantIndex === -1) return prev;
+            
+            const actualIndex = prev.length - 1 - lastEmptyAssistantIndex;
+            
+            return prev.map((msg, index) =>
+              index === actualIndex ? 
+              { 
+                ...msg, 
+                content: 'Generated image:',
+                images: [{
+                  data: data.data,
+                  mediaType: 'image/png'
+                }]
+              } : msg
+            );
+          });
+
+          // Save chat history after image is generated
+          setMessages(prev => {
+            saveChatHistory(prev);
+            return prev;
+          });
+          return;
+        }
+
         if (data.content) {
           accumulatedContent += data.content;
           setMessages(prev => {
