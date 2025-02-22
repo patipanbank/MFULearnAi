@@ -691,9 +691,9 @@ const TrainingDashboard: React.FC = () => {
             }
           );
 
+          // Don't close modals on 404, just refresh the collections list
           if (response.status === 404) {
-            // Collection not found in update interval, but don't close modal
-            await fetchUploadedFiles(selectedCollection.name);
+            await fetchCollections();
             return;
           }
 
@@ -716,22 +716,21 @@ const TrainingDashboard: React.FC = () => {
             )
           );
 
-          setSelectedCollection(prev =>
-            prev?.id === selectedCollection.id
-              ? {
-                  ...prev,
-                  ...updatedData,
-                }
-              : prev
-          );
+          // Keep the selected collection and settings state
+          if (selectedCollection.id === updatedData._id) {
+            setSelectedCollection(prev => ({
+              ...prev!,
+              ...updatedData,
+              created: prev!.created,
+              createdBy: prev!.createdBy,
+            }));
+          }
 
           await fetchUploadedFiles(updatedData.name);
         } catch (error) {
           console.error('Error in real-time update:', error);
-          // Don't close modal on error, just try to fetch files
-          if (selectedCollection.name) {
-            await fetchUploadedFiles(selectedCollection.name);
-          }
+          // Don't close modals on error, just refresh collections
+          await fetchCollections();
         }
       }
     };
@@ -745,7 +744,7 @@ const TrainingDashboard: React.FC = () => {
         clearInterval(intervalId);
       }
     };
-  }, [selectedCollection, fetchUploadedFiles]);
+  }, [selectedCollection, fetchCollections, fetchUploadedFiles]);
 
   const handleCollectionSelect = async (collection: Collection) => {
     setSelectedCollection(collection);
@@ -759,9 +758,9 @@ const TrainingDashboard: React.FC = () => {
         }
       );
 
+      // Don't close modals on 404, just refresh collections
       if (response.status === 404) {
-        // Collection not found, but don't close modal - just fetch files
-        await fetchUploadedFiles(collection.name);
+        await fetchCollections();
         return;
       }
 
@@ -784,22 +783,19 @@ const TrainingDashboard: React.FC = () => {
         )
       );
 
-      setSelectedCollection(prev =>
-        prev?.id === collection.id
-          ? {
-              ...prev,
-              ...freshData,
-            }
-          : prev
-      );
+      // Keep the selected collection state
+      setSelectedCollection(prev => ({
+        ...prev!,
+        ...freshData,
+        created: collection.created,
+        createdBy: collection.createdBy,
+      }));
 
       await fetchUploadedFiles(freshData.name);
     } catch (error) {
       console.error('Error fetching collection details:', error);
-      // Don't close modal on error, just try to fetch files
-      if (collection.name) {
-        await fetchUploadedFiles(collection.name);
-      }
+      // Don't close modals on error, just refresh collections
+      await fetchCollections();
     }
   };
 
