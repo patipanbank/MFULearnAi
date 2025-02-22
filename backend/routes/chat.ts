@@ -154,18 +154,6 @@ router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: R
   }
 });
 
-router.get('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const chatId = req.params.chatId;
-    const chat = await chatHistoryService.getChatById(userId, chatId);
-    res.json(chat);
-  } catch (error) {
-    console.error('Error getting specific chat:', error);
-    res.status(500).json({ error: 'Failed to get chat' });
-  }
-});
-
 router.route('/clear').delete(async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;

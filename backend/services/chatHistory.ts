@@ -64,42 +64,6 @@ class ChatHistoryService {
       throw error;
     }
   }
-
-  async getChatById(userId: string, chatId: string) {
-    try {
-      const chat = await ChatHistory.findOne({
-        _id: chatId,
-        userId: userId
-      });
-      
-      if (!chat) {
-        throw new Error('Chat not found');
-      }
-      
-      return chat;
-    } catch (error) {
-      console.error('Error getting chat by id:', error);
-      throw error;
-    }
-  }
-
-  async deleteChatById(userId: string, chatId: string) {
-    try {
-      const result = await ChatHistory.deleteOne({
-        _id: chatId,
-        userId: userId
-      });
-      
-      if (result.deletedCount === 0) {
-        throw new Error('Chat not found or unauthorized');
-      }
-      
-      return { success: true, message: 'Chat deleted successfully' };
-    } catch (error) {
-      console.error('Error deleting chat by id:', error);
-      throw error;
-    }
-  }
 }
 
 export const chatHistoryService = new ChatHistoryService(); 
