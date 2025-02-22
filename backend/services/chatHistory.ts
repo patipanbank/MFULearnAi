@@ -3,9 +3,22 @@ import { ChatHistory } from '../models/ChatHistory';
 class ChatHistoryService {
   async getChatHistory(userId: string) {
     try {
+      console.log('Fetching chat history for userId:', userId);
       const histories = await ChatHistory.find({ 
         userId: userId 
       }).sort({ updatedAt: -1 });
+
+      console.log('Retrieved chat histories:', JSON.stringify({
+        count: histories.length,
+        histories: histories.map(history => ({
+          id: history._id,
+          chatname: history.chatname,
+          modelId: history.modelId,
+          messageCount: history.messages.length,
+          lastUpdated: history.updatedAt,
+          collectionName: history.collectionName
+        }))
+      }, null, 2));
 
       return histories;
     } catch (error) {
