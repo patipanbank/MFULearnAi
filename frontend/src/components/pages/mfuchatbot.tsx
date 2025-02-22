@@ -28,6 +28,7 @@ interface Message {
     mediaType: string;
   }[];
   sources?: Source[];
+  isImageGeneration?: boolean;
 }
 
 interface Model {
@@ -52,6 +53,7 @@ const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -291,19 +293,15 @@ const MFUChatbot: React.FC = () => {
         });
       }
 
-      let processedImages;
-      if (selectedImages.length > 0) {
-        processedImages = await Promise.all(
-          selectedImages.map(async (file) => await compressImage(file))
-        );
-      }
-
       const userMessage = {
         id: messages.length + 1,
         role: 'user' as const,
         content: inputMessage.trim(),
         timestamp: new Date(),
-        images: processedImages
+        images: selectedImages.length > 0 ? await Promise.all(
+          selectedImages.map(async (file) => await compressImage(file))
+        ) : undefined,
+        isImageGeneration: isImageGenerationMode
       };
 
       setMessages(prev => [...prev, userMessage]);
@@ -325,7 +323,14 @@ const MFUChatbot: React.FC = () => {
             accumulatedContent += data.content;
             setMessages(prev => prev.map(msg =>
               msg.id === aiMessageId
-                ? { ...msg, content: accumulatedContent }
+                ? { 
+                    ...msg, 
+                    content: accumulatedContent,
+                    images: data.generatedImage ? [{
+                      data: data.generatedImage,
+                      mediaType: 'image/png'
+                    }] : undefined
+                  }
                 : msg
             ));
           }
@@ -339,7 +344,11 @@ const MFUChatbot: React.FC = () => {
                 role: 'assistant' as const,
                 content: accumulatedContent,
                 timestamp: new Date(),
-                sources: data.sources
+                sources: data.sources,
+                images: data.generatedImage ? [{
+                  data: data.generatedImage,
+                  mediaType: 'image/png'
+                }] : undefined
               }
             ];
 
@@ -352,24 +361,16 @@ const MFUChatbot: React.FC = () => {
 
       wsRef.current.send(JSON.stringify({
         messages: [...messages, userMessage],
-        modelId: selectedModel
+        modelId: selectedModel,
+        isImageGeneration: isImageGenerationMode
       }));
-
-      // Embed the user's question into a vector
-      try {
-        const embeddingVector = await embedQuestion(inputMessage.trim());
-        console.log("User question vector:", embeddingVector);
-        // You can now use this vector for further processing (e.g. similarity search)
-      } catch (error) {
-        console.error("Embedding failed:", error);
-      }
 
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
-        content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
+        content: 'Sorry, an error occurred. Please try again.',
         timestamp: new Date()
       }]);
     } finally {
@@ -695,14 +696,19 @@ const MFUChatbot: React.FC = () => {
                     scrollbarWidth: 'thin',
                     scrollbarColor: 'rgb(209 213 219) transparent'
                   }}
-                  placeholder={selectedImages.length > 0 ? "Please describe or ask about these images..." : "Type a message..."}
+                  placeholder={
+                    isImageGenerationMode 
+                      ? "Describe the image you want to generate..." 
+                      : selectedImages.length > 0 
+                        ? "Please describe or ask about these images..." 
+                        : "Type a message..."
+                  }
                   rows={1}
                   required
                 />
 
                 <button
-                  type="submit"
-                  disabled={!canSubmit()}
+                  type="button"
                   className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${
                     canSubmit()
                       ? 'bg-blue-500 hover:bg-blue-600 text-white'
@@ -780,26 +786,49 @@ const MFUChatbot: React.FC = () => {
               )}
             </div>
 
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileSelect}
-              className="hidden"
-            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={`px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                  ${isImageGenerationMode ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
+                onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
+                title={isImageGenerationMode ? "Switch to chat mode" : "Switch to image generation mode"}
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`w-5 h-5 ${isImageGenerationMode ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                  />
+                </svg>
+                <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">
+                  {isImageGenerationMode ? "Image Mode" : "Chat Mode"}
+                </span>
+              </button>
 
-            <button
-              type="button"
-              className="px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
-                hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-              onClick={() => {
-                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                fileInput?.click();
-              }}
-            >
-              <RiImageAddFill className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-              <span className="text-sm text-gray-700 dark:text-gray-300">Add Image</span>
-            </button>
+              {!isImageGenerationMode && (
+                <button
+                  type="button"
+                  className="px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                  onClick={() => {
+                    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                    fileInput?.click();
+                  }}
+                >
+                  <RiImageAddFill className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
+                </button>
+              )}
+            </div>
 
             <button
               onClick={clearChat}
