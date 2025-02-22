@@ -20,7 +20,7 @@ interface UploadedFile {
 }
 
 interface MongoCollection {
-  _id: string;
+  _id: string | { toString(): string };  // MongoDB ObjectId can be string or object
   id?: string;
   name: string;
   createdBy?: string;
@@ -711,7 +711,7 @@ const TrainingDashboard: React.FC = () => {
       
       // Transform MongoCollection to Collection type
       const transformedCollections: Collection[] = mongoCollections.map(mongo => ({
-        id: mongo._id,
+        id: typeof mongo._id === 'string' ? mongo._id : mongo._id.toString(),
         name: mongo.name,
         createdBy: mongo.createdBy || 'Unknown',
         created: mongo.created || mongo.createdAt || new Date().toISOString(),
@@ -951,7 +951,7 @@ const TrainingDashboard: React.FC = () => {
       
       // Transform to Collection type and add to state
       const newCollection: Collection = {
-        id: newMongoCollection._id,
+        id: typeof newMongoCollection._id === 'string' ? newMongoCollection._id : newMongoCollection._id.toString(),
         name: newMongoCollection.name,
         createdBy: newMongoCollection.createdBy || user?.username || 'Unknown',
         created: newMongoCollection.created || newMongoCollection.createdAt || new Date().toISOString(),

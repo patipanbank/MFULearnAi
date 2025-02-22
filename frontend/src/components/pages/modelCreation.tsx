@@ -34,8 +34,8 @@ interface Model {
   name: string;
   collections: string[]; // list of collection names selected in the model
   modelType: 'official' | 'personal' | 'staff_only';
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
   createdBy: string;
 }
 
@@ -44,7 +44,13 @@ interface Collection {
   name: string;
   createdBy: string;
   created: string;
-  permission: 'public' | 'private' | string[] | undefined;
+  permission: CollectionPermission | string[] | undefined;
+}
+
+enum CollectionPermission {
+  PUBLIC = 'PUBLIC',
+  STAFF_ONLY = 'STAFF_ONLY',
+  PRIVATE = 'PRIVATE'
 }
 
 /* -------------------------------
@@ -617,7 +623,7 @@ const ModelCreation: React.FC = () => {
     if (token) {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const userGroups = tokenPayload.groups || [];
-      setIsStaff(userGroups.includes('Staffs') || userGroups.includes('Admin'));
+      setIsStaff(userGroups.includes('Staffs'));
       setNewModelType(userGroups.includes('Staffs') ? 'official' : 'personal');
     }
   }, []);
@@ -638,21 +644,7 @@ const ModelCreation: React.FC = () => {
           console.error('Invalid token format');
           return;
         }
-
-        // Get user groups from token
-        let tokenPayload;
-        try {
-          tokenPayload = JSON.parse(atob(tokenParts[1]));
-        } catch (e) {
-          console.error('Failed to parse token payload:', e);
-          return;
-        }
         
-        const userGroups = tokenPayload.groups || [];
-        const isAdmin = userGroups.includes('Admin');
-        const isStaff = userGroups.includes('Staffs');
-        const username = tokenPayload.username;
-
         console.log('Fetching models with token:', `Bearer ${authToken}`);
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: { 
@@ -677,69 +669,18 @@ const ModelCreation: React.FC = () => {
 
         const modelsFromBackend = await response.json();
         
-        // Filter models based on user groups and permissions
-        const filteredModels = modelsFromBackend.filter((model: any) => {
-          // Normalize model type to lowercase for consistent comparison
-          const modelType = (model.modelType || '').toLowerCase();
-          
-          console.log('Checking model access:', {
-            modelName: model.name,
-            modelType: modelType,
-            createdBy: model.createdBy,
-            userGroups,
-            username: username
-          });
-
-          // Admin can see all models
-          if (isAdmin) {
-            console.log(`Model "${model.name}" accessible - user is admin`);
-            return true;
-          }
-
-          switch (modelType) {
-            case 'official':
-              // Official models are visible to everyone
-              console.log(`Model "${model.name}" is official - allowing access`);
-              return true;
-            case 'staff_only':
-            case 'staffonly':
-              // Staff only models are visible to STAFF and ADMIN
-              const hasStaffAccess = isStaff;
-              console.log(`Model "${model.name}" is staff only - access granted:`, hasStaffAccess);
-              return hasStaffAccess;
-            case 'personal':
-            case 'private':
-              // Personal/Private models are only visible to creator and ADMIN
-              const hasPersonalAccess = model.createdBy === username;
-              console.log(`Model "${model.name}" is personal/private - access granted:`, hasPersonalAccess);
-              return hasPersonalAccess;
-            default:
-              // For undefined or unknown types, treat as public/official
-              console.log(`Model "${model.name}" has unknown type - treating as public`);
-              return true;
-          }
-        }).map((model: any) => ({
+        // Transform backend models to match frontend interface
+        const transformedModels: Model[] = modelsFromBackend.map((model: any) => ({
           id: model._id,
           name: model.name,
           collections: model.collections || [],
-          modelType: model.modelType || 'official',
+          modelType: model.modelType,
           createdAt: model.createdAt,
           updatedAt: model.updatedAt,
-          createdBy: model.createdBy || 'Unknown'
+          createdBy: model.createdBy
         }));
 
-        // Get personal models from localStorage
-        const storedPersonalModels: Model[] = JSON.parse(localStorage.getItem('personalModels') || '[]');
-        
-        // Filter stored personal models to only show user's own models
-        const filteredStoredModels = storedPersonalModels.filter(model => {
-          const hasAccess = model.createdBy === username || isAdmin;
-          console.log(`Stored personal model "${model.name}" access granted:`, hasAccess);
-          return hasAccess;
-        });
-        
-        // Combine models
-        setModels([...filteredModels, ...filteredStoredModels]);
+        setModels(transformedModels);
       } catch (error) {
         console.error('Error fetching models:', error);
         if (error instanceof Error) {
@@ -765,72 +706,57 @@ const ModelCreation: React.FC = () => {
       return;
     }
     const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
+    const nameID = tokenPayload.nameID;
     const username = tokenPayload.username;
+    console.log('Creating model with:', {
+      userGroups: tokenPayload.groups,
+      isStaff: tokenPayload.groups?.includes('Staffs'),
+      modelType: newModelType,
+      username,
+      nameID
+    });
 
-    if (newModelType === 'personal') {
-      // Create personal model locally
-      const newModel: Model = {
-        id: Date.now().toString(),
-        name: newModelName.trim(),
-        collections: [],
-        modelType: 'personal',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdBy: username  // Set the actual username here
-      };
-      setModels((prev) => [...prev, newModel]);
-      
-      // Update localStorage
-      const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
-      storedPersonal.push(newModel);
-      localStorage.setItem('personalModels', JSON.stringify(storedPersonal));
-    } else {
-      try {
-        // Create official or staff_only model in database
-        const authToken = localStorage.getItem('auth_token');
-        if (!authToken) {
-          alert('Authentication token not found. Please login again.');
-          return;
-        }
+    try {
+      // Create model in database (for all model types)
+      const response = await fetch(`${config.apiUrl}/api/models`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          name: newModelName.trim(),
+          modelType: newModelType,
+          createdBy: username,
+          userId: nameID
+        }),
+      });
 
-        const response = await fetch(`${config.apiUrl}/api/models`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            name: newModelName.trim(),
-            modelType: newModelType
-          }),
-        });
-
-        if (!response.ok) {
-          const errMsg = await response.text();
-          throw new Error(errMsg || 'Failed to create model');
-        }
-
-        const createdModel = await response.json();
-        setModels((prev) => [
-          ...prev,
-          {
-            id: createdModel._id,
-            name: createdModel.name,
-            collections: createdModel.collections,
-            modelType: newModelType,
-            createdAt: createdModel.createdAt,
-            updatedAt: createdModel.updatedAt,
-            createdBy: 'Unknown'
-          },
-        ]);
-      } catch (error) {
-        console.error('Error creating model:', error);
-        alert('Error creating model. Please try again.');
+      if (!response.ok) {
+        const errMsg = await response.text();
+        throw new Error(errMsg || 'Failed to create model');
       }
+
+      const createdModel = await response.json();
+      
+      // Transform the response to match our frontend Model interface
+      const newModel: Model = {
+        id: createdModel._id,
+        name: createdModel.name,
+        collections: createdModel.collections || [],
+        modelType: createdModel.modelType,
+        createdAt: createdModel.createdAt,
+        updatedAt: createdModel.updatedAt,
+        createdBy: createdModel.createdBy
+      };
+
+      setModels(prev => [...prev, newModel]);
+      setNewModelName('');
+      setShowNewModelModal(false);
+    } catch (error) {
+      console.error('Error creating model:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create model. Please try again.');
     }
-    
-    setNewModelName('');
-    setShowNewModelModal(false);
   };
 
   // Handle model deletion with proper permissions
@@ -839,47 +765,30 @@ const ModelCreation: React.FC = () => {
       return;
     }
 
-    const modelToDelete = models.find(m => m.id === modelId);
-    if (!modelToDelete) return;
-
-    // Check if user has permission to delete
-    if ((modelToDelete.modelType === 'official' || modelToDelete.modelType === 'staff_only') && !isStaff) {
-      alert('You do not have permission to delete this model.');
-      return;
-    }
-
     try {
-      if (modelToDelete.modelType === 'personal') {
-        // Delete personal model from localStorage
-        const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
-        const updatedPersonal = storedPersonal.filter((m: Model) => m.id !== modelId);
-        localStorage.setItem('personalModels', JSON.stringify(updatedPersonal));
-      } else {
-        // Delete official or staff_only model from database
-        const authToken = localStorage.getItem('auth_token');
-        if (!authToken) {
-          alert('Authentication token not found. Please login again.');
-          return;
-        }
+      const authToken = localStorage.getItem('auth_token');
+      if (!authToken) {
+        alert('Authentication token not found. Please login again.');
+        return;
+      }
 
-        const response = await fetch(`${config.apiUrl}/api/models/${modelId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-          },
-        });
+      const response = await fetch(`${config.apiUrl}/api/models/${modelId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
 
-        if (!response.ok) {
-          const errMsg = await response.text();
-          throw new Error(errMsg || 'Failed to delete model');
-        }
+      if (!response.ok) {
+        const errMsg = await response.text();
+        throw new Error(errMsg || 'Failed to delete model');
       }
 
       // Update UI state
       setModels((prevModels) => prevModels.filter((m) => m.id !== modelId));
     } catch (error) {
       console.error('Error deleting model:', error);
-      alert('Failed to delete model. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to delete model. Please try again.');
     }
   };
 
@@ -905,67 +814,46 @@ const ModelCreation: React.FC = () => {
     if (!editingModel) return;
     
     try {
-      // No need to validate or confirm empty collections - it's a valid state
-      if (editingModel.modelType === 'personal') {
-        // Update personal model in localStorage
-        const storedPersonal = JSON.parse(localStorage.getItem('personalModels') || '[]');
-        const updatedPersonal = storedPersonal.map((m: Model) =>
-          m.id === editingModel.id ? { ...m, collections: selectedCollections } : m
-        );
-        localStorage.setItem('personalModels', JSON.stringify(updatedPersonal));
-
-        // Update state
-        setModels(prev =>
-          prev.map(m =>
-            m.id === editingModel.id ? { ...m, collections: selectedCollections } : m
-          )
-        );
-
-        // Clear editing state
-        setEditingModel(null);
-        setSelectedCollections([]);
-      } else {
-        // Update official/staff model in database
-        const authToken = localStorage.getItem('auth_token');
-        if (!authToken) {
-          alert('Authentication token not found. Please login again.');
-          return;
-        }
-
-        const response = await fetch(`${config.apiUrl}/api/models/${editingModel.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            collections: selectedCollections,
-            modelType: editingModel.modelType
-          }),
-        });
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => null);
-          throw new Error(errData?.message || 'Failed to update model collections');
-        }
-
-        // Get updated model from response
-        const updatedModel = await response.json();
-
-        // Update state with response data
-        setModels(prev =>
-          prev.map(m =>
-            m.id === editingModel.id ? {
-              ...m,
-              collections: updatedModel.collections || selectedCollections
-            } : m
-          )
-        );
-
-        // Clear editing state
-        setEditingModel(null);
-        setSelectedCollections([]);
+      const authToken = localStorage.getItem('auth_token');
+      if (!authToken) {
+        alert('Authentication token not found. Please login again.');
+        return;
       }
+
+      const response = await fetch(`${config.apiUrl}/api/models/${editingModel.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          collections: selectedCollections,
+          modelType: editingModel.modelType
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.message || 'Failed to update model collections');
+      }
+
+      // Get updated model from response
+      const updatedModel = await response.json();
+
+      // Update state with response data
+      setModels(prev =>
+        prev.map(m =>
+          m.id === editingModel.id ? {
+            ...m,
+            collections: updatedModel.collections || selectedCollections,
+            updatedAt: updatedModel.updatedAt
+          } : m
+        )
+      );
+
+      // Clear editing state
+      setEditingModel(null);
+      setSelectedCollections([]);
     } catch (error) {
       console.error('Error updating collections:', error);
       alert(error instanceof Error ? error.message : 'Failed to update collections. Please try again.');
