@@ -62,10 +62,17 @@ router.post('/', roleGuard(['Students', 'Staffs', 'ADMIN'] as UserRole[]), async
       return;
     }
 
+    // For admin users, use username as createdBy since they don't have nameID
+    const createdBy = user.nameID || user.username;
+    if (!createdBy) {
+      res.status(400).json({ error: 'User identifier not found in token' });
+      return;
+    }
+
     // Create the model with empty collections array
     const model = await ModelModel.create({
       name,
-      createdBy: user.nameID,
+      createdBy,
       modelType,
       collections: [], // Start with empty collections array
     });
