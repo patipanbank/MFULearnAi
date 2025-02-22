@@ -167,21 +167,21 @@ router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: R
   }
 });
 
-router.route('/clear').delete(async (req: Request, res: Response): Promise<void> => {
-  try {
-    const user = (req as any).user;
-    if (!user || !user.username) {
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
-    }
+// router.route('/clear').delete(async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const user = (req as any).user;
+//     if (!user || !user.username) {
+//       res.status(401).json({ error: 'User not authenticated' });
+//       return;
+//     }
 
-    const result = await chatHistoryService.clearChatHistory(user.username);
-    res.json(result);
-  } catch (error) {
-    console.error('Error clearing chat history:', error);
-    res.status(500).json({ error: 'Failed to clear chat history' });
-  }
-});
+//     const result = await chatHistoryService.clearChatHistory(user.username);
+//     res.json(result);
+//   } catch (error) {
+//     console.error('Error clearing chat history:', error);
+//     res.status(500).json({ error: 'Failed to clear chat history' });
+//   }
+// });
 
 router.post('/chat', async (req, res) => {
   try {

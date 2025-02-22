@@ -390,24 +390,24 @@ const MFUChatbot: React.FC = () => {
   };
 
 
-  const clearChat = async () => {
-    try {
-      const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
+  // const clearChat = async () => {
+  //   try {
+  //     const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+  //       }
+  //     });
 
-      if (!response.ok) {
-        throw new Error('Failed to clear chat history');
-      }
+  //     if (!response.ok) {
+  //       throw new Error('Failed to clear chat history');
+  //     }
 
-      setMessages([]);
-    } catch (error) {
-      console.error('Error clearing chat:', error);
-    }
-  };
+  //     setMessages([]);
+  //   } catch (error) {
+  //     console.error('Error clearing chat:', error);
+  //   }
+  // };
   
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024;
@@ -674,12 +674,12 @@ const MFUChatbot: React.FC = () => {
                 </option>
               ))}
             </select>
-            <button
+            {/* <button
               onClick={clearChat}
               className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors whitespace-nowrap"
             >
               Clear Chat
-            </button>
+            </button> */}
           </div>
         </div>
 
