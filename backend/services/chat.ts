@@ -278,27 +278,39 @@ Remember: Your responses should be based on the provided context and documents.`
       const lastMessage = messages[messages.length - 1];
       const imageBase64 = lastMessage.images?.[0]?.data;
       
-      const context = await this.retryOperation(
-        async () => this.getContext(query, modelIdOrCollections, imageBase64),
-        'Failed to get context'
-      );
+      let context = '';
+      try {
+        context = await this.retryOperation(
+          async () => this.getContext(query, modelIdOrCollections, imageBase64),
+          'Failed to get context'
+        );
+      } catch (error) {
+        console.error('Error getting context:', error);
+        // Continue without context if there's an error
+      }
       
       console.log('Retrieved context length:', context.length);
 
       const questionType = this.detectQuestionType(query);
       console.log('Question type:', questionType);
 
-      const augmentedMessages = [
+      const systemMessages: ChatMessage[] = [
         {
-          role: "system" as const,
+          role: 'system',
           content: this.systemPrompt
-        },
-        {
-          role: "system" as const,
-          content: `Context from documents:\n${context}`
-        },
-        ...messages
+        }
       ];
+
+      // Only add context if we have it
+      if (context) {
+        systemMessages.push({
+          role: 'system',
+          content: `Context from documents:\n${context}`
+        });
+      }
+
+      // Combine system messages with user messages
+      const augmentedMessages = [...systemMessages, ...messages];
 
       let retryCount = 0;
       while (retryCount < this.retryConfig.maxRetries) {

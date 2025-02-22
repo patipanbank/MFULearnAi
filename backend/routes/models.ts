@@ -119,4 +119,25 @@ router.delete('/:id', roleGuard(['STAFF', 'ADMIN'] as UserRole[]), async (req: R
   }
 });
 
+/**
+ * GET /api/models/:id
+ * Gets a model's details
+ */
+router.get('/:id', roleGuard(['USER', 'STAFF', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const model = await ModelModel.findById(id);
+
+    if (!model) {
+      res.status(404).json({ error: 'Model not found' });
+      return;
+    }
+
+    res.json(model);
+  } catch (error) {
+    console.error('Error fetching model:', error);
+    res.status(500).json({ error: 'Error fetching model' });
+  }
+});
+
 export default router; 
