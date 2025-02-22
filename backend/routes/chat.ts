@@ -388,13 +388,18 @@ router.get('/collections', async (req: Request, res: Response) => {
     // ดึงข้อมูล collections จาก MongoDB
     const collections = await CollectionModel.find({});
     
+    // Admin can access all collections
+    if (user.groups.includes('Admin')) {
+      res.json(collections.map(c => c.name));
+      return;
+    }
+    
     // กรองตามสิทธิ์
     const accessibleCollections = collections.filter(collection => {
       switch (collection.permission) {
         case CollectionPermission.PUBLIC:
           return true;
         case CollectionPermission.STAFF_ONLY:
-          return user.role === 'Staffs' || user.role === 'Admin';
           return user.groups.includes('Staffs');
         case CollectionPermission.PRIVATE:
           return collection.createdBy === user.nameID;

@@ -511,6 +511,11 @@ class ChromaService {
         return false;
       }
 
+      // Admin has access to all collections
+      if (user.groups.includes('Admin')) {
+        return true;
+      }
+
       // ตรวจสอบสิทธิ์
       switch (collection.permission) {
         case CollectionPermission.PUBLIC:
