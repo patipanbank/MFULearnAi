@@ -365,22 +365,53 @@ const MFUChatbot: React.FC = () => {
     wsUrl.searchParams.append('token', token);
     wsRef.current = new WebSocket(wsUrl.toString());
 
+    let accumulatedContent = '';
+
     wsRef.current.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
+        
+        if (data.error) {
+          console.error('Received error from WebSocket:', data.error);
+          return;
+        }
+
+        if (data.content) {
+          accumulatedContent += data.content;
+          setMessages(prev => prev.map(msg =>
+            msg.role === 'assistant' && msg.content === '' ? 
+            { ...msg, content: accumulatedContent } : msg
+          ));
+        }
+
         if (data.done) {
-          // Save chat history when response is complete
-          saveChatHistory(messages);
+          const updatedMessages = messages.map(msg =>
+            msg.role === 'assistant' && msg.content === '' ?
+            { ...msg, content: accumulatedContent, sources: data.sources } : msg
+          );
+          setMessages(updatedMessages);
+          saveChatHistory(updatedMessages);
+          accumulatedContent = '';
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
       }
     };
 
-    return () => {
-      wsRef.current?.close();
+    wsRef.current.onclose = () => {
+      console.log('WebSocket connection closed');
     };
-  }, [messages]);
+
+    wsRef.current.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    return () => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
 
   const saveChatHistory = async (messages: Message[]) => {
     try {
