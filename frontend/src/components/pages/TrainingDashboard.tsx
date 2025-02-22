@@ -734,9 +734,6 @@ const TrainingDashboard: React.FC = () => {
           permission: updatedCollectionData.permission || prev!.permission,
           lastModified: currentTime,
         }));
-
-        await fetchUploadedFiles(updatedCollectionData.name || selectedCollection.name);
-
       } catch (error) {
         console.error('Error in real-time update:', error);
       }
@@ -751,7 +748,14 @@ const TrainingDashboard: React.FC = () => {
         clearInterval(intervalId);
       }
     };
-  }, [selectedCollection, fetchUploadedFiles]);
+  }, [selectedCollection]);
+
+  // Add new useEffect to load files only when collection is first selected
+  useEffect(() => {
+    if (selectedCollection) {
+      fetchUploadedFiles(selectedCollection.name);
+    }
+  }, [selectedCollection?.id]);
 
   const handleCollectionSelect = async (collection: Collection) => {
     // Set selected collection immediately for better UX
@@ -877,12 +881,14 @@ const TrainingDashboard: React.FC = () => {
       if (response.ok) {
         alert('File uploaded successfully');
         setFile(null);
-        fetchUploadedFiles(selectedCollection.name);
+        // Refresh file list after successful upload
+        await fetchUploadedFiles(selectedCollection.name);
       } else {
         alert('Failed to upload file');
       }
     } catch (error) {
       console.error('Error uploading file:', error);
+      alert('Error uploading file. Please try again.');
     } finally {
       setUploadLoading(false);
     }
@@ -913,19 +919,33 @@ const TrainingDashboard: React.FC = () => {
     if (!selectedCollection) return;
     if (!window.confirm(`Are you sure you want to delete the file ${fileToDelete.filename}?`)) return;
     
-    for (const chunkId of fileToDelete.ids) {
-      try {
-        await fetch(`${config.apiUrl}/api/training/documents/${chunkId}?collectionName=${encodeURIComponent(selectedCollection.name)}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        });
-      } catch (error) {
-        console.error(`Error deleting chunk ${chunkId}:`, error);
+    setIsFilesLoading(true);
+    try {
+      for (const chunkId of fileToDelete.ids) {
+        const response = await fetch(
+          `${config.apiUrl}/api/training/documents/${chunkId}?collectionName=${encodeURIComponent(selectedCollection.name)}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            },
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete chunk ${chunkId}`);
+        }
       }
+      
+      // Refresh file list after successful deletion
+      await fetchUploadedFiles(selectedCollection.name);
+      alert('File deleted successfully');
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      alert('Error deleting file. Please try again.');
+    } finally {
+      setIsFilesLoading(false);
     }
-    fetchUploadedFiles(selectedCollection.name);
   };
 
   const handleUpdateSettings = async (e: FormEvent) => {
