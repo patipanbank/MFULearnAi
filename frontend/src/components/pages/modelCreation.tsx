@@ -616,8 +616,9 @@ const ModelCreation: React.FC = () => {
     const token = localStorage.getItem('auth_token');
     if (token) {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      setIsStaff(tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin');
-      setNewModelType(tokenPayload.role === 'Staffs' ? 'official' : 'personal');
+      const userGroups = tokenPayload.groups || [];
+      setIsStaff(userGroups.includes('Staffs') || userGroups.includes('Admin'));
+      setNewModelType(userGroups.includes('Staffs') ? 'official' : 'personal');
     }
   }, []);
 
@@ -638,7 +639,7 @@ const ModelCreation: React.FC = () => {
           return;
         }
 
-        // Get user role from token
+        // Get user groups from token
         let tokenPayload;
         try {
           tokenPayload = JSON.parse(atob(tokenParts[1]));
@@ -647,8 +648,9 @@ const ModelCreation: React.FC = () => {
           return;
         }
         
-        const isAdmin = tokenPayload.role === 'Admin';
-        const isStaff = tokenPayload.role === 'Staffs';
+        const userGroups = tokenPayload.groups || [];
+        const isAdmin = userGroups.includes('Admin');
+        const isStaff = userGroups.includes('Staffs');
         const username = tokenPayload.username;
 
         console.log('Fetching models with token:', `Bearer ${authToken}`);
@@ -675,7 +677,7 @@ const ModelCreation: React.FC = () => {
 
         const modelsFromBackend = await response.json();
         
-        // Filter models based on user role and permissions
+        // Filter models based on user groups and permissions
         const filteredModels = modelsFromBackend.filter((model: any) => {
           // Normalize model type to lowercase for consistent comparison
           const modelType = (model.modelType || '').toLowerCase();
@@ -684,7 +686,7 @@ const ModelCreation: React.FC = () => {
             modelName: model.name,
             modelType: modelType,
             createdBy: model.createdBy,
-            userRole: tokenPayload.role,
+            userGroups,
             username: username
           });
 
@@ -978,7 +980,7 @@ const ModelCreation: React.FC = () => {
       if (!authToken) throw new Error('No auth token found');
 
       const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
-      const isStaffUser = tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin';
+      const isStaffUser = tokenPayload.groups.includes('Staffs') || tokenPayload.groups.includes('Admin');
 
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {

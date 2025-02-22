@@ -9,17 +9,17 @@ interface RoleGuardProps {
 
 const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) => {
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const userRole = userData.role as UserRole;
+  const userGroups = userData.groups || [];
 
   console.log('RoleGuard check:', {
-    userRole,
+    userGroups,
     allowedRoles,
     userData
   });
 
   const hasAllowedRole = allowedRoles.some(role => 
-    userRole === role || 
-    (role === 'Staffs' && userRole === 'Admin') // Admin can do anything Staffs can do
+    userGroups.includes(role) || 
+    (role === 'Staffs' && userGroups.includes('Admin')) // Admin can do anything Staffs can do
   );
 
   if (!hasAllowedRole) {

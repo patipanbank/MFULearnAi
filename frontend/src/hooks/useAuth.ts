@@ -4,6 +4,8 @@ interface User {
   username: string;
   role: string;
   groups?: string[];
+  nameID: string;
+  firstName: string;
 }
 
 interface AuthState {
@@ -26,16 +28,19 @@ export const useAuth = (): AuthState => {
     if (token) {
       try {
         const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        const userGroups = tokenPayload.groups || [];
         const user = {
           username: tokenPayload.username,
-          role: tokenPayload.role,
-          groups: tokenPayload.groups,
+          groups: userGroups,
+          nameID: tokenPayload.nameID,
+          firstName: tokenPayload.firstName,
+          role: userGroups.includes('Admin') ? 'Admin' : userGroups.includes('Staffs') ? 'Staffs' : 'Students'
         };
         setState({
           user,
           isLoading: false,
-          isStaff: tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin',
-          isAdmin: tokenPayload.role === 'Admin',
+          isStaff: userGroups.includes('Staffs') || userGroups.includes('Admin'),
+          isAdmin: userGroups.includes('Admin'),
         });
       } catch (error) {
         console.error('Error parsing auth token:', error);
