@@ -761,18 +761,26 @@ const TrainingDashboard: React.FC = () => {
             username: userInfo.username
           });
           
-          // Staff role check (STAFF or ADMIN)
-          const isStaff = userInfo.role === 'STAFF' || userInfo.role === 'ADMIN';
+          // Check if user is admin
+          const isAdmin = userInfo.role === 'ADMIN';
           
+          // If user is admin, they can access everything
+          if (isAdmin) {
+            return true;
+          }
+
           switch (permission) {
             case CollectionPermission.PUBLIC:
               console.log(`Collection "${collection.name}" is public - allowing access`);
               return true;
             case CollectionPermission.STAFF_ONLY:
-              console.log(`Collection "${collection.name}" is staff only - access granted:`, isStaff);
-              return isStaff;
+              // Only ADMIN and STAFF can access STAFF_ONLY collections
+              const hasStaffAccess = userInfo.role === 'STAFF' || userInfo.role === 'ADMIN';
+              console.log(`Collection "${collection.name}" is staff only - access granted:`, hasStaffAccess);
+              return hasStaffAccess;
             case CollectionPermission.PRIVATE:
-              const hasPrivateAccess = collection.createdBy === userInfo.username || isStaff;
+              // Only ADMIN and creator can access PRIVATE collections
+              const hasPrivateAccess = collection.createdBy === userInfo.username || isAdmin;
               console.log(`Collection "${collection.name}" is private - access granted:`, hasPrivateAccess);
               return hasPrivateAccess;
             default:
@@ -782,7 +790,7 @@ const TrainingDashboard: React.FC = () => {
                 return true;
               }
               console.log(`Collection "${collection.name}" has unknown permission:`, permission);
-              return isStaff; // Give access to staff for unknown permissions
+              return isAdmin; // Only give access to admin for unknown permissions
           }
         })
         .map((collection: MongoCollection): Collection => {

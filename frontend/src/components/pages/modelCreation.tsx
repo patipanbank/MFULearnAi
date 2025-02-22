@@ -35,6 +35,7 @@ interface Model {
   modelType: 'official' | 'personal' | 'staff_only';
   createdAt?: string;
   updatedAt?: string;
+  createdBy: string;
 }
 
 interface Collection {
@@ -637,7 +638,9 @@ const ModelCreation: React.FC = () => {
           return;
         }
         
-        const isStaffUser = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
+        const isAdmin = tokenPayload.role === 'ADMIN';
+        const isStaff = tokenPayload.role === 'STAFF';
+        const username = tokenPayload.username;
 
         console.log('Fetching models with token:', `Bearer ${authToken}`);
         const response = await fetch(`${config.apiUrl}/api/models`, {
@@ -663,24 +666,69 @@ const ModelCreation: React.FC = () => {
 
         const modelsFromBackend = await response.json();
         
-        // Filter models based on user role
+        // Filter models based on user role and permissions
         const filteredModels = modelsFromBackend.filter((model: any) => {
-          if (isStaffUser) return true; // Staff can see all models
-          return model.modelType === 'official' || model.modelType === 'personal';
+          // Normalize model type to lowercase for consistent comparison
+          const modelType = (model.modelType || '').toLowerCase();
+          
+          console.log('Checking model access:', {
+            modelName: model.name,
+            modelType: modelType,
+            createdBy: model.createdBy,
+            userRole: tokenPayload.role,
+            username: username
+          });
+
+          // Admin can see all models
+          if (isAdmin) {
+            console.log(`Model "${model.name}" accessible - user is admin`);
+            return true;
+          }
+
+          switch (modelType) {
+            case 'official':
+              // Official models are visible to everyone
+              console.log(`Model "${model.name}" is official - allowing access`);
+              return true;
+            case 'staff_only':
+            case 'staffonly':
+              // Staff only models are visible to STAFF and ADMIN
+              const hasStaffAccess = isStaff;
+              console.log(`Model "${model.name}" is staff only - access granted:`, hasStaffAccess);
+              return hasStaffAccess;
+            case 'personal':
+            case 'private':
+              // Personal/Private models are only visible to creator and ADMIN
+              const hasPersonalAccess = model.createdBy === username;
+              console.log(`Model "${model.name}" is personal/private - access granted:`, hasPersonalAccess);
+              return hasPersonalAccess;
+            default:
+              // For undefined or unknown types, treat as public/official
+              console.log(`Model "${model.name}" has unknown type - treating as public`);
+              return true;
+          }
         }).map((model: any) => ({
           id: model._id,
           name: model.name,
-          collections: model.collections,
-          modelType: model.modelType,
+          collections: model.collections || [],
+          modelType: model.modelType || 'official',
           createdAt: model.createdAt,
-          updatedAt: model.updatedAt
+          updatedAt: model.updatedAt,
+          createdBy: model.createdBy || 'Unknown'
         }));
 
         // Get personal models from localStorage
         const storedPersonalModels: Model[] = JSON.parse(localStorage.getItem('personalModels') || '[]');
         
+        // Filter stored personal models to only show user's own models
+        const filteredStoredModels = storedPersonalModels.filter(model => {
+          const hasAccess = model.createdBy === username || isAdmin;
+          console.log(`Stored personal model "${model.name}" access granted:`, hasAccess);
+          return hasAccess;
+        });
+        
         // Combine models
-        setModels([...filteredModels, ...storedPersonalModels]);
+        setModels([...filteredModels, ...filteredStoredModels]);
       } catch (error) {
         console.error('Error fetching models:', error);
         if (error instanceof Error) {
@@ -707,7 +755,8 @@ const ModelCreation: React.FC = () => {
         collections: [],
         modelType: 'personal',
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        createdBy: 'Unknown'
       };
       setModels((prev) => [...prev, newModel]);
       
@@ -750,7 +799,8 @@ const ModelCreation: React.FC = () => {
             collections: createdModel.collections,
             modelType: newModelType,
             createdAt: createdModel.createdAt,
-            updatedAt: createdModel.updatedAt
+            updatedAt: createdModel.updatedAt,
+            createdBy: 'Unknown'
           },
         ]);
       } catch (error) {
