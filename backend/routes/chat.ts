@@ -96,8 +96,21 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   const extWs = ws as ExtendedWebSocket;
   extWs.isAlive = true;
   
-  // Extract user ID from token
-  const token = req.headers['authorization']?.split(' ')[1];
+  // Try to get token from URL parameters first
+  const url = new URL(req.url!, `http://${req.headers.host}`);
+  const urlToken = url.searchParams.get('token');
+  
+  // Then try to get from headers if not in URL
+  const headerToken = req.headers['authorization']?.split(' ')[1];
+  
+  const token = urlToken || headerToken;
+  
+  console.log('Token sources:', {
+    fromUrl: !!urlToken,
+    fromHeader: !!headerToken,
+    finalToken: !!token
+  });
+  
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
@@ -109,6 +122,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       return;
     }
   } else {
+    console.error('No token found in either URL parameters or headers');
     ws.close(1008, 'No authentication token provided');
     return;
   }
