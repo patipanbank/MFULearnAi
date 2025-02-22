@@ -39,6 +39,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const isStaff = userData.groups?.includes('Staffs');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
+  const searchParams = new URLSearchParams(location.search);
+  const currentChatId = searchParams.get('chat');
 
   const fetchChatHistories = async () => {
     try {
@@ -141,7 +143,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 <Link
                   key={chat._id}
                   to={`/mfuchatbot?chat=${chat._id}`}
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className={`flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
+                    ${currentChatId === chat._id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
                 >
                   <span className="truncate">{chat.chatname || 'Untitled Chat'}</span>
                 </Link>
