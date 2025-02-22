@@ -714,7 +714,7 @@ const TrainingDashboard: React.FC = () => {
 
         const currentTime = new Date().toISOString();
 
-        // Update states with fresh data
+        // Only update collection metadata, not files
         setCollections(prevCollections =>
           prevCollections.map(col =>
             col.id === selectedCollection.id
@@ -728,12 +728,14 @@ const TrainingDashboard: React.FC = () => {
           )
         );
 
+        // Update selected collection metadata only
         setSelectedCollection(prev => ({
           ...prev!,
           name: updatedCollectionData.name || prev!.name,
           permission: updatedCollectionData.permission || prev!.permission,
           lastModified: currentTime,
         }));
+
       } catch (error) {
         console.error('Error in real-time update:', error);
       }
@@ -748,14 +750,14 @@ const TrainingDashboard: React.FC = () => {
         clearInterval(intervalId);
       }
     };
-  }, [selectedCollection]);
+  }, [selectedCollection?.id]); // Only depend on the ID to prevent unnecessary updates
 
-  // Add new useEffect to load files only when collection is first selected
+  // Separate effect for initial file loading when collection is selected
   useEffect(() => {
     if (selectedCollection) {
       fetchUploadedFiles(selectedCollection.name);
     }
-  }, [selectedCollection?.id]);
+  }, [selectedCollection?.id, fetchUploadedFiles]);
 
   const handleCollectionSelect = async (collection: Collection) => {
     // Set selected collection immediately for better UX
