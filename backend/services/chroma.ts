@@ -169,10 +169,16 @@ class ChromaService {
       const collectionContents = await collection.get();
       console.log(`ChromaService: Collection '${collectionName}' contains:`, {
         documentCount: collectionContents.documents?.length || 0,
-        metadataCount: collectionContents.metadatas?.length || 0
+        metadataCount: collectionContents.metadatas?.length || 0,
+        // Log a few sample documents with their metadata
+        sampleDocs: (collectionContents.documents || []).slice(0, 2).map((doc: string, i: number) => ({
+          text: doc.substring(0, 100) + '...',
+          metadata: collectionContents.metadatas?.[i],
+          id: collectionContents.ids?.[i]
+        }))
       });
 
-      console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results.`);
+      console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results with processed=true filter`);
 
       const queryResult = await collection.query({
         queryEmbeddings: [queryEmbedding],
@@ -185,7 +191,14 @@ class ChromaService {
         throw new Error("ChromaService: queryResult.documents is not an array.");
       }
 
-      // Log query results
+      // Log raw query results in detail
+      console.log(`ChromaService: Raw query results for '${collectionName}':`, {
+        documents: queryResult.documents[0],
+        distances: queryResult.distances?.[0],
+        metadatas: queryResult.metadatas?.[0]
+      });
+
+      // Log query results summary
       console.log(`ChromaService: Query returned:`, {
         documentsLength: queryResult.documents.length,
         firstDocumentLength: queryResult.documents[0]?.length || 0,
@@ -208,6 +221,14 @@ class ChromaService {
         };
         similarity: number;
       }
+
+      // Log raw distances and computed similarities
+      const rawScores = distances.map((distance: number, index: number) => ({
+        distance,
+        similarity: 1 - (distance || 0),
+        text: documents[index].substring(0, 100) + '...' // First 100 chars of document
+      }));
+      console.log(`ChromaService: Raw similarity scores:`, rawScores);
 
       const filteredResults = documents
         .map((doc: string, index: number): QueryResult => ({
