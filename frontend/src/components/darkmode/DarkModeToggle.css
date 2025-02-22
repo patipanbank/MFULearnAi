@@ -1,0 +1,30 @@
+.toggle-button {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.toggle-button:hover {
+  background-color: rgb(243, 244, 246);
+}
+
+.dark .toggle-button:hover {
+  background-color: rgb(55, 65, 81);
+}
+
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.icon-sun {
+  color: rgb(234, 179, 8);
+}
+
+.icon-moon {
+  color: rgb(75, 85, 99);
+}
+
+.dark .icon-moon {
+  color: rgb(156, 163, 175);
+} 
