@@ -900,14 +900,14 @@ const TrainingDashboard: React.FC = () => {
         throw new Error(errorData || 'Failed to update collection');
       }
 
-      // Handle possible 204 No Content responses
-      let updatedCollection;
-      if (response.status === 204) {
-        // If no content returned, use the updated values directly, and keep the collection id
-        updatedCollection = { id: selectedCollection.id, name: updatedCollectionName, permission: updatedCollectionPermission };
-      } else {
-        updatedCollection = await response.json();
-      }
+      // Create updated collection object with all necessary fields
+      const updatedCollection = {
+        id: selectedCollection.id,
+        name: updatedCollectionName,
+        permission: updatedCollectionPermission,
+        created: selectedCollection.created,
+        createdBy: selectedCollection.createdBy,
+      };
 
       // Close the settings modal before updating state
       setShowSettings(false);
@@ -915,41 +915,18 @@ const TrainingDashboard: React.FC = () => {
       // Update the collections list with new data
       setCollections(prevCollections =>
         prevCollections.map(col =>
-          col.id === selectedCollection.id
-            ? {
-                ...col,
-                name: updatedCollection.name,
-                permission: updatedCollection.permission,
-                // Preserve other fields
-                created: col.created,
-                createdBy: col.createdBy,
-              }
-            : col
+          col.id === selectedCollection.id ? updatedCollection : col
         )
       );
 
-      // Update the selected collection if it's currently open
-      setSelectedCollection(prev =>
-        prev?.id === selectedCollection.id
-          ? {
-              ...prev,
-              name: updatedCollection.name,
-              permission: updatedCollection.permission,
-            }
-          : prev
-      );
+      // Update the selected collection
+      setSelectedCollection(updatedCollection);
+
+      // Refresh uploaded files with the new collection name
+      await fetchUploadedFiles(updatedCollectionName);
 
       // Refresh the collections list from the API to ensure consistency
-      try {
-        await fetchCollections();
-      } catch (err) {
-        console.error('Error refreshing collections:', err);
-      }
-
-      // Refresh uploaded files if the collection name has changed
-      if (updatedCollection.name !== selectedCollection.name) {
-        await fetchUploadedFiles(updatedCollection.name);
-      }
+      await fetchCollections();
 
     } catch (error) {
       console.error('Error updating collection:', error);
