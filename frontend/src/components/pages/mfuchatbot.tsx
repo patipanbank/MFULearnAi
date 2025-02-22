@@ -708,7 +708,8 @@ const MFUChatbot: React.FC = () => {
                 />
 
                 <button
-                  type="button"
+                  type="submit"
+                  disabled={!canSubmit()}
                   className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${
                     canSubmit()
                       ? 'bg-blue-500 hover:bg-blue-600 text-white'
@@ -724,6 +725,15 @@ const MFUChatbot: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+            id="file-upload"
+          />
 
           {selectedImages.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2 max-w-[90%] lg:max-w-[80%] mx-auto">
@@ -820,8 +830,7 @@ const MFUChatbot: React.FC = () => {
                   className="px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
                     hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
                   onClick={() => {
-                    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                    fileInput?.click();
+                    document.getElementById('file-upload')?.click();
                   }}
                 >
                   <RiImageAddFill className="w-5 h-5 text-gray-600 dark:text-gray-300" />
