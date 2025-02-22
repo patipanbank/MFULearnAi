@@ -385,13 +385,18 @@ const MFUChatbot: React.FC = () => {
         }
 
         if (data.done) {
-          const updatedMessages = messages.map(msg =>
-            msg.role === 'assistant' && msg.content === '' ?
-            { ...msg, content: accumulatedContent, sources: data.sources } : msg
-          );
-          setMessages(updatedMessages);
-          saveChatHistory(updatedMessages);
-          accumulatedContent = '';
+          // Only save chat history after ensuring the final message is displayed
+          setTimeout(() => {
+            setMessages(prev => {
+              const finalMessages = prev.map(msg =>
+                msg.role === 'assistant' && !msg.sources ? 
+                { ...msg, content: accumulatedContent, sources: data.sources } : msg
+              );
+              saveChatHistory(finalMessages);
+              return finalMessages;
+            });
+            accumulatedContent = '';
+          }, 100);
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
