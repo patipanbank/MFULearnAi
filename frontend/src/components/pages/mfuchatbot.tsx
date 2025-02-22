@@ -366,6 +366,7 @@ const MFUChatbot: React.FC = () => {
     wsRef.current = new WebSocket(wsUrl.toString());
 
     let accumulatedContent = '';
+    let currentMessageId: number | null = null;
 
     wsRef.current.onmessage = async (event) => {
       try {
@@ -378,23 +379,42 @@ const MFUChatbot: React.FC = () => {
 
         if (data.content) {
           accumulatedContent += data.content;
-          setMessages(prev => prev.map(msg =>
-            msg.role === 'assistant' && msg.content === '' ? 
-            { ...msg, content: accumulatedContent } : msg
-          ));
+          setMessages(prev => {
+            // Find the last assistant message that's empty
+            const lastEmptyAssistantIndex = [...prev].reverse().findIndex(msg => 
+              msg.role === 'assistant' && msg.content === ''
+            );
+            
+            if (lastEmptyAssistantIndex === -1) return prev;
+            
+            const actualIndex = prev.length - 1 - lastEmptyAssistantIndex;
+            currentMessageId = prev[actualIndex].id;
+            
+            return prev.map(msg =>
+              msg.id === currentMessageId ? 
+              { ...msg, content: accumulatedContent } : msg
+            );
+          });
         }
 
         if (data.done) {
           setMessages(prev => {
-            const finalMessages = prev.map(msg =>
-              msg.role === 'assistant' && !msg.sources ? 
+            if (!currentMessageId) return prev;
+            
+            return prev.map(msg =>
+              msg.id === currentMessageId ? 
               { ...msg, content: accumulatedContent, sources: data.sources } : msg
             );
-            // Save chat history after state update
-            saveChatHistory(finalMessages);
-            return finalMessages;
           });
+
+          // Save chat history after message is complete
+          setMessages(prev => {
+            saveChatHistory(prev);
+            return prev;
+          });
+          
           accumulatedContent = '';
+          currentMessageId = null;
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
@@ -414,7 +434,7 @@ const MFUChatbot: React.FC = () => {
         wsRef.current.close();
       }
     };
-  }, [selectedModel]);
+  }, []);
 
   const saveChatHistory = async (messages: Message[]) => {
     try {
