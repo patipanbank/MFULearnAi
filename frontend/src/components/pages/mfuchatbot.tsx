@@ -294,16 +294,8 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Not authenticated or WebSocket not connected');
       }
 
-      // Create a new conversation array starting with the system message
-      const currentConversation: Message[] = [{
-        id: 1,
-        role: 'system',
-        content: 'You are DinDin, a knowledgeable AI assistant.',
-        timestamp: new Date()
-      }];
-
       const userMessage: Message = {
-        id: currentConversation.length + 1,
+        id: messages.length + 1,
         role: 'user',
         content: inputMessage.trim(),
         timestamp: new Date(),
@@ -313,10 +305,7 @@ const MFUChatbot: React.FC = () => {
         isImageGeneration: isImageGenerationMode
       };
 
-      // Add the user message to the current conversation
-      currentConversation.push(userMessage);
-
-      // Update the UI with just the user message
+      // Update the UI with the user message
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
@@ -329,15 +318,9 @@ const MFUChatbot: React.FC = () => {
         timestamp: new Date()
       }]);
 
-      console.log('Preparing WebSocket message with:', {
-        messageCount: currentConversation.length,
-        userMessage,
-        selectedModel,
-        isImageGeneration: isImageGenerationMode
-      });
-
+      // Send all messages including the new one
       const messagePayload = {
-        messages: currentConversation,
+        messages: [...messages, userMessage],
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode
       };
