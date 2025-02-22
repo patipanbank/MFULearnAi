@@ -19,10 +19,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <Sidebar 
-          onClose={() => setIsSidebarOpen(false)} 
-          onSelectChat={() => {}}
-        />
+        <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
       <div className="flex flex-col flex-1 w-full min-w-0">

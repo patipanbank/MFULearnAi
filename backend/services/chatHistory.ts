@@ -3,20 +3,21 @@ import { ChatHistory } from '../models/ChatHistory';
 class ChatHistoryService {
   async getChatHistory(userId: string) {
     try {
-      const histories = await ChatHistory.find({ 
+      const history = await ChatHistory.findOne({ 
         userId: userId 
       }).sort({ updatedAt: -1 });
 
-      return histories.map(history => ({
-        id: history._id,
-        chatName: history.chatName,
+      if (!history) {
+        return { messages: [], modelId: '', collectionName: '' };
+      }
+
+      return {
         messages: history.messages,
         modelId: history.modelId,
-        collectionName: history.collectionName,
-        updatedAt: history.updatedAt
-      }));
+        collectionName: history.collectionName
+      };
     } catch (error) {
-      console.error('Error getting chat histories:', error);
+      console.error('Error getting chat history:', error);
       throw error;
     }
   }
@@ -60,22 +61,6 @@ class ChatHistoryService {
       return { success: true, message: 'Chat history cleared successfully' };
     } catch (error) {
       console.error('Error clearing chat history:', error);
-      throw error;
-    }
-  }
-
-  async createNewChat(userId: string, modelId: string, collectionName: string) {
-    try {
-      const newChat = await ChatHistory.create({
-        userId,
-        modelId,
-        collectionName,
-        chatName: 'New Chat',
-        messages: []
-      });
-      return newChat;
-    } catch (error) {
-      console.error('Error creating new chat:', error);
       throw error;
     }
   }

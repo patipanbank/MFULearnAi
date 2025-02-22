@@ -5,7 +5,6 @@ import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
-import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -208,32 +207,6 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
-  }
-});
-
-router.post('/new', async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username;
-    const newChat = await chatHistoryService.createNewChat(userId, '', '');
-    res.json(newChat);
-  } catch (error) {
-    console.error('Error creating new chat:', error);
-    res.status(500).json({ error: 'Failed to create new chat' });
-  }
-});
-
-router.get('/history/:chatId', async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username;
-    const chatId = req.params.chatId;
-    const chat = await ChatHistory.findOne({ _id: chatId, userId });
-    if (!chat) {
-      res.status(404).json({ error: 'Chat not found' });
-    }
-    res.json(chat);
-  } catch (error) {
-    console.error('Error getting chat:', error);
-    res.status(500).json({ error: 'Failed to get chat' });
   }
 });
 
