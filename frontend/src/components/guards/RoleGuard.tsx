@@ -9,7 +9,14 @@ const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedGroups }) => {
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const userGroups = userData.groups || [];
 
-  if (!userGroups.some((group: string) => allowedGroups.includes(group))) {
+  // Case-insensitive comparison
+  const hasAllowedGroup = userGroups.some((userGroup: string) => 
+    allowedGroups.some(allowedGroup => 
+      allowedGroup.toLowerCase() === userGroup.toLowerCase()
+    )
+  );
+
+  if (!hasAllowedGroup) {
     return <Navigate to="/mfuchatbot" replace />;
   }
 
