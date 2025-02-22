@@ -353,30 +353,33 @@ const MFUChatbot: React.FC = () => {
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
 
-      // Only save chat history and update URL for the first message
-      if (!currentChatId) {
-        const savedChat = await saveChatHistory(updatedMessages);
-        if (savedChat) {
+      // Save chat history for both new and existing chats
+      const savedChat = await saveChatHistory(updatedMessages);
+      if (savedChat) {
+        if (!currentChatId) {
           setCurrentChatId(savedChat._id);
           navigate(`/mfuchatbot?chat=${savedChat._id}`, { replace: true });
         }
       }
 
       // Add placeholder for AI response
-      setMessages(prev => [...prev, {
+      const assistantMessage: Message = {
         id: aiMessageId,
-        role: 'assistant',
+        role: 'assistant' as const,
         content: '',
         timestamp: new Date(),
         isImageGeneration: isImageGenerationMode
-      }]);
+      };
+      
+      const messagesWithAssistant = [...updatedMessages, assistantMessage];
+      setMessages(messagesWithAssistant);
 
       // Send message to WebSocket with chatId
       const messagePayload = {
-        messages: updatedMessages,
+        messages: updatedMessages, // Send only up to user message
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
-        chatId: currentChatId // Include chatId in payload
+        chatId: currentChatId || savedChat?._id // Use new chatId if created
       };
 
       console.log('WebSocket message payload:', JSON.stringify(messagePayload));
@@ -482,10 +485,8 @@ const MFUChatbot: React.FC = () => {
                   ? { ...msg, content: msg.content + data.content }
                   : msg
               );
-              // Save chat history after each content update for existing chats
-              if (currentChatId) {
-                saveChatHistory(updatedMessages);
-              }
+              // Save chat history after each content update
+              saveChatHistory(updatedMessages);
               return updatedMessages;
             }
             const newMessages = [...prev, {
@@ -496,9 +497,7 @@ const MFUChatbot: React.FC = () => {
               isImageGeneration: false
             }];
             // Save chat history after adding new assistant message
-            if (currentChatId) {
-              saveChatHistory(newMessages);
-            }
+            saveChatHistory(newMessages);
             return newMessages;
           });
         }
@@ -512,10 +511,8 @@ const MFUChatbot: React.FC = () => {
                   ? { ...msg, sources: data.sources }
                   : msg
               );
-              // Only save chat history for existing chats when response is complete
-              if (currentChatId) {
-                saveChatHistory(updatedMessages);
-              }
+              // Save final chat state with sources
+              saveChatHistory(updatedMessages);
               return updatedMessages;
             }
             return prev;
