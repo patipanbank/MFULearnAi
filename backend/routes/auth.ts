@@ -53,8 +53,8 @@ const mapGroupToRole = async (groups: string[], nameID: string): Promise<UserRol
 
   // Check if groups is empty or undefined
   if (!groups || groups.length === 0) {
-    console.log('No groups provided, defaulting to USER role');
-    return 'USER';
+    console.log('No groups provided, defaulting to Students role');
+    return 'Students';
   }
 
   // Check for student group ID
@@ -63,13 +63,13 @@ const mapGroupToRole = async (groups: string[], nameID: string): Promise<UserRol
   );
 
   if (isStudent) {
-    console.log('Found student group ID - assigning USER role');
-    return 'USER';
+    console.log('Found student group ID - assigning Students role');
+    return 'Students';
   }
 
-  // If not student group, assign STAFF role
-  console.log('No student group found - assigning STAFF role');
-  return 'STAFF';
+  // If not student group, assign Staffs role
+  console.log('No student group found - assigning Staffs role');
+  return 'Staffs';
 };
 
 if (!process.env.SAML_SP_ENTITY_ID || !process.env.SAML_SP_ACS_URL || !process.env.SAML_IDP_SSO_URL) {

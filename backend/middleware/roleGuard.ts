@@ -27,7 +27,7 @@ export const roleGuard = (allowedRoles: UserRole[]): RequestHandler => {
       // Check if user's role matches any of the allowed roles
       const hasAllowedRole = allowedRoles.some(role => 
         decoded.role === role || 
-        (role === 'STAFF' && decoded.role === 'ADMIN') // ADMIN can do anything STAFF can do
+        (role === 'Staffs' && decoded.role === 'ADMIN') // ADMIN can do anything Staffs can do
       );
 
       console.log('Has allowed role:', hasAllowedRole);

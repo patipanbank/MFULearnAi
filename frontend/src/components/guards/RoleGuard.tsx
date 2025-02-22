@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 
-type UserRole = 'ADMIN' | 'STAFF' | 'USER';
+type UserRole = 'ADMIN' | 'Staffs' | 'Students';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -19,7 +19,7 @@ const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) => {
 
   const hasAllowedRole = allowedRoles.some(role => 
     userRole === role || 
-    (role === 'STAFF' && userRole === 'ADMIN') // ADMIN can do anything STAFF can do
+    (role === 'Staffs' && userRole === 'ADMIN') // ADMIN can do anything Staffs can do
   );
 
   if (!hasAllowedRole) {

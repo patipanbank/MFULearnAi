@@ -9,12 +9,12 @@ const router = Router();
  * GET /api/models
  * Retrieves all models (filtered based on user role)
  */
-router.get('/', roleGuard(['USER', 'STAFF', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.get('/', roleGuard(['Students', 'Staffs', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
     console.log('User in models route:', user);
     
-    const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
+    const isStaff = user.role === 'Staffs' || user.role === 'ADMIN';
     
     // Get all models
     const models = await ModelModel.find({}).lean();
@@ -39,7 +39,7 @@ router.get('/', roleGuard(['USER', 'STAFF', 'ADMIN'] as UserRole[]), async (req:
  * POST /api/models
  * Creates a new model
  */
-router.post('/', roleGuard(['USER', 'STAFF', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.post('/', roleGuard(['Students', 'Staffs', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
     const { name, modelType } = req.body;
@@ -51,7 +51,7 @@ router.post('/', roleGuard(['USER', 'STAFF', 'ADMIN'] as UserRole[]), async (req
     }
 
     // Only staff can create official or staff_only models
-    if ((modelType === 'official' || modelType === 'staff_only') && user.role !== 'STAFF' && user.role !== 'ADMIN') {
+    if ((modelType === 'official' || modelType === 'staff_only') && user.role !== 'Staffs' && user.role !== 'ADMIN') {
       res.status(403).json({ message: 'Only staff can create official or staff-only models' });
       return;
     }

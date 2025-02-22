@@ -14,7 +14,7 @@ const guest_login = async (req: Request, res: Response): Promise<void> => {
 
         let user = await getUserbynameID(body.nameID);
         if (!user) {
-            user = await createUser({ nameID: body.nameID, role: 'USER' as UserRole });
+            user = await createUser({ nameID: body.nameID, role: 'Students' as UserRole });
             if (!user) {
                 res.status(500).json({ message: 'Failed to create user' });
                 return;

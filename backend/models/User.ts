@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export type UserRole = 'ADMIN' | 'STAFF' | 'USER';
+export type UserRole = 'ADMIN' | 'Staffs' | 'Students';
 
 const userSchema = new mongoose.Schema({
   nameID: { type: String, required: true, unique: true },
@@ -10,8 +10,8 @@ const userSchema = new mongoose.Schema({
   lastName: String,
   role: { 
     type: String, 
-    enum: ['ADMIN', 'STAFF', 'USER'],
-    default: 'USER'
+    enum: ['ADMIN', 'Staffs', 'Students'],
+    default: 'Students'
   },
   groups: [String],
   created: { type: Date, default: Date.now },
