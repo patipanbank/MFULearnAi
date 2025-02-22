@@ -707,16 +707,18 @@ const TrainingDashboard: React.FC = () => {
       if (!response.ok) throw new Error('Failed to fetch collections');
       
       // Type the response data as MongoCollection[]
-      const mongoCollections: MongoCollection[] = await response.json();
+      const data: MongoCollection[] = await response.json();
       
-      // Transform MongoCollection to Collection type
-      const transformedCollections: Collection[] = mongoCollections.map(mongo => ({
-        id: typeof mongo._id === 'string' ? mongo._id : mongo._id.toString(),
-        name: mongo.name,
-        createdBy: mongo.createdBy || 'Unknown',
-        created: mongo.created || mongo.createdAt || new Date().toISOString(),
-        permission: mongo.permission as CollectionPermission || CollectionPermission.PUBLIC
-      }));
+      // Transform MongoCollection to Collection type with safe _id handling
+      const transformedCollections: Collection[] = data
+        .filter((mongo: MongoCollection) => mongo._id) // Filter out any items without an _id
+        .map((mongo: MongoCollection) => ({
+          id: mongo.id || (typeof mongo._id === 'string' ? mongo._id : mongo._id?.toString()) || 'unknown',
+          name: mongo.name,
+          createdBy: mongo.createdBy || 'Unknown',
+          created: mongo.created || mongo.createdAt || new Date().toISOString(),
+          permission: mongo.permission as CollectionPermission || CollectionPermission.PUBLIC
+        }));
 
       setCollections(transformedCollections);
     } catch (error) {
