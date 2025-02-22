@@ -5,7 +5,7 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface Source {
   modelId: string;
@@ -57,7 +57,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
-  const navigate = useNavigate();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -317,29 +316,6 @@ const MFUChatbot: React.FC = () => {
         console.error("Embedding failed:", error);
       }
 
-      const token = localStorage.getItem('auth_token');
-      const historyResponse = await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messages,
-          modelId: selectedModel,
-          collectionName: selectedCollection,
-          chatId
-        })
-      });
-
-      if (historyResponse.ok) {
-        const savedChat = await historyResponse.json();
-        if (!chatId) {
-          navigate(`/mfuchatbot?chat=${savedChat._id}`);
-        }
-        window.dispatchEvent(new CustomEvent('chatUpdated'));
-      }
-
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev, {
@@ -352,7 +328,8 @@ const MFUChatbot: React.FC = () => {
       setIsLoading(false);
     }
   };
-
+  const navigate = useNavigate();
+  
   useEffect(() => {
     return () => {
       if (wsRef.current) {
@@ -385,12 +362,15 @@ const MFUChatbot: React.FC = () => {
         })
       });
 
-      if (!historyResponse.ok) {
-        throw new Error('Failed to save chat history');
+      if (historyResponse.ok) {
+        const savedChat = await historyResponse.json();
+        if (!chatId) {
+          // เปลี่ยน path เมื่อสร้างแชทใหม่
+          navigate(`/mfuchatbot?chat=${savedChat._id}`);
+        }
+        // ส่ง event เพื่ออัพเดท sidebar
+        window.dispatchEvent(new CustomEvent('chatUpdated'));
       }
-
-      const savedChat = await historyResponse.json();
-      console.log('Saved chat response:', savedChat);
     } catch (error) {
       console.error('Error:', error);
     }
