@@ -688,6 +688,11 @@ const TrainingDashboard: React.FC = () => {
 
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
+  // Add useEffect to fetch collections on mount
+  useEffect(() => {
+    fetchCollections().finally(() => setLoading(false));
+  }, []);
+
   const fetchCollections = useCallback(async () => {
     try {
       console.log('Starting to fetch collections...');
@@ -705,29 +710,17 @@ const TrainingDashboard: React.FC = () => {
       console.log('Collection API response status:', response.status);
       if (!response.ok) throw new Error('Failed to fetch collections');
       
-      // Type the response data as MongoCollection[]
-      const data: MongoCollection[] = await response.json();
+      const data = await response.json();
       console.log('Raw collection data from backend:', data);
       
-      // Transform MongoCollection to Collection type with safe _id handling
-      console.log('Starting collection data transformation...');
-      const transformedCollections: Collection[] = data
-        .filter((mongo: MongoCollection) => {
-          const hasId = Boolean(mongo._id);
-          if (!hasId) console.log('Filtering out collection missing _id:', mongo);
-          return hasId;
-        })
-        .map((mongo: MongoCollection) => {
-          const id = mongo.id || (typeof mongo._id === 'string' ? mongo._id : mongo._id.toString());
-          console.log(`Transforming collection ${mongo.name} with ID ${id}`);
-          return {
-            id,
-            name: mongo.name,
-            createdBy: mongo.createdBy || 'Unknown',
-            created: mongo.created || mongo.createdAt || new Date().toISOString(),
-            permission: mongo.permission as CollectionPermission || CollectionPermission.PUBLIC
-          };
-        });
+      // Transform collection data
+      const transformedCollections: Collection[] = data.map((mongo: any) => ({
+        id: mongo._id?.toString() || mongo.id || 'unknown',
+        name: mongo.name || '',
+        createdBy: mongo.createdBy || 'Unknown',
+        created: mongo.created || mongo.createdAt || new Date().toISOString(),
+        permission: mongo.permission || CollectionPermission.PUBLIC
+      }));
 
       console.log('Transformed collections:', transformedCollections);
       setCollections(transformedCollections);
@@ -939,26 +932,19 @@ const TrainingDashboard: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to create collection');
       
-      // Type the response data
-      const newMongoCollection: MongoCollection = await response.json();
+      const data = await response.json();
+      console.log('New collection created:', data);
       
-      // Transform to Collection type and add to state with safe _id handling
-      const newCollection: Collection = {
-        id: newMongoCollection._id 
-          ? (typeof newMongoCollection._id === 'string' 
-              ? newMongoCollection._id 
-              : newMongoCollection._id.toString())
-          : 'unknown',
-        name: newMongoCollection.name,
-        createdBy: newMongoCollection.createdBy || user?.username || 'Unknown',
-        created: newMongoCollection.created || newMongoCollection.createdAt || new Date().toISOString(),
-        permission: newMongoCollection.permission as CollectionPermission || CollectionPermission.PUBLIC
-      };
-
-      setCollections(prev => [...prev, newCollection]);
+      // Refresh collections list
+      await fetchCollections();
+      
+      // Reset form and close modal
+      setNewCollectionName('');
+      setNewCollectionPermission('PRIVATE');
       setShowNewCollectionModal(false);
     } catch (error) {
       console.error('Error creating collection:', error);
+      alert('Failed to create collection. Please try again.');
     }
   };
 
@@ -1103,6 +1089,32 @@ const TrainingDashboard: React.FC = () => {
     collection.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
   );
 
+  const getPermissionStyle = (permission?: string) => {
+    switch (permission) {
+      case 'PRIVATE':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
+      case 'STAFF_ONLY':
+        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'PUBLIC':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+      default:
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
+    }
+  };
+
+  const getPermissionLabel = (permission?: string) => {
+    switch (permission) {
+      case 'PRIVATE':
+        return 'Private';
+      case 'STAFF_ONLY':
+        return 'Staff Only';
+      case 'PUBLIC':
+        return 'Public';
+      default:
+        return 'Unknown';
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 font-sans relative">
       {loading ? (
@@ -1128,27 +1140,92 @@ const TrainingDashboard: React.FC = () => {
               <p className="text-gray-600 dark:text-gray-300">Loading collections...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {filteredCollections.map((collection) => (
-                <CollectionCard
-                  key={collection.id}
-                  collection={collection}
-                  onSelect={() => handleCollectionSelect(collection)}
-                  activeDropdown={activeDropdownId === collection.id}
-                  onDropdownToggle={() =>
-                    setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
-                  }
-                  onSettings={() => {
-                    setSelectedCollection(collection);
-                    setShowSettings(true);
-                    setActiveDropdownId(null);
-                  }}
-                  onDelete={() => {
-                    setActiveDropdownId(null);
-                    handleDeleteCollection(collection);
-                  }}
-                />
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCollections.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 py-8">
+                  <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  <p className="text-lg font-medium">No collections found</p>
+                  <p className="text-sm mt-2">Create a new collection to get started</p>
+                </div>
+              ) : (
+                filteredCollections.map((collection) => (
+                  <div
+                    key={collection.id}
+                    className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md 
+                    hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 
+                    dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
+                    transform hover:scale-[1.02]"
+                    onClick={() => handleCollectionSelect(collection)}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id);
+                      }}
+                      className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
+                      dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
+                      hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                      title="Options"
+                    >
+                      <FaEllipsisH size={16} />
+                    </button>
+
+                    {activeDropdownId === collection.id && (
+                      <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
+                      border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCollection(collection);
+                            setShowSettings(true);
+                            setActiveDropdownId(null);
+                          }}
+                          className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 
+                          dark:hover:bg-gray-700 flex items-center space-x-2"
+                        >
+                          <FaCog size={14} />
+                          <span>Settings</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCollection(collection);
+                            setActiveDropdownId(null);
+                          }}
+                          className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 
+                          dark:hover:bg-red-900/30 flex items-center space-x-2"
+                        >
+                          <FaTrash size={14} />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col h-full">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+                          {collection.name}
+                        </h2>
+                      </div>
+                      <div className="mt-auto space-y-2">
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                          <span className="truncate">{collection.createdBy}</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-4">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
+                            {getPermissionLabel(collection.permission)}
+                          </span>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {getRelativeTime(collection.created)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
