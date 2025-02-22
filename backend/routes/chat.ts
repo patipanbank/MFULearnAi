@@ -38,7 +38,25 @@ router.use(verifyToken);
 
 const wss = new WebSocketServer({ 
   port: 5001,
-  clientTracking: true
+  path: '/ws',
+  clientTracking: true,
+  verifyClient: (info, cb) => {
+    try {
+      const token = info.req.headers['authorization']?.split(' ')[1];
+      if (!token) {
+        console.log('WebSocket connection rejected: No token provided');
+        cb(false, 401, 'Unauthorized');
+        return;
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+      (info.req as any).user = decoded;
+      cb(true);
+    } catch (error) {
+      console.error('WebSocket authentication error:', error);
+      cb(false, 401, 'Unauthorized');
+    }
+  }
 });
 
 function heartbeat(this: WebSocket) {
@@ -94,15 +112,31 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
   extWs.on('message', async (message: string) => {
     try {
-      const { messages, modelId, collectionName } = JSON.parse(message);
+      console.log(`Received message from user ${extWs.userId}:`, message.toString());
+      const data = JSON.parse(message.toString());
+      const { messages, modelId, isImageGeneration } = data;
+      
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        throw new Error('Invalid message format: messages array is required');
+      }
+      
+      if (!modelId) {
+        throw new Error('Invalid message format: modelId is required');
+      }
+
       const lastMessage = messages[messages.length - 1];
       const query = lastMessage.content;
 
-      console.log(`Processing message from user ${extWs.userId}`);
+      console.log(`Processing message from user ${extWs.userId}:`, {
+        modelId,
+        isImageGeneration,
+        query
+      });
       
       try {
         for await (const content of chatService.generateResponse(messages, query, modelId)) {
           if (extWs.readyState === WebSocket.OPEN) {
+            console.log(`Sending content to user ${extWs.userId}:`, content);
             extWs.send(JSON.stringify({ content }));
           } else {
             console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
@@ -119,7 +153,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
               await chatHistoryService.saveChatMessage(
                 extWs.userId,
                 modelId,
-                collectionName,
+                '',  // collectionName is optional
                 messages
               );
             } catch (error) {
@@ -139,7 +173,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       console.error(`Error processing message from user ${extWs.userId}:`, error);
       if (extWs.readyState === WebSocket.OPEN) {
         extWs.send(JSON.stringify({ 
-          error: 'Invalid message format' 
+          error: error instanceof Error ? error.message : 'Invalid message format' 
         }));
       }
     }

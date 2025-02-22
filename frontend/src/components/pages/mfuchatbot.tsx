@@ -285,18 +285,43 @@ const MFUChatbot: React.FC = () => {
     const aiMessageId = messages.length + 2;
 
     try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.log('Creating new WebSocket connection...');
         wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
+        
+        // Add token to WebSocket connection
+        wsRef.current.onopen = () => {
+          if (wsRef.current) {
+            wsRef.current.send(JSON.stringify({ type: 'auth', token }));
+          }
+        };
+
         await new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error('WebSocket connection timeout')), 5000);
-          wsRef.current!.onopen = () => {
-            clearTimeout(timeout);
-            resolve(undefined);
-          };
-          wsRef.current!.onerror = (error) => {
-            clearTimeout(timeout);
-            reject(error);
-          };
+          const timeout = setTimeout(() => {
+            if (wsRef.current) {
+              wsRef.current.close();
+            }
+            reject(new Error('WebSocket connection timeout'));
+          }, 5000);
+
+          if (wsRef.current) {
+            wsRef.current.onopen = () => {
+              console.log('WebSocket connection established');
+              clearTimeout(timeout);
+              resolve(undefined);
+            };
+
+            wsRef.current.onerror = (error) => {
+              console.error('WebSocket connection error:', error);
+              clearTimeout(timeout);
+              reject(error);
+            };
+          }
         });
       }
 
@@ -323,80 +348,88 @@ const MFUChatbot: React.FC = () => {
       }]);
 
       let accumulatedContent = '';
-      wsRef.current.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.error) {
-            console.error('WebSocket error:', data.error);
+      if (wsRef.current) {
+        wsRef.current.onmessage = (event) => {
+          try {
+            console.log('Received WebSocket message:', event.data);
+            const data = JSON.parse(event.data);
+            
+            if (data.error) {
+              console.error('WebSocket error:', data.error);
+              setMessages(prev => prev.map(msg =>
+                msg.id === aiMessageId
+                  ? { ...msg, content: `Error: ${data.error}` }
+                  : msg
+              ));
+              return;
+            }
+
+            if (data.content) {
+              accumulatedContent += data.content;
+              setMessages(prev => prev.map(msg =>
+                msg.id === aiMessageId
+                  ? { 
+                      ...msg, 
+                      content: accumulatedContent,
+                      images: data.generatedImage ? [{
+                        data: data.generatedImage,
+                        mediaType: 'image/png'
+                      }] : undefined
+                    }
+                  : msg
+              ));
+            }
+
+            if (data.done) {
+              const updatedMessages = [
+                ...messages,
+                userMessage,
+                {
+                  id: aiMessageId,
+                  role: 'assistant' as const,
+                  content: accumulatedContent,
+                  timestamp: new Date(),
+                  sources: data.sources,
+                  images: data.generatedImage ? [{
+                    data: data.generatedImage,
+                    mediaType: 'image/png'
+                  }] : undefined
+                }
+              ];
+
+              saveChatHistory(updatedMessages);
+            }
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
             setMessages(prev => prev.map(msg =>
               msg.id === aiMessageId
-                ? { ...msg, content: `Error: ${data.error}` }
-                : msg
-            ));
-            return;
-          }
-
-          if (data.content) {
-            accumulatedContent += data.content;
-            setMessages(prev => prev.map(msg =>
-              msg.id === aiMessageId
-                ? { 
-                    ...msg, 
-                    content: accumulatedContent,
-                    images: data.generatedImage ? [{
-                      data: data.generatedImage,
-                      mediaType: 'image/png'
-                    }] : undefined
-                  }
+                ? { ...msg, content: 'Error: Failed to parse response' }
                 : msg
             ));
           }
+        };
 
-          if (data.done) {
-            const updatedMessages = [
-              ...messages,
-              userMessage,
-              {
-                id: aiMessageId,
-                role: 'assistant' as const,
-                content: accumulatedContent,
-                timestamp: new Date(),
-                sources: data.sources,
-                images: data.generatedImage ? [{
-                  data: data.generatedImage,
-                  mediaType: 'image/png'
-                }] : undefined
-              }
-            ];
-
-            saveChatHistory(updatedMessages);
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+        wsRef.current.onerror = (error) => {
+          console.error('WebSocket error:', error);
           setMessages(prev => prev.map(msg =>
             msg.id === aiMessageId
-              ? { ...msg, content: 'Error: Failed to parse response' }
+              ? { ...msg, content: 'Error: WebSocket connection failed' }
               : msg
           ));
-        }
-      };
+        };
 
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setMessages(prev => prev.map(msg =>
-          msg.id === aiMessageId
-            ? { ...msg, content: 'Error: WebSocket connection failed' }
-            : msg
-        ));
-      };
+        console.log('Sending message to WebSocket:', {
+          messages: [...messages, userMessage],
+          modelId: selectedModel,
+          isImageGeneration: isImageGenerationMode
+        });
 
-      wsRef.current.send(JSON.stringify({
-        messages: [...messages, userMessage],
-        modelId: selectedModel,
-        isImageGeneration: isImageGenerationMode
-      }));
-
+        wsRef.current.send(JSON.stringify({
+          messages: [...messages, userMessage],
+          modelId: selectedModel,
+          isImageGeneration: isImageGenerationMode
+        }));
+      }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev, {
