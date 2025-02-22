@@ -26,7 +26,7 @@ export class BedrockService {
       temperature: 0.3,  // Lower temperature for more focused, factual responses
       topP: 0.9,
       maxTokens: 1024,
-      stopSequences: ["\n\n", "Human:", "Assistant:"]
+      stopSequences: ["Human:", "Assistant:"]
     },
     analytical: {
       temperature: 0.7,  // Balanced for analytical thinking
