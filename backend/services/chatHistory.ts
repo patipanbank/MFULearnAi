@@ -24,6 +24,14 @@ class ChatHistoryService {
 
   async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[]) {
     try {
+      // หาคำถามแรกจากผู้ใช้
+      const firstUserMessage = messages.find(msg => msg.role === 'user');
+      
+      // สร้าง chatname จากคำถามแรก (จำกัดความยาวที่ 50 ตัวอักษร)
+      const chatname = firstUserMessage 
+        ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
+        : 'New Chat';
+
       const processedMessages = messages.map((msg, index) => ({
         id: index + 1,
         role: msg.role as 'user' | 'assistant' | 'system',
@@ -42,6 +50,7 @@ class ChatHistoryService {
           userId,
           modelId,
           collectionName,
+          chatname,
           messages: processedMessages,
           updatedAt: new Date()
         },
