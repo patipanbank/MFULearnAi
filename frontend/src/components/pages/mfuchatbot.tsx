@@ -349,8 +349,18 @@ const MFUChatbot: React.FC = () => {
         isImageGeneration: isImageGenerationMode
       };
 
-      // Save chat history immediately after user message
-      await saveChatHistory([...messages, userMessage]);
+      // Add messages to state first
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+
+      // Only save chat history if this is the first message (no currentChatId)
+      if (!currentChatId) {
+        const savedChat = await saveChatHistory(updatedMessages);
+        if (savedChat) {
+          setCurrentChatId(savedChat._id);
+          navigate(`/mfuchatbot?chat=${savedChat._id}`, { replace: true });
+        }
+      }
 
       // Add a placeholder for the AI response
       setMessages(prev => [...prev, {
@@ -363,9 +373,10 @@ const MFUChatbot: React.FC = () => {
 
       // Send all messages including the new one
       const messagePayload = {
-        messages: [...messages, userMessage],
+        messages: updatedMessages,
         modelId: selectedModel,
-        isImageGeneration: isImageGenerationMode
+        isImageGeneration: isImageGenerationMode,
+        chatId: currentChatId
       };
 
       console.log('WebSocket message payload:', JSON.stringify(messagePayload));
@@ -380,6 +391,37 @@ const MFUChatbot: React.FC = () => {
       }]);
     } finally {
       setIsLoading(false);
+      setInputMessage('');
+      setSelectedImages([]);
+    }
+  };
+
+  const saveChatHistory = async (messages: Message[]): Promise<any> => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return null;
+
+      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          messages,
+          modelId: selectedModel,
+          chatId: currentChatId
+        })
+      });
+
+      if (response.ok) {
+        const history = await response.json();
+        return history;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+      return null;
     }
   };
 
@@ -410,7 +452,7 @@ const MFUChatbot: React.FC = () => {
             
             const actualIndex = prev.length - 1 - lastEmptyAssistantIndex;
             
-            return prev.map((msg, index) =>
+            const updatedMessages = prev.map((msg, index) =>
               index === actualIndex ? 
               { 
                 ...msg, 
@@ -421,29 +463,26 @@ const MFUChatbot: React.FC = () => {
                 }]
               } : msg
             );
-          });
 
-          // Save chat history after image is generated
-          setMessages(prev => {
-            saveChatHistory(prev);
-            return prev;
+            // Save final state with image
+            if (currentChatId) {
+              saveChatHistory(updatedMessages);
+            }
+            return updatedMessages;
           });
           return;
         }
 
         if (data.content) {
-          // Update messages immediately with each chunk
           setMessages(prev => {
             const lastAssistantMessage = prev[prev.length - 1];
             if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
-              // Update the last assistant message with accumulated content
               return prev.map((msg, index) => 
                 index === prev.length - 1 
                   ? { ...msg, content: msg.content + data.content }
                   : msg
               );
             }
-            // Create a new assistant message
             return [...prev, {
               id: prev.length + 1,
               role: 'assistant' as const,
@@ -455,21 +494,22 @@ const MFUChatbot: React.FC = () => {
         }
 
         if (data.done) {
-          // Final update with any sources
           setMessages(prev => {
             const lastMessage = prev[prev.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
-              return prev.map((msg, index) =>
+              const updatedMessages = prev.map((msg, index) =>
                 index === prev.length - 1
                   ? { ...msg, sources: data.sources }
                   : msg
               );
+              // Only save chat history for existing chats
+              if (currentChatId) {
+                saveChatHistory(updatedMessages);
+              }
+              return updatedMessages;
             }
             return prev;
           });
-
-          // Save chat history after message is complete
-          saveChatHistory(messages);
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
@@ -490,36 +530,6 @@ const MFUChatbot: React.FC = () => {
       }
     };
   }, []);
-
-  const saveChatHistory = async (messages: Message[]) => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) return;
-
-      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          messages,
-          modelId: selectedModel,
-          chatId: currentChatId
-        })
-      });
-
-      if (response.ok) {
-        const history = await response.json();
-        setCurrentChatId(history._id);
-        // Update URL with the new chat ID
-        navigate(`/mfuchatbot?chat=${history._id}`, { replace: true });
-        console.log('Saved chat history:', history._id);
-      }
-    } catch (error) {
-      console.error('Error saving chat history:', error);
-    }
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
