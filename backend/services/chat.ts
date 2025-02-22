@@ -110,17 +110,22 @@ Remember: Your responses should be based on the provided context and documents.`
   private async resolveCollections(modelIdOrCollections: string | string[]): Promise<string[]> {
     try {
       if (Array.isArray(modelIdOrCollections)) {
-        return modelIdOrCollections; // Collection names directly provided
+        console.log('Collections provided directly:', modelIdOrCollections);
+        return modelIdOrCollections;
       }
 
-      // Try to find the model and get its collections
+      console.log('Looking up model by ID:', modelIdOrCollections);
       const model = await ModelModel.findById(modelIdOrCollections);
       if (!model) {
         console.error('Model not found:', modelIdOrCollections);
         return [];
       }
 
-      console.log('Found model collections:', model.collections);
+      console.log('Found model:', {
+        id: model._id,
+        name: model.name,
+        collections: model.collections
+      });
       return model.collections;
     } catch (error) {
       console.error('Error resolving collections:', error);
@@ -206,6 +211,12 @@ Remember: Your responses should be based on the provided context and documents.`
   }
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
+    console.log('Getting context for:', {
+      query,
+      modelIdOrCollections,
+      hasImage: !!imageBase64
+    });
+
     const questionType = this.detectQuestionType(query);
     const promptTemplate = this.promptTemplates[questionType];
     
@@ -221,12 +232,15 @@ Remember: Your responses should be based on the provided context and documents.`
     const sanitizedCollections = collectionNames.map(name => 
       this.sanitizeCollectionName(name)
     );
+    console.log('Sanitized collection names:', sanitizedCollections);
 
+    console.log('Getting query embedding...');
     let queryEmbedding = await chromaService.getQueryEmbedding(query);
     let imageEmbedding: number[] | undefined;
     
     if (imageBase64) {
       try {
+        console.log('Generating image embedding...');
         imageEmbedding = await bedrockService.embedImage(imageBase64, query);
         console.log('Generated image embedding');
       } catch (error) {
@@ -238,20 +252,27 @@ Remember: Your responses should be based on the provided context and documents.`
     for (let i = 0; i < sanitizedCollections.length; i += this.BATCH_SIZE) {
       batches.push(sanitizedCollections.slice(i, i + this.BATCH_SIZE));
     }
+    console.log('Created batches:', batches);
 
     let allResults: CollectionQueryResult[] = [];
     for (const batch of batches) {
+      console.log('Processing batch:', batch);
       const batchResults = await this.processBatch(batch, queryEmbedding, imageEmbedding);
       allResults = allResults.concat(batchResults);
     }
+
+    console.log('All results:', allResults);
 
     const allSources = allResults
       .flatMap(r => r.sources)
       .sort((a, b) => b.similarity - a.similarity);
 
+    console.log('All sources:', allSources);
+
     if (this.currentChatHistory) {
       this.currentChatHistory.sources = allSources;
       await this.currentChatHistory.save();
+      console.log('Saved sources to chat history');
     }
 
     const contexts = allResults
@@ -263,6 +284,7 @@ Remember: Your responses should be based on the provided context and documents.`
       })
       .map(r => r.context);
 
+    console.log('Final context length:', contexts.join("\n\n").length);
     return `${promptTemplate}\n\n${contexts.join("\n\n")}`;
   }
 

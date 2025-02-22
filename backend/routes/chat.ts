@@ -116,8 +116,10 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
   extWs.on('message', async (message: string) => {
     try {
-      console.log(`Received message from user ${extWs.userId}:`, message.toString());
+      console.log(`Received raw message from user ${extWs.userId}:`, message.toString());
       const data = JSON.parse(message.toString());
+      console.log(`Parsed message data:`, data);
+      
       const { messages, modelId, isImageGeneration } = data;
       
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -134,13 +136,17 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       console.log(`Processing message from user ${extWs.userId}:`, {
         modelId,
         isImageGeneration,
-        query
+        query,
+        messageCount: messages.length,
+        lastMessageContent: lastMessage.content,
+        hasImages: !!lastMessage.images
       });
       
       try {
+        console.log('Starting response generation...');
         for await (const content of chatService.generateResponse(messages, query, modelId)) {
           if (extWs.readyState === WebSocket.OPEN) {
-            console.log(`Sending content to user ${extWs.userId}:`, content);
+            console.log(`Sending content chunk to user ${extWs.userId}:`, content);
             extWs.send(JSON.stringify({ content }));
           } else {
             console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
@@ -149,17 +155,20 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         }
 
         if (extWs.readyState === WebSocket.OPEN) {
+          console.log(`Sending completion signal to user ${extWs.userId}`);
           extWs.send(JSON.stringify({ done: true }));
           
           // Save chat history
           if (extWs.userId) {
             try {
+              console.log(`Saving chat history for user ${extWs.userId}`);
               await chatHistoryService.saveChatMessage(
                 extWs.userId,
                 modelId,
                 '',  // collectionName is optional
                 messages
               );
+              console.log(`Chat history saved for user ${extWs.userId}`);
             } catch (error) {
               console.error('Error saving chat history:', error);
             }
