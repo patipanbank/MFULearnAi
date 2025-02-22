@@ -1,16 +1,48 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 // import { FaComments, FaBars, FaCog, FaHistory, FaSignOutAlt } from 'react-icons/fa';
 import { FaComments, FaBars, FaCog, FaSignOutAlt } from 'react-icons/fa';
+import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 interface SidebarProps {
   onClose?: () => void;
 }
 
+interface ChatHistory {
+  chatname: string;
+  modelId: string;
+  collectionName: string;
+  messages: [];
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const isStaff = userData.groups?.includes('Staffs');
+  const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
+
+  useEffect(() => {
+    const fetchChatHistories = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setChatHistories(data);
+        }
+      } catch (error) {
+        console.error('Error fetching chat histories:', error);
+      }
+    };
+
+    fetchChatHistories();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -55,24 +87,32 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </div>
       </div>
 
-      <div className="flex-1 px-4 py-2">
-        <nav>
+      <div className="flex-1 px-4 py-2 overflow-y-auto">
+        <nav className="space-y-2">
           <Link
             to="/mfuchatbot"
             className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
               ${location.pathname === '/mfuchatbot' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
           >
             <FaComments className="w-5 h-5 mr-3" />
-            <span>
-              Chat{' '}
-              <span style={{ 
-                background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>AI</span>
-            </span>
+            <span>New Chat</span>
           </Link>
+
+          {/* แสดงรายการ Chat Histories */}
+          <div className="mt-4">
+            <h3 className="px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Chat History</h3>
+            <div className="mt-2 space-y-1">
+              {chatHistories.map((chat, index) => (
+                <Link
+                  key={index}
+                  to={`/mfuchatbot?chat=${index}`}
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <span className="truncate">{chat.chatname}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
 
           {isStaff && (
             <Link
