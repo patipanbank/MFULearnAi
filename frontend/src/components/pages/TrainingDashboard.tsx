@@ -692,9 +692,11 @@ const TrainingDashboard: React.FC = () => {
           }
         );
 
-        // If collection not found, stop polling but keep modal open
+        // If collection not found, refresh collections list and close modal
         if (response.status === 404) {
-          console.log('Collection not found in update interval');
+          console.log('Collection not found, refreshing collections list');
+          await fetchCollections();
+          setSelectedCollection(null);
           return;
         }
 
