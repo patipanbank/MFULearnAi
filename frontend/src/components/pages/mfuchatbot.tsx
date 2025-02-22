@@ -404,6 +404,11 @@ const MFUChatbot: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       if (!token) return null;
 
+      if (!selectedModel) {
+        console.error('No model selected');
+        return null;
+      }
+
       // Filter out empty messages and ensure proper format
       const validMessages = messages.filter(msg => 
         msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0))
@@ -414,17 +419,21 @@ const MFUChatbot: React.FC = () => {
         return null;
       }
 
+      const payload = {
+        messages: validMessages,
+        modelId: selectedModel,
+        ...(currentChatId && { chatId: currentChatId })
+      };
+
+      console.log('Saving chat history:', payload);
+
       const response = await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          messages: validMessages,
-          modelId: selectedModel,
-          chatId: currentChatId
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -481,7 +490,9 @@ const MFUChatbot: React.FC = () => {
             );
 
             // Save final state with image
-            saveChatHistory(updatedMessages);
+            if (selectedModel) {
+              saveChatHistory(updatedMessages);
+            }
             return updatedMessages;
           });
           return;
@@ -491,14 +502,13 @@ const MFUChatbot: React.FC = () => {
           setMessages(prev => {
             const lastAssistantMessage = prev[prev.length - 1];
             if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
-              // Just update the message content without saving yet
-              return prev.map((msg, index) => 
+              const updatedMessages = prev.map((msg, index) => 
                 index === prev.length - 1 
                   ? { ...msg, content: msg.content + data.content }
                   : msg
               );
+              return updatedMessages;
             }
-            // Just add new message without saving yet
             return [...prev, {
               id: prev.length + 1,
               role: 'assistant' as const,
@@ -518,10 +528,15 @@ const MFUChatbot: React.FC = () => {
                   ? { ...msg, sources: data.sources }
                   : msg
               );
-              // Save the complete message with sources
-              saveChatHistory(updatedMessages).catch(error => {
-                console.error('Error saving chat history:', error);
-              });
+              // Save both user and assistant messages
+              if (selectedModel) {
+                const completeMessages = updatedMessages.filter(msg => 
+                  msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim())
+                );
+                saveChatHistory(completeMessages).catch(error => {
+                  console.error('Error saving chat history:', error);
+                });
+              }
               return updatedMessages;
             }
             return prev;
