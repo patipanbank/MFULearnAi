@@ -420,17 +420,22 @@ const MFUChatbot: React.FC = () => {
           ));
         };
 
-        console.log('Sending message to WebSocket:', {
-          messages: [...messages, userMessage],
-          modelId: selectedModel,
+        console.log('Preparing WebSocket message with:', {
+          messageCount: messages.length,
+          userMessage,
+          selectedModel,
           isImageGeneration: isImageGenerationMode
         });
 
-        wsRef.current.send(JSON.stringify({
+        const messagePayload = {
           messages: [...messages, userMessage],
           modelId: selectedModel,
           isImageGeneration: isImageGenerationMode
-        }));
+        };
+
+        console.log('WebSocket message payload:', JSON.stringify(messagePayload));
+
+        wsRef.current.send(JSON.stringify(messagePayload));
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error);

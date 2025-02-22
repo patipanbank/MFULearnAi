@@ -116,18 +116,41 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
   extWs.on('message', async (message: string) => {
     try {
-      console.log(`Received raw message from user ${extWs.userId}:`, message.toString());
-      const data = JSON.parse(message.toString());
-      console.log(`Parsed message data:`, data);
+      console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
+      
+      let data;
+      try {
+        data = JSON.parse(message.toString());
+        console.log(`Parsed WebSocket message from ${extWs.userId}:`, {
+          messageCount: data.messages?.length,
+          modelId: data.modelId,
+          isImageGeneration: data.isImageGeneration,
+          lastMessage: data.messages?.[data.messages?.length - 1]
+        });
+      } catch (parseError) {
+        console.error(`Failed to parse WebSocket message from ${extWs.userId}:`, parseError);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ error: 'Invalid message format: Failed to parse JSON' }));
+        }
+        return;
+      }
       
       const { messages, modelId, isImageGeneration } = data;
       
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        throw new Error('Invalid message format: messages array is required');
+        console.error(`Invalid message format from ${extWs.userId}: messages array is required`);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ error: 'Invalid message format: messages array is required' }));
+        }
+        return;
       }
       
       if (!modelId) {
-        throw new Error('Invalid message format: modelId is required');
+        console.error(`Invalid message format from ${extWs.userId}: modelId is required`);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ error: 'Invalid message format: modelId is required' }));
+        }
+        return;
       }
 
       const lastMessage = messages[messages.length - 1];
