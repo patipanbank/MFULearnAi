@@ -141,54 +141,21 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   extWs.on('message', async (message: string) => {
     try {
       console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
-      
-      let data;
-      try {
-        data = JSON.parse(message.toString());
-        console.log(`Parsed WebSocket message from ${extWs.userId}:`, {
-          messageCount: data.messages?.length,
-          modelId: data.modelId,
-          isImageGeneration: data.isImageGeneration,
-          lastMessage: data.messages?.[data.messages?.length - 1]
-        });
-      } catch (parseError) {
-        console.error(`Failed to parse WebSocket message from ${extWs.userId}:`, parseError);
-        if (extWs.readyState === WebSocket.OPEN) {
-          extWs.send(JSON.stringify({ error: 'Invalid message format: Failed to parse JSON' }));
-        }
-        return;
+      const data = JSON.parse(message);
+      const { messages, modelId, isImageGeneration, chatId } = data;
+
+      if (!messages || !Array.isArray(messages)) {
+        throw new Error('Invalid messages format');
       }
-      
-      const { messages, modelId, isImageGeneration } = data;
-      
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        console.error(`Invalid message format from ${extWs.userId}: messages array is required`);
-        if (extWs.readyState === WebSocket.OPEN) {
-          extWs.send(JSON.stringify({ error: 'Invalid message format: messages array is required' }));
-        }
-        return;
-      }
-      
+
       if (!modelId) {
-        console.error(`Invalid message format from ${extWs.userId}: modelId is required`);
-        if (extWs.readyState === WebSocket.OPEN) {
-          extWs.send(JSON.stringify({ error: 'Invalid message format: modelId is required' }));
-        }
-        return;
+        throw new Error('ModelId is required');
       }
 
-      const lastMessage = messages[messages.length - 1];
-      const query = lastMessage.content;
+      const query = isImageGeneration
+        ? messages[messages.length - 1].content
+        : messages.map(msg => msg.content).join('\n');
 
-      console.log(`Processing message from user ${extWs.userId}:`, {
-        modelId,
-        isImageGeneration,
-        query,
-        messageCount: messages.length,
-        lastMessageContent: lastMessage.content,
-        hasImages: !!lastMessage.images
-      });
-      
       try {
         console.log('Starting response generation...');
         for await (const content of chatService.generateResponse(messages, query, modelId)) {
@@ -205,19 +172,21 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           console.log(`Sending completion signal to user ${extWs.userId}`);
           extWs.send(JSON.stringify({ done: true }));
           
-          // Save chat history
-          if (extWs.userId) {
+          // Only save chat history if we have a chatId (updating existing chat)
+          // New chats are created by the frontend POST /history endpoint
+          if (extWs.userId && chatId) {
             try {
-              console.log(`Saving chat history for user ${extWs.userId}`);
+              console.log(`Updating chat history for user ${extWs.userId} and chat ${chatId}`);
               await chatHistoryService.saveChatMessage(
                 extWs.userId,
                 modelId,
                 '',  // collectionName is optional
-                messages
+                messages,
+                chatId.toString() // Ensure chatId is a string
               );
-              console.log(`Chat history saved for user ${extWs.userId}`);
+              console.log(`Chat history updated for user ${extWs.userId}`);
             } catch (error) {
-              console.error('Error saving chat history:', error);
+              console.error('Error updating chat history:', error);
             }
           }
         }

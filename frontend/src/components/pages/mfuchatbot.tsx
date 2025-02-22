@@ -349,11 +349,11 @@ const MFUChatbot: React.FC = () => {
         isImageGeneration: isImageGenerationMode
       };
 
-      // Add messages to state first
+      // Add user message to state
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
 
-      // Only save chat history if this is the first message (no currentChatId)
+      // Only save chat history and update URL for the first message
       if (!currentChatId) {
         const savedChat = await saveChatHistory(updatedMessages);
         if (savedChat) {
@@ -362,7 +362,7 @@ const MFUChatbot: React.FC = () => {
         }
       }
 
-      // Add a placeholder for the AI response
+      // Add placeholder for AI response
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
@@ -371,12 +371,12 @@ const MFUChatbot: React.FC = () => {
         isImageGeneration: isImageGenerationMode
       }]);
 
-      // Send all messages including the new one
+      // Send message to WebSocket with chatId
       const messagePayload = {
         messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
-        chatId: currentChatId
+        chatId: currentChatId // Include chatId in payload
       };
 
       console.log('WebSocket message payload:', JSON.stringify(messagePayload));
@@ -464,7 +464,7 @@ const MFUChatbot: React.FC = () => {
               } : msg
             );
 
-            // Save final state with image
+            // Save final state with image only if we have a chat ID
             if (currentChatId) {
               saveChatHistory(updatedMessages);
             }
@@ -502,7 +502,7 @@ const MFUChatbot: React.FC = () => {
                   ? { ...msg, sources: data.sources }
                   : msg
               );
-              // Only save chat history for existing chats
+              // Only save chat history for existing chats when response is complete
               if (currentChatId) {
                 saveChatHistory(updatedMessages);
               }
