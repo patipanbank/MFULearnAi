@@ -217,10 +217,13 @@ const MFUChatbot: React.FC = () => {
         });
 
         if (response.ok) {
-          const history = await response.json();
-          if (history.messages) {
-            setMessages(history.messages);
-            setSelectedModel(history.modelId || '');
+          const histories = await response.json();
+          // Check if we have any chat histories
+          if (Array.isArray(histories) && histories.length > 0) {
+            // Get the most recent chat
+            const latestChat = histories[0]; // Since they're sorted by updatedAt desc
+            setMessages(latestChat.messages || []);
+            setSelectedModel(latestChat.modelId || '');
           }
         }
       } catch (error) {
