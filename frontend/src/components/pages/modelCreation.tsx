@@ -4,25 +4,16 @@ import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup, F
 
 // Utility function for relative time
 const getRelativeTime = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return 'Recently created';
-    }
-    
-    const now = new Date();
-    const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (diffSeconds < 60) return 'Created just now';
-    if (diffSeconds < 3600) return `Created ${Math.floor(diffSeconds / 60)} minutes ago`;
-    if (diffSeconds < 86400) return `Created ${Math.floor(diffSeconds / 3600)} hours ago`;
-    
-    const days = Math.floor(diffSeconds / 86400);
-    if (days === 1) return 'Created yesterday';
-    return `Created ${days} days ago`;
-  } catch (error) {
-    return 'Recently created';
-  }
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSeconds = (now.getTime() - date.getTime()) / 1000;
+  if (diffSeconds < 60) return 'Created just now';
+  const diffMinutes = diffSeconds / 60;
+  if (diffMinutes < 60) return `Created ${Math.floor(diffMinutes)} minutes ago`;
+  const diffHours = diffMinutes / 60;
+  if (diffHours < 24) return `Created ${Math.floor(diffHours)} hours ago`;
+  const diffDays = diffHours / 24;
+  return `Created ${Math.floor(diffDays)} days ago`;
 };
 
 /* -------------------------------
