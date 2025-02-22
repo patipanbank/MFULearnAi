@@ -705,20 +705,28 @@ const ModelCreation: React.FC = () => {
       alert('Authentication token not found. Please login again.');
       return;
     }
-    const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
-    const nameID = tokenPayload.nameID;
-    const username = tokenPayload.username;
-
-    console.log('Creating model with:', {
-      userGroups: tokenPayload.groups,
-      isStaff: tokenPayload.groups?.includes('Staffs'),
-      modelType: newModelType,
-      nameID,
-      username
-    });
 
     try {
-      // Create model in database (for all model types)
+      const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
+      
+      // Log the full token payload for debugging
+      console.log('Token payload:', tokenPayload);
+      
+      // Extract user identifiers with fallbacks
+      const userId = tokenPayload.nameID || tokenPayload.userId || tokenPayload.username;
+      if (!userId) {
+        throw new Error('User identification not found in token');
+      }
+
+      console.log('Creating model with:', {
+        userGroups: tokenPayload.groups,
+        isStaff: tokenPayload.groups?.includes('Staffs'),
+        modelType: newModelType,
+        userId,
+        createdBy: userId
+      });
+
+      // Create model in database
       const response = await fetch(`${config.apiUrl}/api/models`, {
         method: 'POST',
         headers: {
@@ -728,13 +736,14 @@ const ModelCreation: React.FC = () => {
         body: JSON.stringify({
           name: newModelName.trim(),
           modelType: newModelType,
-          createdBy: nameID || username, // Use nameID if available, fallback to username
-          userId: nameID || username // Use nameID if available, fallback to username
+          createdBy: userId,
+          userId: userId
         }),
       });
 
       if (!response.ok) {
         const errMsg = await response.text();
+        console.error('Server response:', errMsg);
         throw new Error(errMsg || 'Failed to create model');
       }
 
