@@ -417,7 +417,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
         </div>
 
         {/* Collections Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 min-h-[300px]">
+        <div className="grid grid-cols-1 gap-4 min-h-[300px] sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
           {filteredCollections.length === 0 ? (
             <div className="col-span-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 py-8">
               <FaLayerGroup size={48} className="mb-4 opacity-50" />
@@ -425,53 +425,109 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
               <p className="text-sm mt-2">Try adjusting your search query</p>
             </div>
           ) : (
-            filteredCollections.map((collection) => (
-              <div
-                key={collection.id}
-                onClick={() => toggleCollectionSelection(collection.name)}
-                className={`group p-4 rounded-xl cursor-pointer border transition-all duration-300
-                  transform hover:scale-[1.02] ${
-                  selectedCollections.includes(collection.name)
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/30'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
-                  }`}
-              >
-                <div className="flex flex-col h-full">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
-                          {getPermissionLabel(collection.permission)}
-                        </span>
+            <>
+              {filteredCollections.length <= 2 ? (
+                <div className="col-span-full grid gap-4 sm:grid-cols-2 max-w-3xl mx-auto w-full">
+                  {filteredCollections.map((collection) => (
+                    <div
+                      key={collection.id}
+                      onClick={() => toggleCollectionSelection(collection.name)}
+                      className={`group p-4 rounded-xl cursor-pointer border transition-all duration-300
+                        transform hover:scale-[1.02] h-full ${
+                        selectedCollections.includes(collection.name)
+                          ? 'border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/30'
+                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
+                        }`}
+                    >
+                      <div className="flex flex-col h-full">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
+                                {getPermissionLabel(collection.permission)}
+                              </span>
+                            </div>
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+                              {collection.name}
+                            </h4>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                            selectedCollections.includes(collection.name)
+                              ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
+                              : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-300 dark:group-hover:border-blue-600'
+                          }`}>
+                            {selectedCollections.includes(collection.name) && (
+                              <FaCheck size={12} className="text-white" />
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col space-y-2 mt-auto">
+                          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                            <FaUser className="mr-2" size={12} />
+                            <span className="truncate">{collection.createdBy}</span>
+                          </div>
+                          
+                          <div className="text-xs text-gray-500 dark:text-gray-500">
+                            {getRelativeTime(collection.created)}
+                          </div>
+                        </div>
                       </div>
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
-                        {collection.name}
-                      </h4>
                     </div>
-                    <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                      selectedCollections.includes(collection.name)
-                        ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
-                        : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-300 dark:group-hover:border-blue-600'
-                    }`}>
-                      {selectedCollections.includes(collection.name) && (
-                        <FaCheck size={12} className="text-white" />
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col space-y-2 mt-auto">
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                      <FaUser className="mr-2" size={12} />
-                      <span className="truncate">{collection.createdBy}</span>
-                    </div>
-                    
-                    <div className="text-xs text-gray-500 dark:text-gray-500">
-                      {getRelativeTime(collection.created)}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              </div>
-            ))
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredCollections.map((collection) => (
+                    <div
+                      key={collection.id}
+                      onClick={() => toggleCollectionSelection(collection.name)}
+                      className={`group p-4 rounded-xl cursor-pointer border transition-all duration-300
+                        transform hover:scale-[1.02] ${
+                        selectedCollections.includes(collection.name)
+                          ? 'border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/30'
+                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600'
+                        }`}
+                    >
+                      <div className="flex flex-col h-full">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
+                                {getPermissionLabel(collection.permission)}
+                              </span>
+                            </div>
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+                              {collection.name}
+                            </h4>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                            selectedCollections.includes(collection.name)
+                              ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
+                              : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-300 dark:group-hover:border-blue-600'
+                          }`}>
+                            {selectedCollections.includes(collection.name) && (
+                              <FaCheck size={12} className="text-white" />
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col space-y-2 mt-auto">
+                          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                            <FaUser className="mr-2" size={12} />
+                            <span className="truncate">{collection.createdBy}</span>
+                          </div>
+                          
+                          <div className="text-xs text-gray-500 dark:text-gray-500">
+                            {getRelativeTime(collection.created)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 
