@@ -51,7 +51,7 @@ export class ChatService {
   private chatModel = bedrockService.chatModel;
   private currentChatHistory?: HydratedDocument<IChatHistory>;
   private readonly BATCH_SIZE = 3; // Number of collections to query simultaneously
-  private readonly MIN_SIMILARITY_THRESHOLD = 0.6;
+  private readonly MIN_SIMILARITY_THRESHOLD = 0.3; // Lowered from 0.6 to match ChromaService
   // You are DinDin, a male AI. Keep responses brief and to the point.
 
   private isRelevantQuestion(query: string): boolean {

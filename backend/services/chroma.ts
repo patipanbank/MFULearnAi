@@ -194,7 +194,7 @@ class ChromaService {
       });
 
       // Filter results based on similarity score
-      const MIN_SIMILARITY_THRESHOLD = 0.6; // Adjust this threshold as needed
+      const MIN_SIMILARITY_THRESHOLD = 0.3; // Lowered from 0.6 to allow more results
       const documents = queryResult.documents[0];
       const distances = queryResult.distances?.[0] || [];
       const metadatas = queryResult.metadatas?.[0] || [];
