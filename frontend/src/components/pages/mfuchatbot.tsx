@@ -294,6 +294,7 @@ const MFUChatbot: React.FC = () => {
         console.log('Creating new WebSocket connection...');
         const wsUrl = new URL(import.meta.env.VITE_WS_URL);
         wsUrl.searchParams.append('token', token);
+        console.log('WebSocket URL:', wsUrl.toString());
         wsRef.current = new WebSocket(wsUrl.toString());
 
         await new Promise((resolve, reject) => {
@@ -306,7 +307,7 @@ const MFUChatbot: React.FC = () => {
 
           if (wsRef.current) {
             wsRef.current.onopen = () => {
-              console.log('WebSocket connection established');
+              console.log('WebSocket connection established with token');
               clearTimeout(timeout);
               resolve(undefined);
             };

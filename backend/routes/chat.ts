@@ -44,7 +44,10 @@ const wss = new WebSocketServer({
     try {
       // Get token from URL parameters
       const url = new URL(info.req.url!, `http://${info.req.headers.host}`);
+      console.log('Incoming WebSocket connection URL:', info.req.url);
+      
       const token = url.searchParams.get('token');
+      console.log('Token from URL params:', token ? 'Present' : 'Not present');
       
       if (!token) {
         console.log('WebSocket connection rejected: No token provided');
@@ -52,10 +55,16 @@ const wss = new WebSocketServer({
         return;
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
-      (info.req as any).user = decoded;
-      console.log('WebSocket connection authorized for user:', decoded.username);
-      cb(true);
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+        (info.req as any).user = decoded;
+        console.log('WebSocket connection authorized for user:', decoded.username);
+        cb(true);
+      } catch (jwtError) {
+        console.error('JWT verification failed:', jwtError);
+        cb(false, 401, 'Invalid token');
+        return;
+      }
     } catch (error) {
       console.error('WebSocket authentication error:', error);
       cb(false, 401, 'Unauthorized');
