@@ -692,9 +692,8 @@ const TrainingDashboard: React.FC = () => {
           );
 
           if (response.status === 404) {
-            setSelectedCollection(null);
-            setShowSettings(false);
-            fetchCollections();
+            // Collection not found in update interval, but don't close modal
+            await fetchUploadedFiles(selectedCollection.name);
             return;
           }
 
@@ -729,6 +728,10 @@ const TrainingDashboard: React.FC = () => {
           await fetchUploadedFiles(updatedData.name);
         } catch (error) {
           console.error('Error in real-time update:', error);
+          // Don't close modal on error, just try to fetch files
+          if (selectedCollection.name) {
+            await fetchUploadedFiles(selectedCollection.name);
+          }
         }
       }
     };
@@ -742,7 +745,7 @@ const TrainingDashboard: React.FC = () => {
         clearInterval(intervalId);
       }
     };
-  }, [selectedCollection, localStorage.getItem('auth_token'), fetchUploadedFiles]);
+  }, [selectedCollection, fetchUploadedFiles]);
 
   const handleCollectionSelect = async (collection: Collection) => {
     setSelectedCollection(collection);
@@ -755,6 +758,12 @@ const TrainingDashboard: React.FC = () => {
           },
         }
       );
+
+      if (response.status === 404) {
+        // Collection not found, but don't close modal - just fetch files
+        await fetchUploadedFiles(collection.name);
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch collection details');
@@ -787,6 +796,10 @@ const TrainingDashboard: React.FC = () => {
       await fetchUploadedFiles(freshData.name);
     } catch (error) {
       console.error('Error fetching collection details:', error);
+      // Don't close modal on error, just try to fetch files
+      if (collection.name) {
+        await fetchUploadedFiles(collection.name);
+      }
     }
   };
 
