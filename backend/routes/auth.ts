@@ -216,7 +216,7 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       return;
     }
 
-    const user = await User.findOne({ username, isAdmin: true });
+    const user = await User.findOne({ username, role: 'Admin' });
     if (!user) {
       res.status(401).json({ message: 'ไม่พบบัญชีผู้ใช้' });
       return;
@@ -233,7 +233,7 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       { 
         userId: user._id,
         username: user.username,
-        isAdmin: user.isAdmin,
+        role: user.role,
         groups: user.groups
       },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -245,13 +245,12 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       token,
       user: {
         username: user.username,
-        isAdmin: user.isAdmin,
+        role: user.role,
         groups: user.groups
       }
     });
-
   } catch (error) {
-    console.error('Admin login error:', error);
+    console.error('Login error:', error);
     res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
   }
 });
