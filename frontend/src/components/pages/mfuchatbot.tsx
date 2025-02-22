@@ -279,119 +279,32 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit()) return;
+    if (!inputMessage.trim() && selectedImages.length === 0) return;
+    if (!selectedModel) {
+      alert('Please select a model first');
+      return;
+    }
 
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
 
     try {
       const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      if (!token || !wsRef.current) {
+        throw new Error('Not authenticated or WebSocket not connected');
       }
 
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        console.log('Creating new WebSocket connection...');
-        const wsUrl = new URL(import.meta.env.VITE_WS_URL);
-        wsUrl.searchParams.append('token', token);
-        console.log('WebSocket URL:', wsUrl.toString());
-        
-        // Create new WebSocket connection
-        wsRef.current = new WebSocket(wsUrl.toString());
+      // Create a new conversation array starting with the system message
+      const currentConversation: Message[] = [{
+        id: 1,
+        role: 'system',
+        content: 'You are DinDin, a knowledgeable AI assistant.',
+        timestamp: new Date()
+      }];
 
-        // Wait for connection to be established
-        await new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            if (wsRef.current) {
-              wsRef.current.close();
-            }
-            reject(new Error('WebSocket connection timeout'));
-          }, 10000);
-
-          if (wsRef.current) {
-            wsRef.current.onopen = () => {
-              console.log('WebSocket connection established with token');
-              clearTimeout(timeout);
-              resolve(undefined);
-            };
-
-            wsRef.current.onerror = (error) => {
-              console.error('WebSocket connection error:', error);
-              clearTimeout(timeout);
-              reject(new Error('Failed to establish WebSocket connection. Please check your internet connection and try again.'));
-            };
-
-            wsRef.current.onclose = (event) => {
-              console.log('WebSocket connection closed:', event.code, event.reason);
-              // If connection was closed before being established
-              if (!event.wasClean) {
-                clearTimeout(timeout);
-                reject(new Error(`WebSocket connection closed unexpectedly: ${event.reason || 'Unknown reason'}`));
-              }
-            };
-          }
-        });
-
-        // After connection is established, set up message handler
-        if (wsRef.current) {
-          let accumulatedContent = '';  // Declare at the outer scope
-          wsRef.current.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              if (data.error) {
-                console.error('Received error from WebSocket:', data.error);
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: `Error: ${data.error}` }
-                    : msg
-                ));
-                return;
-              }
-
-              if (data.content) {
-                accumulatedContent += data.content;
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { 
-                        ...msg, 
-                        content: accumulatedContent,
-                        images: data.generatedImage ? [{
-                          data: data.generatedImage,
-                          mediaType: 'image/png'
-                        }] : undefined
-                      }
-                    : msg
-                ));
-              }
-
-              if (data.done) {
-                const updatedMessages = [
-                  ...messages,
-                  {
-                    id: aiMessageId,
-                    role: 'assistant' as const,
-                    content: accumulatedContent,
-                    timestamp: new Date(),
-                    sources: data.sources,
-                    images: data.generatedImage ? [{
-                      data: data.generatedImage,
-                      mediaType: 'image/png'
-                    }] : undefined
-                  }
-                ];
-
-                saveChatHistory(updatedMessages);
-              }
-            } catch (error) {
-              console.error('Error handling WebSocket message:', error);
-            }
-          };
-        }
-      }
-
-      const userMessage = {
-        id: messages.length + 1,
-        role: 'user' as const,
+      const userMessage: Message = {
+        id: currentConversation.length + 1,
+        role: 'user',
         content: inputMessage.trim(),
         timestamp: new Date(),
         images: selectedImages.length > 0 ? await Promise.all(
@@ -400,10 +313,15 @@ const MFUChatbot: React.FC = () => {
         isImageGeneration: isImageGenerationMode
       };
 
+      // Add the user message to the current conversation
+      currentConversation.push(userMessage);
+
+      // Update the UI with just the user message
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
+      // Add a placeholder for the AI response
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
@@ -412,20 +330,19 @@ const MFUChatbot: React.FC = () => {
       }]);
 
       console.log('Preparing WebSocket message with:', {
-        messageCount: messages.length,
+        messageCount: currentConversation.length,
         userMessage,
         selectedModel,
         isImageGeneration: isImageGenerationMode
       });
 
       const messagePayload = {
-        messages: [...messages, userMessage],
+        messages: currentConversation,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode
       };
 
       console.log('WebSocket message payload:', JSON.stringify(messagePayload));
-
       wsRef.current?.send(JSON.stringify(messagePayload));
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -441,12 +358,29 @@ const MFUChatbot: React.FC = () => {
   };
 
   useEffect(() => {
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    const wsUrl = new URL(import.meta.env.VITE_WS_URL);
+    wsUrl.searchParams.append('token', token);
+    wsRef.current = new WebSocket(wsUrl.toString());
+
+    wsRef.current.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.done) {
+          // Save chat history when response is complete
+          saveChatHistory(messages);
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
       }
     };
-  }, []);
+
+    return () => {
+      wsRef.current?.close();
+    };
+  }, [messages]);
 
   const saveChatHistory = async (messages: Message[]) => {
     try {
