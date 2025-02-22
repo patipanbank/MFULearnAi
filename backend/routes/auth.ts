@@ -39,27 +39,48 @@ router.use('/saml/callback', (req, res, next) => {
 const mapGroupToRole = (groups: string[]): UserRole => {
   console.log('Mapping groups to role:', groups);
   
-  // Admin group check
-  const isAdmin = groups.some(group => 
-    group === 'S-1-5-21-893890582-1041674030-1199480097-13779' // Admin group
+  // Check if groups is empty or undefined
+  if (!groups || groups.length === 0) {
+    console.log('No groups provided, defaulting to USER role');
+    return 'USER';
+  }
+
+  // Convert all groups to lowercase for case-insensitive comparison
+  const normalizedGroups = groups.map(g => g.toLowerCase());
+  
+  // Admin group check - look for admin-related keywords
+  const isAdmin = normalizedGroups.some(group => 
+    group.includes('admin') || 
+    group.includes('administrator') ||
+    group === 'S-1-5-21-893890582-1041674030-1199480097-13779' // Keep existing admin group
   );
   
-  // Staff group check
-  const isStaff = groups.some(group => 
-    group === 'S-1-5-21-893890582-1041674030-1199480097-513' // Staff group
+  // Staff group check - look for staff-related keywords
+  const isStaff = normalizedGroups.some(group => 
+    group.includes('staff') ||
+    group.includes('teacher') ||
+    group.includes('faculty') ||
+    group === 'S-1-5-21-893890582-1041674030-1199480097-513' // Keep existing staff group
   );
   
-  // Student group check
-  const isStudent = groups.some(group => 
-    group === 'S-1-5-21-893890582-1041674030-1199480097-43779' // Student group
+  // Student group check - look for student-related keywords
+  const isStudent = normalizedGroups.some(group => 
+    group.includes('student') ||
+    group.includes('learner') ||
+    group.includes('undergraduate') ||
+    group === 'S-1-5-21-893890582-1041674030-1199480097-43779' // Keep existing student group
   );
 
   console.log('Role mapping results:', { isAdmin, isStaff, isStudent });
 
+  // Determine role with proper hierarchy
   if (isAdmin) return 'ADMIN';
   if (isStaff) return 'STAFF';
   if (isStudent) return 'USER';
-  return 'USER'; // Default role
+  
+  // Default to USER role if no specific role is determined
+  console.log('No specific role determined, defaulting to USER role');
+  return 'USER';
 };
 
 if (!process.env.SAML_SP_ENTITY_ID || !process.env.SAML_SP_ACS_URL || !process.env.SAML_IDP_SSO_URL) {

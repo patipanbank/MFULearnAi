@@ -14,7 +14,7 @@ const guest_login = async (req: Request, res: Response): Promise<void> => {
 
         let user = await getUserbynameID(body.nameID);
         if (!user) {
-            user = await createUser({ nameID: body.nameID, role: 'STAFF' as UserRole });
+            user = await createUser({ nameID: body.nameID, role: 'USER' as UserRole });
             if (!user) {
                 res.status(500).json({ message: 'Failed to create user' });
                 return;
@@ -27,6 +27,7 @@ const guest_login = async (req: Request, res: Response): Promise<void> => {
             email: user.email || 'guest@localhost',
             firstName: user.firstName || 'Guest',
             lastName: user.lastName || 'User',
+            role: user.role,
             groups: [user.role]
         };
 
@@ -37,6 +38,7 @@ const guest_login = async (req: Request, res: Response): Promise<void> => {
                 email: userData.email,
                 firstName: userData.firstName,
                 lastName: userData.lastName,
+                role: userData.role,
                 groups: userData.groups
             },
             JWT_SECRET,
