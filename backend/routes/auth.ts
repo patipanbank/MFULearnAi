@@ -36,10 +36,21 @@ router.use('/saml/callback', (req, res, next) => {
 });
 
 // Define role mapping function
-const mapGroupToRole = (groups: string[]): UserRole => {
+const mapGroupToRole = async (groups: string[], nameID: string): Promise<UserRole> => {
   console.log('=== Role Mapping Debug ===');
   console.log('Input groups:', groups);
   
+  // First check if user already exists and has ADMIN role
+  try {
+    const existingUser = await User.findOne({ nameID });
+    if (existingUser && existingUser.role === 'ADMIN') {
+      console.log('Preserving existing ADMIN role for user');
+      return 'ADMIN';
+    }
+  } catch (error) {
+    console.error('Error checking existing user role:', error);
+  }
+
   // Check if groups is empty or undefined
   if (!groups || groups.length === 0) {
     console.log('No groups provided, defaulting to USER role');
@@ -94,83 +105,19 @@ const samlStrategy = new SamlStrategy(
   async function(req: any, profile: any, done: any) {
     try {
       console.log('=== SAML Profile Debug ===');
-      console.log('Full SAML Profile:', JSON.stringify(profile, null, 2));
-      console.log('Raw Profile:', profile);
-      console.log('Profile JSON:', JSON.stringify(profile, null, 2));
-      console.log('Available Keys:', Object.keys(profile));
+      console.log(profile);
 
-      // Extract user information from profile with more fallbacks
-      const nameID = profile.nameID || 
-                    profile.nameId || 
-                    profile.nameid ||
-                    profile['urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'];
+      // Extract user information from SAML profile
+      const nameID = profile.nameID;
+      const email = profile.email || profile['urn:oid:0.9.2342.19200300.100.1.3'];
+      const username = profile.username || profile['urn:oid:0.9.2342.19200300.100.1.1'];
+      const firstName = profile['urn:oid:2.5.4.42'] || profile.firstName;
+      const lastName = profile['urn:oid:2.5.4.4'] || profile.lastName;
+      const groups = profile['urn:oid:1.3.6.1.4.1.5923.1.5.1.1'] || [];
 
-      // Try to get groups from all possible SAML attributes
-      const possibleGroupAttributes = [
-        'http://schemas.xmlsoap.org/claims/Group',
-        'http://schemas.microsoft.com/ws/2008/06/identity/claims/groups',
-        'groups',
-        'memberOf',
-        'Group',
-        'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/group',
-        // Add any other possible group attribute names
-      ];
-
-      let groups: string[] = [];
-      for (const attr of possibleGroupAttributes) {
-        if (profile[attr]) {
-          const groupValue = profile[attr];
-          if (Array.isArray(groupValue)) {
-            groups = [...groups, ...groupValue];
-          } else if (typeof groupValue === 'string') {
-            groups.push(groupValue);
-          }
-          console.log(`Found groups in attribute ${attr}:`, groupValue);
-        }
-      }
-
-      console.log('=== Groups Debug ===');
-      console.log('Final groups array:', groups);
-      console.log('Number of groups:', groups.length);
-      
-      const username = profile['User.Username'] || 
-                      profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
-                      profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'] ||
-                      profile.uid ||
-                      profile.username ||
-                      profile.email?.split('@')[0];
-
-      const email = profile['User.Email'] || 
-                   profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
-                   profile.email ||
-                   profile.emailaddress ||
-                   profile.mail;
-
-      const firstName = profile['first_name'] || 
-                       profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'] ||
-                       profile.givenname ||
-                       profile.firstname ||
-                       profile['given_name'];
-
-      const lastName = profile['last_name'] || 
-                      profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'] ||
-                      profile.surname ||
-                      profile.lastname ||
-                      profile['family_name'];
-
-      console.log('=== Extracted Values ===');
-      console.log({
-        nameID,
-        username,
-        email,
-        firstName,
-        lastName,
-        groups
-      });
-
-      // If we don't have nameID but have email, use email as nameID
-      const finalNameID = nameID || email;
-      const finalUsername = username || email?.split('@')[0] || finalNameID;
+      // Determine final values with fallbacks
+      const finalNameID = nameID || email || username;
+      const finalUsername = username || email?.split('@')[0] || nameID;
 
       if (!finalNameID) {
         console.error('Missing nameID and no fallback available');
@@ -184,6 +131,9 @@ const samlStrategy = new SamlStrategy(
         return done(new Error('Missing required user information: username'));
       }
 
+      // Get role based on groups
+      const role = await mapGroupToRole(Array.isArray(groups) ? groups : [groups], finalNameID);
+
       // Update user in database
       const user = await User.findOneAndUpdate(
         { nameID: finalNameID },
@@ -194,7 +144,7 @@ const samlStrategy = new SamlStrategy(
           firstName: firstName || '',
           lastName: lastName || '',
           groups: Array.isArray(groups) ? groups : [groups],
-          role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]),
+          role: role,
           updated: new Date()
         },
         { upsert: true, new: true }
@@ -213,14 +163,9 @@ const samlStrategy = new SamlStrategy(
         role: user.role
       };
 
-      const dbUser = await User.findOne({ nameID: userData.nameID });
-      if (!dbUser) {
-        throw new Error('User not found in database');
-      }
-
       const token = jwt.sign(
         {
-          userId: dbUser._id,
+          userId: user._id,
           nameID: userData.nameID,
           username: userData.username,
           email: userData.email,
@@ -257,7 +202,7 @@ router.get('/login/saml', passport.authenticate('saml'));
 
 router.post('/saml/callback', 
   (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate('saml', (err: Error | null, user: { userData: SamlUserData; token?: string } | false, info: any) => {
+    passport.authenticate('saml', async (err: Error | null, user: { userData: SamlUserData; token?: string } | false, info: any) => {
       if (err) {
         console.error('SAML Authentication Error:', err);
         return res.redirect('/login?error=' + encodeURIComponent(err.message));
@@ -280,7 +225,7 @@ router.post('/saml/callback',
             throw new Error('No user data provided');
           }
 
-          const role = mapGroupToRole(userData.groups || []);
+          const role = await mapGroupToRole(userData.groups || [], userData.nameID);
 
           const userInfo = {
             nameID: userData.nameID,
@@ -291,24 +236,23 @@ router.post('/saml/callback',
             role: role
           };
 
-          await User.findOneAndUpdate(
+          const updatedUser = await User.findOneAndUpdate(
             { nameID: userInfo.nameID },
             {
               ...userInfo,
               groups: userData.groups || [],
               updated: new Date()
             },
-            { upsert: true }
+            { upsert: true, new: true }
           );
 
-          const dbUser = await User.findOne({ nameID: userInfo.nameID });
-          if (!dbUser) {
+          if (!updatedUser) {
             throw new Error('User not found in database');
           }
 
           const token = jwt.sign(
             {
-              userId: dbUser._id,
+              userId: updatedUser._id,
               nameID: userInfo.nameID,
               username: userInfo.username,
               email: userInfo.email,
