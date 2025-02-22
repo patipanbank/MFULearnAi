@@ -63,7 +63,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
-  const [isStaffUser, setIsStaffUser] = useState(false);
 
   // Add click outside handler
   useEffect(() => {
@@ -230,15 +229,6 @@ const MFUChatbot: React.FC = () => {
     };
 
     loadChatHistory();
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      const isStaff = tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin';
-      setIsStaffUser(isStaff);
-    }
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
