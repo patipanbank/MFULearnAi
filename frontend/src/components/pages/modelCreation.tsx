@@ -706,14 +706,12 @@ const ModelCreation: React.FC = () => {
       return;
     }
     const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
-    const nameID = tokenPayload.nameID;
-    const username = tokenPayload.username;
+    const userId = tokenPayload.userId;
     console.log('Creating model with:', {
       userGroups: tokenPayload.groups,
       isStaff: tokenPayload.groups?.includes('Staffs'),
       modelType: newModelType,
-      username,
-      nameID
+      userId
     });
 
     try {
@@ -727,8 +725,8 @@ const ModelCreation: React.FC = () => {
         body: JSON.stringify({
           name: newModelName.trim(),
           modelType: newModelType,
-          createdBy: username,
-          userId: nameID
+          createdBy: userId,
+          userId: userId
         }),
       });
 
