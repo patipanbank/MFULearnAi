@@ -351,74 +351,68 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
 
         {/* Files List Section */}
         <section className="space-y-4">
-          {isFilesLoading ? (
-            <div className="text-center py-12">Loading files...</div>
-          ) : (
-            <>
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  Documents in Collection
-                </h3>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              
-              {uploadedFiles.length > 0 ? (
-                <div className="space-y-3">
-                  {uploadedFiles.map((fileItem, index) => (
-                    <div 
-                      key={index} 
-                      className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm 
-                      border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md 
-                      transition-all duration-200"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {fileItem.filename}
-                          </h4>
-                          <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
-                            <p className="text-gray-600 dark:text-gray-300">
-                              {fileItem.uploadedBy}
-                            </p>
-                            <p className="text-gray-500 dark:text-gray-400">
-                              {new Date(fileItem.timestamp).toLocaleString()}
-                            </p>
-                            <p className="text-gray-500 dark:text-gray-400">
-                              {fileItem.ids.length} chunks
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => onDeleteFile(fileItem)}
-                          className="ml-4 p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
-                          dark:hover:text-red-400 transition-colors duration-200 rounded-lg 
-                          hover:bg-gray-100 dark:hover:bg-gray-700"
-                          title="Delete Document"
-                        >
-                          <FaTrash size={16} />
-                        </button>
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              Documents in Collection
+            </h3>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          
+          {uploadedFiles.length > 0 ? (
+            <div className="space-y-3">
+              {uploadedFiles.map((fileItem, index) => (
+                <div 
+                  key={index} 
+                  className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm 
+                  border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md 
+                  transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {fileItem.filename}
+                      </h4>
+                      <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
+                        <p className="text-gray-600 dark:text-gray-300">
+                          {fileItem.uploadedBy}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          {new Date(fileItem.timestamp).toLocaleString()}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          {fileItem.ids.length} chunks
+                        </p>
                       </div>
                     </div>
-                  ))}
+                    <button
+                      onClick={() => onDeleteFile(fileItem)}
+                      className="ml-4 p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
+                      dark:hover:text-red-400 transition-colors duration-200 rounded-lg 
+                      hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title="Delete Document"
+                    >
+                      <FaTrash size={16} />
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 
-                dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl border-2 border-dashed 
-                border-gray-300 dark:border-gray-600">
-                  <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                  </svg>
-                  <p className="mt-4 text-base font-medium text-gray-600 dark:text-gray-400">
-                    No documents uploaded yet
-                  </p>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-                    Upload a document to get started with your collection
-                  </p>
-                </div>
-              )}
-            </>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 
+            dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl border-2 border-dashed 
+            border-gray-300 dark:border-gray-600">
+              <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+              </svg>
+              <p className="mt-4 text-base font-medium text-gray-600 dark:text-gray-400">
+                No documents uploaded yet
+              </p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
+                Upload a document to get started with your collection
+              </p>
+            </div>
           )}
         </section>
       </div>
