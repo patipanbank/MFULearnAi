@@ -5,6 +5,7 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useSearchParams } from 'react-router-dom';
 
 interface Source {
   modelId: string;
@@ -56,6 +57,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const [searchParams] = useSearchParams();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -133,32 +135,63 @@ const MFUChatbot: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loadChatHistory = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) return;
+    const chatId = searchParams.get('chatId');
+    const isNewChat = searchParams.get('new');
+    
+    if (isNewChat === 'true') {
+      setMessages([]);
+      setSelectedModel('');
+      setSelectedCollection('');
+    } else if (chatId) {
+      loadSpecificChat(chatId);
+    } else {
+      loadChatHistory();
+    }
+  }, [searchParams]);
 
-        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const history = await response.json();
-          if (history.messages) {
-            setMessages(history.messages);
-            setSelectedModel(history.modelId || '');
-            setSelectedCollection(history.collectionName || '');
-          }
+  const loadSpecificChat = async (chatId: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error('Error loading chat history:', error);
+      });
+      
+      if (response.ok) {
+        const chat = await response.json();
+        setMessages(chat.messages);
+        setSelectedModel(chat.modelId);
+        setSelectedCollection(chat.collectionName);
       }
-    };
+    } catch (error) {
+      console.error('Error loading specific chat:', error);
+    }
+  };
 
-    loadChatHistory();
-  }, []);
+  const loadChatHistory = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const history = await response.json();
+        if (history.messages) {
+          setMessages(history.messages);
+          setSelectedModel(history.modelId || '');
+          setSelectedCollection(history.collectionName || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);

@@ -12,6 +12,7 @@ import embeddingRoutes from './routes/embedding';
 import chatRoutes from './routes/chat';
 import bodyParser from 'body-parser';
 import compression from 'compression';
+import chatHistoryRoutes from './routes/chatHistory';
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/embed', embeddingRoutes);
+app.use('/api/chat-history', chatHistoryRoutes);
 
 // เพิ่มการตั้งค่า timeout
 app.use((req, res, next) => {
