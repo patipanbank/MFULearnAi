@@ -96,6 +96,24 @@ interface ModelCardProps {
 }
 const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelete }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
+  const [isStaffUser, setIsStaffUser] = useState<boolean>(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      setIsStaffUser(tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN');
+    }
+  }, []);
+
+  const handleCardClick = () => {
+    if (model.modelType === 'official' && !isStaffUser) {
+      // Show sweet alert for non-staff users trying to access official models
+      window.alert('You do not have permission to access official models');
+      return;
+    }
+    onClick();
+  };
 
   const getModelTypeStyle = (type: string) => {
     switch (type) {
@@ -112,10 +130,11 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, onDelet
 
   return (
     <div
-      className="relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md 
-      hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 cursor-pointer 
-      border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
-      onClick={onClick}
+      className={`relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md 
+      hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 
+      border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
+      ${model.modelType === 'official' && !isStaffUser ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+      onClick={handleCardClick}
     >
       <button
         onClick={(e) => {
@@ -324,6 +343,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   onClose,
 }) => {
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isStaffUser, setIsStaffUser] = useState(false);
 
   const getPermissionStyle = (permission?: string | string[]) => {
     if (Array.isArray(permission)) {
@@ -361,8 +381,28 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     }
   };
 
-  // Filter collections based on search query
-  const filteredCollections = availableCollections.filter(collection =>
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      setIsStaffUser(tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN');
+    }
+  }, []);
+
+  // Filter collections based on permissions and model type
+  const filteredCollections = availableCollections.filter(collection => {
+    // Show all collections for staff users
+    if (isStaffUser) return true;
+
+    // For personal models, only show public collections
+    if (model.modelType === 'personal') {
+      const permission = typeof collection.permission === 'string' ? collection.permission.toLowerCase() : '';
+      return permission === 'public';
+    }
+
+    // For other model types (which shouldn't be accessible to non-staff anyway)
+    return false;
+  }).filter(collection =>
     collection.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -959,33 +999,23 @@ const ModelCreation: React.FC = () => {
       const authToken = localStorage.getItem('auth_token');
       if (!authToken) throw new Error('No auth token found');
 
-      // Get user info from token
       const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
       const isStaffUser = tokenPayload.role === 'STAFF' || tokenPayload.role === 'ADMIN';
-      const userId = tokenPayload.sub || '';
 
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
       });
+      
       if (!response.ok) throw new Error('Failed to fetch collections');
       const data = await response.json();
 
-      // Filter collections based on permissions
+      // Filter collections based on user role and permissions
       const filteredCollections = data.filter((collection: Collection) => {
-        // Staff can see all collections (public, private, and with specific permissions)
         if (isStaffUser) return true;
-        
-        // For regular users:
-        // 1. Their own collections
-        // 2. Public collections
-        // 3. Collections where they are explicitly listed in permissions
-        return (
-          collection.createdBy === userId ||
-          collection.permission === 'public' ||
-          (Array.isArray(collection.permission) && collection.permission.includes(userId))
-        );
+        const permission = typeof collection.permission === 'string' ? collection.permission.toLowerCase() : '';
+        return permission === 'public';
       });
 
       setAvailableCollections(filteredCollections);

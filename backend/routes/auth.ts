@@ -37,7 +37,8 @@ router.use('/saml/callback', (req, res, next) => {
 
 // Define role mapping function
 const mapGroupToRole = (groups: string[]): UserRole => {
-  console.log('Mapping groups to role:', groups);
+  console.log('=== Role Mapping Debug ===');
+  console.log('Input groups:', groups);
   
   // Check if groups is empty or undefined
   if (!groups || groups.length === 0) {
@@ -45,42 +46,19 @@ const mapGroupToRole = (groups: string[]): UserRole => {
     return 'USER';
   }
 
-  // Convert all groups to lowercase for case-insensitive comparison
-  const normalizedGroups = groups.map(g => g.toLowerCase());
-  
-  // Admin group check - look for admin-related keywords
-  const isAdmin = normalizedGroups.some(group => 
-    group.includes('admin') || 
-    group.includes('administrator') ||
-    group === 'S-1-5-21-893890582-1041674030-1199480097-13779' // Keep existing admin group
-  );
-  
-  // Staff group check - look for staff-related keywords
-  const isStaff = normalizedGroups.some(group => 
-    group.includes('staff') ||
-    group.includes('teacher') ||
-    group.includes('faculty') ||
-    group === 'S-1-5-21-893890582-1041674030-1199480097-513' // Keep existing staff group
-  );
-  
-  // Student group check - look for student-related keywords
-  const isStudent = normalizedGroups.some(group => 
-    group.includes('student') ||
-    group.includes('learner') ||
-    group.includes('undergraduate') ||
-    group === 'S-1-5-21-893890582-1041674030-1199480097-43779' // Keep existing student group
+  // Check for student group ID
+  const isStudent = groups.some(group => 
+    group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
   );
 
-  console.log('Role mapping results:', { isAdmin, isStaff, isStudent });
+  if (isStudent) {
+    console.log('Found student group ID - assigning USER role');
+    return 'USER';
+  }
 
-  // Determine role with proper hierarchy
-  if (isAdmin) return 'ADMIN';
-  if (isStaff) return 'STAFF';
-  if (isStudent) return 'USER';
-  
-  // Default to USER role if no specific role is determined
-  console.log('No specific role determined, defaulting to USER role');
-  return 'USER';
+  // If not student group, assign STAFF role
+  console.log('No student group found - assigning STAFF role');
+  return 'STAFF';
 };
 
 if (!process.env.SAML_SP_ENTITY_ID || !process.env.SAML_SP_ACS_URL || !process.env.SAML_IDP_SSO_URL) {
@@ -116,6 +94,7 @@ const samlStrategy = new SamlStrategy(
   async function(req: any, profile: any, done: any) {
     try {
       console.log('=== SAML Profile Debug ===');
+      console.log('Full SAML Profile:', JSON.stringify(profile, null, 2));
       console.log('Raw Profile:', profile);
       console.log('Profile JSON:', JSON.stringify(profile, null, 2));
       console.log('Available Keys:', Object.keys(profile));
@@ -126,6 +105,34 @@ const samlStrategy = new SamlStrategy(
                     profile.nameid ||
                     profile['urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'];
 
+      // Try to get groups from all possible SAML attributes
+      const possibleGroupAttributes = [
+        'http://schemas.xmlsoap.org/claims/Group',
+        'http://schemas.microsoft.com/ws/2008/06/identity/claims/groups',
+        'groups',
+        'memberOf',
+        'Group',
+        'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/group',
+        // Add any other possible group attribute names
+      ];
+
+      let groups: string[] = [];
+      for (const attr of possibleGroupAttributes) {
+        if (profile[attr]) {
+          const groupValue = profile[attr];
+          if (Array.isArray(groupValue)) {
+            groups = [...groups, ...groupValue];
+          } else if (typeof groupValue === 'string') {
+            groups.push(groupValue);
+          }
+          console.log(`Found groups in attribute ${attr}:`, groupValue);
+        }
+      }
+
+      console.log('=== Groups Debug ===');
+      console.log('Final groups array:', groups);
+      console.log('Number of groups:', groups.length);
+      
       const username = profile['User.Username'] || 
                       profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
                       profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'] ||
@@ -150,12 +157,6 @@ const samlStrategy = new SamlStrategy(
                       profile.surname ||
                       profile.lastname ||
                       profile['family_name'];
-
-      const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || 
-                    profile['http://schemas.microsoft.com/ws/2008/06/identity/claims/groups'] ||
-                    profile['groups'] ||
-                    profile.memberOf ||
-                    [];
 
       console.log('=== Extracted Values ===');
       console.log({
