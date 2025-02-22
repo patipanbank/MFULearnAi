@@ -5,6 +5,7 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import  Sidebar  from '../sidebar/sidebar';
 
 interface Source {
   modelId: string;
@@ -56,6 +57,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const [, setCurrentChatId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -497,8 +499,30 @@ const MFUChatbot: React.FC = () => {
     return data.embedding;
   };
 
+  const handleSelectChat = async (chatId: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const chat = await response.json();
+        setMessages(chat.messages);
+        setSelectedModel(chat.modelId);
+        setSelectedCollection(chat.collectionName);
+        setCurrentChatId(chatId);
+      }
+    } catch (error) {
+      console.error('Error loading chat:', error);
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
+      <Sidebar onSelectChat={handleSelectChat} />
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
