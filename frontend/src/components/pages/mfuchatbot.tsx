@@ -222,8 +222,29 @@ const MFUChatbot: React.FC = () => {
           if (Array.isArray(histories) && histories.length > 0) {
             // Get the most recent chat
             const latestChat = histories[0]; // Since they're sorted by updatedAt desc
-            setMessages(latestChat.messages || []);
-            setSelectedModel(latestChat.modelId || '');
+            if (latestChat.messages && Array.isArray(latestChat.messages)) {
+              // Process messages to ensure proper format
+              const processedMessages = latestChat.messages.map((msg: {
+                id: number;
+                role: 'user' | 'assistant' | 'system';
+                content: string;
+                timestamp: string | Date;
+                images?: Array<{ data: string; mediaType: string }>;
+                sources?: Array<{ modelId: string; collectionName: string; filename: string; similarity: number }>;
+                isImageGeneration?: boolean;
+              }) => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content || '',
+                timestamp: new Date(msg.timestamp),
+                images: msg.images || [],
+                sources: msg.sources || [],
+                isImageGeneration: msg.isImageGeneration || false
+              }));
+              setMessages(processedMessages);
+              setSelectedModel(latestChat.modelId || '');
+              console.log('Loaded chat history:', processedMessages);
+            }
           }
         }
       } catch (error) {
