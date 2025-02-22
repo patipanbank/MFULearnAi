@@ -48,7 +48,9 @@ const upload = multer({
  * Returns true if the user is in the 'Staffs' group or is the owner or is an Admin.
  */
 async function checkCollectionAccess(user: any, collection: any): Promise<boolean> {
-  return user.groups.includes('Admin') || user.groups.includes('Staffs') || collection.createdBy === user.nameID;
+  return user.groups.includes('Admin') || 
+         user.groups.includes('Staffs') || 
+         collection.createdBy === (user.nameID || user.username);
 }
 
 /**
@@ -200,11 +202,17 @@ router.post('/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), async 
     const { name, permission } = req.body;
     const user = (req as any).user;
     
-    const newCollection = await chromaService.createCollection(name, permission, user.nameID);
+    // Use nameID if available, otherwise fall back to username (for admin users)
+    const createdBy = user.nameID || user.username;
+    if (!createdBy) {
+      throw new Error('User identifier not found');
+    }
+    
+    const newCollection = await chromaService.createCollection(name, permission, createdBy);
     
     // Track collection creation
     await TrainingHistory.create({
-      userId: user.nameID,
+      userId: user.nameID || user.username,
       username: user.username,
       collectionName: name,
       action: 'create_collection',
@@ -361,10 +369,11 @@ router.get('/documents', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]
     }
     
     // Check user permission based on collection settings.
+    const userId = user.nameID || user.username;
     const canAccess = 
       collection.permission === CollectionPermission.PUBLIC ||
       (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
-      collection.createdBy === user.nameID;
+      collection.createdBy === userId;
     if (!canAccess) {
       res.status(403).json({ error: 'No permission to access this collection' });
       return;
@@ -426,7 +435,7 @@ router.delete('/documents/:id', roleGuard(['Students', 'Staffs', 'Admin'] as Use
       return;
     }
 
-    const canDelete = user.groups.includes('Staffs') || collection.createdBy === user.nameID;
+    const canDelete = user.groups.includes('Staffs') || collection.createdBy === (user.nameID || user.username);
     if (!canDelete) {
       res.status(403).json({ error: 'No permission to delete this document' });
       return;

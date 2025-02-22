@@ -501,7 +501,7 @@ class ChromaService {
     }
   }
 
-  async checkCollectionAccess(collectionName: string, user: { nameID: string, groups: string[] }) {
+  async checkCollectionAccess(collectionName: string, user: { nameID: string, username: string, groups: string[] }) {
     try {
       // ค้นหา collection จาก MongoDB
       const collection = await CollectionModel.findOne({ name: collectionName });
@@ -516,6 +516,9 @@ class ChromaService {
         return true;
       }
 
+      // Get user identifier (nameID or username)
+      const userId = user.nameID || user.username;
+
       // ตรวจสอบสิทธิ์
       switch (collection.permission) {
         case CollectionPermission.PUBLIC:
@@ -523,7 +526,7 @@ class ChromaService {
         case CollectionPermission.STAFF_ONLY:
           return user.groups.includes('Staffs');
         case CollectionPermission.PRIVATE:
-          return collection.createdBy === user.nameID;
+          return collection.createdBy === userId;
         default:
           return false;
       }

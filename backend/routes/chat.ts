@@ -416,4 +416,10 @@ router.get('/collections', async (req: Request, res: Response) => {
   }
 });
 
+async function checkCollectionAccess(user: any, collection: any): Promise<boolean> {
+  return user.groups.includes('Admin') || 
+         user.groups.includes('Staffs') || 
+         collection.createdBy === (user.nameID || user.username);
+}
+
 export default router;
