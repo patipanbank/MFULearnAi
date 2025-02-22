@@ -164,6 +164,14 @@ class ChromaService {
       if (!collection) {
         throw new Error(`ChromaService: Collection '${collectionName}' not found.`);
       }
+
+      // Check if collection has any documents
+      const collectionContents = await collection.get();
+      console.log(`ChromaService: Collection '${collectionName}' contains:`, {
+        documentCount: collectionContents.documents?.length || 0,
+        metadataCount: collectionContents.metadatas?.length || 0
+      });
+
       console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results.`);
 
       const queryResult = await collection.query({
@@ -176,6 +184,14 @@ class ChromaService {
       if (!queryResult.documents || !Array.isArray(queryResult.documents)) {
         throw new Error("ChromaService: queryResult.documents is not an array.");
       }
+
+      // Log query results
+      console.log(`ChromaService: Query returned:`, {
+        documentsLength: queryResult.documents.length,
+        firstDocumentLength: queryResult.documents[0]?.length || 0,
+        metadatasLength: queryResult.metadatas?.length || 0,
+        distancesLength: queryResult.distances?.length || 0
+      });
 
       // Filter results based on similarity score
       const MIN_SIMILARITY_THRESHOLD = 0.6; // Adjust this threshold as needed
@@ -202,6 +218,15 @@ class ChromaService {
         .filter((result: QueryResult) => result.similarity >= MIN_SIMILARITY_THRESHOLD)
         .sort((a: QueryResult, b: QueryResult) => b.similarity - a.similarity)
         .slice(0, n_results);
+
+      // Log filtered results
+      console.log(`ChromaService: After filtering:`, {
+        filteredCount: filteredResults.length,
+        similarityRange: filteredResults.length > 0 ? {
+          min: Math.min(...filteredResults.map((r: QueryResult) => r.similarity)),
+          max: Math.max(...filteredResults.map((r: QueryResult) => r.similarity))
+        } : null
+      });
 
       return {
         documents: filteredResults.map((r: QueryResult) => r.text),
