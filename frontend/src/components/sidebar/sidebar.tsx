@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 // import { FaComments, FaBars, FaCog, FaHistory, FaSignOutAlt } from 'react-icons/fa';
-import { FaComments, FaBars, FaCog, FaSignOutAlt } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -36,11 +36,14 @@ interface ChatHistory {
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const isStaff = userData.groups?.includes('Staffs');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
   const currentChatId = searchParams.get('chat');
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [newChatName, setNewChatName] = useState('');
 
   const fetchChatHistories = async () => {
     try {
@@ -93,6 +96,56 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
+  const handleDelete = async (chatId: string) => {
+    if (!confirm('คุณต้องการลบแชทนี้ใช่หรือไม่?')) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        // ถ้าลบแชทที่กำลังดูอยู่ ให้กลับไปหน้า New Chat
+        if (currentChatId === chatId) {
+          navigate('/mfuchatbot');
+        }
+        fetchChatHistories();
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+    }
+  };
+
+  const handleEdit = (chatId: string, currentName: string) => {
+    setEditingChatId(chatId);
+    setNewChatName(currentName);
+  };
+
+  const handleSaveEdit = async (chatId: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ chatname: newChatName })
+      });
+
+      if (response.ok) {
+        setEditingChatId(null);
+        fetchChatHistories();
+      }
+    } catch (error) {
+      console.error('Error updating chat name:', error);
+    }
+  };
+
   return (
     <aside className="flex flex-col h-full">
       <div className="flex-none p-4 border-b">
@@ -140,14 +193,59 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <h3 className="px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Chat History</h3>
             <div className="mt-2 space-y-1">
               {Array.isArray(chatHistories) && chatHistories.map((chat) => (
-                <Link
-                  key={chat._id}
-                  to={`/mfuchatbot?chat=${chat._id}`}
-                  className={`flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
-                    ${currentChatId === chat._id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-                >
-                  <span className="truncate">{chat.chatname || 'Untitled Chat'}</span>
-                </Link>
+                <div key={chat._id} className="flex items-center group">
+                  {editingChatId === chat._id ? (
+                    <div className="flex-1 flex items-center px-4 py-2">
+                      <input
+                        type="text"
+                        value={newChatName}
+                        onChange={(e) => setNewChatName(e.target.value)}
+                        className="flex-1 px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(chat._id);
+                          if (e.key === 'Escape') setEditingChatId(null);
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleSaveEdit(chat._id)}
+                        className="ml-2 text-green-500 hover:text-green-600"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={() => setEditingChatId(null)}
+                        className="ml-2 text-red-500 hover:text-red-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Link
+                        to={`/mfuchatbot?chat=${chat._id}`}
+                        className={`flex-1 flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
+                          ${currentChatId === chat._id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                      >
+                        <span className="truncate">{chat.chatname || 'Untitled Chat'}</span>
+                      </Link>
+                      <div className="hidden group-hover:flex items-center pr-2">
+                        <button
+                          onClick={() => handleEdit(chat._id, chat.chatname)}
+                          className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                          <FaEdit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(chat._id)}
+                          className="p-1 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                        >
+                          <FaTrash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               ))}
             </div>
           </div>

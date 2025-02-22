@@ -245,4 +245,50 @@ router.get('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (re
   }
 });
 
+// ลบแชท
+router.delete('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const chatId = req.params.id;
+    
+    const result = await ChatHistory.findOneAndDelete({ 
+      _id: chatId,
+      userId: userId
+    });
+
+    if (!result) {
+      res.status(404).json({ error: 'Chat history not found' });
+    }
+
+    res.json({ message: 'Chat deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting chat history:', error);
+    res.status(500).json({ error: 'Failed to delete chat history' });
+  }
+});
+
+// แก้ไขชื่อแชท
+router.patch('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const chatId = req.params.id;
+    const { chatname } = req.body;
+    
+    const chat = await ChatHistory.findOneAndUpdate(
+      { _id: chatId, userId: userId },
+      { chatname },
+      { new: true }
+    );
+
+    if (!chat) {
+      res.status(404).json({ error: 'Chat history not found' });
+    }
+
+    res.json(chat);
+  } catch (error) {
+    console.error('Error updating chat name:', error);
+    res.status(500).json({ error: 'Failed to update chat name' });
+  }
+});
+
 export default router;
