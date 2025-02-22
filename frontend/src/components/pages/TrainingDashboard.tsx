@@ -20,7 +20,7 @@ interface UploadedFile {
 }
 
 interface MongoCollection {
-  _id: string | { toString(): string };  // MongoDB ObjectId can be string or object
+  _id: string | { toString(): string };  // MongoDB ObjectId can be string or object with toString
   id?: string;
   name: string;
   createdBy?: string;
@@ -34,11 +34,6 @@ interface MongoFile {
   uploadedBy?: string;
   timestamp?: string;
   ids?: string[];
-}
-
-interface TrainingData {
-  username: string;
-  // Add other fields as needed
 }
 
 // ----------------------
@@ -668,10 +663,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 // Main Dashboard Component
 // ----------------------
 const TrainingDashboard: React.FC = () => {
-  const [trainingData, setTrainingData] = useState<TrainingData[]>([]);
-  const [loading, setLoading] = useState(true);
   const { isStaff, user } = useAuth();
-
+  const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFilesLoading, setIsFilesLoading] = useState<boolean>(false);
@@ -713,7 +706,7 @@ const TrainingDashboard: React.FC = () => {
       const transformedCollections: Collection[] = data
         .filter((mongo: MongoCollection) => mongo._id) // Filter out any items without an _id
         .map((mongo: MongoCollection) => ({
-          id: mongo.id || (typeof mongo._id === 'string' ? mongo._id : mongo._id?.toString()) || 'unknown',
+          id: mongo.id || (typeof mongo._id === 'string' ? mongo._id : mongo._id.toString()),
           name: mongo.name,
           createdBy: mongo.createdBy || 'Unknown',
           created: mongo.created || mongo.createdAt || new Date().toISOString(),
@@ -762,28 +755,6 @@ const TrainingDashboard: React.FC = () => {
     } finally {
       setIsFilesLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    const fetchTrainingData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${config.apiUrl}/api/training/history`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        });
-        if (!response.ok) throw new Error('Failed to fetch training data');
-        const data = await response.json();
-        setTrainingData(data);
-      } catch (error) {
-        console.error('Error fetching training data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTrainingData();
   }, []);
 
   useEffect(() => {
@@ -956,7 +927,7 @@ const TrainingDashboard: React.FC = () => {
         id: newMongoCollection._id 
           ? (typeof newMongoCollection._id === 'string' 
               ? newMongoCollection._id 
-              : newMongoCollection._id?.toString() || 'unknown')
+              : newMongoCollection._id.toString())
           : 'unknown',
         name: newMongoCollection.name,
         createdBy: newMongoCollection.createdBy || user?.username || 'Unknown',
@@ -1107,11 +1078,6 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  // Filter training data based on user role
-  const filteredTrainingData = trainingData.filter(data => 
-    isStaff || data.username === user?.username
-  );
-
   // Filter collections based on search
   const filteredCollections = collections.filter((collection) =>
     collection.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1123,7 +1089,7 @@ const TrainingDashboard: React.FC = () => {
         <div className="flex items-center justify-center min-h-[200px]">
           <div className="flex flex-col items-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <p className="text-gray-600 dark:text-gray-300">Loading training data...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading collections...</p>
           </div>
         </div>
       ) : (
@@ -1134,32 +1100,6 @@ const TrainingDashboard: React.FC = () => {
             onNewCollectionToggle={() => setShowNewCollectionModal(true)}
             loading={loading || isCollectionsLoading}
           />
-
-          {/* Training History Section */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-              Recent Training Activity
-            </h2>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-              {filteredTrainingData.length > 0 ? (
-                <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredTrainingData.map((data, index) => (
-                    <div key={index} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {data.username}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                  No training activity found
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* Collections Section */}
           {isCollectionsLoading ? (
