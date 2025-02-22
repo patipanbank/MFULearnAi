@@ -12,7 +12,8 @@ export class BedrockService {
   private client: BedrockRuntimeClient;
   private models = {
     claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    titanImage: "amazon.titan-embed-image-v1"
+    titanImage: "amazon.titan-embed-image-v1",
+    claudeImage: "anthropic.claude-3-sonnet-20240229-v1:0"  // Using Claude 3 for image generation
   };
 
   private readonly defaultConfig: ModelConfig = {
@@ -52,10 +53,16 @@ export class BedrockService {
       temperature: 0.4,
       topP: 0.9,
       maxTokens: 2048
+    },
+    imageGeneration: {  // New config for image generation
+      temperature: 0.8,  // Higher temperature for more creative image descriptions
+      topP: 0.95,
+      maxTokens: 4096
     }
   };
 
   public chatModel = this.models.claude35;
+  public imageModel = this.models.claudeImage;
 
   constructor() {
     this.client = new BedrockRuntimeClient({
@@ -114,8 +121,20 @@ export class BedrockService {
   }
 
   private getModelConfig(messages: ChatMessage[]): ModelConfig {
+    const lastMessage = messages[messages.length - 1];
+    
+    if (lastMessage.isImageGeneration) {
+      return {
+        ...this.defaultConfig,
+        ...this.questionTypeConfigs.imageGeneration
+      };
+    }
+
     const messageType = this.detectMessageType(messages);
-    return this.questionTypeConfigs[messageType] || this.defaultConfig;
+    return {
+      ...this.defaultConfig,
+      ...this.questionTypeConfigs[messageType]
+    };
   }
 
   async *chat(messages: ChatMessage[], modelId: string): AsyncGenerator<string> {
@@ -123,8 +142,11 @@ export class BedrockService {
       const config = this.getModelConfig(messages);
       console.log('Using model config:', config);
 
+      const lastMessage = messages[messages.length - 1];
+      const isImageGeneration = lastMessage.isImageGeneration;
+
       const command = new InvokeModelWithResponseStreamCommand({
-        modelId: this.models.claude35,
+        modelId: isImageGeneration ? this.models.claudeImage : this.models.claude35,
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify({
@@ -135,17 +157,24 @@ export class BedrockService {
           stop_sequences: config.stopSequences,
           messages: messages.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.images ? [
-              { type: 'text', text: msg.content },
-              ...msg.images.map(img => ({
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: img.mediaType,
-                  data: img.data
+            content: isImageGeneration ? 
+              [
+                {
+                  type: 'text',
+                  text: `Please generate a detailed image based on this description: ${msg.content}`
                 }
-              }))
-            ] : msg.content
+              ] : 
+              msg.images ? [
+                { type: 'text', text: msg.content },
+                ...msg.images.map(img => ({
+                  type: 'image',
+                  source: {
+                    type: 'base64',
+                    media_type: img.mediaType,
+                    data: img.data
+                  }
+                }))
+              ] : msg.content
           }))
         })
       });

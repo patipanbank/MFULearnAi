@@ -279,7 +279,7 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() && selectedImages.length === 0) return;
+    if (!inputMessage.trim() && !isImageGenerationMode) return;
     if (!selectedModel) {
       alert('Please select a model first');
       return;
@@ -299,9 +299,9 @@ const MFUChatbot: React.FC = () => {
         role: 'user',
         content: inputMessage.trim(),
         timestamp: new Date(),
-        images: selectedImages.length > 0 ? await Promise.all(
-          selectedImages.map(async (file) => await compressImage(file))
-        ) : undefined,
+        images: !isImageGenerationMode && selectedImages.length > 0 ? 
+          await Promise.all(selectedImages.map(async (file) => await compressImage(file))) 
+          : undefined,
         isImageGeneration: isImageGenerationMode
       };
 
@@ -315,7 +315,8 @@ const MFUChatbot: React.FC = () => {
         id: aiMessageId,
         role: 'assistant',
         content: '',
-        timestamp: new Date()
+        timestamp: new Date(),
+        isImageGeneration: isImageGenerationMode
       }]);
 
       // Send all messages including the new one
@@ -502,7 +503,7 @@ const MFUChatbot: React.FC = () => {
     return (
       !isLoading &&
       selectedModel &&
-      inputMessage.trim()
+      (inputMessage.trim() || (!isImageGenerationMode && selectedImages.length > 0))
     );
   };
 

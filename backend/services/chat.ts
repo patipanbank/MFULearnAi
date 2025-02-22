@@ -296,35 +296,40 @@ Remember: Your responses should be based on the provided context and documents.`
     try {
       console.log("Starting generateResponse with:", modelIdOrCollections);
       
-      // Extract image from the last message if present
       const lastMessage = messages[messages.length - 1];
-      const imageBase64 = lastMessage.images?.[0]?.data;
+      const isImageGeneration = lastMessage.isImageGeneration;
       
+      // Skip context retrieval for image generation
       let context = '';
-      try {
-        context = await this.retryOperation(
-          async () => this.getContext(query, modelIdOrCollections, imageBase64),
-          'Failed to get context'
-        );
-      } catch (error) {
-        console.error('Error getting context:', error);
-        // Continue without context if there's an error
+      if (!isImageGeneration) {
+        const imageBase64 = lastMessage.images?.[0]?.data;
+        try {
+          context = await this.retryOperation(
+            async () => this.getContext(query, modelIdOrCollections, imageBase64),
+            'Failed to get context'
+          );
+        } catch (error) {
+          console.error('Error getting context:', error);
+          // Continue without context if there's an error
+        }
       }
       
       console.log('Retrieved context length:', context.length);
 
-      const questionType = this.detectQuestionType(query);
+      const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
       console.log('Question type:', questionType);
 
       const systemMessages: ChatMessage[] = [
         {
           role: 'system',
-          content: this.systemPrompt
+          content: isImageGeneration ? 
+            'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
+            this.systemPrompt
         }
       ];
 
-      // Only add context if we have it
-      if (context) {
+      // Only add context if we have it and not in image generation mode
+      if (context && !isImageGeneration) {
         systemMessages.push({
           role: 'system',
           content: `Context from documents:\n${context}`
@@ -337,7 +342,7 @@ Remember: Your responses should be based on the provided context and documents.`
       let retryCount = 0;
       while (retryCount < this.retryConfig.maxRetries) {
         try {
-          for await (const chunk of bedrockService.chat(augmentedMessages, this.chatModel)) {
+          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.imageModel : bedrockService.chatModel)) {
             yield chunk;
           }
           return;
