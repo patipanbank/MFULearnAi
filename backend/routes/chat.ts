@@ -3,11 +3,18 @@ import jwt from 'jsonwebtoken';
 import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
-import { Collection, CollectionPermission } from '../models/Collection';
+import { CollectionModel, CollectionPermission, CollectionDocument } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
-import { ChatHistory } from '../models/ChatHistory';
+import { UserRole } from '../models/User';
 
 const router = Router();
+const HEARTBEAT_INTERVAL = 30000;
+const CLIENT_TIMEOUT = 35000;
+
+interface ExtendedWebSocket extends WebSocket {
+  isAlive: boolean;
+  userId?: string;
+}
 
 // Middleware to verify token
 const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
@@ -30,28 +37,205 @@ const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
 
 router.use(verifyToken);
 
-const wss = new WebSocketServer({ port: 5001 });
-
-wss.on('connection', (ws: WebSocket) => {
-  console.log('Client connected');
-
-  ws.on('message', async (message: string) => {
+const wss = new WebSocketServer({ 
+  port: 5001,
+  path: '/ws',
+  clientTracking: true,
+  verifyClient: (info, cb) => {
     try {
-      const { messages, modelId, collectionName } = JSON.parse(message);
+      // Get token from URL parameters
+      const url = new URL(info.req.url!, `http://${info.req.headers.host}`);
+      console.log('Incoming WebSocket connection URL:', info.req.url);
+      
+      const token = url.searchParams.get('token');
+      console.log('Token from URL params:', token ? 'Present' : 'Not present');
+      
+      if (!token) {
+        console.log('WebSocket connection rejected: No token provided');
+        cb(false, 401, 'Unauthorized');
+        return;
+      }
+
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+        (info.req as any).user = decoded;
+        console.log('WebSocket connection authorized for user:', decoded.username);
+        cb(true);
+      } catch (jwtError) {
+        console.error('JWT verification failed:', jwtError);
+        cb(false, 401, 'Invalid token');
+        return;
+      }
+    } catch (error) {
+      console.error('WebSocket authentication error:', error);
+      cb(false, 401, 'Unauthorized');
+    }
+  }
+});
+
+function heartbeat(this: WebSocket) {
+  (this as ExtendedWebSocket).isAlive = true;
+}
+
+const interval = setInterval(() => {
+  wss.clients.forEach((ws: WebSocket) => {
+    const extWs = ws as ExtendedWebSocket;
+    if (!extWs.isAlive) {
+      console.log(`Terminating inactive connection for user: ${extWs.userId}`);
+      return ws.terminate();
+    }
+    extWs.isAlive = false;
+    extWs.ping();
+  });
+}, HEARTBEAT_INTERVAL);
+
+wss.on('close', () => {
+  clearInterval(interval);
+});
+
+wss.on('connection', (ws: WebSocket, req: Request) => {
+  const extWs = ws as ExtendedWebSocket;
+  extWs.isAlive = true;
+  
+  // Try to get token from URL parameters first
+  const url = new URL(req.url!, `http://${req.headers.host}`);
+  const urlToken = url.searchParams.get('token');
+  
+  // Then try to get from headers if not in URL
+  const headerToken = req.headers['authorization']?.split(' ')[1];
+  
+  const token = urlToken || headerToken;
+  
+  console.log('Token sources:', {
+    fromUrl: !!urlToken,
+    fromHeader: !!headerToken,
+    finalToken: !!token
+  });
+  
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+      extWs.userId = decoded.username;
+      console.log(`WebSocket client connected: ${extWs.userId}`);
+    } catch (error) {
+      console.error('Invalid token in WebSocket connection:', error);
+      ws.close(1008, 'Invalid authentication token');
+      return;
+    }
+  } else {
+    console.error('No token found in either URL parameters or headers');
+    ws.close(1008, 'No authentication token provided');
+    return;
+  }
+
+  extWs.on('pong', heartbeat);
+
+  extWs.on('error', (error) => {
+    console.error(`WebSocket error for user ${extWs.userId}:`, error);
+  });
+
+  extWs.on('close', () => {
+    console.log(`WebSocket client disconnected: ${extWs.userId}`);
+  });
+
+  extWs.on('message', async (message: string) => {
+    try {
+      console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
+      
+      let data;
+      try {
+        data = JSON.parse(message.toString());
+        console.log(`Parsed WebSocket message from ${extWs.userId}:`, {
+          messageCount: data.messages?.length,
+          modelId: data.modelId,
+          isImageGeneration: data.isImageGeneration,
+          lastMessage: data.messages?.[data.messages?.length - 1]
+        });
+      } catch (parseError) {
+        console.error(`Failed to parse WebSocket message from ${extWs.userId}:`, parseError);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ error: 'Invalid message format: Failed to parse JSON' }));
+        }
+        return;
+      }
+      
+      const { messages, modelId, isImageGeneration } = data;
+      
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        console.error(`Invalid message format from ${extWs.userId}: messages array is required`);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ error: 'Invalid message format: messages array is required' }));
+        }
+        return;
+      }
+      
+      if (!modelId) {
+        console.error(`Invalid message format from ${extWs.userId}: modelId is required`);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ error: 'Invalid message format: modelId is required' }));
+        }
+        return;
+      }
+
       const lastMessage = messages[messages.length - 1];
       const query = lastMessage.content;
 
-      console.log('Starting response generation');
+      console.log(`Processing message from user ${extWs.userId}:`, {
+        modelId,
+        isImageGeneration,
+        query,
+        messageCount: messages.length,
+        lastMessageContent: lastMessage.content,
+        hasImages: !!lastMessage.images
+      });
       
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-        console.log('Sending chunk:', content);
-        ws.send(JSON.stringify({ content }));
-      }
+      try {
+        console.log('Starting response generation...');
+        for await (const content of chatService.generateResponse(messages, query, modelId)) {
+          if (extWs.readyState === WebSocket.OPEN) {
+            console.log(`Sending content chunk to user ${extWs.userId}:`, content);
+            extWs.send(JSON.stringify({ content }));
+          } else {
+            console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
+            break;
+          }
+        }
 
-      ws.send(JSON.stringify({ done: true }));
+        if (extWs.readyState === WebSocket.OPEN) {
+          console.log(`Sending completion signal to user ${extWs.userId}`);
+          extWs.send(JSON.stringify({ done: true }));
+          
+          // Save chat history
+          if (extWs.userId) {
+            try {
+              console.log(`Saving chat history for user ${extWs.userId}`);
+              await chatHistoryService.saveChatMessage(
+                extWs.userId,
+                modelId,
+                '',  // collectionName is optional
+                messages
+              );
+              console.log(`Chat history saved for user ${extWs.userId}`);
+            } catch (error) {
+              console.error('Error saving chat history:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error generating response for user ${extWs.userId}:`, error);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ 
+            error: 'An error occurred while generating the response. Please try again.' 
+          }));
+        }
+      }
     } catch (error) {
-      console.error('Error:', error);
-      ws.send(JSON.stringify({ error: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น' }));
+      console.error(`Error processing message from user ${extWs.userId}:`, error);
+      if (extWs.readyState === WebSocket.OPEN) {
+        extWs.send(JSON.stringify({ 
+          error: error instanceof Error ? error.message : 'Invalid message format' 
+        }));
+      }
     }
   });
 });
@@ -92,7 +276,7 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     try {
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      for await (const content of chatService.generateResponse(messages, query, modelId)) {
         console.log('Sending chunk:', content);
         sendChunk(content);
       }
@@ -119,36 +303,24 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
   try {
-    const { messages, modelId, collectionName, chatId } = req.body;
+    const { messages, modelId, collectionName } = req.body;
     const userId = (req.user as any)?.username || '';
 
-    // เพิ่ม log เพื่อตรวจสอบ
-    console.log('Received chat save request:', {
-      userId,
-      modelId,
-      collectionName,
-      chatId,
-      messagesCount: messages.length
-    });
-
+    // แก้ไขการบันทึกประวัติให้รองรับหลายรูป
     const history = await chatHistoryService.saveChatMessage(
       userId,
       modelId,
       collectionName,
-      messages,
-      chatId
+      messages.map((msg: any) => ({
+        ...msg,
+        images: msg.images ? msg.images.map((img: any) => ({
+          data: img.data,
+          mediaType: img.mediaType
+        })) : undefined
+      }))
     );
-
-    if (history) {
-      console.log('Saved chat result:', {
-        _id: history._id,
-        chatId: chatId,
-        isNewChat: !chatId
-      });
-    }
-
     res.json(history);
   } catch (error) {
     console.error('Error saving chat history:', error);
@@ -167,21 +339,21 @@ router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: R
   }
 });
 
-// router.route('/clear').delete(async (req: Request, res: Response): Promise<void> => {
-//   try {
-//     const user = (req as any).user;
-//     if (!user || !user.username) {
-//       res.status(401).json({ error: 'User not authenticated' });
-//       return;
-//     }
+router.route('/clear').delete(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user;
+    if (!user || !user.username) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
 
-//     const result = await chatHistoryService.clearChatHistory(user.username);
-//     res.json(result);
-//   } catch (error) {
-//     console.error('Error clearing chat history:', error);
-//     res.status(500).json({ error: 'Failed to clear chat history' });
-//   }
-// });
+    const result = await chatHistoryService.clearChatHistory(user.username);
+    res.json(result);
+  } catch (error) {
+    console.error('Error clearing chat history:', error);
+    res.status(500).json({ error: 'Failed to clear chat history' });
+  }
+});
 
 router.post('/chat', async (req, res) => {
   try {
@@ -199,7 +371,7 @@ router.get('/collections', async (req: Request, res: Response) => {
     const user = (req as any).user;
     
     // ดึงข้อมูล collections จาก MongoDB
-    const collections = await Collection.find({});
+    const collections = await CollectionModel.find({});
     
     // กรองตามสิทธิ์
     const accessibleCollections = collections.filter(collection => {
@@ -207,6 +379,7 @@ router.get('/collections', async (req: Request, res: Response) => {
         case CollectionPermission.PUBLIC:
           return true;
         case CollectionPermission.STAFF_ONLY:
+          return user.role === 'Staffs' || user.role === 'Admin';
           return user.groups.includes('Staffs');
         case CollectionPermission.PRIVATE:
           return collection.createdBy === user.nameID;
@@ -220,74 +393,6 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
-  }
-});
-
-// ดึงประวัติการสนทนาตาม ID
-router.get('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const chatId = req.params.id;
-    
-    const chat = await ChatHistory.findOne({ 
-      _id: chatId,
-      userId: userId // ตรวจสอบว่าเป็นเจ้าของแชทด้วย
-    });
-
-    if (!chat) {
-      res.status(404).json({ error: 'Chat history not found' });
-    }
-
-    res.json(chat);
-  } catch (error) {
-    console.error('Error getting chat history:', error);
-    res.status(500).json({ error: 'Failed to get chat history' });
-  }
-});
-
-// ลบแชท
-router.delete('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const chatId = req.params.id;
-    
-    const result = await ChatHistory.findOneAndDelete({ 
-      _id: chatId,
-      userId: userId
-    });
-
-    if (!result) {
-      res.status(404).json({ error: 'Chat history not found' });
-    }
-
-    res.json({ message: 'Chat deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting chat history:', error);
-    res.status(500).json({ error: 'Failed to delete chat history' });
-  }
-});
-
-// แก้ไขชื่อแชท
-router.patch('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const chatId = req.params.id;
-    const { chatname } = req.body;
-    
-    const chat = await ChatHistory.findOneAndUpdate(
-      { _id: chatId, userId: userId },
-      { chatname },
-      { new: true }
-    );
-
-    if (!chat) {
-      res.status(404).json({ error: 'Chat history not found' });
-    }
-
-    res.json(chat);
-  } catch (error) {
-    console.error('Error updating chat name:', error);
-    res.status(500).json({ error: 'Failed to update chat name' });
   }
 });
 

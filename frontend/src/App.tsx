@@ -5,9 +5,8 @@ import TrainingDashboard from './components/pages/TrainingDashboard';
 import Login from './components/login/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import AuthGuard from './components/guards/AuthGuard';
-import RoleGuard from './components/guards/RoleGuard';
-// import TrainingHistory from './components/pages/TrainingHistory';
-import AdminLogin from './components/login/AdminLogin';
+// import RoleGuard from './components/guards/RoleGuard';
+import ModelCreation from './components/pages/modelCreation';
 import './index.css';
  
 
@@ -32,39 +31,28 @@ const App = () => {
           path="/training"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Staffs']}>
+<<<<<<< HEAD
+              <RoleGuard allowedRoles={['Staffs', 'Admin']}>
+=======
+              {/* <RoleGuard allowedRoles={['Staffs', 'ADMIN']}> */}
+>>>>>>> 814ad06b01ff1e8aee30ec004aa55cbc46258dd8
                 <MainLayout>
                   <TrainingDashboard />
                 </MainLayout>
-              </RoleGuard>
+              {/* </RoleGuard> */}
             </AuthGuard>
           }
         />
-        <Route path="/admin/login" element={<AdminLogin />} />
         <Route
-          path="/admin/dashboard"
+          path="/modelCreation"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Admin']}>
                 <MainLayout>
-                  <TrainingDashboard />
+                  <ModelCreation />
                 </MainLayout>
-              </RoleGuard>
             </AuthGuard>
           }
         />
-        {/* <Route
-          path="/training-history"
-          element={
-            <AuthGuard>
-              <RoleGuard allowedGroups={['Staffs']}>
-                <MainLayout>
-                  <TrainingHistory />
-                </MainLayout>
-              </RoleGuard>
-            </AuthGuard>
-          }
-        /> */}
       </Routes>
     </Router>
   );

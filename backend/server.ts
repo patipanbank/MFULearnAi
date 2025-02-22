@@ -10,6 +10,7 @@ import authRoutes from './routes/auth';
 import trainingRoutes from './routes/training';
 import embeddingRoutes from './routes/embedding';
 import chatRoutes from './routes/chat';
+import modelsRoutes from './routes/models';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 
@@ -39,8 +40,8 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(bodyParser.json({limit: '50mb'}));
-app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
+app.use(bodyParser.json({limit: '500mb'}));
+app.use(bodyParser.urlencoded({limit: '500mb', extended: true}));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -59,6 +60,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/embed', embeddingRoutes);
+app.use('/api/models', modelsRoutes);
 
 // เพิ่มการตั้งค่า timeout
 app.use((req, res, next) => {

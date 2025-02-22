@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef } from 'react';
 import { config } from '../../config/config';
-import { FaTrash, FaGlobe, FaFile } from 'react-icons/fa';
-import { CollectionPermission } from '../../types/collection';
+import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
+import { Collection, CollectionPermission } from '../../types/collection';
 
-interface CollectionWithMetadata {
-  name: string;
-  permission: CollectionPermission;
-  createdBy: string;
+// ----------------------
+// Type Definitions
+// ----------------------
+interface UserInfo {
+  username: string;
+  role: 'Students' | 'Staffs' | 'Admin';
 }
 
-// New interface representing an uploaded file, grouping its document chunks
 interface UploadedFile {
   filename: string;
   uploadedBy: string;
@@ -17,596 +18,1254 @@ interface UploadedFile {
   ids: string[];
 }
 
-const TrainingDashboard: React.FC = () => {
-  const [file, setFile] = useState<File | null>(null);
-  // const [loading, setLoading] = useState(false);
-  const [models, setModels] = useState<string[]>([]);
-  const [collections, setCollections] = useState<CollectionWithMetadata[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [selectedCollection, setSelectedCollection] = useState('');
-  const [newCollectionName, setNewCollectionName] = useState('');
-  const [showNewCollectionForm, setShowNewCollectionForm] = useState(false);
-  const [loadingModels, setLoadingModels] = useState(true);
-  const [loadingCollections, setLoadingCollections] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
-  const [trainingMode, setTrainingMode] = useState<'file' | 'url'>('file');
-  const [urls, setUrls] = useState<string>('');
-  const [isProcessingUrls, setIsProcessingUrls] = useState(false);
-  const [newCollectionPermission, setNewCollectionPermission] = useState(CollectionPermission.PRIVATE);
+interface MongoCollection {
+  _id: string;
+  id?: string;
+  name: string;
+  createdBy?: string;
+  created?: string;
+  createdAt?: string;
+  permission?: string;
+}
 
-  // New state to hold the list of uploaded files
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+interface MongoFile {
+  filename: string;
+  uploadedBy?: string;
+  timestamp?: string;
+  ids?: string[];
+}
 
+// ----------------------
+// Utility Functions
+// ----------------------
+const getRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSeconds = (now.getTime() - date.getTime()) / 1000;
+  if (diffSeconds < 60) return 'Updated just now';
+  const diffMinutes = diffSeconds / 60;
+  if (diffMinutes < 60) return `Updated ${Math.floor(diffMinutes)} minutes ago`;
+  const diffHours = diffMinutes / 60;
+  if (diffHours < 24) return `Updated ${Math.floor(diffHours)} hours ago`;
+  const diffDays = diffHours / 24;
+  return `Updated ${Math.floor(diffDays)} days ago`;
+};
+
+// ----------------------
+// Reusable Modal Component
+// ----------------------
+interface BaseModalProps {
+  onClose: () => void;
+  containerClasses?: string;
+  children: React.ReactNode;
+}
+
+const BaseModal: React.FC<BaseModalProps> = ({
+  onClose,
+  containerClasses = '',
+  children,
+}) => (
+  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+    <div className={`relative bg-white dark:bg-gray-800 rounded p-6 ${containerClasses}`}>
+      <button
+        onClick={onClose}
+        className="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+        title="Close"
+      >
+        <FaTimes size={20} />
+      </button>
+      {children}
+    </div>
+  </div>
+);
+
+// ----------------------
+// Dashboard Header Component
+// ----------------------
+interface DashboardHeaderProps {
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  onNewCollectionToggle: () => void;
+}
+
+const DashboardHeader: React.FC<DashboardHeaderProps> = ({
+  searchQuery,
+  onSearchChange,
+  onNewCollectionToggle,
+}) => (
+  <header className="mb-8">
+    <div className="flex items-center justify-between mb-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Training Dashboard</h1>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          Manage your training collections and documents
+        </p>
+      </div>
+      <button
+        onClick={onNewCollectionToggle}
+        className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
+        hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 
+        dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-lg 
+        transition-all duration-200 space-x-2 shadow-md hover:shadow-lg transform hover:scale-105"
+      >
+        <FaPlus size={16} />
+        <span className="font-medium">New Collection</span>
+      </button>
+    </div>
+    <div className="relative">
+      <input
+        type="text"
+        placeholder="Search collections..."
+        value={searchQuery}
+        onChange={(e) => onSearchChange(e.target.value)}
+        className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 
+        bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
+        placeholder-gray-500 dark:placeholder-gray-400
+        focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+        transition-all duration-200 shadow-sm"
+      />
+      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+        <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+      </div>
+    </div>
+  </header>
+);
+
+// ----------------------
+// New Collection Modal Component
+// ----------------------
+interface NewCollectionModalProps {
+  newCollectionName: string;
+  newCollectionPermission: string;
+  onNameChange: (value: string) => void;
+  onPermissionChange: (value: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  onCancel: () => void;
+}
+
+const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
+  newCollectionName,
+  newCollectionPermission,
+  onNameChange,
+  onPermissionChange,
+  onSubmit,
+  onCancel,
+}) => {
+  // Add ref for click outside detection
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
   useEffect(() => {
-    fetchModels();
-    fetchCollections();
-  }, []);
-
-  // Whenever a collection is selected update the file overview
-  useEffect(() => {
-    if (selectedCollection) {
-      fetchUploadedFiles();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCollection]);
-
-  const fetchModels = async () => {
-    try {
-      setLoadingModels(true);
-      const response = await fetch(`${config.apiUrl}/api/training/models`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch models');
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onCancel();
       }
-      const data = await response.json();
-      setModels(data);
-      if (data.length === 1) {
-        setSelectedModel(data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching models:', error);
-    } finally {
-      setLoadingModels(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onCancel]);
+
+  return (
+    <BaseModal onClose={onCancel} containerClasses="w-[28rem]">
+      <div ref={modalRef} className="relative">
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            Create New Collection
+          </h3>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Create a new collection to organize your training documents.
+          </p>
+        </div>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Collection Name
+            </label>
+            <input
+              type="text"
+              placeholder="Enter collection name"
+              value={newCollectionName}
+              onChange={(e) => onNameChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+              placeholder-gray-500 dark:placeholder-gray-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Access Permission
+            </label>
+            <select
+              value={newCollectionPermission}
+              onChange={(e) => onPermissionChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            >
+              <option value="PRIVATE">Private - Only you can access</option>
+              <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
+              <option value="PUBLIC">Public - Everyone can access</option>
+            </select>
+          </div>
+          <div className="flex flex-col space-y-2 pt-4">
+            <button
+              type="submit"
+              className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
+              dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
+              transform transition-all duration-200"
+            >
+              Create Collection
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+              transform transition-all duration-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </BaseModal>
+  );
+};
+
+// ----------------------
+// Collection Card Component
+// ----------------------
+interface CollectionCardProps {
+  collection: Collection;
+  onSelect: () => void;
+  activeDropdown: boolean;
+  onDropdownToggle: () => void;
+  onSettings: () => void;
+  onDelete: () => void;
+}
+
+const CollectionCard: React.FC<CollectionCardProps> = ({
+  collection,
+  onSelect,
+  activeDropdown,
+  onDropdownToggle,
+  onSettings,
+  onDelete,
+}) => {
+  const getPermissionStyle = (permission?: string) => {
+    switch (permission) {
+      case 'PRIVATE':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
+      case 'STAFF_ONLY':
+        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'PUBLIC':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+      default:
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
     }
   };
 
-  const fetchCollections = async () => {
-    try {
-      setLoadingCollections(true);
-      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch collections');
-      }
-      const data = await response.json();
-      setCollections(data);
-      if (data.length === 1) {
-        setSelectedCollection(data[0].name);
-      }
-    } catch (error) {
-      console.error('Error fetching collections:', error);
-    } finally {
-      setLoadingCollections(false);
+  const getPermissionLabel = (permission?: string) => {
+    switch (permission) {
+      case 'PRIVATE':
+        return 'Private';
+      case 'STAFF_ONLY':
+        return 'Staff Only';
+      case 'PUBLIC':
+        return 'Public';
+      default:
+        return 'Unknown';
     }
   };
 
-  const getFilteredCollections = () => {
-    const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-    const isStaff = userData.groups?.includes('Staffs');
+  return (
+    <div
+      className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm 
+      hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 
+      dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
+      transform hover:scale-[1.02]"
+      onClick={onSelect}
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDropdownToggle();
+        }}
+        className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 
+        dark:text-gray-500 dark:hover:text-gray-300 rounded-full
+        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+        title="Options"
+      >
+        <FaEllipsisH size={16} />
+      </button>
+      {activeDropdown && (
+        <div className="absolute top-14 right-4 bg-white dark:bg-gray-700 rounded-lg 
+        shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden z-20
+        backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSettings();
+            }}
+            className="flex items-center w-full px-4 py-2.5 text-gray-700 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+          >
+            <FaCog className="mr-2" size={14} />
+            <span>Settings</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="flex items-center w-full px-4 py-2.5 text-red-600 dark:text-red-400 
+            hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+          >
+            <FaTrash className="mr-2" size={14} />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
+      <div className="flex flex-col h-full">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+            {collection.name}
+          </h2>
+        </div>
+        <span className={`absolute bottom-4 right-4 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>{getPermissionLabel(collection.permission)}</span>
+        <div className="mt-auto space-y-1">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {collection.createdBy}
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {getRelativeTime(collection.created)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-    return collections.filter(collection => {
-      if (collection.permission === CollectionPermission.PUBLIC) {
-        return isStaff;
+// ----------------------
+// Collection Modal (File Management)
+// ----------------------
+interface CollectionModalProps {
+  collection: Collection;
+  onClose: () => void;
+  uploadedFiles: UploadedFile[];
+  onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onFileUpload: (e: FormEvent) => void;
+  uploadLoading: boolean;
+  onShowSettings: () => void;
+  onDeleteFile: (file: UploadedFile) => void;
+  isFilesLoading: boolean;
+}
+
+const CollectionModal: React.FC<CollectionModalProps> = ({
+  collection,
+  onClose,
+  uploadedFiles,
+  onFileChange,
+  onFileUpload,
+  uploadLoading,
+  onShowSettings,
+  onDeleteFile,
+  isFilesLoading,
+}) => {
+  // Add ref for click outside detection
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const settingsModal = document.querySelector('[data-modal="settings"]');
+      // If settings modal is open, don't handle click outside for collection modal
+      if (settingsModal) {
+        return;
       }
       
-      return collection.createdBy === userData.nameID;
-    });
-  };
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
 
-  // New function to fetch uploaded files from the selected collection.
-  // It groups document chunks by file (using filename and uploadedBy).
-  const fetchUploadedFiles = async () => {
-    if (!selectedCollection) return;
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  return (
+    <BaseModal onClose={onClose} containerClasses="w-full md:w-2/3 lg:w-1/2 relative overflow-y-auto max-h-[80vh]">
+      <div ref={modalRef} data-modal="collection" className="relative">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{collection.name}</h2>
+              <button
+                onClick={onShowSettings}
+                className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
+                text-gray-600 dark:text-gray-300 transition-all duration-200
+                border border-gray-200 dark:border-gray-700"
+                title="Collection Settings"
+              >
+                <FaCog size={18} />
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Manage documents and settings for this collection
+            </p>
+          </div>
+        </div>
+
+        {/* File Upload Section */}
+        <section className="mb-8 bg-gradient-to-br from-gray-50 to-gray-100 
+        dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl p-6 
+        border-2 border-dashed border-gray-300 dark:border-gray-600">
+          <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+            Upload Document
+          </h3>
+          <form onSubmit={onFileUpload} className="space-y-4">
+            <div className="relative">
+              <input
+                type="file"
+                onChange={onFileChange}
+                className="block w-full text-gray-600 dark:text-gray-300
+                file:mr-4 file:py-2.5 file:px-4
+                file:rounded-lg file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                dark:file:bg-blue-900/30 dark:file:text-blue-400
+                hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40
+                file:cursor-pointer cursor-pointer
+                focus:outline-none transition-colors duration-200"
+                accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,.json,.xml"
+              />
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 500MB)
+              </p>
+            </div>
+            <button
+              type="submit"
+              disabled={uploadLoading}
+              className={`w-full sm:w-auto px-6 py-2.5 rounded-lg font-medium text-white
+              transition-all duration-200 flex items-center justify-center space-x-2
+              ${uploadLoading 
+                ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
+              }`}
+            >
+              {uploadLoading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                  </svg>
+                  <span>Upload Document</span>
+                </>
+              )}
+            </button>
+          </form>
+        </section>
+
+        {/* Files List Section */}
+        <section className="space-y-4">
+          {isFilesLoading ? (
+            <div className="text-center py-12">Loading files...</div>
+          ) : (
+            <>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  Documents in Collection
+                </h3>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              
+              {uploadedFiles.length > 0 ? (
+                <div className="space-y-3">
+                  {uploadedFiles.map((fileItem, index) => (
+                    <div 
+                      key={index} 
+                      className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm 
+                      border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md 
+                      transition-all duration-200"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {fileItem.filename}
+                          </h4>
+                          <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
+                            <p className="text-gray-600 dark:text-gray-300">
+                              {fileItem.uploadedBy}
+                            </p>
+                            <p className="text-gray-500 dark:text-gray-400">
+                              {new Date(fileItem.timestamp).toLocaleString()}
+                            </p>
+                            <p className="text-gray-500 dark:text-gray-400">
+                              {fileItem.ids.length} chunks
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => onDeleteFile(fileItem)}
+                          className="ml-4 p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
+                          dark:hover:text-red-400 transition-colors duration-200 rounded-lg 
+                          hover:bg-gray-100 dark:hover:bg-gray-700"
+                          title="Delete Document"
+                        >
+                          <FaTrash size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 
+                dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl border-2 border-dashed 
+                border-gray-300 dark:border-gray-600">
+                  <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                  </svg>
+                  <p className="mt-4 text-base font-medium text-gray-600 dark:text-gray-400">
+                    No documents uploaded yet
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
+                    Upload a document to get started with your collection
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </div>
+    </BaseModal>
+  );
+};
+
+// ----------------------
+// Settings Modal Component
+// ----------------------
+interface SettingsModalProps {
+  updatedCollectionName: string;
+  updatedCollectionPermission: string;
+  onNameChange: (value: string) => void;
+  onPermissionChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: (e: FormEvent) => void;
+}
+
+const SettingsModal: React.FC<SettingsModalProps> = ({
+  updatedCollectionName,
+  updatedCollectionPermission,
+  onNameChange,
+  onPermissionChange,
+  onClose,
+  onSubmit,
+}) => {
+  // Add ref for click outside detection
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  return (
+    <BaseModal onClose={onClose} containerClasses="w-96">
+      <div ref={modalRef} data-modal="settings" className="relative">
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            Collection Settings
+          </h3>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Update your collection settings and permissions.
+          </p>
+        </div>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onSubmit(e);
+        }} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Collection Name
+            </label>
+            <input
+              type="text"
+              value={updatedCollectionName}
+              onChange={(e) => onNameChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+              placeholder-gray-500 dark:placeholder-gray-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Access Permission
+            </label>
+            <select
+              value={updatedCollectionPermission}
+              onChange={(e) => onPermissionChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            >
+              <option value="PRIVATE">Private - Only you can access</option>
+              <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
+              <option value="PUBLIC">Public - Everyone can access</option>
+            </select>
+          </div>
+          <div className="flex flex-col space-y-2 pt-4">
+            <button
+              type="submit"
+              className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
+              dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
+              transform transition-all duration-200"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+              transform transition-all duration-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </BaseModal>
+  );
+};
+
+// ----------------------
+// Main Dashboard Component
+// ----------------------
+const TrainingDashboard: React.FC = () => {
+  // Dashboard state
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isFilesLoading, setIsFilesLoading] = useState<boolean>(false);
+  
+  const [showNewCollectionModal, setShowNewCollectionModal] = useState<boolean>(false);
+  const [newCollectionName, setNewCollectionName] = useState<string>('');
+  const [newCollectionPermission, setNewCollectionPermission] = useState<string>('PRIVATE');
+
+  // Selected collection and dropdown state
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+
+  // File upload and management state
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadLoading, setUploadLoading] = useState<boolean>(false);
+
+  // Settings modal state
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [updatedCollectionName, setUpdatedCollectionName] = useState<string>('');
+  const [updatedCollectionPermission, setUpdatedCollectionPermission] = useState<string>('PRIVATE');
+
+  // Loading state for collections
+  const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
+
+  // Add user info state
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+
+  const authToken = localStorage.getItem('auth_token');
+
+  // ----------------------
+  // API Calls
+  // ----------------------
+  const fetchUserInfo = useCallback(async () => {
     try {
+      const response = await fetch(`${config.apiUrl}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch user info');
+      const data = await response.json();
+      setUserInfo(data);
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+    }
+  }, [authToken]);
+
+  const fetchCollections = useCallback(async () => {
+    if (!userInfo) return;
+    
+    setIsCollectionsLoading(true);
+    try {
+      console.log('Fetching collections with user info:', userInfo);
+      
+      const response = await fetch(`${config.apiUrl}/api/training/collections`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch collections:', response.status, errorText);
+        throw new Error(`Failed to fetch collections: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Raw collections data:', data);
+
+      if (!Array.isArray(data)) {
+        console.error('Invalid data format received:', data);
+        throw new Error('Invalid data format received from server');
+      }
+
+      const collectionsWithDate = data
+        .filter((collection: MongoCollection) => {
+          if (!collection.id && !collection._id || !collection.name) {
+            console.log('Filtering out collection due to missing id or name:', collection);
+            return false;
+          }
+          
+          const permission = collection.permission?.toUpperCase();
+          console.log(`Checking permission for collection "${collection.name}":`, {
+            permission,
+            userRole: userInfo.role,
+            createdBy: collection.createdBy,
+            username: userInfo.username
+          });
+          
+          // Check if user is admin
+          const isAdmin = userInfo.role === 'Admin';
+          
+          // If user is admin, they can access everything
+          if (isAdmin) {
+            return true;
+          }
+
+          switch (permission) {
+            case CollectionPermission.PUBLIC:
+              console.log(`Collection "${collection.name}" is public - allowing access`);
+              return true;
+            case CollectionPermission.STAFF_ONLY:
+              // Only ADMIN and STAFF can access STAFF_ONLY collections
+              const hasStaffAccess = userInfo.role === 'Staffs' || userInfo.role === 'Admin';
+              console.log(`Collection "${collection.name}" is staff only - access granted:`, hasStaffAccess);
+              return hasStaffAccess;
+            case CollectionPermission.PRIVATE:
+              // Only ADMIN and creator can access PRIVATE collections
+              const hasPrivateAccess = collection.createdBy === userInfo.username || isAdmin;
+              console.log(`Collection "${collection.name}" is private - access granted:`, hasPrivateAccess);
+              return hasPrivateAccess;
+            default:
+              // For backward compatibility, treat undefined permission as PUBLIC
+              if (!permission) {
+                console.log(`Collection "${collection.name}" has no permission - treating as public`);
+                return true;
+              }
+              console.log(`Collection "${collection.name}" has unknown permission:`, permission);
+              return isAdmin; // Only give access to admin for unknown permissions
+          }
+        })
+        .map((collection: MongoCollection): Collection => {
+          const mappedCollection = {
+            id: collection.id || collection._id.toString(),
+            name: collection.name,
+            createdBy: collection.createdBy || 'Unknown',
+            created: collection.created || collection.createdAt || new Date().toISOString(),
+            permission: collection.permission?.toUpperCase() || CollectionPermission.PUBLIC,
+          };
+          console.log('Mapped collection:', mappedCollection);
+          return mappedCollection;
+        });
+
+      console.log('Final filtered collections:', collectionsWithDate);
+      setCollections(collectionsWithDate);
+    } catch (error) {
+      console.error('Error in fetchCollections:', error);
+      alert(error instanceof Error ? error.message : 'Failed to fetch collections');
+    } finally {
+      setIsCollectionsLoading(false);
+    }
+  }, [authToken, userInfo]);
+
+  const fetchUploadedFiles = useCallback(async (collectionName: string) => {
+    try {
+      setIsFilesLoading(true);
       const response = await fetch(
-        `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(selectedCollection)}`,
+        `${config.apiUrl}/api/training/documents?collectionName=${encodeURIComponent(collectionName)}`,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          }
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
         }
       );
-      if (!response.ok) {
-        throw new Error('Failed to fetch uploaded files');
-      }
+      
       const data = await response.json();
-      // Expected response structure: { ids: string[], documents: string[], metadatas: any[] }
-      const fileMap: Map<string, UploadedFile> = new Map();
-
-      if (data && Array.isArray(data.ids) && Array.isArray(data.metadatas)) {
-        for (let i = 0; i < data.ids.length; i++) {
-          const id = data.ids[i];
-          const metadata = data.metadatas[i];
-          const key = `${metadata.filename}_${metadata.uploadedBy}`;
-          if (fileMap.has(key)) {
-            fileMap.get(key)!.ids.push(id);
-          } else {
-            fileMap.set(key, {
-              filename: metadata.filename,
-              uploadedBy: metadata.uploadedBy,
-              timestamp: metadata.timestamp,
-              ids: [id]
-            });
-          }
-        }
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch files');
       }
-      setUploadedFiles(Array.from(fileMap.values()));
+
+      // Normalize the data structure
+      let normalizedFiles: MongoFile[] = [];
+
+      if (data.documents && Array.isArray(data.documents)) {
+        normalizedFiles = data.documents;
+      } else if (data.files && Array.isArray(data.files)) {
+        normalizedFiles = data.files;
+      } else if (Array.isArray(data)) {
+        normalizedFiles = data;
+      }
+
+      // Validate and transform each file
+      const validFiles: UploadedFile[] = normalizedFiles
+        .filter((file: MongoFile) => file.filename && file.ids)
+        .map((file: MongoFile): UploadedFile => ({
+          filename: file.filename,
+          uploadedBy: file.uploadedBy || 'Unknown',
+          timestamp: file.timestamp || new Date().toISOString(),
+          ids: Array.isArray(file.ids) ? file.ids : [],
+        }));
+
+      setUploadedFiles(validFiles);
     } catch (error) {
       console.error('Error fetching uploaded files:', error);
+      alert(error instanceof Error ? error.message : 'Failed to fetch files');
+    } finally {
+      setIsFilesLoading(false);
+    }
+  }, [authToken]);
+
+  // ----------------------
+  // Effects
+  // ----------------------
+  useEffect(() => {
+    fetchUserInfo();
+  }, [fetchUserInfo]);
+
+  useEffect(() => {
+    if (userInfo) {
+      fetchCollections();
+    }
+  }, [fetchCollections, userInfo]);
+
+  useEffect(() => {
+    if (selectedCollection) {
+      setUpdatedCollectionName(selectedCollection.name);
+      setUpdatedCollectionPermission(selectedCollection.permission || 'PRIVATE');
+      fetchUploadedFiles(selectedCollection.name);
+    }
+  }, [selectedCollection, fetchUploadedFiles]);
+
+  // Update settings handler with real-time sync
+  const handleUpdateSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedCollection) return;
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/training/collections/${selectedCollection.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          name: updatedCollectionName,
+          permission: updatedCollectionPermission,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || 'Failed to update collection');
+      }
+
+      // Create updated collection object with all necessary fields
+      const updatedCollection = {
+        id: selectedCollection.id,
+        name: updatedCollectionName,
+        permission: updatedCollectionPermission,
+        created: selectedCollection.created,
+        createdBy: selectedCollection.createdBy,
+      };
+
+      // Close the settings modal before updating state
+      setShowSettings(false);
+
+      // Update the collections list with new data
+      setCollections(prevCollections =>
+        prevCollections.map(col =>
+          col.id === selectedCollection.id ? updatedCollection : col
+        )
+      );
+
+      // Update the selected collection
+      setSelectedCollection(updatedCollection);
+
+      // Refresh uploaded files with the new collection name
+      await fetchUploadedFiles(updatedCollectionName);
+
+      // Refresh the collections list from the API to ensure consistency
+      await fetchCollections();
+
+    } catch (error) {
+      console.error('Error updating collection:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update collection. Please try again.');
     }
   };
 
-  const handleCreateCollection = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCollectionName.trim()) {
-      alert('Please enter collection name');
-      return;
+  // Add real-time update effect
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const updateCollectionData = async () => {
+      if (selectedCollection) {
+        try {
+          const response = await fetch(
+            `${config.apiUrl}/api/training/collections/${selectedCollection.id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${authToken}`,
+              },
+            }
+          );
+
+          if (response.status === 404) {
+            // Collection no longer exists - close the view and refresh collections
+            setSelectedCollection(null);
+            setShowSettings(false);
+            fetchCollections();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch collection update');
+          }
+
+          const updatedData = await response.json();
+
+          // Update collection in the list
+          setCollections(prevCollections =>
+            prevCollections.map(col =>
+              col.id === selectedCollection.id
+                ? {
+                    ...col,
+                    ...updatedData,
+                    // Preserve fields that might not be returned by the API
+                    created: col.created,
+                    createdBy: col.createdBy,
+                  }
+                : col
+            )
+          );
+
+          // Update selected collection if it's open
+          setSelectedCollection(prev =>
+            prev?.id === selectedCollection.id
+              ? {
+                  ...prev,
+                  ...updatedData,
+                }
+              : prev
+          );
+
+          // Refresh files if collection is selected
+          await fetchUploadedFiles(updatedData.name);
+        } catch (error) {
+          console.error('Error in real-time update:', error);
+          // If there's any other error, we'll keep the UI state as is
+          // and let the next polling interval try again
+        }
+      }
+    };
+
+    // Set up polling interval for real-time updates
+    if (selectedCollection) {
+      intervalId = setInterval(updateCollectionData, 5000); // Poll every 5 seconds
     }
 
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [selectedCollection, authToken, fetchUploadedFiles]);
+
+  // Modify the collection selection handler
+  const handleCollectionSelect = async (collection: Collection) => {
+    setSelectedCollection(collection);
+    try {
+      // Fetch fresh data when selecting a collection
+      const response = await fetch(
+        `${config.apiUrl}/api/training/collections/${collection.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch collection details');
+      }
+
+      const freshData = await response.json();
+
+      // Update collection in the list
+      setCollections(prevCollections =>
+        prevCollections.map(col =>
+          col.id === collection.id
+            ? {
+                ...col,
+                ...freshData,
+                // Preserve fields that might not be returned by the API
+                created: col.created,
+                createdBy: col.createdBy,
+              }
+            : col
+        )
+      );
+
+      // Update selected collection
+      setSelectedCollection(prev =>
+        prev?.id === collection.id
+          ? {
+              ...prev,
+              ...freshData,
+            }
+          : prev
+      );
+
+      // Fetch associated files
+      await fetchUploadedFiles(freshData.name);
+    } catch (error) {
+      console.error('Error fetching collection details:', error);
+    }
+  };
+
+  // ----------------------
+  // Event Handlers
+  // ----------------------
+  const handleCreateCollection = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newCollectionName.trim()) {
+      alert('Please enter a collection name');
+      return;
+    }
     try {
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ name: newCollectionName, permission: newCollectionPermission })
+        body: JSON.stringify({
+          name: newCollectionName,
+          permission: newCollectionPermission,
+        }),
       });
-
-      if (response.ok) {
-        await fetchCollections();
-        setSelectedCollection(newCollectionName);
-        setNewCollectionName('');
-        setShowNewCollectionForm(false);
-      } else {
-        alert('Failed to create collection');
-      }
+      if (!response.ok) throw new Error('Failed to create collection');
+      await fetchCollections();
+      setNewCollectionName('');
+      setShowNewCollectionModal(false);
     } catch (error) {
       console.error('Error creating collection:', error);
       alert('Error creating collection');
     }
   };
 
-  const handleFileUpload = async (e: React.FormEvent) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleFileUpload = async (e: FormEvent) => {
     e.preventDefault();
-    
-    if (isUploading) {
-      console.log('Upload already in progress');
+    if (!file || !selectedCollection) {
+      alert('Please choose a file.');
       return;
     }
-
-    if (!file || !selectedModel || !selectedCollection) {
-      alert('Please select Model, Collection and file');
-      return;
-    }
-
-    setIsUploading(true);
-    console.log('Starting upload...');
-
+    setUploadLoading(true);
     try {
-      const controller = new AbortController(); // สร้าง controller สำหรับ abort
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-      }, 3600000); // timeout 1 ชั่วโมง (3600000 ms)
-
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('modelId', selectedModel);
-      formData.append('collectionName', selectedCollection);
+      formData.append('modelId', 'default');
+      formData.append('collectionName', selectedCollection.name);
 
       const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${authToken}`,
         },
         body: formData,
-        signal: controller.signal // ใช้ signal จาก controller
       });
-
-      clearTimeout(timeoutId); // ยกเลิก timeout เมื่อได้รับ response
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const result = await response.json();
-      console.log('Upload result:', result);
-
-      alert('Upload file successfully');
-      setFile(null);
-      
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-      
-      // Refresh the file overview after a successful upload
-      fetchUploadedFiles();
-      
-    } catch (error) {
-      console.error('Upload error:', error);
-      // ตรวจสอบว่าเป็น error จาก timeout หรือไม่
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Upload is still processing...');
-        // ไม่แสดง alert error เพราะการอัพโหลดยังดำเนินอยู่
-        // แต่อาจจะแสดงข้อความว่ากำลังประมวลผลแทน
-        alert('File is being processed. Please wait...');
+      if (response.ok) {
+        alert('File uploaded successfully');
+        setFile(null);
+        fetchUploadedFiles(selectedCollection.name);
       } else {
-        alert('Upload file failed');
+        alert('Failed to upload file');
       }
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // New function to delete an entire file.
-  // It sends a DELETE request for each document chunk associated with the file.
-  const handleDeleteFile = async (file: UploadedFile) => {
-    if (!selectedCollection) return;
-
-    if (!window.confirm(`Are you sure you want to delete file "${decodeURIComponent(file.filename)}"?`)) {
-      return;
-    }
-
-    try {
-      const button = document.querySelector(`button[title="Delete File"]`);
-      if (button) {
-        button.innerHTML = '<span class="animate-spin">⌛</span>';
-        button.setAttribute('disabled', 'true');
-      }
-
-      // หา element ที่แสดงจำนวน chunks
-      const chunksElement = button?.closest('li')?.querySelector('p:last-child');
-      const totalChunks = file.ids.length;
-      let deletedChunks = 0;
-
-      // ลบไฟล์ทีละ chunk และอัพเดทการแสดงผล
-      for (const id of file.ids) {
-        await fetch(
-          `${config.apiUrl}/api/training/documents/${id}?collectionName=${encodeURIComponent(selectedCollection)}`,
-          {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-            }
-          }
-        );
-
-        deletedChunks++;
-        if (chunksElement) {
-          chunksElement.textContent = `Chunks: ${totalChunks - deletedChunks} (Deleting: ${deletedChunks}/${totalChunks})`;
-        }
-      }
-
-      await fetchUploadedFiles();
-      alert(`Delete file "${decodeURIComponent(file.filename)}" successfully`);
-
     } catch (error) {
-      console.error('Error deleting file:', error);
-      alert('Error deleting file');
+      console.error('Error uploading file:', error);
     } finally {
-      const button = document.querySelector(`button[title="Delete File"]`);
-      if (button) {
-        button.innerHTML = '<svg>...</svg>'; // FaTrash icon
-        button.removeAttribute('disabled');
-      }
+      setUploadLoading(false);
     }
   };
 
-  const handleDeleteCollection = async (collectionName: string) => {
-    if (!window.confirm(`Are you sure you want to delete Collection "${collectionName}"?`)) {
-      return;
-    }
-
+  const handleDeleteCollection = async (collection: Collection) => {
+    if (!window.confirm(`Are you sure you want to delete collection "${collection.name}"?`)) return;
     try {
-      const response = await fetch(
-        `${config.apiUrl}/api/training/collections/${encodeURIComponent(collectionName)}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to delete collection');
+      const response = await fetch(`${config.apiUrl}/api/training/collections/${collection.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to delete collection');
+      alert('Collection deleted successfully');
+      if (selectedCollection && selectedCollection.id === collection.id) {
+        setSelectedCollection(null);
       }
-
       fetchCollections();
     } catch (error) {
-      console.error('Error:', error);
-      alert('Cannot delete collection');
+      console.error('Error deleting collection:', error);
+      alert('Error deleting collection');
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setFile(files[0]);
-    }
-  };
-
-  const handleUrlSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDeleteFile = async (fileToDelete: UploadedFile) => {
+    if (!selectedCollection) return;
+    if (!window.confirm(`Are you sure you want to delete the file ${fileToDelete.filename}?`)) return;
     
-    if (isProcessingUrls) {
-      return;
-    }
-
-    if (!urls.trim() || !selectedModel || !selectedCollection) {
-      alert('Please select Model, Collection and URLs');
-      return;
-    }
-
-    setIsProcessingUrls(true);
-
-    try {
-      const urlList = urls.split('\n').map(url => url.trim()).filter(url => url);
-      
-      const response = await fetch(`${config.apiUrl}/api/training/add-urls`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          urls: urlList,
-          modelId: selectedModel,
-          collectionName: selectedCollection
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('URL processing failed');
+    // Delete each chunk for this file
+    for (const chunkId of fileToDelete.ids) {
+      try {
+        await fetch(`${config.apiUrl}/api/training/documents/${chunkId}?collectionName=${encodeURIComponent(selectedCollection.name)}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
+      } catch (error) {
+        console.error(`Error deleting chunk ${chunkId}:`, error);
       }
-
-      alert('URLs processed successfully');
-      setUrls('');
-      // NEW: Refresh the uploaded files list after URL training
-      fetchUploadedFiles();
-    } catch (error) {
-      console.error('URL processing error:', error);
-      alert('Failed to process URLs');
-    } finally {
-      setIsProcessingUrls(false);
     }
+    // Refresh the file list after deletion
+    fetchUploadedFiles(selectedCollection.name);
   };
 
+  const filteredCollections = collections.filter((collection) =>
+    collection.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // ----------------------
+  // Render
+  // ----------------------
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Training Dashboard</h1>
-      
-      <div className="space-y-4 mb-6">
-        <div>
-          <label className="block text-gray-700 dark:text-white mb-2">Choose Model:</label>
-          {loadingModels ? (
-            <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
-          ) : (
-            <select 
-              className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              disabled={models.length === 1}
-            >
-              <option value="">-- Choose Model --</option>
-              {models.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-          )}
+    <div className="container mx-auto p-4 font-sans relative">
+      <DashboardHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onNewCollectionToggle={() => setShowNewCollectionModal(true)}
+      />
+
+      {isCollectionsLoading ? (
+        <div className="text-center py-8 text-gray-600 dark:text-gray-300">Loading collections...</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {filteredCollections.map((collection) => (
+            <CollectionCard
+              key={collection.id}
+              collection={collection}
+              onSelect={() => handleCollectionSelect(collection)}
+              activeDropdown={activeDropdownId === collection.id}
+              onDropdownToggle={() =>
+                setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id)
+              }
+              onSettings={() => {
+                setSelectedCollection(collection);
+                setShowSettings(true);
+                setActiveDropdownId(null);
+              }}
+              onDelete={() => {
+                setActiveDropdownId(null);
+                handleDeleteCollection(collection);
+              }}
+            />
+          ))}
         </div>
+      )}
 
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-gray-700 dark:text-white">Choose Collection:</label>
-            <button
-              onClick={() => setShowNewCollectionForm(true)}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              + Create New Collection
-            </button>
-          </div>
-          
-          {loadingCollections ? (
-            <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedCollection}
-                onChange={(e) => setSelectedCollection(e.target.value)}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">-- Choose Collection --</option>
-                {getFilteredCollections().map(collection => (
-                  <option key={collection.name} value={collection.name}>
-                    {collection.name} 
-                    {collection.permission && ` (${collection.permission})`}
-                  </option>
-                ))}
-              </select>
-              {selectedCollection && (
-                <button
-                  onClick={() => handleDeleteCollection(selectedCollection)}
-                  className="mt-1 p-2 text-red-600 hover:text-red-800"
-                  title="Delete Collection"
-                >
-                  <FaTrash />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+      {selectedCollection && (
+        <CollectionModal
+          collection={selectedCollection}
+          onClose={() => setSelectedCollection(null)}
+          uploadedFiles={uploadedFiles}
+          onFileChange={handleFileChange}
+          onFileUpload={handleFileUpload}
+          uploadLoading={uploadLoading}
+          onShowSettings={() => setShowSettings(true)}
+          onDeleteFile={handleDeleteFile}
+          isFilesLoading={isFilesLoading}
+        />
+      )}
 
-        {showNewCollectionForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg">
-              <h2 className="text-xl mb-4">Create New Collection</h2>
-              <input
-                type="text"
-                value={newCollectionName}
-                onChange={(e) => setNewCollectionName(e.target.value)}
-                className="border p-2 rounded w-full mb-4"
-                placeholder="Collection Name"
-              />
-              <div className="mb-4">
-                <label>Collection Permission:</label>
-                <select 
-                  value={newCollectionPermission}
-                  onChange={(e) => setNewCollectionPermission(e.target.value as CollectionPermission)}
-                  className="ml-2 p-2 border rounded"
-                >
-                  <option value={CollectionPermission.PUBLIC}>Public</option>
-                  <option value={CollectionPermission.STAFF_ONLY}>Staff Only</option>
-                  <option value={CollectionPermission.PRIVATE}>Private</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowNewCollectionForm(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateCollection}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Create
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+      {showSettings && selectedCollection && (
+        <SettingsModal
+          updatedCollectionName={updatedCollectionName}
+          updatedCollectionPermission={updatedCollectionPermission}
+          onNameChange={setUpdatedCollectionName}
+          onPermissionChange={setUpdatedCollectionPermission}
+          onClose={() => setShowSettings(false)}
+          onSubmit={handleUpdateSettings}
+        />
+      )}
 
-        {selectedModel && selectedCollection && (
-          <div className="mt-6">
-            <div className="flex gap-4 mb-4">
-              <button
-                onClick={() => setTrainingMode('file')}
-                className={`flex items-center gap-2 px-4 py-2 rounded ${
-                  trainingMode === 'file' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-700'
-                }`}
-              >
-                <FaFile /> File Upload
-              </button>
-              <button
-                onClick={() => setTrainingMode('url')}
-                className={`flex items-center gap-2 px-4 py-2 rounded ${
-                  trainingMode === 'url' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-700'
-                }`}
-              >
-                <FaGlobe /> URL Training
-              </button>
-            </div>
-
-            {trainingMode === 'file' ? (
-              <form onSubmit={handleFileUpload}>
-                <div className="mb-4">
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100"
-                    disabled={isUploading}
-                    accept=".txt,.pdf,.doc,.docx,.xls,.xlsx"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={!file || isUploading || !selectedModel || !selectedCollection}
-                  className={`px-4 py-2 rounded text-white
-                    ${isUploading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
-                  `}
-                >
-                  {isUploading ? 'Uploading...' : 'Upload'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleUrlSubmit}>
-                <div className="mb-4">
-                  <textarea
-                    value={urls}
-                    onChange={(e) => setUrls(e.target.value)}
-                    placeholder="Enter URLs (1 URL per line)"
-                    className="w-full h-40 p-2 border rounded"
-                    disabled={isProcessingUrls}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={!urls.trim() || isProcessingUrls}
-                  className={`px-4 py-2 rounded text-white
-                    ${isProcessingUrls ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
-                  `}
-                >
-                  {isProcessingUrls ? 'Processing URLs...' : 'Process URLs'}
-                </button>
-              </form>
-            )}
-
-            {/* Uploaded Files overview shown regardless of training mode */}
-            <div className="mt-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Uploaded Files</h2>
-              {uploadedFiles.length === 0 ? (
-                <p className="text-gray-600 dark:text-gray-300">No files uploaded yet.</p>
-              ) : (
-                <ul className="space-y-4">
-                  {uploadedFiles.map((file, index) => (
-                    <li key={index} className="flex justify-between items-center p-4 border rounded dark:border-gray-600">
-                      <div>
-                        <p className="font-semibold text-gray-800 dark:text-white">
-                          {decodeURIComponent(file.filename)}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Uploaded on: {new Date(file.timestamp).toLocaleString()}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Uploaded by: {file.uploadedBy}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Chunks: {file.ids.length}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteFile(file)}
-                        className="p-2 text-red-600 hover:text-red-800"
-                        title="Delete File"
-                      >
-                        <FaTrash />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      {showNewCollectionModal && (
+        <NewCollectionModal
+          newCollectionName={newCollectionName}
+          newCollectionPermission={newCollectionPermission}
+          onNameChange={setNewCollectionName}
+          onPermissionChange={setNewCollectionPermission}
+          onSubmit={handleCreateCollection}
+          onCancel={() => {
+            setShowNewCollectionModal(false);
+            setNewCollectionName('');
+          }}
+        />
+      )}
     </div>
   );
 };
 
-export default TrainingDashboard; 
+export default TrainingDashboard;

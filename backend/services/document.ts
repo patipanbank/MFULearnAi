@@ -7,11 +7,57 @@ import { createWorker } from 'tesseract.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import iconv from 'iconv-lite';
+import { createReadStream } from 'fs';
+import { pipeline } from 'stream/promises';
+import csvParser from 'csv-parser';
+
+interface CsvRow {
+  [key: string]: string;
+}
+
 const execAsync = promisify(exec);
 
 export class DocumentService {
+  private async processPDFInChunks(filePath: string): Promise<string> {
+    let text = '';
+    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+    const fileStream = createReadStream(filePath, { highWaterMark: CHUNK_SIZE });
+    
+    return new Promise((resolve, reject) => {
+      let buffer = Buffer.from([]);
+      
+      fileStream.on('data', (chunk: Buffer) => {
+        buffer = Buffer.concat([buffer, chunk]);
+      });
+      
+      fileStream.on('end', async () => {
+        try {
+          const pdfData = await pdf(buffer);
+          text = pdfData.text;
+          resolve(text);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      
+      fileStream.on('error', (error: Error) => reject(error));
+    });
+  }
+
+  private async processCSVInChunks(filePath: string): Promise<string> {
+    let text = '';
+    return new Promise((resolve, reject) => {
+      createReadStream(filePath)
+        .pipe(csvParser())
+        .on('data', (row: CsvRow) => {
+          text += Object.values(row).join(',') + '\n';
+        })
+        .on('end', () => resolve(text))
+        .on('error', (error: Error) => reject(error));
+    });
+  }
+
   async processFile(file: Express.Multer.File): Promise<string> {
-    // แปลงชื่อไฟล์เป็น UTF-8
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
     console.log(`Processing file: ${filename}`);
     
@@ -19,13 +65,11 @@ export class DocumentService {
     
     try {
       let text = '';
-      const buffer = await fs.readFile(file.path);
 
       switch (ext) {
         case '.pdf':
           try {
-            const pdfData = await pdf(buffer);
-            text = pdfData.text;
+            text = await this.processPDFInChunks(file.path);
             
             if (!text || text.trim().length < 100) {
               const outputPath = `${file.path}-page`;
@@ -50,13 +94,14 @@ export class DocumentService {
 
         case '.doc':
         case '.docx':
+          const buffer = await fs.readFile(file.path);
           const wordResult = await mammoth.extractRawText({ buffer });
           text = wordResult.value;
           break;
 
         case '.xls':
         case '.xlsx':
-          const workbook = xlsx.read(buffer);
+          const workbook = xlsx.read(await fs.readFile(file.path));
           text = workbook.SheetNames.map(name => {
             const sheet = workbook.Sheets[name];
             return `[Sheet: ${name}]\n${xlsx.utils.sheet_to_csv(sheet)}`;
@@ -64,7 +109,11 @@ export class DocumentService {
           break;
 
         case '.txt':
-          text = buffer.toString('utf-8');
+          text = await fs.readFile(file.path, 'utf-8');
+          break;
+
+        case '.csv':
+          text = await this.processCSVInChunks(file.path);
           break;
 
         default:

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-// import { FaComments, FaBars, FaCog, FaHistory, FaSignOutAlt } from 'react-icons/fa';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -215,6 +214,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <span>New Chat</span>
           </Link>
 
+          {isStaff && (
+            <Link
+              to="/modelCreation"
+              className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
+                ${location.pathname === '/modelCreation' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+              onClick={onClose}
+            >
+              <FaAndroid className="w-5 h-5 mr-3" />
+              <span>Model Creation</span>
+            </Link>
+          )}
+
           {/* แสดงรายการ Chat Histories */}
           <div className="mt-4">
             <h3 className="px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Chat History</h3>
@@ -290,18 +301,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               <span>AI Training</span>
             </Link>
           )}
-
-          {/* {isStaff && (
-            <Link
-              to="/training-history"
-              className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
-                ${location.pathname === '/training-history' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-              onClick={onClose}
-            >
-              <FaHistory className="w-5 h-5 mr-3" />
-              <span>History Training</span>
-            </Link>
-          )} */}
         </nav>
       </div>
 

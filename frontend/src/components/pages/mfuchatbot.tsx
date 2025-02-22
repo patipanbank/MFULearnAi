@@ -5,7 +5,6 @@ import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface Source {
   modelId: string;
@@ -29,12 +28,18 @@ interface Message {
     mediaType: string;
   }[];
   sources?: Source[];
+  isImageGeneration?: boolean;
 }
 
-const modelNames: { [key: string]: string } = {
-  'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
+interface Model {
+  id: string;
+  name: string;
+  modelType: 'official' | 'personal' | 'staff_only';
+}
 
-};
+// const modelNames: { [key: string]: string } = {
+//   'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
+// };
 
 const LoadingDots = () => (
   <div className="flex items-center space-x-1">
@@ -48,22 +53,31 @@ const MFUChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [models, setModels] = useState<string[]>([]);
-  const [collections, setCollections] = useState<string[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
-  const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
-  // const navigate = useNavigate();
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [isStaffUser, setIsStaffUser] = useState(false);
 
-    // เพิ่มฟังก์ชันตรวจสอบ token
-    const handleTokenExpired = () => {
-      localStorage.clear(); // เคลียร์ token และข้อมูลทั้งหมด
-      navigate('/login'); // redirect ไปหน้า login
+  // Add click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsModelDropdownOpen(false);
+      }
     };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -86,8 +100,8 @@ const MFUChatbot: React.FC = () => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      const lineHeight = 10;
-      const maxLines = 6;
+      const lineHeight = 24;
+      const maxLines = 5;
       const maxHeight = lineHeight * maxLines;
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
@@ -99,7 +113,7 @@ const MFUChatbot: React.FC = () => {
   }, [inputMessage]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchModels = async () => {
       try {
         const token = localStorage.getItem('auth_token');
         if (!token) {
@@ -107,77 +121,125 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
-        const headers = {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        };
-
-        const [modelsRes, collectionsRes] = await Promise.all([
-          fetch(`${config.apiUrl}/api/training/models`, { headers }),
-          fetch(`${config.apiUrl}/api/chat/collections`, { headers })
-        ]);
-
-        if (!modelsRes.ok || !collectionsRes.ok) {
-          throw new Error('Failed to fetch data');
+        // Validate token format
+        const tokenParts = token.split('.');
+        if (tokenParts.length !== 3) {
+          console.error('Invalid token format');
+          return;
         }
 
-        const modelsData = await modelsRes.json();
-        const collectionsData = await collectionsRes.json();
+        // Get user role from token
+        let tokenPayload;
+        try {
+          tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        } catch (e) {
+          console.error('Failed to parse token payload:', e);
+          return;
+        }
+        const isStaff = tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin';
 
-        setModels(Array.isArray(modelsData) ? modelsData : []);
-        setCollections(Array.isArray(collectionsData) ? collectionsData : []);
+        console.log('Fetching models with token:', `Bearer ${token}`);
+        // Fetch official and staff-only models from the database
+        const response = await fetch(`${config.apiUrl}/api/models`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-        if (Array.isArray(collectionsData) && collectionsData.length > 0) {
-          setSelectedCollection(collectionsData[0]);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Failed to fetch models:', response.status, errorText);
+          
+          if (response.status === 401) {
+            // Token might be expired or invalid
+            localStorage.removeItem('auth_token');
+            window.location.href = '/login';
+            return;
+          }
+          
+          throw new Error(`Failed to fetch models: ${errorText}`);
+        }
+
+        const dbModels = await response.json();
+        
+        // Filter models based on user role
+        const filteredDbModels = dbModels.filter((model: any) => 
+          model.modelType === 'official' || 
+          (model.modelType === 'staff_only' && isStaff)
+        );
+        
+        // Get personal models from localStorage
+        const storedPersonalModels = JSON.parse(localStorage.getItem('personalModels') || '[]');
+
+        // Combine both types of models
+        const allModels = [
+          ...filteredDbModels.map((model: any) => ({
+            id: model._id,
+            name: model.name,
+            modelType: model.modelType
+          })),
+          ...storedPersonalModels.map((model: any) => ({
+            id: model.id,
+            name: model.name,
+            modelType: 'personal'
+          }))
+        ];
+
+        setModels(allModels);
+
+        // Set the first model as selected if available
+        if (allModels.length > 0) {
+          const defaultModel = allModels.find(model => model.name === 'Default');
+          setSelectedModel(defaultModel?.id || allModels[0].id);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching models:', error);
+        if (error instanceof Error) {
+          alert(error.message);
+        }
         setModels([]);
-        setCollections([]);
       }
     };
 
-    fetchData();
+    fetchModels();
   }, []);
-
-  const [searchParams] = useSearchParams();
-  const chatId = searchParams.get('chat');
-
-  console.log('Current chatId:', chatId);
 
   useEffect(() => {
     const loadChatHistory = async () => {
       try {
-        if (!chatId) return;
-        
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
+        if (!token) return;
+
+        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
 
         if (response.ok) {
-          const chat = await response.json();
-          setMessages(chat.messages);
-          setSelectedModel(chat.modelId);
-          setSelectedCollection(chat.collectionName);
+          const history = await response.json();
+          if (history.messages) {
+            setMessages(history.messages);
+            setSelectedModel(history.modelId || '');
+          }
         }
       } catch (error) {
-        console.error('Error loading chat:', error);
+        console.error('Error loading chat history:', error);
       }
     };
 
     loadChatHistory();
-  }, [chatId]);
+  }, []);
 
   useEffect(() => {
-    if (!chatId) {
-      setMessages([]);
-      // setSelectedModel(defaultModel);
-      // setSelectedCollection(defaultCollection);
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      const isStaff = tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin';
+      setIsStaffUser(isStaff);
     }
-  }, [chatId]);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
@@ -228,118 +290,171 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit()) return;
+    if (!inputMessage.trim() && !isImageGenerationMode) return;
+    if (!selectedModel) {
+      alert('Please select a model first');
+      return;
+    }
 
     setIsLoading(true);
     const aiMessageId = messages.length + 2;
 
     try {
-      console.log('Saving chat with data:', {
-        messages,
-        modelId: selectedModel,
-        collectionName: selectedCollection,
-        chatId
-      });
-
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
-        await new Promise((resolve, reject) => {
-          wsRef.current!.onopen = resolve;
-          wsRef.current!.onerror = reject;
-        });
+      const token = localStorage.getItem('auth_token');
+      if (!token || !wsRef.current) {
+        throw new Error('Not authenticated or WebSocket not connected');
       }
 
-      let processedImages;
-      if (selectedImages.length > 0) {
-        processedImages = await Promise.all(
-          selectedImages.map(async (file) => await compressImage(file))
-        );
-      }
-
-      const userMessage = {
+      const userMessage: Message = {
         id: messages.length + 1,
-        role: 'user' as const,
+        role: 'user',
         content: inputMessage.trim(),
         timestamp: new Date(),
-        images: processedImages
+        images: !isImageGenerationMode && selectedImages.length > 0 ? 
+          await Promise.all(selectedImages.map(async (file) => await compressImage(file))) 
+          : undefined,
+        isImageGeneration: isImageGenerationMode
       };
 
+      // Update the UI with the user message
       setMessages(prev => [...prev, userMessage]);
       setInputMessage('');
       setSelectedImages([]);
 
+      // Add a placeholder for the AI response
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
         content: '',
-        timestamp: new Date()
+        timestamp: new Date(),
+        isImageGeneration: isImageGenerationMode
       }]);
 
-      let accumulatedContent = '';
-      wsRef.current.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.content) {
-            accumulatedContent += data.content;
-            setMessages(prev => prev.map(msg =>
-              msg.id === aiMessageId
-                ? { ...msg, content: accumulatedContent }
-                : msg
-            ));
-          }
-
-          if (data.done) {
-            const updatedMessages = [
-              ...messages,
-              userMessage,
-              {
-                id: aiMessageId,
-                role: 'assistant' as const,
-                content: accumulatedContent,
-                timestamp: new Date(),
-                sources: data.sources
-              }
-            ];
-
-            saveChatHistory(updatedMessages);
-          }
-        } catch (error) {
-          console.error('Error parsing message:', error);
-        }
-      };
-
-      wsRef.current.send(JSON.stringify({
+      // Send all messages including the new one
+      const messagePayload = {
         messages: [...messages, userMessage],
         modelId: selectedModel,
-        collectionName: selectedCollection
-      }));
+        isImageGeneration: isImageGenerationMode
+      };
 
-      // Embed the user's question into a vector
-      try {
-        const embeddingVector = await embedQuestion(inputMessage.trim());
-        console.log("User question vector:", embeddingVector);
-        // You can now use this vector for further processing (e.g. similarity search)
-      } catch (error) {
-        console.error("Embedding failed:", error);
-      }
-
+      console.log('WebSocket message payload:', JSON.stringify(messagePayload));
+      wsRef.current?.send(JSON.stringify(messagePayload));
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
-        content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง',
+        content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
         timestamp: new Date()
       }]);
     } finally {
       setIsLoading(false);
     }
   };
-  const navigate = useNavigate();
-  
+
   useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    const wsUrl = new URL(import.meta.env.VITE_WS_URL);
+    wsUrl.searchParams.append('token', token);
+    wsRef.current = new WebSocket(wsUrl.toString());
+
+    wsRef.current.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.error) {
+          console.error('Received error from WebSocket:', data.error);
+          return;
+        }
+
+        if (data.type === 'generated-image') {
+          setMessages(prev => {
+            const lastEmptyAssistantIndex = [...prev].reverse().findIndex(msg => 
+              msg.role === 'assistant' && msg.content === ''
+            );
+            
+            if (lastEmptyAssistantIndex === -1) return prev;
+            
+            const actualIndex = prev.length - 1 - lastEmptyAssistantIndex;
+            
+            return prev.map((msg, index) =>
+              index === actualIndex ? 
+              { 
+                ...msg, 
+                content: 'Generated image:',
+                images: [{
+                  data: data.data,
+                  mediaType: 'image/png'
+                }]
+              } : msg
+            );
+          });
+
+          // Save chat history after image is generated
+          setMessages(prev => {
+            saveChatHistory(prev);
+            return prev;
+          });
+          return;
+        }
+
+        if (data.content) {
+          // Update messages immediately with each chunk
+          setMessages(prev => {
+            const lastAssistantMessage = prev[prev.length - 1];
+            if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
+              // Update the last assistant message with accumulated content
+              return prev.map((msg, index) => 
+                index === prev.length - 1 
+                  ? { ...msg, content: msg.content + data.content }
+                  : msg
+              );
+            }
+            // Create a new assistant message
+            return [...prev, {
+              id: prev.length + 1,
+              role: 'assistant' as const,
+              content: data.content,
+              timestamp: new Date(),
+              isImageGeneration: false
+            }];
+          });
+        }
+
+        if (data.done) {
+          // Final update with any sources
+          setMessages(prev => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+              return prev.map((msg, index) =>
+                index === prev.length - 1
+                  ? { ...msg, sources: data.sources }
+                  : msg
+              );
+            }
+            return prev;
+          });
+
+          // Save chat history after message is complete
+          saveChatHistory(messages);
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+      }
+    };
+
+    wsRef.current.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    wsRef.current.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
     return () => {
-      if (wsRef.current) {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
     };
@@ -347,44 +462,20 @@ const MFUChatbot: React.FC = () => {
 
   const saveChatHistory = async (messages: Message[]) => {
     try {
-      console.log('Saving chat with data:', {
-        messages,
-        modelId: selectedModel,
-        collectionName: selectedCollection,
-        chatId
-      });
-
       const token = localStorage.getItem('auth_token');
-      const historyResponse = await fetch(`${config.apiUrl}/api/chat/history`, {
+      await fetch(`${config.apiUrl}/api/chat/history`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           messages,
-          modelId: selectedModel,
-          collectionName: selectedCollection,
-          chatId
+          modelId: selectedModel
         })
       });
-      
-      if (historyResponse.status === 401) {
-        handleTokenExpired();
-        return;
-      }
-
-      if (historyResponse.ok) {
-        const savedChat = await historyResponse.json();
-        if (!chatId) {
-          // เปลี่ยน path เมื่อสร้างแชทใหม่
-          navigate(`/mfuchatbot?chat=${savedChat._id}`);
-        }
-        // ส่ง event เพื่ออัพเดท sidebar
-        window.dispatchEvent(new CustomEvent('chatUpdated'));
-      }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error saving chat history:', error);
     }
   };
 
@@ -402,24 +493,24 @@ const MFUChatbot: React.FC = () => {
   };
 
 
-  // const clearChat = async () => {
-  //   try {
-  //     const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
-  //       method: 'DELETE',
-  //       headers: {
-  //         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-  //       }
-  //     });
+  const clearChat = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
 
-  //     if (!response.ok) {
-  //       throw new Error('Failed to clear chat history');
-  //     }
+      if (!response.ok) {
+        throw new Error('Failed to clear chat history');
+      }
 
-  //     setMessages([]);
-  //   } catch (error) {
-  //     console.error('Error clearing chat:', error);
-  //   }
-  // };
+      setMessages([]);
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+    }
+  };
   
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024;
@@ -452,8 +543,7 @@ const MFUChatbot: React.FC = () => {
     return (
       !isLoading &&
       selectedModel &&
-      selectedCollection &&
-      inputMessage.trim()
+      (inputMessage.trim() || (!isImageGenerationMode && selectedImages.length > 0))
     );
   };
 
@@ -533,18 +623,6 @@ const MFUChatbot: React.FC = () => {
         </div>
       </div>
     );
-  };
-
-  const embedQuestion = async (question: string): Promise<number[]> => {
-    const response = await fetch(`${config.apiUrl}/api/embed`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ inputText: question })
-    });
-    const data = await response.json();
-    return data.embedding;
   };
 
   return (
@@ -660,77 +738,8 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)]">
-        <div className="p-2 md:p-4 border-b">
-          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Model</option>
-              {models.map(model => (
-                <option key={model} value={model}>
-                  {modelNames[model]}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-              className="p-1 md:p-2 text-sm md:text-base border rounded flex-1 max-w-[120px] md:max-w-[150px] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Select Collection</option>
-              {collections.map(collection => (
-                <option key={collection} value={collection}>
-                  {collection}
-                </option>
-              ))}
-            </select>
-            {/* <button
-              onClick={clearChat}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm md:text-base bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors whitespace-nowrap"
-            >
-              Clear Chat
-            </button> */}
-          </div>
-        </div>
-
         <form onSubmit={handleSubmit} className="p-2 md:p-4">
           <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
-            <div className="flex items-center gap-2 p-2">
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <RiImageAddFill className="w-6 h-6 text-gray-500 dark:text-white hover:text-gray-700 dark:hover:text-gray-300" />
-              </label>
-
-              {selectedImages.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedImages.map((image, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt={`Selected ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             <div className="flex-1">
               <div className="flex gap-2">
                 <textarea
@@ -739,8 +748,23 @@ const MFUChatbot: React.FC = () => {
                   onChange={(e) => handleInputChange(e)}
                   onKeyDown={(e) => handleKeyDown(e)}
                   onPaste={handlePaste}
-                  className="flex-1 min-w-0 p-2 text-sm md:text-base border rounded resize-none"
-                  placeholder={selectedImages.length > 0 ? "Please describe or ask about these images..." : "Type a message..."}
+                  className="flex-1 min-w-0 p-2 text-sm md:text-base rounded-2xl border border-gray-300 dark:border-gray-600 
+                    bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
+                    focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none
+                    scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 
+                    scrollbar-track-transparent hover:scrollbar-thumb-gray-400 
+                    dark:hover:scrollbar-thumb-gray-500 scrollbar-thumb-rounded-full"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'rgb(209 213 219) transparent'
+                  }}
+                  placeholder={
+                    isImageGenerationMode 
+                      ? "Describe the image you want to generate..." 
+                      : selectedImages.length > 0 
+                        ? "Please describe or ask about these images..." 
+                        : "Type a message..."
+                  }
                   rows={1}
                   required
                 />
@@ -748,22 +772,146 @@ const MFUChatbot: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!canSubmit()}
-                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-fit ${canSubmit()
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${
+                    canSubmit()
+                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  style={{ minHeight: '40px' }}
+                  }`}
                 >
                   {isLoading ? (
-                    <BiLoaderAlt className="w-6 h-6 animate-spin" />
+                    <BiLoaderAlt className="w-5 h-5 animate-spin" />
                   ) : (
-                    <GrSend className="w-5 h-5" />
+                    <GrSend className="w-5 h-5" style={{ filter: canSubmit() ? 'brightness(0) invert(1)' : 'none' }} />
                   )}
                 </button>
               </div>
             </div>
           </div>
+
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+            id="file-upload"
+          />
+
+          {selectedImages.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2 max-w-[90%] lg:max-w-[80%] mx-auto">
+              {selectedImages.map((image, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={URL.createObjectURL(image)}
+                    alt={`Selected ${index + 1}`}
+                    className="w-20 h-20 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </form>
+
+        <div className="p-2 md:p-4 border-t dark:border-gray-700">
+          <div className="flex gap-2 max-w-[90%] lg:max-w-[80%] mx-auto">
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 
+                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 min-w-[180px]"
+                onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1 text-left">
+                  {selectedModel ? (models.find(m => m.id === selectedModel)?.name ?? 'Select Model') : 'Select Model'}
+                </span>
+              </button>
+
+              {isModelDropdownOpen && (
+                <div 
+                  className="absolute bottom-full left-0 mb-2 p-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                    bg-white dark:bg-gray-700 shadow-lg z-50 max-h-[200px] overflow-y-auto min-w-[200px]"
+                >
+                  {models.map(model => (
+                    <button
+                      key={model.id}
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600
+                        text-gray-900 dark:text-white transition-colors flex items-center gap-2"
+                      onClick={() => {
+                        setSelectedModel(model.id);
+                        setIsModelDropdownOpen(false);
+                      }}
+                    >
+                      <span className="truncate flex-1 font-medium">{model.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">({model.modelType})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className={`px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                ${isImageGenerationMode ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
+              onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
+              title={isImageGenerationMode ? "Switch to chat mode" : "Switch to image generation mode"}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`w-5 h-5 ${isImageGenerationMode ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                />
+              </svg>
+              <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">
+                {isImageGenerationMode ? "Image Mode" : "Chat Mode"}
+              </span>
+            </button>
+
+            {!isImageGenerationMode && (
+              <button
+                type="button"
+                className="px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                onClick={() => {
+                  document.getElementById('file-upload')?.click();
+                }}
+              >
+                <RiImageAddFill className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
+              </button>
+            )}
+
+            <button
+              onClick={clearChat}
+              className="px-4 py-2 text-sm bg-red-500 text-white rounded-full hover:bg-red-600 
+                transition-colors whitespace-nowrap flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Clear Chat
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

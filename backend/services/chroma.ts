@@ -1,7 +1,8 @@
 import { ChromaClient } from 'chromadb';
-import { Collection } from '../models/Collection';
+import { ICollection, CollectionModel, CollectionDocument } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
 import { TitanEmbedService } from '../services/titan';
+import { HydratedDocument } from 'mongoose';
 
 interface DocumentMetadata {
   filename: string;
@@ -31,10 +32,10 @@ class ChromaService {
           name: collectionName
         });
         this.collections.set(collectionName, collection);
-        console.log(`ChromaDB collection ${collectionName} initialized successfully`);
+        console.log(`ChromaService: Collection '${collectionName}' initialized.`);
       }
     } catch (error) {
-      console.error(`Error initializing ChromaDB collection ${collectionName}:`, error);
+      console.error(`ChromaService: Error initializing collection '${collectionName}':`, error);
       throw error;
     }
   }
@@ -131,21 +132,158 @@ class ChromaService {
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, n_results: number = 5) {
+  /**
+   * Computes and returns the query embedding vector using the Titan embedding service.
+   */
+  async getQueryEmbedding(query: string): Promise<number[]> {
+    try {
+      const embedding = await this.titanEmbedService.embedText(query);
+      return embedding;
+    } catch (error) {
+      console.error("ChromaService: Error computing query embedding:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Performs a similarity search on the specified collection using the provided query embedding.
+   * Returns the concatenated document text from the top n_results.
+   */
+  async queryDocumentsWithEmbedding(collectionName: string, queryEmbedding: number[], n_results: number): Promise<{
+    documents: string[];
+    metadatas: Array<{
+      modelId: string;
+      filename: string;
+      [key: string]: any;
+    }>;
+    distances?: number[];
+  }> {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
+      if (!collection) {
+        throw new Error(`ChromaService: Collection '${collectionName}' not found.`);
+      }
 
-      // Embed the query explicitly using TitanEmbedService
+      // Check if collection has any documents
+      const collectionContents = await collection.get();
+      console.log(`ChromaService: Collection '${collectionName}' contains:`, {
+        documentCount: collectionContents.documents?.length || 0,
+        metadataCount: collectionContents.metadatas?.length || 0,
+        // Log a few sample documents with their metadata
+        sampleDocs: (collectionContents.documents || []).slice(0, 2).map((doc: string, i: number) => ({
+          text: doc.substring(0, 100) + '...',
+          metadata: collectionContents.metadatas?.[i],
+          id: collectionContents.ids?.[i]
+        }))
+      });
+
+      console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results with processed=true filter`);
+
+      const queryResult = await collection.query({
+        queryEmbeddings: [queryEmbedding],
+        n_results: n_results * 2, // Request more results initially for better filtering
+        include: ["documents", "metadatas", "distances"],
+        where: { processed: true } // Only include fully processed documents
+      });
+
+      if (!queryResult.documents || !Array.isArray(queryResult.documents)) {
+        throw new Error("ChromaService: queryResult.documents is not an array.");
+      }
+
+      // Log raw query results in detail
+      console.log(`ChromaService: Raw query results for '${collectionName}':`, {
+        documents: queryResult.documents[0],
+        distances: queryResult.distances?.[0],
+        metadatas: queryResult.metadatas?.[0]
+      });
+
+      // Log query results summary
+      console.log(`ChromaService: Query returned:`, {
+        documentsLength: queryResult.documents.length,
+        firstDocumentLength: queryResult.documents[0]?.length || 0,
+        metadatasLength: queryResult.metadatas?.length || 0,
+        distancesLength: queryResult.distances?.length || 0
+      });
+
+      // Filter results based on similarity score
+      const MAX_L2_DISTANCE = Math.sqrt(2); // Maximum L2 distance for normalized vectors
+      const MIN_SIMILARITY_THRESHOLD = 0.3; // Minimum similarity threshold
+      const documents = queryResult.documents[0];
+      const distances = queryResult.distances?.[0] || [];
+      const metadatas = queryResult.metadatas?.[0] || [];
+      
+      interface QueryResult {
+        text: string;
+        metadata: {
+          modelId: string;
+          filename: string;
+          [key: string]: any;
+        };
+        similarity: number;
+      }
+
+      // Convert L2 distance to similarity score (0 to 1 range)
+      const l2DistanceToSimilarity = (distance: number): number => {
+        // Clamp distance to max theoretical L2 distance
+        const clampedDistance = Math.min(distance, MAX_L2_DISTANCE);
+        // Convert to similarity score (1 = identical, 0 = orthogonal or opposite)
+        return 1 - (clampedDistance / MAX_L2_DISTANCE);
+      };
+
+      // Log raw distances and computed similarities
+      const rawScores = distances.map((distance: number, index: number) => ({
+        distance,
+        similarity: l2DistanceToSimilarity(distance),
+        text: documents[index].substring(0, 100) + '...' // First 100 chars of document
+      }));
+      console.log(`ChromaService: Raw similarity scores:`, rawScores);
+
+      const filteredResults = documents
+        .map((doc: string, index: number): QueryResult => ({
+          text: doc,
+          metadata: metadatas[index],
+          similarity: l2DistanceToSimilarity(distances[index] || 0)
+        }))
+        .filter((result: QueryResult) => result.similarity >= MIN_SIMILARITY_THRESHOLD)
+        .sort((a: QueryResult, b: QueryResult) => b.similarity - a.similarity)
+        .slice(0, n_results);
+
+      // Log filtered results
+      console.log(`ChromaService: After filtering:`, {
+        filteredCount: filteredResults.length,
+        similarityRange: filteredResults.length > 0 ? {
+          min: Math.min(...filteredResults.map((r: QueryResult) => r.similarity)),
+          max: Math.max(...filteredResults.map((r: QueryResult) => r.similarity))
+        } : null
+      });
+
+      return {
+        documents: filteredResults.map((r: QueryResult) => r.text),
+        metadatas: filteredResults.map((r: QueryResult) => r.metadata),
+        distances: filteredResults.map((r: QueryResult) => 1 - r.similarity)
+      };
+    } catch (error) {
+      console.error(`ChromaService: Error querying documents in '${collectionName}':`, error);
+      return {
+        documents: [],
+        metadatas: [],
+        distances: []
+      };
+    }
+  }
+
+  async queryDocuments(collectionName: string, query: string, n_results: number = 10) {
+    try {
+      await this.initCollection(collectionName);
+      const collection = this.collections.get(collectionName);
+      // This method is now deprecated in favor of queryDocumentsWithEmbedding.
       const queryEmbedding = await this.titanEmbedService.embedText(query);
-
-      // Use the embedded query vector for the similarity search:
       const results = await collection.query({
         queryEmbeddings: [queryEmbedding],
         nResults: n_results,
         where: { processed: true }
       });
-
       return results;
     } catch (error) {
       console.error('Error querying ChromaDB:', error);
@@ -153,7 +291,7 @@ class ChromaService {
     }
   }
 
-  async queryCollection(collectionName: string, text: string, nResults: number = 5) {
+  async queryCollection(collectionName: string, text: string, nResults: number = 10) {
     await this.initCollection(collectionName);
     const collection = this.collections.get(collectionName);
     return collection.query({
@@ -168,7 +306,7 @@ class ChromaService {
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
         queryTexts: [query],
-        nResults: 5,
+        nResults: 10,
         minScore: 0.7,
         where: {},
         include: ["documents", "metadatas", "distances"]
@@ -280,7 +418,7 @@ class ChromaService {
       this.collections.delete(collectionName);
 
       // Delete from MongoDB
-      await Collection.deleteOne({ name: collectionName });
+      await CollectionModel.deleteOne({ name: collectionName });
       
       console.log(`Collection ${collectionName} deleted successfully`);
     } catch (error) {
@@ -303,20 +441,20 @@ class ChromaService {
     }
   }
 
-  async createCollection(name: string, permission: CollectionPermission, createdBy: string) {
+  async createCollection(name: string, permission: CollectionPermission, createdBy: string): Promise<HydratedDocument<CollectionDocument>> {
     try {
-      // 1. สร้าง collection ใน ChromaDB
-      const collection = await this.client.createCollection({ name });
+      // 1. Create the collection in ChromaDB
+      await this.client.createCollection({ name });
       
-      // 2. บันทึก metadata ใน MongoDB
-      await Collection.create({
+      // 2. Save the collection metadata into MongoDB and get the created document (includes _id)
+      const newCollection = await CollectionModel.create({
         name,
         permission,
         createdBy,
         created: new Date()
       });
-
-      return collection;
+      
+      return newCollection;
     } catch (error) {
       console.error('Error creating collection:', error);
       throw error;
@@ -348,7 +486,7 @@ class ChromaService {
   async checkCollectionAccess(collectionName: string, user: { nameID: string, groups: string[] }) {
     try {
       // ค้นหา collection จาก MongoDB
-      const collection = await Collection.findOne({ name: collectionName });
+      const collection = await CollectionModel.findOne({ name: collectionName });
       
       // ถ้าไม่พบ collection
       if (!collection) {
@@ -375,10 +513,10 @@ class ChromaService {
   // เพิ่มเมธอดสำหรับตรวจสอบการมีอยู่ของ collection
   async ensureCollectionExists(name: string, user: { nameID: string }) {
     try {
-      let collection = await Collection.findOne({ name });
+      let collection = await CollectionModel.findOne({ name });
       
       if (!collection) {
-        collection = await Collection.create({
+        collection = await CollectionModel.create({
           name,
           permission: CollectionPermission.PUBLIC,
           createdBy: user.nameID,

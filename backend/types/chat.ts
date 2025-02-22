@@ -5,4 +5,5 @@ export interface ChatMessage {
     data: string;
     mediaType: string;
   }>;
+  isImageGeneration?: boolean;
 } 
