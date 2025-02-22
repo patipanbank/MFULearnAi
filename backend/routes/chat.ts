@@ -5,6 +5,7 @@ import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { Collection, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
+import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -207,6 +208,28 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
+  }
+});
+
+// ดึงประวัติการสนทนาตาม ID
+router.get('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const chatId = req.params.id;
+    
+    const chat = await ChatHistory.findOne({ 
+      _id: chatId,
+      userId: userId // ตรวจสอบว่าเป็นเจ้าของแชทด้วย
+    });
+
+    if (!chat) {
+      res.status(404).json({ error: 'Chat history not found' });
+    }
+
+    res.json(chat);
+  } catch (error) {
+    console.error('Error getting chat history:', error);
+    res.status(500).json({ error: 'Failed to get chat history' });
   }
 });
 
