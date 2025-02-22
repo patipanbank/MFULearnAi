@@ -1,49 +1,37 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { UserRole } from '../models/User';
 import jwt from 'jsonwebtoken';
+import User from '../models/User';
 
-export const roleGuard = (allowedRoles: UserRole[]): RequestHandler => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+interface RequestWithUser extends Request {
+  user: {
+    id: string;
+    groups: string[];
+    // เพิ่ม properties อื่นๆ ตามที่จำเป็น
+  };
+}
+
+export const roleGuard = (allowedGroups: string[]): RequestHandler => 
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader?.startsWith('Bearer ')) {
+      const token = req.headers.authorization?.split(' ')[1];
+      
+      if (!token) {
         res.status(401).json({ message: 'No token provided' });
         return;
       }
 
-      const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as RequestWithUser['user'];
+      (req as RequestWithUser).user = decoded;
 
-      console.log('Token payload:', decoded);
-      console.log('Allowed roles:', allowedRoles);
-      console.log('User role:', decoded.role);
-
-      if (!decoded.role) {
-        console.error('No role found in token');
-        res.status(403).json({ message: 'No role found in token' });
+      if (!decoded.groups || !decoded.groups.some(group => allowedGroups.includes(group))) {
+        res.status(403).json({ message: 'Access denied' });
         return;
       }
 
-      // Check if user's role matches any of the allowed roles
-      const hasAllowedRole = allowedRoles.some(role => 
-        decoded.role === role || 
-        (role === 'Staffs' && decoded.role === 'ADMIN') // ADMIN can do anything Staffs can do
-      );
-
-      console.log('Has allowed role:', hasAllowedRole);
-
-      if (!hasAllowedRole) {
-        res.status(403).json({ message: 'Forbidden - Insufficient permissions' });
-        return;
-      }
-
-      // Add user info to request
-      (req as any).user = decoded;
       next();
     } catch (error) {
-      console.error('Role guard error:', error);
-      res.status(401).json({ message: 'Invalid or expired token' });
+      console.error('Auth error:', error);
+      res.status(401).json({ message: 'Invalid token' });
       return;
     }
-  };
-}; 
+  }; 
