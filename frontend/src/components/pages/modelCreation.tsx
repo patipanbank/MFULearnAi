@@ -68,11 +68,7 @@ const BaseModal: React.FC<{
         onClose();
       }
     }}>
-    <div className={`relative bg-white dark:bg-gray-800 rounded p-6 ${containerClasses}
-      scrollbar scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 
-      scrollbar-track-gray-200 dark:scrollbar-track-gray-700/50
-      hover:scrollbar-thumb-gray-500 dark:hover:scrollbar-thumb-gray-500
-      scrollbar-thumb-rounded-full scrollbar-track-rounded-full`}>
+    <div className={`relative bg-white dark:bg-gray-800 rounded p-6 ${containerClasses}`}>
       <button
         onClick={(e) => {
           e.stopPropagation();
