@@ -762,11 +762,9 @@ const TrainingDashboard: React.FC = () => {
   const handleCollectionSelect = async (collection: Collection) => {
     // Set selected collection immediately for better UX
     setSelectedCollection(collection);
-    // Start loading files immediately
-    await fetchUploadedFiles(collection.name);
+    // Files will be loaded by the useEffect hook
     
     try {
-      // Instead of fetching a single collection, fetch all and find the one we need
       const response = await fetch(
         `${config.apiUrl}/api/training/collections`,
         {
