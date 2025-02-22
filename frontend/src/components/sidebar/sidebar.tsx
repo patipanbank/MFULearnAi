@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 // import { FaComments, FaBars, FaCog, FaHistory, FaSignOutAlt } from 'react-icons/fa';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaHistory, FaPlus } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt } from 'react-icons/fa';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 interface SidebarProps {
@@ -56,27 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </div>
 
       <div className="flex-1 px-4 py-2">
-        <nav className="space-y-2">
-          <button
-            onClick={() => {
-              window.location.href = '/mfuchatbot?new=true';
-              onClose?.();
-            }}
-            className="w-full flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            <FaPlus className="w-5 h-5 mr-3" />
-            <span>New Chat</span>
-          </button>
-
-          <Link
-            to="/chat-history"
-            className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
-              ${location.pathname === '/chat-history' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-          >
-            <FaHistory className="w-5 h-5 mr-3" />
-            <span>Chat History</span>
-          </Link>
-
+        <nav>
           <Link
             to="/mfuchatbot"
             className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
