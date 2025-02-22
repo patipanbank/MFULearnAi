@@ -680,62 +680,65 @@ const TrainingDashboard: React.FC = () => {
     let intervalId: NodeJS.Timeout;
 
     const updateCollectionData = async () => {
-      if (selectedCollection) {
-        try {
-          const response = await fetch(
-            `${config.apiUrl}/api/training/collections/${selectedCollection.id}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-              },
-            }
-          );
+      if (!selectedCollection?.id) return;
 
-          // Don't close modals on 404, just refresh the collections list
-          if (response.status === 404) {
-            await fetchCollections();
-            return;
+      try {
+        const response = await fetch(
+          `${config.apiUrl}/api/training/collections/${selectedCollection.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            },
           }
+        );
 
-          if (!response.ok) {
-            throw new Error('Failed to fetch collection update');
-          }
-
-          const updatedData = await response.json();
-
-          setCollections(prevCollections =>
-            prevCollections.map(col =>
-              col.id === selectedCollection.id
-                ? {
-                    ...col,
-                    ...updatedData,
-                    created: col.created,
-                    createdBy: col.createdBy,
-                  }
-                : col
-            )
-          );
-
-          // Keep the selected collection and settings state
-          if (selectedCollection.id === updatedData._id) {
-            setSelectedCollection(prev => ({
-              ...prev!,
-              ...updatedData,
-              created: prev!.created,
-              createdBy: prev!.createdBy,
-            }));
-          }
-
-          await fetchUploadedFiles(updatedData.name);
-        } catch (error) {
-          console.error('Error in real-time update:', error);
-          // Don't close modals on error, just refresh collections
-          await fetchCollections();
+        // If collection not found, stop polling but keep modal open
+        if (response.status === 404) {
+          console.log('Collection not found in update interval');
+          return;
         }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch collection update');
+        }
+
+        const updatedData = await response.json();
+
+        // Update collections list
+        setCollections(prevCollections =>
+          prevCollections.map(col =>
+            col.id === selectedCollection.id
+              ? {
+                  ...col,
+                  ...updatedData,
+                  id: updatedData._id || col.id,
+                  created: col.created,
+                  createdBy: col.createdBy,
+                }
+              : col
+          )
+        );
+
+        // Update selected collection
+        setSelectedCollection(prev => ({
+          ...prev!,
+          ...updatedData,
+          id: updatedData._id || prev!.id,
+          created: prev!.created,
+          createdBy: prev!.createdBy,
+        }));
+
+        // Refresh files list
+        await fetchUploadedFiles(updatedData.name || selectedCollection.name);
+
+      } catch (error) {
+        console.error('Error in real-time update:', error);
+        // On error, keep existing data and continue polling
       }
     };
 
     if (selectedCollection) {
+      // Start polling
       intervalId = setInterval(updateCollectionData, 5000);
     }
 
@@ -744,10 +747,14 @@ const TrainingDashboard: React.FC = () => {
         clearInterval(intervalId);
       }
     };
-  }, [selectedCollection, fetchCollections, fetchUploadedFiles]);
+  }, [selectedCollection, fetchUploadedFiles]);
 
   const handleCollectionSelect = async (collection: Collection) => {
+    // Set selected collection immediately for better UX
     setSelectedCollection(collection);
+    // Start loading files immediately
+    await fetchUploadedFiles(collection.name);
+    
     try {
       const response = await fetch(
         `${config.apiUrl}/api/training/collections/${collection.id}`,
@@ -758,9 +765,10 @@ const TrainingDashboard: React.FC = () => {
         }
       );
 
-      // Don't close modals on 404, just refresh collections
+      // If we get a 404, the collection might have been deleted or ID changed
+      // Just keep using the collection data we already have
       if (response.status === 404) {
-        await fetchCollections();
+        console.log('Collection details not found, using existing data');
         return;
       }
 
@@ -769,13 +777,15 @@ const TrainingDashboard: React.FC = () => {
       }
 
       const freshData = await response.json();
-
+      
+      // Update collections list with fresh data
       setCollections(prevCollections =>
         prevCollections.map(col =>
           col.id === collection.id
             ? {
                 ...col,
                 ...freshData,
+                id: freshData._id || collection.id, // Use new ID if available
                 created: col.created,
                 createdBy: col.createdBy,
               }
@@ -783,19 +793,18 @@ const TrainingDashboard: React.FC = () => {
         )
       );
 
-      // Keep the selected collection state
+      // Update selected collection with fresh data
       setSelectedCollection(prev => ({
         ...prev!,
         ...freshData,
+        id: freshData._id || collection.id, // Use new ID if available
         created: collection.created,
         createdBy: collection.createdBy,
       }));
 
-      await fetchUploadedFiles(freshData.name);
     } catch (error) {
       console.error('Error fetching collection details:', error);
-      // Don't close modals on error, just refresh collections
-      await fetchCollections();
+      // On error, keep using existing collection data
     }
   };
 
