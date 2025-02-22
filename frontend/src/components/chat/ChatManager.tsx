@@ -255,6 +255,16 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
                 >
                   ✏️
                 </button>
+                <select
+                  onChange={(e) => handleMoveToFolder(chat._id, e.target.value)}
+                  value={chat.folder || 'default'}
+                  className="p-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600"
+                >
+                  {folders.map(folder => (
+                    <option key={folder} value={folder}>{folder}</option>
+                  ))}
+                  <option value="new">+ New Folder</option>
+                </select>
                 <button
                   onClick={() => handleExport(chat._id)}
                   className="p-1 text-gray-500 hover:text-blue-500"
