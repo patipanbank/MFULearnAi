@@ -306,7 +306,9 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { messages, modelId, collectionName } = req.body;
+    // Get username and groups from user data
     const userId = (req.user as any)?.username || '';
+    const userGroups = (req.user as any)?.groups || [];
 
     if (!messages || !Array.isArray(messages)) {
       res.status(400).json({ error: 'Invalid messages format' });
@@ -330,7 +332,7 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[])
     const history = await chatHistoryService.saveChatMessage(
       userId,
       modelId,
-      collectionName, // Now optional
+      collectionName,
       processedMessages
     );
     res.json(history);
@@ -343,6 +345,7 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[])
 router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username || '';
+    const userGroups = (req.user as any)?.groups || [];
     const history = await chatHistoryService.getChatHistory(userId);
     res.json(history);
   } catch (error) {

@@ -4,9 +4,10 @@ import User from '../models/User';
 
 interface RequestWithUser extends Request {
   user: {
-    id: string;
+    username: string;
+    nameID: string;
     groups: string[];
-    // เพิ่ม properties อื่นๆ ตามที่จำเป็น
+    firstName: string;
   };
 }
 
@@ -23,7 +24,14 @@ export const roleGuard = (allowedGroups: string[]): RequestHandler =>
       const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as RequestWithUser['user'];
       (req as RequestWithUser).user = decoded;
 
-      if (!decoded.groups || !decoded.groups.some(group => allowedGroups.includes(group))) {
+      // Check if user has any of the allowed groups
+      const userGroups = decoded.groups || [];
+      const hasAllowedRole = allowedGroups.some(group => userGroups.includes(group));
+
+      // Special case: if user is in 'Admin' group, they have access to everything
+      const isAdmin = userGroups.includes('Admin');
+
+      if (!hasAllowedRole && !isAdmin) {
         res.status(403).json({ message: 'Access denied' });
         return;
       }
