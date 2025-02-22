@@ -11,6 +11,7 @@ import { CollectionModel, CollectionDocument } from '../models/Collection';
 import iconv from 'iconv-lite';
 import { CollectionPermission } from '../models/Collection';
 import { UserRole } from '../models/User';
+import { TrainingHistory } from '../models/TrainingHistory';
 
 const router = Router();
 
@@ -108,6 +109,19 @@ router.post('/upload', roleGuard(['Staffs', 'Admin'] as UserRole[]), upload.sing
     console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
+    // Track the upload in history
+    await TrainingHistory.create({
+      userId: user.nameID,
+      username: user.username,
+      collectionName,
+      documentName: file.originalname,
+      action: 'upload',
+      details: {
+        modelId,
+        chunks: documents.length
+      }
+    });
+    
     res.json({ 
       message: 'File processed successfully with vector embeddings',
       chunks: documents.length
@@ -187,7 +201,17 @@ router.post('/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), async 
     const user = (req as any).user;
     
     const newCollection = await chromaService.createCollection(name, permission, user.nameID);
-    console.log(`Collection created: id: ${newCollection._id}, name: "${newCollection.name}"`);
+    
+    // Track collection creation
+    await TrainingHistory.create({
+      userId: user.nameID,
+      username: user.username,
+      collectionName: name,
+      action: 'create_collection',
+      details: {
+        permission
+      }
+    });
     
     res.status(201).json({
       message: 'Collection created successfully',
@@ -260,6 +284,14 @@ router.delete('/collections/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), 
       res.status(403).json({ error: 'Permission denied' });
       return;
     }
+    
+    // Track collection deletion
+    await TrainingHistory.create({
+      userId: user.nameID,
+      username: user.username,
+      collectionName: collection.name,
+      action: 'delete_collection'
+    });
     
     await chromaService.deleteCollection(collection.name);
     res.json({ message: 'Collection deleted successfully' });
@@ -554,8 +586,19 @@ router.post('/collections/:id/documents/:docId/process-status', roleGuard(['Staf
  */
 router.get('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
   try {
-    // For now, return empty array since we don't have actual training history yet
-    res.json([]);
+    const user = (req as any).user;
+    let query = {};
+    
+    // If not admin or staff, only show user's own history
+    if (!user.groups.includes('Admin') && !user.groups.includes('Staffs')) {
+      query = { userId: user.nameID };
+    }
+
+    const history = await TrainingHistory.find(query)
+      .sort({ timestamp: -1 })
+      .limit(50);
+
+    res.json(history);
   } catch (error) {
     console.error('Error fetching training history:', error);
     res.status(500).json({ error: 'Error fetching training history' });
