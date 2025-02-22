@@ -477,19 +477,29 @@ const MFUChatbot: React.FC = () => {
           setMessages(prev => {
             const lastAssistantMessage = prev[prev.length - 1];
             if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
-              return prev.map((msg, index) => 
+              const updatedMessages = prev.map((msg, index) => 
                 index === prev.length - 1 
                   ? { ...msg, content: msg.content + data.content }
                   : msg
               );
+              // Save chat history after each content update for existing chats
+              if (currentChatId) {
+                saveChatHistory(updatedMessages);
+              }
+              return updatedMessages;
             }
-            return [...prev, {
+            const newMessages = [...prev, {
               id: prev.length + 1,
               role: 'assistant' as const,
               content: data.content,
               timestamp: new Date(),
               isImageGeneration: false
             }];
+            // Save chat history after adding new assistant message
+            if (currentChatId) {
+              saveChatHistory(newMessages);
+            }
+            return newMessages;
           });
         }
 
