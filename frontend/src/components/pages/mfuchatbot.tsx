@@ -350,9 +350,6 @@ const MFUChatbot: React.FC = () => {
     wsUrl.searchParams.append('token', token);
     wsRef.current = new WebSocket(wsUrl.toString());
 
-    let accumulatedContent = '';
-    let currentMessageId: number | null = null;
-
     wsRef.current.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -364,7 +361,6 @@ const MFUChatbot: React.FC = () => {
 
         if (data.type === 'generated-image') {
           setMessages(prev => {
-            // Find the last assistant message that's empty
             const lastEmptyAssistantIndex = [...prev].reverse().findIndex(msg => 
               msg.role === 'assistant' && msg.content === ''
             );
@@ -395,43 +391,44 @@ const MFUChatbot: React.FC = () => {
         }
 
         if (data.content) {
-          accumulatedContent += data.content;
+          // Update messages immediately with each chunk
           setMessages(prev => {
-            // Find the last assistant message that's empty
-            const lastEmptyAssistantIndex = [...prev].reverse().findIndex(msg => 
-              msg.role === 'assistant' && msg.content === ''
-            );
-            
-            if (lastEmptyAssistantIndex === -1) return prev;
-            
-            const actualIndex = prev.length - 1 - lastEmptyAssistantIndex;
-            currentMessageId = prev[actualIndex].id;
-            
-            return prev.map(msg =>
-              msg.id === currentMessageId ? 
-              { ...msg, content: accumulatedContent } : msg
-            );
+            const lastAssistantMessage = prev[prev.length - 1];
+            if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
+              // Update the last assistant message with accumulated content
+              return prev.map((msg, index) => 
+                index === prev.length - 1 
+                  ? { ...msg, content: msg.content + data.content }
+                  : msg
+              );
+            }
+            // Create a new assistant message
+            return [...prev, {
+              id: prev.length + 1,
+              role: 'assistant' as const,
+              content: data.content,
+              timestamp: new Date(),
+              isImageGeneration: false
+            }];
           });
         }
 
         if (data.done) {
+          // Final update with any sources
           setMessages(prev => {
-            if (!currentMessageId) return prev;
-            
-            return prev.map(msg =>
-              msg.id === currentMessageId ? 
-              { ...msg, content: accumulatedContent, sources: data.sources } : msg
-            );
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+              return prev.map((msg, index) =>
+                index === prev.length - 1
+                  ? { ...msg, sources: data.sources }
+                  : msg
+              );
+            }
+            return prev;
           });
 
           // Save chat history after message is complete
-          setMessages(prev => {
-            saveChatHistory(prev);
-            return prev;
-          });
-          
-          accumulatedContent = '';
-          currentMessageId = null;
+          saveChatHistory(messages);
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
@@ -825,7 +822,7 @@ const MFUChatbot: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
                 <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1 text-left">
-                  {selectedModel ? models.find(m => m.id === selectedModel)?.name || 'Select Model' : 'Select Model'}
+                  {selectedModel ? (models.find(m => m.id === selectedModel)?.name ?? 'Select Model') : 'Select Model'}
                 </span>
               </button>
 
