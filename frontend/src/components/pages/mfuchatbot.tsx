@@ -189,7 +189,8 @@ const MFUChatbot: React.FC = () => {
 
         // Set the first model as selected if available
         if (allModels.length > 0) {
-          setSelectedModel(allModels[0].id);
+          const defaultModel = allModels.find(model => model.name === 'Default');
+          setSelectedModel(defaultModel?.id || allModels[0].id);
         }
       } catch (error) {
         console.error('Error fetching models:', error);
@@ -823,7 +824,7 @@ const MFUChatbot: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="text-sm text-gray-700 dark:text-gray-300 max-w-[150px] truncate">
                   {selectedModel ? models.find(m => m.id === selectedModel)?.name || 'Select Model' : 'Select Model'}
                 </span>
               </button>
@@ -831,19 +832,20 @@ const MFUChatbot: React.FC = () => {
               {isModelDropdownOpen && (
                 <div 
                   className="absolute bottom-full left-0 right-0 mb-2 p-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                    bg-white dark:bg-gray-700 shadow-lg z-50"
+                    bg-white dark:bg-gray-700 shadow-lg z-50 max-h-[200px] overflow-y-auto"
                 >
                   {models.map(model => (
                     <button
                       key={model.id}
                       className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600
-                        text-gray-900 dark:text-white transition-colors"
+                        text-gray-900 dark:text-white transition-colors flex items-center justify-between"
                       onClick={() => {
                         setSelectedModel(model.id);
                         setIsModelDropdownOpen(false);
                       }}
                     >
-                      {model.name} ({model.modelType})
+                      <span className="truncate flex-1">{model.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({model.modelType})</span>
                     </button>
                   ))}
                 </div>
