@@ -8,7 +8,7 @@ import { Collection, CollectionPermission } from '../../types/collection';
 // ----------------------
 interface UserInfo {
   username: string;
-  role: 'Students' | 'Staffs' | 'ADMIN';
+  role: 'Students' | 'Staffs' | 'Admin';
 }
 
 interface UploadedFile {
@@ -762,7 +762,7 @@ const TrainingDashboard: React.FC = () => {
           });
           
           // Check if user is admin
-          const isAdmin = userInfo.role === 'ADMIN';
+          const isAdmin = userInfo.role === 'Admin';
           
           // If user is admin, they can access everything
           if (isAdmin) {
@@ -775,7 +775,7 @@ const TrainingDashboard: React.FC = () => {
               return true;
             case CollectionPermission.STAFF_ONLY:
               // Only ADMIN and STAFF can access STAFF_ONLY collections
-              const hasStaffAccess = userInfo.role === 'Staffs' || userInfo.role === 'ADMIN';
+              const hasStaffAccess = userInfo.role === 'Staffs' || userInfo.role === 'Admin';
               console.log(`Collection "${collection.name}" is staff only - access granted:`, hasStaffAccess);
               return hasStaffAccess;
             case CollectionPermission.PRIVATE:
