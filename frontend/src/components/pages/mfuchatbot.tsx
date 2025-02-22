@@ -288,8 +288,15 @@ const MFUChatbot: React.FC = () => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
         await new Promise((resolve, reject) => {
-          wsRef.current!.onopen = resolve;
-          wsRef.current!.onerror = reject;
+          const timeout = setTimeout(() => reject(new Error('WebSocket connection timeout')), 5000);
+          wsRef.current!.onopen = () => {
+            clearTimeout(timeout);
+            resolve(undefined);
+          };
+          wsRef.current!.onerror = (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          };
         });
       }
 
@@ -319,6 +326,17 @@ const MFUChatbot: React.FC = () => {
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          
+          if (data.error) {
+            console.error('WebSocket error:', data.error);
+            setMessages(prev => prev.map(msg =>
+              msg.id === aiMessageId
+                ? { ...msg, content: `Error: ${data.error}` }
+                : msg
+            ));
+            return;
+          }
+
           if (data.content) {
             accumulatedContent += data.content;
             setMessages(prev => prev.map(msg =>
@@ -355,8 +373,22 @@ const MFUChatbot: React.FC = () => {
             saveChatHistory(updatedMessages);
           }
         } catch (error) {
-          console.error('Error parsing message:', error);
+          console.error('Error parsing WebSocket message:', error);
+          setMessages(prev => prev.map(msg =>
+            msg.id === aiMessageId
+              ? { ...msg, content: 'Error: Failed to parse response' }
+              : msg
+          ));
         }
+      };
+
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setMessages(prev => prev.map(msg =>
+          msg.id === aiMessageId
+            ? { ...msg, content: 'Error: WebSocket connection failed' }
+            : msg
+        ));
       };
 
       wsRef.current.send(JSON.stringify({
@@ -370,7 +402,7 @@ const MFUChatbot: React.FC = () => {
       setMessages(prev => [...prev, {
         id: aiMessageId,
         role: 'assistant',
-        content: 'Sorry, an error occurred. Please try again.',
+        content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
         timestamp: new Date()
       }]);
     } finally {
@@ -784,48 +816,46 @@ const MFUChatbot: React.FC = () => {
               )}
             </div>
 
-            <div className="flex gap-2">
+            <button
+              type="button"
+              className={`px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                ${isImageGenerationMode ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
+              onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
+              title={isImageGenerationMode ? "Switch to chat mode" : "Switch to image generation mode"}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`w-5 h-5 ${isImageGenerationMode ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                />
+              </svg>
+              <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">
+                {isImageGenerationMode ? "Image Mode" : "Chat Mode"}
+              </span>
+            </button>
+
+            {!isImageGenerationMode && (
               <button
                 type="button"
-                className={`px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
-                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${isImageGenerationMode ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
-                onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
-                title={isImageGenerationMode ? "Switch to chat mode" : "Switch to image generation mode"}
+                className="px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                onClick={() => {
+                  document.getElementById('file-upload')?.click();
+                }}
               >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className={`w-5 h-5 ${isImageGenerationMode ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
-                  />
-                </svg>
-                <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">
-                  {isImageGenerationMode ? "Image Mode" : "Chat Mode"}
-                </span>
+                <RiImageAddFill className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
               </button>
-
-              {!isImageGenerationMode && (
-                <button
-                  type="button"
-                  className="px-4 py-2 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
-                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-                  onClick={() => {
-                    document.getElementById('file-upload')?.click();
-                  }}
-                >
-                  <RiImageAddFill className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
-                </button>
-              )}
-            </div>
+            )}
 
             <button
               onClick={clearChat}
