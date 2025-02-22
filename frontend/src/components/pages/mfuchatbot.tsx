@@ -213,100 +213,55 @@ const MFUChatbot: React.FC = () => {
       try {
         const urlParams = new URLSearchParams(location.search);
         const chatId = urlParams.get('chat');
-        const isNewChatParam = urlParams.get('new') === 'true';
         
-        if (isNewChatParam) {
+        // If no chat ID is provided, always start a new chat
+        if (!chatId) {
           setMessages([]);
           setCurrentChatId(null);
+          navigate('/mfuchatbot?new=true', { replace: true });
           return;
         }
 
         const token = localStorage.getItem('auth_token');
         if (!token) return;
 
-        // If chat ID is provided in URL, load that specific chat
-        if (chatId) {
-          const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-
-          if (response.ok) {
-            const chat = await response.json();
-            if (chat.messages && Array.isArray(chat.messages)) {
-              const processedMessages = chat.messages.map((msg: {
-                id: number;
-                role: 'user' | 'assistant' | 'system';
-                content: string;
-                timestamp: string | Date;
-                images?: Array<{ data: string; mediaType: string }>;
-                sources?: Array<{ modelId: string; collectionName: string; filename: string; similarity: number }>;
-                isImageGeneration?: boolean;
-              }) => ({
-                id: msg.id,
-                role: msg.role,
-                content: msg.content || '',
-                timestamp: new Date(msg.timestamp),
-                images: msg.images || [],
-                sources: msg.sources || [],
-                isImageGeneration: msg.isImageGeneration || false
-              }));
-              setMessages(processedMessages);
-              setSelectedModel(chat.modelId || '');
-              setCurrentChatId(chat._id);
-              console.log('Loaded specific chat:', chat._id, processedMessages);
-            }
-          } else {
-            // If chat not found, redirect to new chat
-            navigate('/mfuchatbot?new=true', { replace: true });
-            setMessages([]);
-            setCurrentChatId(null);
-          }
-          return;
-        }
-
-        // If no chat ID, load latest chat
-        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+        // Load specific chat if ID is provided
+        const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
 
         if (response.ok) {
-          const histories = await response.json();
-          if (Array.isArray(histories) && histories.length > 0) {
-            const latestChat = histories[0];
-            if (latestChat.messages && Array.isArray(latestChat.messages)) {
-              const processedMessages = latestChat.messages.map((msg: {
-                id: number;
-                role: 'user' | 'assistant' | 'system';
-                content: string;
-                timestamp: string | Date;
-                images?: Array<{ data: string; mediaType: string }>;
-                sources?: Array<{ modelId: string; collectionName: string; filename: number }>;
-                isImageGeneration?: boolean;
-              }) => ({
-                id: msg.id,
-                role: msg.role,
-                content: msg.content || '',
-                timestamp: new Date(msg.timestamp),
-                images: msg.images || [],
-                sources: msg.sources || [],
-                isImageGeneration: msg.isImageGeneration || false
-              }));
-              setMessages(processedMessages);
-              setSelectedModel(latestChat.modelId || '');
-              setCurrentChatId(latestChat._id);
-              // Update URL with the chat ID
-              navigate(`/mfuchatbot?chat=${latestChat._id}`, { replace: true });
-              console.log('Loaded latest chat:', latestChat._id, processedMessages);
-            }
-          } else {
-            navigate('/mfuchatbot?new=true', { replace: true });
-            setMessages([]);
-            setCurrentChatId(null);
+          const chat = await response.json();
+          if (chat.messages && Array.isArray(chat.messages)) {
+            const processedMessages = chat.messages.map((msg: {
+              id: number;
+              role: 'user' | 'assistant' | 'system';
+              content: string;
+              timestamp: string | Date;
+              images?: Array<{ data: string; mediaType: string }>;
+              sources?: Array<{ modelId: string; collectionName: string; filename: string; similarity: number }>;
+              isImageGeneration?: boolean;
+            }) => ({
+              id: msg.id,
+              role: msg.role,
+              content: msg.content || '',
+              timestamp: new Date(msg.timestamp),
+              images: msg.images || [],
+              sources: msg.sources || [],
+              isImageGeneration: msg.isImageGeneration || false
+            }));
+            setMessages(processedMessages);
+            setSelectedModel(chat.modelId || '');
+            setCurrentChatId(chat._id);
+            console.log('Loaded specific chat:', chat._id, processedMessages);
           }
+        } else {
+          // If chat not found, redirect to new chat
+          navigate('/mfuchatbot?new=true', { replace: true });
+          setMessages([]);
+          setCurrentChatId(null);
         }
       } catch (error) {
         console.error('Error loading chat history:', error);
