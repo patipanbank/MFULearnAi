@@ -292,14 +292,9 @@ const MFUChatbot: React.FC = () => {
 
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         console.log('Creating new WebSocket connection...');
-        wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
-        
-        // Add token to WebSocket connection
-        wsRef.current.onopen = () => {
-          if (wsRef.current) {
-            wsRef.current.send(JSON.stringify({ type: 'auth', token }));
-          }
-        };
+        const wsUrl = new URL(import.meta.env.VITE_WS_URL);
+        wsUrl.searchParams.append('token', token);
+        wsRef.current = new WebSocket(wsUrl.toString());
 
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
@@ -307,7 +302,7 @@ const MFUChatbot: React.FC = () => {
               wsRef.current.close();
             }
             reject(new Error('WebSocket connection timeout'));
-          }, 5000);
+          }, 10000);
 
           if (wsRef.current) {
             wsRef.current.onopen = () => {
@@ -319,7 +314,14 @@ const MFUChatbot: React.FC = () => {
             wsRef.current.onerror = (error) => {
               console.error('WebSocket connection error:', error);
               clearTimeout(timeout);
-              reject(error);
+              reject(new Error('Failed to establish WebSocket connection. Please check your internet connection and try again.'));
+            };
+
+            wsRef.current.onclose = (event) => {
+              console.log('WebSocket connection closed:', event.code, event.reason);
+              if (!event.wasClean) {
+                reject(new Error(`WebSocket connection closed unexpectedly: ${event.reason || 'Unknown reason'}`));
+              }
             };
           }
         });

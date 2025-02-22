@@ -42,7 +42,10 @@ const wss = new WebSocketServer({
   clientTracking: true,
   verifyClient: (info, cb) => {
     try {
-      const token = info.req.headers['authorization']?.split(' ')[1];
+      // Get token from URL parameters
+      const url = new URL(info.req.url!, `http://${info.req.headers.host}`);
+      const token = url.searchParams.get('token');
+      
       if (!token) {
         console.log('WebSocket connection rejected: No token provided');
         cb(false, 401, 'Unauthorized');
@@ -51,6 +54,7 @@ const wss = new WebSocketServer({
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
       (info.req as any).user = decoded;
+      console.log('WebSocket connection authorized for user:', decoded.username);
       cb(true);
     } catch (error) {
       console.error('WebSocket authentication error:', error);
