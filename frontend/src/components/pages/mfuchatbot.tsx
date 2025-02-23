@@ -347,6 +347,7 @@ const MFUChatbot: React.FC = () => {
   const saveChatHistory = async (messages: Message[]): Promise<any> => {
     try {
       const token = localStorage.getItem('auth_token');
+      console.log('Saving chat - Auth token:', token);
       if (!token) return null;
 
       if (!selectedModel) {
@@ -357,6 +358,7 @@ const MFUChatbot: React.FC = () => {
       // Get user info from token
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const userId = tokenPayload.id;
+      console.log('User ID from token:', userId);
 
       // Format messages according to MongoDB schema
       const validMessages = messages
@@ -372,6 +374,8 @@ const MFUChatbot: React.FC = () => {
           sources: msg.sources || [],
           isImageGeneration: msg.isImageGeneration || false
         }));
+
+      console.log('Valid messages to save:', validMessages);
 
       if (validMessages.length === 0) {
         console.log('No valid messages to save');
@@ -394,9 +398,13 @@ const MFUChatbot: React.FC = () => {
         }
       };
 
+      console.log('Save chat payload:', payload);
+
       const url = currentChatId 
         ? `${config.apiUrl}/api/chat/history/${currentChatId}`
         : `${config.apiUrl}/api/chat/history`;
+
+      console.log('Save chat URL:', url);
 
       const response = await fetch(url, {
         method: currentChatId ? 'PUT' : 'POST',
@@ -407,6 +415,8 @@ const MFUChatbot: React.FC = () => {
         body: JSON.stringify(payload)
       });
 
+      console.log('Save chat response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Error saving chat history:', errorData);
@@ -414,6 +424,7 @@ const MFUChatbot: React.FC = () => {
       }
 
       const history = await response.json();
+      console.log('Save chat response data:', history);
       
       // Update messages with MongoDB format dates
       if (history.messages) {

@@ -54,26 +54,65 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const fetchChatHistories = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.status === 401) {
+      console.log('Auth token present:', !!token); // Debug if token exists
+
+      if (!token) {
+        console.error('No auth token found in localStorage');
         handleTokenExpired();
         return;
       }
 
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setChatHistories(data);
-        } else if (data.messages) {
-          setChatHistories([data]);
-        } else {
-          setChatHistories([]);
+      // Validate token format
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.error('Invalid token format');
+        handleTokenExpired();
+        return;
+      }
+
+      // Get user info from token
+      let tokenPayload;
+      try {
+        tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        console.log('Token payload:', tokenPayload); // Debug token payload
+      } catch (e) {
+        console.error('Failed to parse token payload:', e);
+        handleTokenExpired();
+        return;
+      }
+
+      console.log('Making API request with token:', `Bearer ${token}`); // Debug full token
+
+      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
+      });
+      
+      console.log('API Response status:', response.status); // Debug response status
+      
+      if (response.status === 401) {
+        console.error('Unauthorized - token might be expired');
+        handleTokenExpired();
+        return;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Chat histories data:', data); // Debug response data
+      
+      if (Array.isArray(data)) {
+        setChatHistories(data);
+      } else if (data.messages) {
+        setChatHistories([data]);
+      } else {
+        setChatHistories([]);
       }
     } catch (error) {
       console.error('Error fetching chat histories:', error);
@@ -82,6 +121,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      console.log('No auth token found, redirecting to login...');
+      window.location.href = `${config.apiUrl}/api/auth/login/saml`;
+      return;
+    }
+
     fetchChatHistories();
     
     // เพิ่ม event listener สำหรับอัพเดทแบบ realtime
