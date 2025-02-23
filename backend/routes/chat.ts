@@ -221,28 +221,36 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                 // Update existing chat
                 try {
                   // Verify chat exists and belongs to user
-                  await chatHistoryService.getSpecificChat(extWs.userId, chatId);
+                  const existingChat = await chatHistoryService.getSpecificChat(extWs.userId, chatId);
+                  if (!existingChat) {
+                    throw new Error('Chat not found');
+                  }
+
+                  // Update existing chat with new messages
                   savedChat = await chatHistoryService.saveChatMessage(
                     extWs.userId,
-                    modelId,
-                    '',  // collectionName is optional
+                    existingChat.modelId || modelId, // Use existing modelId or fallback to current
+                    existingChat.collectionName || '', // Use existing collectionName or empty string
                     allMessages,
                     chatId,
-                    chatname
+                    existingChat.chatname // Keep existing chatname
                   );
+
+                  // Send completion signal with existing chat ID
+                  extWs.send(JSON.stringify({ 
+                    done: true,
+                    chatId: savedChat._id,
+                    isNewChat: false
+                  }));
                 } catch (error) {
-                  console.log('Chat not found or access denied, creating new chat');
-                  savedChat = await chatHistoryService.saveChatMessage(
-                    extWs.userId,
-                    modelId,
-                    '',
-                    allMessages,
-                    undefined,
-                    chatname
-                  );
+                  console.error('Error updating existing chat:', error);
+                  extWs.send(JSON.stringify({ 
+                    error: 'Failed to update chat. Please try again.' 
+                  }));
+                  return; // Exit early on error
                 }
               } else {
-                // Create new chat
+                // Only create new chat if explicitly starting a new chat
                 savedChat = await chatHistoryService.saveChatMessage(
                   extWs.userId,
                   modelId,
@@ -251,18 +259,18 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                   undefined,
                   chatname
                 );
-              }
 
-              // Send completion signal with chat ID for new chats
-              extWs.send(JSON.stringify({ 
-                done: true,
-                chatId: savedChat._id,
-                isNewChat: !chatId || chatId === 'undefined' || chatId === 'null'
-              }));
+                // Send completion signal with new chat ID
+                extWs.send(JSON.stringify({ 
+                  done: true,
+                  chatId: savedChat._id,
+                  isNewChat: true
+                }));
+              }
               
-              console.log(`Chat history updated for user ${extWs.userId}, chatId: ${savedChat._id}`);
+              console.log(`Chat history updated for user ${extWs.userId}, chatId: ${savedChat?._id}`);
             } catch (error) {
-              console.error('Error updating chat history:', error);
+              console.error('Error saving chat history:', error);
               extWs.send(JSON.stringify({ 
                 error: 'Failed to save chat history. Please try again.' 
               }));
