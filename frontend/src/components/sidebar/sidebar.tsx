@@ -174,7 +174,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   return (
     <aside className="flex flex-col h-full">
-      <div className="flex-none p-4 border-b">
+      <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white">
             <span style={{ 
@@ -195,7 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <DarkModeToggle />
             <button 
               onClick={onClose}
-              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
             >
               <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
             </button>
@@ -203,114 +203,123 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </div>
       </div>
 
-      <div className="flex-1 px-4 py-2 overflow-y-auto">
-        <nav className="space-y-2">
+      <div className="flex-1 overflow-y-auto py-4 px-2">
+        <nav className="space-y-4">
           <Link
             to="/mfuchatbot"
-            className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
-              ${location.pathname === '/mfuchatbot' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+            className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+              ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
           >
             <FaComments className="w-5 h-5 mr-3" />
-            <span>New Chat</span>
+            <span className="font-medium">New Chat</span>
           </Link>
 
           {isStaff && (
             <Link
               to="/modelCreation"
-              className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
-                ${location.pathname === '/modelCreation' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+              className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                ${location.pathname === '/modelCreation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
               onClick={onClose}
             >
               <FaAndroid className="w-5 h-5 mr-3" />
-              <span>Model Creation</span>
+              <span className="font-medium">Model Creation</span>
             </Link>
           )}
 
-          {/* แสดงรายการ Chat Histories */}
-          <div className="mt-4">
-            <h3 className="px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Chat History</h3>
-            <div className="mt-2 space-y-1">
-              {Array.isArray(chatHistories) && chatHistories.map((chat) => (
-                <div key={chat._id} className="flex items-center group">
-                  {editingChatId === chat._id ? (
-                    <div className="flex-1 flex items-center px-4 py-2">
-                      <input
-                        type="text"
-                        value={newChatName}
-                        onChange={(e) => setNewChatName(e.target.value)}
-                        className="flex-1 px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveEdit(chat._id);
-                          if (e.key === 'Escape') setEditingChatId(null);
-                        }}
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleSaveEdit(chat._id)}
-                        className="ml-2 text-green-500 hover:text-green-600"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={() => setEditingChatId(null)}
-                        className="ml-2 text-red-500 hover:text-red-600"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <Link
-                        to={`/mfuchatbot?chat=${chat._id}`}
-                        className={`flex-1 flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
-                          ${currentChatId === chat._id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-                        title={chat.chatname || 'Untitled Chat'}
-                      >
-                        <span className="truncate">
-                          {truncateText(chat.chatname || 'Untitled Chat')}
-                        </span>
-                      </Link>
-                      <div className="hidden group-hover:flex items-center pr-2">
+          {chatHistories.length > 0 && (
+            <div className="mt-6">
+              <h3 className="px-4 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Chat History</h3>
+              <div className="space-y-1">
+                {Array.isArray(chatHistories) && chatHistories.map((chat) => (
+                  <div key={chat._id} className="flex items-center group">
+                    {editingChatId === chat._id ? (
+                      <div className="flex-1 flex items-center px-4 py-2">
+                        <input
+                          type="text"
+                          value={newChatName}
+                          onChange={(e) => setNewChatName(e.target.value)}
+                          className="flex-1 px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveEdit(chat._id);
+                            if (e.key === 'Escape') setEditingChatId(null);
+                          }}
+                          autoFocus
+                        />
                         <button
-                          onClick={() => handleEdit(chat._id, chat.chatname)}
-                          className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          onClick={() => handleSaveEdit(chat._id)}
+                          className="ml-2 p-2 text-green-500 hover:text-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors duration-200"
                         >
-                          <FaEdit className="w-4 h-4" />
+                          ✓
                         </button>
                         <button
-                          onClick={() => handleDelete(chat._id)}
-                          className="p-1 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                          onClick={() => setEditingChatId(null)}
+                          className="ml-1 p-2 text-red-500 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-200"
                         >
-                          <FaTrash className="w-4 h-4" />
+                          ✕
                         </button>
                       </div>
-                    </>
-                  )}
-                </div>
-              ))}
+                    ) : (
+                      <>
+                        <Link
+                          to={`/mfuchatbot?chat=${chat._id}`}
+                          className={`flex-1 flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                            ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                          title={chat.chatname || 'Untitled Chat'}
+                        >
+                          <span className="truncate font-medium">
+                            {truncateText(chat.chatname || 'Untitled Chat', 25)}
+                          </span>
+                        </Link>
+                        <div className="hidden group-hover:flex items-center pr-2">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEdit(chat._id, chat.chatname);
+                            }}
+                            className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                          >
+                            <FaEdit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDelete(chat._id);
+                            }}
+                            className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-200"
+                          >
+                            <FaTrash className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {isStaff && (
             <Link
               to="/training"
-              className={`flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
-                ${location.pathname === '/training' ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+              className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                ${location.pathname === '/training' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
             >
               <FaCog className="w-5 h-5 mr-3" />
-              <span>AI Training</span>
+              <span className="font-medium">AI Training</span>
             </Link>
           )}
         </nav>
       </div>
 
-      <div className="flex-none p-4 border-t">
+      <div className="flex-none p-4 border-t border-gray-200 dark:border-gray-700">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="w-full flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200"
         >
           <FaSignOutAlt className="w-5 h-5 mr-3" />
-          <span>Logout</span>
+          <span className="font-medium">Logout</span>
         </button>
       </div>
     </aside>
