@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BiLoaderAlt } from 'react-icons/bi';
-import { GrSend } from "react-icons/gr";
 import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -704,8 +702,11 @@ const MFUChatbot: React.FC = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      setSelectedImages(prev => [...prev, ...Array.from(files)]);
+      const validFiles = Array.from(files).filter(file => validateImageFile(file));
+      setSelectedImages(prev => [...prev, ...validFiles]);
     }
+    // Reset the input value to allow selecting the same file again
+    e.target.value = '';
   };
 
   const handleRemoveImage = (index: number) => {
@@ -924,8 +925,10 @@ const MFUChatbot: React.FC = () => {
               />
               <button
                 type="submit"
-                className="p-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0"
-                disabled={isLoading || (!inputMessage.trim() && selectedImages.length === 0)}
+                className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                  canSubmit() ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                disabled={!canSubmit()}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -978,17 +981,27 @@ const MFUChatbot: React.FC = () => {
                 </div>
 
                 {!isImageGenerationMode && (
-                  <button
-                    type="button"
-                    className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
-                      hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-                    onClick={() => {
-                      document.getElementById('file-upload')?.click();
-                    }}
-                  >
-                    <RiImageAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
-                  </button>
+                  <>
+                    <input
+                      type="file"
+                      id="file-upload"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                      onClick={() => {
+                        document.getElementById('file-upload')?.click();
+                      }}
+                    >
+                      <RiImageAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                      <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
+                    </button>
+                  </>
                 )}
 
                 <button
@@ -1044,6 +1057,28 @@ const MFUChatbot: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Selected Images Preview */}
+            {selectedImages.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selectedImages.map((image, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={URL.createObjectURL(image)}
+                      alt={`Selected ${index + 1}`}
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </form>
       </div>
