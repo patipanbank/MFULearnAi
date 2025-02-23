@@ -343,7 +343,6 @@ const MFUChatbot: React.FC = () => {
   const saveChatHistory = async (messages: Message[]): Promise<any> => {
     try {
       const token = localStorage.getItem('auth_token');
-      console.log('Saving chat - Auth token:', token);
       if (!token) return null;
 
       if (!selectedModel) {
@@ -351,18 +350,15 @@ const MFUChatbot: React.FC = () => {
         return null;
       }
 
-      // Only save if there are actual messages
       if (messages.length === 0) {
         console.log('No messages to save');
         return null;
       }
 
-      // Get user info from token
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const userId = tokenPayload.id;
-      console.log('User ID from token:', userId);
 
-      // Format messages according to MongoDB schema
+      // Format messages
       const validMessages = messages
         .filter(msg => msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0)))
         .map(msg => ({
@@ -378,36 +374,46 @@ const MFUChatbot: React.FC = () => {
           isComplete: msg.isComplete || false
         }));
 
-      console.log('Valid messages to save:', validMessages);
-
       if (validMessages.length === 0) {
         console.log('No valid messages to save');
         return null;
       }
 
-      // Create payload matching MongoDB schema
-      const payload = {
-        userId: userId,
-        modelId: selectedModel,
-        collectionName: "Default",
-        chatname: messages[0]?.content.substring(0, 20) + "...",
-        messages: validMessages,
-        sources: [],
-        createdAt: {
-          $date: new Date().toISOString()
-        },
-        updatedAt: {
-          $date: new Date().toISOString()
-        }
-      };
-
-      console.log('Save chat payload:', payload);
+      let payload;
+      
+      if (currentChatId) {
+        // ถ้าเป็นการอัพเดทแชทเดิม ไม่ต้องกำหนด chatname ใหม่
+        payload = {
+          userId: userId,
+          modelId: selectedModel,
+          collectionName: "Default",
+          messages: validMessages,
+          sources: [],
+          updatedAt: {
+            $date: new Date().toISOString()
+          }
+        };
+      } else {
+        // ถ้าเป็นแชทใหม่ จึงจะสร้าง chatname
+        payload = {
+          userId: userId,
+          modelId: selectedModel,
+          collectionName: "Default",
+          chatname: messages[0]?.content.substring(0, 20) + "...",
+          messages: validMessages,
+          sources: [],
+          createdAt: {
+            $date: new Date().toISOString()
+          },
+          updatedAt: {
+            $date: new Date().toISOString()
+          }
+        };
+      }
 
       const url = currentChatId 
         ? `${config.apiUrl}/api/chat/history/${currentChatId}`
         : `${config.apiUrl}/api/chat/history`;
-
-      console.log('Save chat URL:', url);
 
       const response = await fetch(url, {
         method: currentChatId ? 'PUT' : 'POST',
@@ -418,8 +424,6 @@ const MFUChatbot: React.FC = () => {
         body: JSON.stringify(payload)
       });
 
-      console.log('Save chat response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Error saving chat history:', errorData);
@@ -427,9 +431,7 @@ const MFUChatbot: React.FC = () => {
       }
 
       const history = await response.json();
-      console.log('Save chat response data:', history);
       
-      // Update messages with MongoDB format dates
       if (history.messages) {
         const updatedMessages = history.messages.map((msg: any) => ({
           ...msg,
@@ -440,17 +442,17 @@ const MFUChatbot: React.FC = () => {
         setMessages(updatedMessages);
       }
       
-      // Only update currentChatId and URL if this is a new chat
       if (!currentChatId && history._id) {
         setCurrentChatId(history._id.$oid);
         navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
       }
 
-      // Only emit event if save was successful and the last message is complete
-      const lastMessage = validMessages[validMessages.length - 1];
-      if (lastMessage && lastMessage.isComplete) {
-        window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
-      }
+      window.dispatchEvent(new CustomEvent('chatHistoryUpdated', {
+        detail: {
+          chatId: history._id.$oid || currentChatId,
+          action: currentChatId ? 'update' : 'create'
+        }
+      }));
       
       return history;
     } catch (error) {
