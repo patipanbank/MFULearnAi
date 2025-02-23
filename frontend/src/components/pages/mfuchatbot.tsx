@@ -348,7 +348,12 @@ const MFUChatbot: React.FC = () => {
 
       if (!selectedModel) {
         console.error('No model selected');
-        return null;
+        if (models.length > 0) {
+          const defaultModel = models.find(model => model.name === 'Default');
+          setSelectedModel(defaultModel?.id || models[0].id);
+        } else {
+          return null;
+        }
       }
 
       // Only save if there are actual messages
@@ -446,19 +451,6 @@ const MFUChatbot: React.FC = () => {
         navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
       }
 
-      // Dispatch event for real-time updates in two cases:
-      // 1. When a new chat is created
-      if (!currentChatId && history._id) {
-        window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
-      }
-      // 2. When the last message is complete (for existing chats)
-      else if (currentChatId) {
-        const lastMessage = validMessages[validMessages.length - 1];
-        if (lastMessage && lastMessage.isComplete) {
-          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
-        }
-      }
-      
       return history;
     } catch (error) {
       console.error('Error saving chat history:', error);
@@ -499,6 +491,9 @@ const MFUChatbot: React.FC = () => {
       // Add user message to state
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
+
+      // Save chat history after adding user message
+      await saveChatHistory(updatedMessages);
 
       // Add placeholder for AI response
       const assistantMessage: Message = {
@@ -575,8 +570,6 @@ const MFUChatbot: React.FC = () => {
             const lastMessage = updatedMessages[updatedMessages.length - 1];
             if (lastMessage) {
               lastMessage.isComplete = true;
-              // Dispatch event เมื่อข้อความสมบูรณ์
-              window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
             }
             return updatedMessages;
           });
@@ -585,7 +578,6 @@ const MFUChatbot: React.FC = () => {
         // เพิ่มการตรวจสอบข้อความ "Chat history updated"
         if (typeof event.data === 'string' && event.data.includes('Chat history updated')) {
           console.log('Chat history update detected from WebSocket');
-          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
         }
         
       } catch (error) {
