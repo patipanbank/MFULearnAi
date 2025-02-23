@@ -221,33 +221,6 @@ const MFUChatbot: React.FC = () => {
     fetchModels();
   }, []);
 
-  // เพิ่ม useEffect เพื่อเลือก default model ตอน component mount
-  useEffect(() => {
-    const fetchAndSetDefaultModel = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        const response = await fetch(`${config.apiUrl}/api/models`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          const models = await response.json();
-          const defaultModel = models.find((m: Model) => m.name === 'Default') || models[0];
-          if (defaultModel) {
-            setSelectedModel(defaultModel._id);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching default model:', error);
-      }
-    };
-
-    fetchAndSetDefaultModel();
-  }, []);
-
   const loadChatHistory = async () => {
     try {
       const urlParams = new URLSearchParams(location.search);
@@ -473,11 +446,8 @@ const MFUChatbot: React.FC = () => {
         navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
       }
 
-      // Only emit event if save was successful and the last message is complete
-      const lastMessage = validMessages[validMessages.length - 1];
-      if (lastMessage && lastMessage.isComplete) {
-        window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
-      }
+      // Dispatch event to update sidebar
+      window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
       
       return history;
     } catch (error) {
@@ -610,33 +580,40 @@ const MFUChatbot: React.FC = () => {
             return updatedMessages;
           });
           
-          // Save chat history after messages are updated
-          const currentMessages = await new Promise<Message[]>(resolve => {
-            setMessages(prev => {
-              resolve(prev);
-              return prev;
-            });
-          });
-          await saveChatHistory(currentMessages);
+          // Save chat history and use the response
+          const savedChat = await saveChatHistory(messages);
+          
+          if (savedChat) {
+            // อัพเดท chat ID ถ้าเป็นแชทใหม่
+            if (!currentChatId && savedChat._id) {
+              setCurrentChatId(savedChat._id.$oid);
+              navigate(`/mfuchatbot?chat=${savedChat._id.$oid}`, { replace: true });
+            }
+            
+            // อัพเดท messages ด้วยข้อมูลจาก MongoDB
+            if (savedChat.messages) {
+              setMessages(savedChat.messages.map((msg: any) => ({
+                ...msg,
+                timestamp: msg.timestamp,
+                createdAt: savedChat.createdAt,
+                updatedAt: savedChat.updatedAt
+              })));
+            }
+            
+            // แจ้ง sidebar ให้อัพเดทรายการแชท
+            window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+          }
 
-          // Handle chat ID updates and navigation
-          if (data.chatId) {
+          // Handle chat ID from WebSocket response if needed
+          if (data.chatId && !savedChat) {
             setCurrentChatId(data.chatId);
             if (data.isNewChat) {
-              // Only navigate if this is a new chat
               navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
             }
           }
         }
       } catch (error) {
-        console.error('Error handling WebSocket message:', error);
-        setMessages(prev => prev.map((msg, index) => 
-          index === prev.length - 1 && msg.role === 'assistant' ? {
-            ...msg,
-            content: 'Error processing response. Please try again.',
-            isComplete: true
-          } : msg
-        ));
+        console.error('Error processing WebSocket message:', error);
       }
     };
 
@@ -653,7 +630,7 @@ const MFUChatbot: React.FC = () => {
         wsRef.current.close();
       }
     };
-  }, [navigate]);
+  }, [navigate, messages, currentChatId]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
