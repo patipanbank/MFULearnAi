@@ -582,7 +582,7 @@ const MFUChatbot: React.FC = () => {
             );
             return updatedMessages;
           });
-          
+
           // Save chat history after messages are updated
           const currentMessages = await new Promise<Message[]>(resolve => {
             setMessages(prev => {
@@ -591,22 +591,23 @@ const MFUChatbot: React.FC = () => {
             });
           });
           const savedChat = await saveChatHistory(currentMessages);
-
-          // Handle chat ID updates and navigation
-          if (data.chatId) {
-            setCurrentChatId(data.chatId);
-            if (data.isNewChat) {
-              navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
+          
+          if (savedChat) {
+            // Update currentChatId and URL
+            const chatId = savedChat._id.$oid || savedChat._id;
+            setCurrentChatId(chatId);
+            if (!currentChatId) {
+              navigate(`/mfuchatbot?chat=${chatId}`, { replace: true });
             }
-            
+
             // Dispatch custom event for real-time update
-            window.dispatchEvent(new CustomEvent('chatUpdated', {
+            const updateEvent = new CustomEvent('chatUpdated', {
               detail: {
-                chatId: data.chatId,
-                messages: currentMessages,
-                savedChat: savedChat
+                type: currentChatId ? 'update' : 'new',
+                chat: savedChat
               }
-            }));
+            });
+            window.dispatchEvent(updateEvent);
           }
         }
       } catch (error) {
