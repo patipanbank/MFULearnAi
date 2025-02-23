@@ -90,8 +90,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     };
     
     window.addEventListener('chatUpdated', handleChatUpdate);
+
+    // Listen for chat history updates
+    const handleChatHistoryUpdate = () => {
+      fetchChatHistories();
+    };
+
+    window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+
     return () => {
       window.removeEventListener('chatUpdated', handleChatUpdate);
+      window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

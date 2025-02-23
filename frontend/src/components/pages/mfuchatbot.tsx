@@ -431,6 +431,9 @@ const MFUChatbot: React.FC = () => {
         setCurrentChatId(history._id.$oid);
         navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
       }
+
+      // Emit event to update sidebar chat list
+      window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
       
       return history;
     } catch (error) {
