@@ -126,7 +126,41 @@ class ChatHistoryService {
         };
       });
 
-      if (chatId) {
+      if (!chatId) {
+        const existingChat = await ChatHistory.findOne({ 
+          userId, 
+          chatname: finalChatname 
+        });
+        
+        if (existingChat) {
+          // Update existing chat instead of creating new one
+          const updatedChat = await ChatHistory.findByIdAndUpdate(
+            existingChat._id,
+            {
+              messages: processedMessages,
+              updatedAt: new Date()
+            },
+            { new: true, runValidators: true }
+          );
+          
+          if (!updatedChat) {
+            throw new Error('Failed to update existing chat');
+          }
+          
+          return updatedChat;
+        }
+
+        const history = await ChatHistory.create({
+          userId,
+          modelId,
+          collectionName,
+          chatname: finalChatname,
+          messages: processedMessages,
+          updatedAt: new Date()
+        });
+        
+        return history;
+      } else {
         const history = await ChatHistory.findByIdAndUpdate(
           chatId,
           {
@@ -139,17 +173,6 @@ class ChatHistoryService {
         if (!history) {
           throw new Error('Chat not found');
         }
-        
-        return history;
-      } else {
-        const history = await ChatHistory.create({
-          userId,
-          modelId,
-          collectionName,
-          chatname: finalChatname,
-          messages: processedMessages,
-          updatedAt: new Date()
-        });
         
         return history;
       }

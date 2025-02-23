@@ -209,7 +209,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
             content: assistantResponse,
             timestamp: new Date(),
             sources: [],
-            isImageGeneration: isImageGeneration || false
+            isImageGeneration: isImageGeneration || false,
+            isComplete: true
           });
 
           // Save chat history and handle response
@@ -229,17 +230,17 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                   // Update existing chat with new messages
                   savedChat = await chatHistoryService.saveChatMessage(
                     extWs.userId,
-                    existingChat.modelId || modelId, // Use existing modelId or fallback to current
-                    existingChat.collectionName || '', // Use existing collectionName or empty string
+                    existingChat.modelId || modelId,
+                    existingChat.collectionName || '',
                     allMessages,
                     chatId,
-                    existingChat.chatname // Keep existing chatname
+                    existingChat.chatname
                   );
 
                   // Send completion signal with existing chat ID
                   extWs.send(JSON.stringify({ 
                     done: true,
-                    chatId: savedChat._id,
+                    chatId: savedChat._id.toString(),
                     isNewChat: false
                   }));
                 } catch (error) {
@@ -250,24 +251,26 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                   return; // Exit early on error
                 }
               } else {
-                // Only create new chat if explicitly starting a new chat
+                // Create new chat
                 savedChat = await chatHistoryService.saveChatMessage(
                   extWs.userId,
                   modelId,
                   '',
                   allMessages,
                   undefined,
-                  chatname
+                  chatname || messages[0]?.content.substring(0, 50) + "..."
                 );
 
                 // Send completion signal with new chat ID
                 extWs.send(JSON.stringify({ 
                   done: true,
-                  chatId: savedChat._id,
+                  chatId: savedChat._id.toString(),
                   isNewChat: true
                 }));
               }
               
+              // Emit event to update chat list
+              window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
               console.log(`Chat history updated for user ${extWs.userId}, chatId: ${savedChat?._id}`);
             } catch (error) {
               console.error('Error saving chat history:', error);
