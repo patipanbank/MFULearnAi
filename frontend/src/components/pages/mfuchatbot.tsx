@@ -518,26 +518,23 @@ const MFUChatbot: React.FC = () => {
                 isComplete: true
               };
 
-              // Get the user message that triggered this response
-              const userMessage = prev[prev.length - 2];
+              // Get all messages up to the user message
+              const previousMessages = prev.slice(0, -1);
+              
+              // Create array with all messages including the complete assistant message
+              const allMessages = [...previousMessages, completeAssistantMessage];
+              console.log('Saving complete conversation with messages:', JSON.stringify(allMessages, null, 2));
 
-              // Create array with both messages
-              const messagesToSave = [userMessage, completeAssistantMessage];
-              console.log('Saving complete conversation with messages:', JSON.stringify(messagesToSave, null, 2));
-
-              // Save both messages together
+              // Save all messages together
               if (selectedModel && currentChatId) {
-                saveChatHistory(messagesToSave).catch(error => {
+                // Ensure we're sending all messages to maintain conversation history
+                saveChatHistory(allMessages).catch(error => {
                   console.error('Error saving complete conversation:', error);
                 });
               }
 
               // Update the messages state with the complete assistant message
-              return prev.map((msg, index) =>
-                index === prev.length - 1
-                  ? completeAssistantMessage
-                  : msg
-              );
+              return allMessages;
             }
             return prev;
           });
@@ -547,7 +544,8 @@ const MFUChatbot: React.FC = () => {
           setMessages(prev => {
             const lastAssistantMessage = prev[prev.length - 1];
             if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
-              const updatedMessages = prev.map((msg, index) => 
+              // Accumulate content in the existing assistant message
+              return prev.map((msg, index) => 
                 index === prev.length - 1 
                   ? { 
                       ...msg, 
@@ -556,8 +554,8 @@ const MFUChatbot: React.FC = () => {
                     }
                   : msg
               );
-              return updatedMessages;
             }
+            // Create new assistant message if none exists
             return [...prev, {
               id: prev.length + 1,
               role: 'assistant' as const,
