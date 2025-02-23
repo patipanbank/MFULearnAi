@@ -130,20 +130,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       return;
     }
 
-    // เรียก fetchChatHistories ครั้งแรกตอน component mount
     fetchChatHistories();
     
+    // เพิ่ม event listener สำหรับอัพเดทแบบ realtime
     const handleChatUpdate = () => {
-      console.log('Chat updated event received');
-      fetchChatHistories();
-    };
-    
-    const handleChatHistoryUpdate = () => {
-      console.log('Chat history updated event received');
       fetchChatHistories();
     };
     
     window.addEventListener('chatUpdated', handleChatUpdate);
+
+    // Listen for chat history updates
+    const handleChatHistoryUpdate = () => {
+      fetchChatHistories();
+    };
+
     window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
 
     return () => {
