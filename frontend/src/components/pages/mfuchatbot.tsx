@@ -354,8 +354,8 @@ const MFUChatbot: React.FC = () => {
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
 
-      // Save chat history for both new and existing chats
-      const savedChat = await saveChatHistory(updatedMessages);
+      // Save only the user message initially
+      const savedChat = await saveChatHistory([userMessage]);
       if (savedChat) {
         if (!currentChatId) {
           setCurrentChatId(savedChat._id);
@@ -516,7 +516,6 @@ const MFUChatbot: React.FC = () => {
                   ? { 
                       ...msg, 
                       sources: data.sources,
-                      // Ensure the message is marked as complete
                       isComplete: true 
                     }
                   : msg
@@ -525,16 +524,28 @@ const MFUChatbot: React.FC = () => {
               // Save both user and assistant messages
               if (selectedModel && currentChatId) {
                 // Get all messages including the complete assistant response
-                const completeMessages = updatedMessages.map(msg => ({
-                  ...msg,
-                  // Clean up any temporary fields
-                  isComplete: undefined
-                }));
+                const completeMessages = updatedMessages.filter(msg => 
+                  msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim())
+                );
 
-                console.log('Saving complete conversation:', completeMessages);
+                console.log('Saving complete conversation with both messages:', completeMessages);
                 
-                saveChatHistory(completeMessages).catch(error => {
-                  console.error('Error saving chat history:', error);
+                // Save the complete conversation including both messages
+                const payload = {
+                  messages: completeMessages,
+                  modelId: selectedModel,
+                  chatId: currentChatId
+                };
+
+                fetch(`${config.apiUrl}/api/chat/history`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                  },
+                  body: JSON.stringify(payload)
+                }).catch(error => {
+                  console.error('Error saving complete conversation:', error);
                 });
               }
               return updatedMessages;
