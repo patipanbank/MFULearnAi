@@ -11,11 +11,11 @@ module.exports = {
         DEFAULT: {
           size: '8px',
           track: {
-            background: '#f1f1f1',
+            background: '#e5e7eb', // Light gray for light mode
           },
           thumb: {
-            background: '#888',
-            'hover-background': '#555',
+            background: '#9ca3af', // Medium gray for light mode
+            'hover-background': '#6b7280', // Darker gray on hover
             'border-radius': '4px',
           },
         },
