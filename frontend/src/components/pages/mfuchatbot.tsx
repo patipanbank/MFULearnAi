@@ -14,10 +14,10 @@ interface Source {
 }
 
 interface Message {
-  id: number;
+  id: number | string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: Date;
+  timestamp?: Date;
   image?: {
     data: string;
     mediaType: string;
@@ -29,6 +29,13 @@ interface Message {
   sources?: Source[];
   isImageGeneration?: boolean;
   isComplete?: boolean;
+  userId?: string;
+  modelId?: string;
+  collectionName?: string;
+  chatname?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  _id?: string;
 }
 
 interface Model {
@@ -231,67 +238,60 @@ const MFUChatbot: React.FC = () => {
         const chat = await response.json();
         if (chat.messages && Array.isArray(chat.messages)) {
           const processedMessages = chat.messages.map((msg: {
-            id: number;
+            _id?: string;
+            id: number | string;
             role: 'user' | 'assistant' | 'system';
             content: string;
             timestamp?: string | Date;
+            createdAt?: string | Date;
+            updatedAt?: string | Date;
             images?: Array<{ data: string; mediaType: string }>;
             sources?: Array<{ modelId: string; collectionName: string; filename: string; similarity: number }>;
             isImageGeneration?: boolean;
+            userId?: string;
+            modelId?: string;
+            collectionName?: string;
           }) => {
-            // Ensure we have a valid timestamp
-            let timestamp: Date;
-            try {
-              if (!msg.timestamp) {
-                // If no timestamp provided, use current time
-                timestamp = new Date();
-              } else if (typeof msg.timestamp === 'string') {
-                // Try to parse string timestamp
-                timestamp = new Date(msg.timestamp);
-                if (isNaN(timestamp.getTime())) {
-                  timestamp = new Date();
-                }
-              } else if (msg.timestamp instanceof Date) {
-                timestamp = msg.timestamp;
-              } else {
-                timestamp = new Date();
-              }
-            } catch (error) {
-              console.error('Error parsing timestamp:', error);
-              timestamp = new Date();
-            }
+            // Process timestamps
+            const timestamp = msg.timestamp ? new Date(msg.timestamp) : 
+                            msg.createdAt ? new Date(msg.createdAt) : 
+                            new Date();
+            
+            const createdAt = msg.createdAt ? new Date(msg.createdAt) : new Date();
+            const updatedAt = msg.updatedAt ? new Date(msg.updatedAt) : new Date();
 
             return {
+              _id: msg._id,
               id: msg.id,
               role: msg.role,
               content: msg.content || '',
               timestamp: timestamp,
+              createdAt: createdAt,
+              updatedAt: updatedAt,
               images: msg.images || [],
               sources: msg.sources || [],
-              isImageGeneration: msg.isImageGeneration || false
+              isImageGeneration: msg.isImageGeneration || false,
+              userId: msg.userId,
+              modelId: msg.modelId,
+              collectionName: msg.collectionName
             };
           });
+          
           setMessages(processedMessages);
           
-          // Only set selectedModel if chat has a modelId and we don't already have one selected
+          // Set chat metadata
           if (chat.modelId) {
             setSelectedModel(chat.modelId);
-          } else if (!selectedModel && models.length > 0) {
-            // If no model is set, use the default or first available model
-            const defaultModel = models.find(model => model.name === 'Default');
-            setSelectedModel(defaultModel?.id || models[0].id);
           }
           
           setCurrentChatId(chat._id);
         }
       } else {
         console.error('Chat not found');
-        // Redirect to main chat page if chat not found
         navigate('/mfuchatbot', { replace: true });
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
-      // Redirect to main chat page on error
       navigate('/mfuchatbot', { replace: true });
     }
   };
@@ -373,6 +373,10 @@ const MFUChatbot: React.FC = () => {
         return null;
       }
 
+      // Get user info from token
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      const userId = tokenPayload.id;
+
       // Filter out empty messages and ensure proper format
       const validMessages = messages
         .filter(msg => msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0)))
@@ -380,10 +384,14 @@ const MFUChatbot: React.FC = () => {
           id: msg.id,
           role: msg.role,
           content: msg.content,
-          timestamp: msg.timestamp,
+          timestamp: msg.timestamp || new Date(),
           images: msg.images,
           sources: msg.sources,
-          isImageGeneration: msg.isImageGeneration
+          isImageGeneration: msg.isImageGeneration,
+          userId: userId,
+          modelId: selectedModel,
+          collectionName: "Default",
+          chatname: messages[0]?.content.substring(0, 20) + "..."
         }));
 
       if (validMessages.length === 0) {
@@ -393,7 +401,10 @@ const MFUChatbot: React.FC = () => {
 
       const payload = {
         messages: validMessages,
-        modelId: selectedModel
+        modelId: selectedModel,
+        userId: userId,
+        collectionName: "Default",
+        chatname: messages[0]?.content.substring(0, 20) + "..."
       };
 
       const response = await fetch(`${config.apiUrl}/api/chat/history${currentChatId ? `/${currentChatId}` : ''}`, {
@@ -412,6 +423,17 @@ const MFUChatbot: React.FC = () => {
       }
 
       const history = await response.json();
+      
+      // Update messages with server timestamps
+      if (history.messages) {
+        const updatedMessages = history.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp || msg.createdAt),
+          createdAt: new Date(msg.createdAt),
+          updatedAt: new Date(msg.updatedAt)
+        }));
+        setMessages(updatedMessages);
+      }
       
       // Only update currentChatId and URL if this is a new chat
       if (!currentChatId && history._id) {
