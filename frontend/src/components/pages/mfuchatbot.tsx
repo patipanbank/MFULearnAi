@@ -451,7 +451,6 @@ const MFUChatbot: React.FC = () => {
       if (lastMessage && lastMessage.isComplete) {
         window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
       }
-      window.dispatchEvent(new CustomEvent('chatUpdated'));
       
       return history;
     } catch (error) {
