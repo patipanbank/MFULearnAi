@@ -84,35 +84,15 @@ class ChatHistoryService {
         throw new Error('Messages array is required and must not be empty');
       }
 
-      // สร้างชื่อแชทที่ไม่ซ้ำ
-      const generateUniqueChatname = async (baseName: string) => {
-        let finalName = baseName;
-        let counter = 1;
-        
-        while (await ChatHistory.findOne({ 
-          userId, 
-          chatname: finalName,
-          _id: { $ne: chatId } // ไม่เช็คกับแชทปัจจุบัน
-        })) {
-          finalName = `${baseName} (${counter})`;
-          counter++;
-        }
-        return finalName;
-      };
-
-      const baseNameFromMessage = (() => {
+      // Use provided chatname or generate from first message as fallback
+      const finalChatname = chatname || (() => {
         const firstUserMessage = messages.find(msg => msg.role === 'user');
         return firstUserMessage 
-          ? firstUserMessage.content.slice(0, 50)
+          ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
           : 'New Chat';
       })();
 
-      // กำหนดชื่อแชท
-      const finalChatname = chatId
-        ? (chatname || (await this.getSpecificChat(userId, chatId)).chatname)
-        : await generateUniqueChatname(chatname || baseNameFromMessage);
-
-      // จัดการข้อความ
+      // Validate and process messages
       const processedMessages = messages.map((msg, index) => {
         this.validateMessage(msg);
         let timestamp;
@@ -146,26 +126,31 @@ class ChatHistoryService {
         };
       });
 
-      // อัพเดทหรือสร้างแชทใหม่
-      if (chatId) {
-        // อัพเดทแชทเดิม
-        const updatedChat = await ChatHistory.findByIdAndUpdate(
-          chatId,
-          {
-            messages: processedMessages,
-            updatedAt: new Date(),
-            chatname: finalChatname // อัพเดทชื่อถ้ามีการเปลี่ยน
-          },
-          { new: true, runValidators: true }
-        );
+      if (!chatId) {
+        const existingChat = await ChatHistory.findOne({ 
+          userId, 
+          chatname: finalChatname 
+        });
         
-        if (!updatedChat) {
-          throw new Error('Chat not found');
+        if (existingChat) {
+          // Update existing chat instead of creating new one
+          const updatedChat = await ChatHistory.findByIdAndUpdate(
+            existingChat._id,
+            {
+              messages: processedMessages,
+              updatedAt: new Date()
+            },
+            { new: true, runValidators: true }
+          );
+          
+          if (!updatedChat) {
+            throw new Error('Failed to update existing chat');
+          }
+          
+          return updatedChat;
         }
-        return updatedChat;
-      } else {
-        // สร้างแชทใหม่
-        return await ChatHistory.create({
+
+        const history = await ChatHistory.create({
           userId,
           modelId,
           collectionName,
@@ -173,6 +158,23 @@ class ChatHistoryService {
           messages: processedMessages,
           updatedAt: new Date()
         });
+        
+        return history;
+      } else {
+        const history = await ChatHistory.findByIdAndUpdate(
+          chatId,
+          {
+            messages: processedMessages,
+            updatedAt: new Date()
+          },
+          { new: true, runValidators: true }
+        );
+        
+        if (!history) {
+          throw new Error('Chat not found');
+        }
+        
+        return history;
       }
     } catch (error) {
       console.error('Error in saveChatMessage:', error);
