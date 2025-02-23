@@ -84,7 +84,15 @@ class ChatHistoryService {
         throw new Error('Messages array is required and must not be empty');
       }
 
-      // Process messages
+      // Use provided chatname or generate from first message as fallback
+      const finalChatname = chatname || (() => {
+        const firstUserMessage = messages.find(msg => msg.role === 'user');
+        return firstUserMessage 
+          ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
+          : 'New Chat';
+      })();
+
+      // Validate and process messages
       const processedMessages = messages.map((msg, index) => {
         this.validateMessage(msg);
         let timestamp;
@@ -105,6 +113,7 @@ class ChatHistoryService {
         }
 
         return {
+          id: index + 1,
           role: msg.role as 'user' | 'assistant' | 'system',
           content: String(msg.content || ''),
           timestamp: timestamp,
@@ -117,37 +126,31 @@ class ChatHistoryService {
         };
       });
 
-      if (chatId) {
-        // Update existing chat
-        const updatedChat = await ChatHistory.findByIdAndUpdate(
-          chatId,
-          {
-            $set: {
+      if (!chatId) {
+        const existingChat = await ChatHistory.findOne({ 
+          userId, 
+          chatname: finalChatname 
+        });
+        
+        if (existingChat) {
+          // Update existing chat instead of creating new one
+          const updatedChat = await ChatHistory.findByIdAndUpdate(
+            existingChat._id,
+            {
               messages: processedMessages,
               updatedAt: new Date()
-            }
-          },
-          { 
-            new: true, 
-            runValidators: true 
+            },
+            { new: true, runValidators: true }
+          );
+          
+          if (!updatedChat) {
+            throw new Error('Failed to update existing chat');
           }
-        );
-
-        if (!updatedChat) {
-          throw new Error('Chat not found');
+          
+          return updatedChat;
         }
 
-        return updatedChat;
-      } else {
-        // Create new chat
-        const finalChatname = chatname || (() => {
-          const firstUserMessage = messages.find(msg => msg.role === 'user');
-          return firstUserMessage 
-            ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
-            : 'New Chat';
-        })();
-
-        const newChat = await ChatHistory.create({
+        const history = await ChatHistory.create({
           userId,
           modelId,
           collectionName,
@@ -155,8 +158,23 @@ class ChatHistoryService {
           messages: processedMessages,
           updatedAt: new Date()
         });
-
-        return newChat;
+        
+        return history;
+      } else {
+        const history = await ChatHistory.findByIdAndUpdate(
+          chatId,
+          {
+            messages: processedMessages,
+            updatedAt: new Date()
+          },
+          { new: true, runValidators: true }
+        );
+        
+        if (!history) {
+          throw new Error('Chat not found');
+        }
+        
+        return history;
       }
     } catch (error) {
       console.error('Error in saveChatMessage:', error);
