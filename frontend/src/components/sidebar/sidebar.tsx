@@ -120,7 +120,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       console.error('Error fetching chat histories:', error);
       setChatHistories([]);
     }
-    fetchChatHistories();
   };
 
   useEffect(() => {
@@ -252,6 +251,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     } catch (error) {
       console.error('Error pinning chat:', error);
     }
+    fetchChatHistories();
   };
 
   const filteredChats = chatHistories.filter(chat => 
