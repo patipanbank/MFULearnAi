@@ -120,7 +120,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       console.error('Error fetching chat histories:', error);
       setChatHistories([]);
     }
-    fetchChatHistories();
   };
 
   useEffect(() => {
