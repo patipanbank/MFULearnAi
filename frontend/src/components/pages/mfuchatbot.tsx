@@ -212,18 +212,15 @@ const MFUChatbot: React.FC = () => {
       const urlParams = new URLSearchParams(location.search);
       const chatId = urlParams.get('chat');
       
-      // If no chat ID, just show empty state for new chat
       if (!chatId) {
         setMessages([]);
         setCurrentChatId(null);
-        // Don't reset selectedModel here to persist it for new chats
         return;
       }
 
       const token = localStorage.getItem('auth_token');
       if (!token) return;
 
-      // Load specific chat if ID is provided
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -245,7 +242,7 @@ const MFUChatbot: React.FC = () => {
             id: msg.id,
             role: msg.role,
             content: msg.content || '',
-            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+            timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp,
             images: msg.images || [],
             sources: msg.sources || [],
             isImageGeneration: msg.isImageGeneration || false
@@ -713,6 +710,28 @@ const MFUChatbot: React.FC = () => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const formatTimestamp = (timestamp: Date) => {
+    if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
+      return new Date().toLocaleString('en-US', {
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: true,
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
+    return timestamp.toLocaleString('en-US', {
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: true,
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -775,6 +794,9 @@ const MFUChatbot: React.FC = () => {
         </div>
         <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
           {renderContent(message.content)}
+        </div>
+        <div className="text-sm text-gray-500">
+          {formatTimestamp(message.timestamp)}
         </div>
       </div>
     );
@@ -847,21 +869,7 @@ const MFUChatbot: React.FC = () => {
                     message.role === 'user' ? 'items-end' : 'items-start'
                   }`}>
                     <div className="text-sm text-gray-500">
-                      {message.timestamp instanceof Date && !isNaN(message.timestamp.getTime())
-                        ? message.timestamp.toLocaleString('en-US', {
-                            hour: 'numeric',
-                            minute: 'numeric',
-                            hour12: true,
-                            month: 'short',
-                            day: 'numeric'
-                          })
-                        : new Date().toLocaleString('en-US', {
-                            hour: 'numeric',
-                            minute: 'numeric',
-                            hour12: true,
-                            month: 'short',
-                            day: 'numeric'
-                          })}
+                      {formatTimestamp(message.timestamp)}
                     </div>
                     <div className={`rounded-lg p-3 ${
                       message.role === 'user'
