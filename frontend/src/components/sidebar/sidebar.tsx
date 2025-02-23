@@ -342,7 +342,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               {sortedChats.length > 0 && (
                 <div className="mt-1 space-y-0.5">
                   {sortedChats.map((chat) => (
-                    <div key={chat._id} className="flex items-center group relative hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all duration-200">
+                    <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
                       {editingChatId === chat._id ? (
                         <div className="flex-1 flex items-center p-2 md:p-3">
                           <input
@@ -370,13 +370,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </button>
                         </div>
                       ) : (
-                        <>
+                        <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
                           <Link
                             to={`/mfuchatbot?chat=${chat._id}`}
                             className={`flex-1 flex items-center p-2 md:p-3 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex items-center gap-2 min-w-0 w-full pr-16">
+                            <div className="flex items-center gap-2 min-w-0 w-full pr-20">
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -391,7 +391,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               >
                                 <FaStar className="w-3 h-3" />
                               </button>
-                              <div className="flex-1 min-w-0">
+                              <div className="flex-1 min-w-0 overflow-hidden">
                                 <div className="font-medium truncate">
                                   {chat.chatname || 'Untitled Chat'}
                                 </div>
@@ -401,7 +401,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               </div>
                             </div>
                           </Link>
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg px-1 py-0.5 shadow-sm">
+                          <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1 py-0.5 shadow-sm">
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
@@ -425,7 +425,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               <FaTrash className="w-3 h-3" />
                             </button>
                           </div>
-                        </>
+                        </div>
                       )}
                     </div>
                   ))}
