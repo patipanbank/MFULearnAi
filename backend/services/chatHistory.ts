@@ -127,29 +127,7 @@ class ChatHistoryService {
       });
 
       if (!chatId) {
-        const existingChat = await ChatHistory.findOne({ 
-          userId, 
-          chatname: finalChatname 
-        });
-        
-        if (existingChat) {
-          // Update existing chat instead of creating new one
-          const updatedChat = await ChatHistory.findByIdAndUpdate(
-            existingChat._id,
-            {
-              messages: processedMessages,
-              updatedAt: new Date()
-            },
-            { new: true, runValidators: true }
-          );
-          
-          if (!updatedChat) {
-            throw new Error('Failed to update existing chat');
-          }
-          
-          return updatedChat;
-        }
-
+        // สร้างแชทใหม่เสมอ ไม่ต้องตรวจสอบ chatname ที่ซ้ำ
         const history = await ChatHistory.create({
           userId,
           modelId,
@@ -161,6 +139,7 @@ class ChatHistoryService {
         
         return history;
       } else {
+        // อัพเดทแชทที่มีอยู่โดยใช้ chatId
         const history = await ChatHistory.findByIdAndUpdate(
           chatId,
           {
