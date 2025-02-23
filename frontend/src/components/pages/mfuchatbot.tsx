@@ -245,7 +245,7 @@ const MFUChatbot: React.FC = () => {
             id: msg.id,
             role: msg.role,
             content: msg.content || '',
-            timestamp: new Date(msg.timestamp),
+            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
             images: msg.images || [],
             sources: msg.sources || [],
             isImageGeneration: msg.isImageGeneration || false
@@ -847,7 +847,9 @@ const MFUChatbot: React.FC = () => {
                     message.role === 'user' ? 'items-end' : 'items-start'
                   }`}>
                     <div className="text-sm text-gray-500">
-                      {new Date(message.timestamp).toLocaleTimeString()}
+                      {message.timestamp instanceof Date && !isNaN(message.timestamp.getTime())
+                        ? message.timestamp.toLocaleTimeString()
+                        : new Date().toLocaleTimeString()}
                     </div>
                     <div className={`rounded-lg p-3 ${
                       message.role === 'user'
@@ -922,6 +924,9 @@ const MFUChatbot: React.FC = () => {
                 }
                 rows={1}
                 required
+                autoComplete="off"
+                spellCheck="false"
+                data-verify="false"
               />
               <button
                 type="submit"
@@ -929,6 +934,7 @@ const MFUChatbot: React.FC = () => {
                   canSubmit() ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
                 disabled={!canSubmit()}
+                data-verify="false"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
