@@ -22,16 +22,12 @@ interface MongoDBDate {
 }
 
 interface Message {
-  _id?: MongoDBId;
   id: number | string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: MongoDBDate;
-  images: Array<{
-    data: string;
-    mediaType: string;
-  }>;
-  sources: Source[];
+  timestamp: { $date: string };
+  images?: { data: string; mediaType: string }[];
+  sources?: Source[];
   isImageGeneration?: boolean;
   isComplete?: boolean;
 }
@@ -355,6 +351,12 @@ const MFUChatbot: React.FC = () => {
         return null;
       }
 
+      // Only save if there are actual messages
+      if (messages.length === 0) {
+        console.log('No messages to save');
+        return null;
+      }
+
       // Get user info from token
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const userId = tokenPayload.id;
@@ -372,7 +374,8 @@ const MFUChatbot: React.FC = () => {
           },
           images: msg.images || [],
           sources: msg.sources || [],
-          isImageGeneration: msg.isImageGeneration || false
+          isImageGeneration: msg.isImageGeneration || false,
+          isComplete: msg.isComplete || false
         }));
 
       console.log('Valid messages to save:', validMessages);
@@ -443,8 +446,11 @@ const MFUChatbot: React.FC = () => {
         navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
       }
 
-      // Emit event to update sidebar chat list
-      window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+      // Only emit event if save was successful and the last message is complete
+      const lastMessage = validMessages[validMessages.length - 1];
+      if (lastMessage && lastMessage.isComplete) {
+        window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+      }
       
       return history;
     } catch (error) {
