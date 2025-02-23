@@ -116,11 +116,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       } else {
         setChatHistories([]);
       }
-      fetchChatHistories();
     } catch (error) {
       console.error('Error fetching chat histories:', error);
       setChatHistories([]);
     }
+    fetchChatHistories();
   };
 
   useEffect(() => {
