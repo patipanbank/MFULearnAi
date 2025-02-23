@@ -461,41 +461,11 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('Current selected model:', selectedModel); // Debug log
-
-    if (!selectedModel) {
-      console.log('No model selected, fetching default model...'); // Debug log
-      try {
-        const token = localStorage.getItem('auth_token');
-        const response = await fetch(`${config.apiUrl}/api/models`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          const models = await response.json();
-          const defaultModel = models.find((m: Model) => m.name === 'Default') || models[0];
-          if (defaultModel) {
-            console.log('Setting model in handleSubmit:', defaultModel._id); // Debug log
-            setSelectedModel(defaultModel._id);
-            // รอให้ state อัพเดทเสร็จ
-            await new Promise(resolve => setTimeout(resolve, 100));
-          } else {
-            alert('No model available. Please select a model first.');
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching models:', error);
-        alert('Error loading models. Please try again.');
-        return;
-      }
-    }
-
     if (!inputMessage.trim() && !isImageGenerationMode) return;
+    if (!selectedModel) {
+      alert('Please select a model first');
+      return;
+    }
 
     setIsLoading(true);
 
@@ -506,35 +476,65 @@ const MFUChatbot: React.FC = () => {
       }
 
       const userMessage: Message = {
-        id: Date.now(),
+        id: messages.length + 1,
         role: 'user',
-        content: inputMessage,
-        timestamp: { $date: new Date().toISOString() },
-        images: [],
-        sources: []
+        content: inputMessage.trim(),
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        images: !isImageGenerationMode && selectedImages.length > 0 ? 
+          await Promise.all(selectedImages.map(async (file) => await compressImage(file))) 
+          : [],
+        sources: [],
+        isImageGeneration: isImageGenerationMode
       };
 
-      // ตรวจสอบอีกครั้งก่อนส่ง
-      if (!selectedModel) {
-        throw new Error('No model selected');
-      }
+      // Add user message to state
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
 
-      console.log('Sending message with model:', selectedModel); // Debug log
+      // Add placeholder for AI response
+      const assistantMessage: Message = {
+        id: messages.length + 2,
+        role: 'assistant',
+        content: '',
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        images: [],
+        sources: [],
+        isImageGeneration: isImageGenerationMode,
+        isComplete: false
+      };
+      setMessages([...updatedMessages, assistantMessage]);
 
+      // Send message to WebSocket
       const messagePayload = {
-        messages: [userMessage],
+        messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
         chatId: currentChatId
       };
 
-      wsRef.current.send(JSON.stringify(messagePayload));
-      setInputMessage('');
-      setSelectedImages([]);
-
+      wsRef.current?.send(JSON.stringify(messagePayload));
     } catch (error) {
       console.error('Error in handleSubmit:', error);
+      setMessages(prev => [...prev.slice(0, -1), {
+        id: messages.length + 2,
+        role: 'assistant',
+        content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        images: [],
+        sources: [],
+        isImageGeneration: false,
+        isComplete: true
+      }]);
+    } finally {
       setIsLoading(false);
+      setInputMessage('');
+      setSelectedImages([]);
     }
   };
 
