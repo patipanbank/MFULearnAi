@@ -637,14 +637,32 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Failed to clear chat history');
       }
 
+      // Reset all necessary states
       setMessages([]);
       setCurrentChatId(null);
+      setInputMessage('');
+      setSelectedImages([]);
+      setIsImageGenerationMode(false);
+      
+      // Navigate to new chat without page refresh
       navigate('/mfuchatbot?new=true', { replace: true });
     } catch (error) {
       console.error('Error clearing chat:', error);
     }
   };
-  
+
+  const startNewChat = () => {
+    // Reset all necessary states
+    setMessages([]);
+    setCurrentChatId(null);
+    setInputMessage('');
+    setSelectedImages([]);
+    setIsImageGenerationMode(false);
+    
+    // Navigate to new chat without page refresh
+    navigate('/mfuchatbot?new=true', { replace: true });
+  };
+
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024;
     if (file.size > maxSize) {
@@ -977,8 +995,10 @@ const MFUChatbot: React.FC = () => {
                   {models.map(model => (
                     <button
                       key={model.id}
-                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600
-                        text-gray-900 dark:text-white transition-colors flex items-center gap-2"
+                      className={`w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600
+                        text-gray-900 dark:text-white transition-colors flex items-center gap-2 ${
+                          model.id === selectedModel ? 'bg-blue-100 dark:bg-blue-900' : ''
+                        }`}
                       onClick={() => {
                         setSelectedModel(model.id);
                         setIsModelDropdownOpen(false);
@@ -1032,6 +1052,17 @@ const MFUChatbot: React.FC = () => {
                 <span className="text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
               </button>
             )}
+
+            <button
+              onClick={startNewChat}
+              className="px-4 py-2 text-sm bg-blue-500 text-white rounded-full hover:bg-blue-600 
+                transition-colors whitespace-nowrap flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Chat
+            </button>
 
             <button
               onClick={clearChat}
