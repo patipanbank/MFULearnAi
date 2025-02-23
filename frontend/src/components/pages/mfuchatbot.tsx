@@ -728,25 +728,26 @@ const MFUChatbot: React.FC = () => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const formatTimestamp = (timestamp: Date) => {
+  const formatMessageTime = (timestamp: Date) => {
     if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
-      return new Date().toLocaleString('en-US', {
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        hour12: true,
+      return new Date().toLocaleString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: '2-digit'
       });
     }
-
-    return timestamp.toLocaleString('en-US', {
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: true,
+    return timestamp.toLocaleString('th-TH', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: '2-digit'
     });
   };
 
@@ -884,23 +885,7 @@ const MFUChatbot: React.FC = () => {
                     message.role === 'user' ? 'items-end' : 'items-start'
                   }`}>
                     <div className="text-sm text-gray-500">
-                      {message.timestamp instanceof Date && !isNaN(message.timestamp.getTime())
-                        ? message.timestamp.toLocaleString('th-TH', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false,
-                            month: 'short',
-                            day: '2-digit',
-                            year: 'numeric'
-                          })
-                        : new Date().toLocaleString('th-TH', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false,
-                            month: 'short',
-                            day: '2-digit',
-                            year: 'numeric'
-                          })}
+                      {formatMessageTime(message.timestamp)}
                     </div>
                     <div className={`rounded-lg p-3 ${
                       message.role === 'user'
