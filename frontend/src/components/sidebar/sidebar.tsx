@@ -6,7 +6,6 @@ import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 interface SidebarProps {
   onClose?: () => void;
-  disabled?: boolean;
 }
 
 interface Message {
@@ -34,7 +33,7 @@ interface ChatHistory {
   messages: Message[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose, disabled = false }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
@@ -205,7 +204,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, disabled = false }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto py-4 px-2 pb-[calc(72px+env(safe-area-inset-bottom))]">
-        <nav className={`space-y-4 ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
+        <nav className="space-y-4">
           <Link
             to="/mfuchatbot"
             className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
