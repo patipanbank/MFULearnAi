@@ -132,27 +132,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
     fetchChatHistories();
     
-    // อัพเดท chat histories เมื่อได้รับ event
-    const handleChatUpdate = (event: CustomEvent) => {
-      const { type, chat } = event.detail;
-      
-      setChatHistories(prev => {
-        if (type === 'new') {
-          // เพิ่มแชทใหม่ไว้ด้านบนสุด
-          return [chat, ...prev];
-        } else {
-          // อัพเดทแชทที่มีอยู่
-          return prev.map(existingChat => 
-            existingChat._id === chat._id ? chat : existingChat
-          );
-        }
-      });
+    // เพิ่ม event listener สำหรับอัพเดทแบบ realtime
+    const handleChatUpdate = () => {
+      fetchChatHistories();
+    };
+    
+    window.addEventListener('chatUpdated', handleChatUpdate);
+
+    // Listen for chat history updates
+    const handleChatHistoryUpdate = () => {
+      fetchChatHistories();
     };
 
-    window.addEventListener('chatUpdated', handleChatUpdate as EventListener);
+    window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
 
     return () => {
-      window.removeEventListener('chatUpdated', handleChatUpdate as EventListener);
+      window.removeEventListener('chatUpdated', handleChatUpdate);
+      window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -257,24 +253,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  // ปรับปรุงการแสดงผล chat histories
   const filteredChats = chatHistories.filter(chat => 
     chat.chatname.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  console.log('Chat histories:', chatHistories); // เพิ่ม log เพื่อดีบัก
-  console.log('Filtered chats:', filteredChats); // เพิ่ม log เพื่อดีบัก
+  console.log('Filtered chats:', filteredChats); // Debug filtered chats
 
   const sortedChats = [...filteredChats].sort((a, b) => {
-    // เรียงตาม pin ก่อน
+    // First sort by pinned status
     const isPinnedA = pinnedChats.includes(a._id);
     const isPinnedB = pinnedChats.includes(b._id);
     if (isPinnedA !== isPinnedB) return isPinnedB ? 1 : -1;
-    // จากนั้นเรียงตามเวลาล่าสุด
-    const timeA = new Date(b.messages[b.messages.length - 1]?.timestamp || 0).getTime();
-    const timeB = new Date(a.messages[a.messages.length - 1]?.timestamp || 0).getTime(); 
-    return timeA - timeB;
+    
+    // Then sort by most recent
+    return new Date(b.messages[b.messages.length - 1]?.timestamp || 0).getTime() -
+           new Date(a.messages[a.messages.length - 1]?.timestamp || 0).getTime();
   });
+  console.log('Sorted chats:', sortedChats); // Debug sorted chats
 
   return (
     <aside className="flex flex-col h-full">
