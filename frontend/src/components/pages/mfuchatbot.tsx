@@ -275,7 +275,10 @@ const MFUChatbot: React.FC = () => {
     const urlParams = new URLSearchParams(location.search);
     const chatId = urlParams.get('chat');
 
+    console.log('URL chatId:', chatId);
+
     if (chatId) {
+      setCurrentChatId(chatId);
       loadChatHistory();
     } else {
       // Reset state for new chat but keep selected model
@@ -513,10 +516,15 @@ const MFUChatbot: React.FC = () => {
         messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
-        chatId: currentChatId
+        chatId: currentChatId,
+        chatname: messages[0]?.content.substring(0, 20) + "..."
       };
 
-      wsRef.current?.send(JSON.stringify(messagePayload));
+      console.log('Message payload:', messagePayload);
+
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(messagePayload));
+      }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev.slice(0, -1), {

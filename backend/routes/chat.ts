@@ -167,9 +167,13 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
   extWs.on('message', async (message: string) => {
     try {
-      console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
-      
       const data = JSON.parse(message.toString());
+      console.log('Received WebSocket data:', {
+        chatId: data.chatId,
+        modelId: data.modelId,
+        messageCount: data.messages?.length
+      });
+      
       const { messages, modelId, isImageGeneration, chatId, chatname } = data;
 
       if (!messages || !Array.isArray(messages)) {
@@ -301,12 +305,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         }
       }
     } catch (error) {
-      console.error(`Error processing message from user ${extWs.userId}:`, error);
-      if (extWs.readyState === WebSocket.OPEN) {
-        extWs.send(JSON.stringify({ 
-          error: error instanceof Error ? error.message : 'Invalid message format' 
-        }));
-      }
+      console.error('Error processing message:', error);
     }
   });
 });
