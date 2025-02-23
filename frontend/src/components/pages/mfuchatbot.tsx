@@ -543,6 +543,15 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  const ensureMongoDBDate = (timestamp: any): MongoDBDate => {
+    if (timestamp && timestamp.$date) {
+      return timestamp;
+    }
+    return {
+      $date: new Date().toISOString()
+    };
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) return;
@@ -579,13 +588,10 @@ const MFUChatbot: React.FC = () => {
                   data: data.data,
                   mediaType: 'image/png'
                 }],
-                timestamp: {
-                  $date: new Date().toISOString()
-                }
+                timestamp: ensureMongoDBDate(data.timestamp)
               } : msg
             );
 
-            // Update chat history with the new image
             updateChatHistory(updatedMessages);
             return updatedMessages;
           });
@@ -619,9 +625,7 @@ const MFUChatbot: React.FC = () => {
               const updatedMessage: Message = {
                 ...lastAssistantMessage,
                 content: lastAssistantMessage.content + data.content,
-                timestamp: data.timestamp || {
-                  $date: new Date().toISOString()
-                },
+                timestamp: ensureMongoDBDate(data.timestamp),
                 isComplete: false
               };
               
@@ -633,9 +637,7 @@ const MFUChatbot: React.FC = () => {
               id: prev.length + 1,
               role: 'assistant',
               content: data.content,
-              timestamp: data.timestamp || {
-                $date: new Date().toISOString()
-              },
+              timestamp: ensureMongoDBDate(data.timestamp),
               images: [],
               sources: [],
               isImageGeneration: false,
@@ -762,72 +764,76 @@ const MFUChatbot: React.FC = () => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const formatMessageTime = (timestamp: Date | undefined) => {
+  const formatMessageTime = (timestamp: MongoDBDate | Date | string | undefined) => {
     try {
-      // Handle undefined timestamp
-      if (!timestamp) {
-        return 'Just now';
-      }
+        // Handle undefined timestamp
+        if (!timestamp) {
+            return 'Just now';
+        }
 
-      // First check if timestamp is a valid Date object
-      let dateObj: Date;
-      if (!(timestamp instanceof Date)) {
-        dateObj = new Date(timestamp);
-      } else {
-        dateObj = timestamp;
-      }
-      
-      // Verify the timestamp is valid
-      if (isNaN(dateObj.getTime())) {
-        return 'Just now';
-      }
+        // Convert to Date object based on format
+        let dateObj: Date;
+        if (typeof timestamp === 'string') {
+            dateObj = new Date(timestamp);
+        } else if (timestamp instanceof Date) {
+            dateObj = timestamp;
+        } else if (timestamp.$date) {
+            dateObj = new Date(timestamp.$date);
+        } else {
+            return 'Just now';
+        }
 
-      const now = new Date();
-      const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
-      const diffInMinutes = Math.floor(diffInSeconds / 60);
-      const diffInHours = Math.floor(diffInMinutes / 60);
-      const diffInDays = Math.floor(diffInHours / 24);
+        // Verify the timestamp is valid
+        if (isNaN(dateObj.getTime())) {
+            return 'Just now';
+        }
 
-      // If less than 1 minute ago
-      if (diffInSeconds < 60) {
-        return 'Just now';
-      }
-      // If less than 1 hour ago
-      else if (diffInMinutes < 60) {
-        return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
-      }
-      // If less than 24 hours ago
-      else if (diffInHours < 24) {
-        return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
-      }
-      // If less than 7 days ago
-      else if (diffInDays < 7) {
-        return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
-      }
-      // If in the current year
-      else if (dateObj.getFullYear() === now.getFullYear()) {
-        return dateObj.toLocaleString('th-TH', {
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        });
-      }
-      // If older than current year
-      else {
-        return dateObj.toLocaleString('th-TH', {
-          year: 'numeric',
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        });
-      }
+        const now = new Date();
+        const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
+        const diffInMinutes = Math.floor(diffInSeconds / 60);
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        const diffInDays = Math.floor(diffInHours / 24);
+
+        // If less than 1 minute ago
+        if (diffInSeconds < 60) {
+            return 'Just now';
+        }
+        // If less than 1 hour ago
+        else if (diffInMinutes < 60) {
+            return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+        }
+        // If less than 24 hours ago
+        else if (diffInHours < 24) {
+            return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+        }
+        // If less than 7 days ago
+        else if (diffInDays < 7) {
+            return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+        }
+        // If in the current year
+        else if (dateObj.getFullYear() === now.getFullYear()) {
+            return dateObj.toLocaleString('th-TH', {
+                month: 'short',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
+        // If older than current year
+        else {
+            return dateObj.toLocaleString('th-TH', {
+                year: 'numeric',
+                month: 'short',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
     } catch (error) {
-      console.error('Error formatting timestamp:', error);
-      return 'Just now';
+        console.error('Error formatting timestamp:', error);
+        return 'Just now';
     }
   };
 
@@ -965,7 +971,7 @@ const MFUChatbot: React.FC = () => {
                     message.role === 'user' ? 'items-end' : 'items-start'
                   }`}>
                     <div className="text-sm text-gray-500">
-                      {formatMessageTime(message.timestamp.$date ? new Date(message.timestamp.$date) : undefined)}
+                      {formatMessageTime(message.timestamp)}
                     </div>
                     <div className={`rounded-lg p-3 ${
                       message.role === 'user'
