@@ -376,7 +376,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             className={`flex-1 flex items-center p-2 md:p-3 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex items-center gap-2 min-w-0 w-full pr-20">
+                            <div className="flex items-center gap-2 min-w-0 w-full pr-24">
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -401,7 +401,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               </div>
                             </div>
                           </Link>
-                          <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1 py-0.5 shadow-sm">
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
