@@ -213,21 +213,8 @@ const MFUChatbot: React.FC = () => {
     try {
       const urlParams = new URLSearchParams(location.search);
       const chatId = urlParams.get('chat');
-      const isNewChat = urlParams.get('new') === 'true';
       
-      // Prevent reloading the same chat
-      if (chatId === currentChatId) {
-        return;
-      }
-      
-      // Only clear messages and start new chat if explicitly requested
-      if (isNewChat) {
-        setMessages([]);
-        setCurrentChatId(null);
-        return;
-      }
-
-      // If no chat ID and not a new chat request, just show empty state
+      // If no chat ID, just show empty state for new chat
       if (!chatId) {
         setMessages([]);
         setCurrentChatId(null);
@@ -269,28 +256,30 @@ const MFUChatbot: React.FC = () => {
           setCurrentChatId(chat._id);
         }
       } else {
-        // Don't automatically create new chat on error, just clear the state
         console.error('Chat not found');
-        setMessages([]);
-        setCurrentChatId(null);
+        // Redirect to main chat page if chat not found
+        navigate('/mfuchatbot', { replace: true });
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
-      setMessages([]);
-      setCurrentChatId(null);
+      // Redirect to main chat page on error
+      navigate('/mfuchatbot', { replace: true });
     }
   };
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const chatId = urlParams.get('chat');
-    const isNewChat = urlParams.get('new') === 'true';
 
-    // Only load if we have a chat ID or explicitly requesting new chat
-    if (chatId || isNewChat) {
+    // Only load if we have a chat ID
+    if (chatId) {
       loadChatHistory();
+    } else {
+      // Reset state for new chat
+      setMessages([]);
+      setCurrentChatId(null);
     }
-  }, [location.search]); // Only depend on location.search
+  }, [location.search]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
@@ -339,6 +328,69 @@ const MFUChatbot: React.FC = () => {
     });
   };
 
+  const saveChatHistory = async (messages: Message[]): Promise<any> => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return null;
+
+      if (!selectedModel) {
+        console.error('No model selected');
+        return null;
+      }
+
+      // Filter out empty messages and ensure proper format
+      const validMessages = messages
+        .filter(msg => msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0)))
+        .map(msg => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          images: msg.images,
+          sources: msg.sources,
+          isImageGeneration: msg.isImageGeneration
+        }));
+
+      if (validMessages.length === 0) {
+        console.log('No valid messages to save');
+        return null;
+      }
+
+      const payload = {
+        messages: validMessages,
+        modelId: selectedModel
+      };
+
+      const response = await fetch(`${config.apiUrl}/api/chat/history${currentChatId ? `/${currentChatId}` : ''}`, {
+        method: currentChatId ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Error saving chat history:', errorData);
+        return null;
+      }
+
+      const history = await response.json();
+      
+      // Only update currentChatId and URL if this is a new chat
+      if (!currentChatId && history._id) {
+        setCurrentChatId(history._id);
+        navigate(`/mfuchatbot?chat=${history._id}`, { replace: true });
+      }
+      
+      return history;
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+      return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() && !isImageGenerationMode) return;
@@ -371,19 +423,13 @@ const MFUChatbot: React.FC = () => {
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
 
-      // Save only the user message initially
-      const savedChat = await saveChatHistory([userMessage]);
-      if (savedChat) {
-        if (!currentChatId) {
-          setCurrentChatId(savedChat._id);
-          navigate(`/mfuchatbot?chat=${savedChat._id}`, { replace: true });
-        }
-      }
-
+      // Save chat history
+      const savedChat = await saveChatHistory(updatedMessages);
+      
       // Add placeholder for AI response
       const assistantMessage: Message = {
         id: aiMessageId,
-        role: 'assistant' as const,
+        role: 'assistant',
         content: '',
         timestamp: new Date(),
         isImageGeneration: isImageGenerationMode
@@ -392,15 +438,14 @@ const MFUChatbot: React.FC = () => {
       const messagesWithAssistant = [...updatedMessages, assistantMessage];
       setMessages(messagesWithAssistant);
 
-      // Send message to WebSocket with chatId
+      // Send message to WebSocket
       const messagePayload = {
-        messages: updatedMessages, // Send only up to user message
+        messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
-        chatId: currentChatId || savedChat?._id // Use new chatId if created
+        chatId: currentChatId || savedChat?._id
       };
 
-      console.log('WebSocket message payload:', JSON.stringify(messagePayload));
       wsRef.current?.send(JSON.stringify(messagePayload));
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -417,71 +462,28 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  const saveChatHistory = async (messages: Message[]): Promise<any> => {
+  const updateChatHistory = async (messages: Message[]) => {
     try {
       const token = localStorage.getItem('auth_token');
-      if (!token) return null;
+      if (!token || !currentChatId) return;
 
-      if (!selectedModel) {
-        console.error('No model selected');
-        return null;
-      }
-
-      // Filter out empty messages and ensure proper format
-      const validMessages = messages
-        .filter(msg => msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0)))
-        .map(msg => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp,
-          images: msg.images,
-          sources: msg.sources,
-          isImageGeneration: msg.isImageGeneration
-        }));
-
-      if (validMessages.length === 0) {
-        console.log('No valid messages to save');
-        return null;
-      }
-
-      // Always include chatId if we have one, even if it's a new message
-      const payload = {
-        messages: validMessages,
-        modelId: selectedModel,
-        chatId: currentChatId // Include chatId in all requests
-      };
-
-      console.log('Saving chat history:', payload);
-
-      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
-        method: 'POST',
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${currentChatId}`, {
+        method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          messages,
+          modelId: selectedModel
+        })
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Error saving chat history:', errorData);
-        return null;
+        throw new Error('Failed to update chat history');
       }
-
-      const history = await response.json();
-      
-      // Only update currentChatId and URL if this is a new chat
-      if (!currentChatId && history._id) {
-        setCurrentChatId(history._id);
-        // Use replace to avoid adding to browser history
-        navigate(`/mfuchatbot?chat=${history._id}`, { replace: true });
-      }
-      
-      return history;
     } catch (error) {
-      console.error('Error saving chat history:', error);
-      return null;
+      console.error('Error updating chat history:', error);
     }
   };
 
@@ -524,10 +526,8 @@ const MFUChatbot: React.FC = () => {
               } : msg
             );
 
-            // Save final state with image
-            if (selectedModel) {
-              saveChatHistory(updatedMessages);
-            }
+            // Update chat history with the new image
+            updateChatHistory(updatedMessages);
             return updatedMessages;
           });
           return;
@@ -537,30 +537,17 @@ const MFUChatbot: React.FC = () => {
           setMessages(prev => {
             const lastMessage = prev[prev.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
-              // Create the complete assistant message with all accumulated content
               const completeAssistantMessage = {
                 ...lastMessage,
                 sources: data.sources,
                 isComplete: true
               };
 
-              // Get all messages up to the user message
-              const previousMessages = prev.slice(0, -1);
+              const updatedMessages = [...prev.slice(0, -1), completeAssistantMessage];
               
-              // Create array with all messages including the complete assistant message
-              const allMessages = [...previousMessages, completeAssistantMessage];
-              console.log('Saving complete conversation with messages:', JSON.stringify(allMessages, null, 2));
-
-              // Save all messages together
-              if (selectedModel) {
-                // Ensure we're sending all messages to maintain conversation history
-                saveChatHistory(allMessages).catch(error => {
-                  console.error('Error saving complete conversation:', error);
-                });
-              }
-
-              // Update the messages state with the complete assistant message
-              return allMessages;
+              // Update chat history with complete message
+              updateChatHistory(updatedMessages);
+              return updatedMessages;
             }
             return prev;
           });
@@ -570,31 +557,22 @@ const MFUChatbot: React.FC = () => {
           setMessages(prev => {
             const lastAssistantMessage = prev[prev.length - 1];
             if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
-              // Accumulate content in the existing assistant message
               const updatedMessage = {
                 ...lastAssistantMessage,
                 content: lastAssistantMessage.content + data.content,
                 isComplete: false
               };
               
-              // Update the messages array with the accumulated content
               const updatedMessages = prev.map((msg, index) => 
                 index === prev.length - 1 ? updatedMessage : msg
               );
               
-              // Save the intermediate state if needed
-              if (selectedModel && currentChatId) {
-                saveChatHistory(updatedMessages).catch(error => {
-                  console.error('Error saving intermediate conversation:', error);
-                });
-              }
-              
+              // Don't update chat history for intermediate updates
               return updatedMessages;
             }
-            // Create new assistant message if none exists
             return [...prev, {
               id: prev.length + 1,
-              role: 'assistant' as const,
+              role: 'assistant',
               content: data.content,
               timestamp: new Date(),
               isImageGeneration: false,
@@ -635,6 +613,17 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  const startNewChat = () => {
+    // Navigate to main chat page for new chat
+    navigate('/mfuchatbot', { replace: true });
+    // Reset all states
+    setMessages([]);
+    setCurrentChatId(null);
+    setInputMessage('');
+    setSelectedImages([]);
+    setIsImageGenerationMode(false);
+  };
+
   const clearChat = async () => {
     try {
       const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
@@ -648,30 +637,17 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Failed to clear chat history');
       }
 
-      // Reset all necessary states
+      // Navigate to main chat page
+      navigate('/mfuchatbot', { replace: true });
+      // Reset all states
       setMessages([]);
       setCurrentChatId(null);
       setInputMessage('');
       setSelectedImages([]);
       setIsImageGenerationMode(false);
-      
-      // Navigate to new chat without page refresh
-      navigate('/mfuchatbot?new=true', { replace: true });
     } catch (error) {
       console.error('Error clearing chat:', error);
     }
-  };
-
-  const startNewChat = () => {
-    // Reset all necessary states
-    setMessages([]);
-    setCurrentChatId(null);
-    setInputMessage('');
-    setSelectedImages([]);
-    setIsImageGenerationMode(false);
-    
-    // Navigate to new chat without page refresh
-    navigate('/mfuchatbot?new=true', { replace: true });
   };
 
   const validateImageFile = (file: File): boolean => {
