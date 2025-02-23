@@ -57,6 +57,18 @@ enum CollectionPermission {
 /* -------------------------------
    Utility Functions
 ---------------------------------*/
+const getModelTypeStyle = (type: string) => {
+  switch (type) {
+    case 'official':
+      return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+    case 'staff_only':
+      return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
+    case 'personal':
+      return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
+    default:
+      return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
+  }
+};
 
 /* -------------------------------
    Reusable Base Modal Component
@@ -127,19 +139,6 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, 
       return;
     }
     onClick();
-  };
-
-  const getModelTypeStyle = (type: string) => {
-    switch (type) {
-      case 'official':
-        return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-      case 'staff_only':
-        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
-      case 'personal':
-        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
-      default:
-        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
-    }
   };
 
   return (
