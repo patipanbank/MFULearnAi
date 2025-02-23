@@ -494,7 +494,6 @@ const MFUChatbot: React.FC = () => {
       };
 
       wsRef.current?.send(JSON.stringify(messagePayload));
-      await saveChatHistory(updatedMessages);
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev.slice(0, -1), {
@@ -550,13 +549,25 @@ const MFUChatbot: React.FC = () => {
         }
 
         if (data.done) {
-          setMessages(prev => prev.map((msg, index) => 
-            index === prev.length - 1 && msg.role === 'assistant' ? {
-              ...msg,
-              sources: data.sources || [],
-              isComplete: true
-            } : msg
-          ));
+          setMessages(prev => {
+            const updatedMessages = prev.map((msg, index) => 
+              index === prev.length - 1 && msg.role === 'assistant' ? {
+                ...msg,
+                sources: data.sources || [],
+                isComplete: true
+              } : msg
+            );
+            return updatedMessages;
+          });
+          
+          // Save chat history after messages are updated
+          const currentMessages = await new Promise<Message[]>(resolve => {
+            setMessages(prev => {
+              resolve(prev);
+              return prev;
+            });
+          });
+          await saveChatHistory(currentMessages);
 
           // Handle chat ID updates and navigation
           if (data.chatId) {
