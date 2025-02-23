@@ -9,7 +9,7 @@ const router = Router();
  * GET /api/models
  * Retrieves all models (filtered based on user role)
  */
-router.get('/', roleGuard(['Students', 'Staffs', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
     console.log('User in models route:', user);
@@ -41,7 +41,7 @@ router.get('/', roleGuard(['Students', 'Staffs', 'ADMIN'] as UserRole[]), async 
  * POST /api/models
  * Creates a new model
  */
-router.post('/', roleGuard(['Students', 'Staffs', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.post('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
     const { name, modelType } = req.body;
@@ -88,7 +88,7 @@ router.post('/', roleGuard(['Students', 'Staffs', 'ADMIN'] as UserRole[]), async
  * PUT /api/models/:id
  * Updates a model's collections
  */
-router.put('/:id', roleGuard(['Staffs', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.put('/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { collections } = req.body;
@@ -115,7 +115,7 @@ router.put('/:id', roleGuard(['Staffs', 'ADMIN'] as UserRole[]), async (req: Req
  * DELETE /api/models/:id
  * Deletes a model
  */
-router.delete('/:id', roleGuard(['Staffs', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const model = await ModelModel.findByIdAndDelete(id);
@@ -136,7 +136,7 @@ router.delete('/:id', roleGuard(['Staffs', 'ADMIN'] as UserRole[]), async (req: 
  * GET /api/models/:id
  * Gets a model's details
  */
-router.get('/:id', roleGuard(['Students', 'Staffs', 'ADMIN'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const model = await ModelModel.findById(id);
