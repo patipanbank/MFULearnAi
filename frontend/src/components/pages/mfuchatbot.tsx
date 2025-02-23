@@ -923,7 +923,6 @@ const MFUChatbot: React.FC = () => {
                       : "Type a message..."
                 }
                 rows={1}
-                required
                 autoComplete="off"
                 spellCheck="false"
                 data-verify="false"
