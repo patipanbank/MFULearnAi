@@ -380,7 +380,6 @@ const MFUChatbot: React.FC = () => {
 
       // Create payload matching MongoDB schema
       const payload = {
-        _id: currentChatId ? { $oid: currentChatId } : undefined,
         userId: userId,
         modelId: selectedModel,
         collectionName: "Default",
@@ -395,7 +394,11 @@ const MFUChatbot: React.FC = () => {
         }
       };
 
-      const response = await fetch(`${config.apiUrl}/api/chat/history${currentChatId ? `/${currentChatId}` : ''}`, {
+      const url = currentChatId 
+        ? `${config.apiUrl}/api/chat/history/${currentChatId}`
+        : `${config.apiUrl}/api/chat/history`;
+
+      const response = await fetch(url, {
         method: currentChatId ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
