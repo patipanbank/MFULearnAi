@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { config } from '../../config/config';
 import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
