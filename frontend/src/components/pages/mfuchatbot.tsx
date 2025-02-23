@@ -80,7 +80,6 @@ const MFUChatbot: React.FC = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
-  const [chatName, setChatName] = useState<string>('');
 
   // Add click outside handler
   useEffect(() => {
@@ -250,7 +249,6 @@ const MFUChatbot: React.FC = () => {
         if (chat.modelId) {
           setSelectedModel(chat.modelId);
         }
-        setChatName(chat.chatname);
 
         if (chat.messages && Array.isArray(chat.messages)) {
           const processedMessages = chat.messages.map((msg) => ({
@@ -392,7 +390,7 @@ const MFUChatbot: React.FC = () => {
         userId: userId,
         modelId: selectedModel,
         collectionName: "Default",
-        chatname: chatName || messages[0]?.content.substring(0, 50) + "...",
+        chatname: messages[0]?.content.substring(0, 20) + "...",
         messages: validMessages,
         sources: [],
         createdAt: {
@@ -515,8 +513,7 @@ const MFUChatbot: React.FC = () => {
         messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
-        chatId: currentChatId,
-        chatname: chatName || messages[0]?.content.substring(0, 50) + "..."
+        chatId: currentChatId
       };
 
       wsRef.current?.send(JSON.stringify(messagePayload));

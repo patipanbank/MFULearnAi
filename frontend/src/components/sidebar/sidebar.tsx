@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaStar } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaAndroid, FaSearch, FaStar } from 'react-icons/fa';
+// FaEdit,
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -194,36 +195,36 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  const handleEdit = (chatId: string, currentName: string) => {
-    setEditingChatId(chatId);
-    setNewChatName(currentName);
-  };
+  // const handleEdit = (chatId: string, currentName: string) => {
+  //   setEditingChatId(chatId);
+  //   setNewChatName(currentName);
+  // };
 
-  const handleSaveEdit = async (chatId: string) => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/rename`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ newName: newChatName })
-      });
+  // const handleSaveEdit = async (chatId: string) => {
+  //   try {
+  //     const token = localStorage.getItem('auth_token');
+  //     const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/rename`, {
+  //       method: 'PUT',
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`,
+  //         'Content-Type': 'application/json'
+  //       },
+  //       body: JSON.stringify({ newName: newChatName })
+  //     });
 
-      if (response.status === 401) {
-        handleTokenExpired();
-        return;
-      }
+  //     if (response.status === 401) {
+  //       handleTokenExpired();
+  //       return;
+  //     }
 
-      if (response.ok) {
-        setEditingChatId(null);
-        fetchChatHistories();
-      }
-    } catch (error) {
-      console.error('Error updating chat name:', error);
-    }
-  };
+  //     if (response.ok) {
+  //       setEditingChatId(null);
+  //       fetchChatHistories();
+  //     }
+  //   } catch (error) {
+  //     console.error('Error updating chat name:', error);
+  //   }
+  // };
 
   const handlePinChat = async (chatId: string) => {
     try {
@@ -350,14 +351,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             value={newChatName}
                             onChange={(e) => setNewChatName(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveEdit(chat._id);
+                              // if (e.key === 'Enter') handleSaveEdit(chat._id);
                               if (e.key === 'Escape') setEditingChatId(null);
                             }}
                             className="flex-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
                             autoFocus
                           />
                           <button
-                            onClick={() => handleSaveEdit(chat._id)}
+                            // onClick={() => handleSaveEdit(chat._id)}
                             className="ml-2 p-1 text-green-500 hover:text-green-600"
                           >
                             ✓
@@ -402,7 +403,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             </div>
                           </Link>
                           <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
-                            <button
+                            {/* <button
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -412,7 +413,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               title="Edit chat name"
                             >
                               <FaEdit className="w-3 h-3" />
-                            </button>
+                            </button> */}
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
