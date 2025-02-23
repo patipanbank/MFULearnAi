@@ -340,11 +340,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
               {/* Chat History List */}
               {sortedChats.length > 0 && (
-                <div className="mt-1">
+                <div className="mt-1 space-y-0.5">
                   {sortedChats.map((chat) => (
-                    <div key={chat._id} className="flex items-center group">
+                    <div key={chat._id} className="flex items-center group relative hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all duration-200">
                       {editingChatId === chat._id ? (
-                        <div className="flex-1 flex items-center px-4 py-2">
+                        <div className="flex-1 flex items-center p-2 md:p-3">
                           <input
                             type="text"
                             value={newChatName}
@@ -373,17 +373,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         <>
                           <Link
                             to={`/mfuchatbot?chat=${chat._id}`}
-                            className={`flex-1 flex items-center px-8 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 text-sm
+                            className={`flex-1 flex items-center p-2 md:p-3 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex items-center space-x-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 w-full">
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   handlePinChat(chat._id);
                                 }}
-                                className={`p-1 rounded-full transition-colors ${
+                                className={`flex-shrink-0 p-1 rounded-full transition-colors ${
                                   pinnedChats.includes(chat._id)
                                     ? 'text-yellow-500 hover:text-yellow-600'
                                     : 'text-gray-400 hover:text-gray-500'
@@ -391,7 +391,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               >
                                 <FaStar className="w-3 h-3" />
                               </button>
-                              <div className="truncate">
+                              <div className="flex-1 min-w-0">
                                 <div className="font-medium truncate">
                                   {chat.chatname || 'Untitled Chat'}
                                 </div>
@@ -401,14 +401,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               </div>
                             </div>
                           </Link>
-                          <div className="hidden group-hover:flex items-center pr-2">
+                          <div className="absolute right-2 hidden group-hover:flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg px-1">
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleEdit(chat._id, chat.chatname);
                               }}
-                              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
                             >
                               <FaEdit className="w-3 h-3" />
                             </button>
@@ -418,7 +418,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                 e.stopPropagation();
                                 handleDelete(chat._id);
                               }}
-                              className="p-1 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                              className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
                             >
                               <FaTrash className="w-3 h-3" />
                             </button>
