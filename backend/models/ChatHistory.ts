@@ -13,6 +13,7 @@ const sourceSchema = new mongoose.Schema({
 }, { _id: false });
 
 const messageSchema = new mongoose.Schema({
+  id: { type: Number, required: true },
   role: { 
     type: String, 
     enum: ['user', 'assistant', 'system'], 
@@ -26,7 +27,8 @@ const messageSchema = new mongoose.Schema({
   },
   timestamp: { 
     type: Date, 
-    default: Date.now 
+    default: Date.now,
+    required: true 
   },
   images: [imageSchema],
   sources: [sourceSchema],
