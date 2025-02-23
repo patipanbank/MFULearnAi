@@ -1,8 +1,6 @@
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
-import { ChatHistory } from '../models/ChatHistory';
-import { HydratedDocument } from 'mongoose';
 import { CollectionModel } from '../models/Collection';
 import { ModelModel } from '../models/Model';
 
@@ -34,16 +32,6 @@ interface CollectionQueryResult {
     filename: string;
     similarity: number;
   }>;
-}
-
-interface IChatHistory {
-  sources: Array<{
-    modelId: string;
-    collectionName: string;
-    filename: string;
-    similarity: number;
-  }>;
-  save(): Promise<void>;
 }
 
 interface RetryConfig {
@@ -78,35 +66,26 @@ Remember: Your responses should be based on the provided context and documents.`
     [this.questionTypes.ANALYTICAL]: 'Analyze the following information and provide insights:',
     [this.questionTypes.CONCEPTUAL]: 'Explain the concept using the following context:',
     [this.questionTypes.PROCEDURAL]: 'Describe the process or steps based on:',
-    [this.questionTypes.CLARIFICATION]: 'To better answer your question, let me clarify based on:'
+    [this.questionTypes.CLARIFICATION]: 'To better clarify based on:'
   };
 
   private chatModel = bedrockService.chatModel;
-  private currentChatHistory?: HydratedDocument<IChatHistory>;
-  private readonly BATCH_SIZE = 3; // Number of collections to query simultaneously
-  private readonly MIN_SIMILARITY_THRESHOLD = 0.3; // Lowered from 0.6 to match ChromaService
+  private readonly BATCH_SIZE = 3;
+  private readonly MIN_SIMILARITY_THRESHOLD = 0.3;
   private readonly retryConfig: RetryConfig = {
     maxRetries: 3,
     baseDelay: 1000,
     maxDelay: 5000
   };
-  // You are DinDin, a male AI. Keep responses brief and to the point.
 
   private isRelevantQuestion(query: string): boolean {
     return true;
   }
 
-  /**
-   * Sanitizes a collection name by replacing invalid characters.
-   * Here we replace any colon (:) with a hyphen (-) to conform to ChromaDB's requirements.
-   */
   private sanitizeCollectionName(name: string): string {
     return name.replace(/:/g, '-');
   }
 
-  /**
-   * Gets collection names for a model ID or returns the collection names if directly provided
-   */
   private async resolveCollections(modelIdOrCollections: string | string[]): Promise<string[]> {
     try {
       if (Array.isArray(modelIdOrCollections)) {
@@ -158,7 +137,6 @@ Remember: Your responses should be based on the provided context and documents.`
               similarity: 1 - (queryResult.distances?.[index] || 0)
             }));
 
-          // Calculate dynamic threshold based on result distribution
           const similarities = results.map(r => r.similarity);
           const mean = similarities.reduce((a, b) => a + b, 0) / similarities.length;
           const stdDev = Math.sqrt(
@@ -207,7 +185,7 @@ Remember: Your responses should be based on the provided context and documents.`
       }
     }
 
-    return this.questionTypes.FACTUAL; // Default to factual if no pattern matches
+    return this.questionTypes.FACTUAL;
   }
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
@@ -263,18 +241,6 @@ Remember: Your responses should be based on the provided context and documents.`
 
     console.log('All results:', allResults);
 
-    const allSources = allResults
-      .flatMap(r => r.sources)
-      .sort((a, b) => b.similarity - a.similarity);
-
-    console.log('All sources:', allSources);
-
-    if (this.currentChatHistory) {
-      this.currentChatHistory.sources = allSources;
-      await this.currentChatHistory.save();
-      console.log('Saved sources to chat history');
-    }
-
     const contexts = allResults
       .filter(r => r.sources.length > 0)
       .sort((a, b) => {
@@ -299,7 +265,7 @@ Remember: Your responses should be based on the provided context and documents.`
 
       if (!this.isRelevantQuestion(query)) {
         console.log('Query not relevant');
-        yield 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
+        yield 'Sorry, I can only answer questions about Mae Fah Luang University.';
         return;
       }
 

@@ -1,11 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
 import { ICollection, CollectionModel, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
-import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 
@@ -114,53 +112,6 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const { messages, modelId, collectionName, chatId } = req.body;
-    const userId = (req.user as any)?.username || '';
-
-    console.log('Received chat save request:', {
-      userId,
-      modelId,
-      collectionName,
-      chatId,
-      messagesCount: messages.length
-    });
-
-    const history = await chatHistoryService.saveChatMessage(
-      userId,
-      modelId,
-      collectionName,
-      messages,
-      chatId
-    );
-
-    if (history) {
-      console.log('Saved chat result:', {
-        _id: history._id,
-        chatId: chatId,
-        isNewChat: !chatId
-      });
-    }
-
-    res.json(history);
-  } catch (error) {
-    console.error('Error saving chat history:', error);
-    res.status(500).json({ error: 'Failed to save chat history' });
-  }
-});
-
-router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const history = await chatHistoryService.getChatHistory(userId);
-    res.json(history);
-  } catch (error) {
-    console.error('Error getting chat history:', error);
-    res.status(500).json({ error: 'Failed to get chat history' });
-  }
-});
-
 router.get('/collections', async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -184,50 +135,6 @@ router.get('/collections', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
-  }
-});
-
-router.get('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const chatId = req.params.id;
-    
-    const chat = await ChatHistory.findOne({ 
-      _id: chatId,
-      userId: userId
-    });
-
-    if (!chat) {
-      res.status(404).json({ error: 'Chat history not found' });
-      return;
-    }
-
-    res.json(chat);
-  } catch (error) {
-    console.error('Error getting chat history:', error);
-    res.status(500).json({ error: 'Failed to get chat history' });
-  }
-});
-
-router.delete('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const chatId = req.params.id;
-
-    const result = await ChatHistory.findOneAndDelete({
-      _id: chatId,
-      userId: userId
-    });
-
-    if (!result) {
-      res.status(404).json({ error: 'Chat history not found' });
-      return;
-    }
-
-    res.json({ success: true, message: 'Chat history deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting chat history:', error);
-    res.status(500).json({ error: 'Failed to delete chat history' });
   }
 });
 
