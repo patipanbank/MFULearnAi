@@ -213,21 +213,6 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
             isComplete: true
           });
 
-          // สร้าง timestamp string สำหรับใช้ในชื่อแชท
-          const timestamp = new Date().toLocaleString('th-TH', {
-            year: '2-digit',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          });
-
-          // สร้าง chatname โดยรวม timestamp
-          const chatname = chatId ? undefined : // ถ้ามี chatId ไม่ต้องสร้าง chatname ใหม่
-            `${messages[0]?.content.substring(0, 30)}... (${timestamp})`;
-
           // Save chat history and handle response
           if (extWs.userId) {
             try {
@@ -249,7 +234,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                     existingChat.collectionName || '',
                     allMessages,
                     chatId,
-                    existingChat.chatname // ใช้ชื่อเดิมสำหรับการอัพเดท
+                    existingChat.chatname
                   );
 
                   // Send completion signal with existing chat ID
@@ -267,7 +252,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                   return; // Exit early on error
                 }
               } else {
-                // Create new chat with timestamp in name
+                // Create new chat
                 try {
                   if (!modelId) {
                     throw new Error('Model ID is required for new chat');
@@ -279,7 +264,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                     '',
                     allMessages,
                     undefined,
-                    chatname // ใช้ชื่อใหม่ที่มี timestamp
+                    chatname || messages[0]?.content.substring(0, 50) + "..."
                   );
 
                   // Send completion signal with new chat ID

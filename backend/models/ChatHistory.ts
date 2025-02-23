@@ -43,7 +43,7 @@ const chatHistorySchema = new mongoose.Schema({
   chatname: { 
     type: String, 
     required: true,
-    maxLength: 150
+    maxLength: 100 
   },
   messages: [messageSchema],
   sources: [sourceSchema],
@@ -57,24 +57,11 @@ const chatHistorySchema = new mongoose.Schema({
   ]
 });
 
-// แก้ไข middleware ให้ทำงานเฉพาะเมื่อสร้างแชทใหม่เท่านั้น
+// Add validation for messages array
 chatHistorySchema.pre('save', function(next) {
-  if (this.isNew) { // เช็คว่าเป็นเอกสารใหม่เท่านั้น
-    const timestamp = new Date().toLocaleString('th-TH', {
-      year: '2-digit',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-    
-    const baseText = this.chatname.length > 30 ? 
-      `${this.chatname.substring(0, 30)}...` : 
-      this.chatname;
-    
-    this.chatname = `${baseText} (${timestamp})`;
+  if (!this.messages || this.messages.length === 0) {
+    next(new Error('Chat history must have at least one message'));
+    return;
   }
   next();
 });
