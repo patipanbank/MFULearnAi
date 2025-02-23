@@ -446,8 +446,11 @@ const MFUChatbot: React.FC = () => {
         navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
       }
 
-      // ส่ง event เพื่ออัพเดท sidebar ทันทีที่บันทึกสำเร็จ
-      window.dispatchEvent(new Event('chatHistoryUpdated'));
+      // Only emit event if save was successful and the last message is complete
+      const lastMessage = validMessages[validMessages.length - 1];
+      if (lastMessage && lastMessage.isComplete) {
+        window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+      }
       
       return history;
     } catch (error) {
@@ -623,7 +626,7 @@ const MFUChatbot: React.FC = () => {
         wsRef.current.close();
       }
     };
-  }, [navigate, saveChatHistory]);
+  }, [navigate]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
