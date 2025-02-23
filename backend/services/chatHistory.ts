@@ -84,6 +84,7 @@ class ChatHistoryService {
         throw new Error('Messages array is required and must not be empty');
       }
 
+      // Use provided chatname or generate from first message as fallback
       const finalChatname = chatname || (() => {
         const firstUserMessage = messages.find(msg => msg.role === 'user');
         return firstUserMessage 
@@ -91,6 +92,7 @@ class ChatHistoryService {
           : 'New Chat';
       })();
 
+      // Validate and process messages
       const processedMessages = messages.map((msg, index) => {
         this.validateMessage(msg);
         let timestamp;
@@ -125,22 +127,15 @@ class ChatHistoryService {
       });
 
       if (!chatId) {
-        const history = await ChatHistory.create({
-          userId,
-          modelId,
-          collectionName,
-          chatname: finalChatname,
-          messages: processedMessages,
-          updatedAt: new Date()
+        const existingChat = await ChatHistory.findOne({ 
+          userId, 
+          chatname: finalChatname 
         });
         
-        return history;
-      } else {
-        const existingChat = await ChatHistory.findById(chatId);
-        
         if (existingChat) {
+          // Update existing chat instead of creating new one
           const updatedChat = await ChatHistory.findByIdAndUpdate(
-            chatId,
+            existingChat._id,
             {
               messages: processedMessages,
               updatedAt: new Date()
@@ -153,18 +148,33 @@ class ChatHistoryService {
           }
           
           return updatedChat;
-        } else {
-          const history = await ChatHistory.create({
-            userId,
-            modelId,
-            collectionName,
-            chatname: finalChatname,
+        }
+
+        const history = await ChatHistory.create({
+          userId,
+          modelId,
+          collectionName,
+          chatname: finalChatname,
+          messages: processedMessages,
+          updatedAt: new Date()
+        });
+        
+        return history;
+      } else {
+        const history = await ChatHistory.findByIdAndUpdate(
+          chatId,
+          {
             messages: processedMessages,
             updatedAt: new Date()
-          });
-          
-          return history;
+          },
+          { new: true, runValidators: true }
+        );
+        
+        if (!history) {
+          throw new Error('Chat not found');
         }
+        
+        return history;
       }
     } catch (error) {
       console.error('Error in saveChatMessage:', error);
