@@ -68,7 +68,7 @@ const MFUChatbot: React.FC = () => {
   const location = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, ] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -440,9 +440,16 @@ const MFUChatbot: React.FC = () => {
         setMessages(updatedMessages);
       }
       
-      // ส่ง event เฉพาะเมื่ออัพเดทแชทที่มีอยู่แล้ว
-      if (currentChatId) {
-        window.dispatchEvent(new Event('chatHistoryUpdated'));
+      // Only update currentChatId and URL if this is a new chat
+      if (!currentChatId && history._id) {
+        setCurrentChatId(history._id.$oid);
+        navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
+      }
+
+      // Only emit event if save was successful and the last message is complete
+      const lastMessage = validMessages[validMessages.length - 1];
+      if (lastMessage && lastMessage.isComplete) {
+        window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
       }
       
       return history;
@@ -454,7 +461,13 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit()) return;
+    if (!inputMessage.trim() && !isImageGenerationMode) return;
+    if (!selectedModel) {
+      alert('Please select a model first');
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const token = localStorage.getItem('auth_token');
@@ -504,29 +517,24 @@ const MFUChatbot: React.FC = () => {
       };
 
       wsRef.current?.send(JSON.stringify(messagePayload));
-
-      // บันทึกแชทหลังจากได้รับข้อความตอบกลับ
-      const savedChat = await saveChatHistory(messages);
-      
-      // ถ้าเป็นแชทใหม่ (ไม่มี currentChatId)
-      if (savedChat && !currentChatId) {
-        const chatId = savedChat._id.$oid || savedChat._id;
-        setCurrentChatId(chatId);
-        navigate(`/mfuchatbot?chat=${chatId}`, { replace: true });
-        
-        // ส่ง event พร้อมข้อมูลแชทใหม่
-        window.dispatchEvent(new CustomEvent('newChatCreated', {
-          detail: {
-            _id: chatId,
-            chatname: messages[0]?.content.substring(0, 20) + "...",
-            messages: messages,
-            modelId: selectedModel,
-            collectionName: "Default"
-          }
-        }));
-      }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error in handleSubmit:', error);
+      setMessages(prev => [...prev.slice(0, -1), {
+        id: messages.length + 2,
+        role: 'assistant',
+        content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        images: [],
+        sources: [],
+        isImageGeneration: false,
+        isComplete: true
+      }]);
+    } finally {
+      setIsLoading(false);
+      setInputMessage('');
+      setSelectedImages([]);
     }
   };
 
