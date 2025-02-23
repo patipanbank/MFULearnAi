@@ -185,7 +185,11 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
       try {
         console.log('Starting response generation...');
+        let assistantResponse = '';
+        
+        // Generate response once and collect the content
         for await (const content of chatService.generateResponse(messages, query, modelId)) {
+          assistantResponse += content;
           if (extWs.readyState === WebSocket.OPEN) {
             console.log(`Sending content chunk to user ${extWs.userId}:`, content);
             extWs.send(JSON.stringify({ content }));
@@ -196,56 +200,66 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         }
 
         if (extWs.readyState === WebSocket.OPEN) {
-          console.log(`Sending completion signal to user ${extWs.userId}`);
-          extWs.send(JSON.stringify({ done: true }));
-          
-          // Save chat history for both new and existing chats
+          // Include both user messages and the complete assistant response
+          const allMessages = [...messages];
+          allMessages.push({
+            id: messages.length + 1,
+            role: 'assistant',
+            content: assistantResponse,
+            timestamp: new Date(),
+            sources: [],
+            isImageGeneration: isImageGeneration || false
+          });
+
+          // Save chat history and handle response
           if (extWs.userId) {
             try {
-              let chatIdToUse = chatId;
-              console.log(`Updating chat history for user ${extWs.userId} and chat ${chatIdToUse}`);
+              let savedChat;
               
-              // Get the accumulated assistant response
-              let assistantResponse = '';
-              for await (const content of chatService.generateResponse(messages, query, modelId)) {
-                assistantResponse += content;
-              }
-              
-              // Include both user messages and the complete assistant response
-              const allMessages = [...messages];
-              // Add the assistant's complete response with the actual accumulated content
-              allMessages.push({
-                id: messages.length + 1,
-                role: 'assistant',
-                content: assistantResponse,
-                timestamp: new Date(),
-                sources: [],
-                isImageGeneration: isImageGeneration || false
-              });
-              
-              // Only verify existing chat if chatId is provided and valid
-              if (chatIdToUse && chatIdToUse !== 'undefined') {
+              if (chatId && chatId !== 'undefined' && chatId !== 'null') {
+                // Update existing chat
                 try {
                   // Verify chat exists and belongs to user
-                  await chatHistoryService.getSpecificChat(extWs.userId, chatIdToUse);
+                  await chatHistoryService.getSpecificChat(extWs.userId, chatId);
+                  savedChat = await chatHistoryService.saveChatMessage(
+                    extWs.userId,
+                    modelId,
+                    '',  // collectionName is optional
+                    allMessages,
+                    chatId
+                  );
                 } catch (error) {
                   console.log('Chat not found or access denied, creating new chat');
-                  chatIdToUse = undefined;
+                  savedChat = await chatHistoryService.saveChatMessage(
+                    extWs.userId,
+                    modelId,
+                    '',
+                    allMessages
+                  );
                 }
               } else {
-                chatIdToUse = undefined;
+                // Create new chat
+                savedChat = await chatHistoryService.saveChatMessage(
+                  extWs.userId,
+                  modelId,
+                  '',
+                  allMessages
+                );
               }
 
-              const savedChat = await chatHistoryService.saveChatMessage(
-                extWs.userId,
-                modelId,
-                '',  // collectionName is optional
-                allMessages,
-                chatIdToUse // Will be undefined for new chats
-              );
-              console.log(`Chat history updated for user ${extWs.userId}`);
+              // Send completion signal with chat ID for new chats
+              extWs.send(JSON.stringify({ 
+                done: true,
+                chatId: savedChat._id,
+                isNewChat: !chatId || chatId === 'undefined' || chatId === 'null'
+              }));
+              
+              console.log(`Chat history updated for user ${extWs.userId}, chatId: ${savedChat._id}`);
             } catch (error) {
               console.error('Error updating chat history:', error);
+              extWs.send(JSON.stringify({ 
+                error: 'Failed to save chat history. Please try again.' 
+              }));
             }
           }
         }

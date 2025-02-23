@@ -470,31 +470,12 @@ const MFUChatbot: React.FC = () => {
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
 
-      // Save chat history and get the response with server timestamps
-      const savedChat = await saveChatHistory(updatedMessages);
-      
-      // Add placeholder for AI response
-      const assistantMessage: Message = {
-        id: aiMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: {
-          $date: new Date().toISOString()
-        },
-        images: [],
-        sources: [],
-        isImageGeneration: isImageGenerationMode
-      };
-      
-      const messagesWithAssistant = [...updatedMessages, assistantMessage];
-      setMessages(messagesWithAssistant);
-
       // Send message to WebSocket
       const messagePayload = {
         messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
-        chatId: currentChatId || savedChat?._id.$oid
+        chatId: currentChatId
       };
 
       wsRef.current?.send(JSON.stringify(messagePayload));
@@ -643,6 +624,35 @@ const MFUChatbot: React.FC = () => {
             }];
           });
         }
+
+        if (data.done) {
+          setMessages(prev => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+              const completeAssistantMessage: Message = {
+                ...lastMessage,
+                sources: data.sources || [],
+                isComplete: true
+              };
+
+              const updatedMessages = [...prev.slice(0, -1), completeAssistantMessage];
+              
+              // Update chat history with complete message
+              updateChatHistory(updatedMessages);
+              return updatedMessages;
+            }
+            return prev;
+          });
+
+          // Handle chat ID updates and navigation
+          if (data.chatId) {
+            setCurrentChatId(data.chatId);
+            if (data.isNewChat) {
+              // Only navigate if this is a new chat
+              navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
+            }
+          }
+        }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
       }
@@ -700,14 +710,8 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Failed to clear chat history');
       }
 
-      // Navigate to main chat page
-      navigate('/mfuchatbot', { replace: true });
-      // Reset all states
-      setMessages([]);
-      setCurrentChatId(null);
-      setInputMessage('');
-      setSelectedImages([]);
-      setIsImageGenerationMode(false);
+      // Navigate to main chat page and reset state
+      startNewChat();
     } catch (error) {
       console.error('Error clearing chat:', error);
     }
