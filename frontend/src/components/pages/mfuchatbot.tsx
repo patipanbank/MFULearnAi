@@ -348,12 +348,7 @@ const MFUChatbot: React.FC = () => {
 
       if (!selectedModel) {
         console.error('No model selected');
-        if (models.length > 0) {
-          const defaultModel = models.find(model => model.name === 'Default');
-          setSelectedModel(defaultModel?.id || models[0].id);
-        } else {
-          return null;
-        }
+        return null;
       }
 
       // Only save if there are actual messages
@@ -464,11 +459,6 @@ const MFUChatbot: React.FC = () => {
         }
       }
       
-      // Dispatch เพิ่มเติมสำหรับแชทใหม่
-      if (!currentChatId && history._id) {
-        window.dispatchEvent(new CustomEvent('chatUpdated'));
-      }
-      
       return history;
     } catch (error) {
       console.error('Error saving chat history:', error);
@@ -555,95 +545,78 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
+  const connectWebSocket = () => {
+    const ws = new WebSocket(`${config.wsUrl}?token=${localStorage.getItem('auth_token')}`);
+    
+    ws.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'content') {
+          // จัดการกับข้อความที่ได้รับ
+          setMessages(prevMessages => {
+            const lastMessage = prevMessages[prevMessages.length - 1];
+            if (lastMessage && !lastMessage.isComplete) {
+              const updatedMessages = [...prevMessages];
+              updatedMessages[updatedMessages.length - 1] = {
+                ...lastMessage,
+                content: lastMessage.content + data.content
+              };
+              return updatedMessages;
+            }
+            return prevMessages;
+          });
+        } else if (data.type === 'error') {
+          console.error('WebSocket error:', data.error);
+          alert(data.error);
+        } else if (data.type === 'complete') {
+          setMessages(prevMessages => {
+            const updatedMessages = [...prevMessages];
+            const lastMessage = updatedMessages[updatedMessages.length - 1];
+            if (lastMessage) {
+              lastMessage.isComplete = true;
+              // Dispatch event เมื่อข้อความสมบูรณ์
+              window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+            }
+            return updatedMessages;
+          });
+        }
+
+        // เพิ่มการตรวจสอบข้อความ "Chat history updated"
+        if (typeof event.data === 'string' && event.data.includes('Chat history updated')) {
+          console.log('Chat history update detected from WebSocket');
+          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+        }
+        
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    return ws;
+  };
+
+  // เพิ่ม useEffect สำหรับจัดการ WebSocket
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) return;
 
-    const wsUrl = new URL(import.meta.env.VITE_WS_URL);
-    wsUrl.searchParams.append('token', token);
-    wsRef.current = new WebSocket(wsUrl.toString());
-
-    wsRef.current.onmessage = async (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.error) {
-          console.error('Received error from WebSocket:', data.error);
-          setMessages(prev => prev.map((msg, index) => 
-            index === prev.length - 1 && msg.role === 'assistant' ? {
-              ...msg,
-              content: `Error: ${data.error}`,
-              isComplete: true
-            } : msg
-          ));
-          return;
-        }
-
-        if (data.content) {
-          setMessages(prev => prev.map((msg, index) => 
-            index === prev.length - 1 && msg.role === 'assistant' ? {
-              ...msg,
-              content: msg.content + data.content
-            } : msg
-          ));
-        }
-
-        if (data.done) {
-          setMessages(prev => {
-            const updatedMessages = prev.map((msg, index) => 
-              index === prev.length - 1 && msg.role === 'assistant' ? {
-                ...msg,
-                sources: data.sources || [],
-                isComplete: true
-              } : msg
-            );
-            return updatedMessages;
-          });
-          
-          // Save chat history after messages are updated
-          const currentMessages = await new Promise<Message[]>(resolve => {
-            setMessages(prev => {
-              resolve(prev);
-              return prev;
-            });
-          });
-          await saveChatHistory(currentMessages);
-
-          // Handle chat ID updates and navigation
-          if (data.chatId) {
-            setCurrentChatId(data.chatId);
-            if (data.isNewChat) {
-              // Only navigate if this is a new chat
-              navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error handling WebSocket message:', error);
-        setMessages(prev => prev.map((msg, index) => 
-          index === prev.length - 1 && msg.role === 'assistant' ? {
-            ...msg,
-            content: 'Error processing response. Please try again.',
-            isComplete: true
-          } : msg
-        ));
-      }
-    };
-
-    wsRef.current.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-
-    wsRef.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
+    wsRef.current = connectWebSocket();
 
     return () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
     };
-  }, [navigate]);
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
