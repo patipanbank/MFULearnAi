@@ -218,6 +218,7 @@ const MFUChatbot: React.FC = () => {
       if (!chatId) {
         setMessages([]);
         setCurrentChatId(null);
+        // Don't reset selectedModel here to persist it for new chats
         return;
       }
 
@@ -252,7 +253,16 @@ const MFUChatbot: React.FC = () => {
             isImageGeneration: msg.isImageGeneration || false
           }));
           setMessages(processedMessages);
-          setSelectedModel(chat.modelId || '');
+          
+          // Only set selectedModel if chat has a modelId and we don't already have one selected
+          if (chat.modelId) {
+            setSelectedModel(chat.modelId);
+          } else if (!selectedModel && models.length > 0) {
+            // If no model is set, use the default or first available model
+            const defaultModel = models.find(model => model.name === 'Default');
+            setSelectedModel(defaultModel?.id || models[0].id);
+          }
+          
           setCurrentChatId(chat._id);
         }
       } else {
@@ -275,11 +285,17 @@ const MFUChatbot: React.FC = () => {
     if (chatId) {
       loadChatHistory();
     } else {
-      // Reset state for new chat
+      // Reset state for new chat but keep selected model
       setMessages([]);
       setCurrentChatId(null);
+      
+      // If no model is selected, set default model
+      if (!selectedModel && models.length > 0) {
+        const defaultModel = models.find(model => model.name === 'Default');
+        setSelectedModel(defaultModel?.id || models[0].id);
+      }
     }
-  }, [location.search]);
+  }, [location.search, models]); // Add models as dependency
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
