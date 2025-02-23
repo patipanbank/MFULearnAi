@@ -523,15 +523,20 @@ const MFUChatbot: React.FC = () => {
 
               // Save both user and assistant messages
               if (selectedModel && currentChatId) {
-                // Get all messages including the complete assistant response
-                const completeMessages = updatedMessages.filter(msg => 
-                  msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim())
-                );
+                // Get the complete assistant message after all updates
+                const completeAssistantMessage = {
+                  ...updatedMessages[updatedMessages.length - 1],
+                  isComplete: true
+                };
 
-                console.log('Saving complete conversation with both messages:', completeMessages);
+                // Get the user message
+                const userMessage = updatedMessages[updatedMessages.length - 2];
+
+                // Save both messages together
+                const messagesToSave = [userMessage, completeAssistantMessage];
+                console.log('Saving complete conversation with messages:', messagesToSave);
                 
-                // Use saveChatHistory to save the complete conversation
-                saveChatHistory(completeMessages).catch(error => {
+                saveChatHistory(messagesToSave).catch(error => {
                   console.error('Error saving complete conversation:', error);
                 });
               }
