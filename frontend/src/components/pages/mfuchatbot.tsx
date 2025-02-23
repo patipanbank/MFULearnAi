@@ -30,6 +30,7 @@ interface Message {
   }[];
   sources?: Source[];
   isImageGeneration?: boolean;
+  isComplete?: boolean;
 }
 
 interface Model {
@@ -410,9 +411,17 @@ const MFUChatbot: React.FC = () => {
       }
 
       // Filter out empty messages and ensure proper format
-      const validMessages = messages.filter(msg => 
-        msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0))
-      );
+      const validMessages = messages
+        .filter(msg => msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0)))
+        .map(msg => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          images: msg.images,
+          sources: msg.sources,
+          isImageGeneration: msg.isImageGeneration
+        }));
 
       if (validMessages.length === 0) {
         console.log('No valid messages to save');
@@ -498,13 +507,54 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
+        if (data.done) {
+          setMessages(prev => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+              const updatedMessages = prev.map((msg, index) =>
+                index === prev.length - 1
+                  ? { 
+                      ...msg, 
+                      sources: data.sources,
+                      // Ensure the message is marked as complete
+                      isComplete: true 
+                    }
+                  : msg
+              );
+
+              // Save both user and assistant messages
+              if (selectedModel && currentChatId) {
+                // Get all messages including the complete assistant response
+                const completeMessages = updatedMessages.map(msg => ({
+                  ...msg,
+                  // Clean up any temporary fields
+                  isComplete: undefined
+                }));
+
+                console.log('Saving complete conversation:', completeMessages);
+                
+                saveChatHistory(completeMessages).catch(error => {
+                  console.error('Error saving chat history:', error);
+                });
+              }
+              return updatedMessages;
+            }
+            return prev;
+          });
+        }
+
         if (data.content) {
           setMessages(prev => {
             const lastAssistantMessage = prev[prev.length - 1];
             if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
               const updatedMessages = prev.map((msg, index) => 
                 index === prev.length - 1 
-                  ? { ...msg, content: msg.content + data.content }
+                  ? { 
+                      ...msg, 
+                      content: msg.content + data.content,
+                      // Mark message as incomplete while streaming
+                      isComplete: false
+                    }
                   : msg
               );
               return updatedMessages;
@@ -514,32 +564,9 @@ const MFUChatbot: React.FC = () => {
               role: 'assistant' as const,
               content: data.content,
               timestamp: new Date(),
-              isImageGeneration: false
+              isImageGeneration: false,
+              isComplete: false // Mark new message as incomplete
             }];
-          });
-        }
-
-        if (data.done) {
-          setMessages(prev => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant') {
-              const updatedMessages = prev.map((msg, index) =>
-                index === prev.length - 1
-                  ? { ...msg, sources: data.sources }
-                  : msg
-              );
-              // Save both user and assistant messages
-              if (selectedModel) {
-                const completeMessages = updatedMessages.filter(msg => 
-                  msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim())
-                );
-                saveChatHistory(completeMessages).catch(error => {
-                  console.error('Error saving chat history:', error);
-                });
-              }
-              return updatedMessages;
-            }
-            return prev;
           });
         }
       } catch (error) {
