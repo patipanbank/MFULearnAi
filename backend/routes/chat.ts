@@ -223,8 +223,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                 isImageGeneration: isImageGeneration || false
               });
               
-              // Only try to get specific chat if chatId exists
-              if (chatIdToUse) {
+              // Only verify existing chat if chatId is provided and valid
+              if (chatIdToUse && chatIdToUse !== 'undefined') {
                 try {
                   // Verify chat exists and belongs to user
                   await chatHistoryService.getSpecificChat(extWs.userId, chatIdToUse);
@@ -232,9 +232,11 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                   console.log('Chat not found or access denied, creating new chat');
                   chatIdToUse = undefined;
                 }
+              } else {
+                chatIdToUse = undefined;
               }
 
-              await chatHistoryService.saveChatMessage(
+              const savedChat = await chatHistoryService.saveChatMessage(
                 extWs.userId,
                 modelId,
                 '',  // collectionName is optional
