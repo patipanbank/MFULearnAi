@@ -195,32 +195,51 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onRename, 
 
       <div className="flex flex-col h-full">
         <div className="mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
             {model.name}
           </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Created by: {model.createdBy}
+          </p>
         </div>
-        <div className="mt-auto space-y-2">
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-            <FaLayerGroup className="mr-2" size={14} />
-            <span>{model.collections.length} Collections</span>
+        
+        <div className="mt-auto space-y-4">
+          {/* Collections Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                <FaLayerGroup className="mr-2" size={14} />
+                <span>{model.collections.length} Collections</span>
+              </div>
+            </div>
+            
+            {model.collections.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {model.collections.map((collection, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs 
+                    font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  >
+                    {collection}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                No collections added
+              </p>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {model.collections.map((collection, index) => (
-              <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs 
-              font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                {collection}
-              </span>
-            ))}
-          </div>
-          <div className="flex justify-between items-center mt-4">
+
+          {/* Model Type and Creation Date */}
+          <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getModelTypeStyle(model.modelType)}`}>
               {model.modelType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
             </span>
-            {model.createdAt && (
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {getRelativeTime(model.createdAt)}
-              </div>
-            )}
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {getRelativeTime(model.createdAt)}
+            </div>
           </div>
         </div>
       </div>
@@ -997,17 +1016,42 @@ const ModelCreation: React.FC = () => {
                       </p>
                     </div>
                     
-                    <div className="mt-auto space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                          ${model.modelType === 'official' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' :
-                            model.modelType === 'staff_only' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400' :
-                            'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'}`}
-                        >
-                          {model.modelType.charAt(0).toUpperCase() + model.modelType.slice(1)}
+                    <div className="mt-auto space-y-4">
+                      {/* Collections Section */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                            <FaLayerGroup className="mr-2" size={14} />
+                            <span>{model.collections.length} Collections</span>
+                          </div>
+                        </div>
+                        
+                        {model.collections.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {model.collections.map((collection, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs 
+                                font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                              >
+                                {collection}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                            No collections added
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Model Type and Creation Date */}
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getModelTypeStyle(model.modelType)}`}>
+                          {model.modelType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                         </span>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(model.createdAt).toLocaleDateString()}
+                          {getRelativeTime(model.createdAt)}
                         </div>
                       </div>
                     </div>
