@@ -530,21 +530,8 @@ const MFUChatbot: React.FC = () => {
 
                 console.log('Saving complete conversation with both messages:', completeMessages);
                 
-                // Save the complete conversation including both messages
-                const payload = {
-                  messages: completeMessages,
-                  modelId: selectedModel,
-                  chatId: currentChatId
-                };
-
-                fetch(`${config.apiUrl}/api/chat/history`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-                  },
-                  body: JSON.stringify(payload)
-                }).catch(error => {
+                // Use saveChatHistory to save the complete conversation
+                saveChatHistory(completeMessages).catch(error => {
                   console.error('Error saving complete conversation:', error);
                 });
               }
@@ -563,7 +550,6 @@ const MFUChatbot: React.FC = () => {
                   ? { 
                       ...msg, 
                       content: msg.content + data.content,
-                      // Mark message as incomplete while streaming
                       isComplete: false
                     }
                   : msg
@@ -576,7 +562,7 @@ const MFUChatbot: React.FC = () => {
               content: data.content,
               timestamp: new Date(),
               isImageGeneration: false,
-              isComplete: false // Mark new message as incomplete
+              isComplete: false
             }];
           });
         }

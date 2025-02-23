@@ -23,15 +23,7 @@ class ChatHistoryService {
           folder: history.folder,
           tags: history.tags,
           isPinned: history.isPinned,
-          collectionName: history.collectionName,
-          messages: history.messages.map(msg => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            images: msg.images,
-            sources: msg.sources
-          }))
+          collectionName: history.collectionName
         }))
       }, null, 2));
 
@@ -137,28 +129,30 @@ class ChatHistoryService {
 
   async saveChatMessage(userId: string, modelId: string, collectionName: string | undefined, messages: any[], chatId?: string) {
     try {
-      const firstUserMessage = messages.find(msg => msg.role === 'user');
-      const chatname = firstUserMessage 
-        ? firstUserMessage.content.slice(0, 10) + (firstUserMessage.content.length > 10 ? '...' : '')
-        : 'New Chat';
-
       console.log('Processing messages:', JSON.stringify(messages, null, 2));
 
+      // Process and validate messages
       const processedMessages = messages.map((msg, index) => ({
-        id: index + 1,
+        id: msg.id || index + 1,
         role: msg.role as 'user' | 'assistant' | 'system',
-        content: String(msg.content),
+        content: String(msg.content || '').trim(),
         timestamp: new Date(msg.timestamp || Date.now()),
         images: msg.images ? msg.images.map((img: any) => ({
           data: img.data,
           mediaType: img.mediaType
         })) : undefined,
-        sources: msg.sources || []
+        sources: msg.sources || [],
+        isImageGeneration: msg.isImageGeneration || false
       }));
 
       console.log('Processed messages:', JSON.stringify(processedMessages, null, 2));
 
-      // เพิ่ม log เพื่อตรวจสอบ
+      // Get chat name from first user message
+      const firstUserMessage = messages.find(msg => msg.role === 'user');
+      const chatname = firstUserMessage 
+        ? firstUserMessage.content.slice(0, 30) + (firstUserMessage.content.length > 30 ? '...' : '')
+        : 'New Chat';
+
       console.log('Saving chat message:', {
         userId,
         modelId,
@@ -167,27 +161,36 @@ class ChatHistoryService {
         messagesCount: messages.length
       });
 
-      const chatData = {
-        userId,
-        modelId,
-        ...(collectionName && { collectionName }), // Only include if collectionName is provided
-        chatname,
-        messages: processedMessages,
-        updatedAt: new Date()
-      };
-
       if (chatId) {
         console.log('Updating existing chat:', chatId);
+        const updateData = {
+          messages: processedMessages,
+          modelId, // Always update modelId
+          ...(collectionName && { collectionName }), // Update collectionName if provided
+          updatedAt: new Date()
+        };
+
         const history = await ChatHistory.findByIdAndUpdate(
           chatId,
-          chatData,
+          updateData,
           { new: true }
         );
         console.log('Updated chat result:', history?._id);
         return history;
       } else {
         console.log('Creating new chat');
-        const history = await ChatHistory.create(chatData);
+        const history = await ChatHistory.create({
+          userId,
+          modelId,
+          collectionName,
+          chatname,
+          messages: processedMessages,
+          folder: 'default',
+          tags: [],
+          isPinned: false,
+          lastAccessedAt: new Date(),
+          updatedAt: new Date()
+        });
         console.log('Created new chat:', history._id);
         return history;
       }
