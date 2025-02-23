@@ -116,14 +116,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       } else {
         setChatHistories([]);
       }
-      fetchChatHistories();
     } catch (error) {
       console.error('Error fetching chat histories:', error);
       setChatHistories([]);
     }
-    fetchChatHistories();
   };
-  fetchChatHistories();
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
