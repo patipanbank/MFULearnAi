@@ -8,6 +8,32 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { UserRole } from '../models/User';
 import { ChatHistory } from '../models/ChatHistory';
 
+interface ChatHistoryDocument {
+  _id: string;
+  userId: string;
+  modelId: string;
+  collectionName: string;
+  chatname: string;
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: Date;
+    images?: Array<{
+      data: string;
+      mediaType: string;
+    }>;
+    sources?: Array<{
+      modelId: string;
+      collectionName: string;
+      filename: string;
+      similarity: number;
+    }>;
+    isImageGeneration?: boolean;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
 const CLIENT_TIMEOUT = 35000;
@@ -332,105 +358,136 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[])
 
 router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const userId = (req.user as any)?.username || '';
-    const history = await chatHistoryService.getChatHistory(userId);
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    const history = await chatHistoryService.getChatHistory(userId, page, limit);
     res.json(history);
   } catch (error) {
     console.error('Error getting chat history:', error);
-    res.status(500).json({ error: 'Failed to get chat history' });
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to get chat history' 
+    });
   }
 });
 
-// Get specific chat
-router.get('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+router.get('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const userId = (req.user as any)?.username || '';
-    const { chatId } = req.params;
-    const chat = await chatHistoryService.getChatHistory(userId);
-    const specificChat = chat.find(c => c._id.toString() === chatId);
-    if (!specificChat) {
-      res.status(404).json({ error: 'Chat not found' });
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
       return;
     }
-    res.json(specificChat);
+
+    const { chatId } = req.params;
+    const chat = await chatHistoryService.getSpecificChat(userId, chatId);
+    res.json(chat);
   } catch (error) {
-    console.error('Error getting specific chat:', error);
-    res.status(500).json({ error: 'Failed to get chat' });
+    if (error instanceof Error && error.message === 'Chat not found') {
+      res.status(404).json({ error: 'Chat not found' });
+    } else {
+      console.error('Error getting specific chat:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to get chat' 
+      });
+    }
   }
 });
 
-// Update chat (rename, update folder, update tags, toggle pin)
+// Update chat
 router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.user as any)?.username || '';
-    const { chatId } = req.params;
-    const { chatname, messages } = req.body;
-    
-    const chats = await chatHistoryService.getChatHistory(userId);
-    const chatToUpdate = chats.find(c => c._id.toString() === chatId);
-    
-    if (!chatToUpdate) {
-      res.status(404).json({ error: 'Chat not found' });
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
       return;
     }
+
+    const { chatId } = req.params;
+    const { messages, modelId } = req.body;
     
     // Update the chat with new data
     const updatedChat = await chatHistoryService.saveChatMessage(
       userId,
-      '',  // modelId is not stored in ChatHistory
-      '',  // collectionName is not stored in ChatHistory
-      messages || chatToUpdate.messages,
+      modelId || '',
+      '',  // collectionName is optional
+      messages,
       chatId
     );
     
     res.json(updatedChat);
   } catch (error) {
-    console.error('Error updating chat:', error);
-    res.status(500).json({ error: 'Failed to update chat' });
+    if (error instanceof Error && error.message === 'Chat not found') {
+      res.status(404).json({ error: 'Chat not found' });
+    } else {
+      console.error('Error updating chat:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to update chat' 
+      });
+    }
   }
 });
 
 // Delete specific chat
 router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.user as any)?.username || '';
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
     const { chatId } = req.params;
     
-    const chats = await chatHistoryService.getChatHistory(userId);
-    const chatToDelete = chats.find(c => c._id.toString() === chatId);
-    
-    if (!chatToDelete) {
+    // First verify the chat exists and belongs to the user
+    const chat = await chatHistoryService.getSpecificChat(userId, chatId);
+    if (!chat) {
       res.status(404).json({ error: 'Chat not found' });
       return;
     }
     
-    // Delete the chat using Mongoose model
+    // Delete the chat
     await ChatHistory.findByIdAndDelete(chatId);
     res.json({ success: true, message: 'Chat deleted successfully' });
   } catch (error) {
-    console.error('Error deleting chat:', error);
-    res.status(500).json({ error: 'Failed to delete chat' });
+    if (error instanceof Error && error.message === 'Chat not found') {
+      res.status(404).json({ error: 'Chat not found' });
+    } else {
+      console.error('Error deleting chat:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to delete chat' 
+      });
+    }
   }
 });
 
 // Export chat
 router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const userId = (req.user as any)?.username || '';
-    const { chatId } = req.params;
-    
-    const chats = await chatHistoryService.getChatHistory(userId);
-    const chatToExport = chats.find(c => c._id.toString() === chatId);
-    
-    if (!chatToExport) {
-      res.status(404).json({ error: 'Chat not found' });
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
       return;
     }
-    
-    res.json(chatToExport);
+
+    const { chatId } = req.params;
+    const chat = await chatHistoryService.getSpecificChat(userId, chatId);
+    res.json(chat);
   } catch (error) {
-    console.error('Error exporting chat:', error);
-    res.status(500).json({ error: 'Failed to export chat' });
+    if (error instanceof Error && error.message === 'Chat not found') {
+      res.status(404).json({ error: 'Chat not found' });
+    } else {
+      console.error('Error exporting chat:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to export chat' 
+      });
+    }
   }
 });
 
@@ -526,14 +583,18 @@ async function checkCollectionAccess(user: any, collection: any): Promise<boolea
 // Rename chat
 router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.user as any)?.username || '';
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
     const { chatId } = req.params;
     const { newName } = req.body;
-    
-    const chats = await chatHistoryService.getChatHistory(userId);
-    const chatToUpdate = chats.find(c => c._id.toString() === chatId);
-    
-    if (!chatToUpdate) {
+
+    // First verify the chat exists and belongs to the user
+    const chat = await chatHistoryService.getSpecificChat(userId, chatId);
+    if (!chat) {
       res.status(404).json({ error: 'Chat not found' });
       return;
     }
@@ -542,13 +603,20 @@ router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin'])
     const updatedChat = await ChatHistory.findByIdAndUpdate(
       chatId,
       { chatname: newName },
-      { new: true }
+      { new: true, runValidators: true }
     );
+    
+    if (!updatedChat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
     
     res.json(updatedChat);
   } catch (error) {
     console.error('Error renaming chat:', error);
-    res.status(500).json({ error: 'Failed to rename chat' });
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to rename chat' 
+    });
   }
 });
 
