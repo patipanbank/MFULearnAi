@@ -172,17 +172,28 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           console.log(`Sending completion signal to user ${extWs.userId}`);
           extWs.send(JSON.stringify({ done: true }));
           
-          // Only save chat history if we have a chatId (updating existing chat)
-          // New chats are created by the frontend POST /history endpoint
-          if (extWs.userId && chatId) {
+          // Save chat history for both new and existing chats
+          if (extWs.userId) {
             try {
               console.log(`Updating chat history for user ${extWs.userId} and chat ${chatId}`);
+              // Include both user messages and the complete assistant response
+              const allMessages = [...messages];
+              // Add the assistant's complete response
+              allMessages.push({
+                id: messages.length + 1,
+                role: 'assistant',
+                content: messages[messages.length - 1].content,
+                timestamp: new Date(),
+                sources: [],
+                isImageGeneration: isImageGeneration || false
+              });
+              
               await chatHistoryService.saveChatMessage(
                 extWs.userId,
                 modelId,
                 '',  // collectionName is optional
-                messages,
-                chatId.toString() // Ensure chatId is a string
+                allMessages,
+                chatId ? chatId.toString() : undefined // Use chatId if provided
               );
               console.log(`Chat history updated for user ${extWs.userId}`);
             } catch (error) {

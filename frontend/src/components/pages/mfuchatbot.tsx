@@ -526,7 +526,7 @@ const MFUChatbot: React.FC = () => {
               console.log('Saving complete conversation with messages:', JSON.stringify(allMessages, null, 2));
 
               // Save all messages together
-              if (selectedModel && currentChatId) {
+              if (selectedModel) {
                 // Ensure we're sending all messages to maintain conversation history
                 saveChatHistory(allMessages).catch(error => {
                   console.error('Error saving complete conversation:', error);
