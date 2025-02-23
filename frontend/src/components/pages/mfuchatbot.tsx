@@ -215,6 +215,11 @@ const MFUChatbot: React.FC = () => {
       const chatId = urlParams.get('chat');
       const isNewChat = urlParams.get('new') === 'true';
       
+      // Prevent reloading the same chat
+      if (chatId === currentChatId) {
+        return;
+      }
+      
       // Only clear messages and start new chat if explicitly requested
       if (isNewChat) {
         setMessages([]);
@@ -222,8 +227,10 @@ const MFUChatbot: React.FC = () => {
         return;
       }
 
-      // If no chat ID and not a new chat request, do nothing
+      // If no chat ID and not a new chat request, just show empty state
       if (!chatId) {
+        setMessages([]);
+        setCurrentChatId(null);
         return;
       }
 
@@ -260,26 +267,30 @@ const MFUChatbot: React.FC = () => {
           setMessages(processedMessages);
           setSelectedModel(chat.modelId || '');
           setCurrentChatId(chat._id);
-          console.log('Loaded specific chat:', chat._id, processedMessages);
         }
       } else {
-        // Only redirect to new chat if chat not found
-        console.error('Chat not found, starting new chat');
-        navigate('/mfuchatbot?new=true', { replace: true });
+        // Don't automatically create new chat on error, just clear the state
+        console.error('Chat not found');
         setMessages([]);
         setCurrentChatId(null);
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
-      // Don't automatically redirect on error
       setMessages([]);
       setCurrentChatId(null);
     }
   };
 
   useEffect(() => {
-    loadChatHistory();
-  }, [loadChatHistory, navigate, location.search]);
+    const urlParams = new URLSearchParams(location.search);
+    const chatId = urlParams.get('chat');
+    const isNewChat = urlParams.get('new') === 'true';
+
+    // Only load if we have a chat ID or explicitly requesting new chat
+    if (chatId || isNewChat) {
+      loadChatHistory();
+    }
+  }, [location.search]); // Only depend on location.search
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
