@@ -107,9 +107,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       const data = await response.json();
       console.log('Chat histories data:', data); // Debug response data
       
-      if (Array.isArray(data)) {
+      if (data && data.data && Array.isArray(data.data)) {
+        setChatHistories(data.data);
+      } else if (data && Array.isArray(data)) {
         setChatHistories(data);
-      } else if (data.messages) {
+      } else if (data && data.messages) {
         setChatHistories([data]);
       } else {
         setChatHistories([]);
@@ -254,6 +256,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const filteredChats = chatHistories.filter(chat => 
     chat.chatname.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  console.log('Filtered chats:', filteredChats); // Debug filtered chats
 
   const sortedChats = [...filteredChats].sort((a, b) => {
     // First sort by pinned status
@@ -265,6 +268,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     return new Date(b.messages[b.messages.length - 1]?.timestamp || 0).getTime() -
            new Date(a.messages[a.messages.length - 1]?.timestamp || 0).getTime();
   });
+  console.log('Sorted chats:', sortedChats); // Debug sorted chats
 
   return (
     <aside className="flex flex-col h-full">
