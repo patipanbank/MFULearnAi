@@ -91,11 +91,28 @@ class ChatHistoryService {
       // Validate and process messages
       const processedMessages = messages.map((msg, index) => {
         this.validateMessage(msg);
+        let timestamp;
+        try {
+          if (msg.timestamp?.$date) {
+            timestamp = new Date(msg.timestamp.$date);
+          } else if (msg.timestamp) {
+            timestamp = new Date(msg.timestamp);
+          } else {
+            timestamp = new Date();
+          }
+          
+          if (isNaN(timestamp.getTime())) {
+            timestamp = new Date();
+          }
+        } catch (error) {
+          timestamp = new Date();
+        }
+
         return {
           id: index + 1,
           role: msg.role as 'user' | 'assistant' | 'system',
           content: String(msg.content || ''),
-          timestamp: new Date(msg.timestamp || Date.now()),
+          timestamp: timestamp,
           images: msg.images ? msg.images.map((img: any) => ({
             data: img.data,
             mediaType: img.mediaType
