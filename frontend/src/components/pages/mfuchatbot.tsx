@@ -452,9 +452,6 @@ const MFUChatbot: React.FC = () => {
         window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
       }
       
-      // แจ้ง Sidebar ให้อัพเดท
-      window.dispatchEvent(new CustomEvent('chatUpdated'));
-      
       return history;
     } catch (error) {
       console.error('Error saving chat history:', error);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaStar } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [newChatName, setNewChatName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [pinnedChats,] = useState<string[]>([]);
+  const [pinnedChats, setPinnedChats] = useState<string[]>([]);
 
   const handleTokenExpired = () => {
     localStorage.clear();
@@ -225,33 +225,33 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  // const handlePinChat = async (chatId: string) => {
-  //   try {
-  //     const token = localStorage.getItem('auth_token');
-  //     const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/pin`, {
-  //       method: 'PUT',
-  //       headers: {
-  //         'Authorization': `Bearer ${token}`
-  //       }
-  //     });
+  const handlePinChat = async (chatId: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/pin`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-  //     if (response.status === 401) {
-  //       handleTokenExpired();
-  //       return;
-  //     }
+      if (response.status === 401) {
+        handleTokenExpired();
+        return;
+      }
 
-  //     if (response.ok) {
-  //       setPinnedChats(prev => 
-  //         prev.includes(chatId) 
-  //           ? prev.filter(id => id !== chatId)
-  //           : [...prev, chatId]
-  //       );
-  //       fetchChatHistories();
-  //     }
-  //   } catch (error) {
-  //     console.error('Error pinning chat:', error);
-  //   }
-  // };
+      if (response.ok) {
+        setPinnedChats(prev => 
+          prev.includes(chatId) 
+            ? prev.filter(id => id !== chatId)
+            : [...prev, chatId]
+        );
+        fetchChatHistories();
+      }
+    } catch (error) {
+      console.error('Error pinning chat:', error);
+    }
+  };
 
   const filteredChats = chatHistories.filter(chat => 
     chat.chatname.toLowerCase().includes(searchQuery.toLowerCase())
@@ -340,58 +340,93 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
               {/* Chat History List */}
               {sortedChats.length > 0 && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-1 space-y-0.5">
                   {sortedChats.map((chat) => (
-                    <div key={chat._id} className="flex items-center group">
+                    <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
                       {editingChatId === chat._id ? (
-                        <div className="flex-1 flex items-center px-4 py-2">
+                        <div className="flex-1 flex items-center p-2 md:p-3">
                           <input
                             type="text"
                             value={newChatName}
                             onChange={(e) => setNewChatName(e.target.value)}
-                            onBlur={() => handleSaveEdit(chat._id)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleSaveEdit(chat._id);
-                              }
+                              if (e.key === 'Enter') handleSaveEdit(chat._id);
+                              if (e.key === 'Escape') setEditingChatId(null);
                             }}
-                            className="flex-1 px-2 py-1 text-sm border rounded"
+                            className="flex-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
                             autoFocus
                           />
+                          <button
+                            onClick={() => handleSaveEdit(chat._id)}
+                            className="ml-2 p-1 text-green-500 hover:text-green-600"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => setEditingChatId(null)}
+                            className="p-1 text-red-500 hover:text-red-600"
+                          >
+                            ✕
+                          </button>
                         </div>
                       ) : (
-                        <Link
-                          to={`/mfuchatbot?chat=${chat._id}`}
-                          className={`flex-1 flex items-center px-4 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
-                            ${currentChatId === chat._id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-                        >
-                          <span className="truncate">{chat.chatname || 'Untitled Chat'}</span>
-                        </Link>
+                        <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
+                          <Link
+                            to={`/mfuchatbot?chat=${chat._id}`}
+                            className={`flex-1 flex items-center p-2 md:p-3 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
+                              ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 w-full pr-24">
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handlePinChat(chat._id);
+                                }}
+                                className={`flex-shrink-0 p-1 rounded-full transition-colors ${
+                                  pinnedChats.includes(chat._id)
+                                    ? 'text-yellow-500 hover:text-yellow-600'
+                                    : 'text-gray-400 hover:text-gray-500'
+                                }`}
+                              >
+                                <FaStar className="w-3 h-3" />
+                              </button>
+                              <div className="flex-1 min-w-0 overflow-hidden">
+                                <div className="font-medium truncate">
+                                  {chat.chatname || 'Untitled Chat'}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  {chat.messages[chat.messages.length - 1]?.content || 'No messages'}
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleEdit(chat._id, chat.chatname);
+                              }}
+                              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                              title="Edit chat name"
+                            >
+                              <FaEdit className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDelete(chat._id);
+                              }}
+                              className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                              title="Delete chat"
+                            >
+                              <FaTrash className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
                       )}
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleEdit(chat._id, chat.chatname);
-                          }}
-                          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-                          title="Edit chat name"
-                        >
-                          <FaEdit className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDelete(chat._id);
-                          }}
-                          className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-                          title="Delete chat"
-                        >
-                          <FaTrash className="w-3 h-3" />
-                        </button>
-                      </div>
                     </div>
                   ))}
                 </div>
