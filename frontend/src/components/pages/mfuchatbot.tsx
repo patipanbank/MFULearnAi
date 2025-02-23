@@ -429,31 +429,27 @@ const MFUChatbot: React.FC = () => {
       const history = await response.json();
       console.log('Save chat response data:', history);
       
-      if (history) {
-        // Update messages with MongoDB format dates
-        if (history.messages) {
-          const updatedMessages = history.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: msg.timestamp,
-            createdAt: history.createdAt,
-            updatedAt: history.updatedAt
-          }));
-          setMessages(updatedMessages);
-        }
-        
-        // Only update currentChatId and URL if this is a new chat
-        if (!currentChatId && history._id) {
-          setCurrentChatId(history._id.$oid);
-          navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
-        }
-
-        // ส่ง event พร้อมข้อมูลเพิ่มเติม
-        window.dispatchEvent(new CustomEvent('chatHistoryUpdated', {
-          detail: {
-            chatId: history._id.$oid || currentChatId,
-            action: currentChatId ? 'update' : 'create'
-          }
+      // Update messages with MongoDB format dates
+      if (history.messages) {
+        const updatedMessages = history.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: msg.timestamp,
+          createdAt: history.createdAt,
+          updatedAt: history.updatedAt
         }));
+        setMessages(updatedMessages);
+      }
+      
+      // Only update currentChatId and URL if this is a new chat
+      if (!currentChatId && history._id) {
+        setCurrentChatId(history._id.$oid);
+        navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
+      }
+
+      // Only emit event if save was successful and the last message is complete
+      const lastMessage = validMessages[validMessages.length - 1];
+      if (lastMessage && lastMessage.isComplete) {
+        window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
       }
       
       return history;
@@ -600,6 +596,7 @@ const MFUChatbot: React.FC = () => {
           if (data.chatId) {
             setCurrentChatId(data.chatId);
             if (data.isNewChat) {
+              // Only navigate if this is a new chat
               navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
             }
           }
