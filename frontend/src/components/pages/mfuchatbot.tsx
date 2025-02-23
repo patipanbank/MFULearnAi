@@ -461,11 +461,36 @@ const MFUChatbot: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() && !isImageGenerationMode) return;
+    
+    // ตรวจสอบ model ก่อนส่งข้อความ
     if (!selectedModel) {
-      alert('Please select a model first');
-      return;
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${config.apiUrl}/api/models`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const models = await response.json();
+          const defaultModel = models.find((m: any) => m.name === 'Default') || models[0];
+          if (defaultModel) {
+            setSelectedModel(defaultModel._id);
+          } else {
+            alert('No model available. Please select a model first.');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching models:', error);
+        alert('Error loading models. Please try again.');
+        return;
+      }
     }
+
+    if (!inputMessage.trim() && !isImageGenerationMode) return;
 
     setIsLoading(true);
 
