@@ -51,7 +51,7 @@ wss.on('connection', (ws: WebSocket) => {
       ws.send(JSON.stringify({ done: true }));
     } catch (error) {
       console.error('Error:', error);
-      ws.send(JSON.stringify({ error: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น' }));
+      ws.send(JSON.stringify({ error: 'An error occurred' }));
     }
   });
 });
@@ -199,6 +199,7 @@ router.get('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (re
 
     if (!chat) {
       res.status(404).json({ error: 'Chat history not found' });
+      return;
     }
 
     res.json(chat);
@@ -213,12 +214,12 @@ router.delete('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async 
     const userId = (req.user as any)?.username || '';
     const chatId = req.params.id;
 
-    const result = await ChatHistory.deleteOne({
+    const result = await ChatHistory.findOneAndDelete({
       _id: chatId,
       userId: userId
     });
 
-    if (result.deletedCount === 0) {
+    if (!result) {
       res.status(404).json({ error: 'Chat history not found' });
       return;
     }
