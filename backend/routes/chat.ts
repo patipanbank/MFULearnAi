@@ -202,7 +202,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           // Save chat history for both new and existing chats
           if (extWs.userId) {
             try {
-              console.log(`Updating chat history for user ${extWs.userId} and chat ${chatId}`);
+              let chatIdToUse = chatId;
+              console.log(`Updating chat history for user ${extWs.userId} and chat ${chatIdToUse}`);
               
               // Get the accumulated assistant response
               let assistantResponse = '';
@@ -222,12 +223,23 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                 isImageGeneration: isImageGeneration || false
               });
               
+              // Only try to get specific chat if chatId exists
+              if (chatIdToUse) {
+                try {
+                  // Verify chat exists and belongs to user
+                  await chatHistoryService.getSpecificChat(extWs.userId, chatIdToUse);
+                } catch (error) {
+                  console.log('Chat not found or access denied, creating new chat');
+                  chatIdToUse = undefined;
+                }
+              }
+
               await chatHistoryService.saveChatMessage(
                 extWs.userId,
                 modelId,
                 '',  // collectionName is optional
                 allMessages,
-                chatId ? chatId.toString() : undefined // Use chatId if provided
+                chatIdToUse // Will be undefined for new chats
               );
               console.log(`Chat history updated for user ${extWs.userId}`);
             } catch (error) {
