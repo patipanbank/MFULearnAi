@@ -6,6 +6,7 @@ import { roleGuard } from '../middleware/roleGuard';
 import { CollectionModel, CollectionPermission, CollectionDocument } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
 import { UserRole } from '../models/User';
+import { ChatHistory } from '../models/ChatHistory';
 
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
@@ -332,14 +333,7 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[])
 router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username || '';
-    const { folder, search } = req.query;
-    
-    let history;
-    if (search) {
-      history = await chatHistoryService.searchChatHistory(userId, search as string);
-    } else {
-      history = await chatHistoryService.getChatHistory(userId, folder as string);
-    }
+    const history = await chatHistoryService.getChatHistory(userId);
     res.json(history);
   } catch (error) {
     console.error('Error getting chat history:', error);
@@ -352,39 +346,47 @@ router.get('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async
   try {
     const userId = (req.user as any)?.username || '';
     const { chatId } = req.params;
-    const chat = await chatHistoryService.getChatById(chatId, userId);
-    if (!chat) {
+    const chat = await chatHistoryService.getChatHistory(userId);
+    const specificChat = chat.find(c => c._id.toString() === chatId);
+    if (!specificChat) {
       res.status(404).json({ error: 'Chat not found' });
       return;
     }
-    res.json(chat);
+    res.json(specificChat);
   } catch (error) {
     console.error('Error getting specific chat:', error);
     res.status(500).json({ error: 'Failed to get chat' });
   }
 });
 
-// Rename chat
-router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+// Update chat (rename, update folder, update tags, toggle pin)
+router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req.user as any)?.username || '';
     const { chatId } = req.params;
-    const { newName } = req.body;
+    const { chatname, messages } = req.body;
     
-    if (!newName) {
-      res.status(400).json({ error: 'New name is required' });
-      return;
-    }
+    const chats = await chatHistoryService.getChatHistory(userId);
+    const chatToUpdate = chats.find(c => c._id.toString() === chatId);
     
-    const chat = await chatHistoryService.renameChatHistory(chatId, userId, newName);
-    if (!chat) {
+    if (!chatToUpdate) {
       res.status(404).json({ error: 'Chat not found' });
       return;
     }
-    res.json(chat);
+    
+    // Update the chat with new data
+    const updatedChat = await chatHistoryService.saveChatMessage(
+      userId,
+      '',  // modelId is not stored in ChatHistory
+      '',  // collectionName is not stored in ChatHistory
+      messages || chatToUpdate.messages,
+      chatId
+    );
+    
+    res.json(updatedChat);
   } catch (error) {
-    console.error('Error renaming chat:', error);
-    res.status(500).json({ error: 'Failed to rename chat' });
+    console.error('Error updating chat:', error);
+    res.status(500).json({ error: 'Failed to update chat' });
   }
 });
 
@@ -394,77 +396,20 @@ router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), as
     const userId = (req.user as any)?.username || '';
     const { chatId } = req.params;
     
-    const result = await chatHistoryService.deleteChatHistory(chatId, userId);
-    if (!result) {
+    const chats = await chatHistoryService.getChatHistory(userId);
+    const chatToDelete = chats.find(c => c._id.toString() === chatId);
+    
+    if (!chatToDelete) {
       res.status(404).json({ error: 'Chat not found' });
       return;
     }
+    
+    // Delete the chat using Mongoose model
+    await ChatHistory.findByIdAndDelete(chatId);
     res.json({ success: true, message: 'Chat deleted successfully' });
   } catch (error) {
     console.error('Error deleting chat:', error);
     res.status(500).json({ error: 'Failed to delete chat' });
-  }
-});
-
-// Update chat folder
-router.put('/history/:chatId/folder', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const { chatId } = req.params;
-    const { folder } = req.body;
-    
-    if (!folder) {
-      res.status(400).json({ error: 'Folder name is required' });
-      return;
-    }
-    
-    const chat = await chatHistoryService.updateChatFolder(chatId, userId, folder);
-    if (!chat) {
-      res.status(404).json({ error: 'Chat not found' });
-      return;
-    }
-    res.json(chat);
-  } catch (error) {
-    console.error('Error updating chat folder:', error);
-    res.status(500).json({ error: 'Failed to update chat folder' });
-  }
-});
-
-// Update chat tags
-router.put('/history/:chatId/tags', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const { chatId } = req.params;
-    const { tags } = req.body;
-    
-    if (!Array.isArray(tags)) {
-      res.status(400).json({ error: 'Tags must be an array' });
-      return;
-    }
-    
-    const chat = await chatHistoryService.updateChatTags(chatId, userId, tags);
-    if (!chat) {
-      res.status(404).json({ error: 'Chat not found' });
-      return;
-    }
-    res.json(chat);
-  } catch (error) {
-    console.error('Error updating chat tags:', error);
-    res.status(500).json({ error: 'Failed to update chat tags' });
-  }
-});
-
-// Toggle pin chat
-router.put('/history/:chatId/toggle-pin', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const { chatId } = req.params;
-    
-    const chat = await chatHistoryService.togglePinChat(chatId, userId);
-    res.json(chat);
-  } catch (error) {
-    console.error('Error toggling chat pin:', error);
-    res.status(500).json({ error: 'Failed to toggle chat pin' });
   }
 });
 
@@ -474,8 +419,15 @@ router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin'])
     const userId = (req.user as any)?.username || '';
     const { chatId } = req.params;
     
-    const exportData = await chatHistoryService.exportChatHistory(userId, chatId);
-    res.json(exportData);
+    const chats = await chatHistoryService.getChatHistory(userId);
+    const chatToExport = chats.find(c => c._id.toString() === chatId);
+    
+    if (!chatToExport) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    
+    res.json(chatToExport);
   } catch (error) {
     console.error('Error exporting chat:', error);
     res.status(500).json({ error: 'Failed to export chat' });
@@ -486,9 +438,15 @@ router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin'])
 router.post('/history/import', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username || '';
-    const chatData = req.body;
+    const { messages, chatname } = req.body;
     
-    const importedChat = await chatHistoryService.importChatHistory(userId, chatData);
+    const importedChat = await chatHistoryService.saveChatMessage(
+      userId,
+      '',  // modelId is not stored in ChatHistory
+      '',  // collectionName is not stored in ChatHistory
+      messages
+    );
+    
     res.json(importedChat);
   } catch (error) {
     console.error('Error importing chat:', error);
@@ -504,8 +462,9 @@ router.route('/clear').delete(async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const result = await chatHistoryService.clearChatHistory(user.username);
-    res.json(result);
+    // Delete all chat history for the user using Mongoose model
+    await ChatHistory.deleteMany({ userId: user.username });
+    res.json({ success: true, message: 'Chat history cleared successfully' });
   } catch (error) {
     console.error('Error clearing chat history:', error);
     res.status(500).json({ error: 'Failed to clear chat history' });

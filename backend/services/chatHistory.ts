@@ -1,69 +1,84 @@
 import { ChatHistory } from '../models/ChatHistory';
 
 class ChatHistoryService {
-  // Get all chat topics for a user
-  async getChatTopics(userId: string) {
+  async getChatHistory(userId: string) {
     try {
-      return await ChatHistory.find({ userId })
-        .select('_id chatname')
-        .sort({ createdAt: -1 });
+      const histories = await ChatHistory.find({ 
+        userId: userId 
+      }).sort({ updatedAt: -1 });
+
+      return histories;
     } catch (error) {
-      console.error('Error getting chat topics:', error);
+      console.error('Error getting chat history:', error);
       throw error;
     }
   }
 
-  // Get messages for a specific chat topic
-  async getChatMessages(chatId: string, userId: string) {
+  async saveChatMessage(userId: string, modelId: string, collectionName: string, messages: any[], chatId?: string) {
     try {
-      return await ChatHistory.findOne(
-        { _id: chatId, userId },
-        { messages: 1, chatname: 1 }
-      );
-    } catch (error) {
-      console.error('Error getting chat messages:', error);
-      throw error;
-    }
-  }
+      const firstUserMessage = messages.find(msg => msg.role === 'user');
+      const chatname = firstUserMessage 
+        ? firstUserMessage.content.slice(0, 10) + (firstUserMessage.content.length > 10 ? '...' : '')
+        : 'New Chat';
 
-  // Save message to a chat topic
-  async saveMessage(userId: string, chatId: string | undefined, message: {
-    role: 'user' | 'assistant',
-    content: string
-  }) {
-    try {
+      const processedMessages = messages.map((msg, index) => ({
+        id: index + 1,
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: String(msg.content),
+        timestamp: new Date(msg.timestamp || Date.now()),
+        images: msg.images ? msg.images.map((img: any) => ({
+          data: img.data,
+          mediaType: img.mediaType
+        })) : undefined,
+        sources: msg.sources || []
+      }));
+
+      // เพิ่ม log เพื่อตรวจสอบ
+      console.log('Saving chat message:', {
+        userId,
+        modelId,
+        collectionName,
+        chatId,
+        messagesCount: messages.length
+      });
+
       if (chatId) {
-        // Add message to existing chat
-        return await ChatHistory.findOneAndUpdate(
-          { _id: chatId, userId },
-          { 
-            $push: { messages: message }
+        console.log('Updating existing chat:', chatId);
+        const history = await ChatHistory.findByIdAndUpdate(
+          chatId,
+          {
+            messages: processedMessages,
+            updatedAt: new Date()
           },
           { new: true }
         );
+        console.log('Updated chat result:', history?._id);
+        return history;
       } else {
-        // Create new chat topic with first message
-        const chatname = message.content.slice(0, 30) + 
-          (message.content.length > 30 ? '...' : '');
-        
-        return await ChatHistory.create({
+        console.log('Creating new chat');
+        const history = await ChatHistory.create({
           userId,
+          modelId,
+          collectionName,
           chatname,
-          messages: [message]
+          messages: processedMessages,
+          updatedAt: new Date()
         });
+        console.log('Created new chat:', history._id);
+        return history;
       }
     } catch (error) {
-      console.error('Error saving message:', error);
+      console.error('Error in saveChatMessage:', error);
       throw error;
     }
   }
 
-  // Delete a chat topic
-  async deleteChat(chatId: string, userId: string) {
+  async clearChatHistory(userId: string) {
     try {
-      return await ChatHistory.findOneAndDelete({ _id: chatId, userId });
+      await ChatHistory.deleteMany({ userId });
+      return { success: true, message: 'Chat history cleared successfully' };
     } catch (error) {
-      console.error('Error deleting chat:', error);
+      console.error('Error clearing chat history:', error);
       throw error;
     }
   }
