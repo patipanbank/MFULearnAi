@@ -376,7 +376,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             className={`flex-1 flex items-center p-2 md:p-3 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex items-center gap-2 min-w-0 w-full">
+                            <div className="flex items-center gap-2 min-w-0 w-full pr-16">
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -401,7 +401,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               </div>
                             </div>
                           </Link>
-                          <div className="absolute right-2 hidden group-hover:flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg px-1">
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg px-1 py-0.5 shadow-sm">
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
@@ -409,6 +409,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                 handleEdit(chat._id, chat.chatname);
                               }}
                               className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                              title="Edit chat name"
                             >
                               <FaEdit className="w-3 h-3" />
                             </button>
@@ -419,6 +420,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                 handleDelete(chat._id);
                               }}
                               className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                              title="Delete chat"
                             >
                               <FaTrash className="w-3 h-3" />
                             </button>
