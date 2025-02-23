@@ -241,36 +241,48 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                   extWs.send(JSON.stringify({ 
                     done: true,
                     chatId: savedChat._id.toString(),
-                    isNewChat: false
+                    isNewChat: false,
+                    shouldUpdateList: true
                   }));
                 } catch (error) {
                   console.error('Error updating existing chat:', error);
                   extWs.send(JSON.stringify({ 
-                    error: 'Failed to update chat. Please try again.' 
+                    error: error instanceof Error ? error.message : 'Failed to update chat. Please try again.' 
                   }));
                   return; // Exit early on error
                 }
               } else {
                 // Create new chat
-                savedChat = await chatHistoryService.saveChatMessage(
-                  extWs.userId,
-                  modelId,
-                  '',
-                  allMessages,
-                  undefined,
-                  chatname || messages[0]?.content.substring(0, 50) + "..."
-                );
+                try {
+                  if (!modelId) {
+                    throw new Error('Model ID is required for new chat');
+                  }
 
-                // Send completion signal with new chat ID
-                extWs.send(JSON.stringify({ 
-                  done: true,
-                  chatId: savedChat._id.toString(),
-                  isNewChat: true
-                }));
+                  savedChat = await chatHistoryService.saveChatMessage(
+                    extWs.userId,
+                    modelId,
+                    '',
+                    allMessages,
+                    undefined,
+                    chatname || messages[0]?.content.substring(0, 50) + "..."
+                  );
+
+                  // Send completion signal with new chat ID
+                  extWs.send(JSON.stringify({ 
+                    done: true,
+                    chatId: savedChat._id.toString(),
+                    isNewChat: true,
+                    shouldUpdateList: true
+                  }));
+                } catch (error) {
+                  console.error('Error creating new chat:', error);
+                  extWs.send(JSON.stringify({ 
+                    error: error instanceof Error ? error.message : 'Failed to create new chat. Please try again.' 
+                  }));
+                  return;
+                }
               }
               
-              // Emit event to update chat list
-              window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
               console.log(`Chat history updated for user ${extWs.userId}, chatId: ${savedChat?._id}`);
             } catch (error) {
               console.error('Error saving chat history:', error);
