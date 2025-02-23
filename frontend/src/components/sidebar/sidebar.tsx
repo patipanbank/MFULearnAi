@@ -51,106 +51,96 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     navigate('/login');
   };
 
-  const fetchChatHistories = async () => {
+  const fetchAndUpdateHistory = async (event?: CustomEvent) => {
     try {
       const token = localStorage.getItem('auth_token');
-      console.log('Auth token present:', !!token); // Debug if token exists
-
       if (!token) {
-        console.error('No auth token found in localStorage');
+        console.error('No auth token found');
         handleTokenExpired();
         return;
       }
 
-      // Validate token format
-      const tokenParts = token.split('.');
-      if (tokenParts.length !== 3) {
-        console.error('Invalid token format');
-        handleTokenExpired();
-        return;
-      }
-
-      // Get user info from token
-      let tokenPayload;
-      try {
-        tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        console.log('Token payload:', tokenPayload); // Debug token payload
-      } catch (e) {
-        console.error('Failed to parse token payload:', e);
-        handleTokenExpired();
-        return;
-      }
-
-      console.log('Making API request with token:', `Bearer ${token}`); // Debug full token
-
+      console.log('Fetching chat histories...', event?.detail);
       const response = await fetch(`${config.apiUrl}/api/chat/history`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
-      console.log('API Response status:', response.status); // Debug response status
-      
+
       if (response.status === 401) {
-        console.error('Unauthorized - token might be expired');
         handleTokenExpired();
         return;
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error:', response.status, errorText);
-        return;
+        throw new Error(`Failed to fetch chat histories: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Chat histories data:', data); // Debug response data
-      
       if (data && data.data && Array.isArray(data.data)) {
         setChatHistories(data.data);
       } else if (data && Array.isArray(data)) {
         setChatHistories(data);
-      } else if (data && data.messages) {
-        setChatHistories([data]);
-      } else {
-        setChatHistories([]);
       }
     } catch (error) {
       console.error('Error fetching chat histories:', error);
-      setChatHistories([]);
     }
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      console.log('No auth token found, redirecting to login...');
-      window.location.href = `${config.apiUrl}/api/auth/login/saml`;
-      return;
-    }
+    const fetchAndUpdateHistory = async (event?: CustomEvent) => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          console.error('No auth token found');
+          handleTokenExpired();
+          return;
+        }
 
-    fetchChatHistories();
-    
-    // เพิ่ม event listener สำหรับอัพเดทแบบ realtime
-    const handleChatUpdate = () => {
-      fetchChatHistories();
+        console.log('Fetching chat histories...', event?.detail);
+        const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.status === 401) {
+          handleTokenExpired();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch chat histories: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data && data.data && Array.isArray(data.data)) {
+          setChatHistories(data.data);
+        } else if (data && Array.isArray(data)) {
+          setChatHistories(data);
+        }
+      } catch (error) {
+        console.error('Error fetching chat histories:', error);
+      }
     };
-    
-    window.addEventListener('chatUpdated', handleChatUpdate);
+
+    // Initial fetch
+    fetchAndUpdateHistory();
 
     // Listen for chat history updates
-    const handleChatHistoryUpdate = () => {
-      fetchChatHistories();
+    const handleChatHistoryUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('Chat history update event received:', customEvent.detail);
+      fetchAndUpdateHistory(customEvent);
     };
 
     window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
 
     return () => {
-      window.removeEventListener('chatUpdated', handleChatUpdate);
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogout = async () => {
@@ -187,7 +177,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         if (currentChatId === chatId) {
           navigate('/mfuchatbot');
         }
-        fetchChatHistories();
+        fetchAndUpdateHistory();
       }
     } catch (error) {
       console.error('Error deleting chat:', error);
@@ -218,7 +208,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
       if (response.ok) {
         setEditingChatId(null);
-        fetchChatHistories();
+        fetchAndUpdateHistory();
       }
     } catch (error) {
       console.error('Error updating chat name:', error);
@@ -246,7 +236,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             ? prev.filter(id => id !== chatId)
             : [...prev, chatId]
         );
-        fetchChatHistories();
+        fetchAndUpdateHistory();
       }
     } catch (error) {
       console.error('Error pinning chat:', error);
