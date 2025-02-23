@@ -43,7 +43,7 @@ const chatHistorySchema = new mongoose.Schema({
   chatname: { 
     type: String, 
     required: true,
-    maxLength: 100 
+    maxLength: 150
   },
   messages: [messageSchema],
   sources: [sourceSchema],
@@ -53,7 +53,8 @@ const chatHistorySchema = new mongoose.Schema({
   index: [
     { userId: 1 },
     { userId: 1, updatedAt: -1 },
-    { userId: 1, modelId: 1 }
+    { userId: 1, modelId: 1 },
+    { userId: 1, chatname: 1 }
   ]
 });
 
@@ -62,6 +63,24 @@ chatHistorySchema.pre('save', function(next) {
   if (!this.messages || this.messages.length === 0) {
     next(new Error('Chat history must have at least one message'));
     return;
+  }
+  if (this.isNew || this.isModified('chatname')) {
+    const timestamp = new Date().toLocaleString('th-TH', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    
+    if (!this.chatname.includes('(')) {
+      const baseText = this.chatname.endsWith('...') ? 
+        this.chatname : 
+        `${this.chatname.substring(0, 30)}...`;
+      this.chatname = `${baseText} (${timestamp})`;
+    }
   }
   next();
 });
