@@ -185,11 +185,22 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
               onDelete(model.id);
               setShowMenu(false);
             }}
+            disabled={isDeleting === model.id}
             className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 
-              dark:hover:bg-red-900/30 flex items-center space-x-2"
+              dark:hover:bg-red-900/30 flex items-center space-x-2
+              disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FaTrash size={14} />
-            <span>Delete</span>
+            {isDeleting === model.id ? (
+              <>
+                <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                <span>Deleting...</span>
+              </>
+            ) : (
+              <>
+                <FaTrash size={14} />
+                <span>Delete</span>
+              </>
+            )}
           </button>
         </div>
       )}
