@@ -236,55 +236,40 @@ const MFUChatbot: React.FC = () => {
 
       if (response.ok) {
         const chat = await response.json();
+        
+        // Set chat metadata
+        setCurrentChatId(chat._id);
+        if (chat.modelId) {
+          setSelectedModel(chat.modelId);
+        }
+
+        // Process messages if they exist
         if (chat.messages && Array.isArray(chat.messages)) {
           const processedMessages = chat.messages.map((msg: {
-            _id?: string;
             id: number | string;
             role: 'user' | 'assistant' | 'system';
             content: string;
-            timestamp?: string | Date;
-            createdAt?: string | Date;
-            updatedAt?: string | Date;
+            timestamp: string | Date;
+            createdAt: string | Date;
+            updatedAt: string | Date;
             images?: Array<{ data: string; mediaType: string }>;
             sources?: Array<{ modelId: string; collectionName: string; filename: string; similarity: number }>;
             isImageGeneration?: boolean;
-            userId?: string;
-            modelId?: string;
-            collectionName?: string;
           }) => {
-            // Process timestamps
-            const timestamp = msg.timestamp ? new Date(msg.timestamp) : 
-                            msg.createdAt ? new Date(msg.createdAt) : 
-                            new Date();
-            
-            const createdAt = msg.createdAt ? new Date(msg.createdAt) : new Date();
-            const updatedAt = msg.updatedAt ? new Date(msg.updatedAt) : new Date();
-
             return {
-              _id: msg._id,
               id: msg.id,
               role: msg.role,
               content: msg.content || '',
-              timestamp: timestamp,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
+              timestamp: new Date(msg.timestamp),
+              createdAt: new Date(msg.createdAt),
+              updatedAt: new Date(msg.updatedAt),
               images: msg.images || [],
               sources: msg.sources || [],
-              isImageGeneration: msg.isImageGeneration || false,
-              userId: msg.userId,
-              modelId: msg.modelId,
-              collectionName: msg.collectionName
+              isImageGeneration: msg.isImageGeneration || false
             };
           });
           
           setMessages(processedMessages);
-          
-          // Set chat metadata
-          if (chat.modelId) {
-            setSelectedModel(chat.modelId);
-          }
-          
-          setCurrentChatId(chat._id);
         }
       } else {
         console.error('Chat not found');
@@ -377,7 +362,7 @@ const MFUChatbot: React.FC = () => {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const userId = tokenPayload.id;
 
-      // Filter out empty messages and ensure proper format
+      // Format messages according to database schema
       const validMessages = messages
         .filter(msg => msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0)))
         .map(msg => ({
@@ -385,13 +370,11 @@ const MFUChatbot: React.FC = () => {
           role: msg.role,
           content: msg.content,
           timestamp: msg.timestamp || new Date(),
-          images: msg.images,
-          sources: msg.sources,
-          isImageGeneration: msg.isImageGeneration,
-          userId: userId,
-          modelId: selectedModel,
-          collectionName: "Default",
-          chatname: messages[0]?.content.substring(0, 20) + "..."
+          createdAt: msg.createdAt || new Date(),
+          updatedAt: msg.updatedAt || new Date(),
+          images: msg.images || [],
+          sources: msg.sources || [],
+          isImageGeneration: msg.isImageGeneration || false
         }));
 
       if (validMessages.length === 0) {
@@ -399,12 +382,14 @@ const MFUChatbot: React.FC = () => {
         return null;
       }
 
+      // Create payload matching database schema
       const payload = {
-        messages: validMessages,
-        modelId: selectedModel,
+        _id: currentChatId || undefined,
         userId: userId,
+        modelId: selectedModel,
         collectionName: "Default",
-        chatname: messages[0]?.content.substring(0, 20) + "..."
+        chatname: messages[0]?.content.substring(0, 20) + "...",
+        messages: validMessages
       };
 
       const response = await fetch(`${config.apiUrl}/api/chat/history${currentChatId ? `/${currentChatId}` : ''}`, {
@@ -428,7 +413,7 @@ const MFUChatbot: React.FC = () => {
       if (history.messages) {
         const updatedMessages = history.messages.map((msg: any) => ({
           ...msg,
-          timestamp: new Date(msg.timestamp || msg.createdAt),
+          timestamp: new Date(msg.timestamp),
           createdAt: new Date(msg.createdAt),
           updatedAt: new Date(msg.updatedAt)
         }));
