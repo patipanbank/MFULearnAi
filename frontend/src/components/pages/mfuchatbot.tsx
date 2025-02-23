@@ -68,7 +68,7 @@ const MFUChatbot: React.FC = () => {
   const location = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, ] = useState(false);
   const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
