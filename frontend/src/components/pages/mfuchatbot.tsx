@@ -234,27 +234,30 @@ const MFUChatbot: React.FC = () => {
             id: number;
             role: 'user' | 'assistant' | 'system';
             content: string;
-            timestamp: string | Date;
+            timestamp?: string | Date;
             images?: Array<{ data: string; mediaType: string }>;
             sources?: Array<{ modelId: string; collectionName: string; filename: string; similarity: number }>;
             isImageGeneration?: boolean;
           }) => {
-            // Ensure we properly parse the timestamp from the server
+            // Ensure we have a valid timestamp
             let timestamp: Date;
             try {
-              // If timestamp is a string, parse it, otherwise use it as is
-              timestamp = typeof msg.timestamp === 'string' 
-                ? new Date(msg.timestamp)
-                : msg.timestamp;
-              
-              // If the timestamp is invalid, use the original string value
-              if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
-                console.warn('Invalid timestamp format, attempting to parse original:', msg.timestamp);
+              if (!msg.timestamp) {
+                // If no timestamp provided, use current time
+                timestamp = new Date();
+              } else if (typeof msg.timestamp === 'string') {
+                // Try to parse string timestamp
                 timestamp = new Date(msg.timestamp);
+                if (isNaN(timestamp.getTime())) {
+                  timestamp = new Date();
+                }
+              } else if (msg.timestamp instanceof Date) {
+                timestamp = msg.timestamp;
+              } else {
+                timestamp = new Date();
               }
             } catch (error) {
               console.error('Error parsing timestamp:', error);
-              // If all parsing fails, only then use current date
               timestamp = new Date();
             }
 
@@ -742,20 +745,28 @@ const MFUChatbot: React.FC = () => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const formatMessageTime = (timestamp: Date) => {
+  const formatMessageTime = (timestamp: Date | undefined) => {
     try {
+      // Handle undefined timestamp
+      if (!timestamp) {
+        return 'Just now';
+      }
+
       // First check if timestamp is a valid Date object
+      let dateObj: Date;
       if (!(timestamp instanceof Date)) {
-        timestamp = new Date(timestamp);
+        dateObj = new Date(timestamp);
+      } else {
+        dateObj = timestamp;
       }
       
       // Verify the timestamp is valid
-      if (isNaN(timestamp.getTime())) {
-        throw new Error('Invalid timestamp');
+      if (isNaN(dateObj.getTime())) {
+        return 'Just now';
       }
 
       const now = new Date();
-      const diffInSeconds = Math.floor((now.getTime() - timestamp.getTime()) / 1000);
+      const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
       const diffInMinutes = Math.floor(diffInSeconds / 60);
       const diffInHours = Math.floor(diffInMinutes / 60);
       const diffInDays = Math.floor(diffInHours / 24);
@@ -777,8 +788,8 @@ const MFUChatbot: React.FC = () => {
         return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
       }
       // If in the current year
-      else if (timestamp.getFullYear() === now.getFullYear()) {
-        return timestamp.toLocaleString('th-TH', {
+      else if (dateObj.getFullYear() === now.getFullYear()) {
+        return dateObj.toLocaleString('th-TH', {
           month: 'short',
           day: '2-digit',
           hour: '2-digit',
@@ -788,7 +799,7 @@ const MFUChatbot: React.FC = () => {
       }
       // If older than current year
       else {
-        return timestamp.toLocaleString('th-TH', {
+        return dateObj.toLocaleString('th-TH', {
           year: 'numeric',
           month: 'short',
           day: '2-digit',
@@ -799,7 +810,7 @@ const MFUChatbot: React.FC = () => {
       }
     } catch (error) {
       console.error('Error formatting timestamp:', error);
-      return 'Invalid date';
+      return 'Just now';
     }
   };
 
