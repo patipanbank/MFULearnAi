@@ -545,15 +545,25 @@ const MFUChatbot: React.FC = () => {
             const lastAssistantMessage = prev[prev.length - 1];
             if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
               // Accumulate content in the existing assistant message
-              return prev.map((msg, index) => 
-                index === prev.length - 1 
-                  ? { 
-                      ...msg, 
-                      content: msg.content + data.content,
-                      isComplete: false
-                    }
-                  : msg
+              const updatedMessage = {
+                ...lastAssistantMessage,
+                content: lastAssistantMessage.content + data.content,
+                isComplete: false
+              };
+              
+              // Update the messages array with the accumulated content
+              const updatedMessages = prev.map((msg, index) => 
+                index === prev.length - 1 ? updatedMessage : msg
               );
+              
+              // Save the intermediate state if needed
+              if (selectedModel && currentChatId) {
+                saveChatHistory(updatedMessages).catch(error => {
+                  console.error('Error saving intermediate conversation:', error);
+                });
+              }
+              
+              return updatedMessages;
             }
             // Create new assistant message if none exists
             return [...prev, {

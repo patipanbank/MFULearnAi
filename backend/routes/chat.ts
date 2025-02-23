@@ -176,13 +176,20 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           if (extWs.userId) {
             try {
               console.log(`Updating chat history for user ${extWs.userId} and chat ${chatId}`);
+              
+              // Get the accumulated assistant response
+              let assistantResponse = '';
+              for await (const content of chatService.generateResponse(messages, query, modelId)) {
+                assistantResponse += content;
+              }
+              
               // Include both user messages and the complete assistant response
               const allMessages = [...messages];
-              // Add the assistant's complete response
+              // Add the assistant's complete response with the actual accumulated content
               allMessages.push({
                 id: messages.length + 1,
                 role: 'assistant',
-                content: messages[messages.length - 1].content,
+                content: assistantResponse,
                 timestamp: new Date(),
                 sources: [],
                 isImageGeneration: isImageGeneration || false
