@@ -424,7 +424,6 @@ const MFUChatbot: React.FC = () => {
         const errorData = await response.text();
         console.error('Error saving chat history:', errorData);
         return null;
-        window.dispatchEvent(new CustomEvent('chatUpdated'));
       }
 
       const history = await response.json();
@@ -445,7 +444,6 @@ const MFUChatbot: React.FC = () => {
       if (!currentChatId && history._id) {
         setCurrentChatId(history._id.$oid);
         navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
-        window.dispatchEvent(new CustomEvent('chatUpdated'));
       }
 
       // Only emit event if save was successful and the last message is complete
@@ -453,7 +451,7 @@ const MFUChatbot: React.FC = () => {
       if (lastMessage && lastMessage.isComplete) {
         window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
       }
-      window.dispatchEvent(new CustomEvent('chatUpdated'));
+      
       return history;
     } catch (error) {
       console.error('Error saving chat history:', error);
@@ -600,6 +598,7 @@ const MFUChatbot: React.FC = () => {
             if (data.isNewChat) {
               // Only navigate if this is a new chat
               navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
+              window.dispatchEvent(new CustomEvent('chatUpdated'));
             }
           }
         }
