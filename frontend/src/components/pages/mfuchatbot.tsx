@@ -66,7 +66,6 @@ const LoadingDots = () => (
 const MFUChatbot: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // const searchParams = useSearchParams()[0];
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +80,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
-  const [currentChatName, setCurrentChatName] = useState<string>('');
+  const [chatName, setChatName] = useState<string>('');
 
   // Add click outside handler
   useEffect(() => {
@@ -251,6 +250,7 @@ const MFUChatbot: React.FC = () => {
         if (chat.modelId) {
           setSelectedModel(chat.modelId);
         }
+        setChatName(chat.chatname);
 
         if (chat.messages && Array.isArray(chat.messages)) {
           const processedMessages = chat.messages.map((msg) => ({
@@ -263,9 +263,6 @@ const MFUChatbot: React.FC = () => {
           }));
           setMessages(processedMessages);
         }
-
-        // เก็บ chatname เดิม
-        setCurrentChatName(chat.chatname || '');
       } else {
         console.error('Chat not found');
         startNewChat();
@@ -390,41 +387,21 @@ const MFUChatbot: React.FC = () => {
         return null;
       }
 
-      let payload;
-      
-      if (currentChatId) {
-        // ถ้าเป็นการอัพเดทแชทเดิม ใช้ chatname เดิม
-        payload = {
-          userId: userId,
-          modelId: selectedModel,
-          collectionName: "Default",
-          chatname: currentChatName, // ใช้ chatname เดิม
-          messages: validMessages,
-          sources: [],
-          updatedAt: {
-            $date: new Date().toISOString()
-          }
-        };
-      } else {
-        // ถ้าเป็นแชทใหม่ สร้าง chatname ใหม่
-        const newChatName = messages[0]?.content.substring(0, 20) + "...";
-        setCurrentChatName(newChatName); // เก็บ chatname ใหม่
-        
-        payload = {
-          userId: userId,
-          modelId: selectedModel,
-          collectionName: "Default",
-          chatname: newChatName,
-          messages: validMessages,
-          sources: [],
-          createdAt: {
-            $date: new Date().toISOString()
-          },
-          updatedAt: {
-            $date: new Date().toISOString()
-          }
-        };
-      }
+      // Create payload matching MongoDB schema
+      const payload = {
+        userId: userId,
+        modelId: selectedModel,
+        collectionName: "Default",
+        chatname: chatName || messages[0]?.content.substring(0, 50) + "...",
+        messages: validMessages,
+        sources: [],
+        createdAt: {
+          $date: new Date().toISOString()
+        },
+        updatedAt: {
+          $date: new Date().toISOString()
+        }
+      };
 
       console.log('Save chat payload:', payload);
 
@@ -475,11 +452,6 @@ const MFUChatbot: React.FC = () => {
       const lastMessage = validMessages[validMessages.length - 1];
       if (lastMessage && lastMessage.isComplete) {
         window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
-      }
-      
-      // อัพเดท chatname ถ้ามีการเปลี่ยนแปลง
-      if (history.chatname) {
-        setCurrentChatName(history.chatname);
       }
       
       return history;
@@ -543,7 +515,8 @@ const MFUChatbot: React.FC = () => {
         messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
-        chatId: currentChatId
+        chatId: currentChatId,
+        chatname: chatName || messages[0]?.content.substring(0, 50) + "..."
       };
 
       wsRef.current?.send(JSON.stringify(messagePayload));
