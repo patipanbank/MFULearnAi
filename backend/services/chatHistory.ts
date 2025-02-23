@@ -172,6 +172,17 @@ class ChatHistoryService {
       throw new Error(`Failed to clear chat history: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  async togglePinChat(userId: string, chatId: string) {
+    const chat = await ChatHistory.findOne({ _id: chatId, userId });
+    if (!chat) {
+      throw new Error('Chat not found');
+    }
+
+    chat.isPinned = !chat.isPinned;
+    await chat.save();
+    return chat;
+  }
 }
 
 export const chatHistoryService = new ChatHistoryService(); 

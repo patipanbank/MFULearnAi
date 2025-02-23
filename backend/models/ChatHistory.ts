@@ -46,7 +46,8 @@ const chatHistorySchema = new mongoose.Schema({
     maxLength: 100 
   },
   messages: [messageSchema],
-  sources: [sourceSchema]
+  sources: [sourceSchema],
+  isPinned: { type: Boolean, default: false },
 }, { 
   timestamps: true,
   index: [

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaFolder, FaStar } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -43,6 +43,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const currentChatId = searchParams.get('chat');
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [newChatName, setNewChatName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [pinnedChats, setPinnedChats] = useState<string[]>([]);
 
   const handleTokenExpired = () => {
     localStorage.clear();
@@ -166,11 +168,48 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  // เพิ่มฟังก์ชันสำหรับตัดข้อความที่ยาวเกินไป
-  const truncateText = (text: string, maxLength: number = 10) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+  const handlePinChat = async (chatId: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/pin`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.status === 401) {
+        handleTokenExpired();
+        return;
+      }
+
+      if (response.ok) {
+        setPinnedChats(prev => 
+          prev.includes(chatId) 
+            ? prev.filter(id => id !== chatId)
+            : [...prev, chatId]
+        );
+        fetchChatHistories();
+      }
+    } catch (error) {
+      console.error('Error pinning chat:', error);
+    }
   };
+
+  const filteredChats = chatHistories.filter(chat => 
+    chat.chatname.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedChats = [...filteredChats].sort((a, b) => {
+    // First sort by pinned status
+    const isPinnedA = pinnedChats.includes(a._id);
+    const isPinnedB = pinnedChats.includes(b._id);
+    if (isPinnedA !== isPinnedB) return isPinnedB ? 1 : -1;
+    
+    // Then sort by most recent
+    return new Date(b.messages[b.messages.length - 1]?.timestamp || 0).getTime() -
+           new Date(a.messages[a.messages.length - 1]?.timestamp || 0).getTime();
+  });
 
   return (
     <aside className="flex flex-col h-full">
@@ -200,6 +239,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
             </button>
           </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mt-4 relative">
+          <input
+            type="text"
+            placeholder="Search chats..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 pl-10 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+          />
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -238,11 +289,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           )}
         </nav>
 
-        {chatHistories.length > 0 && (
+        {sortedChats.length > 0 && (
           <div className="mt-6">
             <h3 className="px-4 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Chat History</h3>
             <div className="space-y-1">
-              {Array.isArray(chatHistories) && chatHistories.map((chat) => (
+              {sortedChats.map((chat) => (
                 <div key={chat._id} className="flex items-center group">
                   {editingChatId === chat._id ? (
                     <div className="flex-1 flex items-center px-4 py-2">
@@ -250,22 +301,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         type="text"
                         value={newChatName}
                         onChange={(e) => setNewChatName(e.target.value)}
-                        className="flex-1 px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleSaveEdit(chat._id);
                           if (e.key === 'Escape') setEditingChatId(null);
                         }}
+                        className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
                         autoFocus
                       />
                       <button
                         onClick={() => handleSaveEdit(chat._id)}
-                        className="ml-2 p-2 text-green-500 hover:text-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors duration-200"
+                        className="ml-2 p-2 text-green-500 hover:text-green-600"
                       >
                         ✓
                       </button>
                       <button
                         onClick={() => setEditingChatId(null)}
-                        className="ml-1 p-2 text-red-500 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-200"
+                        className="p-2 text-red-500 hover:text-red-600"
                       >
                         ✕
                       </button>
@@ -274,13 +325,33 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                     <>
                       <Link
                         to={`/mfuchatbot?chat=${chat._id}`}
-                        className={`flex-1 flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                        className={`flex-1 flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                           ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                        title={chat.chatname || 'Untitled Chat'}
                       >
-                        <span className="truncate font-medium">
-                          {truncateText(chat.chatname || 'Untitled Chat', 25)}
-                        </span>
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handlePinChat(chat._id);
+                            }}
+                            className={`p-1 rounded-full transition-colors ${
+                              pinnedChats.includes(chat._id)
+                                ? 'text-yellow-500 hover:text-yellow-600'
+                                : 'text-gray-400 hover:text-gray-500'
+                            }`}
+                          >
+                            <FaStar className="w-4 h-4" />
+                          </button>
+                          <div className="truncate">
+                            <div className="font-medium truncate">
+                              {chat.chatname || 'Untitled Chat'}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {chat.messages[chat.messages.length - 1]?.content || 'No messages'}
+                            </div>
+                          </div>
+                        </div>
                       </Link>
                       <div className="hidden group-hover:flex items-center pr-2">
                         <button
@@ -289,7 +360,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             e.stopPropagation();
                             handleEdit(chat._id, chat.chatname);
                           }}
-                          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         >
                           <FaEdit className="w-4 h-4" />
                         </button>
@@ -299,7 +370,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             e.stopPropagation();
                             handleDelete(chat._id);
                           }}
-                          className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-200"
+                          className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                         >
                           <FaTrash className="w-4 h-4" />
                         </button>

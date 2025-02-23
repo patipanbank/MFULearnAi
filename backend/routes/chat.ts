@@ -632,4 +632,32 @@ router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin'])
   }
 });
 
+router.put('/history/:chatId/pin', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const chatId = req.params.chatId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    // Verify chat exists and belongs to user
+    const chat = await chatHistoryService.getSpecificChat(userId, chatId);
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+
+    // Toggle isPinned status
+    const updatedChat = await chatHistoryService.togglePinChat(userId, chatId);
+    res.json(updatedChat);
+  } catch (error) {
+    console.error('Error toggling chat pin status:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to toggle chat pin status' 
+    });
+  }
+});
+
 export default router;
