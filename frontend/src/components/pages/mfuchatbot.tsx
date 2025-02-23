@@ -221,6 +221,33 @@ const MFUChatbot: React.FC = () => {
     fetchModels();
   }, []);
 
+  // เพิ่ม useEffect เพื่อเลือก default model ตอน component mount
+  useEffect(() => {
+    const fetchAndSetDefaultModel = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${config.apiUrl}/api/models`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const models = await response.json();
+          const defaultModel = models.find((m: Model) => m.name === 'Default') || models[0];
+          if (defaultModel) {
+            setSelectedModel(defaultModel._id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching default model:', error);
+      }
+    };
+
+    fetchAndSetDefaultModel();
+  }, []);
+
   const loadChatHistory = async () => {
     try {
       const urlParams = new URLSearchParams(location.search);
