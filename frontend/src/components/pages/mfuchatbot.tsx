@@ -231,13 +231,15 @@ const MFUChatbot: React.FC = () => {
       const chatId = urlParams.get('chat');
       
       if (!chatId) {
-        setMessages([]);
-        setCurrentChatId(null);
+        startNewChat();
         return;
       }
 
       const token = localStorage.getItem('auth_token');
-      if (!token) return;
+      if (!token) {
+        startNewChat();
+        return;
+      }
 
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
         headers: {
@@ -247,32 +249,29 @@ const MFUChatbot: React.FC = () => {
 
       if (response.ok) {
         const chat: ChatHistory = await response.json();
-        
-        // Set chat metadata
         setCurrentChatId(chat._id.$oid);
         if (chat.modelId) {
           setSelectedModel(chat.modelId);
         }
 
-        // Process messages if they exist
         if (chat.messages && Array.isArray(chat.messages)) {
           const processedMessages = chat.messages.map((msg) => ({
             ...msg,
             timestamp: msg.timestamp,
             images: msg.images || [],
             sources: msg.sources || [],
-            isImageGeneration: msg.isImageGeneration || false
+            isImageGeneration: msg.isImageGeneration || false,
+            isComplete: true
           }));
-          
           setMessages(processedMessages);
         }
       } else {
         console.error('Chat not found');
-        navigate('/mfuchatbot', { replace: true });
+        startNewChat();
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
-      navigate('/mfuchatbot', { replace: true });
+      startNewChat();
     }
   };
 
@@ -280,13 +279,15 @@ const MFUChatbot: React.FC = () => {
     const urlParams = new URLSearchParams(location.search);
     const chatId = urlParams.get('chat');
 
-    // Only load if we have a chat ID
     if (chatId) {
       loadChatHistory();
     } else {
       // Reset state for new chat but keep selected model
       setMessages([]);
       setCurrentChatId(null);
+      setInputMessage('');
+      setSelectedImages([]);
+      setIsImageGenerationMode(false);
       
       // If no model is selected, set default model
       if (!selectedModel && models.length > 0) {
@@ -294,7 +295,7 @@ const MFUChatbot: React.FC = () => {
         setSelectedModel(defaultModel?.id || models[0].id);
       }
     }
-  }, [location.search, models]); // Add models as dependency
+  }, [location.search, models]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
@@ -444,7 +445,6 @@ const MFUChatbot: React.FC = () => {
     }
 
     setIsLoading(true);
-    const aiMessageId = messages.length + 2;
 
     try {
       const token = localStorage.getItem('auth_token');
@@ -470,12 +470,9 @@ const MFUChatbot: React.FC = () => {
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
 
-      // Save chat history and get the response with server timestamps
-      const savedChat = await saveChatHistory(updatedMessages);
-      
       // Add placeholder for AI response
       const assistantMessage: Message = {
-        id: aiMessageId,
+        id: messages.length + 2,
         role: 'assistant',
         content: '',
         timestamp: {
@@ -483,25 +480,24 @@ const MFUChatbot: React.FC = () => {
         },
         images: [],
         sources: [],
-        isImageGeneration: isImageGenerationMode
+        isImageGeneration: isImageGenerationMode,
+        isComplete: false
       };
-      
-      const messagesWithAssistant = [...updatedMessages, assistantMessage];
-      setMessages(messagesWithAssistant);
+      setMessages([...updatedMessages, assistantMessage]);
 
       // Send message to WebSocket
       const messagePayload = {
         messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
-        chatId: currentChatId || savedChat?._id.$oid
+        chatId: currentChatId
       };
 
       wsRef.current?.send(JSON.stringify(messagePayload));
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      setMessages(prev => [...prev, {
-        id: aiMessageId,
+      setMessages(prev => [...prev.slice(0, -1), {
+        id: messages.length + 2,
         role: 'assistant',
         content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
         timestamp: {
@@ -509,7 +505,8 @@ const MFUChatbot: React.FC = () => {
         },
         images: [],
         sources: [],
-        isImageGeneration: false
+        isImageGeneration: false,
+        isComplete: true
       }]);
     } finally {
       setIsLoading(false);
@@ -557,94 +554,52 @@ const MFUChatbot: React.FC = () => {
         
         if (data.error) {
           console.error('Received error from WebSocket:', data.error);
+          setMessages(prev => prev.map((msg, index) => 
+            index === prev.length - 1 && msg.role === 'assistant' ? {
+              ...msg,
+              content: `Error: ${data.error}`,
+              isComplete: true
+            } : msg
+          ));
           return;
-        }
-
-        if (data.type === 'generated-image') {
-          setMessages(prev => {
-            const lastEmptyAssistantIndex = [...prev].reverse().findIndex(msg => 
-              msg.role === 'assistant' && msg.content === ''
-            );
-            
-            if (lastEmptyAssistantIndex === -1) return prev;
-            
-            const actualIndex = prev.length - 1 - lastEmptyAssistantIndex;
-            
-            const updatedMessages = prev.map((msg, index) =>
-              index === actualIndex ? 
-              { 
-                ...msg, 
-                content: 'Generated image:',
-                images: [{
-                  data: data.data,
-                  mediaType: 'image/png'
-                }],
-                timestamp: {
-                  $date: new Date().toISOString()
-                }
-              } : msg
-            );
-
-            // Update chat history with the new image
-            updateChatHistory(updatedMessages);
-            return updatedMessages;
-          });
-          return;
-        }
-
-        if (data.done) {
-          setMessages(prev => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant') {
-              const completeAssistantMessage: Message = {
-                ...lastMessage,
-                sources: data.sources || [],
-                isComplete: true
-              };
-
-              const updatedMessages = [...prev.slice(0, -1), completeAssistantMessage];
-              
-              // Update chat history with complete message
-              updateChatHistory(updatedMessages);
-              return updatedMessages;
-            }
-            return prev;
-          });
         }
 
         if (data.content) {
-          setMessages(prev => {
-            const lastAssistantMessage = prev[prev.length - 1];
-            if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
-              const updatedMessage: Message = {
-                ...lastAssistantMessage,
-                content: lastAssistantMessage.content + data.content,
-                timestamp: data.timestamp || {
-                  $date: new Date().toISOString()
-                },
-                isComplete: false
-              };
-              
-              return prev.map((msg, index) => 
-                index === prev.length - 1 ? updatedMessage : msg
-              );
+          setMessages(prev => prev.map((msg, index) => 
+            index === prev.length - 1 && msg.role === 'assistant' ? {
+              ...msg,
+              content: msg.content + data.content
+            } : msg
+          ));
+        }
+
+        if (data.done) {
+          setMessages(prev => prev.map((msg, index) => 
+            index === prev.length - 1 && msg.role === 'assistant' ? {
+              ...msg,
+              sources: data.sources || [],
+              isComplete: true
+            } : msg
+          ));
+
+          // Handle chat ID updates and navigation
+          if (data.chatId) {
+            setCurrentChatId(data.chatId);
+            if (data.isNewChat) {
+              // Only navigate if this is a new chat
+              navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
             }
-            return [...prev, {
-              id: prev.length + 1,
-              role: 'assistant',
-              content: data.content,
-              timestamp: data.timestamp || {
-                $date: new Date().toISOString()
-              },
-              images: [],
-              sources: [],
-              isImageGeneration: false,
-              isComplete: false
-            }];
-          });
+          }
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
+        setMessages(prev => prev.map((msg, index) => 
+          index === prev.length - 1 && msg.role === 'assistant' ? {
+            ...msg,
+            content: 'Error processing response. Please try again.',
+            isComplete: true
+          } : msg
+        ));
       }
     };
 
@@ -661,7 +616,7 @@ const MFUChatbot: React.FC = () => {
         wsRef.current.close();
       }
     };
-  }, []);
+  }, [navigate]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
@@ -679,7 +634,7 @@ const MFUChatbot: React.FC = () => {
   const startNewChat = () => {
     // Navigate to main chat page for new chat
     navigate('/mfuchatbot', { replace: true });
-    // Reset all states
+    // Reset all states except selected model
     setMessages([]);
     setCurrentChatId(null);
     setInputMessage('');
@@ -700,14 +655,7 @@ const MFUChatbot: React.FC = () => {
         throw new Error('Failed to clear chat history');
       }
 
-      // Navigate to main chat page
-      navigate('/mfuchatbot', { replace: true });
-      // Reset all states
-      setMessages([]);
-      setCurrentChatId(null);
-      setInputMessage('');
-      setSelectedImages([]);
-      setIsImageGenerationMode(false);
+      startNewChat();
     } catch (error) {
       console.error('Error clearing chat:', error);
     }
