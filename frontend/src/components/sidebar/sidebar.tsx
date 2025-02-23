@@ -121,6 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       setChatHistories([]);
     }
   };
+  fetchChatHistories();
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
