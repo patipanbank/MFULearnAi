@@ -590,15 +590,23 @@ const MFUChatbot: React.FC = () => {
               return prev;
             });
           });
-          await saveChatHistory(currentMessages);
+          const savedChat = await saveChatHistory(currentMessages);
 
           // Handle chat ID updates and navigation
           if (data.chatId) {
             setCurrentChatId(data.chatId);
             if (data.isNewChat) {
-              // Only navigate if this is a new chat
               navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
             }
+            
+            // Dispatch custom event for real-time update
+            window.dispatchEvent(new CustomEvent('chatUpdated', {
+              detail: {
+                chatId: data.chatId,
+                messages: currentMessages,
+                savedChat: savedChat
+              }
+            }));
           }
         }
       } catch (error) {
