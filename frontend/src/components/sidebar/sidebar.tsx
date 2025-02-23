@@ -130,25 +130,29 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       return;
     }
 
+    // เพิ่มการเรียก fetchChatHistories ทันทีที่ component mount
     fetchChatHistories();
     
-    // เพิ่ม event listener สำหรับอัพเดทแบบ realtime
     const handleChatUpdate = () => {
+      console.log('Chat updated event received');
+      fetchChatHistories();
+    };
+    
+    const handleChatHistoryUpdate = () => {
+      console.log('Chat history updated event received');
       fetchChatHistories();
     };
     
     window.addEventListener('chatUpdated', handleChatUpdate);
-
-    // Listen for chat history updates
-    const handleChatHistoryUpdate = () => {
-      fetchChatHistories();
-    };
-
     window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+
+    // ตั้งเวลาเรียก fetchChatHistories ทุก 5 วินาที เป็น fallback
+    const intervalId = setInterval(fetchChatHistories, 5000);
 
     return () => {
       window.removeEventListener('chatUpdated', handleChatUpdate);
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+      clearInterval(intervalId);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

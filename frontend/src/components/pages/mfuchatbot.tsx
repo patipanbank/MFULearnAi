@@ -348,7 +348,12 @@ const MFUChatbot: React.FC = () => {
 
       if (!selectedModel) {
         console.error('No model selected');
-        return null;
+        if (models.length > 0) {
+          const defaultModel = models.find(model => model.name === 'Default');
+          setSelectedModel(defaultModel?.id || models[0].id);
+        } else {
+          return null;
+        }
       }
 
       // Only save if there are actual messages
@@ -457,6 +462,11 @@ const MFUChatbot: React.FC = () => {
         if (lastMessage && lastMessage.isComplete) {
           window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
         }
+      }
+      
+      // Dispatch เพิ่มเติมสำหรับแชทใหม่
+      if (!currentChatId && history._id) {
+        window.dispatchEvent(new CustomEvent('chatUpdated'));
       }
       
       return history;
