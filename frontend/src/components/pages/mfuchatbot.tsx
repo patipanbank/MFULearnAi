@@ -848,8 +848,20 @@ const MFUChatbot: React.FC = () => {
                   }`}>
                     <div className="text-sm text-gray-500">
                       {message.timestamp instanceof Date && !isNaN(message.timestamp.getTime())
-                        ? message.timestamp.toLocaleTimeString()
-                        : new Date().toLocaleTimeString()}
+                        ? message.timestamp.toLocaleString('en-US', {
+                            hour: 'numeric',
+                            minute: 'numeric',
+                            hour12: true,
+                            month: 'short',
+                            day: 'numeric'
+                          })
+                        : new Date().toLocaleString('en-US', {
+                            hour: 'numeric',
+                            minute: 'numeric',
+                            hour12: true,
+                            month: 'short',
+                            day: 'numeric'
+                          })}
                     </div>
                     <div className={`rounded-lg p-3 ${
                       message.role === 'user'
