@@ -511,36 +511,33 @@ const MFUChatbot: React.FC = () => {
           setMessages(prev => {
             const lastMessage = prev[prev.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
-              const updatedMessages = prev.map((msg, index) =>
-                index === prev.length - 1
-                  ? { 
-                      ...msg, 
-                      sources: data.sources,
-                      isComplete: true 
-                    }
-                  : msg
-              );
+              // Create the complete assistant message with all accumulated content
+              const completeAssistantMessage = {
+                ...lastMessage,
+                sources: data.sources,
+                isComplete: true
+              };
 
-              // Save both user and assistant messages
+              // Get the user message that triggered this response
+              const userMessage = prev[prev.length - 2];
+
+              // Create array with both messages
+              const messagesToSave = [userMessage, completeAssistantMessage];
+              console.log('Saving complete conversation with messages:', JSON.stringify(messagesToSave, null, 2));
+
+              // Save both messages together
               if (selectedModel && currentChatId) {
-                // Get the complete assistant message after all updates
-                const completeAssistantMessage = {
-                  ...updatedMessages[updatedMessages.length - 1],
-                  isComplete: true
-                };
-
-                // Get the user message
-                const userMessage = updatedMessages[updatedMessages.length - 2];
-
-                // Save both messages together
-                const messagesToSave = [userMessage, completeAssistantMessage];
-                console.log('Saving complete conversation with messages:', messagesToSave);
-                
                 saveChatHistory(messagesToSave).catch(error => {
                   console.error('Error saving complete conversation:', error);
                 });
               }
-              return updatedMessages;
+
+              // Update the messages state with the complete assistant message
+              return prev.map((msg, index) =>
+                index === prev.length - 1
+                  ? completeAssistantMessage
+                  : msg
+              );
             }
             return prev;
           });
