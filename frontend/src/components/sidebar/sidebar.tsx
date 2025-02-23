@@ -143,13 +143,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const handleSaveEdit = async (chatId: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
-        method: 'PATCH',
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/rename`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ chatname: newChatName })
+        body: JSON.stringify({ newName: newChatName })
       });
 
       if (response.status === 401) {

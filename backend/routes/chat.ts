@@ -523,4 +523,33 @@ async function checkCollectionAccess(user: any, collection: any): Promise<boolea
          collection.createdBy === (user.nameID || user.username);
 }
 
+// Rename chat
+router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { chatId } = req.params;
+    const { newName } = req.body;
+    
+    const chats = await chatHistoryService.getChatHistory(userId);
+    const chatToUpdate = chats.find(c => c._id.toString() === chatId);
+    
+    if (!chatToUpdate) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    
+    // Update only the chat name
+    const updatedChat = await ChatHistory.findByIdAndUpdate(
+      chatId,
+      { chatname: newName },
+      { new: true }
+    );
+    
+    res.json(updatedChat);
+  } catch (error) {
+    console.error('Error renaming chat:', error);
+    res.status(500).json({ error: 'Failed to rename chat' });
+  }
+});
+
 export default router;
