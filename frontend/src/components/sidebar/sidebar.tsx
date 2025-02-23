@@ -116,11 +116,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       } else {
         setChatHistories([]);
       }
+      fetchChatHistories();
     } catch (error) {
       console.error('Error fetching chat histories:', error);
       setChatHistories([]);
     }
+    fetchChatHistories();
   };
+  fetchChatHistories();
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -149,6 +152,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     return () => {
       window.removeEventListener('chatUpdated', handleChatUpdate);
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+      fetchChatHistories();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
