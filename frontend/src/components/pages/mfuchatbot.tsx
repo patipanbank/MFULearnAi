@@ -446,10 +446,17 @@ const MFUChatbot: React.FC = () => {
         navigate(`/mfuchatbot?chat=${history._id.$oid}`, { replace: true });
       }
 
-      // Only emit event if save was successful and the last message is complete
-      const lastMessage = validMessages[validMessages.length - 1];
-      if (lastMessage && lastMessage.isComplete) {
+      // Dispatch event for real-time updates in two cases:
+      // 1. When a new chat is created
+      if (!currentChatId && history._id) {
         window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+      }
+      // 2. When the last message is complete (for existing chats)
+      else if (currentChatId) {
+        const lastMessage = validMessages[validMessages.length - 1];
+        if (lastMessage && lastMessage.isComplete) {
+          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+        }
       }
       
       return history;
