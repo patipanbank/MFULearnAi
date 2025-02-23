@@ -588,7 +588,21 @@ const MFUChatbot: React.FC = () => {
           });
           
           // Save chat history after messages are updated
-          saveChatHistory();
+          const currentMessages = await new Promise<Message[]>(resolve => {
+            setMessages(prev => {
+              resolve(prev);
+              return prev;
+            });
+          });
+          await saveChatHistory(currentMessages);
+
+          // Handle chat ID updates and navigation
+          if (data.chatId) {
+            setCurrentChatId(data.chatId);
+            if (data.isNewChat) {
+              navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
+            }
+          }
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
