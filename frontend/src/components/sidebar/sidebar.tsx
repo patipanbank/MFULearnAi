@@ -130,7 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       return;
     }
 
-    // เพิ่มการเรียก fetchChatHistories ทันทีที่ component mount
+    // เรียก fetchChatHistories ครั้งแรกตอน component mount
     fetchChatHistories();
     
     const handleChatUpdate = () => {
@@ -146,13 +146,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     window.addEventListener('chatUpdated', handleChatUpdate);
     window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
 
-    // ตั้งเวลาเรียก fetchChatHistories ทุก 5 วินาที เป็น fallback
-    const intervalId = setInterval(fetchChatHistories, 5000);
-
     return () => {
       window.removeEventListener('chatUpdated', handleChatUpdate);
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
-      clearInterval(intervalId);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
