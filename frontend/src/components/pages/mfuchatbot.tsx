@@ -351,18 +351,14 @@ const MFUChatbot: React.FC = () => {
         return null;
       }
 
-      // Only save if there are actual messages
       if (messages.length === 0) {
         console.log('No messages to save');
         return null;
       }
 
-      // Get user info from token
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const userId = tokenPayload.id;
-      console.log('User ID from token:', userId);
 
-      // Format messages according to MongoDB schema
       const validMessages = messages
         .filter(msg => msg.role && (msg.content.trim() || (msg.images && msg.images.length > 0)))
         .map(msg => ({
@@ -378,19 +374,29 @@ const MFUChatbot: React.FC = () => {
           isComplete: msg.isComplete || false
         }));
 
-      console.log('Valid messages to save:', validMessages);
-
       if (validMessages.length === 0) {
         console.log('No valid messages to save');
         return null;
       }
 
-      // Create payload matching MongoDB schema
+      // สร้าง timestamp string สำหรับใช้ในชื่อแชท
+      const timestamp = new Date().toLocaleString('th-TH', {
+        year: '2-digit',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+
+      // สร้าง chatname โดยรวม timestamp
+      const chatname = `${messages[0]?.content.substring(0, 30)}... (${timestamp})`;
+
       const payload = {
         userId: userId,
         modelId: selectedModel,
         collectionName: "Default",
-        chatname: messages[0]?.content.substring(0, 20) + "...",
+        chatname: chatname, // ใช้ chatname ที่มี timestamp
         messages: validMessages,
         sources: [],
         createdAt: {
