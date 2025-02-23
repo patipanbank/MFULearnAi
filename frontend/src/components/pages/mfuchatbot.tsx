@@ -238,15 +238,33 @@ const MFUChatbot: React.FC = () => {
             images?: Array<{ data: string; mediaType: string }>;
             sources?: Array<{ modelId: string; collectionName: string; filename: string; similarity: number }>;
             isImageGeneration?: boolean;
-          }) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content || '',
-            timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp,
-            images: msg.images || [],
-            sources: msg.sources || [],
-            isImageGeneration: msg.isImageGeneration || false
-          }));
+          }) => {
+            let parsedTimestamp: Date;
+            try {
+              parsedTimestamp = typeof msg.timestamp === 'string' 
+                ? new Date(msg.timestamp)
+                : msg.timestamp;
+              
+              // Validate the parsed timestamp
+              if (!(parsedTimestamp instanceof Date) || isNaN(parsedTimestamp.getTime())) {
+                console.warn('Invalid timestamp for message:', msg.id);
+                parsedTimestamp = new Date();
+              }
+            } catch (error) {
+              console.error('Error parsing timestamp:', error);
+              parsedTimestamp = new Date();
+            }
+
+            return {
+              id: msg.id,
+              role: msg.role,
+              content: msg.content || '',
+              timestamp: parsedTimestamp,
+              images: msg.images || [],
+              sources: msg.sources || [],
+              isImageGeneration: msg.isImageGeneration || false
+            };
+          });
           setMessages(processedMessages);
           
           // Only set selectedModel if chat has a modelId and we don't already have one selected
@@ -795,9 +813,6 @@ const MFUChatbot: React.FC = () => {
         <div className="overflow-hidden break-words whitespace-pre-wrap text-sm md:text-base">
           {renderContent(message.content)}
         </div>
-        <div className="text-sm text-gray-500">
-          {formatTimestamp(message.timestamp)}
-        </div>
       </div>
     );
   };
@@ -869,7 +884,23 @@ const MFUChatbot: React.FC = () => {
                     message.role === 'user' ? 'items-end' : 'items-start'
                   }`}>
                     <div className="text-sm text-gray-500">
-                      {formatTimestamp(message.timestamp)}
+                      {message.timestamp instanceof Date && !isNaN(message.timestamp.getTime())
+                        ? message.timestamp.toLocaleString('th-TH', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                            month: 'short',
+                            day: '2-digit',
+                            year: 'numeric'
+                          })
+                        : new Date().toLocaleString('th-TH', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                            month: 'short',
+                            day: '2-digit',
+                            year: 'numeric'
+                          })}
                     </div>
                     <div className={`rounded-lg p-3 ${
                       message.role === 'user'
