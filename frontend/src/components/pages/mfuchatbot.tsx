@@ -494,6 +494,7 @@ const MFUChatbot: React.FC = () => {
       };
 
       wsRef.current?.send(JSON.stringify(messagePayload));
+      await saveChatHistory(updatedMessages);
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev.slice(0, -1), {
@@ -512,31 +513,6 @@ const MFUChatbot: React.FC = () => {
       setIsLoading(false);
       setInputMessage('');
       setSelectedImages([]);
-    }
-  };
-
-  const updateChatHistory = async (messages: Message[]) => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token || !currentChatId) return;
-
-      const response = await fetch(`${config.apiUrl}/api/chat/history/${currentChatId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messages,
-          modelId: selectedModel
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update chat history');
-      }
-    } catch (error) {
-      console.error('Error updating chat history:', error);
     }
   };
 
