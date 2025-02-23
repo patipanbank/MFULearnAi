@@ -239,27 +239,30 @@ const MFUChatbot: React.FC = () => {
             sources?: Array<{ modelId: string; collectionName: string; filename: string; similarity: number }>;
             isImageGeneration?: boolean;
           }) => {
-            let parsedTimestamp: Date;
+            // Ensure we properly parse the timestamp from the server
+            let timestamp: Date;
             try {
-              parsedTimestamp = typeof msg.timestamp === 'string' 
+              // If timestamp is a string, parse it, otherwise use it as is
+              timestamp = typeof msg.timestamp === 'string' 
                 ? new Date(msg.timestamp)
                 : msg.timestamp;
               
-              // Validate the parsed timestamp
-              if (!(parsedTimestamp instanceof Date) || isNaN(parsedTimestamp.getTime())) {
-                console.warn('Invalid timestamp for message:', msg.id);
-                parsedTimestamp = new Date();
+              // If the timestamp is invalid, use the original string value
+              if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
+                console.warn('Invalid timestamp format, attempting to parse original:', msg.timestamp);
+                timestamp = new Date(msg.timestamp);
               }
             } catch (error) {
               console.error('Error parsing timestamp:', error);
-              parsedTimestamp = new Date();
+              // If all parsing fails, only then use current date
+              timestamp = new Date();
             }
 
             return {
               id: msg.id,
               role: msg.role,
               content: msg.content || '',
-              timestamp: parsedTimestamp,
+              timestamp: timestamp,
               images: msg.images || [],
               sources: msg.sources || [],
               isImageGeneration: msg.isImageGeneration || false
@@ -729,7 +732,29 @@ const MFUChatbot: React.FC = () => {
   };
 
   const formatMessageTime = (timestamp: Date) => {
-    if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
+    try {
+      // First check if timestamp is a valid Date object
+      if (!(timestamp instanceof Date)) {
+        timestamp = new Date(timestamp);
+      }
+      
+      // Verify the timestamp is valid
+      if (isNaN(timestamp.getTime())) {
+        throw new Error('Invalid timestamp');
+      }
+
+      return timestamp.toLocaleString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
+      // Only use current time as absolute last resort
       return new Date().toLocaleString('th-TH', {
         hour: '2-digit',
         minute: '2-digit',
@@ -740,15 +765,6 @@ const MFUChatbot: React.FC = () => {
         day: '2-digit'
       });
     }
-    return timestamp.toLocaleString('th-TH', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit'
-    });
   };
 
   const MessageContent: React.FC<{ message: Message }> = ({ message }) => {
