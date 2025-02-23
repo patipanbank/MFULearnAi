@@ -72,7 +72,8 @@ class ChatHistoryService {
     modelId: string,
     collectionName: string,
     messages: any[],
-    chatId?: string
+    chatId?: string,
+    chatname?: string
   ) {
     try {
       if (!userId || !modelId) {
@@ -83,10 +84,13 @@ class ChatHistoryService {
         throw new Error('Messages array is required and must not be empty');
       }
 
-      const firstUserMessage = messages.find(msg => msg.role === 'user');
-      const chatname = firstUserMessage 
-        ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
-        : 'New Chat';
+      // Use provided chatname or generate from first message as fallback
+      const finalChatname = chatname || (() => {
+        const firstUserMessage = messages.find(msg => msg.role === 'user');
+        return firstUserMessage 
+          ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
+          : 'New Chat';
+      })();
 
       // Validate and process messages
       const processedMessages = messages.map((msg, index) => {
@@ -142,7 +146,7 @@ class ChatHistoryService {
           userId,
           modelId,
           collectionName,
-          chatname,
+          chatname: finalChatname,
           messages: processedMessages,
           updatedAt: new Date()
         });

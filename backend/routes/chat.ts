@@ -168,8 +168,9 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   extWs.on('message', async (message: string) => {
     try {
       console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
-      const data = JSON.parse(message);
-      const { messages, modelId, isImageGeneration, chatId } = data;
+      
+      const data = JSON.parse(message.toString());
+      const { messages, modelId, isImageGeneration, chatId, chatname } = data;
 
       if (!messages || !Array.isArray(messages)) {
         throw new Error('Invalid messages format');
@@ -226,7 +227,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                     modelId,
                     '',  // collectionName is optional
                     allMessages,
-                    chatId
+                    chatId,
+                    chatname
                   );
                 } catch (error) {
                   console.log('Chat not found or access denied, creating new chat');
@@ -234,7 +236,9 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                     extWs.userId,
                     modelId,
                     '',
-                    allMessages
+                    allMessages,
+                    undefined,
+                    chatname
                   );
                 }
               } else {
@@ -243,7 +247,9 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                   extWs.userId,
                   modelId,
                   '',
-                  allMessages
+                  allMessages,
+                  undefined,
+                  chatname
                 );
               }
 
@@ -347,7 +353,7 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { messages, modelId, collectionName } = req.body;
+    const { messages, modelId, collectionName, chatname } = req.body;
     // Get username and groups from user data
     const userId = (req.user as any)?.username || '';
     const userGroups = (req.user as any)?.groups || [];
@@ -375,7 +381,9 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[])
       userId,
       modelId,
       collectionName,
-      processedMessages
+      processedMessages,
+      undefined, // chatId
+      chatname // Pass the chatname
     );
     res.json(history);
   } catch (error) {
