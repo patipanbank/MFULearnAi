@@ -593,7 +593,6 @@ const MFUChatbot: React.FC = () => {
             });
           });
           await saveChatHistory(currentMessages);
-          window.dispatchEvent(new CustomEvent('chatUpdated'));
 
           // Handle chat ID updates and navigation
           if (data.chatId) {
@@ -601,7 +600,6 @@ const MFUChatbot: React.FC = () => {
             if (data.isNewChat) {
               // Only navigate if this is a new chat
               navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
-              window.dispatchEvent(new CustomEvent('chatUpdated'));
             }
           }
         }
