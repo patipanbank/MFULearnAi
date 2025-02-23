@@ -56,11 +56,12 @@ const BaseModal: React.FC<BaseModalProps> = ({
   containerClasses = '',
   children,
 }) => (
-  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div className={`relative bg-white dark:bg-gray-800 rounded p-6 ${containerClasses}`}>
+  <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
+    <div className={`relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 ${containerClasses}`}>
       <button
         onClick={onClose}
-        className="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+        className="absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 
+          p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
         title="Close"
       >
         <FaTimes size={20} />
@@ -87,27 +88,33 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   loading
 }) => (
   <header className="mb-8">
-    <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Training Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Training Dashboard</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
           Manage your training collections and documents
         </p>
       </div>
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1 min-w-[200px]">
           <input
             type="text"
             placeholder="Search collections..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+              placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200"
             disabled={loading}
           />
         </div>
         <button
           onClick={onNewCollectionToggle}
-          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center"
+          className="flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 
+            hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all duration-200
+            transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed
+            shadow-md hover:shadow-lg"
           disabled={loading}
         >
           <FaPlus className="mr-2" />
@@ -1097,10 +1104,11 @@ const TrainingDashboard: React.FC = () => {
                 filteredCollections.map((collection) => (
                   <div
                     key={collection.id}
-                    className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md 
-                    hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 
-                    dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600
-                    transform hover:scale-[1.02]"
+                    className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 
+                      shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer 
+                      border border-gray-200 dark:border-gray-700 
+                      hover:border-blue-300 dark:hover:border-blue-600
+                      transform hover:scale-[1.02]"
                     onClick={() => handleCollectionSelect(collection)}
                   >
                     <button
@@ -1109,16 +1117,17 @@ const TrainingDashboard: React.FC = () => {
                         setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id);
                       }}
                       className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
-                      dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
-                      hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                        dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
+                        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
                       title="Options"
                     >
                       <FaEllipsisH size={16} />
                     </button>
 
                     {activeDropdownId === collection.id && (
-                      <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
-                      border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                      <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-xl 
+                        shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
+                      >
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1126,8 +1135,9 @@ const TrainingDashboard: React.FC = () => {
                             setShowSettings(true);
                             setActiveDropdownId(null);
                           }}
-                          className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 
-                          dark:hover:bg-gray-700 flex items-center space-x-2"
+                          className="w-full px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 
+                            hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2
+                            transition-colors duration-200"
                         >
                           <FaCog size={14} />
                           <span>Settings</span>
@@ -1138,8 +1148,9 @@ const TrainingDashboard: React.FC = () => {
                             handleDeleteCollection(collection);
                             setActiveDropdownId(null);
                           }}
-                          className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 
-                          dark:hover:bg-red-900/30 flex items-center space-x-2"
+                          className="w-full px-4 py-2.5 text-left text-red-600 dark:text-red-400 
+                            hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center space-x-2
+                            transition-colors duration-200"
                         >
                           <FaTrash size={14} />
                           <span>Delete</span>
@@ -1149,7 +1160,7 @@ const TrainingDashboard: React.FC = () => {
 
                     <div className="flex flex-col h-full">
                       <div className="mb-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
                           {collection.name}
                         </h2>
                       </div>
