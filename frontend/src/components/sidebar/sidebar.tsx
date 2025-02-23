@@ -132,23 +132,27 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
     fetchChatHistories();
     
-    // เพิ่ม event listener สำหรับอัพเดทแบบ realtime
-    const handleChatUpdate = () => {
-      fetchChatHistories();
+    // เพิ่ม event listener สำหรับแชทใหม่
+    const handleNewChat = (event: CustomEvent) => {
+      const newChat = event.detail;
+      setChatHistories(prev => {
+        // ตรวจสอบว่าแชทนี้มีอยู่แล้วหรือไม่
+        const exists = prev.some(chat => chat._id === newChat._id);
+        if (!exists) {
+          return [newChat, ...prev];
+        }
+        return prev;
+      });
     };
     
-    window.addEventListener('chatUpdated', handleChatUpdate);
-
-    // Listen for chat history updates
-    const handleChatHistoryUpdate = () => {
-      fetchChatHistories();
-    };
-
-    window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+    window.addEventListener('newChatCreated', handleNewChat as EventListener);
+    window.addEventListener('chatUpdated', fetchChatHistories);
+    window.addEventListener('chatHistoryUpdated', fetchChatHistories);
 
     return () => {
-      window.removeEventListener('chatUpdated', handleChatUpdate);
-      window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+      window.removeEventListener('newChatCreated', handleNewChat as EventListener);
+      window.removeEventListener('chatUpdated', fetchChatHistories);
+      window.removeEventListener('chatHistoryUpdated', fetchChatHistories);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
