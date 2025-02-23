@@ -17,6 +17,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           fixed top-0 left-0 z-50 w-64 h-full bg-white dark:bg-gray-800 transform transition-transform duration-300 ease-in-out
           lg:relative lg:translate-x-0 lg:min-w-[16rem] lg:w-64 lg:flex-shrink-0 border-r border-gray-200 dark:border-gray-700
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800
         `}
       >
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
@@ -42,7 +43,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           />
         )}
 
-        <main className="flex-1 overflow-auto mt-16 lg:mt-16 bg-white dark:bg-gray-800">
+        <main className="flex-1 overflow-auto mt-16 lg:mt-16 bg-white dark:bg-gray-800 scrollbar scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
           {children}
         </main>
       </div>
