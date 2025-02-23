@@ -50,6 +50,7 @@ const chatHistorySchema = new mongoose.Schema({
   messages: [messageSchema],
   sources: [sourceSchema],
   isPinned: { type: Boolean, default: false },
+  folder: { type: String, default: 'default' }
 }, { 
   timestamps: true,
   index: [

@@ -12,19 +12,27 @@ class ChatHistoryService {
   async getChatHistory(
     userId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    folder?: string
   ): Promise<PaginationResult<any>> {
     try {
+      console.log('Getting chat history:', { userId, page, limit, folder });
       const skip = (page - 1) * limit;
       
+      const query = { userId };
+      if (folder) {
+        Object.assign(query, { folder });
+      }
+      
       const [histories, total] = await Promise.all([
-        ChatHistory.find({ userId })
+        ChatHistory.find(query)
           .sort({ updatedAt: -1 })
           .skip(skip)
           .limit(limit),
-        ChatHistory.countDocuments({ userId })
+        ChatHistory.countDocuments(query)
       ]);
 
+      console.log(`Found ${histories.length} chats for user ${userId}`);
       return {
         data: histories,
         total,
@@ -40,6 +48,7 @@ class ChatHistoryService {
 
   async getSpecificChat(userId: string, chatId: string) {
     try {
+      console.log('Getting specific chat:', { userId, chatId });
       const chat = await ChatHistory.findOne({ _id: chatId, userId });
       if (!chat) {
         throw new Error('Chat not found');
@@ -73,9 +82,19 @@ class ChatHistoryService {
     collectionName: string,
     messages: any[],
     chatId?: string,
-    chatname?: string
+    chatname?: string,
+    folder: string = 'default'
   ) {
     try {
+      console.log('Saving chat message:', {
+        userId,
+        modelId,
+        collectionName,
+        chatId,
+        messagesCount: messages.length,
+        folder
+      });
+
       if (!userId || !modelId) {
         throw new Error('userId and modelId are required');
       }
@@ -84,52 +103,23 @@ class ChatHistoryService {
         throw new Error('Messages array is required and must not be empty');
       }
 
-      // Use provided chatname or generate from first message as fallback
       const finalChatname = chatname || (() => {
         const firstUserMessage = messages.find(msg => msg.role === 'user');
         return firstUserMessage 
-          ? firstUserMessage.content.slice(0, 10) + (firstUserMessage.content.length > 10 ? '...' : '')
+          ? firstUserMessage.content.slice(0, 30) + (firstUserMessage.content.length > 30 ? '...' : '')
           : 'New Chat';
       })();
 
-      // เพิ่ม log เพื่อตรวจสอบ
-      console.log('Saving chat message:', {
-        userId,
-        modelId,
-        collectionName,
-        chatId,
-        messagesCount: messages.length
-      });
-
-      // Validate and process messages
       const processedMessages = messages.map((msg, index) => {
         this.validateMessage(msg);
-        let timestamp;
-        try {
-          if (msg.timestamp?.$date) {
-            timestamp = new Date(msg.timestamp.$date);
-          } else if (msg.timestamp) {
-            timestamp = new Date(msg.timestamp);
-          } else {
-            timestamp = new Date();
-          }
-          
-          if (isNaN(timestamp.getTime())) {
-            timestamp = new Date();
-          }
-        } catch (error) {
-          timestamp = new Date();
-        }
-
+        const timestamp = new Date(msg.timestamp || Date.now());
+        
         return {
           id: index + 1,
           role: msg.role as 'user' | 'assistant' | 'system',
           content: String(msg.content || ''),
-          timestamp: timestamp,
-          images: msg.images ? msg.images.map((img: any) => ({
-            data: img.data,
-            mediaType: img.mediaType
-          })) : undefined,
+          timestamp,
+          images: msg.images,
           sources: msg.sources || [],
           isImageGeneration: msg.isImageGeneration || false
         };
@@ -137,37 +127,13 @@ class ChatHistoryService {
 
       if (!chatId) {
         console.log('Creating new chat');
-        const existingChat = await ChatHistory.findOne({ 
-          userId, 
-          chatname: finalChatname 
-        });
-        
-        if (existingChat) {
-          console.log('Updating existing chat with same name:', existingChat._id);
-          // Update existing chat instead of creating new one
-          const updatedChat = await ChatHistory.findByIdAndUpdate(
-            existingChat._id,
-            {
-              messages: processedMessages,
-              updatedAt: new Date()
-            },
-            { new: true, runValidators: true }
-          );
-          
-          if (!updatedChat) {
-            throw new Error('Failed to update existing chat');
-          }
-          
-          console.log('Updated chat result:', updatedChat._id);
-          return updatedChat;
-        }
-
         const history = await ChatHistory.create({
           userId,
           modelId,
           collectionName,
           chatname: finalChatname,
           messages: processedMessages,
+          folder,
           updatedAt: new Date()
         });
         
@@ -199,11 +165,13 @@ class ChatHistoryService {
 
   async clearChatHistory(userId: string) {
     try {
+      console.log('Clearing chat history for user:', userId);
       if (!userId) {
         throw new Error('userId is required');
       }
       
       const result = await ChatHistory.deleteMany({ userId });
+      console.log(`Deleted ${result.deletedCount} chats for user ${userId}`);
       return { 
         success: true, 
         message: 'Chat history cleared successfully',
@@ -216,6 +184,7 @@ class ChatHistoryService {
   }
 
   async togglePinChat(userId: string, chatId: string) {
+    console.log('Toggling pin status:', { userId, chatId });
     const chat = await ChatHistory.findOne({ _id: chatId, userId });
     if (!chat) {
       throw new Error('Chat not found');
@@ -223,6 +192,23 @@ class ChatHistoryService {
 
     chat.isPinned = !chat.isPinned;
     await chat.save();
+    console.log(`Chat ${chatId} pin status toggled to ${chat.isPinned}`);
+    return chat;
+  }
+
+  async moveToFolder(userId: string, chatId: string, folder: string) {
+    console.log('Moving chat to folder:', { userId, chatId, folder });
+    const chat = await ChatHistory.findOneAndUpdate(
+      { _id: chatId, userId },
+      { folder },
+      { new: true }
+    );
+    
+    if (!chat) {
+      throw new Error('Chat not found');
+    }
+    
+    console.log(`Chat ${chatId} moved to folder ${folder}`);
     return chat;
   }
 }
