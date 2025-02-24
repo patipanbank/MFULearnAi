@@ -563,45 +563,58 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
-        if (data.content) {
-          setMessages(prev => prev.map((msg, index) => 
-            index === prev.length - 1 && msg.role === 'assistant' ? {
-              ...msg,
-              content: msg.content + data.content
-            } : msg
-          ));
-        }
+        // Handle different message types
+        switch (data.type) {
+          case 'chat_created':
+            // Just store the chatId, don't update URL yet
+            setCurrentChatId(data.chatId);
+            break;
 
-        if (data.done) {
-          setMessages(prev => {
-            const updatedMessages = prev.map((msg, index) => 
+          case 'content':
+            setMessages(prev => prev.map((msg, index) => 
               index === prev.length - 1 && msg.role === 'assistant' ? {
                 ...msg,
-                sources: data.sources || [],
-                isComplete: true
+                content: msg.content + data.content
               } : msg
-            );
-            return updatedMessages;
-          });
-          
-          // Save chat history after messages are updated
-          const currentMessages = await new Promise<Message[]>(resolve => {
-            setMessages(prev => {
-              resolve(prev);
-              return prev;
-            });
-          });
-          await saveChatHistory(currentMessages);
+            ));
+            break;
 
-          // Handle chat ID updates and navigation
-          if (data.chatId) {
-            setCurrentChatId(data.chatId);
-            if (data.isNewChat) {
-              // Only navigate if this is a new chat
+          case 'complete':
+            setMessages(prev => {
+              const updatedMessages = prev.map((msg, index) => 
+                index === prev.length - 1 && msg.role === 'assistant' ? {
+                  ...msg,
+                  sources: data.sources || [],
+                  isComplete: true
+                } : msg
+              );
+              return updatedMessages;
+            });
+            
+            // Now that the response is complete, update URL with chatId
+            if (data.chatId) {
+              setCurrentChatId(data.chatId);
               navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
               window.dispatchEvent(new CustomEvent('chatUpdated'));
             }
-          }
+            break;
+
+          case 'chat_updated':
+            if (data.shouldUpdateList) {
+              window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+            }
+            break;
+
+          case 'error':
+            console.error('Error from server:', data.error);
+            setMessages(prev => prev.map((msg, index) => 
+              index === prev.length - 1 && msg.role === 'assistant' ? {
+                ...msg,
+                content: `Error: ${data.error}`,
+                isComplete: true
+              } : msg
+            ));
+            break;
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
