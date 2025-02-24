@@ -210,7 +210,7 @@ Remember: Your responses should be based on the provided context and documents.`
     return this.questionTypes.FACTUAL; // Default to factual if no pattern matches
   }
 
-  private async getContext(query: string, modelIdOrCollections: string | string[]): Promise<string> {
+  private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
     console.log('Getting context for:', {
       query,
       modelIdOrCollections,
