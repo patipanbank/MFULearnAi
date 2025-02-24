@@ -227,16 +227,20 @@ const MFUChatbot: React.FC = () => {
       const chatId = urlParams.get('chat');
       
       // Add validation for MongoDB ObjectId format
-      const isValidObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id);
+      const isValidObjectId = (id: string | null): boolean => {
+        if (!id) return false;
+        return /^[0-9a-fA-F]{24}$/.test(id);
+      };
       
       if (!chatId || !isValidObjectId(chatId)) {
-        console.log('Invalid chat ID format:', chatId);
+        console.log('Invalid or missing chat ID:', chatId);
         startNewChat();
         return;
       }
 
       const token = localStorage.getItem('auth_token');
       if (!token) {
+        console.log('No authentication token found');
         startNewChat();
         return;
       }
@@ -249,8 +253,12 @@ const MFUChatbot: React.FC = () => {
 
       if (response.ok) {
         const chat: ChatHistory = await response.json();
-        console.log('Loaded chat:', chat); // Debug loaded chat data
-        setCurrentChatId(chat._id.toString());  // Convert MongoDBId to string
+        console.log('Loaded chat:', chat);
+        
+        // Convert MongoDB ObjectId to string if necessary
+        const chatIdString = typeof chat._id === 'string' ? chat._id : chat._id.$oid;
+        setCurrentChatId(chatIdString);
+        
         if (chat.modelId) {
           setSelectedModel(chat.modelId);
         }
@@ -434,11 +442,17 @@ const MFUChatbot: React.FC = () => {
     wsUrl.searchParams.append('token', token);
     
     // Add validation for MongoDB ObjectId format
-    const isValidObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id);
+    const isValidObjectId = (id: string | null): boolean => {
+      if (!id) return false;
+      return /^[0-9a-fA-F]{24}$/.test(id);
+    };
     
     // Only append chatId if it's a valid ObjectId
     if (currentChatId && isValidObjectId(currentChatId)) {
+      console.log('Adding valid chatId to WebSocket URL:', currentChatId);
       wsUrl.searchParams.append('chat', currentChatId);
+    } else {
+      console.log('No valid chatId to add to WebSocket URL');
     }
     
     wsRef.current = new WebSocket(wsUrl.toString());

@@ -134,7 +134,10 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   const token = urlToken || headerToken;
   
   // Validate MongoDB ObjectId format
-  const isValidObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id);
+  const isValidObjectId = (id: string | null): boolean => {
+    if (!id) return false;
+    return /^[0-9a-fA-F]{24}$/.test(id);
+  };
   
   console.log('Connection parameters:', {
     fromUrl: !!urlToken,
@@ -149,8 +152,12 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
       extWs.userId = decoded.username;
       // Only set chatId if it's a valid ObjectId
-      extWs.chatId = urlChatId && isValidObjectId(urlChatId) ? urlChatId : undefined;
-      console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${extWs.chatId}`);
+      if (urlChatId && isValidObjectId(urlChatId)) {
+        extWs.chatId = urlChatId;
+        console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${extWs.chatId}`);
+      } else {
+        console.log(`WebSocket client connected: ${extWs.userId}, no valid chatId provided`);
+      }
     } catch (error) {
       console.error('Invalid token in WebSocket connection:', error);
       ws.close(1008, 'Invalid authentication token');
