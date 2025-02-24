@@ -93,9 +93,46 @@ class ChatHistoryService {
         if (!msg.content && (!msg.images || msg.images.length === 0)) {
           throw new Error(`Message must have content or images at index ${index}`);
         }
+
+        // Process timestamp
+        let timestamp;
+        try {
+          if (msg.timestamp) {
+            if (msg.timestamp.$date) {
+              // Handle MongoDB date format
+              timestamp = new Date(msg.timestamp.$date);
+            } else if (typeof msg.timestamp === 'string') {
+              // Handle string date
+              timestamp = new Date(msg.timestamp);
+            } else if (msg.timestamp instanceof Date) {
+              // Handle Date object
+              timestamp = msg.timestamp;
+            } else {
+              // Default to current time if invalid
+              timestamp = new Date();
+            }
+          } else {
+            timestamp = new Date();
+          }
+
+          // Validate timestamp
+          if (isNaN(timestamp.getTime())) {
+            console.warn(`Invalid timestamp at index ${index}, using current time`);
+            timestamp = new Date();
+          }
+        } catch (error) {
+          console.warn(`Error processing timestamp at index ${index}, using current time:`, error);
+          timestamp = new Date();
+        }
+
         return {
           ...msg,
-          timestamp: msg.timestamp || new Date()
+          timestamp,
+          role: msg.role,
+          content: msg.content || '',
+          images: msg.images || [],
+          sources: msg.sources || [],
+          isImageGeneration: msg.isImageGeneration || false
         };
       });
 

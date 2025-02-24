@@ -26,7 +26,20 @@ const messageSchema = new mongoose.Schema({
   },
   timestamp: { 
     type: Date, 
-    default: Date.now 
+    default: Date.now,
+    validate: {
+      validator: function(v: any) {
+        if (!v) return true; // Allow default value to be set
+        const date = new Date(v);
+        return !isNaN(date.getTime());
+      },
+      message: (props: { value: any }) => `${props.value} is not a valid timestamp!`
+    },
+    set: function(v: any) {
+      if (!v) return new Date();
+      if (v.$date) return new Date(v.$date);
+      return new Date(v);
+    }
   },
   images: [imageSchema],
   sources: [sourceSchema],
