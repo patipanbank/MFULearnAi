@@ -41,6 +41,7 @@ const CLIENT_TIMEOUT = 35000;
 interface ExtendedWebSocket extends WebSocket {
   isAlive: boolean;
   userId?: string;
+  chatId?: string;
 }
 
 // Middleware to verify token
@@ -127,23 +128,26 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   // Try to get token from URL parameters first
   const url = new URL(req.url!, `http://${req.headers.host}`);
   const urlToken = url.searchParams.get('token');
+  const urlChatId = url.searchParams.get('chat'); // Get chatId from URL
   
   // Then try to get from headers if not in URL
   const headerToken = req.headers['authorization']?.split(' ')[1];
   
   const token = urlToken || headerToken;
   
-  console.log('Token sources:', {
+  console.log('Connection parameters:', {
     fromUrl: !!urlToken,
     fromHeader: !!headerToken,
-    finalToken: !!token
+    finalToken: !!token,
+    chatId: urlChatId
   });
   
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
       extWs.userId = decoded.username;
-      console.log(`WebSocket client connected: ${extWs.userId}`);
+      extWs.chatId = urlChatId || undefined; // Convert null to undefined
+      console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${urlChatId}`);
     } catch (error) {
       console.error('Invalid token in WebSocket connection:', error);
       ws.close(1008, 'Invalid authentication token');
@@ -170,7 +174,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
       
       const data = JSON.parse(message.toString());
-      const { messages, modelId, isImageGeneration, chatId, chatname } = data;
+      const { messages, modelId, isImageGeneration } = data;
+      const chatId = extWs.chatId; // Use chatId from WebSocket instance
 
       if (!messages || !Array.isArray(messages)) {
         throw new Error('Invalid messages format');
@@ -261,7 +266,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                     '',
                     allMessages,
                     undefined,
-                    chatname || messages[0]?.content.substring(0, 50) + "..."
+                    messages[0]?.content.substring(0, 50) + "..."
                   );
 
                   // Send completion signal with new chat ID
