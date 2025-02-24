@@ -513,6 +513,7 @@ const MFUChatbot: React.FC = () => {
         messages: updatedMessages,
         modelId: selectedModel,
         isImageGeneration: isImageGenerationMode,
+        path: location.pathname,
         chatId: currentChatId
       };
 

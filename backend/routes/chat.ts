@@ -174,8 +174,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
       
       const data = JSON.parse(message.toString());
-      const { messages, modelId, isImageGeneration } = data;
-      const chatId = extWs.chatId; // Use chatId from WebSocket instance
+      const { messages, modelId, isImageGeneration, path, chatId } = data;
 
       if (!messages || !Array.isArray(messages)) {
         throw new Error('Invalid messages format');
@@ -183,6 +182,47 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
       if (!modelId) {
         throw new Error('ModelId is required');
+      }
+
+      // จัดการ chat ก่อนเริ่มส่งคำตอบ
+      let savedChat;
+      try {
+        if (path === '/mfuchatbot' && !chatId) {
+          // สร้างแชทใหม่
+          savedChat = await chatHistoryService.saveChatMessage(
+            extWs.userId!,
+            modelId,
+            '',
+            messages
+          );
+          console.log('Created new chat:', savedChat._id);
+        } else if (chatId) {
+          // ตรวจสอบและอัพเดทแชทที่มีอยู่
+          const existingChat = await chatHistoryService.getSpecificChat(extWs.userId!, chatId);
+          if (!existingChat) {
+            throw new Error('Chat not found');
+          }
+          
+          savedChat = await chatHistoryService.saveChatMessage(
+            extWs.userId!,
+            existingChat.modelId || modelId,
+            existingChat.collectionName || '',
+            messages,
+            chatId,
+            existingChat.chatname
+          );
+          console.log('Updated existing chat:', savedChat._id);
+        } else {
+          throw new Error('Invalid path or chatId configuration');
+        }
+      } catch (error) {
+        console.error('Error handling chat:', error);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ 
+            error: error instanceof Error ? error.message : 'Failed to handle chat' 
+          }));
+        }
+        return;
       }
 
       const query = isImageGeneration
@@ -193,20 +233,22 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         console.log('Starting response generation...');
         let assistantResponse = '';
         
-        // Generate response once and collect the content
+        // Generate response and send chunks
         for await (const content of chatService.generateResponse(messages, query, modelId)) {
           assistantResponse += content;
           if (extWs.readyState === WebSocket.OPEN) {
-            console.log(`Sending content chunk to user ${extWs.userId}:`, content);
-            extWs.send(JSON.stringify({ content }));
+            extWs.send(JSON.stringify({ 
+              content,
+              chatId: savedChat._id.toString()
+            }));
           } else {
             console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
             break;
           }
         }
 
+        // Send completion signal
         if (extWs.readyState === WebSocket.OPEN) {
-          // Include both user messages and the complete assistant response
           const allMessages = [...messages];
           allMessages.push({
             id: messages.length + 1,
@@ -218,104 +260,52 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
             isComplete: true
           });
 
-          // Save chat history and handle response
-          if (extWs.userId) {
-            try {
-              let savedChat;
-              
-              if (chatId && chatId !== 'undefined' && chatId !== 'null') {
-                // Update existing chat
-                try {
-                  // Verify chat exists and belongs to user
-                  const existingChat = await chatHistoryService.getSpecificChat(extWs.userId, chatId);
-                  if (!existingChat) {
-                    throw new Error('Chat not found');
-                  }
+          // Update chat with final messages
+          try {
+            const finalChat = await chatHistoryService.saveChatMessage(
+              extWs.userId!,
+              savedChat.modelId,
+              savedChat.collectionName || '',
+              allMessages,
+              savedChat._id.toString(),
+              savedChat.chatname
+            );
 
-                  // Update existing chat with new messages
-                  savedChat = await chatHistoryService.saveChatMessage(
-                    extWs.userId,
-                    existingChat.modelId || modelId,
-                    existingChat.collectionName || '',
-                    allMessages,
-                    chatId,
-                    existingChat.chatname
-                  );
+            extWs.send(JSON.stringify({ 
+              done: true,
+              chatId: finalChat._id.toString(),
+              isNewChat: !chatId,
+              shouldUpdateList: true,
+              timestamp: new Date().toISOString()
+            }));
 
-                  // Send completion signal with existing chat ID
-                  extWs.send(JSON.stringify({ 
-                    done: true,
-                    chatId: savedChat._id.toString(),
-                    isNewChat: false,
-                    shouldUpdateList: true,
-                    timestamp: new Date().toISOString()
-                  }));
-                } catch (error) {
-                  console.error('Error updating existing chat:', error);
-                  extWs.send(JSON.stringify({ 
-                    error: error instanceof Error ? error.message : 'Failed to update chat. Please try again.' 
-                  }));
-                  return;
-                }
-              } else {
-                // Create new chat
-                try {
-                  savedChat = await chatHistoryService.saveChatMessage(
-                    extWs.userId,
-                    modelId,
-                    '',
-                    allMessages,
-                    undefined,
-                    messages[0]?.content.substring(0, 50) + "..."
-                  );
-
-                  // Send completion signal with new chat ID
-                  extWs.send(JSON.stringify({ 
-                    done: true,
-                    chatId: savedChat._id.toString(),
-                    isNewChat: true,
-                    shouldUpdateList: true,
-                    timestamp: new Date().toISOString()
-                  }));
-
-                  // Broadcast to all connected clients of the same user
-                  wss.clients.forEach((client: WebSocket) => {
-                    const extClient = client as ExtendedWebSocket;
-                    if (extClient.userId === extWs.userId && extClient !== extWs) {
-                      extClient.send(JSON.stringify({
-                        shouldUpdateList: true,
-                        timestamp: new Date().toISOString()
-                      }));
-                    }
-                  });
-                } catch (error) {
-                  console.error('Error creating new chat:', error);
-                  extWs.send(JSON.stringify({ 
-                    error: error instanceof Error ? error.message : 'Failed to create new chat. Please try again.' 
-                  }));
-                  return;
-                }
+            // Broadcast to other clients of same user
+            wss.clients.forEach((client: WebSocket) => {
+              const extClient = client as ExtendedWebSocket;
+              if (extClient.userId === extWs.userId && extClient !== extWs) {
+                extClient.send(JSON.stringify({
+                  shouldUpdateList: true,
+                  timestamp: new Date().toISOString()
+                }));
               }
-              
-              console.log(`Chat history updated for user ${extWs.userId}, chatId: ${savedChat?._id}`);
-            } catch (error) {
-              console.error('Error saving chat history:', error);
-              extWs.send(JSON.stringify({ 
-                error: 'Failed to save chat history. Please try again.' 
-              }));
-            }
+            });
+          } catch (error) {
+            console.error('Error saving final chat:', error);
+            extWs.send(JSON.stringify({ 
+              error: 'Failed to save chat history' 
+            }));
           }
         }
       } catch (error) {
-        console.error(`Error generating response for user ${extWs.userId}:`, error);
+        console.error(`Error generating response:`, error);
         if (extWs.readyState === WebSocket.OPEN) {
           extWs.send(JSON.stringify({ 
-            error: 'An error occurred while generating the response. Please try again.' 
+            error: 'Error generating response' 
           }));
         }
       }
     } catch (error) {
-      console.error(`Error processing message from user ${extWs.userId}:`, error);
+      console.error(`Error processing message:`, error);
       if (extWs.readyState === WebSocket.OPEN) {
         extWs.send(JSON.stringify({ 
           error: error instanceof Error ? error.message : 'Invalid message format' 
