@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaStar, FaFolder } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaStar } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -47,7 +47,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const [newChatName, setNewChatName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('default');
-  const [folders, setFolders] = useState<string[]>(['default']);
 
   const handleTokenExpired = () => {
     localStorage.clear();
@@ -92,38 +91,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  const fetchFolders = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        handleTokenExpired();
-        return;
-      }
-
-      const response = await fetch(`${config.apiUrl}/api/chat/folders`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.status === 401) {
-        handleTokenExpired();
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch folders');
-      }
-
-      const data = await response.json();
-      setFolders(['default', ...data.filter((f: string) => f !== 'default')]);
-    } catch (error) {
-      console.error('Error fetching folders:', error);
-      setFolders(['default']);
-    }
-  };
-
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -132,11 +99,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
 
     fetchChatHistories();
-    fetchFolders();
     
     const handleChatUpdate = () => {
       fetchChatHistories();
-      fetchFolders();
     };
     
     window.addEventListener('chatUpdated', handleChatUpdate);
@@ -325,20 +290,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               </Link>
 
               <div className="px-4 py-2">
-                <select
-                  value={selectedFolder}
-                  onChange={(e) => setSelectedFolder(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
-                >
-                  {folders.map(folder => (
-                    <option key={folder} value={folder}>
-                      {folder === 'default' ? 'Default Folder' : folder}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="px-4 py-2">
                 <div className="relative">
                   <input
                     type="text"
@@ -413,18 +364,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                         </Link>
                         <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const newFolder = prompt('Enter folder name:', chat.folder || 'default');
-                              if (newFolder) handleMoveToFolder(chat._id, newFolder);
-                            }}
-                            className="p-1.5 text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-                            title="Move to folder"
-                          >
-                            <FaFolder className="w-3 h-3" />
-                          </button>
                           <button
                             onClick={(e) => {
                               e.preventDefault();
