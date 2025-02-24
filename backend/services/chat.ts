@@ -288,39 +288,83 @@ Remember: Your responses should be based on the provided context and documents.`
     return `${promptTemplate}\n\n${contexts.join("\n\n")}`;
   }
 
-  async *generateResponse(messages: ChatMessage[], query: string, modelId: string, collectionName: string): AsyncGenerator<string> {
+  async *generateResponse(
+    messages: ChatMessage[],
+    query: string,
+    modelIdOrCollections: string | string[]
+  ): AsyncGenerator<string> {
     try {
-      console.log('Starting generateResponse:', {
-        modelId,
-        collectionName,
-        messagesCount: messages.length,
-        query
-      });
-
-      if (!this.isRelevantQuestion(query)) {
-        console.log('Query not relevant');
-        yield 'Sorry, DinDin can only answer questions about Mae Fah Luang University.';
-        return;
+      console.log("Starting generateResponse with:", modelIdOrCollections);
+      
+      const lastMessage = messages[messages.length - 1];
+      const isImageGeneration = lastMessage.isImageGeneration;
+      
+      // Skip context retrieval for image generation
+      let context = '';
+      if (!isImageGeneration) {
+        const imageBase64 = lastMessage.images?.[0]?.data;
+        try {
+          context = await this.retryOperation(
+            async () => this.getContext(query, modelIdOrCollections, imageBase64),
+            'Failed to get context'
+          );
+        } catch (error) {
+          console.error('Error getting context:', error);
+          // Continue without context if there's an error
+        }
       }
-
-      console.log('Getting context for query:', query);
-      const context = await this.getContext(query, collectionName);
+      
       console.log('Retrieved context length:', context.length);
 
-      const augmentedMessages = [
+      const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
+      console.log('Question type:', questionType);
+
+      const systemMessages: ChatMessage[] = [
         {
-          role: 'system' as const,
-          content: `${this.systemPrompt}\n\nContext from documents:\n${context}`
-        },
-        ...messages
+          role: 'system',
+          content: isImageGeneration ? 
+            'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
+            this.systemPrompt
+        }
       ];
 
-      for await (const chunk of bedrockService.chat(augmentedMessages, modelId)) {
-        yield chunk;
+      // Only add context if we have it and not in image generation mode
+      if (context && !isImageGeneration) {
+        systemMessages.push({
+          role: 'system',
+          content: `Context from documents:\n${context}`
+        });
+      }
+
+      // Combine system messages with user messages
+      const augmentedMessages = [...systemMessages, ...messages];
+
+      let retryCount = 0;
+      while (retryCount < this.retryConfig.maxRetries) {
+        try {
+          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
+            yield chunk;
+          }
+          return;
+        } catch (error) {
+          console.error(`Error in chat generation (Attempt ${retryCount + 1}/${this.retryConfig.maxRetries}):`, error);
+          retryCount++;
+          
+          if (retryCount < this.retryConfig.maxRetries) {
+            const delay = Math.min(
+              this.retryConfig.baseDelay * Math.pow(2, retryCount),
+              this.retryConfig.maxDelay
+            );
+            await new Promise(resolve => setTimeout(resolve, delay));
+            yield "\n[Retrying due to error...]\n";
+          } else {
+            throw error;
+          }
+        }
       }
     } catch (error) {
-      console.error('Error in generateResponse:', error);
-      throw error;
+      console.error("Error in generateResponse:", error);
+      yield "\nI apologize, but I encountered an error while generating the response. Please try again or contact support if the issue persists.";
     }
   }
 

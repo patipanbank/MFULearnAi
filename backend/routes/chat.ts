@@ -3,11 +3,45 @@ import jwt from 'jsonwebtoken';
 import { chatHistoryService } from '../services/chatHistory';
 import { chatService } from '../services/chat';
 import { roleGuard } from '../middleware/roleGuard';
-import { ICollection, CollectionModel, CollectionPermission } from '../models/Collection';
+import { CollectionModel, CollectionPermission, CollectionDocument } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
+import { UserRole } from '../models/User';
 import { ChatHistory } from '../models/ChatHistory';
 
+interface ChatHistoryDocument {
+  _id: string;
+  userId: string;
+  modelId: string;
+  collectionName: string;
+  chatname: string;
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: Date;
+    images?: Array<{
+      data: string;
+      mediaType: string;
+    }>;
+    sources?: Array<{
+      modelId: string;
+      collectionName: string;
+      filename: string;
+      similarity: number;
+    }>;
+    isImageGeneration?: boolean;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const router = Router();
+const HEARTBEAT_INTERVAL = 30000;
+const CLIENT_TIMEOUT = 35000;
+
+interface ExtendedWebSocket extends WebSocket {
+  isAlive: boolean;
+  userId?: string;
+}
 
 // Middleware to verify token
 const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
@@ -30,28 +64,152 @@ const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
 
 router.use(verifyToken);
 
-const wss = new WebSocketServer({ port: 5001 });
-
-wss.on('connection', (ws: WebSocket) => {
-  console.log('Client connected');
-
-  ws.on('message', async (message: string) => {
+const wss = new WebSocketServer({ 
+  port: 5001,
+  path: '/ws',
+  clientTracking: true,
+  verifyClient: (info, cb) => {
     try {
-      const { messages, modelId, collectionName } = JSON.parse(message);
-      const lastMessage = messages[messages.length - 1];
-      const query = lastMessage.content;
-
-      console.log('Starting response generation');
+      const url = new URL(info.req.url!, `http://${info.req.headers.host}`);
+      const token = url.searchParams.get('token');
       
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-        console.log('Sending chunk:', content);
-        ws.send(JSON.stringify({ content }));
+      if (!token) {
+        console.log('WebSocket connection rejected: No token provided');
+        cb(false, 401, 'Unauthorized');
+        return;
       }
 
-      ws.send(JSON.stringify({ done: true }));
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+        (info.req as any).user = decoded;
+        console.log('WebSocket connection authorized for user:', decoded.username);
+        cb(true);
+      } catch (jwtError) {
+        console.error('JWT verification failed:', jwtError);
+        cb(false, 401, 'Invalid token');
+      }
     } catch (error) {
-      console.error('Error:', error);
-      ws.send(JSON.stringify({ error: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น' }));
+      console.error('WebSocket authentication error:', error);
+      cb(false, 401, 'Unauthorized');
+    }
+  }
+});
+
+function heartbeat(this: WebSocket) {
+  (this as ExtendedWebSocket).isAlive = true;
+}
+
+const interval = setInterval(() => {
+  wss.clients.forEach((ws: WebSocket) => {
+    const extWs = ws as ExtendedWebSocket;
+    if (!extWs.isAlive) {
+      console.log(`Terminating inactive connection for user: ${extWs.userId}`);
+      return ws.terminate();
+    }
+    extWs.isAlive = false;
+    extWs.ping();
+  });
+}, HEARTBEAT_INTERVAL);
+
+wss.on('close', () => {
+  clearInterval(interval);
+});
+
+wss.on('connection', (ws: WebSocket, req: Request) => {
+  const extWs = ws as ExtendedWebSocket;
+  extWs.isAlive = true;
+  
+  const url = new URL(req.url!, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token') || req.headers['authorization']?.split(' ')[1];
+  
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+      extWs.userId = decoded.username;
+      console.log(`WebSocket client connected: ${extWs.userId}`);
+    } catch (error) {
+      console.error('Invalid token in WebSocket connection:', error);
+      ws.close(1008, 'Invalid authentication token');
+      return;
+    }
+  } else {
+    console.error('No token found');
+    ws.close(1008, 'No authentication token provided');
+    return;
+  }
+
+  extWs.on('pong', heartbeat);
+
+  extWs.on('message', async (message: string) => {
+    try {
+      const data = JSON.parse(message.toString());
+      const { messages, modelId, chatId, chatname, folder } = data;
+
+      if (!messages || !Array.isArray(messages)) {
+        throw new Error('Invalid messages format');
+      }
+
+      if (!modelId) {
+        throw new Error('ModelId is required');
+      }
+
+      const query = messages[messages.length - 1].content;
+
+      try {
+        let assistantResponse = '';
+        for await (const content of chatService.generateResponse(messages, query, modelId)) {
+          assistantResponse += content;
+          if (extWs.readyState === WebSocket.OPEN) {
+            extWs.send(JSON.stringify({ content }));
+          } else {
+            break;
+          }
+        }
+
+        if (extWs.readyState === WebSocket.OPEN && extWs.userId) {
+          const allMessages = [
+            ...messages,
+            {
+              id: messages.length + 1,
+              role: 'assistant',
+              content: assistantResponse,
+              timestamp: new Date(),
+              isComplete: true
+            }
+          ];
+
+          const savedChat = await chatHistoryService.saveChatMessage(
+            extWs.userId,
+            modelId,
+            '',
+            allMessages,
+            chatId,
+            chatname,
+            folder
+          );
+
+          extWs.send(JSON.stringify({ 
+            done: true,
+            chatId: savedChat._id.toString(),
+            isNewChat: !chatId,
+            shouldUpdateList: true
+          }));
+        }
+      } catch (error) {
+        console.error('Error in chat processing:', error);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ 
+            error: 'An error occurred while processing your message' 
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing message:', error);
+      if (extWs.readyState === WebSocket.OPEN) {
+        extWs.send(JSON.stringify({ 
+          error: 'Invalid message format' 
+        }));
+      }
     }
   });
 });
@@ -59,12 +217,14 @@ wss.on('connection', (ws: WebSocket) => {
 router.post('/', async (req: Request, res: Response) => {
   console.log('Received chat request');
 
+  // 1. ส่ง headers ทันทีก่อนทำอย่างอื่น
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
 
-  res.write(':\n\n');
+  // 2. ส่ง initial response เพื่อเริ่ม stream
+  res.write(':\n\n');  // Keep-alive ping
   console.log('Sent initial response');
 
   try {
@@ -72,11 +232,13 @@ router.post('/', async (req: Request, res: Response) => {
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
+    // 3. ฟังก์ชันสำหรับส่งข้อมูล
     const sendChunk = (content: string) => {
       const data = JSON.stringify({ content });
       res.write(`data: ${data}\n\n`);
     };
 
+    // 4. ส่ง empty chunk เพื่อให้ frontend เริ่มอ่าน stream
     sendChunk('');
     
     console.log('Starting response generation');
@@ -88,7 +250,7 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     try {
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      for await (const content of chatService.generateResponse(messages, query, modelId)) {
         console.log('Sending chunk:', content);
         sendChunk(content);
       }
@@ -102,6 +264,7 @@ router.post('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Chat error details:', error);
     
+    // ถ้ายังไม่ได้ส่ง headers
     if (!res.headersSent) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -114,35 +277,40 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { messages, modelId, collectionName, chatId } = req.body;
+    const { messages, modelId, collectionName, chatname } = req.body;
+    // Get username and groups from user data
     const userId = (req.user as any)?.username || '';
+    const userGroups = (req.user as any)?.groups || [];
 
-    console.log('Received chat save request:', {
-      userId,
-      modelId,
-      collectionName,
-      chatId,
-      messagesCount: messages.length
-    });
+    if (!messages || !Array.isArray(messages)) {
+      res.status(400).json({ error: 'Invalid messages format' });
+      return;
+    }
+
+    if (!modelId) {
+      res.status(400).json({ error: 'ModelId is required' });
+      return;
+    }
+
+    // Process messages with optional images
+    const processedMessages = messages.map((msg: any) => ({
+      ...msg,
+      images: msg.images ? msg.images.map((img: any) => ({
+        data: img.data,
+        mediaType: img.mediaType
+      })) : undefined
+    }));
 
     const history = await chatHistoryService.saveChatMessage(
       userId,
       modelId,
       collectionName,
-      messages,
-      chatId
+      processedMessages,
+      undefined, // chatId
+      chatname // Pass the chatname
     );
-
-    if (history) {
-      console.log('Saved chat result:', {
-        _id: history._id,
-        chatId: chatId,
-        isNewChat: !chatId
-      });
-    }
-
     res.json(history);
   } catch (error) {
     console.error('Error saving chat history:', error);
@@ -152,12 +320,168 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: 
 
 router.get('/history', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const userId = (req.user as any)?.username || '';
-    const history = await chatHistoryService.getChatHistory(userId);
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const folder = req.query.folder as string;
+
+    const history = await chatHistoryService.getChatHistory(userId, page, limit, folder);
     res.json(history);
   } catch (error) {
     console.error('Error getting chat history:', error);
-    res.status(500).json({ error: 'Failed to get chat history' });
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to get chat history' 
+    });
+  }
+});
+
+router.get('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const chat = await chatHistoryService.getSpecificChat(userId, req.params.chatId);
+    res.json(chat);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Chat not found') {
+      res.status(404).json({ error: 'Chat not found' });
+    } else {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to get chat' 
+      });
+    }
+  }
+});
+
+// Update chat
+router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const { chatId } = req.params;
+    const { messages, modelId } = req.body;
+    
+    // Update the chat with new data
+    const updatedChat = await chatHistoryService.saveChatMessage(
+      userId,
+      modelId || '',
+      '',  // collectionName is optional
+      messages,
+      chatId
+    );
+    
+    res.json(updatedChat);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Chat not found') {
+      res.status(404).json({ error: 'Chat not found' });
+    } else {
+      console.error('Error updating chat:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to update chat' 
+      });
+    }
+  }
+});
+
+// Delete specific chat
+router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    await ChatHistory.findOneAndDelete({ _id: req.params.chatId, userId });
+    res.json({ success: true, message: 'Chat deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to delete chat' 
+    });
+  }
+});
+
+// Export chat
+router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const { chatId } = req.params;
+    const chat = await chatHistoryService.getSpecificChat(userId, chatId);
+    res.json(chat);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Chat not found') {
+      res.status(404).json({ error: 'Chat not found' });
+    } else {
+      console.error('Error exporting chat:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to export chat' 
+      });
+    }
+  }
+});
+
+// Import chat
+router.post('/history/import', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username || '';
+    const { messages, chatname } = req.body;
+    
+    const importedChat = await chatHistoryService.saveChatMessage(
+      userId,
+      '',  // modelId is not stored in ChatHistory
+      '',  // collectionName is not stored in ChatHistory
+      messages
+    );
+    
+    res.json(importedChat);
+  } catch (error) {
+    console.error('Error importing chat:', error);
+    res.status(500).json({ error: 'Failed to import chat' });
+  }
+});
+
+router.delete('/clear', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const result = await chatHistoryService.clearChatHistory(userId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to clear chat history' 
+    });
+  }
+});
+
+router.post('/chat', async (req, res) => {
+  try {
+    const { messages, modelId } = req.body;
+    const text = messages[messages.length - 1].content;
+    
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -165,9 +489,17 @@ router.get('/collections', async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     
+    // ดึงข้อมูล collections จาก MongoDB
     const collections = await CollectionModel.find({});
     
-    const accessibleCollections = collections.filter((collection: ICollection) => {
+    // Admin can access all collections
+    if (user.groups.includes('Admin')) {
+      res.json(collections.map(c => c.name));
+      return;
+    }
+    
+    // กรองตามสิทธิ์
+    const accessibleCollections = collections.filter(collection => {
       switch (collection.permission) {
         case CollectionPermission.PUBLIC:
           return true;
@@ -180,53 +512,107 @@ router.get('/collections', async (req: Request, res: Response) => {
       }
     });
 
-    res.json(accessibleCollections.map((c: ICollection) => c.name));
+    // ส่งเฉพาะชื่อ collection ที่มีสิทธิ์
+    res.json(accessibleCollections.map(c => c.name));
   } catch (error) {
     console.error('Error fetching collections:', error);
     res.status(500).json({ error: 'Failed to fetch collections' });
   }
 });
 
-router.get('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+async function checkCollectionAccess(user: any, collection: any): Promise<boolean> {
+  return user.groups.includes('Admin') || 
+         user.groups.includes('Staffs') || 
+         collection.createdBy === (user.nameID || user.username);
+}
+
+// Rename chat
+router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.user as any)?.username || '';
-    const chatId = req.params.id;
-    
-    const chat = await ChatHistory.findOne({ 
-      _id: chatId,
-      userId: userId
-    });
-
-    if (!chat) {
-      res.status(404).json({ error: 'Chat history not found' });
-    }
-
-    res.json(chat);
-  } catch (error) {
-    console.error('Error getting chat history:', error);
-    res.status(500).json({ error: 'Failed to get chat history' });
-  }
-});
-
-router.delete('/history/:id', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username || '';
-    const chatId = req.params.id;
-
-    const result = await ChatHistory.deleteOne({
-      _id: chatId,
-      userId: userId
-    });
-
-    if (result.deletedCount === 0) {
-      res.status(404).json({ error: 'Chat history not found' });
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
       return;
     }
 
-    res.json({ success: true, message: 'Chat history deleted successfully' });
+    const { chatId } = req.params;
+    const { newName } = req.body;
+
+    // First verify the chat exists and belongs to the user
+    const chat = await chatHistoryService.getSpecificChat(userId, chatId);
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    
+    // Update only the chat name
+    const updatedChat = await ChatHistory.findByIdAndUpdate(
+      chatId,
+      { chatname: newName },
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedChat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    
+    res.json(updatedChat);
   } catch (error) {
-    console.error('Error deleting chat history:', error);
-    res.status(500).json({ error: 'Failed to delete chat history' });
+    console.error('Error renaming chat:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to rename chat' 
+    });
+  }
+});
+
+router.put('/history/:chatId/pin', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    const chatId = req.params.chatId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    // Verify chat exists and belongs to user
+    const chat = await chatHistoryService.getSpecificChat(userId, chatId);
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+
+    // Toggle isPinned status
+    const updatedChat = await chatHistoryService.togglePinChat(userId, chatId);
+    res.json(updatedChat);
+  } catch (error) {
+    console.error('Error toggling chat pin status:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to toggle chat pin status' 
+    });
+  }
+});
+
+router.put('/history/:chatId/move', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const { folder } = req.body;
+    const chat = await chatHistoryService.moveToFolder(userId, req.params.chatId, folder);
+    res.json(chat);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Chat not found') {
+      res.status(404).json({ error: 'Chat not found' });
+    } else {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to move chat' 
+      });
+    }
   }
 });
 
