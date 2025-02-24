@@ -237,7 +237,7 @@ const MFUChatbot: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
+      const response = await fetch(`${config.apiUrl}/api/chat/chats/${chatId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -245,7 +245,8 @@ const MFUChatbot: React.FC = () => {
 
       if (response.ok) {
         const chat: ChatHistory = await response.json();
-        setCurrentChatId(chat._id.$oid);
+        console.log('Loaded chat:', chat); // Debug loaded chat data
+        setCurrentChatId(chat._id.toString());  // Convert MongoDBId to string
         if (chat.modelId) {
           setSelectedModel(chat.modelId);
         }
@@ -262,7 +263,8 @@ const MFUChatbot: React.FC = () => {
           setMessages(processedMessages);
         }
       } else {
-        console.error('Chat not found');
+        const errorData = await response.text();
+        console.error('Failed to load chat:', errorData);
         startNewChat();
       }
     } catch (error) {
