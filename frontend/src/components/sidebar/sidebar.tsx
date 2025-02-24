@@ -419,9 +419,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                 <div className="font-medium truncate">
                                   {chat.chatname || 'Untitled Chat'}
                                 </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                  {chat.messages[chat.messages.length - 1]?.content || 'No messages'}
-                                </div>
                               </div>
                             </div>
                           </Link>
