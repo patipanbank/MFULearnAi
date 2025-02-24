@@ -107,8 +107,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       const data = await response.json();
       console.log('Chat histories data:', data); // Debug response data
       
-      if (data && data.data && Array.isArray(data.data)) {
-        setChatHistories(data.data);
+      if (data && data.chats && Array.isArray(data.chats)) {
+        setChatHistories(data.chats);
       } else if (data && Array.isArray(data)) {
         setChatHistories(data);
       } else if (data && data.messages) {
