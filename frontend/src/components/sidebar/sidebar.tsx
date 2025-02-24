@@ -28,9 +28,11 @@ interface Message {
 interface ChatHistory {
   _id: string;
   chatname: string;
+  name: string;
   modelId: string;
-  collectionName: string;
   messages: Message[];
+  isPinned: boolean;
+  updatedAt: Date;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
@@ -273,19 +275,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   const filteredChats = chatHistories.filter(chat => 
-    chat.chatname.toLowerCase().includes(searchQuery.toLowerCase())
+    (chat.chatname || chat.name || 'Untitled Chat').toLowerCase().includes(searchQuery.toLowerCase())
   );
   console.log('Filtered chats:', filteredChats); // Debug filtered chats
 
   const sortedChats = [...filteredChats].sort((a, b) => {
     // First sort by pinned status
-    const isPinnedA = pinnedChats.includes(a._id);
-    const isPinnedB = pinnedChats.includes(b._id);
-    if (isPinnedA !== isPinnedB) return isPinnedB ? 1 : -1;
+    if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
     
-    // Then sort by most recent
-    return new Date(b.messages[b.messages.length - 1]?.timestamp || 0).getTime() -
-           new Date(a.messages[a.messages.length - 1]?.timestamp || 0).getTime();
+    // Then sort by updatedAt timestamp
+    return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
   });
   console.log('Sorted chats:', sortedChats); // Debug sorted chats
 
