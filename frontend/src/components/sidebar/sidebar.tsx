@@ -35,6 +35,14 @@ interface ChatHistory {
   updatedAt: Date;
 }
 
+interface RenameState {
+  isEditing: boolean;
+  chatId: string | null;
+  newName: string;
+  isLoading: boolean;
+  error: string | null;
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,6 +55,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const [newChatName, setNewChatName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
+  const [renameState, setRenameState] = useState<RenameState>({
+    isEditing: false,
+    chatId: null,
+    newName: '',
+    isLoading: false,
+    error: null
+  });
 
   const handleTokenExpired = () => {
     localStorage.clear();
@@ -216,20 +231,46 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   const handleEdit = (chatId: string, currentName: string) => {
-    setEditingChatId(chatId);
-    setNewChatName(currentName);
+    setRenameState({
+      isEditing: true,
+      chatId,
+      newName: currentName,
+      isLoading: false,
+      error: null
+    });
   };
 
   const handleSaveEdit = async (chatId: string) => {
     try {
+      // Validate chat name
+      if (!renameState.newName.trim()) {
+        setRenameState(prev => ({ ...prev, error: 'Chat name cannot be empty' }));
+        return;
+      }
+
+      if (renameState.newName.length > 100) {
+        setRenameState(prev => ({ ...prev, error: 'Chat name too long (max 100 characters)' }));
+        return;
+      }
+
+      // Sanitize chat name
+      const sanitizedName = renameState.newName.trim().replace(/[<>]/g, '');
+
       const token = localStorage.getItem('auth_token');
+      if (!token) {
+        handleTokenExpired();
+        return;
+      }
+
+      setRenameState(prev => ({ ...prev, isLoading: true, error: null }));
+
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/rename`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ newName: newChatName })
+        body: JSON.stringify({ newName: sanitizedName })
       });
 
       if (response.status === 401) {
@@ -237,12 +278,50 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         return;
       }
 
-      if (response.ok) {
-        setEditingChatId(null);
-        fetchChatHistories();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to rename chat');
       }
+
+      // Reset rename state and refresh chat list
+      setRenameState({
+        isEditing: false,
+        chatId: null,
+        newName: '',
+        isLoading: false,
+        error: null
+      });
+      
+      fetchChatHistories();
+
     } catch (error) {
       console.error('Error updating chat name:', error);
+      setRenameState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Failed to rename chat',
+        isLoading: false
+      }));
+    }
+  };
+
+  const cancelEdit = () => {
+    setRenameState({
+      isEditing: false,
+      chatId: null,
+      newName: '',
+      isLoading: false,
+      error: null
+    });
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (renameState.chatId) {
+        handleSaveEdit(renameState.chatId);
+      }
+    } else if (e.key === 'Escape') {
+      cancelEdit();
     }
   };
 
@@ -369,29 +448,55 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                     <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
                       {editingChatId === chat._id ? (
                         <div className="flex-1 flex items-center p-2 md:p-3">
-                          <input
-                            type="text"
-                            value={newChatName}
-                            onChange={(e) => setNewChatName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveEdit(chat._id);
-                              if (e.key === 'Escape') setEditingChatId(null);
-                            }}
-                            className="flex-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => handleSaveEdit(chat._id)}
-                            className="ml-2 p-1 text-green-500 hover:text-green-600"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={() => setEditingChatId(null)}
-                            className="p-1 text-red-500 hover:text-red-600"
-                          >
-                            ✕
-                          </button>
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              value={renameState.newName}
+                              onChange={(e) => setRenameState(prev => ({ ...prev, newName: e.target.value, error: null }))}
+                              onKeyDown={handleRenameKeyDown}
+                              className={`w-full px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border 
+                                ${renameState.error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} 
+                                rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm`}
+                              autoFocus
+                              disabled={renameState.isLoading}
+                              placeholder="Enter new name..."
+                              maxLength={100}
+                            />
+                            {renameState.error && (
+                              <div className="absolute -bottom-6 left-0 text-xs text-red-500">
+                                {renameState.error}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 ml-2">
+                            <button
+                              onClick={() => handleSaveEdit(chat._id)}
+                              disabled={renameState.isLoading}
+                              className={`p-1.5 rounded-lg transition-colors
+                                ${renameState.isLoading 
+                                  ? 'bg-gray-300 cursor-not-allowed' 
+                                  : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30'}`}
+                              title="Save"
+                            >
+                              {renameState.isLoading ? (
+                                <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              disabled={renameState.isLoading}
+                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                              title="Cancel"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
