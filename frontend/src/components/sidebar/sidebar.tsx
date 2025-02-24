@@ -523,7 +523,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               </button>
                               <div className="flex-1 min-w-0 overflow-hidden">
                                 <div className="font-medium truncate">
-                                  {chat.chatname || 'Untitled Chat'}
+                                  {chat.name || chat.chatname || 'Untitled Chat'}
                                 </div>
                               </div>
                             </div>

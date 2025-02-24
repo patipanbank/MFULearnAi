@@ -665,10 +665,23 @@ router.put('/history/:chatId/rename',
         return;
       }
 
-      // Update chat name
-      chat.name = newName.trim();
-      chat.updatedAt = new Date();
-      await chat.save();
+      // Update both name and chatname fields
+      const updatedChat = await Chat.findOneAndUpdate(
+        { _id: chatId, userId },
+        { 
+          $set: {
+            name: newName.trim(),
+            chatname: newName.trim(),
+            updatedAt: new Date()
+          }
+        },
+        { new: true }
+      );
+
+      if (!updatedChat) {
+        res.status(404).json({ error: 'Chat not found or unauthorized' });
+        return;
+      }
 
       // Log the change
       console.log(`Chat ${chatId} renamed to "${newName}" by user ${userId}`);
@@ -676,9 +689,9 @@ router.put('/history/:chatId/rename',
       res.json({
         success: true,
         chat: {
-          id: chat._id,
-          name: chat.name,
-          updatedAt: chat.updatedAt
+          id: updatedChat._id,
+          name: updatedChat.name,
+          updatedAt: updatedChat.updatedAt
         }
       });
 
