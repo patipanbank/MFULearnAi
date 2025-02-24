@@ -419,14 +419,21 @@ Remember: Your responses should be based on the provided context and documents.`
     const lastMessage = messages[messages.length - 1];
     const chatName = lastMessage.content.substring(0, 50);
 
+    // Convert MongoDB dates to JavaScript Date objects
+    const processedMessages = messages.map(msg => ({
+      ...msg,
+      timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
+      images: msg.images || [],
+      sources: msg.sources || [],
+      isImageGeneration: msg.isImageGeneration || false,
+      isComplete: msg.isComplete || false
+    }));
+
     const chat = new Chat({
       userId,
       modelId,
       name: chatName,
-      messages: messages.map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp || new Date()
-      }))
+      messages: processedMessages
     });
 
     await chat.save();
@@ -434,16 +441,28 @@ Remember: Your responses should be based on the provided context and documents.`
   }
 
   async updateChat(chatId: string, userId: string, messages: any[]) {
-    const chat = await Chat.findOne({ _id: chatId, userId });
+    const chat = await Chat.findOneAndUpdate(
+      { _id: chatId, userId },
+      {
+        $set: {
+          name: messages[messages.length - 1].content.substring(0, 50),
+          messages: messages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
+            images: msg.images || [],
+            sources: msg.sources || [],
+            isImageGeneration: msg.isImageGeneration || false,
+            isComplete: msg.isComplete || false
+          }))
+        }
+      },
+      { new: true }
+    );
+
     if (!chat) {
       throw new Error('Chat not found');
     }
 
-    const lastMessage = messages[messages.length - 1];
-    chat.name = lastMessage.content.substring(0, 50);
-    chat.set('messages', messages);
-    
-    await chat.save();
     return chat;
   }
 
