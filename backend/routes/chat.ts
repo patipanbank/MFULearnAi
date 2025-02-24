@@ -431,14 +431,20 @@ router.get('/chats/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (
     const chat = await chatService.getChat(userId, chatId);
     res.json(chat);
   } catch (error) {
-    if (error instanceof Error && error.message === 'Chat not found') {
-      res.status(404).json({ error: 'Chat not found' });
-    } else {
-      console.error('Error getting chat:', error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : 'Failed to get chat' 
-      });
+    if (error instanceof Error) {
+      if (error.message === 'Invalid chat ID format') {
+        res.status(400).json({ error: 'Invalid chat ID format. Chat ID must be a 24-character hex string.' });
+        return;
+      }
+      if (error.message === 'Chat not found') {
+        res.status(404).json({ error: 'Chat not found' });
+        return;
+      }
     }
+    console.error('Error getting chat:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to get chat' 
+    });
   }
 });
 
@@ -452,20 +458,25 @@ router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async
     }
 
     const { chatId } = req.params;
-    const { messages, modelId } = req.body;
+    const { messages } = req.body;
     
-    // Update the chat with new data
     const updatedChat = await chatService.updateChat(chatId, userId, messages);
     res.json(updatedChat);
   } catch (error) {
-    if (error instanceof Error && error.message === 'Chat not found') {
-      res.status(404).json({ error: 'Chat not found' });
-    } else {
-      console.error('Error updating chat:', error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : 'Failed to update chat' 
-      });
+    if (error instanceof Error) {
+      if (error.message === 'Invalid chat ID format') {
+        res.status(400).json({ error: 'Invalid chat ID format. Chat ID must be a 24-character hex string.' });
+        return;
+      }
+      if (error.message === 'Chat not found') {
+        res.status(404).json({ error: 'Chat not found' });
+        return;
+      }
     }
+    console.error('Error updating chat:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to update chat' 
+    });
   }
 });
 
@@ -482,14 +493,20 @@ router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), as
     await chatService.deleteChat(chatId, userId);
     res.json({ success: true, message: 'Chat deleted successfully' });
   } catch (error) {
-    if (error instanceof Error && error.message === 'Chat not found') {
-      res.status(404).json({ error: 'Chat not found' });
-    } else {
-      console.error('Error deleting chat:', error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : 'Failed to delete chat' 
-      });
+    if (error instanceof Error) {
+      if (error.message === 'Invalid chat ID format') {
+        res.status(400).json({ error: 'Invalid chat ID format. Chat ID must be a 24-character hex string.' });
+        return;
+      }
+      if (error.message === 'Chat not found or unauthorized') {
+        res.status(404).json({ error: 'Chat not found or you are not authorized to delete it' });
+        return;
+      }
     }
+    console.error('Error deleting chat:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to delete chat' 
+    });
   }
 });
 

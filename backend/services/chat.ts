@@ -407,12 +407,35 @@ Remember: Your responses should be based on the provided context and documents.`
     return { chats, totalPages, hasMore };
   }
 
-  async getChat(chatId: string, userId: string) {
-    const chat = await Chat.findOne({ _id: chatId, userId });
-    if (!chat) {
-      throw new Error('Chat not found');
+  private isValidObjectId(id: string | null): boolean {
+    if (!id) return false;
+    return /^[0-9a-fA-F]{24}$/.test(id);
+  }
+
+  async getChat(userId: string, chatId: string) {
+    try {
+      if (!this.isValidObjectId(chatId)) {
+        throw new Error('Invalid chat ID format');
+      }
+
+      const chat = await Chat.findOne({ _id: chatId, userId });
+      if (!chat) {
+        throw new Error('Chat not found');
+      }
+      return chat;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Invalid chat ID format') {
+          throw error;
+        }
+        if (error.message === 'Chat not found') {
+          throw error;
+        }
+        console.error('Error getting chat:', error);
+        throw new Error('Failed to get chat');
+      }
+      throw error;
     }
-    return chat;
   }
 
   async saveChat(userId: string, modelId: string, messages: any[]) {
@@ -441,37 +464,73 @@ Remember: Your responses should be based on the provided context and documents.`
   }
 
   async updateChat(chatId: string, userId: string, messages: any[]) {
-    const chat = await Chat.findOneAndUpdate(
-      { _id: chatId, userId },
-      {
-        $set: {
-          name: messages[messages.length - 1].content.substring(0, 50),
-          messages: messages.map(msg => ({
-            ...msg,
-            timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
-            images: msg.images || [],
-            sources: msg.sources || [],
-            isImageGeneration: msg.isImageGeneration || false,
-            isComplete: msg.isComplete || false
-          }))
+    try {
+      if (!this.isValidObjectId(chatId)) {
+        throw new Error('Invalid chat ID format');
+      }
+
+      const chat = await Chat.findOneAndUpdate(
+        { _id: chatId, userId },
+        {
+          $set: {
+            name: messages[messages.length - 1].content.substring(0, 50),
+            messages: messages.map(msg => ({
+              ...msg,
+              timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
+              images: msg.images || [],
+              sources: msg.sources || [],
+              isImageGeneration: msg.isImageGeneration || false,
+              isComplete: msg.isComplete || false
+            }))
+          }
+        },
+        { new: true }
+      );
+
+      if (!chat) {
+        throw new Error('Chat not found');
+      }
+
+      return chat;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Invalid chat ID format') {
+          throw error;
         }
-      },
-      { new: true }
-    );
-
-    if (!chat) {
-      throw new Error('Chat not found');
+        if (error.message === 'Chat not found') {
+          throw error;
+        }
+        console.error('Error updating chat:', error);
+        throw new Error('Failed to update chat');
+      }
+      throw error;
     }
-
-    return chat;
   }
 
   async deleteChat(chatId: string, userId: string) {
-    const result = await Chat.deleteOne({ _id: chatId, userId });
-    if (result.deletedCount === 0) {
-      throw new Error('Chat not found or unauthorized');
+    try {
+      if (!this.isValidObjectId(chatId)) {
+        throw new Error('Invalid chat ID format');
+      }
+
+      const result = await Chat.deleteOne({ _id: chatId, userId });
+      if (result.deletedCount === 0) {
+        throw new Error('Chat not found or unauthorized');
+      }
+      return true;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Invalid chat ID format') {
+          throw error;
+        }
+        if (error.message === 'Chat not found or unauthorized') {
+          throw error;
+        }
+        console.error('Error deleting chat:', error);
+        throw new Error('Failed to delete chat');
+      }
+      throw error;
     }
-    return true;
   }
 
   async togglePinChat(chatId: string, userId: string) {
