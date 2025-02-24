@@ -51,7 +51,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
   const currentChatId = searchParams.get('chat');
-  // const [editingChatId,] = useState<string | null>(null);
+  // const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingChatId,] = useState<string | null>(null);
+  // const [newChatName, setNewChatName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
   const [renameState, setRenameState] = useState<RenameState>({
@@ -269,7 +271,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ newChatname: sanitizedName })
+        body: JSON.stringify({ newName: sanitizedName })
       });
 
       if (response.status === 401) {
@@ -445,7 +447,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 <div className="mt-1 space-y-0.5">
                   {sortedChats.map((chat) => (
                     <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
-                      {renameState.isEditing && renameState.chatId === chat._id ? (
+                      {editingChatId === chat._id ? (
                         <div className="flex-1 flex items-center p-2 md:p-3">
                           <div className="relative flex-1">
                             <input
