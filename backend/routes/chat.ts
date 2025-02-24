@@ -185,41 +185,40 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
       // จัดการ chat ก่อนเริ่มส่งคำตอบ
       let savedChat;
+      let currentChatId: string;
       try {
-        if (path === '/mfuchatbot' && !chatId) {
+        if (!chatId) {
           savedChat = await chatService.saveChat(extWs.userId!, modelId, messages);
-          console.log('Created new chat:', savedChat._id);
-        } else if (chatId) {
-          savedChat = await chatService.updateChat(chatId, extWs.userId!, messages);
-          console.log('Updated existing chat:', savedChat._id);
+          currentChatId = savedChat._id.toString();
+          console.log('Created new chat:', currentChatId);
+          // Send chatId immediately after creation
+          if (extWs.readyState === WebSocket.OPEN) {
+            extWs.send(JSON.stringify({ 
+              type: 'chat_created',
+              chatId: currentChatId
+            }));
+          }
         } else {
-          throw new Error('Invalid path or chatId configuration');
+          savedChat = await chatService.updateChat(chatId, extWs.userId!, messages);
+          currentChatId = chatId;
+          console.log('Updated existing chat:', currentChatId);
         }
-      } catch (error) {
-        console.error('Error handling chat:', error);
-        if (extWs.readyState === WebSocket.OPEN) {
-          extWs.send(JSON.stringify({ 
-            error: error instanceof Error ? error.message : 'Failed to handle chat' 
-          }));
-        }
-        return;
-      }
 
-      const query = isImageGeneration
-        ? messages[messages.length - 1].content
-        : messages.map(msg => msg.content).join('\n');
+        // Get query from last message
+        const query = isImageGeneration
+          ? messages[messages.length - 1].content
+          : messages.map(msg => msg.content).join('\n');
 
-      try {
+        // Generate response and send chunks
         console.log('Starting response generation...');
         let assistantResponse = '';
         
-        // Generate response and send chunks
         for await (const content of chatService.generateResponse(messages, query, modelId)) {
           assistantResponse += content;
           if (extWs.readyState === WebSocket.OPEN) {
             extWs.send(JSON.stringify({ 
-              content,
-              chatId: savedChat._id.toString()
+              type: 'content',
+              content
             }));
           } else {
             console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
@@ -243,15 +242,14 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           // Update chat with final messages
           try {
             const finalChat = await chatService.updateChat(
-              savedChat._id.toString(),
+              currentChatId,
               extWs.userId!,
               allMessages
             );
 
             extWs.send(JSON.stringify({ 
-              done: true,
-              chatId: finalChat._id.toString(),
-              isNewChat: !chatId,
+              type: 'complete',
+              chatId: currentChatId,
               shouldUpdateList: true,
               timestamp: new Date().toISOString()
             }));
@@ -261,6 +259,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
               const extClient = client as ExtendedWebSocket;
               if (extClient.userId === extWs.userId && extClient !== extWs) {
                 extClient.send(JSON.stringify({
+                  type: 'chat_updated',
                   shouldUpdateList: true,
                   timestamp: new Date().toISOString()
                 }));
@@ -269,6 +268,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           } catch (error) {
             console.error('Error saving final chat:', error);
             extWs.send(JSON.stringify({ 
+              type: 'error',
               error: 'Failed to save chat history' 
             }));
           }
@@ -277,6 +277,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         console.error(`Error generating response:`, error);
         if (extWs.readyState === WebSocket.OPEN) {
           extWs.send(JSON.stringify({ 
+            type: 'error',
             error: 'Error generating response' 
           }));
         }
@@ -285,6 +286,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       console.error(`Error processing message:`, error);
       if (extWs.readyState === WebSocket.OPEN) {
         extWs.send(JSON.stringify({ 
+          type: 'error',
           error: error instanceof Error ? error.message : 'Invalid message format' 
         }));
       }
