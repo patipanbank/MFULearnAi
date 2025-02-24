@@ -88,18 +88,9 @@ class ChatHistoryService {
       const finalChatname = chatname || (() => {
         const firstUserMessage = messages.find(msg => msg.role === 'user');
         return firstUserMessage 
-          ? firstUserMessage.content.slice(0, 10) + (firstUserMessage.content.length > 10 ? '...' : '')
+          ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
           : 'New Chat';
       })();
-
-      // เพิ่ม log เพื่อตรวจสอบ
-      console.log('Saving chat message:', {
-        userId,
-        modelId,
-        collectionName,
-        chatId,
-        messagesCount: messages.length
-      });
 
       // Validate and process messages
       const processedMessages = messages.map((msg, index) => {
@@ -136,14 +127,12 @@ class ChatHistoryService {
       });
 
       if (!chatId) {
-        console.log('Creating new chat');
         const existingChat = await ChatHistory.findOne({ 
           userId, 
           chatname: finalChatname 
         });
         
         if (existingChat) {
-          console.log('Updating existing chat with same name:', existingChat._id);
           // Update existing chat instead of creating new one
           const updatedChat = await ChatHistory.findByIdAndUpdate(
             existingChat._id,
@@ -158,7 +147,6 @@ class ChatHistoryService {
             throw new Error('Failed to update existing chat');
           }
           
-          console.log('Updated chat result:', updatedChat._id);
           return updatedChat;
         }
 
@@ -171,10 +159,8 @@ class ChatHistoryService {
           updatedAt: new Date()
         });
         
-        console.log('Created new chat:', history._id);
         return history;
       } else {
-        console.log('Updating existing chat:', chatId);
         const history = await ChatHistory.findByIdAndUpdate(
           chatId,
           {
@@ -188,7 +174,6 @@ class ChatHistoryService {
           throw new Error('Chat not found');
         }
         
-        console.log('Updated chat result:', history._id);
         return history;
       }
     } catch (error) {
