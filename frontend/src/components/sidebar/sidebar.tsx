@@ -132,23 +132,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
     fetchChatHistories();
     
-    // เพิ่ม event listener สำหรับอัพเดทแบบ realtime
-    const handleChatUpdate = () => {
-      fetchChatHistories();
-    };
+    // WebSocket connection
+    const ws = new WebSocket(`${config.wsUrl}?token=${token}`);
     
-    window.addEventListener('chatUpdated', handleChatUpdate);
-
-    // Listen for chat history updates
-    const handleChatHistoryUpdate = () => {
-      fetchChatHistories();
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.shouldUpdateList) {
+        console.log('Received update signal, refreshing chat list');
+        fetchChatHistories();
+      }
     };
 
-    window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
-
+    // Cleanup WebSocket connection
     return () => {
-      window.removeEventListener('chatUpdated', handleChatUpdate);
-      window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+      ws.close();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

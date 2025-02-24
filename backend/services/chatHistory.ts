@@ -1,4 +1,5 @@
 import { ChatHistory } from '../models/ChatHistory';
+import mongoose from 'mongoose';
 
 interface PaginationResult<T> {
   data: T[];
@@ -84,97 +85,86 @@ class ChatHistoryService {
         throw new Error('Messages array is required and must not be empty');
       }
 
-      // Use provided chatname or generate from first message as fallback
+      // Process messages
+      const processedMessages = messages.map(msg => ({
+        ...msg,
+        timestamp: msg.timestamp || new Date()
+      }));
+
+      // Use provided chatname or generate from first message
       const finalChatname = chatname || (() => {
         const firstUserMessage = messages.find(msg => msg.role === 'user');
         return firstUserMessage 
-          ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
-          : 'New Chat';
+          ? firstUserMessage.content.substring(0, 50) + "..."
+          : "New Chat";
       })();
 
-      // Validate and process messages
-      const processedMessages = messages.map((msg, index) => {
-        this.validateMessage(msg);
-        let timestamp;
-        try {
-          if (msg.timestamp?.$date) {
-            timestamp = new Date(msg.timestamp.$date);
-          } else if (msg.timestamp) {
-            timestamp = new Date(msg.timestamp);
-          } else {
-            timestamp = new Date();
-          }
+      // Start a session for atomic operations
+      const session = await mongoose.startSession();
+      session.startTransaction();
+
+      try {
+        if (!chatId) {
+          // Check for existing chat with same name
+          const existingChat = await ChatHistory.findOne({ 
+            userId, 
+            chatname: finalChatname 
+          }).session(session);
           
-          if (isNaN(timestamp.getTime())) {
-            timestamp = new Date();
+          if (existingChat) {
+            // Update existing chat
+            const updatedChat = await ChatHistory.findByIdAndUpdate(
+              existingChat._id,
+              {
+                messages: processedMessages,
+                updatedAt: new Date()
+              },
+              { new: true, runValidators: true, session }
+            );
+            
+            if (!updatedChat) {
+              throw new Error('Failed to update existing chat');
+            }
+            
+            await session.commitTransaction();
+            return updatedChat;
           }
-        } catch (error) {
-          timestamp = new Date();
-        }
 
-        return {
-          id: index + 1,
-          role: msg.role as 'user' | 'assistant' | 'system',
-          content: String(msg.content || ''),
-          timestamp: timestamp,
-          images: msg.images ? msg.images.map((img: any) => ({
-            data: img.data,
-            mediaType: img.mediaType
-          })) : undefined,
-          sources: msg.sources || [],
-          isImageGeneration: msg.isImageGeneration || false
-        };
-      });
-
-      if (!chatId) {
-        const existingChat = await ChatHistory.findOne({ 
-          userId, 
-          chatname: finalChatname 
-        });
-        
-        if (existingChat) {
-          // Update existing chat instead of creating new one
-          const updatedChat = await ChatHistory.findByIdAndUpdate(
-            existingChat._id,
+          // Create new chat
+          const history = await ChatHistory.create([{
+            userId,
+            modelId,
+            collectionName,
+            chatname: finalChatname,
+            messages: processedMessages,
+            updatedAt: new Date()
+          }], { session });
+          
+          await session.commitTransaction();
+          return history[0];
+        } else {
+          // Update existing chat by ID
+          const history = await ChatHistory.findByIdAndUpdate(
+            chatId,
             {
               messages: processedMessages,
               updatedAt: new Date()
             },
-            { new: true, runValidators: true }
+            { new: true, runValidators: true, session }
           );
           
-          if (!updatedChat) {
-            throw new Error('Failed to update existing chat');
+          if (!history) {
+            throw new Error('Chat not found');
           }
           
-          return updatedChat;
+          await session.commitTransaction();
+          return history;
         }
-
-        const history = await ChatHistory.create({
-          userId,
-          modelId,
-          collectionName,
-          chatname: finalChatname,
-          messages: processedMessages,
-          updatedAt: new Date()
-        });
-        
-        return history;
-      } else {
-        const history = await ChatHistory.findByIdAndUpdate(
-          chatId,
-          {
-            messages: processedMessages,
-            updatedAt: new Date()
-          },
-          { new: true, runValidators: true }
-        );
-        
-        if (!history) {
-          throw new Error('Chat not found');
-        }
-        
-        return history;
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        session.endSession();
       }
     } catch (error) {
       console.error('Error in saveChatMessage:', error);

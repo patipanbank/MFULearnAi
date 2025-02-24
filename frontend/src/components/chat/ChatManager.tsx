@@ -32,6 +32,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
   const [searchQuery, setSearchQuery] = useState('');
   const [isRenaming, setIsRenaming] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   useEffect(() => {
     loadChats();
@@ -170,6 +171,18 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
     }
   };
 
+  const handleCreateNewChat = async () => {
+    if (isCreatingChat) return;
+    
+    try {
+      setIsCreatingChat(true);
+      await onCreateNewChat();
+      await loadChats();
+    } finally {
+      setIsCreatingChat(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b dark:border-gray-700">
@@ -182,10 +195,13 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           <button
-            onClick={onCreateNewChat}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            onClick={handleCreateNewChat}
+            disabled={isCreatingChat}
+            className={`px-4 py-2 bg-blue-500 text-white rounded-lg ${
+              isCreatingChat ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+            }`}
           >
-            New Chat
+            {isCreatingChat ? 'Creating...' : 'New Chat'}
           </button>
         </div>
         
