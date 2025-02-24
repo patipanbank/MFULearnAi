@@ -232,8 +232,16 @@ const MFUChatbot: React.FC = () => {
         return /^[0-9a-fA-F]{24}$/.test(id);
       };
       
-      if (!chatId || !isValidObjectId(chatId)) {
-        console.log('Invalid or missing chat ID:', chatId);
+      if (!chatId) {
+        console.log('No chat ID provided, starting new chat');
+        startNewChat();
+        return;
+      }
+
+      if (!isValidObjectId(chatId)) {
+        console.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
+        // Remove the invalid chatId from URL
+        navigate('/mfuchatbot', { replace: true });
         startNewChat();
         return;
       }
@@ -241,7 +249,7 @@ const MFUChatbot: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       if (!token) {
         console.log('No authentication token found');
-        startNewChat();
+        navigate('/login');
         return;
       }
 
@@ -277,10 +285,14 @@ const MFUChatbot: React.FC = () => {
       } else {
         const errorData = await response.text();
         console.error('Failed to load chat:', errorData);
+        // Remove the invalid chatId from URL
+        navigate('/mfuchatbot', { replace: true });
         startNewChat();
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
+      // Remove the invalid chatId from URL
+      navigate('/mfuchatbot', { replace: true });
       startNewChat();
     }
   };

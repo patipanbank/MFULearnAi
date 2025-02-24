@@ -147,25 +147,32 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
     isValidChatId: urlChatId ? isValidObjectId(urlChatId) : false
   });
   
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
-      extWs.userId = decoded.username;
-      // Only set chatId if it's a valid ObjectId
-      if (urlChatId && isValidObjectId(urlChatId)) {
+  if (!token) {
+    console.error('No token found in either URL parameters or headers');
+    ws.close(1008, 'No authentication token provided');
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+    extWs.userId = decoded.username;
+    
+    // Only set chatId if it's a valid ObjectId
+    if (urlChatId) {
+      if (isValidObjectId(urlChatId)) {
         extWs.chatId = urlChatId;
         console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${extWs.chatId}`);
       } else {
+        console.warn(`Invalid chatId format provided: ${urlChatId}, ignoring it`);
+        // Don't set the chatId but allow connection to continue
         console.log(`WebSocket client connected: ${extWs.userId}, no valid chatId provided`);
       }
-    } catch (error) {
-      console.error('Invalid token in WebSocket connection:', error);
-      ws.close(1008, 'Invalid authentication token');
-      return;
+    } else {
+      console.log(`WebSocket client connected: ${extWs.userId}, no chatId provided`);
     }
-  } else {
-    console.error('No token found in either URL parameters or headers');
-    ws.close(1008, 'No authentication token provided');
+  } catch (error) {
+    console.error('Invalid token in WebSocket connection:', error);
+    ws.close(1008, 'Invalid authentication token');
     return;
   }
 
