@@ -49,35 +49,32 @@ const messageSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
-const chatHistorySchema = new mongoose.Schema({
+const chatSchema = new mongoose.Schema({
   userId: { type: String, required: true },
   modelId: { type: String, required: true },
-  collectionName: { type: String },
   chatname: { 
     type: String, 
     required: true,
     maxLength: 100 
   },
   messages: [messageSchema],
-  sources: [sourceSchema],
   isPinned: { type: Boolean, default: false },
 }, { 
   timestamps: true,
   index: [
     { userId: 1 },
     { userId: 1, updatedAt: -1 },
-    { userId: 1, modelId: 1 },
-    { userId: 1, chatname: 1, modelId: 1, unique: true }
+    { userId: 1, modelId: 1 }
   ]
 });
 
 // Add validation for messages array
-chatHistorySchema.pre('save', function(next) {
+chatSchema.pre('save', function(next) {
   if (!this.messages || this.messages.length === 0) {
-    next(new Error('Chat history must have at least one message'));
+    next(new Error('Chat must have at least one message'));
     return;
   }
   next();
 });
 
-export const ChatHistory = mongoose.model('ChatHistory', chatHistorySchema); 
+export const Chat = mongoose.model('Chat', chatSchema); 

@@ -1,4 +1,4 @@
-import { ChatHistory } from '../models/ChatHistory';
+import { Chat } from '../models/Chat';
 import mongoose from 'mongoose';
 
 interface PaginationResult<T> {
@@ -9,8 +9,8 @@ interface PaginationResult<T> {
   hasMore: boolean;
 }
 
-class ChatHistoryService {
-  async getChatHistory(
+class ChatService {
+  async getChats(
     userId: string,
     page: number = 1,
     limit: number = 20
@@ -18,60 +18,43 @@ class ChatHistoryService {
     try {
       const skip = (page - 1) * limit;
       
-      const [histories, total] = await Promise.all([
-        ChatHistory.find({ userId })
+      const [chats, total] = await Promise.all([
+        Chat.find({ userId })
           .sort({ updatedAt: -1 })
           .skip(skip)
           .limit(limit),
-        ChatHistory.countDocuments({ userId })
+        Chat.countDocuments({ userId })
       ]);
 
       return {
-        data: histories,
+        data: chats,
         total,
         page,
         totalPages: Math.ceil(total / limit),
-        hasMore: skip + histories.length < total
+        hasMore: skip + chats.length < total
       };
     } catch (error) {
-      console.error('Error getting chat history:', error);
-      throw new Error(`Failed to get chat history: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error getting chats:', error);
+      throw new Error(`Failed to get chats: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  async getSpecificChat(userId: string, chatId: string) {
+  async getChat(userId: string, chatId: string) {
     try {
-      const chat = await ChatHistory.findOne({ _id: chatId, userId });
+      const chat = await Chat.findOne({ _id: chatId, userId });
       if (!chat) {
         throw new Error('Chat not found');
       }
       return chat;
     } catch (error) {
-      console.error('Error getting specific chat:', error);
-      throw new Error(`Failed to get specific chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error getting chat:', error);
+      throw new Error(`Failed to get chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private validateMessage(msg: any) {
-    if (!msg.role || !['user', 'assistant', 'system'].includes(msg.role)) {
-      throw new Error('Invalid message role');
-    }
-    if (!msg.content && (!msg.images || msg.images.length === 0)) {
-      throw new Error('Message must have content or images');
-    }
-    if (msg.images) {
-      msg.images.forEach((img: any) => {
-        if (!img.data || !img.mediaType) {
-          throw new Error('Invalid image format');
-        }
-      });
-    }
-  }
-
-  async saveChatMessage(
+  async saveChat(
     userId: string,
     modelId: string,
-    collectionName: string,
     messages: any[],
     chatId?: string,
     chatname?: string
@@ -85,155 +68,72 @@ class ChatHistoryService {
         throw new Error('Messages array is required and must not be empty');
       }
 
-      // Process messages with validation
-      const processedMessages = messages.map((msg, index) => {
-        if (!msg.role || !['user', 'assistant', 'system'].includes(msg.role)) {
-          throw new Error(`Invalid message role at index ${index}`);
-        }
-        if (!msg.content && (!msg.images || msg.images.length === 0)) {
-          throw new Error(`Message must have content or images at index ${index}`);
-        }
-
-        // Process timestamp
-        let timestamp;
-        try {
-          if (msg.timestamp) {
-            if (msg.timestamp.$date) {
-              // Handle MongoDB date format
-              timestamp = new Date(msg.timestamp.$date);
-            } else if (typeof msg.timestamp === 'string') {
-              // Handle string date
-              timestamp = new Date(msg.timestamp);
-            } else if (msg.timestamp instanceof Date) {
-              // Handle Date object
-              timestamp = msg.timestamp;
-            } else {
-              // Default to current time if invalid
-              timestamp = new Date();
-            }
-          } else {
-            timestamp = new Date();
-          }
-
-          // Validate timestamp
-          if (isNaN(timestamp.getTime())) {
-            console.warn(`Invalid timestamp at index ${index}, using current time`);
-            timestamp = new Date();
-          }
-        } catch (error) {
-          console.warn(`Error processing timestamp at index ${index}, using current time:`, error);
-          timestamp = new Date();
-        }
-
-        return {
-          ...msg,
-          timestamp,
-          role: msg.role,
-          content: msg.content || '',
-          images: msg.images || [],
-          sources: msg.sources || [],
-          isImageGeneration: msg.isImageGeneration || false
-        };
-      });
+      // Process messages
+      const processedMessages = messages.map(msg => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp?.$date || msg.timestamp || new Date()),
+        role: msg.role,
+        content: msg.content || '',
+        images: msg.images || [],
+        isImageGeneration: msg.isImageGeneration || false
+      }));
 
       // Generate chat name from first user message if not provided
       const finalChatname = chatname || (() => {
         const firstUserMessage = messages.find(msg => msg.role === 'user');
-        if (!firstUserMessage) {
-          return "New Chat";
-        }
+        if (!firstUserMessage) return "New Chat";
         const content = firstUserMessage.content.trim();
         return content.length > 50 ? content.substring(0, 47) + "..." : content;
       })();
 
-      // Update existing chat
+      // Update or create chat
       if (chatId) {
-        const history = await ChatHistory.findOneAndUpdate(
-          { _id: chatId, userId }, // Ensure user owns the chat
+        const chat = await Chat.findOneAndUpdate(
+          { _id: chatId, userId },
           {
             messages: processedMessages,
             updatedAt: new Date()
           },
-          { 
-            new: true, 
-            runValidators: true,
-            setDefaultsOnInsert: true
-          }
+          { new: true, runValidators: true }
         );
         
-        if (!history) {
+        if (!chat) {
           throw new Error('Chat not found or unauthorized');
         }
         
-        return history;
+        return chat;
       }
 
-      // Handle new chat creation
-      try {
-        // Create new chat
-        const history = await ChatHistory.create({
-          userId,
-          modelId,
-          collectionName,
-          chatname: finalChatname,
-          messages: processedMessages
-        });
+      // Create new chat
+      const chat = await Chat.create({
+        userId,
+        modelId,
+        chatname: finalChatname,
+        messages: processedMessages
+      });
 
-        return history;
-      } catch (error: any) {
-        // If duplicate key error (same chatname)
-        if (error.code === 11000) {
-          // Find and update existing chat
-          const existingChat = await ChatHistory.findOneAndUpdate(
-            { 
-              userId,
-              chatname: finalChatname,
-              modelId 
-            },
-            {
-              messages: processedMessages,
-              updatedAt: new Date()
-            },
-            { 
-              new: true,
-              runValidators: true
-            }
-          );
-
-          if (!existingChat) {
-            throw new Error('Failed to update existing chat');
-          }
-
-          return existingChat;
-        }
-        throw error;
-      }
-    } catch (error: any) {
-      console.error('Error in saveChatMessage:', error);
-      throw new Error(`Failed to save chat message: ${error.message}`);
+      return chat;
+    } catch (error) {
+      console.error('Error in saveChat:', error);
+      throw new Error(`Failed to save chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  async clearChatHistory(userId: string) {
+  async deleteChat(userId: string, chatId: string) {
     try {
-      if (!userId) {
-        throw new Error('userId is required');
+      const result = await Chat.findOneAndDelete({ _id: chatId, userId });
+      if (!result) {
+        throw new Error('Chat not found or unauthorized');
       }
-      
-      const result = await ChatHistory.deleteMany({ userId });
-      return { 
-        success: true, 
-        message: 'Chat history cleared successfully',
-        deletedCount: result.deletedCount 
-      };
+      return { success: true, message: 'Chat deleted successfully' };
     } catch (error) {
-      console.error('Error clearing chat history:', error);
-      throw new Error(`Failed to clear chat history: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error deleting chat:', error);
+      throw new Error(`Failed to delete chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async togglePinChat(userId: string, chatId: string) {
-    const chat = await ChatHistory.findOne({ _id: chatId, userId });
+    const chat = await Chat.findOne({ _id: chatId, userId });
     if (!chat) {
       throw new Error('Chat not found');
     }
@@ -244,4 +144,4 @@ class ChatHistoryService {
   }
 }
 
-export const chatHistoryService = new ChatHistoryService(); 
+export const chatService = new ChatService(); 

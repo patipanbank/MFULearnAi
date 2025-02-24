@@ -1,10 +1,9 @@
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
-import { ChatHistory } from '../models/ChatHistory';
 import { HydratedDocument } from 'mongoose';
-import { CollectionModel } from '../models/Collection';
 import { ModelModel } from '../models/Model';
+import { Chat } from '../models/Chat';
 
 interface QueryResult {
   text: string;
@@ -52,7 +51,7 @@ interface RetryConfig {
   maxDelay: number;
 }
 
-export class ChatService {
+class ChatService {
   private readonly questionTypes = {
     FACTUAL: 'factual',
     ANALYTICAL: 'analytical',
@@ -392,6 +391,79 @@ Remember: Your responses should be based on the provided context and documents.`
     }
     
     throw new Error(`${errorMessage} after ${this.retryConfig.maxRetries} attempts: ${lastError?.message}`);
+  }
+
+  async getChats(userId: string, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+    const chats = await Chat.find({ userId })
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    
+    const total = await Chat.countDocuments({ userId });
+    const totalPages = Math.ceil(total / limit);
+    const hasMore = page < totalPages;
+
+    return { chats, totalPages, hasMore };
+  }
+
+  async getChat(chatId: string, userId: string) {
+    const chat = await Chat.findOne({ _id: chatId, userId });
+    if (!chat) {
+      throw new Error('Chat not found');
+    }
+    return chat;
+  }
+
+  async saveChat(userId: string, modelId: string, messages: any[]) {
+    const lastMessage = messages[messages.length - 1];
+    const chatName = lastMessage.content.substring(0, 50);
+
+    const chat = new Chat({
+      userId,
+      modelId,
+      name: chatName,
+      messages: messages.map(msg => ({
+        ...msg,
+        timestamp: msg.timestamp || new Date()
+      }))
+    });
+
+    await chat.save();
+    return chat;
+  }
+
+  async updateChat(chatId: string, userId: string, messages: any[]) {
+    const chat = await Chat.findOne({ _id: chatId, userId });
+    if (!chat) {
+      throw new Error('Chat not found');
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    chat.name = lastMessage.content.substring(0, 50);
+    chat.set('messages', messages);
+    
+    await chat.save();
+    return chat;
+  }
+
+  async deleteChat(chatId: string, userId: string) {
+    const result = await Chat.deleteOne({ _id: chatId, userId });
+    if (result.deletedCount === 0) {
+      throw new Error('Chat not found or unauthorized');
+    }
+    return true;
+  }
+
+  async togglePinChat(chatId: string, userId: string) {
+    const chat = await Chat.findOne({ _id: chatId, userId });
+    if (!chat) {
+      throw new Error('Chat not found');
+    }
+
+    chat.isPinned = !chat.isPinned;
+    await chat.save();
+    return chat;
   }
 }
 
