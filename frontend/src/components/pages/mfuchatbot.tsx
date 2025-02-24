@@ -432,7 +432,20 @@ const MFUChatbot: React.FC = () => {
 
     const wsUrl = new URL(import.meta.env.VITE_WS_URL);
     wsUrl.searchParams.append('token', token);
+    
+    // Add validation for MongoDB ObjectId format
+    const isValidObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id);
+    
+    // Only append chatId if it's a valid ObjectId
+    if (currentChatId && isValidObjectId(currentChatId)) {
+      wsUrl.searchParams.append('chat', currentChatId);
+    }
+    
     wsRef.current = new WebSocket(wsUrl.toString());
+
+    wsRef.current.onopen = () => {
+      console.log('WebSocket connection established');
+    };
 
     wsRef.current.onmessage = async (event) => {
       try {

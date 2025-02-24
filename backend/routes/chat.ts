@@ -127,26 +127,30 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   // Try to get token from URL parameters first
   const url = new URL(req.url!, `http://${req.headers.host}`);
   const urlToken = url.searchParams.get('token');
-  const urlChatId = url.searchParams.get('chat'); // Get chatId from URL
+  const urlChatId = url.searchParams.get('chat');
   
   // Then try to get from headers if not in URL
   const headerToken = req.headers['authorization']?.split(' ')[1];
-  
   const token = urlToken || headerToken;
+  
+  // Validate MongoDB ObjectId format
+  const isValidObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id);
   
   console.log('Connection parameters:', {
     fromUrl: !!urlToken,
     fromHeader: !!headerToken,
     finalToken: !!token,
-    chatId: urlChatId
+    chatId: urlChatId,
+    isValidChatId: urlChatId ? isValidObjectId(urlChatId) : false
   });
   
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
       extWs.userId = decoded.username;
-      extWs.chatId = urlChatId || undefined; // Convert null to undefined
-      console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${urlChatId}`);
+      // Only set chatId if it's a valid ObjectId
+      extWs.chatId = urlChatId && isValidObjectId(urlChatId) ? urlChatId : undefined;
+      console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${extWs.chatId}`);
     } catch (error) {
       console.error('Invalid token in WebSocket connection:', error);
       ws.close(1008, 'Invalid authentication token');

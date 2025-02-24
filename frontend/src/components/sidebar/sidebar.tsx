@@ -277,7 +277,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const filteredChats = chatHistories.filter(chat => 
     (chat.chatname || chat.name || 'Untitled Chat').toLowerCase().includes(searchQuery.toLowerCase())
   );
-  console.log('Filtered chats:', filteredChats); // Debug filtered chats
+  // Only log in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Filtered chats:', filteredChats);
+  }
 
   const sortedChats = [...filteredChats].sort((a, b) => {
     // First sort by pinned status
@@ -286,7 +289,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // Then sort by updatedAt timestamp
     return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
   });
-  console.log('Sorted chats:', sortedChats); // Debug sorted chats
+  // Only log in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Sorted chats:', sortedChats);
+  }
 
   return (
     <aside className="flex flex-col h-full">
