@@ -51,8 +51,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
   const currentChatId = searchParams.get('chat');
-  const [editingChatId, setEditingChatId] = useState<string | null>(null);
-  const [newChatName, setNewChatName] = useState('');
+  const [editingChatId, ] = useState<string | null>(null);
+  // const [newChatName, setNewChatName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
   const [renameState, setRenameState] = useState<RenameState>({
