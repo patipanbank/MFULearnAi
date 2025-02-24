@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaStar } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaStar, FaFolder } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -32,6 +32,7 @@ interface ChatHistory {
   collectionName: string;
   messages: Message[];
   isPinned: boolean;
+  folder: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
@@ -44,6 +45,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const currentChatId = searchParams.get('chat');
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [newChatName, setNewChatName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFolder, setSelectedFolder] = useState('default');
+  const [folders, setFolders] = useState<string[]>(['default']);
 
   const handleTokenExpired = () => {
     localStorage.clear();
@@ -58,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         return;
       }
 
-      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+      const response = await fetch(`${config.apiUrl}/api/chat/history?folder=${selectedFolder}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -88,6 +92,38 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
+  const fetchFolders = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        handleTokenExpired();
+        return;
+      }
+
+      const response = await fetch(`${config.apiUrl}/api/chat/folders`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.status === 401) {
+        handleTokenExpired();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch folders');
+      }
+
+      const data = await response.json();
+      setFolders(['default', ...data.filter((f: string) => f !== 'default')]);
+    } catch (error) {
+      console.error('Error fetching folders:', error);
+      setFolders(['default']);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -96,9 +132,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
 
     fetchChatHistories();
+    fetchFolders();
     
     const handleChatUpdate = () => {
       fetchChatHistories();
+      fetchFolders();
     };
     
     window.addEventListener('chatUpdated', handleChatUpdate);
@@ -108,7 +146,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       window.removeEventListener('chatUpdated', handleChatUpdate);
       window.removeEventListener('chatHistoryUpdated', handleChatUpdate);
     };
-  }, []);
+  }, [selectedFolder]);
 
   const handleLogout = async () => {
     try {
@@ -202,7 +240,36 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  const sortedChats = [...chatHistories].sort((a, b) => {
+  const handleMoveToFolder = async (chatId: string, folder: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/move`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ folder })
+      });
+
+      if (response.status === 401) {
+        handleTokenExpired();
+        return;
+      }
+
+      if (response.ok) {
+        fetchChatHistories();
+      }
+    } catch (error) {
+      console.error('Error moving chat:', error);
+    }
+  };
+
+  const filteredChats = chatHistories.filter(chat => 
+    chat.chatname.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedChats = [...filteredChats].sort((a, b) => {
     // First sort by pinned status
     if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
     
@@ -256,6 +323,33 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   <span className="font-medium">New Chat</span>
                 </div>
               </Link>
+
+              <div className="px-4 py-2">
+                <select
+                  value={selectedFolder}
+                  onChange={(e) => setSelectedFolder(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
+                >
+                  {folders.map(folder => (
+                    <option key={folder} value={folder}>
+                      {folder === 'default' ? 'Default Folder' : folder}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="px-4 py-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search chats..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-1.5 pl-8 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
+                  />
+                  <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                </div>
+              </div>
 
               <div className="mt-2 space-y-1">
                 {sortedChats.map((chat) => (
@@ -319,6 +413,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                         </Link>
                         <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const newFolder = prompt('Enter folder name:', chat.folder || 'default');
+                              if (newFolder) handleMoveToFolder(chat._id, newFolder);
+                            }}
+                            className="p-1.5 text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                            title="Move to folder"
+                          >
+                            <FaFolder className="w-3 h-3" />
+                          </button>
                           <button
                             onClick={(e) => {
                               e.preventDefault();
