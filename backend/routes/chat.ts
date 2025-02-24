@@ -6,6 +6,8 @@ import { CollectionModel, CollectionPermission } from '../models/Collection';
 import { WebSocket, WebSocketServer } from 'ws';
 import { UserRole } from '../models/User';
 import { Chat } from '../models/Chat';
+import { body, validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 
 interface ChatHistoryDocument {
   _id: string;
@@ -616,33 +618,76 @@ async function checkCollectionAccess(user: any, collection: any): Promise<boolea
          collection.createdBy === (user.nameID || user.username);
 }
 
-// Rename chat
-router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = (req.user as any)?.username;
-    if (!userId) {
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
-    }
+// Add validation middleware
+const validateRenameChat = [
+  body('newName')
+    .trim()
+    .notEmpty().withMessage('Chat name cannot be empty')
+    .isLength({ max: 100 }).withMessage('Chat name too long (max 100 characters)')
+    .matches(/^[^<>]*$/).withMessage('Chat name contains invalid characters'),
+];
 
-    const { chatId } = req.params;
-    const { newName } = req.body;
+// Update rename endpoint
+router.put('/history/:chatId/rename', 
+  roleGuard(['Students', 'Staffs', 'Admin']),
+  validateRenameChat,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ 
+          error: 'Validation failed',
+          details: errors.array()
+        });
+        return;
+      }
 
-    const chat = await chatService.getChat(userId, chatId);
-    if (!chat) {
-      res.status(404).json({ error: 'Chat not found' });
-      return;
+      const userId = (req.user as any)?.username;
+      if (!userId) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
+      }
+
+      const { chatId } = req.params;
+      const { newName } = req.body;
+
+      // Validate ObjectId
+      if (!mongoose.Types.ObjectId.isValid(chatId)) {
+        res.status(400).json({ error: 'Invalid chat ID format' });
+        return;
+      }
+
+      // Get chat and verify ownership
+      const chat = await Chat.findOne({ _id: chatId, userId });
+      if (!chat) {
+        res.status(404).json({ error: 'Chat not found or unauthorized' });
+        return;
+      }
+
+      // Update chat name
+      chat.name = newName.trim();
+      chat.updatedAt = new Date();
+      await chat.save();
+
+      // Log the change
+      console.log(`Chat ${chatId} renamed to "${newName}" by user ${userId}`);
+
+      res.json({
+        success: true,
+        chat: {
+          id: chat._id,
+          name: chat.name,
+          updatedAt: chat.updatedAt
+        }
+      });
+
+    } catch (error) {
+      console.error('Error renaming chat:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to rename chat' 
+      });
     }
-    
-    chat.name = newName;
-    await chat.save();
-    res.json(chat);
-  } catch (error) {
-    console.error('Error renaming chat:', error);
-    res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Failed to rename chat' 
-    });
-  }
 });
 
 router.put('/history/:chatId/pin', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
