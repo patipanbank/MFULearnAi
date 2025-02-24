@@ -83,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
       console.log('Making API request with token:', `Bearer ${token}`); // Debug full token
 
-      const response = await fetch(`${config.apiUrl}/api/chat/history`, {
+      const response = await fetch(`${config.apiUrl}/api/chat/chats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
