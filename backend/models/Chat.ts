@@ -23,6 +23,10 @@ const chatSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  chatname: {
+    type: String,
+    default: 'Untitled Chat'
+  },
   name: {
     type: String,
     required: true,

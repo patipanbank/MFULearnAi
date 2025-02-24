@@ -439,10 +439,13 @@ Remember: Your responses should be based on the provided context and documents.`
   }
 
   async saveChat(userId: string, modelId: string, messages: any[]) {
+    // หาข้อความแรกของ user
+    const firstUserMessage = messages.find(msg => msg.role === 'user');
+    const chatname = firstUserMessage ? firstUserMessage.content.substring(0, 50) : 'Untitled Chat';
+    
     const lastMessage = messages[messages.length - 1];
-    const chatName = lastMessage.content.substring(0, 50);
+    const name = lastMessage.content.substring(0, 50);
 
-    // Convert MongoDB dates to JavaScript Date objects
     const processedMessages = messages.map(msg => ({
       ...msg,
       timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
@@ -455,7 +458,8 @@ Remember: Your responses should be based on the provided context and documents.`
     const chat = new Chat({
       userId,
       modelId,
-      name: chatName,
+      chatname,  // เพิ่ม chatname
+      name,
       messages: processedMessages
     });
 

@@ -506,29 +506,30 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             className={`flex-1 flex items-center p-2 md:p-3 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex items-center gap-2 min-w-0 w-full pr-24">
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handlePinChat(chat._id);
-                                }}
-                                className={`flex-shrink-0 p-1 rounded-full transition-colors ${
-                                  pinnedChats.includes(chat._id)
-                                    ? 'text-yellow-500 hover:text-yellow-600'
-                                    : 'text-gray-400 hover:text-gray-500'
-                                }`}
-                              >
-                                <FaStar className="w-3 h-3" />
-                              </button>
-                              <div className="flex-1 min-w-0 overflow-hidden">
-                                <div className="font-medium truncate">
-                                  {chat.chatname || 'Untitled Chat'}
-                                </div>
+                            <div className="flex flex-col min-w-0 w-full pr-24">
+                              <div className="font-medium truncate">
+                                {chat.chatname || 'Untitled Chat'}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {chat.name}
                               </div>
                             </div>
                           </Link>
                           <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handlePinChat(chat._id);
+                              }}
+                              className={`flex-shrink-0 p-1 rounded-full transition-colors ${
+                                pinnedChats.includes(chat._id)
+                                  ? 'text-yellow-500 hover:text-yellow-600'
+                                  : 'text-gray-400 hover:text-gray-500'
+                              }`}
+                            >
+                              <FaStar className="w-3 h-3" />
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
