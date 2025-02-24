@@ -130,22 +130,44 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       return;
     }
 
-    fetchChatHistories();
-    
-    // WebSocket connection
-    const ws = new WebSocket(`${config.wsUrl}?token=${token}`);
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.shouldUpdateList) {
-        console.log('Received update signal, refreshing chat list');
-        fetchChatHistories();
-      }
+    let ws: WebSocket | null = null;
+
+    const connectWebSocket = () => {
+      ws = new WebSocket(`${config.wsUrl}?token=${token}`);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connection established');
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('WebSocket message received:', data);
+        
+        if (data.shouldUpdateList || data.done || data.isNewChat) {
+          console.log('Refreshing chat list due to:', data);
+          fetchChatHistories();
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket connection closed, attempting to reconnect...');
+        setTimeout(connectWebSocket, 3000);
+      };
     };
 
-    // Cleanup WebSocket connection
+    // Initial fetch and WebSocket connection
+    fetchChatHistories();
+    connectWebSocket();
+
+    // Cleanup function
     return () => {
-      ws.close();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

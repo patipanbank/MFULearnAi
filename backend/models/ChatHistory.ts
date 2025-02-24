@@ -53,7 +53,8 @@ const chatHistorySchema = new mongoose.Schema({
   index: [
     { userId: 1 },
     { userId: 1, updatedAt: -1 },
-    { userId: 1, modelId: 1 }
+    { userId: 1, modelId: 1 },
+    { userId: 1, chatname: 1, modelId: 1, unique: true }
   ]
 });
 

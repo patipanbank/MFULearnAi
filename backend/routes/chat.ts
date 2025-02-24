@@ -242,22 +242,19 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                     done: true,
                     chatId: savedChat._id.toString(),
                     isNewChat: false,
-                    shouldUpdateList: true
+                    shouldUpdateList: true,
+                    timestamp: new Date().toISOString()
                   }));
                 } catch (error) {
                   console.error('Error updating existing chat:', error);
                   extWs.send(JSON.stringify({ 
                     error: error instanceof Error ? error.message : 'Failed to update chat. Please try again.' 
                   }));
-                  return; // Exit early on error
+                  return;
                 }
               } else {
                 // Create new chat
                 try {
-                  if (!modelId) {
-                    throw new Error('Model ID is required for new chat');
-                  }
-
                   savedChat = await chatHistoryService.saveChatMessage(
                     extWs.userId,
                     modelId,
@@ -272,8 +269,20 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                     done: true,
                     chatId: savedChat._id.toString(),
                     isNewChat: true,
-                    shouldUpdateList: true
+                    shouldUpdateList: true,
+                    timestamp: new Date().toISOString()
                   }));
+
+                  // Broadcast to all connected clients of the same user
+                  wss.clients.forEach((client: WebSocket) => {
+                    const extClient = client as ExtendedWebSocket;
+                    if (extClient.userId === extWs.userId && extClient !== extWs) {
+                      extClient.send(JSON.stringify({
+                        shouldUpdateList: true,
+                        timestamp: new Date().toISOString()
+                      }));
+                    }
+                  });
                 } catch (error) {
                   console.error('Error creating new chat:', error);
                   extWs.send(JSON.stringify({ 

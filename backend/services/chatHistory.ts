@@ -85,90 +85,95 @@ class ChatHistoryService {
         throw new Error('Messages array is required and must not be empty');
       }
 
-      // Process messages
-      const processedMessages = messages.map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp || new Date()
-      }));
+      // Process messages with validation
+      const processedMessages = messages.map((msg, index) => {
+        if (!msg.role || !['user', 'assistant', 'system'].includes(msg.role)) {
+          throw new Error(`Invalid message role at index ${index}`);
+        }
+        if (!msg.content && (!msg.images || msg.images.length === 0)) {
+          throw new Error(`Message must have content or images at index ${index}`);
+        }
+        return {
+          ...msg,
+          timestamp: msg.timestamp || new Date()
+        };
+      });
 
-      // Use provided chatname or generate from first message
+      // Generate chat name from first user message if not provided
       const finalChatname = chatname || (() => {
         const firstUserMessage = messages.find(msg => msg.role === 'user');
-        return firstUserMessage 
-          ? firstUserMessage.content.substring(0, 50) + "..."
-          : "New Chat";
+        if (!firstUserMessage) {
+          return "New Chat";
+        }
+        const content = firstUserMessage.content.trim();
+        return content.length > 50 ? content.substring(0, 47) + "..." : content;
       })();
 
-      // Start a session for atomic operations
-      const session = await mongoose.startSession();
-      session.startTransaction();
-
-      try {
-        if (!chatId) {
-          // Check for existing chat with same name
-          const existingChat = await ChatHistory.findOne({ 
-            userId, 
-            chatname: finalChatname 
-          }).session(session);
-          
-          if (existingChat) {
-            // Update existing chat
-            const updatedChat = await ChatHistory.findByIdAndUpdate(
-              existingChat._id,
-              {
-                messages: processedMessages,
-                updatedAt: new Date()
-              },
-              { new: true, runValidators: true, session }
-            );
-            
-            if (!updatedChat) {
-              throw new Error('Failed to update existing chat');
-            }
-            
-            await session.commitTransaction();
-            return updatedChat;
-          }
-
-          // Create new chat
-          const history = await ChatHistory.create([{
-            userId,
-            modelId,
-            collectionName,
-            chatname: finalChatname,
+      // Update existing chat
+      if (chatId) {
+        const history = await ChatHistory.findOneAndUpdate(
+          { _id: chatId, userId }, // Ensure user owns the chat
+          {
             messages: processedMessages,
             updatedAt: new Date()
-          }], { session });
-          
-          await session.commitTransaction();
-          return history[0];
-        } else {
-          // Update existing chat by ID
-          const history = await ChatHistory.findByIdAndUpdate(
-            chatId,
+          },
+          { 
+            new: true, 
+            runValidators: true,
+            setDefaultsOnInsert: true
+          }
+        );
+        
+        if (!history) {
+          throw new Error('Chat not found or unauthorized');
+        }
+        
+        return history;
+      }
+
+      // Handle new chat creation
+      try {
+        // Create new chat
+        const history = await ChatHistory.create({
+          userId,
+          modelId,
+          collectionName,
+          chatname: finalChatname,
+          messages: processedMessages
+        });
+
+        return history;
+      } catch (error: any) {
+        // If duplicate key error (same chatname)
+        if (error.code === 11000) {
+          // Find and update existing chat
+          const existingChat = await ChatHistory.findOneAndUpdate(
+            { 
+              userId,
+              chatname: finalChatname,
+              modelId 
+            },
             {
               messages: processedMessages,
               updatedAt: new Date()
             },
-            { new: true, runValidators: true, session }
+            { 
+              new: true,
+              runValidators: true
+            }
           );
-          
-          if (!history) {
-            throw new Error('Chat not found');
+
+          if (!existingChat) {
+            throw new Error('Failed to update existing chat');
           }
-          
-          await session.commitTransaction();
-          return history;
+
+          return existingChat;
         }
-      } catch (error) {
-        await session.abortTransaction();
         throw error;
-      } finally {
-        session.endSession();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in saveChatMessage:', error);
-      throw new Error(`Failed to save chat message: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to save chat message: ${error.message}`);
     }
   }
 
