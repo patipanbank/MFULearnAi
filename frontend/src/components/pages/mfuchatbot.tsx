@@ -226,7 +226,11 @@ const MFUChatbot: React.FC = () => {
       const urlParams = new URLSearchParams(location.search);
       const chatId = urlParams.get('chat');
       
-      if (!chatId) {
+      // Add validation for MongoDB ObjectId format
+      const isValidObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id);
+      
+      if (!chatId || !isValidObjectId(chatId)) {
+        console.log('Invalid chat ID format:', chatId);
         startNewChat();
         return;
       }
