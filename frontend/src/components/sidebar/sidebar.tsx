@@ -51,9 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
   const currentChatId = searchParams.get('chat');
-  // const [editingChatId, setEditingChatId] = useState<string | null>(null);
-  const [editingChatId,] = useState<string | null>(null);
-  // const [newChatName, setNewChatName] = useState('');
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
   const [renameState, setRenameState] = useState<RenameState>({
@@ -239,6 +237,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       isLoading: false,
       error: null
     });
+    setEditingChatId(chatId);
   };
 
   const handleSaveEdit = async (chatId: string) => {
@@ -284,7 +283,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         throw new Error(errorData.error || 'Failed to rename chat');
       }
 
-      // Reset rename state and refresh chat list
+      // Reset states
       setRenameState({
         isEditing: false,
         chatId: null,
@@ -292,6 +291,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         isLoading: false,
         error: null
       });
+      setEditingChatId(null);
       
       fetchChatHistories();
 
@@ -313,6 +313,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       isLoading: false,
       error: null
     });
+    setEditingChatId(null);
   };
 
   const handleRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

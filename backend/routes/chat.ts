@@ -640,7 +640,7 @@ router.put('/history/:chatId/rename',
       }
 
       // Update chat name
-      chat.name = newName.trim();
+      chat.chatname = newName.trim();
       chat.updatedAt = new Date();
       await chat.save();
 
@@ -651,7 +651,7 @@ router.put('/history/:chatId/rename',
         success: true,
         chat: {
           id: chat._id,
-          name: chat.name,
+          chatname: chat.chatname,
           updatedAt: chat.updatedAt
         }
       });
@@ -689,41 +689,6 @@ router.put('/history/:chatId/pin', roleGuard(['Students', 'Staffs', 'Admin']), a
     res.status(500).json({ 
       error: error instanceof Error ? error.message : 'Failed to toggle chat pin status' 
     });
-  }
-});
-
-// Rename chat
-router.put('/history/:chatId/rename', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username;
-    if (!userId) {
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
-    }
-
-    const { chatId } = req.params;
-    const { newChatname } = req.body;
-
-    if (!newChatname || newChatname.trim().length === 0) {
-      res.status(400).json({ error: 'Chat name cannot be empty' });
-      return;
-    }
-
-    const chat = await Chat.findOneAndUpdate(
-      { _id: chatId, userId },
-      { $set: { chatname: newChatname.trim() } },
-      { new: true }
-    );
-
-    if (!chat) {
-      res.status(404).json({ error: 'Chat not found' });
-      return;
-    }
-
-    res.json(chat);
-  } catch (error) {
-    console.error('Error renaming chat:', error);
-    res.status(500).json({ error: 'Failed to rename chat' });
   }
 });
 
