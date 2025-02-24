@@ -1,6 +1,8 @@
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
+import { ChatHistory } from '../models/ChatHistory';
+import { HydratedDocument } from 'mongoose';
 import { CollectionModel } from '../models/Collection';
 import { ModelModel } from '../models/Model';
 
@@ -40,6 +42,16 @@ interface RetryConfig {
   maxDelay: number;
 }
 
+interface IChatHistory {
+  sources: Array<{
+    modelId: string;
+    collectionName: string;
+    filename: string;
+    similarity: number;
+  }>;
+  save(): Promise<void>;
+}
+
 export class ChatService {
   private readonly questionTypes = {
     FACTUAL: 'factual',
@@ -66,10 +78,11 @@ Remember: Your responses should be based on the provided context and documents.`
     [this.questionTypes.ANALYTICAL]: 'Analyze the following information and provide insights:',
     [this.questionTypes.CONCEPTUAL]: 'Explain the concept using the following context:',
     [this.questionTypes.PROCEDURAL]: 'Describe the process or steps based on:',
-    [this.questionTypes.CLARIFICATION]: 'To better clarify based on:'
+    [this.questionTypes.CLARIFICATION]: 'To better answer your question, let me clarify based on:'
   };
 
   private chatModel = bedrockService.chatModel;
+  private currentChatHistory?: HydratedDocument<IChatHistory>;
   private readonly BATCH_SIZE = 3;
   private readonly MIN_SIMILARITY_THRESHOLD = 0.3;
   private readonly retryConfig: RetryConfig = {
@@ -240,6 +253,18 @@ Remember: Your responses should be based on the provided context and documents.`
     }
 
     console.log('All results:', allResults);
+
+    const allSources = allResults
+      .flatMap(r => r.sources)
+      .sort((a, b) => b.similarity - a.similarity);
+
+    console.log('All sources:', allSources);
+
+    if (this.currentChatHistory) {
+      this.currentChatHistory.sources = allSources;
+      await this.currentChatHistory.save();
+      console.log('Saved sources to chat history');
+    }
 
     const contexts = allResults
       .filter(r => r.sources.length > 0)
