@@ -225,26 +225,6 @@ const MFUChatbot: React.FC = () => {
     try {
       const urlParams = new URLSearchParams(location.search);
       const chatId = urlParams.get('chat');
-      
-      // Add validation for MongoDB ObjectId format
-      const isValidObjectId = (id: string | null): boolean => {
-        if (!id) return false;
-        return /^[0-9a-fA-F]{24}$/.test(id);
-      };
-      
-      if (!chatId) {
-        console.log('No chat ID provided, starting new chat');
-        startNewChat();
-        return;
-      }
-
-      if (!isValidObjectId(chatId)) {
-        console.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
-        // Remove the invalid chatId from URL
-        navigate('/mfuchatbot', { replace: true });
-        startNewChat();
-        return;
-      }
 
       const token = localStorage.getItem('auth_token');
       if (!token) {
@@ -287,13 +267,11 @@ const MFUChatbot: React.FC = () => {
         console.error('Failed to load chat:', errorData);
         // Remove the invalid chatId from URL
         navigate('/mfuchatbot', { replace: true });
-        startNewChat();
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
       // Remove the invalid chatId from URL
       navigate('/mfuchatbot', { replace: true });
-      startNewChat();
     }
   };
 
@@ -582,35 +560,8 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  const startNewChat = () => {
-    // Navigate to main chat page for new chat
-    navigate('/mfuchatbot', { replace: true });
-    // Reset all states except selected model
-    setMessages([]);
-    setCurrentChatId(null);
-    setInputMessage('');
-    setSelectedImages([]);
-    setIsImageGenerationMode(false);
-  };
+  
 
-  const clearChat = async () => {
-    try {
-      const response = await fetch(`${config.apiUrl}/api/chat/clear`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to clear chat history');
-      }
-
-      startNewChat();
-    } catch (error) {
-      console.error('Error clearing chat:', error);
-    }
-  };
 
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024;
@@ -1053,31 +1004,6 @@ const MFUChatbot: React.FC = () => {
                   <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">
                     {isImageGenerationMode ? "Image" : "Chat"}
                   </span>
-                </button>
-              </div>
-
-              {/* Right side controls */}
-              <div className="flex gap-2 items-center">
-                <button
-                  onClick={startNewChat}
-                  className="px-3 py-1.5 text-xs md:text-sm bg-blue-500 text-white rounded-full hover:bg-blue-600 
-                    transition-colors whitespace-nowrap flex items-center gap-1"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span className="hidden xs:inline">New Chat</span>
-                </button>
-
-                <button
-                  onClick={clearChat}
-                  className="px-3 py-1.5 text-xs md:text-sm bg-red-500 text-white rounded-full hover:bg-red-600 
-                    transition-colors whitespace-nowrap flex items-center gap-1"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  <span className="hidden xs:inline">Clear</span>
                 </button>
               </div>
             </div>
