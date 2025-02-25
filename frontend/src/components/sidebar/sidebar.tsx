@@ -47,7 +47,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const isStaff = userData.groups?.includes('Staffs') || userData.groups?.includes('Admin');
+  // const isStaff = userData.groups?.includes('Staffs') || userData.groups?.includes('Admin');
+  const isStaff = userData.groups?.includes('Admin');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
   const currentChatId = searchParams.get('chat');
