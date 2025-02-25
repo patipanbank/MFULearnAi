@@ -233,6 +233,8 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       { 
         userId: user._id,
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role,
         groups: user.groups
       },
@@ -245,6 +247,8 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       token,
       user: {
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role,
         groups: user.groups
       }
