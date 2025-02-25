@@ -19,7 +19,7 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['https://mfulearnai.mfu.ac.th'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['https://dindinai.mfu.ac.th'];
 console.log('Allowed origins:', allowedOrigins);
 
 app.use(cors({
