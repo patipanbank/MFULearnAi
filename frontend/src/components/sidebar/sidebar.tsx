@@ -105,9 +105,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('API Response status:', response.status); // Debug response status
-      
+
       if (response.status === 401) {
         console.error('Unauthorized - token might be expired');
         handleTokenExpired();
@@ -122,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
       const data = await response.json();
       console.log('Chat histories data:', data); // Debug response data
-      
+
       if (data && data.chats && Array.isArray(data.chats)) {
         setChatHistories(data.chats);
       } else if (data && Array.isArray(data)) {
@@ -150,25 +150,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
     const connectWebSocket = () => {
       ws = new WebSocket(`${config.wsUrl}?token=${token}`);
-      
+
       ws.onopen = () => {
         console.log('WebSocket connection established');
       };
-      
+
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         console.log('WebSocket message received:', data);
-        
+
         if (data.shouldUpdateList || data.done || data.isNewChat) {
           console.log('Refreshing chat list due to:', data);
           fetchChatHistories();
         }
       };
-      
+
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
       };
-      
+
       ws.onclose = () => {
         console.log('WebSocket connection closed, attempting to reconnect...');
         setTimeout(connectWebSocket, 3000);
@@ -185,7 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         ws.close();
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogout = async () => {
@@ -292,7 +292,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         error: null
       });
       setEditingChatId(null);
-      
+
       fetchChatHistories();
 
     } catch (error) {
@@ -343,8 +343,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       }
 
       if (response.ok) {
-        setPinnedChats(prev => 
-          prev.includes(chatId) 
+        setPinnedChats(prev =>
+          prev.includes(chatId)
             ? prev.filter(id => id !== chatId)
             : [...prev, chatId]
         );
@@ -355,7 +355,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  const filteredChats = chatHistories.filter(chat => 
+  const filteredChats = chatHistories.filter(chat =>
     (chat.chatname || chat.name || 'Untitled Chat').toLowerCase().includes(searchQuery.toLowerCase())
   );
   // Only log in development
@@ -366,7 +366,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const sortedChats = [...filteredChats].sort((a, b) => {
     // First sort by pinned status
     if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
-    
+
     // Then sort by updatedAt timestamp
     return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
   });
@@ -380,14 +380,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-            <span style={{ 
+            <span style={{
               background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>MFU</span>{' '}
             <span>LEARN{' '}</span>
-            <span style={{ 
+            <span style={{
               background: 'linear-gradient(to right, #00FFFF, #0099FF)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -396,7 +396,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           </h2>
           <div className="flex items-center gap-2">
             <DarkModeToggle />
-            <button 
+            <button
               onClick={onClose}
               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
             >
@@ -475,8 +475,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               onClick={() => handleSaveEdit(chat._id)}
                               disabled={renameState.isLoading}
                               className={`p-1.5 rounded-lg transition-colors
-                                ${renameState.isLoading 
-                                  ? 'bg-gray-300 cursor-not-allowed' 
+                                ${renameState.isLoading
+                                  ? 'bg-gray-300 cursor-not-allowed'
                                   : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30'}`}
                               title="Save"
                             >
@@ -523,11 +523,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                 e.stopPropagation();
                                 handlePinChat(chat._id);
                               }}
-                              className={`flex-shrink-0 p-1 rounded-full transition-colors ${
-                                pinnedChats.includes(chat._id)
+                              className={`flex-shrink-0 p-1 rounded-full transition-colors ${pinnedChats.includes(chat._id)
                                   ? 'text-yellow-500 hover:text-yellow-600'
                                   : 'text-gray-400 hover:text-gray-500'
-                              }`}
+                                }`}
                             >
                               <FaStar className="w-3 h-3" />
                             </button>
@@ -588,7 +587,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </nav>
       </div>
 
-      <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64">
+      <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-t border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64">
         <div className="p-4">
           <button
             onClick={handleLogout}
