@@ -225,6 +225,24 @@ const MFUChatbot: React.FC = () => {
     try {
       const urlParams = new URLSearchParams(location.search);
       const chatId = urlParams.get('chat');
+      
+      // Add validation for MongoDB ObjectId format
+      const isValidObjectId = (id: string | null): boolean => {
+        if (!id) return false;
+        return /^[0-9a-fA-F]{24}$/.test(id);
+      };
+      
+      if (!chatId) {
+        console.log('No chat ID provided, starting new chat');
+        return;
+      }
+
+      if (!isValidObjectId(chatId)) {
+        console.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
+        // Remove the invalid chatId from URL
+        navigate('/mfuchatbot', { replace: true });
+        return;
+      }
 
       const token = localStorage.getItem('auth_token');
       if (!token) {
@@ -559,6 +577,9 @@ const MFUChatbot: React.FC = () => {
       }
     }
   };
+
+  
+
 
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024;
