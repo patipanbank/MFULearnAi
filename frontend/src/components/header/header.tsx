@@ -13,7 +13,7 @@ const Header = () => {
           {userData && (
             <span>
               {/*  */}
-              ID:{userData.username} NAME:{userData.firstName} {userData.lastName}
+              {userData.username} {userData.firstName} {userData.lastName}
             </span>
           )}
         </div>
