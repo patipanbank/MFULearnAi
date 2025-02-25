@@ -12,8 +12,8 @@ const Header = () => {
         <div className="ml-auto text-gray-600 dark:text-gray-300">
           {userData && (
             <span>
-              {/*  */}
-              {userData.username} {userData.firstName} {userData.lastName}
+              {/* {userData.username}  */}
+              {userData.firstName} {userData.lastName}
             </span>
           )}
         </div>
