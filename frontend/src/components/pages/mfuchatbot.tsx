@@ -560,9 +560,6 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  
-
-
   const validateImageFile = (file: File): boolean => {
     const maxSize = 20 * 1024 * 1024;
     if (file.size > maxSize) {
