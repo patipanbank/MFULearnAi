@@ -284,7 +284,16 @@ Remember: Your responses should be based on the provided context and documents.`
       .map(r => r.context);
 
     console.log('Final context length:', contexts.join("\n\n").length);
-    return `${promptTemplate}\n\n${contexts.join("\n\n")}`;
+
+    // รวม context จากทุก collection ที่มี similarity score ผ่านเกณฑ์
+    let context = '';
+    for (const result of contexts) {
+      if (result && result.length > 0) {
+        context += result + '\n';
+      }
+    }
+    
+    return `${promptTemplate}\n\n${context}`;
   }
 
   async *generateResponse(

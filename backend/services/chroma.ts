@@ -290,13 +290,12 @@ class ChromaService {
     }
   }
 
-  async queryCollection(collectionName: string, text: string, nResults: number = 10) {
+  async queryCollection(collectionName: string, query: string, limit: number = 5) {
     await this.initCollection(collectionName);
     const collection = this.collections.get(collectionName);
-    return collection.query({
-      queryTexts: [text],
-      nResults: nResults
-    });
+    const queryEmbedding = await this.titanEmbedService.embedText(query);
+    const results = await this.queryDocumentsWithEmbedding(collectionName, queryEmbedding, limit);
+    return results.documents.slice(0, limit);
   }
 
   async query(collectionName: string, query: string): Promise<any[]> {
