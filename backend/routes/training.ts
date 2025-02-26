@@ -257,7 +257,7 @@ router.put('/collections/:id', roleGuard(['Staffs', 'Admin', 'Students'] as User
     }
 
     const canAccess =
-      collection.permission === CollectionPermission.PUBLIC || collection.createdBy === user.nameID;
+      collection.permission === CollectionPermission.PUBLIC || collection.permission === CollectionPermission.PRIVATE || collection.createdBy === user.nameID;
     if (!canAccess) {
       res.status(403).json({ error: 'Permission denied' });
       return;
