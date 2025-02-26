@@ -416,7 +416,6 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
         return 'Unknown';
     }
   };
-
   // Filter collections based on permissions and model type
   const filteredCollections = availableCollections
     .filter(collection => {
@@ -425,12 +424,12 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
       // Show all collections for staff users
       if (isStaff) return true;
 
-      // For personal models, only show public collections
+      // For personal models, show public collections and private collections
       if (model.modelType === 'personal') {
         const permission = collection.permission && typeof collection.permission === 'string' 
           ? collection.permission.toLowerCase() 
           : '';
-        return permission === 'public';
+        return permission === 'public' || permission === 'private';
       }
 
       // For other model types (which shouldn't be accessible to non-staff anyway)
