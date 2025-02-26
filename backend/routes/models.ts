@@ -247,13 +247,15 @@ router.put('/:id/rename', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[
     await TrainingHistory.create({
       userId: userId,
       username: user.username,
+      collectionName: updatedModel.name, // เพิ่ม collectionName ตาม schema
       documentName: model.name,
-      action: 'rename_model',
+      action: 'rename', // แก้ไขเป็น 'rename' ตาม enum ที่กำหนดไว้
       details: {
         modelId: id,
         oldName: model.name,
         newName: name.trim()
-      }
+      },
+      status: 'completed' // เพิ่ม status ถ้าจำเป็น
     });
 
     res.json(updatedModel);
