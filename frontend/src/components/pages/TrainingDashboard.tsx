@@ -151,7 +151,13 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
 
   // เพิ่มฟังก์ชันตรวจสอบชื่อ collection
   const isValidCollectionName = (name: string): boolean => {
-    return name.length >= 3 && !name.includes(' ');
+    // ตรวจสอบความยาวและช่องว่าง
+    if (name.length < 3 || name.includes(' ')) {
+      return false;
+    }
+    // ตรวจสอบให้ใช้ได้เฉพาะ a-z, A-Z, 0-9, - และ _
+    const validNameRegex = /^[a-zA-Z0-9-_]+$/;
+    return validNameRegex.test(name);
   };
 
   // เพิ่ม state สำหรับแสดง error message
@@ -164,6 +170,8 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
       setNameError('Collection name must be at least 3 characters');
     } else if (value.includes(' ')) {
       setNameError('Collection name cannot contain spaces');
+    } else if (!/^[a-zA-Z0-9-_]+$/.test(value)) {
+      setNameError('Collection name can only contain English letters, numbers, hyphens (-) and underscores (_)');
     } else {
       setNameError('');
     }
@@ -199,7 +207,7 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
             </label>
             <input
               type="text"
-              placeholder="Enter collection name (min. 3 characters, no spaces)"
+              placeholder="Enter collection name (English letters, numbers, - and _ only)"
               value={newCollectionName}
               onChange={(e) => handleNameChange(e.target.value)}
               className={`w-full px-4 py-2 rounded-lg border 
