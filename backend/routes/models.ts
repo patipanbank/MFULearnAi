@@ -15,19 +15,31 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async 
     const user = (req as any).user;
     console.log('User in models route:', user);
     
-    // Check if user has staff privileges from groups array
+    // ดึงข้อมูลผู้ใช้
+    const userId = user.nameID || user.username;
     const userGroups = user.groups || [];
-    const isStaff = userGroups.includes('Staffs') || userGroups.includes('Admin');
+    const isStaff = userGroups.includes('Admin');
     
     // Get all models
     const models = await ModelModel.find({}).lean();
     console.log('Found models:', models);
     
-    // Filter models based on user groups
-    const filteredModels = models.filter(model => 
-      model.modelType === 'official' || (model.modelType === 'personal' && model.createdBy === user.nameID)
-    );
+    // กรองโมเดลตามเงื่อนไข:
+    // 1. Admin เห็นทุกโมเดล
+    // 2. User ทั่วไปเห็นเฉพาะ official และ personal ของตัวเอง
+    const filteredModels = models.filter(model => {
+      if (isStaff) {
+        return true; // Admin เห็นทั้งหมด
+      }
+      
+      return (
+        model.modelType === 'official' || // เห็น official ทั้งหมด
+        (model.modelType === 'personal' && model.createdBy === userId) // เห็น personal ของตัวเอง
+      );
+    });
+
     console.log('Filtered models:', filteredModels);
+    console.log('Current user ID:', userId);
 
     res.json(filteredModels);
   } catch (error) {
