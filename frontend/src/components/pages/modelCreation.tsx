@@ -128,10 +128,10 @@ interface ModelCardProps {
 
 export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, onDelete, isDeleting }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
-  const { isStaff } = useAuth();
+  const { isAdmin } = useAuth();
 
   const handleCardClick = () => {
-    if (model.modelType === 'official' && !isStaff) {
+    if (model.modelType === 'official' && !isAdmin) {
       window.alert('You do not have permission to access official models');
       return;
     }
