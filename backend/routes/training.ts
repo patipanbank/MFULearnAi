@@ -202,27 +202,28 @@ router.get('/collections', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole
  * POST /collections
  * Creates a new collection.
  */
-router.post('/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/collections', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   try {
     const { name, permission } = req.body;
     const user = (req as any).user;
     
-    // Use nameID if available, otherwise fall back to username (for admin users)
+    // ถ้าไม่ใช่ Admin จะสร้างได้แค่ PRIVATE collection เท่านั้น
+    const finalPermission = user.role === 'Admin' ? permission : CollectionPermission.PRIVATE;
+    
     const createdBy = user.nameID || user.username;
     if (!createdBy) {
       throw new Error('User identifier not found');
     }
     
-    const newCollection = await chromaService.createCollection(name, permission, createdBy);
+    const newCollection = await chromaService.createCollection(name, finalPermission, createdBy);
     
-    // Track collection creation
     await TrainingHistory.create({
       userId: user.nameID || user.username,
       username: user.username,
       collectionName: name,
       action: 'create_collection',
       details: {
-        permission
+        permission: finalPermission
       }
     });
     

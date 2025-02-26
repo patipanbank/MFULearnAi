@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaStar } from 'react-icons/fa';
+import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -48,13 +48,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   // const isStaff = userData.groups?.includes('Staffs') || userData.groups?.includes('Admin');
-  const isStaff = userData.groups?.includes('Admin');
+  const isStaff = userData.groups?.includes('Admin') || userData.groups?.includes('Students') || userData.groups?.includes('Staffs');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
   const currentChatId = searchParams.get('chat');
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [pinnedChats, setPinnedChats] = useState<string[]>([]);
   const [renameState, setRenameState] = useState<RenameState>({
     isEditing: false,
     chatId: null,
@@ -328,34 +327,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  const handlePinChat = async (chatId: string) => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/pin`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.status === 401) {
-        handleTokenExpired();
-        return;
-      }
-
-      if (response.ok) {
-        setPinnedChats(prev =>
-          prev.includes(chatId)
-            ? prev.filter(id => id !== chatId)
-            : [...prev, chatId]
-        );
-        fetchChatHistories();
-      }
-    } catch (error) {
-      console.error('Error pinning chat:', error);
-    }
-  };
-
   const filteredChats = chatHistories.filter(chat =>
     (chat.chatname || chat.name || 'Untitled Chat').toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -518,19 +489,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             </div>
                           </Link>
                           <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handlePinChat(chat._id);
-                              }}
-                              className={`flex-shrink-0 p-1 rounded-full transition-colors ${pinnedChats.includes(chat._id)
-                                  ? 'text-yellow-500 hover:text-yellow-600'
-                                  : 'text-gray-400 hover:text-gray-500'
-                                }`}
-                            >
-                              <FaStar className="w-3 h-3" />
-                            </button>
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
