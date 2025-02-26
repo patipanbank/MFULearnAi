@@ -111,9 +111,14 @@ router.post('/upload', roleGuard(['Staffs', 'Admin'] as UserRole[]), upload.sing
     console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
+    const userId = user.nameID || user.username;
+    if (!userId) {
+      throw new Error('User identifier not found');
+    }
+    
     // Track the upload in history
     await TrainingHistory.create({
-      userId: user.nameID,
+      userId: userId,
       username: user.username,
       collectionName,
       documentName: file.originalname,
