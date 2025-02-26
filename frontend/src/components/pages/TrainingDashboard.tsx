@@ -320,15 +320,20 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
           <div>
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{collection.name}</h2>
-              <button
-                onClick={onShowSettings}
-                className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
-                text-gray-600 dark:text-gray-300 transition-all duration-200
-                border border-gray-200 dark:border-gray-700"
-                title="Collection Settings"
-              >
-                <FaCog size={18} />
-              </button>
+              {onShowSettings && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowSettings();
+                  }}
+                  className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 
+                  text-gray-600 dark:text-gray-300 transition-all duration-200
+                  border border-gray-200 dark:border-gray-700"
+                  title="Collection Settings"
+                >
+                  <FaCog size={18} />
+                </button>
+              )}
             </div>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               Manage documents and settings for this collection
@@ -1233,7 +1238,7 @@ const TrainingDashboard: React.FC = () => {
           onFileChange={handleFileChange}
           onFileUpload={handleFileUpload}
           uploadLoading={uploadLoading}
-          onShowSettings={() => setShowSettings(true)}
+          onShowSettings={userInfo?.role === 'Admin' ? () => setShowSettings(true) : () => {}}
           onDeleteFile={handleDeleteFile}
         />
       )}
