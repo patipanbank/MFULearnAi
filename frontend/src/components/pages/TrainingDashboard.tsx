@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
 import { Collection, CollectionPermission } from '../../types/collection';
@@ -9,6 +9,7 @@ import { Collection, CollectionPermission } from '../../types/collection';
 interface UserInfo {
   username: string;
   role: 'Students' | 'Staffs' | 'Admin';
+  nameID?: string;
 }
 
 interface UploadedFile {
@@ -1057,10 +1058,26 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
-  // Filter collections based on search
-  const filteredCollections = collections.filter((collection) =>
-    collection.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
-  );
+  // เพิ่มฟังก์ชันกรอง collections
+  const filterUserCollections = (collections: Collection[]): Collection[] => {
+    if (!userInfo) return [];
+    
+    // กรองเฉพาะ collections ที่ผู้ใช้สร้าง
+    return collections.filter(collection => 
+      collection.createdBy === (userInfo.nameID || userInfo.username)
+    );
+  };
+
+  // แก้ไขส่วนการ render collections
+  const filteredCollections = useMemo(() => {
+    // กรองตาม search query
+    const searchFiltered = collections.filter(collection =>
+      collection.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    // กรองเฉพาะ collections ของผู้ใช้
+    return filterUserCollections(searchFiltered);
+  }, [collections, searchQuery, userInfo]);
 
   const getPermissionStyle = (permission?: CollectionPermission | string[] | undefined) => {
     if (Array.isArray(permission)) return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
@@ -1088,163 +1105,163 @@ const TrainingDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto p-4 font-sans relative">
-      {loading ? (
-        <div className="flex items-center justify-center min-h-[200px]">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <p className="text-gray-600 dark:text-gray-300">Loading collections...</p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <DashboardHeader
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onNewCollectionToggle={() => setShowNewCollectionModal(true)}
-            loading={loading || isCollectionsLoading}
-          />
+      <DashboardHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onNewCollectionToggle={() => setShowNewCollectionModal(true)}
+        loading={loading}
+      />
 
-          {/* Collections Section */}
-          {isCollectionsLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-600 dark:text-gray-300">Loading collections...</p>
+      {/* Collections Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {isCollectionsLoading ? (
+          // Loading skeletons...
+          Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm 
+              border border-gray-200 dark:border-gray-700 animate-pulse">
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCollections.length === 0 ? (
-                <div className="col-span-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 py-8">
-                  <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                  </svg>
-                  <p className="text-lg font-medium">No collections found</p>
-                  <p className="text-sm mt-2">Create a new collection to get started</p>
-                </div>
-              ) : (
-                filteredCollections.map((collection) => (
-                  <div
-                    key={collection.id}
-                    className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 
-                      shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer 
-                      border border-gray-200 dark:border-gray-700 
-                      hover:border-blue-300 dark:hover:border-blue-600
-                      transform hover:scale-[1.02]"
-                    onClick={() => handleCollectionSelect(collection)}
-                  >
+          ))
+        ) : filteredCollections.length > 0 ? (
+          // Show filtered collections
+          filteredCollections.map(collection => (
+            <div
+              key={collection.id}
+              onClick={() => handleCollectionSelect(collection)}
+              className="relative bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm 
+                border border-gray-200 dark:border-gray-700 hover:shadow-md 
+                transition-all duration-200 cursor-pointer group"
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id);
+                }}
+                className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
+                  dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
+                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                title="Options"
+              >
+                <FaEllipsisH size={16} />
+              </button>
+
+              {activeDropdownId === collection.id && (
+                <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-xl 
+                  shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
+                >
+                  {userInfo?.role === 'Admin' && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActiveDropdownId(activeDropdownId === collection.id ? null : collection.id);
+                        setSelectedCollection(collection);
+                        setShowSettings(true);
+                        setActiveDropdownId(null);
                       }}
-                      className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
-                        dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
-                        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-                      title="Options"
+                      className="w-full px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 
+                        hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2
+                        transition-colors duration-200"
                     >
-                      <FaEllipsisH size={16} />
+                      <FaCog size={14} />
+                      <span>Settings</span>
                     </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCollection(collection);
+                      setActiveDropdownId(null);
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-red-600 dark:text-red-400 
+                      hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center space-x-2
+                      transition-colors duration-200"
+                  >
+                    <FaTrash size={14} />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              )}
 
-                    {activeDropdownId === collection.id && (
-                      <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-xl 
-                        shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
-                      >
-                        {userInfo?.role === 'Admin' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedCollection(collection);
-                              setShowSettings(true);
-                              setActiveDropdownId(null);
-                            }}
-                            className="w-full px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 
-                              hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2
-                              transition-colors duration-200"
-                          >
-                            <FaCog size={14} />
-                            <span>Settings</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCollection(collection);
-                            setActiveDropdownId(null);
-                          }}
-                          className="w-full px-4 py-2.5 text-left text-red-600 dark:text-red-400 
-                            hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center space-x-2
-                            transition-colors duration-200"
-                        >
-                          <FaTrash size={14} />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="flex flex-col h-full">
-                      <div className="mb-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-                          {collection.name}
-                        </h2>
-                      </div>
-                      <div className="mt-auto space-y-2">
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-                          <span className="truncate">{collection.createdBy}</span>
-                        </div>
-                        <div className="flex justify-between items-center mt-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
-                            {getPermissionLabel(collection.permission)}
-                          </span>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {getRelativeTime(collection.created)}
-                          </div>
-                        </div>
-                      </div>
+              <div className="flex flex-col h-full">
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+                    {collection.name}
+                  </h2>
+                </div>
+                <div className="mt-auto space-y-2">
+                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                    <span className="truncate">{collection.createdBy}</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-4">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
+                      {getPermissionLabel(collection.permission)}
+                    </span>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {getRelativeTime(collection.created)}
                     </div>
                   </div>
-                ))
-              )}
+                </div>
+              </div>
             </div>
-          )}
+          ))
+        ) : (
+          // No collections found
+          <div className="col-span-full text-center py-12">
+            <div className="mx-auto w-24 h-24 mb-4 text-gray-400 dark:text-gray-600">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              No collections found
+            </h3>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              {searchQuery 
+                ? "No collections match your search criteria"
+                : "Create your first collection to get started"}
+            </p>
+          </div>
+        )}
+      </div>
 
-          {selectedCollection && (
-            <CollectionModal
-              collection={selectedCollection}
-              onClose={() => setSelectedCollection(null)}
-              uploadedFiles={uploadedFiles}
-              onFileChange={handleFileChange}
-              onFileUpload={handleFileUpload}
-              uploadLoading={uploadLoading}
-              onShowSettings={() => setShowSettings(true)}
-              onDeleteFile={handleDeleteFile}
-            />
-          )}
+      {selectedCollection && (
+        <CollectionModal
+          collection={selectedCollection}
+          onClose={() => setSelectedCollection(null)}
+          uploadedFiles={uploadedFiles}
+          onFileChange={handleFileChange}
+          onFileUpload={handleFileUpload}
+          uploadLoading={uploadLoading}
+          onShowSettings={() => setShowSettings(true)}
+          onDeleteFile={handleDeleteFile}
+        />
+      )}
 
-          {showSettings && selectedCollection && (
-            <SettingsModal
-              updatedCollectionName={updatedCollectionName}
-              updatedCollectionPermission={updatedCollectionPermission}
-              onNameChange={setUpdatedCollectionName}
-              onPermissionChange={setUpdatedCollectionPermission}
-              onClose={() => setShowSettings(false)}
-              onSubmit={handleUpdateSettings}
-            />
-          )}
+      {showSettings && selectedCollection && (
+        <SettingsModal
+          updatedCollectionName={updatedCollectionName}
+          updatedCollectionPermission={updatedCollectionPermission}
+          onNameChange={setUpdatedCollectionName}
+          onPermissionChange={setUpdatedCollectionPermission}
+          onClose={() => setShowSettings(false)}
+          onSubmit={handleUpdateSettings}
+        />
+      )}
 
-          {showNewCollectionModal && (
-            <NewCollectionModal
-              newCollectionName={newCollectionName}
-              newCollectionPermission={newCollectionPermission}
-              onNameChange={setNewCollectionName}
-              onPermissionChange={setNewCollectionPermission}
-              onSubmit={handleCreateCollection}
-              onCancel={() => {
-                setShowNewCollectionModal(false);
-                setNewCollectionName('');
-              }}
-              isAdmin={userInfo?.role === 'Admin'}
-            />
-          )}
-        </>
+      {showNewCollectionModal && (
+        <NewCollectionModal
+          newCollectionName={newCollectionName}
+          newCollectionPermission={newCollectionPermission}
+          onNameChange={setNewCollectionName}
+          onPermissionChange={setNewCollectionPermission}
+          onSubmit={handleCreateCollection}
+          onCancel={() => {
+            setShowNewCollectionModal(false);
+            setNewCollectionName('');
+          }}
+          isAdmin={userInfo?.role === 'Admin'}
+        />
       )}
     </div>
   );
