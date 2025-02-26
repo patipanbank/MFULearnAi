@@ -97,7 +97,7 @@ async function processFileDocuments(file: Express.Multer.File, user: any, modelI
  * POST /upload
  * Staff-only endpoint that processes a file upload and stores document chunks with embeddings.
  */
-router.post('/upload', roleGuard(['Staffs', 'Admin'] as UserRole[]), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
+router.post('/upload', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     const file = req.file;
     if (!file) {
@@ -245,7 +245,7 @@ router.post('/collections', roleGuard(['Staffs', 'Admin', 'Students'] as UserRol
  * PUT /collections/:id
  * Updates a collection using its MongoDB identifier.
  */
-router.put('/collections/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.put('/collections/:id', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { name: newName, permission } = req.body;
@@ -280,7 +280,7 @@ router.put('/collections/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), asy
  * DELETE /collections/:id
  * Deletes a single collection using its MongoDB identifier.
  */
-router.delete('/collections/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.delete('/collections/:id', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const user = (req as any).user;
@@ -322,7 +322,7 @@ router.delete('/collections/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), 
  * DELETE /collections
  * Deletes multiple collections given an array of collection IDs.
  */
-router.delete('/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.delete('/collections', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { collections } = req.body; // Expects an array of collection IDs
     const user = (req as any).user;
@@ -460,7 +460,7 @@ router.delete('/documents/:id', roleGuard(['Students', 'Staffs', 'Admin'] as Use
  * DELETE /documents/all/:collectionName
  * Deletes all documents for the provided collection.
  */
-router.delete('/documents/all/:collectionName', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.delete('/documents/all/:collectionName', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   try {
     const { collectionName } = req.params;
     await chromaService.deleteAllDocuments(collectionName);
@@ -480,7 +480,7 @@ router.delete('/documents/all/:collectionName', roleGuard(['Staffs', 'Admin'] as
  * Staff-only endpoint that scrapes content from URLs, processes them,
  * embeds them, and adds them to the specified collection.
  */
-router.post('/add-urls', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.post('/add-urls', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { urls, modelId, collectionName } = req.body;
     const user = (req as any).user;
@@ -532,7 +532,7 @@ router.post('/add-urls', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (re
  * Staff-only endpoint that cleans up orphaned documents.
  * Removes documents that do not have a model or collection reference.
  */
-router.delete('/cleanup', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.delete('/cleanup', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     await chromaService.deleteDocumentsWithoutModelOrCollection();
     res.json({ message: 'Cleanup completed successfully' });
@@ -565,31 +565,31 @@ router.get('/example/:id', async (req: Request, res: Response): Promise<void> =>
   }
 });
 
-router.post('/collections/:id/upload', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/collections/:id/upload', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   // ... existing code ...
 });
 
-router.post('/collections/:id/process', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/collections/:id/process', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   // ... existing code ...
 });
 
-router.post('/collections/:id/process-batch', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/collections/:id/process-batch', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   // ... existing code ...
 });
 
-router.post('/collections/:id/process-status', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/collections/:id/process-status', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   // ... existing code ...
 });
 
-router.post('/collections/:id/documents/:docId/process', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/collections/:id/documents/:docId/process', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   // ... existing code ...
 });
 
-router.delete('/collections/:id/documents/:docId', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.delete('/collections/:id/documents/:docId', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   // ... existing code ...
 });
 
-router.post('/collections/:id/documents/:docId/process-status', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/collections/:id/documents/:docId/process-status', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response) => {
   // ... existing code ...
 });
 
@@ -603,7 +603,7 @@ router.get('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]),
     let query = {};
     
     // If not admin or staff, only show user's own history
-    if (!user.groups.includes('Admin') && !user.groups.includes('Staffs')) {
+    if (!user.groups.includes('Admin')) {
       query = { userId: user.nameID };
     }
 
