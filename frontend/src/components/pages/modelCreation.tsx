@@ -53,6 +53,14 @@ enum CollectionPermission {
   PRIVATE = 'PRIVATE'
 }
 
+interface FilteredCollection {
+  id: string;
+  name: string;
+  createdBy: string;
+  created: string;
+  permission: CollectionPermission;
+}
+
 /* -------------------------------
    Utility Functions
 ---------------------------------*/
@@ -748,6 +756,19 @@ const ModelCreation: React.FC = () => {
         throw new Error('No auth token found');
       }
 
+      // ดึง user info จาก token
+      const tokenPayload = jwtDecode<{ 
+        role: string; 
+        nameID?: string; 
+        username: string;
+        groups?: string[];
+      }>(token);
+
+      const userRole = tokenPayload.groups?.includes('Admin') ? 'Admin' 
+        : tokenPayload.groups?.includes('Staffs') ? 'Staffs' 
+        : 'Students';
+      const currentUser = tokenPayload.nameID || tokenPayload.username;
+
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -767,7 +788,20 @@ const ModelCreation: React.FC = () => {
         permission: collection.permission || CollectionPermission.PUBLIC
       }));
 
-      setAvailableCollections(transformedCollections);
+      // กรอง collections ตามเงื่อนไข
+      const filteredCollections = transformedCollections.filter((collection: FilteredCollection) => {
+        if (userRole === 'Admin') {
+          // Admin เห็นแค่ PUBLIC
+          return collection.permission === CollectionPermission.PUBLIC;
+        } else {
+          // Staffs และ Students เห็น PUBLIC ทั้งหมด และ PRIVATE ที่ตัวเองสร้าง
+          return collection.permission === CollectionPermission.PUBLIC || 
+            (collection.permission === CollectionPermission.PRIVATE && 
+             collection.createdBy === currentUser);
+        }
+      });
+
+      setAvailableCollections(filteredCollections);
     } catch (error) {
       console.error('Error fetching collections:', error);
       alert('Failed to fetch collections. Please try again.');
