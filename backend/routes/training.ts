@@ -45,11 +45,10 @@ const upload = multer({
 
 /**
  * Checks if the given user is allowed to access or modify the collection.
- * Returns true if the user is in the 'Staffs' group or is the owner or is an Admin.
+ * Returns true if user is Admin or is the owner of the collection.
  */
 async function checkCollectionAccess(user: any, collection: any): Promise<boolean> {
   return user.groups.includes('Admin') || 
-         user.groups.includes('Staffs') || 
          collection.createdBy === (user.nameID || user.username);
 }
 
