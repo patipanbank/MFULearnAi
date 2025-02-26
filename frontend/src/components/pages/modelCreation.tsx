@@ -168,8 +168,6 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
               e.stopPropagation();
               setShowMenu(false);
             }}
-            className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 
-              dark:hover:bg-gray-700 flex items-center space-x-2"
           >
           </button>
           <button
