@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, useMemo } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaTrash, FaLayerGroup} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
@@ -830,6 +830,21 @@ const ModelCreation: React.FC = () => {
     }
   }, [editingModel]);
 
+  // เพิ่มฟังก์ชันกรอง models
+  const filteredModels = useMemo(() => {
+    if (!models) return [];
+    
+    // ดึง user info จาก token
+    const token = localStorage.getItem('auth_token');
+    if (!token) return [];
+    
+    const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+    const currentUser = tokenPayload.nameID || tokenPayload.username;
+    
+    // กรองเฉพาะ models ที่ผู้ใช้สร้าง
+    return models.filter(model => model.createdBy === currentUser);
+  }, [models]);
+
   return (
     <div className="container mx-auto p-6 font-sans">
       {isLoading ? (
@@ -860,7 +875,7 @@ const ModelCreation: React.FC = () => {
             <LoadingSpinner message="Fetching models..." />
           ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {models.map((model) => (
+        {filteredModels.map((model) => (
           <ModelCard
             key={model.id}
             model={model}
