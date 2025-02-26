@@ -844,7 +844,16 @@ const TrainingDashboard: React.FC = () => {
   const handleCreateCollection = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      // กำหนดให้ non-admin สร้างได้แค่ PRIVATE เท่านั้น
+      // ตรวจสอบชื่อซ้ำ
+      const isDuplicate = collections.some(
+        collection => collection.name.toLowerCase() === newCollectionName.toLowerCase()
+      );
+
+      if (isDuplicate) {
+        alert('Collection name already exists. Please choose a different name.');
+        return; // ไม่ปิด modal เพื่อให้ผู้ใช้แก้ไขชื่อใหม่
+      }
+
       const permission = userInfo?.role === 'Admin' ? newCollectionPermission : 'PRIVATE';
       
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
@@ -859,18 +868,13 @@ const TrainingDashboard: React.FC = () => {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to create collection');
-      
-      const data = await response.json();
-      console.log('New collection created:', data);
-      
-      // Refresh collections list
-      await fetchCollections();
-      
-      // Reset form and close modal
-      setNewCollectionName('');
-      setNewCollectionPermission('PRIVATE');
+      if (!response.ok) {
+        throw new Error('Failed to create collection');
+      }
+
+      await fetchCollections(); // รีโหลดข้อมูล collections
       setShowNewCollectionModal(false);
+      setNewCollectionName('');
     } catch (error) {
       console.error('Error creating collection:', error);
       alert('Failed to create collection. Please try again.');
