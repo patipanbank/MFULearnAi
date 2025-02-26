@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
 import { Collection, CollectionPermission } from '../../types/collection';
-import { useAuth } from '../../hooks/useAuth';
 
 // ----------------------
 // Type Definitions
@@ -147,7 +146,6 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
 }) => {
   // Add ref for click outside detection
   const modalRef = useRef<HTMLDivElement>(null);
-  const { isStaff } = useAuth();
 
   // Handle click outside
   useEffect(() => {
@@ -200,7 +198,6 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
               focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
             >
               <option value="PRIVATE">Private - Only you can access</option>
-              {isStaff && <option value="STAFF_ONLY">Staff Only - All staff members can access</option>}
               <option value="PUBLIC">Public - Everyone can access</option>
             </select>
           </div>
@@ -502,7 +499,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
             >
               <option value="PRIVATE">Private - Only you can access</option>
-              <option value="STAFF_ONLY">Staff Only - All staff members can access</option>
               <option value="PUBLIC">Public - Everyone can access</option>
             </select>
           </div>
@@ -1043,8 +1039,6 @@ const TrainingDashboard: React.FC = () => {
     switch (permission) {
       case CollectionPermission.PRIVATE:
         return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
-      case CollectionPermission.STAFF_ONLY:
-        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
       case CollectionPermission.PUBLIC:
         return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
       default:
@@ -1057,8 +1051,6 @@ const TrainingDashboard: React.FC = () => {
     switch (permission) {
       case CollectionPermission.PRIVATE:
         return 'Private';
-      case CollectionPermission.STAFF_ONLY:
-        return 'Staff Only';
       case CollectionPermission.PUBLIC:
         return 'Public';
       default:
