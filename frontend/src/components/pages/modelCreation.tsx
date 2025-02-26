@@ -904,18 +904,20 @@ const ModelCreation: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update collections');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update collections');
       }
 
+      const updatedModel = await response.json();
       setModels(prevModels =>
         prevModels.map(m =>
-          m.id === editingModel.id ? { ...m, collections: selectedCollections } : m
+          m.id === editingModel.id ? { ...m, collections: updatedModel.collections } : m
         )
       );
       setEditingModel(null);
     } catch (error) {
       console.error('Error updating collections:', error);
-      alert('Failed to update collections. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to update collections');
     } finally {
       setIsSavingCollections(false);
     }

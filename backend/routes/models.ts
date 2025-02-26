@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ModelModel, ModelDocument } from '../models/Model';
 import { roleGuard } from '../middleware/roleGuard';
 import { UserRole } from '../models/User';
+import { TrainingHistory } from '../models/TrainingHistory';
 
 const router = Router();
 
@@ -85,29 +86,64 @@ router.post('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async
 });
 
 /**
- * PUT /api/models/:id
+ * PUT /api/models/:id/collections
  * Updates a model's collections
  */
-router.put('/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.put('/:id/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { collections } = req.body;
+    const user = (req as any).user;
 
-    const model = await ModelModel.findByIdAndUpdate(
-      id,
-      { collections },
-      { new: true }
-    );
-
+    // ตรวจสอบว่า model มีอยู่จริง
+    const model = await ModelModel.findById(id);
     if (!model) {
       res.status(404).json({ error: 'Model not found' });
       return;
     }
 
-    res.json(model);
+    // ตรวจสอบสิทธิ์การแก้ไข
+    const userGroups = user.groups || [];
+    const isStaff = userGroups.includes('Staffs') || userGroups.includes('Admin');
+    const isOwner = model.createdBy === (user.nameID || user.username);
+
+    if (!isStaff && !isOwner) {
+      res.status(403).json({ error: 'Permission denied' });
+      return;
+    }
+
+    // อัพเดท collections
+    const updatedModel = await ModelModel.findByIdAndUpdate(
+      id,
+      { collections },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedModel) {
+      res.status(404).json({ error: 'Model not found' });
+      return;
+    }
+
+    // บันทึกประวัติการแก้ไข
+    const userId = user.nameID || user.username;
+    if (!userId) {
+      throw new Error('User identifier not found');
+    }
+
+    await TrainingHistory.create({
+      userId: userId,
+      username: user.username,
+      action: 'update_collections',
+      details: {
+        modelId: id,
+        collections: collections
+      }
+    });
+
+    res.json(updatedModel);
   } catch (error) {
-    console.error('Error updating model:', error);
-    res.status(500).json({ error: 'Error updating model' });
+    console.error('Error updating model collections:', error);
+    res.status(500).json({ error: 'Error updating model collections' });
   }
 });
 
