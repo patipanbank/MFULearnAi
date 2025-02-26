@@ -151,13 +151,7 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
 
   // เพิ่มฟังก์ชันตรวจสอบชื่อ collection
   const isValidCollectionName = (name: string): boolean => {
-    // ตรวจสอบความยาวและช่องว่าง
-    if (name.length < 3 || name.includes(' ')) {
-      return false;
-    }
-    // ตรวจสอบให้ใช้ได้เฉพาะ a-z, A-Z, 0-9, - และ _ เท่านั้น
-    const validCharRegex = /^[a-zA-Z0-9-_]+$/;
-    return validCharRegex.test(name);
+    return name.length >= 3 && !name.includes(' ');
   };
 
   // เพิ่ม state สำหรับแสดง error message
@@ -170,8 +164,6 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
       setNameError('Collection name must be at least 3 characters');
     } else if (value.includes(' ')) {
       setNameError('Collection name cannot contain spaces');
-    } else if (!(/^[a-zA-Z0-9-_]+$/).test(value)) {
-      setNameError('Collection name can only contain English letters, numbers, hyphens (-) and underscores (_)');
     } else {
       setNameError('');
     }
@@ -207,7 +199,7 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
             </label>
             <input
               type="text"
-              placeholder="Enter collection name (English letters, numbers, - and _ only)"
+              placeholder="Enter collection name (min. 3 characters, no spaces)"
               value={newCollectionName}
               onChange={(e) => handleNameChange(e.target.value)}
               className={`w-full px-4 py-2 rounded-lg border 
@@ -1148,20 +1140,22 @@ const TrainingDashboard: React.FC = () => {
                       <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-xl 
                         shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
                       >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCollection(collection);
-                            setShowSettings(true);
-                            setActiveDropdownId(null);
-                          }}
-                          className="w-full px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 
-                            hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2
-                            transition-colors duration-200"
-                        >
-                          <FaCog size={14} />
-                          <span>Settings</span>
-                        </button>
+                        {userInfo?.role === 'Admin' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCollection(collection);
+                              setShowSettings(true);
+                              setActiveDropdownId(null);
+                            }}
+                            className="w-full px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 
+                              hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2
+                              transition-colors duration-200"
+                          >
+                            <FaCog size={14} />
+                            <span>Settings</span>
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
