@@ -157,19 +157,11 @@ Remember: Your responses should be based on the provided context and documents.`
               similarity: 1 - (queryResult.distances?.[index] || 0)
             }));
 
-          // Calculate dynamic threshold based on result distribution
-          const similarities = results.map(r => r.similarity);
-          const mean = similarities.reduce((a, b) => a + b, 0) / similarities.length;
-          const stdDev = Math.sqrt(
-            similarities.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / similarities.length
-          );
-          const dynamicThreshold = Math.max(
-            this.MIN_SIMILARITY_THRESHOLD,
-            mean - stdDev
-          );
+          // ลด threshold ลงเพื่อให้เก็บข้อมูลที่เกี่ยวข้องมากขึ้น
+          const MIN_SIMILARITY_THRESHOLD = 0.1;
 
           const filteredResults = results
-            .filter(result => result.similarity >= dynamicThreshold)
+            .filter(result => result.similarity >= MIN_SIMILARITY_THRESHOLD)
             .sort((a, b) => b.similarity - a.similarity);
 
           const sources = filteredResults.map(result => ({
@@ -178,6 +170,13 @@ Remember: Your responses should be based on the provided context and documents.`
             filename: result.metadata.filename,
             similarity: result.similarity
           }));
+
+          // เพิ่ม logging เพื่อตรวจสอบ
+          console.log('Filtered results:', {
+            name,
+            resultCount: filteredResults.length,
+            context: filteredResults.map(r => r.text).join("\n\n")
+          });
 
           return {
             context: filteredResults.map(r => r.text).join("\n\n"),
