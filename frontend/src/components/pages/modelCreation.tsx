@@ -748,6 +748,11 @@ const ModelCreation: React.FC = () => {
         throw new Error('No auth token found');
       }
 
+      // ดึง user info จาก token
+      const tokenPayload = jwtDecode<{ role: string; nameID?: string; username: string }>(token);
+      const userRole = tokenPayload.role;
+      const currentUser = tokenPayload.nameID || tokenPayload.username;
+
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -766,8 +771,20 @@ const ModelCreation: React.FC = () => {
         created: collection.created || collection.createdAt || new Date().toISOString(),
         permission: collection.permission || CollectionPermission.PUBLIC
       }));
+      // กรอง collections ตามเงื่อนไข
+      const filteredCollections = transformedCollections.filter((collection: { permission: CollectionPermission; createdBy: string }) => {
+        if (userRole === 'Admin') {
+          // Admin เห็นแค่ PUBLIC
+          return collection.permission === CollectionPermission.PUBLIC;
+        } else if (userRole === 'Staffs' || userRole === 'Students') {
+          // Staffs และ Students เห็น PUBLIC ทั้งหมด และ PRIVATE ที่ตัวเองสร้าง
+          return collection.permission === CollectionPermission.PUBLIC || 
+            (collection.permission === CollectionPermission.PRIVATE && collection.createdBy === currentUser);
+        }
+        return false;
+      });
 
-      setAvailableCollections(transformedCollections);
+      setAvailableCollections(filteredCollections);
     } catch (error) {
       console.error('Error fetching collections:', error);
       alert('Failed to fetch collections. Please try again.');
