@@ -297,10 +297,16 @@ router.delete('/collections/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), 
       res.status(403).json({ error: 'Permission denied' });
       return;
     }
+
+    // เพิ่มการตรวจสอบและกำหนด userId
+    const userId = user.nameID || user.username;
+    if (!userId) {
+      throw new Error('User identifier not found');
+    }
     
-    // Track collection deletion
+    // Track collection deletion with userId ที่ตรวจสอบแล้ว
     await TrainingHistory.create({
-      userId: user.nameID,
+      userId: userId,
       username: user.username,
       collectionName: collection.name,
       action: 'delete_collection'
