@@ -25,13 +25,8 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async 
     console.log('Found models:', models);
     
     // กรองโมเดลตามเงื่อนไข:
-    // 1. Admin เห็นทุกโมเดล
-    // 2. User ทั่วไปเห็นเฉพาะ official และ personal ของตัวเอง
+    // ทุก User เห็นเฉพาะ official และ personal ของตัวเอง
     const filteredModels = models.filter(model => {
-      if (isStaff) {
-        return true; // Admin เห็นทั้งหมด
-      }
-      
       return (
         model.modelType === 'official' || // เห็น official ทั้งหมด
         (model.modelType === 'personal' && model.createdBy === userId) // เห็น personal ของตัวเอง
