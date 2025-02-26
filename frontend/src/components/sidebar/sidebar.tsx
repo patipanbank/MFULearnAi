@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaCog, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch } from 'react-icons/fa';
+import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -530,7 +530,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 onClick={onClose}
               >
                 <FaAndroid className="w-5 h-5 mr-3" />
-                <span className="font-medium">Model Creation</span>
+                <span className="font-medium">Build Model</span>
               </Link>
 
               <Link
@@ -538,8 +538,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/training' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
               >
-                <FaCog className="w-5 h-5 mr-3" />
-                <span className="font-medium">AI Training</span>
+                <FaBookOpen className="w-5 h-5 mr-3" />
+                <span className="font-medium">Knowledge Base</span>
               </Link>
             </>
           )}
