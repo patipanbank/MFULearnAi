@@ -587,8 +587,8 @@ const ModelCreation: React.FC = () => {
     if (token) {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const userGroups = tokenPayload.groups || [];
-      setIsStaff(userGroups.includes('Staffs') || userGroups.includes('Admin'));
-      setNewModelType((userGroups.includes('Staffs') || userGroups.includes('Admin')) ? 'official' : 'personal');
+      setIsStaff(userGroups.includes('Admin'));
+      setNewModelType((userGroups.includes('Admin')) ? 'official' : 'personal');
     }
   }, []);
 
