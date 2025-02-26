@@ -206,9 +206,10 @@ class ChromaService {
         distancesLength: queryResult.distances?.length || 0
       });
 
-      // Filter results based on similarity score
-      const MAX_L2_DISTANCE = Math.sqrt(2); // Maximum L2 distance for normalized vectors
-      const MIN_SIMILARITY_THRESHOLD = 0.3; // Minimum similarity threshold
+      // ปรับลดค่า MAX_L2_DISTANCE และ MIN_SIMILARITY_THRESHOLD
+      const MAX_L2_DISTANCE = 2.0; // เพิ่มจาก Math.sqrt(2)
+      const MIN_SIMILARITY_THRESHOLD = 0.0; // ลดจาก 0.3
+
       const documents = queryResult.documents[0];
       const distances = queryResult.distances?.[0] || [];
       const metadatas = queryResult.metadatas?.[0] || [];
@@ -223,12 +224,10 @@ class ChromaService {
         similarity: number;
       }
 
-      // Convert L2 distance to similarity score (0 to 1 range)
+      // แก้ไขฟังก์ชัน l2DistanceToSimilarity
       const l2DistanceToSimilarity = (distance: number): number => {
-        // Clamp distance to max theoretical L2 distance
         const clampedDistance = Math.min(distance, MAX_L2_DISTANCE);
-        // Convert to similarity score (1 = identical, 0 = orthogonal or opposite)
-        return 1 - (clampedDistance / MAX_L2_DISTANCE);
+        return Math.max(0, 1 - (clampedDistance / MAX_L2_DISTANCE));
       };
 
       // Log raw distances and computed similarities
