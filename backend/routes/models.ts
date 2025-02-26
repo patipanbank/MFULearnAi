@@ -193,4 +193,74 @@ router.get('/:id', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), asy
   }
 });
 
+/**
+ * PUT /api/models/:id/rename
+ * Renames a model
+ */
+router.put('/:id/rename', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const user = (req as any).user;
+
+    // ตรวจสอบว่ามีการส่งชื่อใหม่มาหรือไม่
+    if (!name || name.trim().length === 0) {
+      res.status(400).json({ error: 'New name is required' });
+      return;
+    }
+
+    // ค้นหา model
+    const model = await ModelModel.findById(id);
+    if (!model) {
+      res.status(404).json({ error: 'Model not found' });
+      return;
+    }
+
+    // ตรวจสอบสิทธิ์การแก้ไข
+    const userGroups = user.groups || [];
+    const isStaff = userGroups.includes('Staffs') || userGroups.includes('Admin');
+    const isOwner = model.createdBy === (user.nameID || user.username);
+
+    if (!isStaff && !isOwner) {
+      res.status(403).json({ error: 'Permission denied' });
+      return;
+    }
+
+    // อัพเดทชื่อ model
+    const updatedModel = await ModelModel.findByIdAndUpdate(
+      id,
+      { name: name.trim() },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedModel) {
+      res.status(404).json({ error: 'Model not found' });
+      return;
+    }
+
+    // บันทึกประวัติการแก้ไข
+    const userId = user.nameID || user.username;
+    if (!userId) {
+      throw new Error('User identifier not found');
+    }
+
+    await TrainingHistory.create({
+      userId: userId,
+      username: user.username,
+      documentName: model.name,
+      action: 'rename_model',
+      details: {
+        modelId: id,
+        oldName: model.name,
+        newName: name.trim()
+      }
+    });
+
+    res.json(updatedModel);
+  } catch (error) {
+    console.error('Error renaming model:', error);
+    res.status(500).json({ error: 'Error renaming model' });
+  }
+});
+
 export default router; 

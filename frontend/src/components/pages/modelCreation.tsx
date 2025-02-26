@@ -671,7 +671,7 @@ const ModelCreation: React.FC = () => {
   const [availableCollections, setAvailableCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
-  const [newModelType, setNewModelType] = useState<'official' | 'personal'>('personal');
+  const [newModelType, setNewModelType] = useState<'official' | 'personal' | 'staff_only'>('personal');
   const [isSavingCollections, setIsSavingCollections] = useState(false);
 
   // Get user role and permissions on component mount
