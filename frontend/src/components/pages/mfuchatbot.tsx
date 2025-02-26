@@ -145,7 +145,7 @@ const MFUChatbot: React.FC = () => {
         }
 
         console.log('Fetching models with token:', `Bearer ${token}`);
-        // Fetch official and staff-only models from the database
+        // ดึงโมเดลทั้งหมดจาก API
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -158,7 +158,6 @@ const MFUChatbot: React.FC = () => {
           console.error('Failed to fetch models:', response.status, errorText);
           
           if (response.status === 401) {
-            // Token might be expired or invalid
             localStorage.removeItem('auth_token');
             window.location.href = '/login';
             return;
@@ -169,34 +168,20 @@ const MFUChatbot: React.FC = () => {
 
         const dbModels = await response.json();
         
-        // Filter models based on user role
-        const filteredDbModels = dbModels.filter((model: any) => 
-          model.modelType === 'official'
-        );
-        
-        // Get personal models from localStorage
-        const storedPersonalModels = JSON.parse(localStorage.getItem('personalModels') || '[]');
+        // แปลงข้อมูลโมเดลให้อยู่ในรูปแบบที่ต้องการ
+        const allModels = dbModels.map((model: any) => ({
+          id: model._id,
+          name: model.name,
+          modelType: model.modelType
+        }));
 
-        // Combine both types of models
-        const allModels = [
-          ...filteredDbModels.map((model: any) => ({
-            id: model._id,
-            name: model.name,
-            modelType: model.modelType
-          })),
-          ...storedPersonalModels.map((model: any) => ({
-            id: model.id,
-            name: model.name,
-            modelType: 'personal'
-          }))
-        ];
-
+        console.log('Loaded models:', allModels);
         setModels(allModels);
 
-        // Set the first model as selected if available
+        // ตั้งค่าโมเดลเริ่มต้น
         if (allModels.length > 0) {
-          const defaultModel = allModels.find(model => model.name === 'Default');
-          setSelectedModel(defaultModel?.id || allModels[0].id);
+          const defaultModel = allModels.find((model: any) => model.name === 'Default') || allModels[0];
+          setSelectedModel(defaultModel.id);
         }
       } catch (error) {
         console.error('Error fetching models:', error);
