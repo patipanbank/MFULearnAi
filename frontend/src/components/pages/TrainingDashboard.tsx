@@ -1140,20 +1140,22 @@ const TrainingDashboard: React.FC = () => {
                       <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-xl 
                         shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
                       >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCollection(collection);
-                            setShowSettings(true);
-                            setActiveDropdownId(null);
-                          }}
-                          className="w-full px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 
-                            hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2
-                            transition-colors duration-200"
-                        >
-                          <FaCog size={14} />
-                          <span>Settings</span>
-                        </button>
+                        {userInfo?.role === 'Admin' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCollection(collection);
+                              setShowSettings(true);
+                              setActiveDropdownId(null);
+                            }}
+                            className="w-full px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 
+                              hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2
+                              transition-colors duration-200"
+                          >
+                            <FaCog size={14} />
+                            <span>Settings</span>
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
