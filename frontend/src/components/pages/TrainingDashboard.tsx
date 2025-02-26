@@ -149,6 +149,26 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
   // Add ref for click outside detection
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // เพิ่มฟังก์ชันตรวจสอบชื่อ collection
+  const isValidCollectionName = (name: string): boolean => {
+    return name.length >= 3 && !name.includes(' ');
+  };
+
+  // เพิ่ม state สำหรับแสดง error message
+  const [nameError, setNameError] = useState<string>('');
+
+  // ตรวจสอบชื่อเมื่อมีการเปลี่ยนแปลง
+  const handleNameChange = (value: string) => {
+    onNameChange(value);
+    if (value.length < 3) {
+      setNameError('Collection name must be at least 3 characters');
+    } else if (value.includes(' ')) {
+      setNameError('Collection name cannot contain spaces');
+    } else {
+      setNameError('');
+    }
+  };
+
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -179,14 +199,20 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
             </label>
             <input
               type="text"
-              placeholder="Enter collection name"
+              placeholder="Enter collection name (min. 3 characters, no spaces)"
               value={newCollectionName}
-              onChange={(e) => onNameChange(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-              placeholder-gray-500 dark:placeholder-gray-400"
+              onChange={(e) => handleNameChange(e.target.value)}
+              className={`w-full px-4 py-2 rounded-lg border 
+                ${nameError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'}
+                bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+                placeholder-gray-500 dark:placeholder-gray-400`}
             />
+            {nameError && (
+              <p className="mt-2 text-sm text-red-500 dark:text-red-400">
+                {nameError}
+              </p>
+            )}
           </div>
           {isAdmin && (
             <div>
@@ -208,9 +234,12 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
           <div className="flex flex-col space-y-2 pt-4">
             <button
               type="submit"
-              className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 
-              dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium 
-              transform transition-all duration-200"
+              disabled={!isValidCollectionName(newCollectionName)}
+              className={`w-full px-4 py-2 rounded-lg font-medium 
+                transform transition-all duration-200
+                ${isValidCollectionName(newCollectionName)
+                  ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white'
+                  : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
             >
               Create Collection
             </button>
