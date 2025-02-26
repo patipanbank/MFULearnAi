@@ -25,9 +25,7 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async 
     
     // Filter models based on user groups
     const filteredModels = models.filter(model => 
-      model.modelType === 'official' || 
-      (model.modelType === 'staff_only' && isStaff) ||
-      (model.modelType === 'personal' && model.createdBy === user.nameID)
+      model.modelType === 'official' || (model.modelType === 'personal' && model.createdBy === user.nameID)
     );
     console.log('Filtered models:', filteredModels);
 
@@ -53,13 +51,13 @@ router.post('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async
       return;
     }
 
-    // Check if user has staff privileges from groups array
+    // Check if user has Admin privileges from groups array
     const userGroups = user.groups || [];
-    const isStaff = userGroups.includes('Staffs') || userGroups.includes('Admin');
+    const isStaff = userGroups.includes('Admin')
 
-    // Only staff can create official or staff_only models
-    if ((modelType === 'official' || modelType === 'staff_only') && !isStaff) {
-      res.status(403).json({ message: 'Only staff can create official or staff-only models' });
+    // Only Admin can create official
+    if ((modelType === 'official') && !isStaff) {
+      res.status(403).json({ message: 'Only Admin can create official' });
       return;
     }
 

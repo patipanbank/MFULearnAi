@@ -569,8 +569,6 @@ router.get('/collections', async (req: Request, res: Response) => {
       switch (collection.permission) {
         case CollectionPermission.PUBLIC:
           return true;
-        case CollectionPermission.STAFF_ONLY:
-          return user.groups.includes('Staffs');
         case CollectionPermission.PRIVATE:
           return collection.createdBy === user.nameID;
         default:

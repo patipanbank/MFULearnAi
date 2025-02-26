@@ -2,7 +2,6 @@ import { Document, Schema, model } from 'mongoose';
 
 export enum CollectionPermission {
   PUBLIC = 'PUBLIC',
-  STAFF_ONLY = 'STAFF_ONLY',
   PRIVATE = 'PRIVATE'
 }
 

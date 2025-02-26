@@ -1,6 +1,5 @@
 export enum CollectionPermission {
   PUBLIC = 'PUBLIC',
-  STAFF_ONLY = 'STAFF_ONLY',
   PRIVATE = 'PRIVATE'
 }
 

@@ -258,9 +258,7 @@ router.put('/collections/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), asy
     }
 
     const canAccess =
-      collection.permission === CollectionPermission.PUBLIC ||
-      (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
-      collection.createdBy === user.nameID;
+      collection.permission === CollectionPermission.PUBLIC || collection.createdBy === user.nameID;
     if (!canAccess) {
       res.status(403).json({ error: 'Permission denied' });
       return;
@@ -382,9 +380,7 @@ router.get('/documents', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]
     // Check user permission based on collection settings.
     const userId = user.nameID || user.username;
     const canAccess = 
-      collection.permission === CollectionPermission.PUBLIC ||
-      (collection.permission === CollectionPermission.STAFF_ONLY && user.groups.includes('Staffs')) ||
-      collection.createdBy === userId;
+      collection.permission === CollectionPermission.PUBLIC || collection.createdBy === userId;
     if (!canAccess) {
       res.status(403).json({ error: 'No permission to access this collection' });
       return;
@@ -557,10 +553,7 @@ router.get('/example/:id', async (req: Request, res: Response): Promise<void> =>
     }
 
     const canAccess =
-      collection.permission === CollectionPermission.PUBLIC ||
-      (collection.permission === CollectionPermission.STAFF_ONLY &&
-        (req as any).user.groups.includes('Staffs')) ||
-      collection.createdBy === (req as any).user.nameID;
+      collection.permission === CollectionPermission.PUBLIC || collection.createdBy === (req as any).user.nameID;
 
     res.status(200).json({
       id: collection._id,

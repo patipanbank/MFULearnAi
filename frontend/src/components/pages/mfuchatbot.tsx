@@ -48,7 +48,7 @@ interface ChatHistory {
 interface Model {
   id: string;
   name: string;
-  modelType: 'official' | 'personal' | 'staff_only';
+  modelType: 'official' | 'personal';
 }
 
 // const modelNames: { [key: string]: string } = {
@@ -144,16 +144,6 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
-        // Get user role from token
-        let tokenPayload;
-        try {
-          tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        } catch (e) {
-          console.error('Failed to parse token payload:', e);
-          return;
-        }
-        const isStaff = tokenPayload.role === 'Staffs' || tokenPayload.role === 'Admin';
-
         console.log('Fetching models with token:', `Bearer ${token}`);
         // Fetch official and staff-only models from the database
         const response = await fetch(`${config.apiUrl}/api/models`, {
@@ -181,8 +171,7 @@ const MFUChatbot: React.FC = () => {
         
         // Filter models based on user role
         const filteredDbModels = dbModels.filter((model: any) => 
-          model.modelType === 'official' || 
-          (model.modelType === 'staff_only' && isStaff)
+          model.modelType === 'official'
         );
         
         // Get personal models from localStorage

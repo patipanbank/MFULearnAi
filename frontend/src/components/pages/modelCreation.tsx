@@ -34,7 +34,7 @@ interface Model {
   id: string;
   name: string;
   collections: string[]; // list of collection names selected in the model
-  modelType: 'official' | 'personal' | 'staff_only';
+  modelType: 'official' | 'personal';
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -50,7 +50,6 @@ interface Collection {
 
 enum CollectionPermission {
   PUBLIC = 'PUBLIC',
-  STAFF_ONLY = 'STAFF_ONLY',
   PRIVATE = 'PRIVATE'
 }
 
@@ -61,8 +60,6 @@ const getModelTypeStyle = (type: string) => {
   switch (type) {
     case 'official':
       return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-    case 'staff_only':
-      return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
     case 'personal':
       return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
     default:
@@ -264,11 +261,11 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
 ---------------------------------*/
 interface NewModelModalProps {
   newModelName: string;
-  newModelType: 'official' | 'personal' | 'staff_only';
+  newModelType: 'official' | 'personal';
   isCreating: boolean;
   isStaff: boolean;
   onNameChange: (value: string) => void;
-  onTypeChange: (value: 'official' | 'personal' | 'staff_only') => void;
+  onTypeChange: (value: 'official' | 'personal') => void;
   onSubmit: (e: FormEvent) => void;
   onCancel: () => void;
 }
@@ -317,7 +314,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
         </label>
         <select
           value={newModelType}
-          onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal' | 'staff_only')}
+          onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal')}
           disabled={isCreating}
           className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 
             bg-white dark:bg-gray-700 text-gray-900 dark:text-white
@@ -329,7 +326,6 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
           {isStaff && (
             <>
               <option value="official">Official</option>
-              <option value="staff_only">Staff Only</option>
             </>
           )}
         </select>
@@ -405,8 +401,6 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     switch (permission) {
       case CollectionPermission.PRIVATE:
         return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
-      case CollectionPermission.STAFF_ONLY:
-        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
       case CollectionPermission.PUBLIC:
         return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
       default:
@@ -421,8 +415,6 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     switch (permission) {
       case CollectionPermission.PRIVATE:
         return 'Private';
-      case CollectionPermission.STAFF_ONLY:
-        return 'Staff Only';
       case CollectionPermission.PUBLIC:
         return 'Public';
       default:
@@ -679,7 +671,7 @@ const ModelCreation: React.FC = () => {
   const [availableCollections, setAvailableCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
-  const [newModelType, setNewModelType] = useState<'official' | 'personal' | 'staff_only'>('personal');
+  const [newModelType, setNewModelType] = useState<'official' | 'personal'>('personal');
   const [isSavingCollections, setIsSavingCollections] = useState(false);
 
   // Get user role and permissions on component mount
