@@ -130,15 +130,21 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), asy
       throw new Error('User identifier not found');
     }
 
-    await TrainingHistory.create({
-      userId: userId,
-      username: user.username,
-      action: 'update_collections',
-      details: {
-        modelId: id,
-        collections: collections
-      }
-    });
+    // สร้าง TrainingHistory entries สำหรับแต่ละ collection
+    await Promise.all(collections.map(async (collectionName: string) => {
+      await TrainingHistory.create({
+        userId: userId,
+        username: user.username,
+        collectionName: collectionName, // เพิ่ม collectionName
+        documentName: model.name, // ใช้ชื่อ model เป็น documentName
+        action: 'update_collection', // เปลี่ยนเป็น update_collection ตาม enum ที่กำหนด
+        details: {
+          modelId: id,
+          modelName: model.name,
+          collections: collections
+        }
+      });
+    }));
 
     res.json(updatedModel);
   } catch (error) {
