@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { config } from '../../config/config';
-import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaEdit, FaTrash, FaLayerGroup} from 'react-icons/fa';
+import { FaPlus, FaTimes, FaCheck, FaEllipsisH, FaTrash, FaLayerGroup} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { jwtDecode } from 'jwt-decode';
 
@@ -122,12 +122,11 @@ const BaseModal: React.FC<BaseModalProps> = ({
 interface ModelCardProps {
   model: Model;
   onCollectionsEdit: (model: Model) => void;
-  onRename: (modelId: string) => void;
   onDelete: (modelId: string) => void;
   isDeleting: string | null;
 }
 
-export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, onRename, onDelete, isDeleting }) => {
+export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, onDelete, isDeleting }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
   const { isStaff } = useAuth();
 
@@ -167,14 +166,11 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onRename(model.id);
               setShowMenu(false);
             }}
             className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 
               dark:hover:bg-gray-700 flex items-center space-x-2"
           >
-            <FaEdit size={14} />
-            <span>Rename</span>
           </button>
           <button
             onClick={(e) => {
@@ -563,84 +559,6 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
 };
 
 /* -------------------------------
-   Edit Model Modal Component
----------------------------------*/
-interface EditModelModalProps {
-  model: Model;
-  isRenaming: boolean;
-  onNameChange: (value: string) => void;
-  onSubmit: (e: FormEvent) => void;
-  onCancel: () => void;
-}
-
-const EditModelModal: React.FC<EditModelModalProps> = ({
-  model,
-  isRenaming,
-  onNameChange,
-  onSubmit,
-  onCancel,
-}) => (
-  <BaseModal onClose={onCancel} containerClasses="w-[28rem]" zIndex={51}>
-    <div className="mb-6">
-      <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-        Rename Model
-      </h3>
-      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-        Update the name of your model
-      </p>
-    </div>
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Model Name
-        </label>
-        <input
-          type="text"
-          placeholder="Enter new name"
-          value={model.name}
-          onChange={(e) => onNameChange(e.target.value)}
-          disabled={isRenaming}
-          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 
-            bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-            focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-            placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed"
-        />
-      </div>
-      <div className="flex justify-end gap-3 mt-6">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isRenaming}
-          className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
-            rounded-xl transition-all duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isRenaming}
-          className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
-            hover:from-blue-700 hover:to-blue-800 text-white rounded-xl 
-            transition-all duration-200 transform hover:scale-[1.02]
-            disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isRenaming ? (
-            <div className="flex items-center">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-              Renaming...
-            </div>
-          ) : (
-            'Save Changes'
-          )}
-        </button>
-      </div>
-    </form>
-  </BaseModal>
-);
-
-/* -------------------------------
    Main Model Creation Component
 ---------------------------------*/
 const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
@@ -657,14 +575,12 @@ const ModelCreation: React.FC = () => {
   const [models, setModels] = useState<Model[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModelsLoading, setIsModelsLoading] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isCollectionsLoading, setIsCollectionsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [showNewModelModal, setShowNewModelModal] = useState<boolean>(false);
   const [newModelName, setNewModelName] = useState<string>('');
   const [editingModel, setEditingModel] = useState<Model | null>(null);
-  const [editingModelForRename, setEditingModelForRename] = useState<Model | null>(null);
   const [isStaff, setIsStaff] = useState<boolean>(false);
   
   // For the model collections modal
@@ -915,56 +831,6 @@ const ModelCreation: React.FC = () => {
     }
   };
 
-  // Handler for when a model's ellipsis menu "Rename" is clicked.
-  const handleRenameModel = (modelId: string) => {
-    const modelToEdit = models.find((m) => m.id === modelId);
-    if (modelToEdit) {
-      setEditingModelForRename(modelToEdit);
-    }
-  };
-
-  // Handler for model name change
-  const handleModelNameChange = (newName: string) => {
-    if (editingModelForRename) {
-      setEditingModelForRename({ ...editingModelForRename, name: newName });
-    }
-  };
-
-  // Handler for updating the model's name.
-  const handleUpdateModelName = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editingModelForRename) return;
-    
-    setIsRenaming(true);
-    try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${config.apiUrl}/api/models/${editingModelForRename.id}/rename`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ name: editingModelForRename.name })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to rename model');
-      }
-
-      setModels(prevModels =>
-        prevModels.map(m =>
-          m.id === editingModelForRename.id ? { ...m, name: editingModelForRename.name } : m
-        )
-      );
-      setEditingModelForRename(null);
-    } catch (error) {
-      console.error('Error renaming model:', error);
-      alert('Failed to rename model. Please try again.');
-    } finally {
-      setIsRenaming(false);
-    }
-  };
-
   // Add the useEffect hook to fetch collections when editing a model
   useEffect(() => {
     if (editingModel) {
@@ -1008,7 +874,6 @@ const ModelCreation: React.FC = () => {
             key={model.id}
             model={model}
             onCollectionsEdit={openEditCollections}
-            onRename={handleRenameModel}
             onDelete={handleDeleteModel}
             isDeleting={isDeleting}
           />
@@ -1028,17 +893,6 @@ const ModelCreation: React.FC = () => {
               onCancel={() => setShowNewModelModal(false)}
             />
           )}
-
-      {editingModelForRename && (
-            <EditModelModal
-              model={editingModelForRename}
-              isRenaming={isRenaming}
-              onNameChange={handleModelNameChange}
-              onSubmit={handleUpdateModelName}
-              onCancel={() => setEditingModelForRename(null)}
-            />
-          )}
-
           {editingModel && (
             <ModelCollectionsModal
               model={editingModel}
