@@ -166,13 +166,6 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setShowMenu(false);
-            }}
-          >
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
               onDelete(model.id);
               setShowMenu(false);
             }}
