@@ -134,6 +134,7 @@ interface NewCollectionModalProps {
   onPermissionChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   onCancel: () => void;
+  isAdmin: boolean;
 }
 
 const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
@@ -143,6 +144,7 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
   onPermissionChange,
   onSubmit,
   onCancel,
+  isAdmin
 }) => {
   // Add ref for click outside detection
   const modalRef = useRef<HTMLDivElement>(null);
@@ -186,21 +188,23 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
               placeholder-gray-500 dark:placeholder-gray-400"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Access Permission
-            </label>
-            <select
-              value={newCollectionPermission}
-              onChange={(e) => onPermissionChange(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-            >
-              <option value="PRIVATE">Private - Only you can access</option>
-              <option value="PUBLIC">Public - Everyone can access</option>
-            </select>
-          </div>
+          {isAdmin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Access Permission
+              </label>
+              <select
+                value={newCollectionPermission}
+                onChange={(e) => onPermissionChange(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+              >
+                <option value="PRIVATE">Private - Only you can access</option>
+                <option value="PUBLIC">Public - Everyone can access</option>
+              </select>
+            </div>
+          )}
           <div className="flex flex-col space-y-2 pt-4">
             <button
               type="submit"
@@ -797,6 +801,9 @@ const TrainingDashboard: React.FC = () => {
   const handleCreateCollection = async (e: FormEvent) => {
     e.preventDefault();
     try {
+      // กำหนดให้ non-admin สร้างได้แค่ PRIVATE เท่านั้น
+      const permission = userInfo?.role === 'Admin' ? newCollectionPermission : 'PRIVATE';
+      
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         method: 'POST',
         headers: {
@@ -805,7 +812,7 @@ const TrainingDashboard: React.FC = () => {
         },
         body: JSON.stringify({
           name: newCollectionName,
-          permission: newCollectionPermission,
+          permission: permission,
         }),
       });
 
@@ -1195,6 +1202,7 @@ const TrainingDashboard: React.FC = () => {
                 setShowNewCollectionModal(false);
                 setNewCollectionName('');
               }}
+              isAdmin={userInfo?.role === 'Admin'}
             />
           )}
         </>
