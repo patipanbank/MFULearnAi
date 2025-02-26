@@ -99,7 +99,7 @@ router.post('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async
  * PUT /api/models/:id/collections
  * Updates a model's collections
  */
-router.put('/:id/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { collections } = req.body;
@@ -114,7 +114,7 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), asy
 
     // ตรวจสอบสิทธิ์การแก้ไข
     const userGroups = user.groups || [];
-    const isStaff = userGroups.includes('Staffs') || userGroups.includes('Admin');
+    const isStaff = userGroups.includes('Staffs') || userGroups.includes('Admin') || userGroups.includes('Students');
     const isOwner = model.createdBy === (user.nameID || user.username);
 
     if (!isStaff && !isOwner) {
@@ -167,7 +167,7 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin'] as UserRole[]), asy
  * DELETE /api/models/:id
  * Deletes a model
  */
-router.delete('/:id', roleGuard(['Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const model = await ModelModel.findByIdAndDelete(id);
