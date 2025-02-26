@@ -791,13 +791,15 @@ const ModelCreation: React.FC = () => {
       // กรอง collections ตามเงื่อนไข
       const filteredCollections = transformedCollections.filter((collection: FilteredCollection) => {
         if (userRole === 'Admin') {
-          // Admin เห็นแค่ PUBLIC
-          return collection.permission === CollectionPermission.PUBLIC;
+          // Admin เห็น PUBLIC ทั้งหมด และ PRIVATE ที่ตัวเองสร้าง
+          return collection.permission === CollectionPermission.PUBLIC || 
+                 (collection.permission === CollectionPermission.PRIVATE && 
+                  collection.createdBy === currentUser);
         } else {
           // Staffs และ Students เห็น PUBLIC ทั้งหมด และ PRIVATE ที่ตัวเองสร้าง
           return collection.permission === CollectionPermission.PUBLIC || 
-            (collection.permission === CollectionPermission.PRIVATE && 
-             collection.createdBy === currentUser);
+                 (collection.permission === CollectionPermission.PRIVATE && 
+                  collection.createdBy === currentUser);
         }
       });
 
