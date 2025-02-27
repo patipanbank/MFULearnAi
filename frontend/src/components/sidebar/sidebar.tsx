@@ -49,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   // const isStaff = userData.groups?.includes('Staffs') || userData.groups?.includes('Admin');
   // const isAdmin = userData.groups?.includes('Admin');
-  const isStaff = userData.groups?.includes('Admin') || userData.groups?.includes('Students') || userData.groups?.includes('Staffs') || userData.groups?.includes('SuperAdmin');
+  const isStaff = userData.groups?.includes('Admin') || userData.groups?.includes('Students') || userData.groups?.includes('Staffs');
   const isSuperAdmin = userData.groups?.includes('SuperAdmin');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
