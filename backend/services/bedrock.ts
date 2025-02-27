@@ -98,7 +98,7 @@ export class BedrockService {
 
       return responseData.embedding;
     } catch (error) {
-      console.error("Error generating image embedding:", error);
+      // console.error("Error generating image embedding:", error);
       throw error;
     }
   }

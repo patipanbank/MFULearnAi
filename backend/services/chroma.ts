@@ -166,17 +166,17 @@ class ChromaService {
       }
 
       // Check if collection has any documents
-      const collectionContents = await collection.get();
-      console.log(`ChromaService: Collection '${collectionName}' contains:`, {
-        documentCount: collectionContents.documents?.length || 0,
-        metadataCount: collectionContents.metadatas?.length || 0,
-        // Log a few sample documents with their metadata
-        sampleDocs: (collectionContents.documents || []).slice(0, 2).map((doc: string, i: number) => ({
-          text: doc.substring(0, 100) + '...',
-          metadata: collectionContents.metadatas?.[i],
-          id: collectionContents.ids?.[i]
-        }))
-      });
+      // const collectionContents = await collection.get();
+      // console.log(`ChromaService: Collection '${collectionName}' contains:`, {
+      //   documentCount: collectionContents.documents?.length || 0,
+      //   metadataCount: collectionContents.metadatas?.length || 0,
+      //   // Log a few sample documents with their metadata
+      //   sampleDocs: (collectionContents.documents || []).slice(0, 2).map((doc: string, i: number) => ({
+      //     text: doc.substring(0, 100) + '...',
+      //     metadata: collectionContents.metadatas?.[i],
+      //     id: collectionContents.ids?.[i]
+      //   }))
+      // });
 
       // console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results with processed=true filter`);
 

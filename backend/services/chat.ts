@@ -242,7 +242,7 @@ Remember: Your responses should be based on the provided context and documents.`
         imageEmbedding = await bedrockService.embedImage(imageBase64, query);
         // console.log('Generated image embedding');
       } catch (error) {
-        console.error('Error generating image embedding:', error);
+        // console.error('Error generating image embedding:', error);
       }
     }
     
