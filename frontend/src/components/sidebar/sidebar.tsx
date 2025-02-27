@@ -88,10 +88,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       }
 
       // Get user info from token
-      let tokenPayload;
       try {
-        tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        console.log('Token payload:', tokenPayload); // Debug token payload
+        JSON.parse(atob(token.split('.')[1])); // Validate token payload
       } catch (e) {
         console.error('Failed to parse token payload:', e);
         handleTokenExpired();
