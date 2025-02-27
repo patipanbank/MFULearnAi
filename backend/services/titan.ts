@@ -68,11 +68,11 @@ export class TitanEmbedService {
     // Check cache first
     const cachedEmbedding = this.embeddingCache.get(cacheKey);
     if (cachedEmbedding) {
-      console.log("Cache hit for embedding");
+      // console.log("Cache hit for embedding");
       return cachedEmbedding;
     }
 
-    console.log("Cache miss for embedding, computing new one");
+    // console.log("Cache miss for embedding, computing new one");
     const payload = {
       inputText,
       dimensions,

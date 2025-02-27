@@ -595,11 +595,11 @@ const TrainingDashboard: React.FC = () => {
 
   const fetchCollections = useCallback(async () => {
     try {
-      console.log('Starting to fetch collections...');
+      // console.log('Starting to fetch collections...');
       setIsCollectionsLoading(true);
       
       const token = localStorage.getItem('auth_token');
-      console.log('Using auth token:', token ? 'Token exists' : 'No token found');
+      // console.log('Using auth token:', token ? 'Token exists' : 'No token found');
 
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
@@ -607,11 +607,11 @@ const TrainingDashboard: React.FC = () => {
         },
       });
 
-      console.log('Collection API response status:', response.status);
+      // console.log('Collection API response status:', response.status);
       if (!response.ok) throw new Error('Failed to fetch collections');
       
       const data = await response.json();
-      console.log('Raw collection data from backend:', data);
+      // console.log('Raw collection data from backend:', data);
       
       // Transform collection data
       const transformedCollections: Collection[] = data.map((mongo: any) => ({
@@ -622,9 +622,9 @@ const TrainingDashboard: React.FC = () => {
         permission: mongo.permission || CollectionPermission.PUBLIC
       }));
 
-      console.log('Transformed collections:', transformedCollections);
+      // console.log('Transformed collections:', transformedCollections);
       setCollections(transformedCollections);
-      console.log('Collections state updated successfully');
+      // console.log('Collections state updated successfully');
     } catch (error) {
       console.error('Error fetching collections:', error);
     } finally {
@@ -728,7 +728,7 @@ const TrainingDashboard: React.FC = () => {
         
         if (!updatedCollectionData) {
           // Collection no longer exists
-          console.log(`Collection ${selectedCollection.id} no longer exists, removing from list`);
+          // console.log(`Collection ${selectedCollection.id} no longer exists, removing from list`);
           setCollections(prev => prev.filter(c => c.id !== selectedCollection.id));
           setSelectedCollection(null);
           return;
@@ -805,7 +805,7 @@ const TrainingDashboard: React.FC = () => {
 
       if (!freshData) {
         // Collection no longer exists
-        console.log(`Collection ${collection.id} no longer exists, removing from list`);
+        // console.log(`Collection ${collection.id} no longer exists, removing from list`);
         setCollections(prev => prev.filter(c => c.id !== collection.id));
         setSelectedCollection(null);
         return;
@@ -1034,13 +1034,13 @@ const TrainingDashboard: React.FC = () => {
       setSelectedCollection(updatedCollection);
 
       // Log successful update
-      console.log(`Collection ${selectedCollection.id} settings updated:`, {
-        previousName: selectedCollection.name,
-        newName: updatedCollectionName,
-        previousPermission: selectedCollection.permission,
-        newPermission: updatedCollectionPermission,
-        updateTime: currentTime
-      });
+      // console.log(`Collection ${selectedCollection.id} settings updated:`, {
+      //   previousName: selectedCollection.name,
+      //   newName: updatedCollectionName,
+      //   previousPermission: selectedCollection.permission,
+      //   newPermission: updatedCollectionPermission,
+      //   updateTime: currentTime
+      // });
 
       await fetchUploadedFiles(updatedCollectionName);
       await fetchCollections();

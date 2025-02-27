@@ -63,11 +63,11 @@ async function checkCollectionAccess(user: any, collection: any): Promise<boolea
 async function processFileDocuments(file: Express.Multer.File, user: any, modelId: string, collectionName: string): Promise<{ text: string; metadata: any; embedding: number[] }[]> {
   // Decode filename to UTF-8
   const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
-  console.log(`Processing file: ${filename}`);
+  // console.log(`Processing file: ${filename}`);
   const text = await documentService.processFile(file);
-  console.log(`Text length (${text.length}) exceeds chunk size; splitting into chunks`);
+  // console.log(`Text length (${text.length}) exceeds chunk size; splitting into chunks`);
   const chunks = splitTextIntoChunks(text);
-  console.log(`Created ${chunks.length} chunks`);
+  // console.log(`Created ${chunks.length} chunks`);
 
   const documents = await Promise.all(
     chunks.map(async (chunk) => {
@@ -107,7 +107,7 @@ router.post('/upload', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]),
     const user = (req as any).user;
 
     const documents = await processFileDocuments(file, user, modelId, collectionName);
-    console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
+    // console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     const userId = user.nameID || user.username;
@@ -158,7 +158,7 @@ router.post('/documents', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[
     }
 
     const documents = await processFileDocuments(file, user, modelId, collectionName);
-    console.log(`Adding documents with embeddings to collection ${collectionName}`);
+    // console.log(`Adding documents with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 

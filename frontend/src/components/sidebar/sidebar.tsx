@@ -70,7 +70,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const fetchChatHistories = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      console.log('Auth token present:', !!token); // Debug if token exists
+      // console.log('Auth token present:', !!token); 
+      // Debug if token exists
 
       if (!token) {
         console.error('No auth token found in localStorage');
@@ -97,7 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         return;
       }
 
-      console.log('Making API request with token:', `Bearer ${token}`); // Debug full token
+      // console.log('Making API request with token:', `Bearer ${token}`); // Debug full token
 
       const response = await fetch(`${config.apiUrl}/api/chat/chats`, {
         headers: {
@@ -106,7 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         }
       });
 
-      console.log('API Response status:', response.status); // Debug response status
+      // console.log('API Response status:', response.status); // Debug response status
 
       if (response.status === 401) {
         console.error('Unauthorized - token might be expired');
@@ -121,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       }
 
       const data = await response.json();
-      console.log('Chat histories data:', data); // Debug response data
+      // console.log('Chat histories data:', data); // Debug response data
 
       if (data && data.chats && Array.isArray(data.chats)) {
         setChatHistories(data.chats);
@@ -141,7 +142,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
-      console.log('No auth token found, redirecting to login...');
+      // console.log('No auth token found, redirecting to login...');
       window.location.href = `${config.apiUrl}/api/auth/login/saml`;
       return;
     }
@@ -152,15 +153,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       ws = new WebSocket(`${config.wsUrl}?token=${token}`);
 
       ws.onopen = () => {
-        console.log('WebSocket connection established');
+        // console.log('WebSocket connection established');
       };
 
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        console.log('WebSocket message received:', data);
+        // console.log('WebSocket message received:', data);
 
         if (data.shouldUpdateList || data.done || data.isNewChat) {
-          console.log('Refreshing chat list due to:', data);
+          // console.log('Refreshing chat list due to:', data);
           fetchChatHistories();
         }
       };
@@ -170,7 +171,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       };
 
       ws.onclose = () => {
-        console.log('WebSocket connection closed, attempting to reconnect...');
+        // console.log('WebSocket connection closed, attempting to reconnect...');
         setTimeout(connectWebSocket, 3000);
       };
     };
@@ -332,7 +333,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   );
   // Only log in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('Filtered chats:', filteredChats);
+    // console.log('Filtered chats:', filteredChats);
   }
 
   const sortedChats = [...filteredChats].sort((a, b) => {
@@ -344,7 +345,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   });
   // Only log in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('Sorted chats:', sortedChats);
+    // console.log('Sorted chats:', sortedChats);
   }
 
   return (
@@ -357,8 +358,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
-            }}>MFU</span>{' '}
-            <span>LEARN{' '}</span>
+            }}>DIN</span>{' '}
+            <span>DIN{' '}</span>
             <span style={{
               background: 'linear-gradient(to right, #00FFFF, #0099FF)',
               WebkitBackgroundClip: 'text',

@@ -183,7 +183,7 @@ export class BedrockService {
   async *chat(messages: ChatMessage[], modelId: string): AsyncGenerator<string> {
     try {
       const config = this.getModelConfig(messages);
-      console.log('Using model config:', config);
+      // console.log('Using model config:', config);
 
       const lastMessage = messages[messages.length - 1];
       const isImageGeneration = lastMessage.isImageGeneration;

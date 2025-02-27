@@ -48,13 +48,13 @@ const wss = new WebSocketServer({
     try {
       // Get token from URL parameters
       const url = new URL(info.req.url!, `http://${info.req.headers.host}`);
-      console.log('Incoming WebSocket connection URL:', info.req.url);
+      // console.log('Incoming WebSocket connection URL:', info.req.url);
       
       const token = url.searchParams.get('token');
-      console.log('Token from URL params:', token ? 'Present' : 'Not present');
+      // console.log('Token from URL params:', token ? 'Present' : 'Not present');
       
       if (!token) {
-        console.log('WebSocket connection rejected: No token provided');
+        // console.log('WebSocket connection rejected: No token provided');
         cb(false, 401, 'Unauthorized');
         return;
       }
@@ -62,7 +62,7 @@ const wss = new WebSocketServer({
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
         (info.req as any).user = decoded;
-        console.log('WebSocket connection authorized for user:', decoded.username);
+        // console.log('WebSocket connection authorized for user:', decoded.username);
         cb(true);
       } catch (jwtError) {
         console.error('JWT verification failed:', jwtError);
@@ -84,7 +84,7 @@ const interval = setInterval(() => {
   wss.clients.forEach((ws: WebSocket) => {
     const extWs = ws as ExtendedWebSocket;
     if (!extWs.isAlive) {
-      console.log(`Terminating inactive connection for user: ${extWs.userId}`);
+      // console.log(`Terminating inactive connection for user: ${extWs.userId}`);
       return ws.terminate();
     }
     extWs.isAlive = false;
@@ -115,13 +115,13 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
     return /^[0-9a-fA-F]{24}$/.test(id);
   };
   
-  console.log('Connection parameters:', {
-    fromUrl: !!urlToken,
-    fromHeader: !!headerToken,
-    finalToken: !!token,
-    chatId: urlChatId,
-    isValidChatId: urlChatId ? isValidObjectId(urlChatId) : false
-  });
+  // console.log('Connection parameters:', {
+  //   fromUrl: !!urlToken,
+  //   fromHeader: !!headerToken,
+  //   finalToken: !!token,
+  //   chatId: urlChatId,
+  //   isValidChatId: urlChatId ? isValidObjectId(urlChatId) : false
+  // });
   
   if (!token) {
     console.error('No token found in either URL parameters or headers');
@@ -137,14 +137,14 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
     if (urlChatId) {
       if (isValidObjectId(urlChatId)) {
         extWs.chatId = urlChatId;
-        console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${extWs.chatId}`);
+        // console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${extWs.chatId}`);
       } else {
         console.warn(`Invalid chatId format provided: ${urlChatId}, ignoring it`);
         // Don't set the chatId but allow connection to continue
-        console.log(`WebSocket client connected: ${extWs.userId}, no valid chatId provided`);
+        // console.log(`WebSocket client connected: ${extWs.userId}, no valid chatId provided`);
       }
     } else {
-      console.log(`WebSocket client connected: ${extWs.userId}, no chatId provided`);
+      // console.log(`WebSocket client connected: ${extWs.userId}, no chatId provided`);
     }
   } catch (error) {
     console.error('Invalid token in WebSocket connection:', error);
@@ -159,12 +159,12 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   });
 
   extWs.on('close', () => {
-    console.log(`WebSocket client disconnected: ${extWs.userId}`);
+    // console.log(`WebSocket client disconnected: ${extWs.userId}`);
   });
 
   extWs.on('message', async (message: string) => {
     try {
-      console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
+      // console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
       
       const data = JSON.parse(message.toString());
       const { messages, modelId, isImageGeneration, path, chatId } = data;
@@ -184,7 +184,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         if (!chatId) {
           savedChat = await chatService.saveChat(extWs.userId!, modelId, messages);
           currentChatId = savedChat._id.toString();
-          console.log('Created new chat:', currentChatId);
+          // console.log('Created new chat:', currentChatId);
           // Send chatId immediately after creation
           if (extWs.readyState === WebSocket.OPEN) {
             extWs.send(JSON.stringify({ 
@@ -195,7 +195,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         } else {
           savedChat = await chatService.updateChat(chatId, extWs.userId!, messages);
           currentChatId = chatId;
-          console.log('Updated existing chat:', currentChatId);
+          // console.log('Updated existing chat:', currentChatId);
         }
 
         // Get query from last message
@@ -204,7 +204,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           : messages.map(msg => msg.content).join('\n');
 
         // Generate response and send chunks
-        console.log('Starting response generation...');
+        // console.log('Starting response generation...');
         let assistantResponse = '';
         
         for await (const content of chatService.generateResponse(messages, query, modelId)) {
@@ -215,7 +215,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
               content
             }));
           } else {
-            console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
+            // console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
             break;
           }
         }
@@ -289,7 +289,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 });
 
 router.post('/', async (req: Request, res: Response) => {
-  console.log('Received chat request');
+  // console.log('Received chat request');
 
   // 1. ส่ง headers ทันทีก่อนทำอย่างอื่น
   res.setHeader('Content-Type', 'text/event-stream');
@@ -299,7 +299,7 @@ router.post('/', async (req: Request, res: Response) => {
 
   // 2. ส่ง initial response เพื่อเริ่ม stream
   res.write(':\n\n');  // Keep-alive ping
-  console.log('Sent initial response');
+  // console.log('Sent initial response');
 
   try {
     const { messages, modelId, collectionName } = req.body;
@@ -315,17 +315,17 @@ router.post('/', async (req: Request, res: Response) => {
     // 4. ส่ง empty chunk เพื่อให้ frontend เริ่มอ่าน stream
     sendChunk('');
     
-    console.log('Starting response generation');
-    console.log('Starting generateResponse:', {
-      modelId,
-      collectionName,
-      messagesCount: messages.length,
-      query
-    });
+    // console.log('Starting response generation');
+    // console.log('Starting generateResponse:', {
+    //   modelId,
+    //   collectionName,
+    //   messagesCount: messages.length,
+    //   query
+    // });
 
     try {
       for await (const content of chatService.generateResponse(messages, query, modelId)) {
-        console.log('Sending chunk:', content);
+        // console.log('Sending chunk:', content);
         sendChunk(content);
       }
     } catch (error) {
@@ -333,7 +333,7 @@ router.post('/', async (req: Request, res: Response) => {
       sendChunk('\nขออภัย มีข้อผิดพลาดเกิดขึ้นระหว่างการสร้างคำตอบ');
     }
 
-    console.log('Chat response completed');
+    // console.log('Chat response completed');
     res.end();
   } catch (error) {
     console.error('Chat error details:', error);
@@ -643,7 +643,7 @@ router.put('/history/:chatId/rename',
       await chat.save();
 
       // Log the change
-      console.log(`Chat ${chatId} renamed to "${newName}" by user ${userId}`);
+      // console.log(`Chat ${chatId} renamed to "${newName}" by user ${userId}`);
 
       res.json({
         success: true,

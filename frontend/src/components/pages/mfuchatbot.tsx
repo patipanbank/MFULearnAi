@@ -144,7 +144,7 @@ const MFUChatbot: React.FC = () => {
           return;
         }
 
-        console.log('Fetching models with token:', `Bearer ${token}`);
+        // console.log('Fetching models with token:', `Bearer ${token}`);
         // ดึงโมเดลทั้งหมดจาก API
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: {
@@ -175,7 +175,7 @@ const MFUChatbot: React.FC = () => {
           modelType: model.modelType
         }));
 
-        console.log('Loaded models:', allModels);
+        // console.log('Loaded models:', allModels);
         setModels(allModels);
 
         // ตั้งค่าโมเดลเริ่มต้น
@@ -207,7 +207,7 @@ const MFUChatbot: React.FC = () => {
       };
       
       if (!chatId) {
-        console.log('No chat ID provided, starting new chat');
+        // console.log('No chat ID provided, starting new chat');
         return;
       }
 
@@ -220,7 +220,7 @@ const MFUChatbot: React.FC = () => {
 
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        console.log('No authentication token found');
+        // console.log('No authentication token found');
         navigate('/login');
         return;
       }
@@ -233,7 +233,7 @@ const MFUChatbot: React.FC = () => {
 
       if (response.ok) {
         const chat: ChatHistory = await response.json();
-        console.log('Loaded chat:', chat);
+        // console.log('Loaded chat:', chat);
         
         // Convert MongoDB ObjectId to string if necessary
         const chatIdString = typeof chat._id === 'string' ? chat._id : chat._id.$oid;
@@ -431,16 +431,16 @@ const MFUChatbot: React.FC = () => {
     
     // Only append chatId if it's a valid ObjectId
     if (currentChatId && isValidObjectId(currentChatId)) {
-      console.log('Adding valid chatId to WebSocket URL:', currentChatId);
+      // console.log('Adding valid chatId to WebSocket URL:', currentChatId);
       wsUrl.searchParams.append('chat', currentChatId);
     } else {
-      console.log('No valid chatId to add to WebSocket URL');
+      // console.log('No valid chatId to add to WebSocket URL');
     }
     
     wsRef.current = new WebSocket(wsUrl.toString());
 
     wsRef.current.onopen = () => {
-      console.log('WebSocket connection established');
+      // console.log('WebSocket connection established');
     };
 
     wsRef.current.onmessage = async (event) => {
@@ -525,7 +525,7 @@ const MFUChatbot: React.FC = () => {
     };
 
     wsRef.current.onclose = () => {
-      console.log('WebSocket connection closed');
+      // console.log('WebSocket connection closed');
     };
 
     wsRef.current.onerror = (error) => {

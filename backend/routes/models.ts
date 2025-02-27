@@ -13,7 +13,7 @@ const router = Router();
 router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    console.log('User in models route:', user);
+    // console.log('User in models route:', user);
     
     // ดึงข้อมูลผู้ใช้
     const userId = user.nameID || user.username;
@@ -22,7 +22,7 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async 
     
     // Get all models
     const models = await ModelModel.find({}).lean();
-    console.log('Found models:', models);
+    // console.log('Found models:', models);
     
     // กรองโมเดลตามเงื่อนไข:
     // ทุก User เห็นเฉพาะ official และ personal ของตัวเอง
@@ -33,8 +33,8 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async 
       );
     });
 
-    console.log('Filtered models:', filteredModels);
-    console.log('Current user ID:', userId);
+    // console.log('Filtered models:', filteredModels);
+    // console.log('Current user ID:', userId);
 
     res.json(filteredModels);
   } catch (error) {

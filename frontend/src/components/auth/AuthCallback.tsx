@@ -20,8 +20,8 @@ const AuthCallback = () => {
         localStorage.setItem('auth_token', token);
         localStorage.setItem('user_data', JSON.stringify(userData));
 
-        console.log('Saved token:', token);
-        console.log('Saved user data:', userData);
+        // console.log('Saved token:', token);
+        // console.log('Saved user data:', userData);
 
         // redirect ไปที่หน้า MFUChatbot
         navigate('/mfuchatbot');

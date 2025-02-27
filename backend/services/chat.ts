@@ -109,22 +109,22 @@ Remember: Your responses should be based on the provided context and documents.`
   private async resolveCollections(modelIdOrCollections: string | string[]): Promise<string[]> {
     try {
       if (Array.isArray(modelIdOrCollections)) {
-        console.log('Collections provided directly:', modelIdOrCollections);
+        // console.log('Collections provided directly:', modelIdOrCollections);
         return modelIdOrCollections;
       }
 
-      console.log('Looking up model by ID:', modelIdOrCollections);
+      // console.log('Looking up model by ID:', modelIdOrCollections);
       const model = await ModelModel.findById(modelIdOrCollections);
       if (!model) {
         console.error('Model not found:', modelIdOrCollections);
         return [];
       }
 
-      console.log('Found model:', {
-        id: model._id,
-        name: model.name,
-        collections: model.collections
-      });
+      // console.log('Found model:', {
+      //   id: model._id,
+      //   name: model.name,
+      //   collections: model.collections
+      // });
       return model.collections;
     } catch (error) {
       console.error('Error resolving collections:', error);
@@ -172,11 +172,11 @@ Remember: Your responses should be based on the provided context and documents.`
           }));
 
           // เพิ่ม logging เพื่อตรวจสอบ
-          console.log('Filtered results:', {
-            name,
-            resultCount: filteredResults.length,
-            context: filteredResults.map(r => r.text).join("\n\n")
-          });
+          // console.log('Filtered results:', {
+          //   name,
+          //   resultCount: filteredResults.length,
+          //   context: filteredResults.map(r => r.text).join("\n\n")
+          // });
 
           return {
             context: filteredResults.map(r => r.text).join("\n\n"),
@@ -209,11 +209,11 @@ Remember: Your responses should be based on the provided context and documents.`
   }
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
-    console.log('Getting context for:', {
-      query,
-      modelIdOrCollections,
-      hasImage: !!imageBase64
-    });
+    // console.log('Getting context for:', {
+    //   query,
+    //   modelIdOrCollections,
+    //   hasImage: !!imageBase64
+    // });
 
     const questionType = this.detectQuestionType(query);
     const promptTemplate = this.promptTemplates[questionType];
@@ -224,23 +224,23 @@ Remember: Your responses should be based on the provided context and documents.`
       return '';
     }
 
-    console.log('Resolved collection names:', collectionNames);
-    console.log('Detected question type:', questionType);
+    // console.log('Resolved collection names:', collectionNames);
+    // console.log('Detected question type:', questionType);
 
     const sanitizedCollections = collectionNames.map(name => 
       this.sanitizeCollectionName(name)
     );
-    console.log('Sanitized collection names:', sanitizedCollections);
+    // console.log('Sanitized collection names:', sanitizedCollections);
 
-    console.log('Getting query embedding...');
+    // console.log('Getting query embedding...');
     let queryEmbedding = await chromaService.getQueryEmbedding(query);
     let imageEmbedding: number[] | undefined;
     
     if (imageBase64) {
       try {
-        console.log('Generating image embedding...');
+        // console.log('Generating image embedding...');
         imageEmbedding = await bedrockService.embedImage(imageBase64, query);
-        console.log('Generated image embedding');
+        // console.log('Generated image embedding');
       } catch (error) {
         console.error('Error generating image embedding:', error);
       }
@@ -250,27 +250,27 @@ Remember: Your responses should be based on the provided context and documents.`
     for (let i = 0; i < sanitizedCollections.length; i += this.BATCH_SIZE) {
       batches.push(sanitizedCollections.slice(i, i + this.BATCH_SIZE));
     }
-    console.log('Created batches:', batches);
+    // console.log('Created batches:', batches);
 
     let allResults: CollectionQueryResult[] = [];
     for (const batch of batches) {
-      console.log('Processing batch:', batch);
+      // console.log('Processing batch:', batch);
       const batchResults = await this.processBatch(batch, queryEmbedding, imageEmbedding);
       allResults = allResults.concat(batchResults);
     }
 
-    console.log('All results:', allResults);
+    // console.log('All results:', allResults);
 
     const allSources = allResults
       .flatMap(r => r.sources)
       .sort((a, b) => b.similarity - a.similarity);
 
-    console.log('All sources:', allSources);
+    // console.log('All sources:', allSources);
 
     if (this.currentChatHistory) {
       this.currentChatHistory.sources = allSources;
       await this.currentChatHistory.save();
-      console.log('Saved sources to chat history');
+      // console.log('Saved sources to chat history');
     }
 
     const contexts = allResults
@@ -282,7 +282,7 @@ Remember: Your responses should be based on the provided context and documents.`
       })
       .map(r => r.context);
 
-    console.log('Final context length:', contexts.join("\n\n").length);
+    // console.log('Final context length:', contexts.join("\n\n").length);
 
     // รวม context จากทุก collection ที่มี similarity score ผ่านเกณฑ์
     let context = '';
@@ -301,7 +301,7 @@ Remember: Your responses should be based on the provided context and documents.`
     modelIdOrCollections: string | string[]
   ): AsyncGenerator<string> {
     try {
-      console.log("Starting generateResponse with:", modelIdOrCollections);
+      // console.log("Starting generateResponse with:", modelIdOrCollections);
       
       const lastMessage = messages[messages.length - 1];
       const isImageGeneration = lastMessage.isImageGeneration;
@@ -321,10 +321,10 @@ Remember: Your responses should be based on the provided context and documents.`
         }
       }
       
-      console.log('Retrieved context length:', context.length);
+      // console.log('Retrieved context length:', context.length);
 
       const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
-      console.log('Question type:', questionType);
+      // console.log('Question type:', questionType);
 
       const systemMessages: ChatMessage[] = [
         {
@@ -561,5 +561,5 @@ export const chatService = new ChatService();
 
 // ใน production mode บางครั้ง console จะถูก strip ออกโดยอัตโนมัติ
 if (process.env.NODE_ENV !== 'production') {
-  console.log('Debug message');
+  // console.log('Debug message');
 }

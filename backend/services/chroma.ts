@@ -32,7 +32,7 @@ class ChromaService {
           name: collectionName
         });
         this.collections.set(collectionName, collection);
-        console.log(`ChromaService: Collection '${collectionName}' initialized.`);
+        // console.log(`ChromaService: Collection '${collectionName}' initialized.`);
       }
     } catch (error) {
       console.error(`ChromaService: Error initializing collection '${collectionName}':`, error);
@@ -58,14 +58,14 @@ class ChromaService {
     const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
 
     if (this.processingFiles.has(fileKey)) {
-      console.log(`File ${fileKey} is already being processed`);
+      // console.log(`File ${fileKey} is already being processed`);
       return;
     }
 
     this.processingFiles.add(fileKey);
 
     try {
-      console.log(`Adding documents to collection ${collectionName}`);
+      // console.log(`Adding documents to collection ${collectionName}`);
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
 
@@ -93,7 +93,7 @@ class ChromaService {
       );
 
       if (fileExists) {
-        console.log(`File ${documents[0].metadata.filename} already exists, skipping upload`);
+        // console.log(`File ${documents[0].metadata.filename} already exists, skipping upload`);
         return;
       }
 
@@ -107,7 +107,7 @@ class ChromaService {
       // Process and add each batch, now with embeddings
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
-        console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+        // console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
 
         const ids = batch.map((_, idx) => `${batchId}_${i * BATCH_SIZE + idx}`);
         const texts = batch.map(doc => doc.text);
@@ -126,7 +126,7 @@ class ChromaService {
         }
       }
 
-      console.log('Documents added successfully');
+      // console.log('Documents added successfully');
     } finally {
       this.processingFiles.delete(fileKey);
     }
@@ -178,7 +178,7 @@ class ChromaService {
         }))
       });
 
-      console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results with processed=true filter`);
+      // console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results with processed=true filter`);
 
       const queryResult = await collection.query({
         queryEmbeddings: [queryEmbedding],
@@ -192,19 +192,19 @@ class ChromaService {
       }
 
       // Log raw query results in detail
-      console.log(`ChromaService: Raw query results for '${collectionName}':`, {
-        documents: queryResult.documents[0],
-        distances: queryResult.distances?.[0],
-        metadatas: queryResult.metadatas?.[0]
-      });
+      // console.log(`ChromaService: Raw query results for '${collectionName}':`, {
+      //   documents: queryResult.documents[0],
+      //   distances: queryResult.distances?.[0],
+      //   metadatas: queryResult.metadatas?.[0]
+      // });
 
       // Log query results summary
-      console.log(`ChromaService: Query returned:`, {
-        documentsLength: queryResult.documents.length,
-        firstDocumentLength: queryResult.documents[0]?.length || 0,
-        metadatasLength: queryResult.metadatas?.length || 0,
-        distancesLength: queryResult.distances?.length || 0
-      });
+      // console.log(`ChromaService: Query returned:`, {
+      //   documentsLength: queryResult.documents.length,
+      //   firstDocumentLength: queryResult.documents[0]?.length || 0,
+      //   metadatasLength: queryResult.metadatas?.length || 0,
+      //   distancesLength: queryResult.distances?.length || 0
+      // });
 
       // ปรับลดค่า MAX_L2_DISTANCE และ MIN_SIMILARITY_THRESHOLD
       const MAX_L2_DISTANCE = 2.0; // เพิ่มจาก Math.sqrt(2)
@@ -236,7 +236,7 @@ class ChromaService {
         similarity: l2DistanceToSimilarity(distance),
         text: documents[index].substring(0, 100) + '...' // First 100 chars of document
       }));
-      console.log(`ChromaService: Raw similarity scores:`, rawScores);
+      // console.log(`ChromaService: Raw similarity scores:`, rawScores);
 
       const filteredResults = documents
         .map((doc: string, index: number): QueryResult => ({
@@ -249,13 +249,13 @@ class ChromaService {
         .slice(0, n_results);
 
       // Log filtered results
-      console.log(`ChromaService: After filtering:`, {
-        filteredCount: filteredResults.length,
-        similarityRange: filteredResults.length > 0 ? {
-          min: Math.min(...filteredResults.map((r: QueryResult) => r.similarity)),
-          max: Math.max(...filteredResults.map((r: QueryResult) => r.similarity))
-        } : null
-      });
+      // console.log(`ChromaService: After filtering:`, {
+      //   filteredCount: filteredResults.length,
+      //   similarityRange: filteredResults.length > 0 ? {
+      //     min: Math.min(...filteredResults.map((r: QueryResult) => r.similarity)),
+      //     max: Math.max(...filteredResults.map((r: QueryResult) => r.similarity))
+      //   } : null
+      // });
 
       return {
         documents: filteredResults.map((r: QueryResult) => r.text),
@@ -349,11 +349,11 @@ class ChromaService {
         throw new Error(`Collection ${collectionName} not found`);
       }
 
-      console.log(`Deleting document ${id} from collection ${collectionName}`);
+      // console.log(`Deleting document ${id} from collection ${collectionName}`);
       await collection.delete({
         ids: [id]
       });
-      console.log('Document deleted successfully');
+      // console.log('Document deleted successfully');
     } catch (error) {
       console.error(`Error deleting document from ChromaDB:`, error);
       throw error;
@@ -374,7 +374,7 @@ class ChromaService {
             const metadata = results.metadatas?.[i] || {};
             if (!metadata.modelId || !metadata.collectionName) {
               await collection.delete({ ids: [results.ids[i]] });
-              console.log(`Deleted document ${results.ids[i]} without model/collection info`);
+              // console.log(`Deleted document ${results.ids[i]} without model/collection info`);
             }
           }
         }
@@ -397,15 +397,15 @@ class ChromaService {
           for (let i = 0; i < results.ids.length; i++) {
             const metadata = results.metadatas?.[i];
             if (metadata && metadata.filename) {
-              console.log(`Deleting file: ${metadata.filename} (id: ${results.ids[i]}) from collection ${collectionName}`);
+              // console.log(`Deleting file: ${metadata.filename} (id: ${results.ids[i]}) from collection ${collectionName}`);
             } else {
-              console.log(`Deleting document with id: ${results.ids[i]} from collection ${collectionName}`);
+              // console.log(`Deleting document with id: ${results.ids[i]} from collection ${collectionName}`);
             }
           }
           await collection.delete({
             ids: results.ids
           });
-          console.log(`Deleted ${results.ids.length} chunks from collection ${collectionName}`);
+          // console.log(`Deleted ${results.ids.length} chunks from collection ${collectionName}`);
         }
       }
 
@@ -418,9 +418,9 @@ class ChromaService {
       // Delete from MongoDB
       await CollectionModel.deleteOne({ name: collectionName });
       
-      console.log(`Collection ${collectionName} deleted successfully`);
+      // console.log(`Collection ${collectionName} deleted successfully`);
     } catch (error) {
-      console.error(`Error deleting collection ${collectionName}:`, error);
+      // console.error(`Error deleting collection ${collectionName}:`, error);
       throw error;
     }
   }
@@ -432,7 +432,7 @@ class ChromaService {
       for (const name of collectionNames) {
         await this.deleteCollection(name);
       }
-      console.log(`${collectionNames.length} collections deleted successfully`);
+      // console.log(`${collectionNames.length} collections deleted successfully`);
     } catch (error) {
       console.error('Error deleting collections:', error);
       throw error;
@@ -469,7 +469,7 @@ class ChromaService {
       const defaultCollection = await CollectionModel.findOne({ name: 'Default' });
       if (!defaultCollection) {
         await this.createCollection('Default', CollectionPermission.PUBLIC, 'system');
-        console.log('Created default collection');
+        // console.log('Created default collection');
       }
     } catch (error) {
       console.error('Error ensuring default collection:', error);
@@ -492,9 +492,9 @@ class ChromaService {
         });
       }
       
-      console.log(`All documents in collection ${collectionName} deleted successfully`);
+      // console.log(`All documents in collection ${collectionName} deleted successfully`);
     } catch (error) {
-      console.error('Error deleting all documents:', error);
+      // console.error('Error deleting all documents:', error);
       throw error;
     }
   }
