@@ -737,7 +737,7 @@ const MFUChatbot: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="flex flex-col items-center justify-center mb-1">
@@ -775,46 +775,47 @@ const MFUChatbot: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {messages.map((message) => (
-              <div key={message.id} className="message relative">
-                <div className={`flex items-start gap-3 ${
-                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                }`}>
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-                      : 'bg-transparent'
-                  } flex items-center justify-center`}>
-                    {message.role === 'user' ? (
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <img
-                        src="/dindin.PNG"
-                        alt="AI Assistant"
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex ${
+                  message.role === 'assistant' ? 'justify-start' : 'justify-end'
+                }`}
+              >
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
+                  message.role === 'user'
+                    ? 'bg-gradient-to-r from-red-600 to-yellow-400'
+                    : 'bg-transparent'
+                } flex items-center justify-center`}>
+                  {message.role === 'user' ? (
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <img
+                      src="/dindin.PNG"
+                      alt="AI Assistant"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
 
-                  <div className={`flex flex-col space-y-2 max-w-[80%] ${
-                    message.role === 'user' ? 'items-end' : 'items-start'
+                <div className={`flex flex-col space-y-2 max-w-[80%] ${
+                  message.role === 'user' ? 'items-end' : 'items-start'
+                }`}>
+                  <div className="text-sm text-gray-500">
+                    {formatMessageTime(message.timestamp)}
+                  </div>
+                  <div className={`rounded-lg p-3 ${
+                    message.role === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
                   }`}>
-                    <div className="text-sm text-gray-500">
-                      {formatMessageTime(message.timestamp)}
-                    </div>
-                    <div className={`rounded-lg p-3 ${
-                      message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
-                    }`}>
-                      {message.role === 'assistant' && message.content === '' && isLoading ? (
-                        <LoadingDots />
-                      ) : (
-                        <MessageContent message={message} />
-                      )}
-                    </div>
+                    {message.role === 'assistant' && message.content === '' && isLoading ? (
+                      <LoadingDots />
+                    ) : (
+                      <MessageContent message={message} />
+                    )}
                   </div>
                 </div>
 
