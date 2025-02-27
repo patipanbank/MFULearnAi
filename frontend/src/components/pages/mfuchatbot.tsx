@@ -971,7 +971,7 @@ const MFUChatbot: React.FC = () => {
                   </>
                 )}
 
-                <button
+                {/* <button
                   type="button"
                   className={`px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
                     hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
@@ -996,7 +996,7 @@ const MFUChatbot: React.FC = () => {
                   <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">
                     {isImageGenerationMode ? "Image" : "Chat"}
                   </span>
-                </button>
+                </button> */}
               </div>
             </div>
 
