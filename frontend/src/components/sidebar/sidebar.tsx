@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen } from 'react-icons/fa';
+import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -48,6 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   // const isStaff = userData.groups?.includes('Staffs') || userData.groups?.includes('Admin');
+  const isAdmin = userData.groups?.includes('Admin');
   const isStaff = userData.groups?.includes('Admin') || userData.groups?.includes('Students') || userData.groups?.includes('Staffs');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
@@ -520,14 +521,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {isStaff && (
             <>
               <Link
                 to="/modelCreation"
                 className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/modelCreation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-              >
+                  onClick={onClose}
+                  >
                 <FaAndroid className="w-5 h-5 mr-3" />
                 <span className="font-medium">Build Model</span>
               </Link>
@@ -536,12 +536,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 to="/training"
                 className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/training' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-              >
+                  >
                 <FaBookOpen className="w-5 h-5 mr-3" />
                 <span className="font-medium">Knowledge Base</span>
               </Link>
-            </>
+
+                  {isAdmin && (
+              <Link
+                to="/admin/create"
+                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                  ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                onClick={onClose}
+              >
+                <FaUserPlus className="w-5 h-5 mr-3" />
+                <span className="font-medium">Create Admin</span>
+              </Link>
           )}
+            </>
         </nav>
       </div>
 

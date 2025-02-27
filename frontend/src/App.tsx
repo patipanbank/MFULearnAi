@@ -9,6 +9,7 @@ import RoleGuard from './components/guards/RoleGuard';
 import ModelCreation from './components/pages/modelCreation';
 import './index.css';
 import AdminLogin from './components/login/AdminLogin';
+import CreateAdmin from './components/pages/CreateAdmin';
  
 
 const App = () => {
@@ -62,6 +63,18 @@ const App = () => {
               <RoleGuard allowedGroups={['Admin']}>
                 <MainLayout>
                   <TrainingDashboard />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/admin/create"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['Admin']}>
+                <MainLayout>
+                  <CreateAdmin />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>
