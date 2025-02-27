@@ -346,27 +346,22 @@ Remember: Your responses should be based on the provided context and documents.`
       // Combine system messages with user messages
       const augmentedMessages = [...systemMessages, ...messages];
 
-      let retryCount = 0;
-      while (retryCount < this.retryConfig.maxRetries) {
+      let attempt = 0;
+      while (attempt < this.retryConfig.maxRetries) {
         try {
           for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
             yield chunk;
           }
           return;
-        } catch (error) {
-          console.error(`Error in chat generation (Attempt ${retryCount + 1}/${this.retryConfig.maxRetries}):`, error);
-          retryCount++;
-          
-          if (retryCount < this.retryConfig.maxRetries) {
-            const delay = Math.min(
-              this.retryConfig.baseDelay * Math.pow(2, retryCount),
-              this.retryConfig.maxDelay
-            );
-            await new Promise(resolve => setTimeout(resolve, delay));
-            yield "\n[Retrying due to error...]\n";
-          } else {
-            throw error;
+        } catch (error: unknown) {
+          attempt++;
+          if (error instanceof Error && error.name === 'InvalidSignatureException') {
+            console.error(`Error in chat generation (Attempt ${attempt}/${this.retryConfig.maxRetries}):`, error);
+            // รอสักครู่ก่อน retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
           }
+          throw error;
         }
       }
     } catch (error) {
