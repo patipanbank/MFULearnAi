@@ -37,7 +37,7 @@ const samlStrategy = new SamlStrategy(
 
       // ปรับการอ่านค่าให้ตรงกับ SAML response
       const nameID = profile.nameID;
-      const username = profile['User.Username'];
+      const username = profile['User.Userrname'];
       const email = profile['User.Email'];
       const firstName = profile['first_name'];
       const lastName = profile['last_name'];
