@@ -357,8 +357,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
-            }}>DIN</span>{' '}
-            <span>DIN{' '}</span>
+            }}>MFU</span>{' '}
+            <span>Learn</span>
             <span style={{
               background: 'linear-gradient(to right, #00FFFF, #0099FF)',
               WebkitBackgroundClip: 'text',

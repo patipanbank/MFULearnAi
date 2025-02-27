@@ -66,7 +66,7 @@ const samlStrategy = new SamlStrategy(
        // เพิ่มฟังก์ชันแปลง group เป็น role
        const mapGroupToRole = (groups: string[]) => {
         const isStudent = groups.some(group => 
-          group === 'student_all_grp'
+          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
         );
         return isStudent ? 'Students' : 'Staffs';
       };
@@ -127,7 +127,7 @@ router.post('/saml/callback',
     try {
       const mapGroupToRole = (groups: string[]) => {
         const isStudent = groups.some(group => 
-          group === 'student_all_grp'
+          group === 'S-1-5-21-893890582-1041674030-1199480097-43779'
         );
         return isStudent ? 'Students' : 'Staffs';
       };
@@ -182,7 +182,7 @@ router.get('/logout', (req, res) => {
 
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
-    const frontendUrl = process.env.FRONTEND_URL || 'https://dindinai.mfu.ac.th';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
     const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
     const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
     
