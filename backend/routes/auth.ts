@@ -11,7 +11,7 @@ const router = Router();
 
 // เพิ่ม logging middleware
 router.use('/saml/callback', (req, res, next) => {
-  console.log('SAML Callback Request:', req.body);
+  // console.log('SAML Callback Request:', req.body);
   next();
 });
 
@@ -32,8 +32,8 @@ const samlStrategy = new SamlStrategy(
   },
   async function(req: any, profile: any, done: any) {
     try {
-      console.log('=== SAML Profile Debug ===');
-      console.log(JSON.stringify(profile, null, 2));
+      // console.log('=== SAML Profile Debug ===');
+      // console.log(JSON.stringify(profile, null, 2));
 
       // ปรับการอ่านค่าให้ตรงกับ SAML response
       const nameID = profile.nameID;
@@ -43,15 +43,15 @@ const samlStrategy = new SamlStrategy(
       const lastName = profile['last_name'];
       const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
-      console.log('=== Extracted Values ===');
-      console.log({
-        nameID,
-        username,
-        email,
-        firstName,
-        lastName,
-        groups
-      });
+      // console.log('=== Extracted Values ===');
+      // console.log({
+      //   nameID,
+      //   username,
+      //   email,
+      //   firstName,
+      //   lastName,
+      //   groups
+      // });
 
       if (!nameID) {
         console.error('Missing required fields:', { nameID });
@@ -199,10 +199,10 @@ router.get('/metadata', (req, res) => {
 // router.post('/test', guest_login);
 
 router.post('/saml/callback', (req, res, next) => {
-  console.log('=== SAML Callback Debug ===');
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  console.log('=========================');
+  // console.log('=== SAML Callback Debug ===');
+  // console.log('Headers:', req.headers);
+  // console.log('Body:', req.body);
+  // console.log('=========================');
   next();
 });
 
@@ -233,6 +233,8 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       { 
         userId: user._id,
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role,
         groups: user.groups
       },
@@ -245,6 +247,8 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       token,
       user: {
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role,
         groups: user.groups
       }
