@@ -56,23 +56,23 @@ const App = () => {
           }
         />
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route
+        {/* <Route
           path="/admin/dashboard"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Admin']}>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <TrainingDashboard />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>
           }
-        />
+        /> */}
         <Route
           path="/admin/create"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Admin']}>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <CreateAdmin />
                 </MainLayout>
