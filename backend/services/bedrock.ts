@@ -18,40 +18,40 @@ export class BedrockService {
   private readonly defaultConfig: ModelConfig = {
     temperature: 0.7,
     topP: 0.99,
-    maxTokens: 2048
+    maxTokens: 4096
   };
 
   private readonly questionTypeConfigs: { [key: string]: ModelConfig } = {
     factual: {
       temperature: 0.3,  // Lower temperature for more focused, factual responses
       topP: 0.9,
-      maxTokens: 1024,
+      maxTokens: 4096,
       stopSequences: ["Human:", "Assistant:"]
     },
     analytical: {
       temperature: 0.7,  // Balanced for analytical thinking
       topP: 0.95,
-      maxTokens: 2048
+      maxTokens: 4096
     },
     conceptual: {
       temperature: 0.6,  // Moderate temperature for clear explanations
       topP: 0.92,
-      maxTokens: 2048
+      maxTokens: 4096
     },
     procedural: {
       temperature: 0.4,  // Lower temperature for precise step-by-step instructions
       topP: 0.9,
-      maxTokens: 2048
+      maxTokens: 4096
     },
     clarification: {
       temperature: 0.5,  // Moderate temperature for clear clarifications
       topP: 0.9,
-      maxTokens: 1024
+      maxTokens: 4096
     },
     visual: {  // New config for image-related queries
       temperature: 0.4,
       topP: 0.9,
-      maxTokens: 2048
+      maxTokens: 4096
     },
     imageGeneration: {  // New config for image generation
       temperature: 0.8,  // Higher temperature for more creative image descriptions
