@@ -33,7 +33,7 @@ const App = () => {
           path="/training"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Staffs', 'Admin', 'Students']}>
+              <RoleGuard allowedGroups={['Staffs', 'Admin', 'Students', 'SuperAdmin']}>
               {/* <RoleGuard allowedGroups={['Admin']}> */}
                 <MainLayout>
                   <TrainingDashboard />
@@ -46,7 +46,7 @@ const App = () => {
           path="/modelCreation"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Staffs', 'Admin', 'Students']}>
+              <RoleGuard allowedGroups={['Staffs', 'Admin', 'Students', 'SuperAdmin']}>
               {/* <RoleGuard allowedGroups={['Admin']}> */}
                 <MainLayout>
                   <ModelCreation />

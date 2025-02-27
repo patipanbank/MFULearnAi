@@ -8,7 +8,7 @@ import { Collection, CollectionPermission } from '../../types/collection';
 // ----------------------
 interface UserInfo {
   username: string;
-  role: 'Students' | 'Staffs' | 'Admin';
+  role: 'Students' | 'Staffs' | 'Admin' | 'SuperAdmin';
   nameID?: string;
 }
 
@@ -136,6 +136,7 @@ interface NewCollectionModalProps {
   onSubmit: (e: FormEvent) => void;
   onCancel: () => void;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
@@ -145,7 +146,8 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
   onPermissionChange,
   onSubmit,
   onCancel,
-  isAdmin
+  isAdmin,
+  isSuperAdmin
 }) => {
   // Add ref for click outside detection
   const modalRef = useRef<HTMLDivElement>(null);
@@ -223,7 +225,7 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
               </p>
             )}
           </div>
-          {isAdmin && (
+          {isAdmin || isSuperAdmin && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Access Permission
@@ -854,7 +856,7 @@ const TrainingDashboard: React.FC = () => {
         return; // ไม่ปิด modal เพื่อให้ผู้ใช้แก้ไขชื่อใหม่
       }
 
-      const permission = userInfo?.role === 'Admin' ? newCollectionPermission : 'PRIVATE';
+      const permission = userInfo?.role === 'Admin' || userInfo?.role === 'SuperAdmin' ? newCollectionPermission : 'PRIVATE';
       
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         method: 'POST',
@@ -1159,7 +1161,7 @@ const TrainingDashboard: React.FC = () => {
                 <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-xl 
                   shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
                 >
-                  {userInfo?.role === 'Admin' && (
+                  {(userInfo?.role === 'Admin' || userInfo?.role === 'SuperAdmin') && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1242,7 +1244,7 @@ const TrainingDashboard: React.FC = () => {
           onFileChange={handleFileChange}
           onFileUpload={handleFileUpload}
           uploadLoading={uploadLoading}
-          onShowSettings={userInfo?.role === 'Admin' ? () => setShowSettings(true) : () => {}}
+          onShowSettings={userInfo?.role === 'Admin' || userInfo?.role === 'SuperAdmin' ? () => setShowSettings(true) : () => {}}
           onDeleteFile={handleDeleteFile}
         />
       )}
@@ -1270,6 +1272,7 @@ const TrainingDashboard: React.FC = () => {
             setNewCollectionName('');
           }}
           isAdmin={userInfo?.role === 'Admin'}
+          isSuperAdmin={userInfo?.role === 'SuperAdmin'}
         />
       )}
     </div>

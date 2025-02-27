@@ -510,7 +510,7 @@ class ChromaService {
       }
 
       // Admin has access to all collections
-      if (user.groups.includes('Admin')) {
+      if (user.groups.includes('Admin') || user.groups.includes('SuperAdmin')) {
         return true;
       }
 

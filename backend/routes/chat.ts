@@ -351,7 +351,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.post('/history', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { messages, modelId } = req.body;
     const userId = (req.user as any)?.username || '';
@@ -374,7 +374,7 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[])
   }
 });
 
-router.get('/chats', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+router.get('/chats', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username;
     if (!userId) {
@@ -395,7 +395,7 @@ router.get('/chats', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Req
   }
 });
 
-router.get('/chats/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+router.get('/chats/:chatId', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username;
     if (!userId) {
@@ -425,7 +425,7 @@ router.get('/chats/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (
 });
 
 // Update chat
-router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req.user as any)?.username;
     if (!userId) {
@@ -457,7 +457,7 @@ router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async
 });
 
 // Delete specific chat
-router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response): Promise<void> => {
+router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req.user as any)?.username;
     if (!userId) {
@@ -487,7 +487,7 @@ router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin']), as
 });
 
 // Export chat
-router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username;
     if (!userId) {
@@ -511,7 +511,7 @@ router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin'])
 });
 
 // Import chat
-router.post('/history/import', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+router.post('/history/import', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username || '';
     const { messages } = req.body;
@@ -559,7 +559,7 @@ router.get('/collections', async (req: Request, res: Response) => {
     const collections = await CollectionModel.find({});
     
     // Admin can access all collections
-    if (user.groups.includes('Admin')) {
+    if (user.groups.includes('Admin') || user.groups.includes('SuperAdmin')) {
       res.json(collections.map(c => c.name));
       return;
     }
@@ -584,11 +584,11 @@ router.get('/collections', async (req: Request, res: Response) => {
   }
 });
 
-async function checkCollectionAccess(user: any, collection: any): Promise<boolean> {
-  return user.groups.includes('Admin') || 
-         user.groups.includes('Staffs') || 
-         collection.createdBy === (user.nameID || user.username);
-}
+// async function checkCollectionAccess(user: any, collection: any): Promise<boolean> {
+//   return user.groups.includes('Admin') || 
+//          user.groups.includes('Staffs') || 
+//          collection.createdBy === (user.nameID || user.username);
+// }
 
 // Add validation middleware
 const validateRenameChat = [
@@ -601,7 +601,7 @@ const validateRenameChat = [
 
 // Update rename endpoint
 router.put('/history/:chatId/rename', 
-  roleGuard(['Students', 'Staffs', 'Admin']),
+  roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']),
   validateRenameChat,
   async (req: Request, res: Response): Promise<void> => {
     try {
@@ -662,7 +662,7 @@ router.put('/history/:chatId/rename',
     }
 });
 
-router.put('/history/:chatId/pin', roleGuard(['Students', 'Staffs', 'Admin']), async (req: Request, res: Response) => {
+router.put('/history/:chatId/pin', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username;
     const chatId = req.params.chatId;
