@@ -542,19 +542,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 <FaBookOpen className="w-5 h-5 mr-3" />
                 <span className="font-medium">Knowledge Base</span>
               </Link>
-
-                  {isSuperAdmin && (
-                    <Link
-                    to="/admin/create"
-                    className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                      ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                      onClick={onClose}
-                      >
-                <FaUserPlus className="w-5 h-5 mr-3" />
-                <span className="font-medium">Create Admin</span>
-              </Link>
-              )}
             </>
+          )}
+
+          {isSuperAdmin && (
+            <Link
+              to="/admin/create"
+              className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+              onClick={onClose}
+            >
+              <FaUserPlus className="w-5 h-5 mr-3" />
+              <span className="font-medium">Create Admin</span>
+            </Link>
           )}
         </nav>
       </div>
