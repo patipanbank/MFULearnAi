@@ -71,7 +71,6 @@ const MFUChatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -94,14 +93,6 @@ const MFUChatbot: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -745,8 +736,8 @@ const MFUChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-800">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="flex flex-col items-center justify-center mb-1">
@@ -851,7 +842,6 @@ const MFUChatbot: React.FC = () => {
                 )}
               </div>
             ))}
-            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
