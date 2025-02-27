@@ -13,6 +13,7 @@ interface AuthState {
   isLoading: boolean;
   isStaff: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 export const useAuth = (): AuthState => {
@@ -21,6 +22,7 @@ export const useAuth = (): AuthState => {
     isLoading: true,
     isStaff: false,
     isAdmin: false,
+    isSuperAdmin: false,
   });
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export const useAuth = (): AuthState => {
           isLoading: false,
           isStaff: userGroups.includes('Staffs') || userGroups.includes('Admin'),
           isAdmin: userGroups.includes('Admin'),
+          isSuperAdmin: userGroups.includes('SuperAdmin'),
         });
       } catch (error) {
         console.error('Error parsing auth token:', error);
@@ -49,6 +52,7 @@ export const useAuth = (): AuthState => {
           isLoading: false,
           isStaff: false,
           isAdmin: false,
+          isSuperAdmin: false,
         });
       }
     } else {
@@ -57,6 +61,7 @@ export const useAuth = (): AuthState => {
         isLoading: false,
         isStaff: false,
         isAdmin: false,
+        isSuperAdmin: false,
       });
     }
   }, []);

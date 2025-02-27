@@ -12,12 +12,12 @@ async function createAdminUser() {
       username: 'admin',
       password: hashedPassword,
       isAdmin: true,
-      groups: ['Admin'],
+      groups: ['SuperAdmin'],
       email: 'admin@mfu.ac.th',
       firstName: 'Admin',
       lastName: 'User',
       nameID: 'admin',
-      role: 'Admin'
+      role: 'SuperAdmin'
     });
 
     await adminUser.save();
