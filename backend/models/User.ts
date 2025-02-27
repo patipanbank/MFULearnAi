@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 
-export type UserRole = 'Admin' | 'Staffs' | 'Students';
+export type UserRole = 'Admin' | 'Staffs' | 'Students' | 'SuperAdmin';
 
 interface IUser extends mongoose.Document {
   nameID: string;
@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
   lastName: String,
   role: { 
     type: String, 
-    enum: ['Admin', 'Staffs', 'Students'],
+    enum: ['Admin', 'Staffs', 'Students', 'SuperAdmin'],
     default: 'Students'
   },
   groups: [String],

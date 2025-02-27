@@ -6,7 +6,7 @@ import { UserRole } from '../models/User';
 
 const router = Router();
 
-router.post('/create', roleGuard(['Admin'] as UserRole[]), async (req: Request, res: Response) => {
+router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response) => {
   try {
     const { username, password, firstName, lastName, email } = req.body;
 

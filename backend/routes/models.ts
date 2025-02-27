@@ -10,7 +10,7 @@ const router = Router();
  * GET /api/models
  * Retrieves all models (filtered based on user role)
  */
-router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.get('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
     // console.log('User in models route:', user);
@@ -18,7 +18,7 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async 
     // ดึงข้อมูลผู้ใช้
     const userId = user.nameID || user.username;
     const userGroups = user.groups || [];
-    const isStaff = userGroups.includes('Admin');
+    const isStaff = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
     
     // Get all models
     const models = await ModelModel.find({}).lean();
@@ -47,7 +47,7 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async 
  * POST /api/models
  * Creates a new model
  */
-router.post('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.post('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
     const { name, modelType } = req.body;
@@ -60,11 +60,11 @@ router.post('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async
 
     // Check if user has Admin privileges from groups array
     const userGroups = user.groups || [];
-    const isStaff = userGroups.includes('Admin')
+    const isStaff = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
 
-    // Only Admin can create official
+    // Only Admin or SuperAdmin can create official
     if ((modelType === 'official') && !isStaff) {
-      res.status(403).json({ message: 'Only Admin can create official' });
+      res.status(403).json({ message: 'Only Admin or SuperAdmin can create official' });
       return;
     }
 
@@ -94,7 +94,7 @@ router.post('/', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async
  * PUT /api/models/:id/collections
  * Updates a model's collections
  */
-router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { collections } = req.body;
@@ -109,7 +109,7 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students'] as User
 
     // ตรวจสอบสิทธิ์การแก้ไข
     const userGroups = user.groups || [];
-    const isStaff = userGroups.includes('Staffs') || userGroups.includes('Admin') || userGroups.includes('Students');
+    const isStaff = userGroups.includes('Staffs') || userGroups.includes('Admin') || userGroups.includes('Students') || userGroups.includes('SuperAdmin');
     const isOwner = model.createdBy === (user.nameID || user.username);
 
     if (!isStaff && !isOwner) {
@@ -162,7 +162,7 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students'] as User
  * DELETE /api/models/:id
  * Deletes a model
  */
-router.delete('/:id', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const model = await ModelModel.findByIdAndDelete(id);
@@ -183,7 +183,7 @@ router.delete('/:id', roleGuard(['Staffs', 'Admin', 'Students'] as UserRole[]), 
  * GET /api/models/:id
  * Gets a model's details
  */
-router.get('/:id', roleGuard(['Students', 'Staffs', 'Admin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const model = await ModelModel.findById(id);

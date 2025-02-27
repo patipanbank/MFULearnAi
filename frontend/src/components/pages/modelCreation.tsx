@@ -136,10 +136,10 @@ interface ModelCardProps {
 
 export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, onDelete, isDeleting }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
 
   const handleCardClick = () => {
-    if (model.modelType === 'official' && !isAdmin) {
+    if (model.modelType === 'official' && !isAdmin && !isSuperAdmin) {
       window.alert('You do not have permission to access official models');
       return;
     }
@@ -594,8 +594,8 @@ const ModelCreation: React.FC = () => {
     if (token) {
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const userGroups = tokenPayload.groups || [];
-      setIsStaff(userGroups.includes('Admin'));
-      setNewModelType((userGroups.includes('Admin')) ? 'official' : 'personal');
+      setIsStaff(userGroups.includes('Admin') || userGroups.includes('SuperAdmin'));
+      setNewModelType((userGroups.includes('Admin') || userGroups.includes('SuperAdmin')) ? 'official' : 'personal');
     }
   }, []);
 
@@ -763,7 +763,8 @@ const ModelCreation: React.FC = () => {
         groups?: string[];
       }>(token);
 
-      const userRole = tokenPayload.groups?.includes('Admin') ? 'Admin' 
+      const userRole = tokenPayload.groups?.includes('SuperAdmin') ? 'SuperAdmin'
+        : tokenPayload.groups?.includes('Admin') ? 'Admin' 
         : tokenPayload.groups?.includes('Staffs') ? 'Staffs' 
         : 'Students';
       const currentUser = tokenPayload.nameID || tokenPayload.username;
@@ -789,7 +790,7 @@ const ModelCreation: React.FC = () => {
 
       // กรอง collections ตามเงื่อนไข
       const filteredCollections = transformedCollections.filter((collection: FilteredCollection) => {
-        if (userRole === 'Admin') {
+        if (userRole === 'Admin' || userRole === 'SuperAdmin') {
           // Admin เห็น PUBLIC ทั้งหมด และ PRIVATE ที่ตัวเองสร้าง
           return collection.permission === CollectionPermission.PUBLIC || 
                  (collection.permission === CollectionPermission.PRIVATE && 

@@ -216,7 +216,7 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       return;
     }
 
-    const user = await User.findOne({ username, role: 'Admin' });
+    const user = await User.findOne({ username, role: { $in: ['Admin', 'SuperAdmin'] } });
     if (!user) {
       res.status(401).json({ message: 'ไม่พบบัญชีผู้ใช้' });
       return;

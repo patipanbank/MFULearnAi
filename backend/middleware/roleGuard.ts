@@ -28,10 +28,11 @@ export const roleGuard = (allowedGroups: string[]): RequestHandler =>
       const userGroups = decoded.groups || [];
       const hasAllowedRole = allowedGroups.some(group => userGroups.includes(group));
 
-      // Special case: if user is in 'Admin' group, they have access to everything
+      // Special case: if user is in 'Admin' or 'SuperAdmin' group, they have access to everything
       const isAdmin = userGroups.includes('Admin');
+      const isSuperAdmin = userGroups.includes('SuperAdmin');
 
-      if (!hasAllowedRole && !isAdmin) {
+      if (!hasAllowedRole && !isAdmin && !isSuperAdmin) {
         res.status(403).json({ message: 'Access denied' });
         return;
       }
@@ -42,4 +43,4 @@ export const roleGuard = (allowedGroups: string[]): RequestHandler =>
       res.status(401).json({ message: 'Invalid token' });
       return;
     }
-  }; 
+  };

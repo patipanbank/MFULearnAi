@@ -6,18 +6,18 @@ async function createAdminUser() {
   try {
     await connectDB();
 
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const hashedPassword = await bcrypt.hash('superadmin123', 10);
     
     const adminUser = new User({
-      username: 'admin',
+      username: 'superadmin',
       password: hashedPassword,
       isAdmin: true,
-      groups: ['Admin'],
-      email: 'admin@mfu.ac.th',
-      firstName: 'Admin',
-      lastName: 'User',
-      nameID: 'admin',
-      role: 'Admin'
+      groups: ['SuperAdmin'],
+      email: 'superadmin@mfu.ac.th',
+      firstName: 'Super',
+      lastName: 'Admin',
+      nameID: 'superadmin',
+      role: 'SuperAdmin'
     });
 
     await adminUser.save();

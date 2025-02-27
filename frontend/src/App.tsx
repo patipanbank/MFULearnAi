@@ -33,7 +33,7 @@ const App = () => {
           path="/training"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Staffs', 'Admin', 'Students']}>
+              <RoleGuard allowedGroups={['Staffs', 'Admin', 'Students', 'SuperAdmin']}>
               {/* <RoleGuard allowedGroups={['Admin']}> */}
                 <MainLayout>
                   <TrainingDashboard />
@@ -46,7 +46,7 @@ const App = () => {
           path="/modelCreation"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Staffs', 'Admin', 'Students']}>
+              <RoleGuard allowedGroups={['Staffs', 'Admin', 'Students', 'SuperAdmin']}>
               {/* <RoleGuard allowedGroups={['Admin']}> */}
                 <MainLayout>
                   <ModelCreation />
@@ -56,23 +56,23 @@ const App = () => {
           }
         />
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route
+        {/* <Route
           path="/admin/dashboard"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Admin']}>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <TrainingDashboard />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>
           }
-        />
+        /> */}
         <Route
           path="/admin/create"
           element={
             <AuthGuard>
-              <RoleGuard allowedGroups={['Admin']}>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <CreateAdmin />
                 </MainLayout>
