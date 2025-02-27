@@ -57,9 +57,9 @@ interface Model {
 
 const LoadingDots = () => (
   <div className="flex items-center space-x-1">
-    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
   </div>
 );
 
@@ -784,8 +784,8 @@ const MFUChatbot: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {messages.map((message, index) => (
-              <div key={index} className="message relative">
+            {messages.map((message) => (
+              <div key={message.id} className="message relative">
                 <div className={`flex items-start gap-3 ${
                   message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}>
@@ -847,20 +847,6 @@ const MFUChatbot: React.FC = () => {
                       </svg>
                       View Sources ({message.sources.length})
                     </button>
-                  </div>
-                )}
-
-                {/* แสดง Loading เมื่อเป็นข้อความสุดท้ายและกำลังรอคำตอบ */}
-                {index === messages.length - 1 && 
-                 message.role === 'user' && 
-                 isLoading && (
-                  <div className="flex items-start gap-4 p-4 mt-4">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600">AI</span>
-                    </div>
-                    <div className="flex-1">
-                      <LoadingDots />
-                    </div>
                   </div>
                 )}
               </div>
