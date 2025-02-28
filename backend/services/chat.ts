@@ -143,7 +143,7 @@ Remember: Your responses should be based on the provided context and documents.`
           const queryResult = await chromaService.queryDocumentsWithEmbedding(
             name,
             imageEmbedding || queryEmbedding,
-            5
+            4
           ) as ChromaQueryResult;
 
           if (!queryResult?.documents || !queryResult?.metadatas) {
@@ -396,7 +396,7 @@ Remember: Your responses should be based on the provided context and documents.`
     throw new Error(`${errorMessage} after ${this.retryConfig.maxRetries} attempts: ${lastError?.message}`);
   }
 
-  async getChats(userId: string, page: number = 1, limit: number = 10) {
+  async getChats(userId: string, page: number = 1, limit: number = 4) {
     const skip = (page - 1) * limit;
     const chats = await Chat.find({ userId })
       .sort({ updatedAt: -1 })

@@ -272,7 +272,7 @@ class ChromaService {
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, n_results: number = 10) {
+  async queryDocuments(collectionName: string, query: string, n_results: number = 4) {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
@@ -290,7 +290,7 @@ class ChromaService {
     }
   }
 
-  async queryCollection(collectionName: string, query: string, limit: number = 5) {
+  async queryCollection(collectionName: string, query: string, limit: number = 4) {
     await this.initCollection(collectionName);
     const collection = this.collections.get(collectionName);
     const queryEmbedding = await this.titanEmbedService.embedText(query);
@@ -304,7 +304,7 @@ class ChromaService {
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
         queryTexts: [query],
-        nResults: 10,
+        nResults: 4,
         minScore: 0.7,
         where: {},
         include: ["documents", "metadatas", "distances"]
