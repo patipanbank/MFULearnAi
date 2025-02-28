@@ -776,10 +776,27 @@ const MFUChatbot: React.FC = () => {
     }
   };
 
-  // เรียกใช้ตอน component mount และหลังจากส่งข้อความ
+  // เช็ค usage ทุกครั้งที่โหลดหน้า
   useEffect(() => {
-    fetchUsage();
-  }, []);
+    const checkAndFetchUsage = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${config.apiUrl}/api/chat/usage`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUsage(data);
+        }
+      } catch (error) {
+        console.error('Error fetching usage:', error);
+      }
+    };
+
+    checkAndFetchUsage();
+  }, []); // เรียกใช้เฉพาะตอน component mount
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
