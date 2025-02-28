@@ -51,6 +51,13 @@ interface Model {
   modelType: 'official' | 'personal';
 }
 
+interface UsageInfo {
+  monthlyQuota: number;
+  currentUsage: number;
+  remainingQuota: number;
+  monthYear: string;
+}
+
 // const modelNames: { [key: string]: string } = {
 //   'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
 // };
@@ -80,6 +87,7 @@ const MFUChatbot: React.FC = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
 
   // Add click outside handler
   useEffect(() => {
@@ -744,6 +752,24 @@ const MFUChatbot: React.FC = () => {
     );
   };
 
+  useEffect(() => {
+    const fetchUsageInfo = async () => {
+      try {
+        const response = await fetch(`${config.apiUrl}/api/usage`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        const data = await response.json();
+        setUsageInfo(data);
+      } catch (error) {
+        console.error('Error fetching usage info:', error);
+      }
+    };
+
+    fetchUsageInfo();
+  }, []);
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
@@ -1024,6 +1050,14 @@ const MFUChatbot: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {usageInfo && (
+        <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          <p>โควต้าการถามต่อเดือน: {usageInfo.monthlyQuota}</p>
+          <p>ใช้ไปแล้ว: {usageInfo.currentUsage}</p>
+          <p>เหลือ: {usageInfo.remainingQuota}</p>
+        </div>
+      )}
     </div>
   );
 };

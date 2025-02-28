@@ -15,6 +15,7 @@ interface IUser extends mongoose.Document {
   created: Date;
   updated: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
+  monthlyQuota: number;
 }
 
 const userSchema = new mongoose.Schema({
@@ -31,7 +32,19 @@ const userSchema = new mongoose.Schema({
   },
   groups: [String],
   created: { type: Date, default: Date.now },
-  updated: { type: Date, default: Date.now }
+  updated: { type: Date, default: Date.now },
+  monthlyQuota: {
+    type: Number,
+    default: function(this: any) {
+      switch(this.role) {
+        case 'SuperAdmin': return 20;
+        case 'Admin': return 20;
+        case 'Staffs': return 20;
+        case 'Students': return 20;
+        default: return 20;
+      }
+    }
+  }
 });
 
 // Add comparePassword method to the schema
