@@ -80,6 +80,11 @@ const MFUChatbot: React.FC = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [usage, setUsage] = useState<{
+    dailyQuestions: number;
+    dailyLimit: number;
+    remainingQuestions: number;
+  } | null>(null);
 
   // Add click outside handler
   useEffect(() => {
@@ -744,6 +749,29 @@ const MFUChatbot: React.FC = () => {
     );
   };
 
+  // เพิ่ม function สำหรับดึงข้อมูล usage
+  const fetchUsage = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/chat/usage`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsage(data);
+      }
+    } catch (error) {
+      console.error('Error fetching usage:', error);
+    }
+  };
+
+  // เรียกใช้ตอน component mount และหลังจากส่งข้อความ
+  useEffect(() => {
+    fetchUsage();
+  }, []);
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       <div className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40">
@@ -1024,6 +1052,11 @@ const MFUChatbot: React.FC = () => {
           </div>
         </form>
       </div>
+      {usage && (
+        <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+          จำนวนคำถามที่เหลือวันนี้: {usage.remainingQuestions} / {usage.dailyLimit}
+        </div>
+      )}
     </div>
   );
 };
