@@ -158,7 +158,7 @@ Remember: Your responses should be based on the provided context and documents.`
             }));
 
           // ลด threshold ลงเพื่อให้เก็บข้อมูลที่เกี่ยวข้องมากขึ้น
-          const MIN_SIMILARITY_THRESHOLD = 0.1;
+          const MIN_SIMILARITY_THRESHOLD = 0.2;
 
           const filteredResults = results
             .filter(result => result.similarity >= MIN_SIMILARITY_THRESHOLD)
@@ -396,7 +396,7 @@ Remember: Your responses should be based on the provided context and documents.`
     throw new Error(`${errorMessage} after ${this.retryConfig.maxRetries} attempts: ${lastError?.message}`);
   }
 
-  async getChats(userId: string, page: number = 1, limit: number = 4) {
+  async getChats(userId: string, page: number = 1, limit: number = 3) {
     const skip = (page - 1) * limit;
     const chats = await Chat.find({ userId })
       .sort({ updatedAt: -1 })

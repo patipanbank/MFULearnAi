@@ -208,7 +208,7 @@ class ChromaService {
 
       // ปรับลดค่า MAX_L2_DISTANCE และ MIN_SIMILARITY_THRESHOLD
       const MAX_L2_DISTANCE = 2.0; // เพิ่มจาก Math.sqrt(2)
-      const MIN_SIMILARITY_THRESHOLD = 0.0; // ลดจาก 0.3
+      const MIN_SIMILARITY_THRESHOLD = 0.2; // ลดจาก 0.3
 
       const documents = queryResult.documents[0];
       const distances = queryResult.distances?.[0] || [];
@@ -272,7 +272,7 @@ class ChromaService {
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, n_results: number = 4) {
+  async queryDocuments(collectionName: string, query: string, n_results: number = 3) {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
@@ -290,7 +290,7 @@ class ChromaService {
     }
   }
 
-  async queryCollection(collectionName: string, query: string, limit: number = 4) {
+  async queryCollection(collectionName: string, query: string, limit: number = 3) {
     await this.initCollection(collectionName);
     const collection = this.collections.get(collectionName);
     const queryEmbedding = await this.titanEmbedService.embedText(query);
@@ -304,7 +304,7 @@ class ChromaService {
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
         queryTexts: [query],
-        nResults: 4,
+        nResults: 3,
         minScore: 0.7,
         where: {},
         include: ["documents", "metadatas", "distances"]
