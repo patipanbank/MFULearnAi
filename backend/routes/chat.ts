@@ -8,7 +8,6 @@ import { UserRole } from '../models/User';
 import { Chat } from '../models/Chat';
 import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
-import { quotaGuard } from '../middleware/quotaGuard';
 
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
@@ -541,7 +540,7 @@ router.route('/clear').delete(async (req: Request, res: Response): Promise<void>
   }
 });
 
-router.post('/chat', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), quotaGuard, async (req: Request, res: Response) => {
+router.post('/chat', async (req, res) => {
   try {
     const { messages, modelId } = req.body;
     const text = messages[messages.length - 1].content;
