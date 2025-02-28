@@ -8,6 +8,7 @@ import { UserRole } from '../models/User';
 import { Chat } from '../models/Chat';
 import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
+import { usageService } from '../services/usageService';
 
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
@@ -164,9 +165,21 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
   extWs.on('message', async (message: string) => {
     try {
+      const data = JSON.parse(message.toString());
+      const userId = extWs.userId;
+
+      // ตรวจสอบ limit ก่อนประมวลผลคำถาม
+      const hasRemaining = await usageService.checkUserLimit(userId!);
+      if (!hasRemaining) {
+        extWs.send(JSON.stringify({
+          type: 'error',
+          error: 'You have used all your quota for today. Please wait until tomorrow.'
+        }));
+        return;
+      }
+
       // console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
       
-      const data = JSON.parse(message.toString());
       const { messages, modelId, isImageGeneration, path, chatId } = data;
 
       if (!messages || !Array.isArray(messages)) {
@@ -687,6 +700,23 @@ router.put('/history/:chatId/pin', roleGuard(['Students', 'Staffs', 'Admin', 'Su
     res.status(500).json({ 
       error: error instanceof Error ? error.message : 'Failed to toggle chat pin status' 
     });
+  }
+});
+
+// เพิ่ม endpoint สำหรับดูข้อมูลการใช้งาน
+router.get('/usage', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const usage = await usageService.getUserUsage(userId);
+    res.json(usage);
+  } catch (error) {
+    console.error('Error getting usage:', error);
+    res.status(500).json({ error: 'Failed to get usage information' });
   }
 });
 
