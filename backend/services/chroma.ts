@@ -207,8 +207,8 @@ class ChromaService {
       // });
 
       // ปรับลดค่า MAX_L2_DISTANCE และ MIN_SIMILARITY_THRESHOLD
-      const MAX_L2_DISTANCE = 2.0; // เพิ่มจาก Math.sqrt(2)
-      const MIN_SIMILARITY_THRESHOLD = 0.1; // ลดจาก 0.3
+      const MAX_L2_DISTANCE = 1.5; // เพิ่มจาก Math.sqrt(2)
+      const MIN_SIMILARITY_THRESHOLD = 0.6; // ลดจาก 0.3
 
       const documents = queryResult.documents[0];
       const distances = queryResult.distances?.[0] || [];
