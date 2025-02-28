@@ -28,7 +28,15 @@ const userSchema = new mongoose.Schema({
   role: { 
     type: String, 
     enum: ['Admin', 'Staffs', 'Students', 'SuperAdmin'],
-    default: 'Students'
+    default: function(this: any) {
+      // กำหนด role จาก group
+      const groups = this.groups || [];
+      if (groups.includes('Admin')) return 'Admin';
+      if (groups.includes('SuperAdmin')) return 'SuperAdmin';
+      // ถ้าเป็น Student group ID จาก SAML
+      if (groups.includes('S-1-5-21-893890582-1041674030-1199480097-43779')) return 'Students';
+      return 'Staffs'; // default เป็น Staffs ถ้าไม่ตรงเงื่อนไขอื่น
+    }
   },
   groups: [String],
   created: { type: Date, default: Date.now },
@@ -36,13 +44,15 @@ const userSchema = new mongoose.Schema({
   monthlyQuota: {
     type: Number,
     default: function(this: any) {
-      switch(this.groups) {
-        case 'SuperAdmin': return 20;
-        case 'Admin': return 20;
-        case 'Staffs': return 20;
-        case 'Students': return 20;
-        default: return 20;
+      const groups = this.groups || [];
+      // ตรวจสอบ group จาก SAML
+      if (groups.includes('Admin') || groups.includes('SuperAdmin')) {
+        return 100; // Admin quota
       }
+      if (groups.includes('S-1-5-21-893890582-1041674030-1199480097-43779')) {
+        return 20; // Student quota
+      }
+      return 50; // Staff quota (default)
     }
   }
 });
