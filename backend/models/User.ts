@@ -36,7 +36,7 @@ const userSchema = new mongoose.Schema({
   monthlyQuota: {
     type: Number,
     default: function(this: any) {
-      switch(this.role) {
+      switch(this.groups) {
         case 'SuperAdmin': return 20;
         case 'Admin': return 20;
         case 'Staffs': return 20;
