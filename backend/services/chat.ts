@@ -158,7 +158,7 @@ Remember: Your responses should be based on the provided context and documents.`
             }));
 
           // ลด threshold ลงเพื่อให้เก็บข้อมูลที่เกี่ยวข้องมากขึ้น
-          const MIN_SIMILARITY_THRESHOLD = 0.6;
+          const MIN_SIMILARITY_THRESHOLD = 0.3;
 
           const filteredResults = results
             .filter(result => result.similarity >= MIN_SIMILARITY_THRESHOLD)
