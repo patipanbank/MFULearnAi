@@ -400,6 +400,10 @@ const MFUChatbot: React.FC = () => {
       };
 
       wsRef.current?.send(JSON.stringify(messagePayload));
+
+      // อัพเดท usage ทันทีหลังส่งข้อความ
+      await fetchUsage();
+
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       setMessages(prev => [...prev.slice(0, -1), {
@@ -516,6 +520,11 @@ const MFUChatbot: React.FC = () => {
               } : msg
             ));
             break;
+        }
+
+        // อัพเดท usage หลังจากได้รับข้อความ
+        if (data.type === 'complete') {
+          await fetchUsage();
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
