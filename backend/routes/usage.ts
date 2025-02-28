@@ -5,7 +5,7 @@ import User from '../models/User';
 
 const router = Router();
 
-router.get('/usage', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req, res) => {
+router.get('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req, res) => {
   try {
     const userId = (req as any).user?.username;
     const currentDate = new Date();
