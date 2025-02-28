@@ -173,7 +173,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       if (!hasRemaining) {
         extWs.send(JSON.stringify({
           type: 'error',
-          error: 'คุณได้ใช้จำนวนคำถามครบตามที่กำหนดในวันนี้แล้ว กรุณารอจนถึงวันพรุ่งนี้'
+          error: 'You have used all your quota for today. Please wait until tomorrow.'
         }));
         return;
       }
