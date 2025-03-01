@@ -26,7 +26,7 @@ chromaService.ensureDefaultCollection().catch(error => {
 const upload = multer({ 
   dest: 'uploads/',
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB
+    fileSize: 1 * 1024 * 1024, // 500MB
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.json', '.xml'];
