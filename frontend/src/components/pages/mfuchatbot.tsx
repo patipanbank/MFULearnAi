@@ -5,6 +5,7 @@ import { RiImageAddFill } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { VscDebugContinue } from "react-icons/vsc";
+import { IoIosArrowDown } from "react-icons/io";
 
 interface Source {
   modelId: string;
@@ -73,6 +74,7 @@ const MFUChatbot: React.FC = () => {
   const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -86,8 +88,11 @@ const MFUChatbot: React.FC = () => {
     dailyLimit: number;
     remainingQuestions: number;
   } | null>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [lastScrollPosition, setLastScrollPosition] = useState(0);
+  const [userScrolledManually, setUserScrolledManually] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
 
   // Add click outside handler
   useEffect(() => {
@@ -104,22 +109,100 @@ const MFUChatbot: React.FC = () => {
   }, []);
 
   const scrollToBottom = () => {
-    if (isAtBottom && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (shouldAutoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
-  const handleScroll = () => {
-    if (chatContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-      const isBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 50;
-      setIsAtBottom(isBottom);
-    }
-  };
+  // Monitor message count to detect when new messages are added
+  useEffect(() => {
+    setMessageCount(messages.length);
+  }, [messages]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+    const chatContainer = chatContainerRef.current;
+    if (!chatContainer) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = chatContainer;
+      
+      // Calculate distance from bottom (in pixels)
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Consider "near bottom" if within a very small threshold (3% of container height)
+      const dynamicThreshold = Math.max(10, clientHeight * 0.03);
+      const isAtBottom = distanceFromBottom < dynamicThreshold;
+      
+      // Detect if user is manually scrolling by comparing to last position
+      const isManualScrollAction = Math.abs(scrollTop - lastScrollPosition) > 5;
+      setLastScrollPosition(scrollTop);
+      
+      // Update UI state for scroll button visibility
+      setIsNearBottom(isAtBottom);
+      
+      // Any manual scroll action during messages loading should disable auto-scroll
+      if (isManualScrollAction && !isAtBottom) {
+        setUserScrolledManually(true);
+        if (shouldAutoScroll) {
+          setShouldAutoScroll(false);
+        }
+      }
+      
+      // Only re-enable auto-scroll if the user explicitly scrolls to the very bottom
+      if (isAtBottom && userScrolledManually) {
+        setUserScrolledManually(false);
+        if (!shouldAutoScroll) {
+          setShouldAutoScroll(true);
+        }
+      }
+    };
+
+    // Use requestAnimationFrame for smoother detection during scrolling
+    let ticking = false;
+    const scrollListener = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    chatContainer.addEventListener('scroll', scrollListener, { passive: true });
+    
+    // Cleanup
+    return () => {
+      chatContainer.removeEventListener('scroll', scrollListener);
+    };
+  }, [shouldAutoScroll, lastScrollPosition, userScrolledManually]);
+
+  // Monitor message count to detect when new messages are added
+  useEffect(() => {
+    setMessageCount(messages.length);
+  }, [messages]);
+
+  useEffect(() => {
+    // Only auto-scroll in very specific cases:
+    // 1. Auto-scroll is explicitly enabled
+    // 2. User hasn't manually scrolled
+    // 3. A new message was just added and we're at the bottom already
+    if (shouldAutoScroll && !userScrolledManually) {
+      scrollToBottom();
+    }
+  }, [messages, isLoading, shouldAutoScroll, messageCount, userScrolledManually]);
+
+  // Force scroll to bottom when manually requested via button
+  const handleScrollToBottom = () => {
+    setShouldAutoScroll(true);
+    setIsNearBottom(true);
+    setUserScrolledManually(false);
+    
+    // Use RAF for smoother animation
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    });
+  };
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -362,6 +445,10 @@ const MFUChatbot: React.FC = () => {
       return;
     }
 
+    // Re-enable auto-scrolling when sending a new message, but respect user's reading state
+    if (!userScrolledManually) {
+      setShouldAutoScroll(true);
+    }
     setIsLoading(true);
 
     try {
@@ -498,6 +585,11 @@ const MFUChatbot: React.FC = () => {
             break;
 
           case 'complete':
+            // Re-enable auto-scrolling when message is complete, but respect user's reading position
+            if (!userScrolledManually) {
+              setShouldAutoScroll(true);
+            }
+            
             setMessages(prev => {
               const updatedMessages = prev.map((msg, index) => 
                 index === prev.length - 1 && msg.role === 'assistant' ? {
@@ -820,6 +912,10 @@ const MFUChatbot: React.FC = () => {
       return;
     }
 
+    // Re-enable auto-scrolling when continuing the conversation, but respect user's reading position
+    if (!userScrolledManually) {
+      setShouldAutoScroll(true);
+    }
     setIsLoading(true);
 
     try {
@@ -895,8 +991,7 @@ const MFUChatbot: React.FC = () => {
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       <div 
         ref={chatContainerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40"
+        className="flex-1 overflow-y-auto px-4 pb-[calc(180px+env(safe-area-inset-bottom))] pt-4 md:pb-40 relative"
       >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
@@ -1023,6 +1118,19 @@ const MFUChatbot: React.FC = () => {
             ))}
             <div ref={messagesEndRef} />
           </div>
+        )}
+        
+        {/* Scroll to bottom button - improved visibility based on scroll distance */}
+        {messages.length > 0 && (
+          <button
+            onClick={handleScrollToBottom}
+            className={`fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 md:p-3 shadow-lg transition-all duration-300 z-10 ${
+              isNearBottom ? 'opacity-0 pointer-events-none transform translate-y-4' : 'opacity-100 transform translate-y-0'
+            }`}
+            aria-label="Scroll to latest messages"
+          >
+            <IoIosArrowDown className="h-4 w-4 md:h-5 md:w-5" />
+          </button>
         )}
       </div>
 
