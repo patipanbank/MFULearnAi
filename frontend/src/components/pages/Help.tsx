@@ -11,6 +11,10 @@ const Help: React.FC = () => {
     "/6.png",
     "/7.png",
     "/8.png",
+    "/9.png",
+    "/10.png",
+    "/11.png",
+    "/12.png",
   ];
 
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -32,9 +36,8 @@ const Help: React.FC = () => {
         </p>
       </header>
 
-      <div className="relative max-w-4xl mx-auto">
-        {/* รูปภาพสไลด์ */}
-        <div className="relative aspect-[16/9] bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden">
+      <div className="relative mx-auto" style={{ maxWidth: '90vw', height: '80vh' }}>
+        <div className="relative h-full bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden">
           <img
             src={slides[currentSlide]}
             alt={`Guide slide ${currentSlide + 1}`}
@@ -44,28 +47,27 @@ const Help: React.FC = () => {
           {/* ปุ่มเลื่อนซ้าย */}
           <button
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white transition-all"
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/30 hover:bg-black/50 text-white transition-all"
             aria-label="Previous slide"
           >
-            <FaChevronLeft className="w-6 h-6" />
+            <FaChevronLeft className="w-8 h-8" />
           </button>
 
           {/* ปุ่มเลื่อนขวา */}
           <button
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white transition-all"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/30 hover:bg-black/50 text-white transition-all"
             aria-label="Next slide"
           >
-            <FaChevronRight className="w-6 h-6" />
+            <FaChevronRight className="w-8 h-8" />
           </button>
 
-          {/* ตัวบอกตำแหน่งสไลด์ */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
             {slides.map((_, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentSlide(index)}
-                className={`w-2.5 h-2.5 rounded-full transition-all
+                className={`w-3 h-3 rounded-full transition-all
                   ${currentSlide === index 
                     ? 'bg-white scale-125' 
                     : 'bg-white/50 hover:bg-white/75'}`}
@@ -75,8 +77,7 @@ const Help: React.FC = () => {
           </div>
         </div>
 
-        {/* ตัวเลขสไลด์ */}
-        <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+        <div className="mt-4 text-center text-base text-gray-600 dark:text-gray-400">
           สไลด์ {currentSlide + 1} จาก {slides.length}
         </div>
       </div>
