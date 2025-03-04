@@ -3,14 +3,14 @@ import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const Help: React.FC = () => {
   const slides = [
-    "/frontend/public/help/1.png",
-    "/frontend/public/help/2.png",
-    "/frontend/public/help/3.png",
-    "/frontend/public/help/4.png",
-    "/frontend/public/help/5.png",
-    "/frontend/public/help/6.png",
-    "/frontend/public/help/7.png",
-    "/frontend/public/help/8.png",
+    "/frontend/public/1.png",
+    "/frontend/public/2.png",
+    "/frontend/public/3.png",
+    "/frontend/public/4.png",
+    "/frontend/public/5.png",
+    "/frontend/public/6.png",
+    "/frontend/public/7.png",
+    "/frontend/public/8.png",
   ];
 
   const [currentSlide, setCurrentSlide] = useState(0);
