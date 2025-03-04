@@ -10,6 +10,7 @@ import ModelCreation from './components/pages/modelCreation';
 import './index.css';
 import AdminLogin from './components/login/AdminLogin';
 import CreateAdmin from './components/pages/CreateAdmin';
+import Help from './components/pages/Help';
  
 
 const App = () => {
@@ -92,6 +93,16 @@ const App = () => {
             </AuthGuard>
           }
         /> */}
+        <Route
+          path="/help"
+          element={
+            <AuthGuard>
+              <MainLayout>
+                <Help />
+              </MainLayout>
+            </AuthGuard>
+          }
+        />
       </Routes>
     </Router>
   );
