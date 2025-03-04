@@ -78,7 +78,7 @@ const Help: React.FC = () => {
         </div>
 
         <div className="mt-4 text-center text-base text-gray-600 dark:text-gray-400">
-          สไลด์ {currentSlide + 1} จาก {slides.length}
+          Slide {currentSlide + 1} of {slides.length}
         </div>
       </div>
     </div>
