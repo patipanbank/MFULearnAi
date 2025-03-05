@@ -18,49 +18,51 @@ export class BedrockService {
   private readonly defaultConfig: ModelConfig = {
     temperature: 0.7,
     topP: 0.99,
-    maxTokens: 2048
+    maxTokens: 3000
   };
 
   private readonly questionTypeConfigs: { [key: string]: ModelConfig } = {
     factual: {
       temperature: 0.3,  // Lower temperature for more focused, factual responses
       topP: 0.9,
-      maxTokens:  2048,
+      maxTokens:  3000,
       stopSequences: ["Human:", "Assistant:"]
     },
     analytical: {
       temperature: 0.7,  // Balanced for analytical thinking
       topP: 0.95,
-      maxTokens: 2048
+      maxTokens: 3000
     },
     conceptual: {
       temperature: 0.6,  // Moderate temperature for clear explanations
       topP: 0.92,
-      maxTokens: 2048
+      maxTokens: 3000
     },
     procedural: {
       temperature: 0.4,  // Lower temperature for precise step-by-step instructions
       topP: 0.9,
-      maxTokens: 2048
+      maxTokens: 3000
     },
     clarification: {
       temperature: 0.5,  // Moderate temperature for clear clarifications
       topP: 0.9,
-      maxTokens: 2048
+      maxTokens: 3000
     },
     visual: {  // New config for image-related queries
       temperature: 0.4,
       topP: 0.9,
-      maxTokens: 2048
+      maxTokens: 3000
     },
     imageGeneration: {  // New config for image generation
       temperature: 0.8,  // Higher temperature for more creative image descriptions
       topP: 0.95,
-      maxTokens: 2048
+      maxTokens: 3000
     }
   };
 
   public chatModel = this.models.claude35;
+
+  private lastTokenUsage = 0;
 
   constructor() {
     this.client = new BedrockRuntimeClient({
@@ -232,13 +234,31 @@ export class BedrockService {
       });
 
       const response = await this.client.send(command);
-      
+
       if (response.body) {
+        let inputTokens = 0;
+        let outputTokens = 0;
+
         for await (const chunk of response.body) {
           if (chunk.chunk?.bytes) {
             const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
             try {
               const parsedChunk = JSON.parse(decodedChunk);
+              
+              if (parsedChunk.type === 'message_start' && parsedChunk.message?.usage?.input_tokens) {
+                inputTokens = parsedChunk.message.usage.input_tokens;
+              }
+
+              if (parsedChunk.type === 'message_delta' && parsedChunk.usage?.output_tokens) {
+                outputTokens = parsedChunk.usage.output_tokens;
+              }
+
+              if (parsedChunk.type === 'message_stop' && parsedChunk['amazon-bedrock-invocationMetrics']) {
+                const metrics = parsedChunk['amazon-bedrock-invocationMetrics'];
+                inputTokens = metrics.inputTokenCount;
+                outputTokens = metrics.outputTokenCount;
+              }
+
               if (parsedChunk.type === 'content_block_delta' && 
                   parsedChunk.delta?.type === 'text_delta' && 
                   parsedChunk.delta?.text) {
@@ -249,11 +269,24 @@ export class BedrockService {
             }
           }
         }
+
+        const totalTokens = inputTokens + outputTokens;
+        this.lastTokenUsage = totalTokens;
+
+        console.log('[Bedrock] Final token usage:', {
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          total_tokens: totalTokens
+        });
       }
     } catch (error) {
       console.error('Claude chat error:', error);
       throw error;
     }
+  }
+
+  getLastTokenUsage(): number {
+    return this.lastTokenUsage;
   }
 }
 

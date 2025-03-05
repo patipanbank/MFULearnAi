@@ -41,7 +41,7 @@ const Login: React.FC = () => {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
-            }}>MFU</span> Chat<span style={{
+            }}>DIN</span>DIN <span style={{
               background: 'linear-gradient(to right, #00FFFF, #0099FF)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
