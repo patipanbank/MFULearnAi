@@ -389,12 +389,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 className={`flex items-center justify-between px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
               >
-                <div className="flex items-center">
-                  <FaComments className="w-5 h-5 mr-3" />
-                  <span className="font-medium">New Chat</span>
+                <div className="flex items-center min-w-0 flex-1">
+                  <FaComments className="w-5 h-5 mr-3 flex-shrink-0" />
+                  <span className="font-medium truncate">New Chat</span>
                 </div>
                 {sortedChats.length > 0 && (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 )}
@@ -480,11 +480,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             className={`flex-1 flex items-center p-2 md:p-3 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex flex-col min-w-0 w-full pr-24">
-                              <div className="font-medium truncate">
+                            <div className="flex flex-col min-w-0 w-full pr-10">
+                              <div className="font-medium truncate max-w-full">
                                 {chat.chatname || 'Untitled Chat'}
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-full">
                                 {chat.name}
                               </div>
                             </div>
@@ -530,8 +530,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   ${location.pathname === '/modelCreation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
               >
-                <FaAndroid className="w-5 h-5 mr-3" />
-                <span className="font-medium">Build Model</span>
+                <FaAndroid className="w-5 h-5 mr-3 flex-shrink-0" />
+                <span className="font-medium truncate">Build Model</span>
               </Link>
 
               <Link
@@ -539,8 +539,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/training' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
               >
-                <FaBookOpen className="w-5 h-5 mr-3" />
-                <span className="font-medium">Knowledge Base</span>
+                <FaBookOpen className="w-5 h-5 mr-3 flex-shrink-0" />
+                <span className="font-medium truncate">Knowledge Base</span>
               </Link>
             </>
           )}
@@ -552,8 +552,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
               onClick={onClose}
             >
-              <FaUserPlus className="w-5 h-5 mr-3" />
-              <span className="font-medium">Create Admin</span>
+              <FaUserPlus className="w-5 h-5 mr-3 flex-shrink-0" />
+              <span className="font-medium truncate">Create Admin</span>
             </Link>
           )}
         </nav>
@@ -563,11 +563,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         <div className="p-4">
           <button
             onClick={handleLogout}
-            // className="w-full flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200"
             className="w-full flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700"
           >
-            <FaSignOutAlt className="w-5 h-5 mr-3" />
-            <span className="font-medium">Logout</span>
+            <FaSignOutAlt className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="font-medium truncate">Logout</span>
           </button>
         </div>
       </div>

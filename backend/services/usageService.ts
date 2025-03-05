@@ -48,4 +48,4 @@ class UsageService {
   }
 }
 
-export const usageService = new UsageService(); 
+export const usageService = new UsageService();
