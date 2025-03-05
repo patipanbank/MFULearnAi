@@ -1,9 +1,8 @@
-
 import mongoose, { Document } from 'mongoose';
 
 interface IUserUsage extends Document {
   userId: string;
-  dailyQuestions: number;
+  dailyTokens: number;
   lastReset: Date;
   checkAndResetDaily(): number;
 }
@@ -14,7 +13,7 @@ const userUsageSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  dailyQuestions: {
+  dailyTokens: {
     type: Number,
     default: 0
   },
@@ -24,7 +23,7 @@ const userUsageSchema = new mongoose.Schema({
   }
 });
 
-// Reset daily questions at 2:09 PM (14:09) Thailand time (GMT+7) each day
+// Reset daily tokens at 2:09 PM (14:09) Thailand time (GMT+7) each day
 userUsageSchema.methods.checkAndResetDaily = function() {
   // Define Thai timezone offset (GMT+7 = 7 hours * 60 minutes * 60 seconds * 1000 milliseconds)
   const thaiTimeOffsetMs = 7 * 60 * 60 * 1000;
@@ -65,11 +64,11 @@ userUsageSchema.methods.checkAndResetDaily = function() {
   }
   
   if (shouldReset) {
-    this.dailyQuestions = 0;
+    this.dailyTokens = 0;
     this.lastReset = nowUTC;
   }
   
-  return this.dailyQuestions;
+  return this.dailyTokens;
 };
 
 export const UserUsage = mongoose.model<IUserUsage>('UserUsage', userUsageSchema);

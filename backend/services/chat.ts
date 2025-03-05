@@ -1,10 +1,10 @@
-
 import { bedrockService } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 import { HydratedDocument } from 'mongoose';
 import { ModelModel } from '../models/Model';
 import { Chat } from '../models/Chat';
+import { usageService } from './usageService';
 
 interface QueryResult {
   text: string;
@@ -364,7 +364,8 @@ Remember: Your responses should be based on the provided context and documents.`
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
-    modelIdOrCollections: string | string[]
+    modelIdOrCollections: string | string[],
+    userId: string
   ): AsyncGenerator<string> {
     try {
       // console.log("Starting generateResponse with:", modelIdOrCollections);
@@ -454,8 +455,17 @@ Remember: Your responses should be based on the provided context and documents.`
       let attempt = 0;
       while (attempt < this.retryConfig.maxRetries) {
         try {
+          let totalTokens = 0;
           for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
-            yield chunk;
+            if (typeof chunk === 'number') {
+              totalTokens = chunk;
+            } else {
+              yield chunk;
+            }
+          }
+          // อัพเดท token usage
+          if (totalTokens > 0) {
+            await usageService.updateTokenUsage(userId, totalTokens);
           }
           return;
         } catch (error: unknown) {

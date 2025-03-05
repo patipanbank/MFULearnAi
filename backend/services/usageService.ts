@@ -1,49 +1,43 @@
 import { UserUsage } from '../models/UserUsage';
 
 class UsageService {
-  private readonly DAILY_LIMIT = 20; // จำนวนคำถามต่อวันที่อนุญาต
+  private readonly DAILY_TOKEN_LIMIT = 100000; // กำหนด limit token ต่อวัน (ปรับตามความเหมาะสม)
 
   async checkUserLimit(userId: string): Promise<boolean> {
-    try {
-      let usage = await UserUsage.findOne({ userId });
-      
-      if (!usage) {
-        usage = new UserUsage({ userId });
-      }
-
-      usage.checkAndResetDaily();
-
-      if (usage.dailyQuestions >= this.DAILY_LIMIT) {
-        return false;
-      }
-
-      usage.dailyQuestions += 1;
-      await usage.save();
-      return true;
-    } catch (error) {
-      console.error('Error checking user limit:', error);
-      return false;
+    let userUsage = await UserUsage.findOne({ userId });
+    
+    if (!userUsage) {
+      userUsage = new UserUsage({ userId });
     }
+
+    await userUsage.checkAndResetDaily();
+    return userUsage.dailyTokens < this.DAILY_TOKEN_LIMIT;
   }
 
-  async getUserUsage(userId: string): Promise<{
-    dailyQuestions: number;
-    dailyLimit: number;
-    remainingQuestions: number;
-  }> {
-    let usage = await UserUsage.findOne({ userId });
+  async updateTokenUsage(userId: string, tokens: number): Promise<void> {
+    let userUsage = await UserUsage.findOne({ userId });
     
-    if (!usage) {
-      usage = new UserUsage({ userId });
-      await usage.save();
+    if (!userUsage) {
+      userUsage = new UserUsage({ userId });
     }
 
-    usage.checkAndResetDaily();
+    userUsage.dailyTokens += tokens;
+    await userUsage.save();
+  }
+
+  async getUserUsage(userId: string): Promise<{ dailyTokens: number; limit: number }> {
+    let userUsage = await UserUsage.findOne({ userId });
+    
+    if (!userUsage) {
+      userUsage = new UserUsage({ userId });
+      await userUsage.save();
+    }
+
+    await userUsage.checkAndResetDaily();
     
     return {
-      dailyQuestions: usage.dailyQuestions,
-      dailyLimit: this.DAILY_LIMIT,
-      remainingQuestions: Math.max(0, this.DAILY_LIMIT - usage.dailyQuestions)
+      dailyTokens: userUsage.dailyTokens,
+      limit: this.DAILY_TOKEN_LIMIT
     };
   }
 }
