@@ -232,8 +232,7 @@ export class BedrockService {
       });
 
       const response = await this.client.send(command);
-      let totalTokens = 0;
-
+      
       if (response.body) {
         for await (const chunk of response.body) {
           if (chunk.chunk?.bytes) {
@@ -245,16 +244,12 @@ export class BedrockService {
                   parsedChunk.delta?.text) {
                 yield parsedChunk.delta.text;
               }
-              if (parsedChunk.usage) {
-                totalTokens = parsedChunk.usage.input_tokens + parsedChunk.usage.output_tokens;
-              }
             } catch (e) {
               console.error('Error parsing chunk:', e);
             }
           }
         }
       }
-      return totalTokens;
     } catch (error) {
       console.error('Claude chat error:', error);
       throw error;
