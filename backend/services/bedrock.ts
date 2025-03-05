@@ -234,6 +234,7 @@ export class BedrockService {
       const response = await this.client.send(command);
       let inputTokens = 0;
       let outputTokens = 0;
+      let lastInputTokens = 0;
 
       if (response.body) {
         for await (const chunk of response.body) {
@@ -247,12 +248,15 @@ export class BedrockService {
                 yield parsedChunk.delta.text;
               }
               if (parsedChunk.usage) {
-                inputTokens = parsedChunk.usage.input_tokens || 0;
+                inputTokens = parsedChunk.usage.input_tokens || lastInputTokens;
                 outputTokens = parsedChunk.usage.output_tokens || 0;
+                lastInputTokens = inputTokens;
+                
                 console.log('[Bedrock] Token usage details:', {
                   input_tokens: inputTokens,
                   output_tokens: outputTokens,
-                  total_tokens: inputTokens + outputTokens
+                  total_tokens: inputTokens + outputTokens,
+                  chunk_type: parsedChunk.type
                 });
               }
             } catch (e) {
@@ -262,7 +266,10 @@ export class BedrockService {
         }
       }
       const totalTokens = inputTokens + outputTokens;
-      console.log('[Bedrock] Final total tokens:', totalTokens);
+      console.log('[Bedrock] Final total tokens:', totalTokens, {
+        input_tokens: inputTokens,
+        output_tokens: outputTokens
+      });
       return totalTokens > 0 ? totalTokens : 0;
     } catch (error) {
       console.error('Claude chat error:', error);
