@@ -247,6 +247,11 @@ export class BedrockService {
               }
               if (parsedChunk.usage) {
                 totalTokens = parsedChunk.usage.input_tokens + parsedChunk.usage.output_tokens;
+                console.log('[Bedrock] Token usage details:', {
+                  input_tokens: parsedChunk.usage.input_tokens,
+                  output_tokens: parsedChunk.usage.output_tokens,
+                  total_tokens: totalTokens
+                });
               }
             } catch (e) {
               console.error('Error parsing chunk:', e);
@@ -254,6 +259,7 @@ export class BedrockService {
           }
         }
       }
+      console.log('[Bedrock] Final total tokens:', totalTokens);
       return totalTokens;
     } catch (error) {
       console.error('Claude chat error:', error);
