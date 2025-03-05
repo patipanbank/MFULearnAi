@@ -7,12 +7,12 @@ export function splitTextIntoChunks(text: string, chunkSize: number = 2000): str
 
   // ถ้าข้อความสั้นกว่าหรือเท่ากับ chunkSize ให้คืนค่าเป็น array เดียว
   if (cleanText.length <= chunkSize) {
-    console.log(`Text length (${cleanText.length}) is less than chunk size (${chunkSize}), returning single chunk`);
+    // console.log(`Text length (${cleanText.length}) is less than chunk size (${chunkSize}), returning single chunk`);
     return [cleanText];
   }
 
   // ถ้าข้อความยาวเกิน chunkSize จึงค่อยแบ่ง
-  console.log(`Text length (${cleanText.length}) exceeds chunk size (${chunkSize}), splitting into chunks`);
+  // console.log(`Text length (${cleanText.length}) exceeds chunk size (${chunkSize}), splitting into chunks`);
   const chunks: string[] = [];
   let currentChunk = '';
   const words = cleanText.split(' ');
@@ -32,6 +32,6 @@ export function splitTextIntoChunks(text: string, chunkSize: number = 2000): str
     chunks.push(currentChunk.trim());
   }
 
-  console.log(`Created ${chunks.length} chunks`);
+  // console.log(`Created ${chunks.length} chunks`);
   return chunks;
 } 

@@ -167,22 +167,24 @@ class ChromaService {
 
       // Check if collection has any documents
       const collectionContents = await collection.get();
-      console.log(`ChromaService: Collection '${collectionName}' contains:`, {
-        documentCount: collectionContents.documents?.length || 0,
-        metadataCount: collectionContents.metadatas?.length || 0,
-        // Log a few sample documents with their metadata
-        sampleDocs: (collectionContents.documents || []).slice(0, 2).map((doc: string, i: number) => ({
-          text: doc.substring(0, 100) + '...',
-          metadata: collectionContents.metadatas?.[i],
-          id: collectionContents.ids?.[i]
-        }))
-      });
+      // console.log(`ChromaService: Collection '${collectionName}' contains:`, {
+      //   documentCount: collectionContents.documents?.length || 0,
+      //   metadataCount: collectionContents.metadatas?.length || 0,
+      //   // Log a few sample documents with their metadata
+      //   sampleDocs: (collectionContents.documents || []).slice(0, 2).map((doc: string, i: number) => ({
+      //     text: doc.substring(0, 100) + '...',
+      //     metadata: collectionContents.metadatas?.[i],
+      //     id: collectionContents.ids?.[i]
+      //   }))
+      // });
 
-      // console.log(`ChromaService: Querying '${collectionName}' for ${n_results} related results with processed=true filter`);
-
+      // ขอผลลัพธ์มากขึ้นเพื่อให้มีโอกาสได้ข้อมูลที่เกี่ยวข้องมากขึ้น
+      // แต่จะกรองเฉพาะที่เกี่ยวข้องจริงๆ ในภายหลัง
+      const QUERY_MULTIPLIER = 3; // เพิ่มจาก 2 เป็น 3
+      
       const queryResult = await collection.query({
         queryEmbeddings: [queryEmbedding],
-        n_results: n_results * 2, // Request more results initially for better filtering
+        n_results: n_results * QUERY_MULTIPLIER, // Request more results initially for better filtering
         include: ["documents", "metadatas", "distances"],
         where: { processed: true } // Only include fully processed documents
       });
@@ -191,24 +193,10 @@ class ChromaService {
         throw new Error("ChromaService: queryResult.documents is not an array.");
       }
 
-      // Log raw query results in detail
-      // console.log(`ChromaService: Raw query results for '${collectionName}':`, {
-      //   documents: queryResult.documents[0],
-      //   distances: queryResult.distances?.[0],
-      //   metadatas: queryResult.metadatas?.[0]
-      // });
-
-      // Log query results summary
-      // console.log(`ChromaService: Query returned:`, {
-      //   documentsLength: queryResult.documents.length,
-      //   firstDocumentLength: queryResult.documents[0]?.length || 0,
-      //   metadatasLength: queryResult.metadatas?.length || 0,
-      //   distancesLength: queryResult.distances?.length || 0
-      // });
-
-      // ปรับลดค่า MAX_L2_DISTANCE และ MIN_SIMILARITY_THRESHOLD
-      const MAX_L2_DISTANCE = 2.0; // เพิ่มจาก Math.sqrt(2)
-      const MIN_SIMILARITY_THRESHOLD = 0.0; // ลดจาก 0.3
+      // ปรับค่า MAX_L2_DISTANCE และ MIN_SIMILARITY_THRESHOLD
+      // เพื่อให้กรองข้อมูลที่เกี่ยวข้องได้ดีขึ้น
+      const MAX_L2_DISTANCE = 1.8; // ลดจาก 2.0 เพื่อให้ similarity score สูงขึ้น
+      const MIN_SIMILARITY_THRESHOLD = 0.2; // เพิ่มจาก 0.0 เพื่อกรองข้อมูลที่ไม่เกี่ยวข้อง
 
       const documents = queryResult.documents[0];
       const distances = queryResult.distances?.[0] || [];
@@ -224,10 +212,10 @@ class ChromaService {
         similarity: number;
       }
 
-      // แก้ไขฟังก์ชัน l2DistanceToSimilarity
+      // ปรับฟังก์ชัน l2DistanceToSimilarity ให้คำนวณค่า similarity ได้แม่นยำขึ้น
       const l2DistanceToSimilarity = (distance: number): number => {
-        const clampedDistance = Math.min(distance, MAX_L2_DISTANCE);
-        return Math.max(0, 1 - (clampedDistance / MAX_L2_DISTANCE));
+        // ใช้ exponential decay function เพื่อให้ค่า similarity ลดลงเร็วขึ้นเมื่อ distance สูงขึ้น
+        return Math.exp(-distance / MAX_L2_DISTANCE);
       };
 
       // Log raw distances and computed similarities
@@ -248,15 +236,6 @@ class ChromaService {
         .sort((a: QueryResult, b: QueryResult) => b.similarity - a.similarity)
         .slice(0, n_results);
 
-      // Log filtered results
-      // console.log(`ChromaService: After filtering:`, {
-      //   filteredCount: filteredResults.length,
-      //   similarityRange: filteredResults.length > 0 ? {
-      //     min: Math.min(...filteredResults.map((r: QueryResult) => r.similarity)),
-      //     max: Math.max(...filteredResults.map((r: QueryResult) => r.similarity))
-      //   } : null
-      // });
-
       return {
         documents: filteredResults.map((r: QueryResult) => r.text),
         metadatas: filteredResults.map((r: QueryResult) => r.metadata),
@@ -272,7 +251,7 @@ class ChromaService {
     }
   }
 
-  async queryDocuments(collectionName: string, query: string, n_results: number = 10) {
+  async queryDocuments(collectionName: string, query: string, n_results: number = 4) {
     try {
       await this.initCollection(collectionName);
       const collection = this.collections.get(collectionName);
@@ -290,7 +269,7 @@ class ChromaService {
     }
   }
 
-  async queryCollection(collectionName: string, query: string, limit: number = 5) {
+  async queryCollection(collectionName: string, query: string, limit: number = 4) {
     await this.initCollection(collectionName);
     const collection = this.collections.get(collectionName);
     const queryEmbedding = await this.titanEmbedService.embedText(query);
@@ -304,7 +283,7 @@ class ChromaService {
       const collection = this.collections.get(collectionName);
       const results = await collection.query({
         queryTexts: [query],
-        nResults: 10,
+        nResults: 4,
         minScore: 0.7,
         where: {},
         include: ["documents", "metadatas", "distances"]

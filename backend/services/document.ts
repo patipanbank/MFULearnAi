@@ -59,7 +59,7 @@ export class DocumentService {
 
   async processFile(file: Express.Multer.File): Promise<string> {
     const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
-    console.log(`Processing file: ${filename}`);
+    // console.log(`Processing file: ${filename}`);
     
     const ext = path.extname(file.originalname).toLowerCase();
     

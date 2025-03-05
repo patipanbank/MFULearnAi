@@ -143,7 +143,7 @@ Remember: Your responses should be based on the provided context and documents.`
           const queryResult = await chromaService.queryDocumentsWithEmbedding(
             name,
             imageEmbedding || queryEmbedding,
-            5
+            4
           ) as ChromaQueryResult;
 
           if (!queryResult?.documents || !queryResult?.metadatas) {
@@ -157,8 +157,9 @@ Remember: Your responses should be based on the provided context and documents.`
               similarity: 1 - (queryResult.distances?.[index] || 0)
             }));
 
-          // ลด threshold ลงเพื่อให้เก็บข้อมูลที่เกี่ยวข้องมากขึ้น
-          const MIN_SIMILARITY_THRESHOLD = 0.1;
+          // กำหนดค่า threshold ที่สามารถปรับได้ตามความเหมาะสม
+          // ค่าสูงขึ้นหมายถึงกรองเฉพาะข้อมูลที่เกี่ยวข้องมากขึ้น
+          const MIN_SIMILARITY_THRESHOLD = 0.3; // เพิ่มจาก 0.1 เป็น 0.3
 
           const filteredResults = results
             .filter(result => result.similarity >= MIN_SIMILARITY_THRESHOLD)
@@ -233,13 +234,19 @@ Remember: Your responses should be based on the provided context and documents.`
     // console.log('Sanitized collection names:', sanitizedCollections);
 
     // console.log('Getting query embedding...');
-    let queryEmbedding = await chromaService.getQueryEmbedding(query);
+    // Limit query length for embedding to stay within service limits (50,000 chars)
+    const MAX_QUERY_LENGTH = 4000; // Conservative limit to ensure we stay well under the 50k limit
+    const truncatedQuery = query.length > MAX_QUERY_LENGTH 
+      ? query.substring(0, MAX_QUERY_LENGTH) 
+      : query;
+    
+    let queryEmbedding = await chromaService.getQueryEmbedding(truncatedQuery);
     let imageEmbedding: number[] | undefined;
     
     if (imageBase64) {
       try {
         // console.log('Generating image embedding...');
-        imageEmbedding = await bedrockService.embedImage(imageBase64, query);
+        imageEmbedding = await bedrockService.embedImage(imageBase64, truncatedQuery);
         // console.log('Generated image embedding');
       } catch (error) {
         // console.error('Error generating image embedding:', error);
@@ -273,9 +280,19 @@ Remember: Your responses should be based on the provided context and documents.`
       // console.log('Saved sources to chat history');
     }
 
+    // กรองและจัดลำดับ context ตาม similarity score
+    // เลือกเฉพาะ collection ที่มี similarity score สูงกว่าเกณฑ์
+    const MIN_COLLECTION_SIMILARITY = 0.4; // เกณฑ์ขั้นต่ำสำหรับ collection
+    
     const contexts = allResults
-      .filter(r => r.sources.length > 0)
+      .filter(r => {
+        // กรองเฉพาะ collection ที่มีข้อมูลและมี similarity score สูงกว่าเกณฑ์
+        if (r.sources.length === 0) return false;
+        const maxSimilarity = Math.max(...r.sources.map(s => s.similarity));
+        return maxSimilarity >= MIN_COLLECTION_SIMILARITY;
+      })
       .sort((a, b) => {
+        // จัดลำดับตาม similarity score สูงสุดของแต่ละ collection
         const aMaxSim = Math.max(...a.sources.map(s => s.similarity));
         const bMaxSim = Math.max(...b.sources.map(s => s.similarity));
         return bMaxSim - aMaxSim;
@@ -284,15 +301,63 @@ Remember: Your responses should be based on the provided context and documents.`
 
     // console.log('Final context length:', contexts.join("\n\n").length);
 
+    // จำกัดจำนวนข้อมูลที่ส่งไปยัง model เพื่อลดการใช้ token
+    const MAX_CONTEXT_LENGTH = 6000; // Reduced from 8000 to avoid token limit errors
+    
     // รวม context จากทุก collection ที่มี similarity score ผ่านเกณฑ์
     let context = '';
     for (const result of contexts) {
       if (result && result.length > 0) {
-        context += result + '\n';
+        // If this single result is too large, truncate it
+        let resultToAdd = result;
+        if (resultToAdd.length > MAX_CONTEXT_LENGTH) {
+          resultToAdd = resultToAdd.substring(0, MAX_CONTEXT_LENGTH);
+          // Ensure we don't cut in the middle of a word or sentence
+          const lastPeriodIndex = resultToAdd.lastIndexOf('.');
+          const lastNewlineIndex = resultToAdd.lastIndexOf('\n');
+          const lastBreakIndex = Math.max(lastPeriodIndex, lastNewlineIndex);
+          if (lastBreakIndex > MAX_CONTEXT_LENGTH * 0.8) {
+            resultToAdd = resultToAdd.substring(0, lastBreakIndex + 1);
+          }
+        }
+        
+        // ตรวจสอบว่าการเพิ่ม context นี้จะทำให้เกินขนาดหรือไม่
+        if (context.length + resultToAdd.length > MAX_CONTEXT_LENGTH) {
+          // ถ้าเกินขนาด ให้หยุดการเพิ่ม context
+          break;
+        }
+        context += resultToAdd + '\n';
+      }
+    }
+    
+    // Double-check final context size doesn't exceed limits
+    if (context.length > MAX_CONTEXT_LENGTH) {
+      context = context.substring(0, MAX_CONTEXT_LENGTH);
+      // Ensure we don't cut mid-sentence
+      const lastPeriodIndex = context.lastIndexOf('.');
+      if (lastPeriodIndex > MAX_CONTEXT_LENGTH * 0.8) {
+        context = context.substring(0, lastPeriodIndex + 1);
       }
     }
     
     return `${promptTemplate}\n\n${context}`;
+  }
+
+  private summarizeOldMessages(messages: ChatMessage[]): string {
+    if (messages.length <= 0) {
+      return '';
+    }
+
+    // Create a concise summary of the older messages
+    const summary = messages.map(msg => {
+      const role = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
+      const content = msg.content.length > 100 
+        ? `${msg.content.substring(0, 97)}...` 
+        : msg.content;
+      return `${role}: ${content}`;
+    }).join('\n');
+
+    return `Previous conversation summary:\n${summary}`;
   }
 
   async *generateResponse(
@@ -306,13 +371,44 @@ Remember: Your responses should be based on the provided context and documents.`
       const lastMessage = messages[messages.length - 1];
       const isImageGeneration = lastMessage.isImageGeneration;
       
+      // Dynamically determine message limit based on message length
+      const MAX_CHAR_THRESHOLD = 500; // Define threshold for "long" messages
+      const DEFAULT_MESSAGE_LIMIT = 6;
+      const LONG_MESSAGE_LIMIT = 2;
+      
+      // Calculate average message length
+      const avgMessageLength = messages.reduce((sum, msg) => 
+        sum + (msg.content?.length || 0), 0) / Math.max(1, messages.length);
+      
+      // Set message limit based on average length
+      const MESSAGE_LIMIT = avgMessageLength > MAX_CHAR_THRESHOLD 
+        ? LONG_MESSAGE_LIMIT 
+        : DEFAULT_MESSAGE_LIMIT;
+      
+      let recentMessages: ChatMessage[] = [];
+      let olderMessages: ChatMessage[] = [];
+      
+      if (messages.length > MESSAGE_LIMIT) {
+        // Split messages into older and recent messages
+        olderMessages = messages.slice(0, messages.length - MESSAGE_LIMIT);
+        recentMessages = messages.slice(messages.length - MESSAGE_LIMIT);
+      } else {
+        recentMessages = [...messages];
+      }
+      
       // Skip context retrieval for image generation
       let context = '';
       if (!isImageGeneration) {
         const imageBase64 = lastMessage.images?.[0]?.data;
         try {
+          // Ensure query doesn't exceed reasonable length
+          const MAX_QUERY_FOR_CONTEXT = 4000;
+          const trimmedQuery = query.length > MAX_QUERY_FOR_CONTEXT 
+            ? query.substring(0, MAX_QUERY_FOR_CONTEXT) 
+            : query;
+            
           context = await this.retryOperation(
-            async () => this.getContext(query, modelIdOrCollections, imageBase64),
+            async () => this.getContext(trimmedQuery, modelIdOrCollections, imageBase64),
             'Failed to get context'
           );
         } catch (error) {
@@ -335,6 +431,14 @@ Remember: Your responses should be based on the provided context and documents.`
         }
       ];
 
+      // Add summary of older messages if there are any
+      if (olderMessages.length > 0) {
+        systemMessages.push({
+          role: 'system',
+          content: this.summarizeOldMessages(olderMessages)
+        });
+      }
+
       // Only add context if we have it and not in image generation mode
       if (context && !isImageGeneration) {
         systemMessages.push({
@@ -343,8 +447,8 @@ Remember: Your responses should be based on the provided context and documents.`
         });
       }
 
-      // Combine system messages with user messages
-      const augmentedMessages = [...systemMessages, ...messages];
+      // Combine system messages with recent user messages only
+      const augmentedMessages = [...systemMessages, ...recentMessages];
 
       let attempt = 0;
       while (attempt < this.retryConfig.maxRetries) {
@@ -396,7 +500,7 @@ Remember: Your responses should be based on the provided context and documents.`
     throw new Error(`${errorMessage} after ${this.retryConfig.maxRetries} attempts: ${lastError?.message}`);
   }
 
-  async getChats(userId: string, page: number = 1, limit: number = 10) {
+  async getChats(userId: string, page: number = 1, limit: number = 4) {
     const skip = (page - 1) * limit;
     const chats = await Chat.find({ userId })
       .sort({ updatedAt: -1 })
