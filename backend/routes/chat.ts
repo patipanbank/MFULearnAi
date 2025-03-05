@@ -220,7 +220,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         // console.log('Starting response generation...');
         let assistantResponse = '';
         
-        for await (const content of chatService.generateResponse(messages, query, modelId)) {
+        for await (const content of chatService.generateResponse(messages, query, modelId, extWs.userId!)) {
           assistantResponse += content;
           if (extWs.readyState === WebSocket.OPEN) {
             extWs.send(JSON.stringify({ 
@@ -335,9 +335,8 @@ router.post('/', async (req: Request, res: Response) => {
     //   messagesCount: messages.length,
     //   query
     // });
-
     try {
-      for await (const content of chatService.generateResponse(messages, query, modelId)) {
+      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
         // console.log('Sending chunk:', content);
         sendChunk(content);
       }
