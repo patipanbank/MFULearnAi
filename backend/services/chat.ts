@@ -465,7 +465,11 @@ Remember: Your responses should be based on the provided context and documents.`
           }
           // อัพเดท token usage
           if (totalTokens > 0) {
-            await usageService.updateTokenUsage(userId, totalTokens);
+            console.log(`[Token Usage] User: ${userId}`);
+            console.log(`[Token Usage] Total tokens for this request: ${totalTokens}`);
+            
+            const usage = await usageService.updateTokenUsage(userId, totalTokens);
+            console.log(`[Token Usage] Daily total: ${usage.dailyTokens}/${usage.tokenLimit}`);
           }
           return;
         } catch (error: unknown) {
@@ -480,6 +484,7 @@ Remember: Your responses should be based on the provided context and documents.`
         }
       }
     } catch (error) {
+      console.error("[Token Usage] Error updating token usage:", error);
       console.error("Error in generateResponse:", error);
       yield "\nI apologize, but I encountered an error while generating the response. Please try again or contact support if the issue persists.";
     }

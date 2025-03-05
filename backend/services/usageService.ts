@@ -15,12 +15,17 @@ class UsageService {
     return usage.dailyTokens < usage.tokenLimit;
   }
 
-  async updateTokenUsage(userId: string, tokens: number): Promise<void> {
+  async updateTokenUsage(userId: string, tokens: number): Promise<{ dailyTokens: number; tokenLimit: number }> {
     const usage = await UserUsage.findOne({ userId });
     if (usage) {
       usage.dailyTokens += tokens;
       await usage.save();
+      return {
+        dailyTokens: usage.dailyTokens,
+        tokenLimit: usage.tokenLimit
+      };
     }
+    throw new Error('User usage not found');
   }
 
   async getUserUsage(userId: string) {
