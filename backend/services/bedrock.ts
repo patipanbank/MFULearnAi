@@ -62,6 +62,8 @@ export class BedrockService {
 
   public chatModel = this.models.claude35;
 
+  private lastTokenUsage = 0;
+
   constructor() {
     this.client = new BedrockRuntimeClient({
       region: process.env.AWS_REGION,
@@ -232,10 +234,11 @@ export class BedrockService {
       });
 
       const response = await this.client.send(command);
-      let inputTokens = 0;
-      let outputTokens = 0;
 
       if (response.body) {
+        let inputTokens = 0;
+        let outputTokens = 0;
+
         for await (const chunk of response.body) {
           if (chunk.chunk?.bytes) {
             const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
@@ -244,10 +247,6 @@ export class BedrockService {
               
               if (parsedChunk.type === 'message_start' && parsedChunk.message?.usage?.input_tokens) {
                 inputTokens = parsedChunk.message.usage.input_tokens;
-                console.log('[Bedrock] Initial token count:', {
-                  input_tokens: inputTokens,
-                  type: 'message_start'
-                });
               }
 
               if (parsedChunk.type === 'message_delta' && parsedChunk.usage?.output_tokens) {
@@ -258,11 +257,6 @@ export class BedrockService {
                 const metrics = parsedChunk['amazon-bedrock-invocationMetrics'];
                 inputTokens = metrics.inputTokenCount;
                 outputTokens = metrics.outputTokenCount;
-                console.log('[Bedrock] Final metrics:', {
-                  input_tokens: inputTokens,
-                  output_tokens: outputTokens,
-                  type: 'message_stop'
-                });
               }
 
               if (parsedChunk.type === 'content_block_delta' && 
@@ -275,17 +269,24 @@ export class BedrockService {
             }
           }
         }
+
+        const totalTokens = inputTokens + outputTokens;
+        this.lastTokenUsage = totalTokens;
+
+        console.log('[Bedrock] Final token usage:', {
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          total_tokens: totalTokens
+        });
       }
-      const totalTokens = inputTokens + outputTokens;
-      console.log('[Bedrock] Final total tokens:', totalTokens, {
-        input_tokens: inputTokens,
-        output_tokens: outputTokens
-      });
-      return totalTokens > 0 ? totalTokens : 0;
     } catch (error) {
       console.error('Claude chat error:', error);
       throw error;
     }
+  }
+
+  getLastTokenUsage(): number {
+    return this.lastTokenUsage;
   }
 }
 

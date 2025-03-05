@@ -36,6 +36,13 @@ class UsageService {
     usage.dailyTokens += tokens;
     await usage.save();
 
+    console.log(`[Usage] Updated token usage for ${userId}:`, {
+      added: tokens,
+      daily: usage.dailyTokens,
+      limit: usage.tokenLimit,
+      remaining: Math.max(0, usage.tokenLimit - usage.dailyTokens)
+    });
+
     return {
       dailyTokens: usage.dailyTokens,
       tokenLimit: usage.tokenLimit,

@@ -455,21 +455,23 @@ Remember: Your responses should be based on the provided context and documents.`
       let attempt = 0;
       while (attempt < this.retryConfig.maxRetries) {
         try {
+          // Generate response and send chunks
           let totalTokens = 0;
           for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
-            if (typeof chunk === 'number') {
-              totalTokens = chunk;
-            } else {
+            if (typeof chunk === 'string') {
               yield chunk;
             }
           }
-          // อัพเดท token usage
+
+          // อัพเดท token usage หลังจากได้ response ทั้งหมด
+          totalTokens = bedrockService.getLastTokenUsage();
           if (totalTokens > 0) {
-            console.log(`[Token Usage] User: ${userId}`);
-            console.log(`[Token Usage] Total tokens for this request: ${totalTokens}`);
-            
             const usage = await usageService.updateTokenUsage(userId, totalTokens);
-            console.log(`[Token Usage] Daily total: ${usage.dailyTokens}/${usage.tokenLimit}`);
+            console.log(`[Chat] Token usage updated for ${userId}:`, {
+              used: totalTokens,
+              daily: usage.dailyTokens,
+              remaining: usage.remainingTokens
+            });
           }
           return;
         } catch (error: unknown) {
@@ -484,9 +486,8 @@ Remember: Your responses should be based on the provided context and documents.`
         }
       }
     } catch (error) {
-      console.error("[Token Usage] Error updating token usage:", error);
-      console.error("Error in generateResponse:", error);
-      yield "\nI apologize, but I encountered an error while generating the response. Please try again or contact support if the issue persists.";
+      console.error('Error generating response:', error);
+      throw error;
     }
   }
 
