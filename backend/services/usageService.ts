@@ -1,13 +1,16 @@
 import { UserUsage } from '../models/UserUsage';
 
 class UsageService {
-  private readonly DAILY_LIMIT = 20; // จำนวนคำถามต่อวันที่อนุญาต
+  private readonly DAILY_TOKEN_LIMIT = 100000; // จำกัด token ต่อวัน
 
   async checkUserLimit(userId: string): Promise<boolean> {
     let usage = await UserUsage.findOne({ userId });
     
     if (!usage) {
-      usage = new UserUsage({ userId });
+      usage = new UserUsage({ 
+        userId,
+        tokenLimit: this.DAILY_TOKEN_LIMIT 
+      });
     }
 
     usage.checkAndResetDaily();
@@ -15,24 +18,39 @@ class UsageService {
     return usage.dailyTokens < usage.tokenLimit;
   }
 
-  async updateTokenUsage(userId: string, tokens: number): Promise<{ dailyTokens: number; tokenLimit: number }> {
-    const usage = await UserUsage.findOne({ userId });
-    if (usage) {
-      usage.dailyTokens += tokens;
-      await usage.save();
-      return {
-        dailyTokens: usage.dailyTokens,
-        tokenLimit: usage.tokenLimit
-      };
+  async updateTokenUsage(userId: string, tokens: number): Promise<{ 
+    dailyTokens: number; 
+    tokenLimit: number;
+    remainingTokens: number;
+  }> {
+    let usage = await UserUsage.findOne({ userId });
+    
+    if (!usage) {
+      usage = new UserUsage({ 
+        userId,
+        tokenLimit: this.DAILY_TOKEN_LIMIT 
+      });
     }
-    throw new Error('User usage not found');
+
+    usage.checkAndResetDaily();
+    usage.dailyTokens += tokens;
+    await usage.save();
+
+    return {
+      dailyTokens: usage.dailyTokens,
+      tokenLimit: usage.tokenLimit,
+      remainingTokens: Math.max(0, usage.tokenLimit - usage.dailyTokens)
+    };
   }
 
   async getUserUsage(userId: string) {
     let usage = await UserUsage.findOne({ userId });
     
     if (!usage) {
-      usage = new UserUsage({ userId });
+      usage = new UserUsage({ 
+        userId,
+        tokenLimit: this.DAILY_TOKEN_LIMIT 
+      });
       await usage.save();
     }
 
@@ -41,7 +59,8 @@ class UsageService {
     return {
       dailyTokens: usage.dailyTokens,
       tokenLimit: usage.tokenLimit,
-      remainingTokens: Math.max(0, usage.tokenLimit - usage.dailyTokens)
+      remainingTokens: Math.max(0, usage.tokenLimit - usage.dailyTokens),
+      resetTime: usage.lastReset
     };
   }
 }
