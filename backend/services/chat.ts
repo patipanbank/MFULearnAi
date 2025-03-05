@@ -144,7 +144,7 @@ Remember: Your responses should be based on the provided context and documents.`
           const queryResult = await chromaService.queryDocumentsWithEmbedding(
             name,
             imageEmbedding || queryEmbedding,
-            4
+            5
           ) as ChromaQueryResult;
 
           if (!queryResult?.documents || !queryResult?.metadatas) {
@@ -160,7 +160,7 @@ Remember: Your responses should be based on the provided context and documents.`
 
           // กำหนดค่า threshold ที่สามารถปรับได้ตามความเหมาะสม
           // ค่าสูงขึ้นหมายถึงกรองเฉพาะข้อมูลที่เกี่ยวข้องมากขึ้น
-          const MIN_SIMILARITY_THRESHOLD = 0.3; // เพิ่มจาก 0.1 เป็น 0.3
+          const MIN_SIMILARITY_THRESHOLD = 0.1; // เพิ่มจาก 0.1 เป็น 0.3
 
           const filteredResults = results
             .filter(result => result.similarity >= MIN_SIMILARITY_THRESHOLD)
@@ -517,7 +517,7 @@ Remember: Your responses should be based on the provided context and documents.`
     throw new Error(`${errorMessage} after ${this.retryConfig.maxRetries} attempts: ${lastError?.message}`);
   }
 
-  async getChats(userId: string, page: number = 1, limit: number = 4) {
+  async getChats(userId: string, page: number = 1, limit: number = 5) {
     const skip = (page - 1) * limit;
     const chats = await Chat.find({ userId })
       .sort({ updatedAt: -1 })
