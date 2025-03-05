@@ -234,7 +234,6 @@ export class BedrockService {
       const response = await this.client.send(command);
       let inputTokens = 0;
       let outputTokens = 0;
-      let lastInputTokens = 0;
 
       if (response.body) {
         for await (const chunk of response.body) {
@@ -242,22 +241,34 @@ export class BedrockService {
             const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
             try {
               const parsedChunk = JSON.parse(decodedChunk);
+              
+              if (parsedChunk.type === 'message_start' && parsedChunk.message?.usage?.input_tokens) {
+                inputTokens = parsedChunk.message.usage.input_tokens;
+                console.log('[Bedrock] Initial token count:', {
+                  input_tokens: inputTokens,
+                  type: 'message_start'
+                });
+              }
+
+              if (parsedChunk.type === 'message_delta' && parsedChunk.usage?.output_tokens) {
+                outputTokens = parsedChunk.usage.output_tokens;
+              }
+
+              if (parsedChunk.type === 'message_stop' && parsedChunk['amazon-bedrock-invocationMetrics']) {
+                const metrics = parsedChunk['amazon-bedrock-invocationMetrics'];
+                inputTokens = metrics.inputTokenCount;
+                outputTokens = metrics.outputTokenCount;
+                console.log('[Bedrock] Final metrics:', {
+                  input_tokens: inputTokens,
+                  output_tokens: outputTokens,
+                  type: 'message_stop'
+                });
+              }
+
               if (parsedChunk.type === 'content_block_delta' && 
                   parsedChunk.delta?.type === 'text_delta' && 
                   parsedChunk.delta?.text) {
                 yield parsedChunk.delta.text;
-              }
-              if (parsedChunk.usage) {
-                inputTokens = parsedChunk.usage.input_tokens || lastInputTokens;
-                outputTokens = parsedChunk.usage.output_tokens || 0;
-                lastInputTokens = inputTokens;
-                
-                console.log('[Bedrock] Token usage details:', {
-                  input_tokens: inputTokens,
-                  output_tokens: outputTokens,
-                  total_tokens: inputTokens + outputTokens,
-                  chunk_type: parsedChunk.type
-                });
               }
             } catch (e) {
               console.error('Error parsing chunk:', e);
