@@ -4,33 +4,26 @@ class UsageService {
   private readonly DAILY_LIMIT = 20; // จำนวนคำถามต่อวันที่อนุญาต
 
   async checkUserLimit(userId: string): Promise<boolean> {
-    try {
-      let usage = await UserUsage.findOne({ userId });
-      
-      if (!usage) {
-        usage = new UserUsage({ userId });
-      }
+    let usage = await UserUsage.findOne({ userId });
+    
+    if (!usage) {
+      usage = new UserUsage({ userId });
+    }
 
-      usage.checkAndResetDaily();
+    usage.checkAndResetDaily();
+    
+    return usage.dailyTokens < usage.tokenLimit;
+  }
 
-      if (usage.dailyQuestions >= this.DAILY_LIMIT) {
-        return false;
-      }
-
-      usage.dailyQuestions += 1;
+  async updateTokenUsage(userId: string, tokens: number): Promise<void> {
+    const usage = await UserUsage.findOne({ userId });
+    if (usage) {
+      usage.dailyTokens += tokens;
       await usage.save();
-      return true;
-    } catch (error) {
-      console.error('Error checking user limit:', error);
-      return false;
     }
   }
 
-  async getUserUsage(userId: string): Promise<{
-    dailyQuestions: number;
-    dailyLimit: number;
-    remainingQuestions: number;
-  }> {
+  async getUserUsage(userId: string) {
     let usage = await UserUsage.findOne({ userId });
     
     if (!usage) {
@@ -41,9 +34,9 @@ class UsageService {
     usage.checkAndResetDaily();
     
     return {
-      dailyQuestions: usage.dailyQuestions,
-      dailyLimit: this.DAILY_LIMIT,
-      remainingQuestions: Math.max(0, this.DAILY_LIMIT - usage.dailyQuestions)
+      dailyTokens: usage.dailyTokens,
+      tokenLimit: usage.tokenLimit,
+      remainingTokens: Math.max(0, usage.tokenLimit - usage.dailyTokens)
     };
   }
 }

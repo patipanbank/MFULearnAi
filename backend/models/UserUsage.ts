@@ -1,9 +1,9 @@
-
 import mongoose, { Document } from 'mongoose';
 
 interface IUserUsage extends Document {
   userId: string;
-  dailyQuestions: number;
+  dailyTokens: number;
+  tokenLimit: number;
   lastReset: Date;
   checkAndResetDaily(): number;
 }
@@ -14,9 +14,13 @@ const userUsageSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  dailyQuestions: {
+  dailyTokens: {
     type: Number,
     default: 0
+  },
+  tokenLimit: {
+    type: Number,
+    default: 100000
   },
   lastReset: {
     type: Date,
@@ -65,11 +69,11 @@ userUsageSchema.methods.checkAndResetDaily = function() {
   }
   
   if (shouldReset) {
-    this.dailyQuestions = 0;
+    this.dailyTokens = 0;
     this.lastReset = nowUTC;
   }
   
-  return this.dailyQuestions;
+  return this.dailyTokens;
 };
 
 export const UserUsage = mongoose.model<IUserUsage>('UserUsage', userUsageSchema);

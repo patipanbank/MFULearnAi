@@ -84,9 +84,9 @@ const MFUChatbot: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [usage, setUsage] = useState<{
-    dailyQuestions: number;
-    dailyLimit: number;
-    remainingQuestions: number;
+    dailyTokens: number;
+    tokenLimit: number;
+    remainingTokens: number;
   } | null>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [isNearBottom, setIsNearBottom] = useState(true);
@@ -1255,7 +1255,7 @@ const MFUChatbot: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4-4-4z" />
                     </svg>
                     <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
-                      {usage.remainingQuestions}/{usage.dailyLimit}
+                      {usage.remainingTokens}/{usage.tokenLimit} tokens
                     </span>
                   </div>
                 )}
