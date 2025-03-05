@@ -1,7 +1,7 @@
 import { UserUsage } from '../models/UserUsage';
 
 class UsageService {
-  private readonly DAILY_TOKEN_LIMIT = 100000; // จำกัด token ต่อวัน
+  private readonly DAILY_TOKEN_LIMIT = 50000; // จำกัด token ต่อวัน
 
   async checkUserLimit(userId: string): Promise<boolean> {
     let usage = await UserUsage.findOne({ userId });
