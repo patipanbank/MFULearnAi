@@ -1,7 +1,7 @@
 import { UserUsage } from '../models/UserUsage';
 
 class UsageService {
-  private readonly DAILY_LIMIT = 10; // จำนวนคำถามต่อวันที่อนุญาต
+  private readonly DAILY_LIMIT = 20; // จำนวนคำถามต่อวันที่อนุญาต
 
   async checkUserLimit(userId: string): Promise<boolean> {
     try {
