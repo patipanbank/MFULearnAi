@@ -84,7 +84,7 @@ Remember: Your responses should be based on the provided context and documents.`
   private chatModel = bedrockService.chatModel;
   private currentChatHistory?: HydratedDocument<IChatHistory>;
   private readonly BATCH_SIZE = 3; // Number of collections to query simultaneously
-  private readonly MIN_SIMILARITY_THRESHOLD = 0.3; // Lowered from 0.6 to match ChromaService
+  private readonly MIN_SIMILARITY_THRESHOLD = 0.1; // Lowered from 0.6 to match ChromaService
   private readonly retryConfig: RetryConfig = {
     maxRetries: 3,
     baseDelay: 1000,
