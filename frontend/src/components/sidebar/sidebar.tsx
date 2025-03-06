@@ -350,8 +350,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   return (
     <aside className="flex flex-col h-full">
-      <div className="flex-none p-4 h-16 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between">
+      <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center h-16 justify-between">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white">
             <span style={{
               background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
