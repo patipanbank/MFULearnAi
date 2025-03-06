@@ -15,19 +15,25 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <div 
         className={`
           fixed top-0 left-0 z-50 w-64 h-full bg-white dark:bg-gray-800 transform transition-transform duration-300 ease-in-out
-          lg:relative lg:translate-x-0 lg:min-w-[16rem] lg:w-64 lg:flex-shrink-0 border-r border-gray-200 dark:border-gray-700
+          lg:relative lg:translate-x-0 lg:min-w-[16rem] lg:w-64 lg:flex-shrink-0
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700
         `}
       >
-        <Sidebar onClose={() => setIsSidebarOpen(false)} />
+        <div className="h-16 border-b border-r border-gray-200 dark:border-gray-700 flex items-center px-4">
+          <span className="text-xl font-bold">DINDIN AI</span>
+        </div>
+        
+        <div className="border-r border-gray-200 dark:border-gray-700 h-[calc(100%-64px)]">
+          <Sidebar onClose={() => setIsSidebarOpen(false)} />
+        </div>
       </div>
 
       <div className="flex flex-col flex-1 w-full min-w-0">
         <div className="fixed top-0 right-0 left-0 lg:left-64 z-40 bg-white dark:bg-gray-800">
-          <div className="flex items-center px-4 h-16 border-b border-gray-200 dark:border-gray-700">
+          <div className="h-16 border-b border-gray-200 dark:border-gray-700 flex items-center">
             <button
-              className="p-2 lg:hidden"
+              className="p-2 lg:hidden ml-4"
               onClick={() => setIsSidebarOpen(true)}
             >
               <FaBars className="h-6 w-6 dark:text-gray-200" />
