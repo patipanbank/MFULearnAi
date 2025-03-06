@@ -362,6 +362,36 @@ Remember: Your responses should be based on the provided context and documents.`
     return `Previous conversation summary:\n${summary}`;
   }
 
+  private async updateDailyStats(userId: string, messageCount: number = 1): Promise<void> {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const stats = await ChatStats.findOneAndUpdate(
+        { date: today },
+        {
+          $addToSet: { uniqueUsers: userId },
+          $inc: { 
+            totalChats: 1,
+            totalMessages: messageCount  // เพิ่มการนับจำนวนข้อความ
+          }
+        },
+        { 
+          upsert: true,
+          new: true 
+        }
+      );
+
+      console.log(`Updated daily stats for ${userId}:`, {
+        uniqueUsers: stats.uniqueUsers.length,
+        totalChats: stats.totalChats,
+        totalMessages: stats.totalMessages
+      });
+    } catch (error) {
+      console.error('Error updating daily stats:', error);
+    }
+  }
+
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
@@ -453,6 +483,12 @@ Remember: Your responses should be based on the provided context and documents.`
       // Combine system messages with recent user messages only
       const augmentedMessages = [...systemMessages, ...recentMessages];
 
+      // นับจำนวนข้อความทั้งหมดในการสนทนานี้
+      const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
+      
+      // อัพเดทสถิติพร้อมจำนวนข้อความ
+      await this.updateDailyStats(userId, messageCount);
+      
       let attempt = 0;
       while (attempt < this.retryConfig.maxRetries) {
         try {
@@ -560,31 +596,6 @@ Remember: Your responses should be based on the provided context and documents.`
         throw new Error('Failed to get chat');
       }
       throw error;
-    }
-  }
-
-  private async updateDailyStats(userId: string): Promise<void> {
-    try {
-      // สร้างวันที่สำหรับวันนี้ (เริ่มต้นวัน)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // อัพเดทหรือสร้างสถิติสำหรับวันนี้
-      const stats = await ChatStats.findOneAndUpdate(
-        { date: today },
-        {
-          $addToSet: { uniqueUsers: userId },
-          $inc: { totalChats: 1 }
-        },
-        { 
-          upsert: true,
-          new: true 
-        }
-      );
-
-      // console.log(`Updated daily stats: ${stats.uniqueUsers.length} unique users today`);
-    } catch (error) {
-      console.error('Error updating daily stats:', error);
     }
   }
 
