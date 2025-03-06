@@ -364,8 +364,10 @@ Remember: Your responses should be based on the provided context and documents.`
 
   private async updateDailyStats(userId: string): Promise<void> {
     try {
+      // สร้างวันที่ปัจจุบันในโซนเวลาไทย (UTC+7)
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
+      today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
 
       const stats = await ChatStats.findOneAndUpdate(
         { date: today },
@@ -380,6 +382,7 @@ Remember: Your responses should be based on the provided context and documents.`
       );
 
       console.log(`Updated daily stats for ${userId}:`, {
+        date: today.toISOString(),
         uniqueUsers: stats.uniqueUsers.length,
         totalChats: stats.totalChats
       });

@@ -11,9 +11,21 @@ router.get('/daily', roleGuard(['SuperAdmin']), async (req, res) => {
     
     const query: any = {};
     if (startDate && endDate) {
+      // แปลงวันที่เป็นเวลาไทย
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      
+      // ปรับเวลาเป็น UTC+7
+      start.setHours(start.getHours() + 7);
+      end.setHours(end.getHours() + 7);
+      
+      // รีเซ็ตเวลาเป็นต้นวันและสิ้นวัน
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+
       query.date = {
-        $gte: new Date(startDate as string),
-        $lte: new Date(endDate as string)
+        $gte: start,
+        $lte: end
       };
     }
 
