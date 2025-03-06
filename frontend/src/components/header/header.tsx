@@ -6,9 +6,10 @@ const Header = () => {
   // console.log('User data from localStorage:', userData); // เพิ่ม log เพื่อตรวจสอบข้อมูล
 
   return (
-    <div className="flex-1 px-4">
-      <div className="flex justify-end">
-        <div className="text-gray-600 dark:text-gray-300">
+    <header className="w-full text-right">
+      <nav className="flex items-center justify-between px-6 py-4 w-full text-right">
+        {/* Right Side: User Name - Updated with dark mode support */}
+        <div className="ml-auto text-gray-600 dark:text-gray-300">
           {userData && (
             <span>
               {/* {userData.username}  */}
@@ -16,8 +17,8 @@ const Header = () => {
             </span>
           )}
         </div>
-      </div>
-    </div>
+      </nav>
+    </header>
   );
 };
 
