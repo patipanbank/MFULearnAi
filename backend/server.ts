@@ -101,6 +101,7 @@ import modelsRoutes from './routes/models';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import adminRoutes from './routes/admin';
+import statsRoutes from './routes/stats';
 
 const app = express();
 
@@ -150,6 +151,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/embed', embeddingRoutes);
 app.use('/api/models', modelsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/stats', statsRoutes);
 
 // เพิ่มการตั้งค่า timeout
 app.use((req, res, next) => {

@@ -11,6 +11,7 @@ import './index.css';
 import AdminLogin from './components/login/AdminLogin';
 import CreateAdmin from './components/pages/CreateAdmin';
 import Help from './components/pages/Help';
+import Statistics from './components/pages/Statistics';
  
 
 const App = () => {
@@ -100,6 +101,18 @@ const App = () => {
               <MainLayout>
                 <Help />
               </MainLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/statistics"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
+                <MainLayout>
+                  <Statistics />
+                </MainLayout>
+              </RoleGuard>
             </AuthGuard>
           }
         />
