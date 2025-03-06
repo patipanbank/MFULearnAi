@@ -12,8 +12,8 @@ const Statistics: React.FC = () => {
   const [stats, setStats] = useState<DailyStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0]
   });
 
   useEffect(() => {
