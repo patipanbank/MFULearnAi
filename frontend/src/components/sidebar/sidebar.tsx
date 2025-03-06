@@ -582,7 +582,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </nav>
       </div>
 
-      <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-t border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64">
+      <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64">
         <div className="p-4">
           <button
             onClick={handleLogout}
