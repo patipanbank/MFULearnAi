@@ -362,7 +362,7 @@ Remember: Your responses should be based on the provided context and documents.`
     return `Previous conversation summary:\n${summary}`;
   }
 
-  private async updateDailyStats(userId: string, messageCount: number = 1): Promise<void> {
+  private async updateDailyStats(userId: string): Promise<void> {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -371,10 +371,7 @@ Remember: Your responses should be based on the provided context and documents.`
         { date: today },
         {
           $addToSet: { uniqueUsers: userId },
-          $inc: { 
-            totalChats: 1,
-            totalMessages: messageCount  // เพิ่มการนับจำนวนข้อความ
-          }
+          $inc: { totalChats: 1 }
         },
         { 
           upsert: true,
@@ -384,8 +381,7 @@ Remember: Your responses should be based on the provided context and documents.`
 
       console.log(`Updated daily stats for ${userId}:`, {
         uniqueUsers: stats.uniqueUsers.length,
-        totalChats: stats.totalChats,
-        totalMessages: stats.totalMessages
+        totalChats: stats.totalChats
       });
     } catch (error) {
       console.error('Error updating daily stats:', error);
@@ -487,7 +483,7 @@ Remember: Your responses should be based on the provided context and documents.`
       const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
       
       // อัพเดทสถิติพร้อมจำนวนข้อความ
-      await this.updateDailyStats(userId, messageCount);
+      await this.updateDailyStats(userId);
       
       let attempt = 0;
       while (attempt < this.retryConfig.maxRetries) {

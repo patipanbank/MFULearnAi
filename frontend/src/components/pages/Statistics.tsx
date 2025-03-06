@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
-import { FaUsers, FaComments, FaChartLine } from 'react-icons/fa';
+import { FaUsers, FaComments } from 'react-icons/fa';
 
 interface DailyStats {
   date: string;
   uniqueUsers: number;
   totalChats: number;
-  totalMessages: number;
 }
 
 const Statistics: React.FC = () => {
@@ -64,12 +63,11 @@ const Statistics: React.FC = () => {
   );
 
   const getTotalStats = () => {
-    if (stats.length === 0) return { users: 0, chats: 0, messages: 0 };
+    if (stats.length === 0) return { users: 0, chats: 0 };
     return stats.reduce((acc, curr) => ({
       users: acc.users + curr.uniqueUsers,
-      chats: acc.chats + curr.totalChats,
-      messages: acc.messages + curr.totalMessages
-    }), { users: 0, chats: 0, messages: 0 });
+      chats: acc.chats + curr.totalChats
+    }), { users: 0, chats: 0 });
   };
 
   const totals = getTotalStats();
@@ -101,8 +99,8 @@ const Statistics: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2].map((i) => (
             <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-pulse">
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
               <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
@@ -112,24 +110,18 @@ const Statistics: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <StatCard
               title="Unique Users"
               value={totals.users}
               icon={<FaUsers size={24} />}
-              description="Total unique users in selected period"
+              description="Total unique users"
             />
             <StatCard
               title="Total Chats"
               value={totals.chats}
               icon={<FaComments size={24} />}
-              description="Total chat sessions initiated"
-            />
-            <StatCard
-              title="Total Messages"
-              value={totals.messages}
-              icon={<FaChartLine size={24} />}
-              description="Total messages exchanged"
+              description="Total chat sessions"
             />
           </div>
 
@@ -143,7 +135,6 @@ const Statistics: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unique Users</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Chats</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Messages</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -157,9 +148,6 @@ const Statistics: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {day.totalChats}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {day.totalMessages}
                         </td>
                       </tr>
                     ))}
