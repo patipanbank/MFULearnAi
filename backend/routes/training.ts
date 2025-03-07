@@ -481,7 +481,7 @@ router.delete('/documents/all/:collectionName', roleGuard(['Staffs', 'Admin', 'S
  */
 router.post('/add-urls', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { urls, modelId, collectionName } = req.body;
+    const { urls, modelId, collectionName, crawlDepth = 2 } = req.body;
     const user = (req as any).user;
 
     if (!Array.isArray(urls) || urls.length === 0) {
@@ -492,26 +492,51 @@ router.post('/add-urls', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin']
     const results = await Promise.all(
       urls.map(async (url) => {
         try {
-          const content = await webScraperService.scrapeUrl(url);
-          const chunks = splitTextIntoChunks(content);
-          const documents = await Promise.all(
-            chunks.map(async (chunk) => {
-              const embedResult = await titanEmbedService.embedText(chunk);
-              return {
-                text: chunk,
-                metadata: {
-                  url,
-                  uploadedBy: user.username,
-                  timestamp: new Date().toISOString(),
-                  modelId,
-                  collectionName
-                },
-                embedding: embedResult
-              };
-            })
-          );
-          await chromaService.addDocuments(collectionName, documents);
-          return { url, success: true, chunks: documents.length };
+          // ใช้ crawlWebsite แทน scrapeUrl
+          const crawlResults = await webScraperService.crawlWebsite(url, crawlDepth);
+          
+          for (const { url: pageUrl, content } of crawlResults) {
+            const chunks = splitTextIntoChunks(content);
+            const documents = await Promise.all(
+              chunks.map(async (chunk) => {
+                const embedResult = await titanEmbedService.embedText(chunk);
+                return {
+                  text: chunk,
+                  metadata: {
+                    url: pageUrl,
+                    sourceUrl: url, // เก็บ URL ต้นทาง
+                    uploadedBy: user.username,
+                    timestamp: new Date().toISOString(),
+                    modelId,
+                    collectionName
+                  },
+                  embedding: embedResult
+                };
+              })
+            );
+            await chromaService.addDocuments(collectionName, documents);
+          }
+
+          // บันทึกประวัติการเทรน
+          await TrainingHistory.create({
+            userId: user.nameID || user.username,
+            username: user.username,
+            collectionName,
+            documentName: url,
+            action: 'crawl_url',
+            details: {
+              modelId,
+              pagesProcessed: crawlResults.length,
+              depth: crawlDepth
+            }
+          });
+
+          return { 
+            url, 
+            success: true, 
+            pagesProcessed: crawlResults.length,
+            depth: crawlDepth 
+          };
         } catch (error: any) {
           console.error(`Error processing URL ${url}:`, error);
           return { url, success: false, error: error.message };
