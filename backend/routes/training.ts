@@ -479,52 +479,52 @@ router.delete('/documents/all/:collectionName', roleGuard(['Staffs', 'Admin', 'S
  * Staff-only endpoint that scrapes content from URLs, processes them,
  * embeds them, and adds them to the specified collection.
  */
-router.post('/add-urls', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { urls, modelId, collectionName } = req.body;
-    const user = (req as any).user;
+// router.post('/add-urls', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const { urls, modelId, collectionName } = req.body;
+//     const user = (req as any).user;
 
-    if (!Array.isArray(urls) || urls.length === 0) {
-      res.status(400).json({ error: 'URLs array is required' });
-      return;
-    }
+//     if (!Array.isArray(urls) || urls.length === 0) {
+//       res.status(400).json({ error: 'URLs array is required' });
+//       return;
+//     }
 
-    const results = await Promise.all(
-      urls.map(async (url) => {
-        try {
-          const content = await webScraperService.scrapeUrl(url);
-          const chunks = splitTextIntoChunks(content);
-          const documents = await Promise.all(
-            chunks.map(async (chunk) => {
-              const embedResult = await titanEmbedService.embedText(chunk);
-              return {
-                text: chunk,
-                metadata: {
-                  url,
-                  uploadedBy: user.username,
-                  timestamp: new Date().toISOString(),
-                  modelId,
-                  collectionName
-                },
-                embedding: embedResult
-              };
-            })
-          );
-          await chromaService.addDocuments(collectionName, documents);
-          return { url, success: true, chunks: documents.length };
-        } catch (error: any) {
-          console.error(`Error processing URL ${url}:`, error);
-          return { url, success: false, error: error.message };
-        }
-      })
-    );
+//     const results = await Promise.all(
+//       urls.map(async (url) => {
+//         try {
+//           const content = await webScraperService.scrapeUrl(url);
+//           const chunks = splitTextIntoChunks(content);
+//           const documents = await Promise.all(
+//             chunks.map(async (chunk) => {
+//               const embedResult = await titanEmbedService.embedText(chunk);
+//               return {
+//                 text: chunk,
+//                 metadata: {
+//                   url,
+//                   uploadedBy: user.username,
+//                   timestamp: new Date().toISOString(),
+//                   modelId,
+//                   collectionName
+//                 },
+//                 embedding: embedResult
+//               };
+//             })
+//           );
+//           await chromaService.addDocuments(collectionName, documents);
+//           return { url, success: true, chunks: documents.length };
+//         } catch (error: any) {
+//           console.error(`Error processing URL ${url}:`, error);
+//           return { url, success: false, error: error.message };
+//         }
+//       })
+//     );
 
-    res.json({ results });
-  } catch (error) {
-    console.error('Error processing URLs:', error);
-    res.status(500).json({ error: 'Error processing URLs' });
-  }
-});
+//     res.json({ results });
+//   } catch (error) {
+//     console.error('Error processing URLs:', error);
+//     res.status(500).json({ error: 'Error processing URLs' });
+//   }
+// });
 
 /**
  * DELETE /cleanup
@@ -614,6 +614,64 @@ router.get('/history', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] a
   } catch (error) {
     console.error('Error fetching training history:', error);
     res.status(500).json({ error: 'Error fetching training history' });
+  }
+});
+
+// Web Scraping Endpoint
+router.post('/scrape', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { url, collectionName, maxPages } = req.body;
+    const user = (req as any).user;
+
+    if (!url || !collectionName) {
+      res.status(400).json({ error: 'URL and collection name are required' });
+      return;
+    }
+
+    // Scrape website content
+    const texts = await webScraperService.scrapeWebsite(url, maxPages || 50);
+    
+    // Process and chunk the text
+    const chunks = texts.flatMap(text => splitTextIntoChunks(text));
+    
+    // Create embeddings and add to collection
+    const documents = await Promise.all(chunks.map(async (chunk) => {
+      const embedding = await titanEmbedService.embedText(chunk);
+      return {
+        text: chunk,
+        embedding,
+        metadata: {
+          source: url,
+          timestamp: new Date().toISOString(),
+          uploadedBy: user.nameID || user.username
+        }
+      };
+    }));
+
+    await chromaService.addDocuments(collectionName, documents);
+
+    // Track the scraping in history
+    await TrainingHistory.create({
+      userId: user.nameID || user.username,
+      username: user.username,
+      collectionName,
+      documentName: url,
+      action: 'upload',
+      details: {
+        source: 'web_scrape',
+        pagesScraped: texts.length,
+        chunks: chunks.length
+      }
+    });
+
+    res.json({
+      message: 'Website content processed successfully',
+      pagesScraped: texts.length,
+      chunks: chunks.length
+    });
+  } catch (error) {
+    console.error('Error processing website:', error);
+    res.status(500).json({ error: 'Error processing website' });
   }
 });
 

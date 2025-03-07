@@ -1,44 +1,80 @@
 import axios from 'axios';
-import * as cheerio from 'cheerio';
+import cheerio from 'cheerio';
+import { URL } from 'url';
 
 export class WebScraperService {
-  async scrapeUrl(url: string): Promise<string> {
+  private visitedUrls = new Set<string>();
+  private baseUrl: string = '';
+
+  async scrapeWebsite(startUrl: string, maxPages: number = 50): Promise<string[]> {
+    this.visitedUrls.clear();
+    this.baseUrl = new URL(startUrl).origin;
+    const texts: string[] = [];
+    
     try {
-      const response = await axios.get(url);
-      const $ = cheerio.load(response.data);
-      
-      // ลบ elements ที่ไม่ต้องการ
-      $('script').remove();
-      $('style').remove();
-      $('nav').remove();
-      $('footer').remove();
-      $('header').remove();
-      
-      // ดึงเนื้อหาที่ต้องการ
-      const content = $('body').text()
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      return content;
+      await this.crawl(startUrl, texts, maxPages);
+      return texts;
     } catch (error) {
-      console.error(`Error scraping URL ${url}:`, error);
+      console.error('Error scraping website:', error);
       throw error;
     }
   }
 
-  async scrapeUrls(urls: string[]): Promise<Array<{url: string, content: string}>> {
-    const results = await Promise.all(
-      urls.map(async (url) => {
-        try {
-          const content = await this.scrapeUrl(url);
-          return { url, content };
-        } catch (error) {
-          console.error(`Failed to scrape ${url}:`, error);
-          return { url, content: '' };
+  private async crawl(url: string, texts: string[], maxPages: number): Promise<void> {
+    if (this.visitedUrls.size >= maxPages || this.visitedUrls.has(url)) {
+      return;
+    }
+
+    try {
+      const response = await axios.get(url);
+      const $ = cheerio.load(response.data);
+      this.visitedUrls.add(url);
+
+      // Extract text content
+      const text = $('body').text()
+        .replace(/\s+/g, ' ')
+        .trim();
+      texts.push(text);
+
+      // Find all links
+      const links = $('a')
+        .map((_, el) => $(el).attr('href'))
+        .get()
+        .filter(href => href && this.isValidInternalLink(href))
+        .map(href => this.resolveUrl(href));
+
+      // Recursively crawl found links
+      for (const link of links) {
+        if (this.visitedUrls.size < maxPages) {
+          await this.crawl(link, texts, maxPages);
         }
-      })
-    );
-    return results.filter(result => result.content);
+      }
+    } catch (error) {
+      console.error(`Error crawling ${url}:`, error);
+    }
+  }
+
+  private isValidInternalLink(href: string): boolean {
+    if (!href) return false;
+    if (href.startsWith('#')) return false;
+    if (href.startsWith('javascript:')) return false;
+    if (href.startsWith('mailto:')) return false;
+    if (href.startsWith('tel:')) return false;
+    
+    try {
+      const url = new URL(href, this.baseUrl);
+      return url.origin === this.baseUrl;
+    } catch {
+      return true; // Relative URLs are valid
+    }
+  }
+
+  private resolveUrl(href: string): string {
+    try {
+      return new URL(href, this.baseUrl).href;
+    } catch {
+      return href;
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
 import { Collection, CollectionPermission } from '../../types/collection';
+import WebScrapeModal from '../WebScrapeModal';
 
 // ----------------------
 // Type Definitions
@@ -592,6 +593,8 @@ const TrainingDashboard: React.FC = () => {
   const [updatedCollectionPermission, setUpdatedCollectionPermission] = useState<string>('PRIVATE');
 
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
+
+  const [showWebScrapeModal, setShowWebScrapeModal] = useState(false);
 
   // Add useEffect to fetch collections on mount
   useEffect(() => {
@@ -1276,6 +1279,23 @@ const TrainingDashboard: React.FC = () => {
           }}
           isAdmin={userInfo?.role === 'Admin'}
           isSuperAdmin={userInfo?.role === 'SuperAdmin'}
+        />
+      )}
+
+      <button
+        onClick={() => setShowWebScrapeModal(true)}
+        className="ml-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+      >
+        Scrape Website
+      </button>
+
+      {showWebScrapeModal && selectedCollection && (
+        <WebScrapeModal
+          collectionName={selectedCollection.name}
+          onClose={() => setShowWebScrapeModal(false)}
+          onSuccess={() => {
+            fetchUploadedFiles(selectedCollection.name);
+          }}
         />
       )}
     </div>
