@@ -5,6 +5,7 @@ import { HydratedDocument } from 'mongoose';
 import { ModelModel } from '../models/Model';
 import { Chat } from '../models/Chat';
 import { usageService } from './usageService';
+import { ChatStats } from '../models/ChatStats';
 
 interface QueryResult {
   text: string;
@@ -84,7 +85,7 @@ Remember: Your responses should be based on the provided context and documents.`
   private chatModel = bedrockService.chatModel;
   private currentChatHistory?: HydratedDocument<IChatHistory>;
   private readonly BATCH_SIZE = 3; // Number of collections to query simultaneously
-  private readonly MIN_SIMILARITY_THRESHOLD = 0.3; // Lowered from 0.6 to match ChromaService
+  private readonly MIN_SIMILARITY_THRESHOLD = 0.1; // Lowered from 0.6 to match ChromaService
   private readonly retryConfig: RetryConfig = {
     maxRetries: 3,
     baseDelay: 1000,
@@ -160,7 +161,7 @@ Remember: Your responses should be based on the provided context and documents.`
 
           // กำหนดค่า threshold ที่สามารถปรับได้ตามความเหมาะสม
           // ค่าสูงขึ้นหมายถึงกรองเฉพาะข้อมูลที่เกี่ยวข้องมากขึ้น
-          const MIN_SIMILARITY_THRESHOLD = 0.3; // เพิ่มจาก 0.1 เป็น 0.3
+          const MIN_SIMILARITY_THRESHOLD = 0.1; // เพิ่มจาก 0.1 เป็น 0.3
 
           const filteredResults = results
             .filter(result => result.similarity >= MIN_SIMILARITY_THRESHOLD)
@@ -361,6 +362,35 @@ Remember: Your responses should be based on the provided context and documents.`
     return `Previous conversation summary:\n${summary}`;
   }
 
+  private async updateDailyStats(userId: string): Promise<void> {
+    try {
+      // สร้างวันที่ปัจจุบันในโซนเวลาไทย (UTC+7)
+      const today = new Date();
+      today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
+      today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
+
+      const stats = await ChatStats.findOneAndUpdate(
+        { date: today },
+        {
+          $addToSet: { uniqueUsers: userId },
+          $inc: { totalChats: 1 }
+        },
+        { 
+          upsert: true,
+          new: true 
+        }
+      );
+
+      console.log(`Updated daily stats for ${userId}:`, {
+        date: today.toISOString(),
+        uniqueUsers: stats.uniqueUsers.length,
+        totalChats: stats.totalChats
+      });
+    } catch (error) {
+      console.error('Error updating daily stats:', error);
+    }
+  }
+
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
@@ -452,6 +482,12 @@ Remember: Your responses should be based on the provided context and documents.`
       // Combine system messages with recent user messages only
       const augmentedMessages = [...systemMessages, ...recentMessages];
 
+      // นับจำนวนข้อความทั้งหมดในการสนทนานี้
+      const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
+      
+      // อัพเดทสถิติพร้อมจำนวนข้อความ
+      await this.updateDailyStats(userId);
+      
       let attempt = 0;
       while (attempt < this.retryConfig.maxRetries) {
         try {
@@ -517,7 +553,7 @@ Remember: Your responses should be based on the provided context and documents.`
     throw new Error(`${errorMessage} after ${this.retryConfig.maxRetries} attempts: ${lastError?.message}`);
   }
 
-  async getChats(userId: string, page: number = 1, limit: number = 4) {
+  async getChats(userId: string, page: number = 1, limit: number = 5) {
     const skip = (page - 1) * limit;
     const chats = await Chat.find({ userId })
       .sort({ updatedAt: -1 })
@@ -563,32 +599,40 @@ Remember: Your responses should be based on the provided context and documents.`
   }
 
   async saveChat(userId: string, modelId: string, messages: any[]) {
-    // หาข้อความแรกของ user
-    const firstUserMessage = messages.find(msg => msg.role === 'user');
-    const chatname = firstUserMessage ? firstUserMessage.content.substring(0, 50) : 'Untitled Chat';
-    
-    const lastMessage = messages[messages.length - 1];
-    const name = lastMessage.content.substring(0, 50);
+    try {
+      // บันทึกสถิติก่อนที่จะบันทึกแชท
+      await this.updateDailyStats(userId);
 
-    const processedMessages = messages.map(msg => ({
-      ...msg,
-      timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
-      images: msg.images || [],
-      sources: msg.sources || [],
-      isImageGeneration: msg.isImageGeneration || false,
-      isComplete: msg.isComplete || false
-    }));
+      // หาข้อความแรกของ user
+      const firstUserMessage = messages.find(msg => msg.role === 'user');
+      const chatname = firstUserMessage ? firstUserMessage.content.substring(0, 50) : 'Untitled Chat';
+      
+      const lastMessage = messages[messages.length - 1];
+      const name = lastMessage.content.substring(0, 50);
 
-    const chat = new Chat({
-      userId,
-      modelId,
-      chatname,  // เพิ่ม chatname
-      name,
-      messages: processedMessages
-    });
+      const processedMessages = messages.map(msg => ({
+        ...msg,
+        timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
+        images: msg.images || [],
+        sources: msg.sources || [],
+        isImageGeneration: msg.isImageGeneration || false,
+        isComplete: msg.isComplete || false
+      }));
 
-    await chat.save();
-    return chat;
+      const chat = new Chat({
+        userId,
+        modelId,
+        chatname,
+        name,
+        messages: processedMessages
+      });
+
+      await chat.save();
+      return chat;
+    } catch (error) {
+      console.error('Error saving chat:', error);
+      throw error;
+    }
   }
 
   async updateChat(chatId: string, userId: string, messages: any[]) {

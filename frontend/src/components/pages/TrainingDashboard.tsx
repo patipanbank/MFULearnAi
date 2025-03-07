@@ -367,7 +367,10 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                 accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,.json,.xml"
               />
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 500MB)
+                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 1MB)
+              </p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Please upload files without images.
               </p>
             </div>
             <button

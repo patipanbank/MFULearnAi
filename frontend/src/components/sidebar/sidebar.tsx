@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus } from 'react-icons/fa';
+import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -350,7 +350,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   return (
     <aside className="flex flex-col h-full">
-      <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex-none p-4 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white">
             <span style={{
@@ -556,10 +556,33 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               <span className="font-medium truncate">Create Admin</span>
             </Link>
           )}
+
+          {(isSuperAdmin) && (
+            <Link
+              to="/statistics"
+              className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                ${location.pathname === '/statistics' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+              onClick={onClose}
+            >
+              <FaChartBar className="w-5 h-5 mr-3" />
+              <span className="font-medium">Statistics</span>
+            </Link>
+          )}
+
+          {/* Help link */}
+          <Link
+            to="/help"
+            className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+              ${location.pathname === '/help' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+            onClick={onClose}
+          >
+            <FaQuestionCircle className="w-5 h-5 mr-3" />
+            <span className="font-medium">Help</span>
+          </Link>
         </nav>
       </div>
 
-      <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-t border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64">
+      <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64">
         <div className="p-4">
           <button
             onClick={handleLogout}
