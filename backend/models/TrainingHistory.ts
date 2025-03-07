@@ -5,7 +5,7 @@ export interface ITrainingHistory {
   username: string;
   collectionName: string;
   documentName: string;
-  action: 'upload' | 'delete' | 'create_collection' | 'update_collection' | 'delete_collection' | 'crawl_url';
+  action: 'upload' | 'delete' | 'create_collection' | 'update_collection' | 'delete_collection';
   timestamp: Date;
   details?: Record<string, any>;
 }
@@ -17,19 +17,11 @@ const trainingHistorySchema = new mongoose.Schema({
   documentName: { type: String },
   action: { 
     type: String, 
-    enum: ['upload', 'delete', 'create_collection', 'update_collection', 'delete_collection', 'crawl_url'],
+    enum: ['upload', 'delete', 'create_collection', 'update_collection', 'delete_collection'],
     required: true 
   },
   timestamp: { type: Date, default: Date.now },
-  details: { 
-    type: mongoose.Schema.Types.Mixed,
-    // สำหรับ crawl_url จะเก็บข้อมูลเพิ่มเติมเช่น:
-    // - modelId: string
-    // - pagesProcessed: number
-    // - depth: number
-    // - success: boolean
-    // - error?: string
-  }
+  details: { type: mongoose.Schema.Types.Mixed }
 }, { timestamps: true });
 
 const TrainingHistory = mongoose.model('TrainingHistory', trainingHistorySchema);
