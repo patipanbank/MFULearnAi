@@ -495,12 +495,14 @@ Remember: Your responses should be based on the provided context and documents.`
           const hasFiles = lastMessage.files && lastMessage.files.length > 0;
           
           // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
-          if (hasFiles) {
-            const fileInfo = lastMessage.files?.map(file => {
-              return `- ${file.name} (${file.mediaType})`;
+          if (hasFiles && lastMessage.files) {
+            const fileInfo = lastMessage.files.map(file => {
+              let fileDetail = `- ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`;
+              if (file.content) {
+                fileDetail += " - มีเนื้อหาแนบมาด้วย";
+              }
+              return fileDetail;
             }).join('\n');
-            
-            const fileMessage = `ผู้ใช้ได้แนบไฟล์ต่อไปนี้:\n${fileInfo}\n\nโปรดตอบคำถามโดยพิจารณาเนื้อหาในไฟล์แนบด้วย`;
             
             // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
             query = `${query}\n\n[ไฟล์แนบ]\n${fileInfo}`;

@@ -253,13 +253,13 @@ export class BedrockService {
             // เพิ่มข้อมูลไฟล์ถ้ามี
             if (hasFiles && msg.files) {
               msg.files.forEach(file => {
-                // เพิ่มชื่อไฟล์และรายละเอียด
+                // เพิ่มชื่อไฟล์
                 content.push({ 
                   type: 'text', 
                   text: `\n\n=== ไฟล์: ${file.name} (${file.mediaType}) ===\n`
                 });
                 
-                // เพิ่มเนื้อหาของไฟล์ถ้ามี
+                // เพิ่มเนื้อหาของไฟล์
                 if (file.content) {
                   content.push({
                     type: 'text',
@@ -268,7 +268,7 @@ export class BedrockService {
                 } else {
                   content.push({
                     type: 'text',
-                    text: 'ไม่สามารถอ่านเนื้อหาไฟล์ได้'
+                    text: `[ไม่สามารถอ่านเนื้อหาไฟล์ ${file.name} ได้]`
                   });
                 }
                 

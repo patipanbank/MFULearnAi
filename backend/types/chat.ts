@@ -1,7 +1,7 @@
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: string;
   content: string;
-  timestamp?: Date;
+  timestamp?: any;
   images?: Array<{
     data: string;
     mediaType: string;

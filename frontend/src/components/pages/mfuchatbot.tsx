@@ -29,6 +29,7 @@ interface MessageFile {
   data: string;
   mediaType: string;
   size: number;
+  content?: string;
 }
 
 interface Message {
@@ -448,6 +449,37 @@ const MFUChatbot: React.FC = () => {
     });
   };
 
+  // ฟังก์ชันสำหรับอ่านเนื้อหาไฟล์
+  const readFileContent = async (file: File): Promise<string | null> => {
+    // ประเภทไฟล์ที่อ่านเป็นข้อความได้
+    const textTypes = [
+      'text/plain', 'text/html', 'text/css', 'text/javascript',
+      'application/json', 'application/xml', 'text/csv', 
+      'application/javascript', 'application/typescript',
+      'text/markdown', 'application/pdf'
+    ];
+    
+    // ตรวจสอบนามสกุลไฟล์
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    const textExtensions = ['txt', 'md', 'json', 'csv', 'html', 'css', 'js', 'ts', 'jsx', 'tsx'];
+    
+    if (textTypes.includes(file.type) || textExtensions.includes(fileExt || '')) {
+      try {
+        return await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(null);
+          reader.readAsText(file);
+        });
+      } catch (error) {
+        console.error('Error reading file content:', error);
+        return null;
+      }
+    }
+    
+    return `[ไฟล์ ${file.name} เป็นไฟล์ไบนารี ไม่สามารถอ่านเนื้อหาได้]`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() && !isImageGenerationMode) return;
@@ -467,6 +499,7 @@ const MFUChatbot: React.FC = () => {
       if (!token || !wsRef.current) {
         throw new Error('Not authenticated or WebSocket not connected');
       }
+      
       // สร้าง base64 สำหรับไฟล์ที่เลือก
       const messageFiles: MessageFile[] = [];
       
@@ -480,6 +513,9 @@ const MFUChatbot: React.FC = () => {
             reader.readAsDataURL(file);
           });
           
+          // อ่านเนื้อหาไฟล์
+          const fileContent = await readFileContent(file);
+          
           // แยกส่วน base64 จาก data URL
           const base64Data = result.split(',')[1];
           
@@ -487,7 +523,8 @@ const MFUChatbot: React.FC = () => {
             name: file.name,
             data: base64Data,
             mediaType: file.type,
-            size: file.size
+            size: file.size,
+            content: fileContent || undefined // เพิ่มเนื้อหาไฟล์
           });
         }
       }
