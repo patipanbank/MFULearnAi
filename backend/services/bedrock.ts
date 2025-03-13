@@ -110,8 +110,9 @@ export class BedrockService {
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content.toLowerCase();
     const hasImage = lastMessage.images && lastMessage.images.length > 0;
+    const hasFiles = lastMessage.files && lastMessage.files.length > 0;
 
-    if (hasImage) return 'visual';
+    if (hasFiles || hasImage) return 'visual';
     if (/^(what|when|where|who|which|how many|how much)/i.test(query)) return 'factual';
     if (/^(why|how|what if|analyze|compare|contrast)/i.test(query)) return 'analytical';
     if (/^(explain|describe|define|what is|what are|how does)/i.test(query)) return 'conceptual';
@@ -216,20 +217,73 @@ export class BedrockService {
           temperature: config.temperature,
           top_p: config.topP,
           stop_sequences: config.stopSequences,
-          messages: messages.map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.images ? [
-              { type: 'text', text: msg.content },
-              ...msg.images.map(img => ({
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: img.mediaType,
-                  data: img.data
+          messages: messages.map(msg => {
+            // ตรวจสอบว่ามีไฟล์หรือรูปภาพหรือไม่
+            const hasImages = msg.images && msg.images.length > 0;
+            const hasFiles = msg.files && msg.files.length > 0;
+            
+            // ถ้าไม่มีไฟล์หรือรูปภาพ ส่งแค่ข้อความอย่างเดียว
+            if (!hasImages && !hasFiles) {
+              return {
+                role: msg.role === 'user' ? 'user' : 'assistant',
+                content: msg.content
+              };
+            }
+            
+            // สร้าง content array แบบ multimodal
+            let content = [];
+            
+            // เพิ่มข้อความหลัก
+            content.push({ type: 'text', text: msg.content });
+            
+            // เพิ่มรูปภาพถ้ามี
+            if (hasImages && msg.images) {
+              msg.images.forEach(img => {
+                content.push({
+                  type: 'image',
+                  source: {
+                    type: 'base64',
+                    media_type: img.mediaType,
+                    data: img.data
+                  }
+                });
+              });
+            }
+            
+            // เพิ่มข้อมูลไฟล์ถ้ามี
+            if (hasFiles && msg.files) {
+              msg.files.forEach(file => {
+                // เพิ่มชื่อไฟล์
+                content.push({ 
+                  type: 'text', 
+                  text: `\n\n=== File: ${file.name} (${file.mediaType}) ===\n`
+                });
+                
+                // เพิ่มเนื้อหาของไฟล์
+                if (file.content) {
+                  content.push({
+                    type: 'text',
+                    text: file.content
+                  });
+                } else {
+                  content.push({
+                    type: 'text',
+                    text: `[Cannot read file content ${file.name}]`
+                  });
                 }
-              }))
-            ] : msg.content
-          }))
+                
+                content.push({
+                  type: 'text',
+                  text: '\n=== End of file ===\n'
+                });
+              });
+            }
+            
+            return {
+              role: msg.role === 'user' ? 'user' : 'assistant',
+              content: content
+            };
+          })
         })
       });
 
