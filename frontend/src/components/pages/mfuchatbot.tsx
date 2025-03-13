@@ -29,7 +29,6 @@ interface MessageFile {
   data: string;
   mediaType: string;
   size: number;
-  content?: string;
 }
 
 interface Message {
@@ -449,29 +448,6 @@ const MFUChatbot: React.FC = () => {
     });
   };
 
-  const readFileAsText = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      // ตรวจสอบประเภทไฟล์ว่าอ่านเป็นข้อความได้หรือไม่
-      const textTypes = [
-        'text/plain', 'text/html', 'text/css', 'text/javascript',
-        'application/json', 'application/xml', 'text/csv',
-        'application/javascript', 'application/typescript'
-      ];
-      
-      // สำหรับไฟล์ข้อความ
-      if (textTypes.includes(file.type) || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์ได้'));
-        reader.readAsText(file);
-      } else {
-        // สำหรับไฟล์ประเภทอื่น แปลงเป็น base64 เพื่อส่งไปประมวลผล
-        resolve(`ไฟล์ ${file.name} เป็นไฟล์ไบนารี ไม่สามารถแสดงเนื้อหาเป็นข้อความได้`);
-      }
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() && !isImageGenerationMode) return;
@@ -491,28 +467,37 @@ const MFUChatbot: React.FC = () => {
       if (!token || !wsRef.current) {
         throw new Error('Not authenticated or WebSocket not connected');
       }
-      // สร้าง base64 สำหรับรูปภาพที่เลือก
-      let messageImages: { data: string; mediaType: string }[] = [];
+      // สร้าง base64 สำหรับไฟล์ที่เลือก
       const messageFiles: MessageFile[] = [];
       
-      if (selectedImages.length > 0) {
-        messageImages = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
-      }
-      
-      // สร้าง message files พร้อมเนื้อหา
+      // ถ้ามีไฟล์เอกสาร
       if (selectedFiles.length > 0) {
         for (const file of selectedFiles) {
-          const fileContent = await readFileAsText(file);
-          const fileData = await compressImage(file);
+          const reader = new FileReader();
+          const result = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          
+          // แยกส่วน base64 จาก data URL
+          const base64Data = result.split(',')[1];
           
           messageFiles.push({
             name: file.name,
-            data: fileData.data,
-            mediaType: fileData.mediaType,
-            size: file.size,
-            content: fileContent
+            data: base64Data,
+            mediaType: file.type,
+            size: file.size
           });
         }
+      }
+      
+      // ดำเนินการอัปโหลดรูปภาพและส่งข้อความ (เหมือนเดิม)
+      let messageImages: { data: string; mediaType: string }[] = [];
+      
+      // ถ้ามีรูปภาพ
+      if (selectedImages.length > 0) {
+        messageImages = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
       }
       
       const newMessage: Message = {
@@ -520,10 +505,8 @@ const MFUChatbot: React.FC = () => {
         role: 'user',
         content: inputMessage,
         timestamp: { $date: new Date().toISOString() },
-        images: messageImages.length > 0 ? messageImages : undefined,
         files: messageFiles.length > 0 ? messageFiles : undefined,
-        isImageGeneration: isImageGenerationMode,
-        isComplete: false
+        images: messageImages.length > 0 ? messageImages : undefined
       };
 
       // Add user message to state
