@@ -8,6 +8,12 @@ interface ChatMessage {
     data: string;
     mediaType: string;
   }>;
+  files?: Array<{
+    name: string;
+    data: string;
+    mediaType: string;
+    size: number;
+  }>;
   sources?: Array<{
     modelId: string;
     collectionName: string;
@@ -39,6 +45,12 @@ const chatSchema = new mongoose.Schema({
       images: [{
         data: String,
         mediaType: String
+      }],
+      files: [{
+        name: String,
+        data: String,
+        mediaType: String,
+        size: Number
       }],
       sources: [{
         modelId: String,

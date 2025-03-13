@@ -491,6 +491,21 @@ Remember: Your responses should be based on the provided context and documents.`
       let attempt = 0;
       while (attempt < this.retryConfig.maxRetries) {
         try {
+          // ตรวจสอบว่ามีไฟล์หรือไม่
+          const hasFiles = lastMessage.files && lastMessage.files.length > 0;
+          
+          // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
+          if (hasFiles) {
+            const fileInfo = lastMessage.files?.map(file => {
+              return `- ${file.name} (${file.mediaType})`;
+            }).join('\n');
+            
+            const fileMessage = `ผู้ใช้ได้แนบไฟล์ต่อไปนี้:\n${fileInfo}\n\nโปรดตอบคำถามโดยพิจารณาเนื้อหาในไฟล์แนบด้วย`;
+            
+            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
+            query = `${query}\n\n[ไฟล์แนบ]\n${fileInfo}`;
+          }
+
           // Generate response and send chunks
           let totalTokens = 0;
           for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
