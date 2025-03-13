@@ -9,6 +9,8 @@ import { Chat } from '../models/Chat';
 import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import { usageService } from '../services/usageService';
+import multer from 'multer';
+import { fileParserService } from '../services/fileParser';
 
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
@@ -722,6 +724,32 @@ router.get('/usage', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error getting usage:', error);
     res.status(500).json({ error: 'Failed to get usage information' });
+  }
+});
+
+// ตั้งค่า multer สำหรับรับไฟล์
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 } // 20MB
+});
+
+// endpoint สำหรับแปลงไฟล์
+router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'ไม่พบไฟล์' });
+    }
+    
+    const file = req.file;
+    const text = await fileParserService.parseFile(file as Express.Multer.File);
+    
+    res.json({ text });
+  } catch (error) {
+    console.error('Error parsing file:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'ไม่สามารถแปลงไฟล์ได้' 
+    });
   }
 });
 

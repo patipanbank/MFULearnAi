@@ -456,19 +456,20 @@ const MFUChatbot: React.FC = () => {
       'text/plain', 'text/html', 'text/css', 'text/javascript',
       'application/json', 'application/xml', 'text/csv', 
       'application/javascript', 'application/typescript',
-      'text/markdown', 'application/pdf'
+      'text/markdown'
     ];
     
     // ตรวจสอบนามสกุลไฟล์
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     const textExtensions = ['txt', 'md', 'json', 'csv', 'html', 'css', 'js', 'ts', 'jsx', 'tsx'];
     
+    // ถ้าเป็นไฟล์ข้อความ ให้อ่านด้วย FileReader ปกติ
     if (textTypes.includes(file.type) || textExtensions.includes(fileExt || '')) {
       try {
-        return await new Promise((resolve) => {
+        return await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => resolve(null);
+          reader.onerror = () => reject(new Error('Error reading file'));
           reader.readAsText(file);
         });
       } catch (error) {
@@ -477,7 +478,122 @@ const MFUChatbot: React.FC = () => {
       }
     }
     
-    return `[ไฟล์ ${file.name} เป็นไฟล์ไบนารี ไม่สามารถอ่านเนื้อหาได้]`;
+    // สำหรับไฟล์ PDF
+    if (file.type === 'application/pdf' || fileExt === 'pdf') {
+      try {
+        // ส่งข้อมูล PDF ไปยัง backend เพื่อแปลง
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('/api/chat/parse-file', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('ไม่สามารถแปลงไฟล์ PDF ได้');
+        }
+        
+        const result = await response.json();
+        return result.text;
+      } catch (error) {
+        console.error('Error parsing PDF:', error);
+        return `[ไม่สามารถอ่านไฟล์ PDF ${file.name} - กรุณาตรวจสอบว่าไฟล์ไม่ถูกล็อคและมีขนาดไม่เกิน 20MB]`;
+      }
+    }
+    
+    // สำหรับไฟล์ Word
+    if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+        file.type === 'application/msword' || 
+        fileExt === 'docx' || fileExt === 'doc') {
+      try {
+        // ส่งข้อมูลไปยัง backend เพื่อแปลง
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('/api/chat/parse-file', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('ไม่สามารถแปลงไฟล์ Word ได้');
+        }
+        
+        const result = await response.json();
+        return result.text;
+      } catch (error) {
+        console.error('Error parsing Word document:', error);
+        return `[ไม่สามารถอ่านไฟล์ Word ${file.name} - กรุณาตรวจสอบว่าไฟล์ไม่ถูกล็อคและมีขนาดไม่เกิน 20MB]`;
+      }
+    }
+    
+    // สำหรับไฟล์ Excel
+    if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+        file.type === 'application/vnd.ms-excel' || 
+        fileExt === 'xlsx' || fileExt === 'xls' || fileExt === 'csv') {
+      try {
+        // ส่งข้อมูลไปยัง backend เพื่อแปลง
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('/api/chat/parse-file', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('ไม่สามารถแปลงไฟล์ Excel ได้');
+        }
+        
+        const result = await response.json();
+        return result.text;
+      } catch (error) {
+        console.error('Error parsing Excel file:', error);
+        return `[ไม่สามารถอ่านไฟล์ Excel ${file.name} - กรุณาตรวจสอบว่าไฟล์ไม่ถูกล็อคและมีขนาดไม่เกิน 20MB]`;
+      }
+    }
+    
+    // สำหรับไฟล์ PowerPoint
+    if (file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || 
+        file.type === 'application/vnd.ms-powerpoint' || 
+        fileExt === 'pptx' || fileExt === 'ppt') {
+      try {
+        // ส่งข้อมูลไปยัง backend เพื่อแปลง
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('/api/chat/parse-file', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('ไม่สามารถแปลงไฟล์ PowerPoint ได้');
+        }
+        
+        const result = await response.json();
+        return result.text;
+      } catch (error) {
+        console.error('Error parsing PowerPoint file:', error);
+        return `[ไม่สามารถอ่านไฟล์ PowerPoint ${file.name} - กรุณาตรวจสอบว่าไฟล์ไม่ถูกล็อคและมีขนาดไม่เกิน 20MB]`;
+      }
+    }
+    
+    // สำหรับไฟล์ไบนารีอื่นๆ ที่ไม่รองรับ
+    return `[ไฟล์ ${file.name} เป็นไฟล์ไบนารี ชนิด ${file.type} ขนาด ${Math.round(file.size/1024)} KB]`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -509,8 +625,8 @@ const MFUChatbot: React.FC = () => {
           const reader = new FileReader();
           const result = await new Promise<string>((resolve, reject) => {
             reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
+            reader.onerror = () => reject(new Error('Error reading file'));
+            reader.readAsText(file);
           });
           
           // อ่านเนื้อหาไฟล์
