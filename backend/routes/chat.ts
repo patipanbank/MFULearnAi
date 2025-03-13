@@ -350,7 +350,7 @@ router.post('/', async (req: Request, res: Response) => {
       }
     } catch (error) {
       console.error('Error in stream generation:', error);
-      sendChunk('\nขออภัย มีข้อผิดพลาดเกิดขึ้นระหว่างการสร้างคำตอบ');
+      sendChunk('\nSorry, an error occurred. Please try again.');
     }
 
     // console.log('Chat response completed');
@@ -365,7 +365,7 @@ router.post('/', async (req: Request, res: Response) => {
       res.setHeader('Connection', 'keep-alive');
     }
     
-    const errorData = JSON.stringify({ content: 'ขออภัย มีข้อผิดพลาดเกิดขึ้น กรุณาลองใหม่อีกครั้ง' });
+    const errorData = JSON.stringify({ content: 'Sorry, an error occurred. Please try again.' });
     res.write(`data: ${errorData}\n\n`);
     res.end();
   }
@@ -738,7 +738,7 @@ const upload = multer({
 router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      res.status(400).json({ error: 'ไม่พบไฟล์' });
+      res.status(400).json({ error: 'No file uploaded' });
     }
     
     const file = req.file;
@@ -748,7 +748,7 @@ router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
   } catch (error) {
     console.error('Error parsing file:', error);
     res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'ไม่สามารถแปลงไฟล์ได้' 
+      error: error instanceof Error ? error.message : 'Failed to parse file' 
     });
   }
 });

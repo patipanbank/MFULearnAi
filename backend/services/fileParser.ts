@@ -44,19 +44,19 @@ class FileParserService {
         result = await this.parsePowerPoint(file.buffer);
       }
       else {
-        return `[ไม่สามารถแปลงไฟล์ประเภท ${fileExt} ได้]`;
+        return `[Cannot parse file type ${fileExt}]`;
       }
       
       // จำกัดขนาดข้อความ
       if (result.length > this.MAX_TEXT_LENGTH) {
         result = result.substring(0, this.MAX_TEXT_LENGTH) + 
-          `\n\n[เนื้อหาถูกตัดเนื่องจากมีขนาดใหญ่เกินไป (${result.length} ตัวอักษร)]`;
+          `\n\n[File content truncated due to large size (${result.length} characters)]`;
       }
       
       return result;
     } catch (error) {
       console.error(`Error parsing file ${file.originalname}:`, error);
-      return `[เกิดข้อผิดพลาดในการแปลงไฟล์ ${file.originalname}]`;
+      return `[Error parsing file ${file.originalname}]`;
     }
   }
 
@@ -66,7 +66,7 @@ class FileParserService {
       return data.text || '';
     } catch (error) {
       console.error('Error parsing PDF:', error);
-      throw new Error('ไม่สามารถแปลงไฟล์ PDF ได้');
+      throw new Error('Cannot parse PDF file');
     }
   }
 
@@ -76,7 +76,7 @@ class FileParserService {
       return result.value || '';
     } catch (error) {
       console.error('Error parsing Word document:', error);
-      throw new Error('ไม่สามารถแปลงไฟล์ Word ได้');
+      throw new Error('Cannot parse Word file');
     }
   }
 
@@ -99,7 +99,7 @@ class FileParserService {
       return result;
     } catch (error) {
       console.error('Error parsing Excel file:', error);
-      throw new Error('ไม่สามารถแปลงไฟล์ Excel ได้');
+      throw new Error('Cannot parse Excel file');
     }
   }
 
@@ -114,10 +114,10 @@ class FileParserService {
       // แต่ในอนาคตอาจเพิ่ม library ที่สามารถแปลง PowerPoint ได้
       fs.unlinkSync(tempFilePath); // ลบไฟล์ชั่วคราว
       
-      return '[ไฟล์ PowerPoint: เนื้อหาสรุปไม่สามารถแสดงได้โดยละเอียด แต่ AI จะพยายามประมวลผลข้อมูลที่ส่งมา]';
+      return '[PowerPoint file: Summary not shown due to large size, but AI will try to process the data]';
     } catch (error) {
       console.error('Error parsing PowerPoint file:', error);
-      throw new Error('ไม่สามารถแปลงไฟล์ PowerPoint ได้');
+      throw new Error('Cannot parse PowerPoint file');
     }
   }
 }

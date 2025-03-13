@@ -256,7 +256,7 @@ export class BedrockService {
                 // เพิ่มชื่อไฟล์
                 content.push({ 
                   type: 'text', 
-                  text: `\n\n=== ไฟล์: ${file.name} (${file.mediaType}) ===\n`
+                  text: `\n\n=== File: ${file.name} (${file.mediaType}) ===\n`
                 });
                 
                 // เพิ่มเนื้อหาของไฟล์
@@ -268,13 +268,13 @@ export class BedrockService {
                 } else {
                   content.push({
                     type: 'text',
-                    text: `[ไม่สามารถอ่านเนื้อหาไฟล์ ${file.name} ได้]`
+                    text: `[Cannot read file content ${file.name}]`
                   });
                 }
                 
                 content.push({
                   type: 'text',
-                  text: '\n=== สิ้นสุดไฟล์ ===\n'
+                  text: '\n=== End of file ===\n'
                 });
               });
             }

@@ -494,14 +494,14 @@ const MFUChatbot: React.FC = () => {
         });
         
         if (!response.ok) {
-          throw new Error('ไม่สามารถแปลงไฟล์ PDF ได้');
+          throw new Error('Cannot parse PDF file');
         }
         
         const result = await response.json();
         return result.text;
       } catch (error) {
         console.error('Error parsing PDF:', error);
-        return `[ไม่สามารถอ่านไฟล์ PDF ${file.name} - กรุณาตรวจสอบว่าไฟล์ไม่ถูกล็อคและมีขนาดไม่เกิน 20MB]`;
+        return `[Cannot read PDF file ${file.name} - Please check if the file is not locked and is not larger than 20MB]`;
       }
     }
     
@@ -523,14 +523,14 @@ const MFUChatbot: React.FC = () => {
         });
         
         if (!response.ok) {
-          throw new Error('ไม่สามารถแปลงไฟล์ Word ได้');
+          throw new Error('Cannot parse Word document');
         }
         
         const result = await response.json();
         return result.text;
       } catch (error) {
         console.error('Error parsing Word document:', error);
-        return `[ไม่สามารถอ่านไฟล์ Word ${file.name} - กรุณาตรวจสอบว่าไฟล์ไม่ถูกล็อคและมีขนาดไม่เกิน 20MB]`;
+        return `[Cannot read Word document ${file.name} - Please check if the file is not locked and is not larger than 20MB]`;
       }
     }
     
@@ -552,14 +552,14 @@ const MFUChatbot: React.FC = () => {
         });
         
         if (!response.ok) {
-          throw new Error('ไม่สามารถแปลงไฟล์ Excel ได้');
+          throw new Error('Cannot parse Excel file');
         }
         
         const result = await response.json();
         return result.text;
       } catch (error) {
         console.error('Error parsing Excel file:', error);
-        return `[ไม่สามารถอ่านไฟล์ Excel ${file.name} - กรุณาตรวจสอบว่าไฟล์ไม่ถูกล็อคและมีขนาดไม่เกิน 20MB]`;
+        return `[Cannot read Excel file ${file.name} - Please check if the file is not locked and is not larger than 20MB]`;
       }
     }
     
@@ -581,19 +581,19 @@ const MFUChatbot: React.FC = () => {
         });
         
         if (!response.ok) {
-          throw new Error('ไม่สามารถแปลงไฟล์ PowerPoint ได้');
+          throw new Error('Cannot parse PowerPoint file');
         }
         
         const result = await response.json();
         return result.text;
       } catch (error) {
         console.error('Error parsing PowerPoint file:', error);
-        return `[ไม่สามารถอ่านไฟล์ PowerPoint ${file.name} - กรุณาตรวจสอบว่าไฟล์ไม่ถูกล็อคและมีขนาดไม่เกิน 20MB]`;
+        return `[Cannot read PowerPoint file ${file.name} - Please check if the file is not locked and is not larger than 20MB]`;
       }
     }
     
     // สำหรับไฟล์ไบนารีอื่นๆ ที่ไม่รองรับ
-    return `[ไฟล์ ${file.name} เป็นไฟล์ไบนารี ชนิด ${file.type} ขนาด ${Math.round(file.size/1024)} KB]`;
+    return `[File ${file.name} is a binary file type ${file.type} size ${Math.round(file.size/1024)} KB]`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1492,7 +1492,7 @@ const MFUChatbot: React.FC = () => {
                       }}
                     >
                       <RiImageAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                      <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">เพิ่มรูปภาพ</span>
+                      <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
                     </button>
                     
                     <input
@@ -1512,7 +1512,7 @@ const MFUChatbot: React.FC = () => {
                       }}
                     >
                       <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                      <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">เพิ่มไฟล์</span>
+                      <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add File</span>
                     </button>
                   </>
                 )}
