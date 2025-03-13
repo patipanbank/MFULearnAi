@@ -168,20 +168,6 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       const data = JSON.parse(message.toString());
       const userId = extWs.userId;
 
-      // เพิ่ม logs เมื่อได้รับข้อความที่มีไฟล์
-      if (data.message && data.message.files && data.message.files.length > 0) {
-        console.log(`[WS] ได้รับไฟล์จากผู้ใช้ ${userId}: ${data.message.files.length} ไฟล์`);
-        
-        data.message.files.forEach((file: any, index: number) => {
-          console.log(`[WS] ไฟล์ ${index + 1}: ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`);
-          if (file.content) {
-            console.log(`[WS] มีเนื้อหา: ${file.content.substring(0, 150)}${file.content.length > 150 ? '...' : ''}`);
-          } else {
-            console.log(`[WS] ไม่มีเนื้อหาไฟล์`);
-          }
-        });
-      }
-
       // ตรวจสอบ limit ก่อนประมวลผลคำถาม
       const hasRemaining = await usageService.checkUserLimit(userId!);
       if (!hasRemaining) {

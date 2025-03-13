@@ -494,28 +494,18 @@ Remember: Your responses should be based on the provided context and documents.`
           // ตรวจสอบว่ามีไฟล์หรือไม่
           const hasFiles = lastMessage.files && lastMessage.files.length > 0;
           
+          // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
           if (hasFiles && lastMessage.files) {
-            console.log(`[CHAT] พบไฟล์แนบในคำถาม: ${lastMessage.files.length} ไฟล์`);
-            
-            lastMessage.files.forEach((file, index) => {
-              console.log(`[CHAT] ไฟล์ ${index + 1}: ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`);
-              if (file.content) {
-                const contentPreview = file.content.substring(0, 200);
-                console.log(`[CHAT] ตัวอย่างเนื้อหา: ${contentPreview}${file.content.length > 200 ? '...' : ''}`);
-                console.log(`[CHAT] ความยาวเนื้อหา: ${file.content.length} ตัวอักษร`);
-              } else {
-                console.log(`[CHAT] ไม่มีเนื้อหาไฟล์`);
-              }
-            });
-            
-            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
-            query = `${query}\n\n[ไฟล์แนบ]\n${lastMessage.files.map(file => {
+            const fileInfo = lastMessage.files.map(file => {
               let fileDetail = `- ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`;
               if (file.content) {
                 fileDetail += " - มีเนื้อหาแนบมาด้วย";
               }
               return fileDetail;
-            }).join('\n')}`;
+            }).join('\n');
+            
+            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
+            query = `${query}\n\n[ไฟล์แนบ]\n${fileInfo}`;
           }
 
           // Generate response and send chunks
