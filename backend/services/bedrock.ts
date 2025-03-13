@@ -252,13 +252,30 @@ export class BedrockService {
             
             // เพิ่มข้อมูลไฟล์ถ้ามี
             if (hasFiles && msg.files) {
-              const fileDescriptions = msg.files.map(file => 
-                `ไฟล์: ${file.name} (${file.mediaType}, ขนาด: ${Math.round(file.size / 1024)} KB)`
-              ).join('\n');
-              
-              content.push({
-                type: 'text', 
-                text: `\n\nผู้ใช้ได้แนบไฟล์ต่อไปนี้:\n${fileDescriptions}`
+              msg.files.forEach(file => {
+                // เพิ่มชื่อไฟล์และรายละเอียด
+                content.push({ 
+                  type: 'text', 
+                  text: `\n\n=== ไฟล์: ${file.name} (${file.mediaType}) ===\n`
+                });
+                
+                // เพิ่มเนื้อหาของไฟล์ถ้ามี
+                if (file.content) {
+                  content.push({
+                    type: 'text',
+                    text: file.content
+                  });
+                } else {
+                  content.push({
+                    type: 'text',
+                    text: 'ไม่สามารถอ่านเนื้อหาไฟล์ได้'
+                  });
+                }
+                
+                content.push({
+                  type: 'text',
+                  text: '\n=== สิ้นสุดไฟล์ ===\n'
+                });
               });
             }
             
