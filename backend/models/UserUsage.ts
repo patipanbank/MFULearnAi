@@ -20,7 +20,7 @@ const userUsageSchema = new mongoose.Schema({
   },
   tokenLimit: {
     type: Number,
-    default: 25000
+    default: 100000
   },
   lastReset: {
     type: Date,
