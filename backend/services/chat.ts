@@ -6,6 +6,7 @@ import { ModelModel } from '../models/Model';
 import { Chat } from '../models/Chat';
 import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
+import { webSearchService } from './webSearch';
 
 interface QueryResult {
   text: string;
@@ -91,6 +92,12 @@ class ChatService {
      - For technical topics, include brief explanations of key terms
      - When handling errors or issues, provide step-by-step troubleshooting
      - For data or statistics, specify the source and timeframe
+  5. Internet Search Integration:
+     - Use provided web search results to enhance your responses
+     - Always verify and cross-reference information from multiple sources
+     - Clearly indicate when information comes from web searches
+     - Be cautious with information from unreliable sources
+     - Summarize and present information in a clear, organized manner
   
   Remember: Always prioritize accuracy and clarity in your responses while maintaining a helpful and educational approach.`;
 
@@ -232,136 +239,61 @@ class ChatService {
   }
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
-    // console.log('Getting context for:', {
-    //   query,
-    //   modelIdOrCollections,
-    //   hasImage: !!imageBase64
-    // });
-
     const questionType = this.detectQuestionType(query);
     const promptTemplate = this.promptTemplates[questionType];
     
     const collectionNames = await this.resolveCollections(modelIdOrCollections);
-    if (collectionNames.length === 0) {
-      console.error('No collections found for:', modelIdOrCollections);
-      return '';
-    }
-
-    // console.log('Resolved collection names:', collectionNames);
-    // console.log('Detected question type:', questionType);
-
-    const sanitizedCollections = collectionNames.map(name => 
-      this.sanitizeCollectionName(name)
-    );
-    // console.log('Sanitized collection names:', sanitizedCollections);
-
-    // console.log('Getting query embedding...');
-    // Limit query length for embedding to stay within service limits (50,000 chars)
-    const MAX_QUERY_LENGTH = 4000; // Conservative limit to ensure we stay well under the 50k limit
-    const truncatedQuery = query.length > MAX_QUERY_LENGTH 
-      ? query.substring(0, MAX_QUERY_LENGTH) 
-      : query;
-    
-    let queryEmbedding = await chromaService.getQueryEmbedding(truncatedQuery);
-    let imageEmbedding: number[] | undefined;
-    
-    if (imageBase64) {
-      try {
-        // console.log('Generating image embedding...');
-        imageEmbedding = await bedrockService.embedImage(imageBase64, truncatedQuery);
-        // console.log('Generated image embedding');
-      } catch (error) {
-        // console.error('Error generating image embedding:', error);
-      }
-    }
-    
-    const batches: string[][] = [];
-    for (let i = 0; i < sanitizedCollections.length; i += this.BATCH_SIZE) {
-      batches.push(sanitizedCollections.slice(i, i + this.BATCH_SIZE));
-    }
-    // console.log('Created batches:', batches);
-
-    let allResults: CollectionQueryResult[] = [];
-    for (const batch of batches) {
-      // console.log('Processing batch:', batch);
-      const batchResults = await this.processBatch(batch, queryEmbedding, imageEmbedding);
-      allResults = allResults.concat(batchResults);
-    }
-
-    // console.log('All results:', allResults);
-
-    const allSources = allResults
-      .flatMap(r => r.sources)
-      .sort((a, b) => b.similarity - a.similarity);
-
-    // console.log('All sources:', allSources);
-
-    if (this.currentChatHistory) {
-      this.currentChatHistory.sources = allSources;
-      await this.currentChatHistory.save();
-      // console.log('Saved sources to chat history');
-    }
-
-    // กรองและจัดลำดับ context ตาม similarity score
-    // เลือกเฉพาะ collection ที่มี similarity score สูงกว่าเกณฑ์
-    const MIN_COLLECTION_SIMILARITY = 0.4; // เกณฑ์ขั้นต่ำสำหรับ collection
-    
-    const contexts = allResults
-      .filter(r => {
-        // กรองเฉพาะ collection ที่มีข้อมูลและมี similarity score สูงกว่าเกณฑ์
-        if (r.sources.length === 0) return false;
-        const maxSimilarity = Math.max(...r.sources.map(s => s.similarity));
-        return maxSimilarity >= MIN_COLLECTION_SIMILARITY;
-      })
-      .sort((a, b) => {
-        // จัดลำดับตาม similarity score สูงสุดของแต่ละ collection
-        const aMaxSim = Math.max(...a.sources.map(s => s.similarity));
-        const bMaxSim = Math.max(...b.sources.map(s => s.similarity));
-        return bMaxSim - aMaxSim;
-      })
-      .map(r => r.context);
-
-    // console.log('Final context length:', contexts.join("\n\n").length);
-
-    // จำกัดจำนวนข้อมูลที่ส่งไปยัง model เพื่อลดการใช้ token
-    const MAX_CONTEXT_LENGTH = 6000; // Reduced from 8000 to avoid token limit errors
-    
-    // รวม context จากทุก collection ที่มี similarity score ผ่านเกณฑ์
     let context = '';
-    for (const result of contexts) {
-      if (result && result.length > 0) {
-        // If this single result is too large, truncate it
-        let resultToAdd = result;
-        if (resultToAdd.length > MAX_CONTEXT_LENGTH) {
-          resultToAdd = resultToAdd.substring(0, MAX_CONTEXT_LENGTH);
-          // Ensure we don't cut in the middle of a word or sentence
-          const lastPeriodIndex = resultToAdd.lastIndexOf('.');
-          const lastNewlineIndex = resultToAdd.lastIndexOf('\n');
-          const lastBreakIndex = Math.max(lastPeriodIndex, lastNewlineIndex);
-          if (lastBreakIndex > MAX_CONTEXT_LENGTH * 0.8) {
-            resultToAdd = resultToAdd.substring(0, lastBreakIndex + 1);
-          }
+
+    // ดึงข้อมูลจาก collections ก่อน
+    if (collectionNames.length > 0) {
+      const sanitizedCollections = collectionNames.map(name => 
+        this.sanitizeCollectionName(name)
+      );
+
+      const truncatedQuery = query.slice(0, 512);
+      let queryEmbedding = await chromaService.getQueryEmbedding(truncatedQuery);
+      let imageEmbedding: number[] | undefined;
+      
+      if (imageBase64) {
+        try {
+          imageEmbedding = await bedrockService.embedImage(imageBase64, truncatedQuery);
+        } catch (error) {
+          console.error('Error generating image embedding:', error);
         }
-        
-        // ตรวจสอบว่าการเพิ่ม context นี้จะทำให้เกินขนาดหรือไม่
-        if (context.length + resultToAdd.length > MAX_CONTEXT_LENGTH) {
-          // ถ้าเกินขนาด ให้หยุดการเพิ่ม context
-          break;
+      }
+
+      const batches = this.createBatches(sanitizedCollections, this.BATCH_SIZE);
+      let allResults: CollectionQueryResult[] = [];
+      
+      for (const batch of batches) {
+        const batchResults = await this.processBatch(batch, queryEmbedding, imageEmbedding);
+        allResults = allResults.concat(batchResults);
+      }
+
+      // ประมวลผลข้อมูลจาก collections
+      context = this.processResults(allResults);
+    }
+
+    // ค้นหาข้อมูลเพิ่มเติมจากเว็บเฉพาะเมื่อ:
+    // 1. มีข้อมูลจาก collection แต่อาจจะไม่ครบถ้วน หรือ
+    // 2. ไม่มีข้อมูลจาก collection เลย
+    try {
+      const webResults = await webSearchService.searchWeb(query);
+      if (webResults) {
+        // ถ้ามีข้อมูลจาก collection อยู่แล้ว
+        if (context) {
+          context += '\n\nAdditional supporting information:\n' + webResults;
+        } else {
+          // ถ้าไม่มีข้อมูลจาก collection เลย
+          context = 'Based on web search results:\n' + webResults;
         }
-        context += resultToAdd + '\n';
       }
+    } catch (error) {
+      console.error('Error fetching web results:', error);
+      // ถ้าเกิดข้อผิดพลาดในการค้นหาเว็บ ใช้แค่ข้อมูลจาก collection
     }
-    
-    // Double-check final context size doesn't exceed limits
-    if (context.length > MAX_CONTEXT_LENGTH) {
-      context = context.substring(0, MAX_CONTEXT_LENGTH);
-      // Ensure we don't cut mid-sentence
-      const lastPeriodIndex = context.lastIndexOf('.');
-      if (lastPeriodIndex > MAX_CONTEXT_LENGTH * 0.8) {
-        context = context.substring(0, lastPeriodIndex + 1);
-      }
-    }
-    
+
     return `${promptTemplate}\n\n${context}`;
   }
 
@@ -401,11 +333,11 @@ class ChatService {
         }
       );
 
-      console.log(`Updated daily stats for ${userId}:`, {
-        date: today.toISOString(),
-        uniqueUsers: stats.uniqueUsers.length,
-        totalChats: stats.totalChats
-      });
+      // console.log(`Updated daily stats for ${userId}:`, {
+      //   date: today.toISOString(),
+      //   uniqueUsers: stats.uniqueUsers.length,
+      //   totalChats: stats.totalChats
+      // });
     } catch (error) {
       console.error('Error updating daily stats:', error);
     }
@@ -752,6 +684,57 @@ class ChatService {
     await chat.save();
     return chat;
   }
+
+  // เพิ่มฟังก์ชันใหม่สำหรับประมวลผลข้อมูล
+  private processResults(results: CollectionQueryResult[]): string {
+    const MIN_COLLECTION_SIMILARITY = 0.4;
+    
+    const contexts = results
+      .filter(r => {
+        if (r.sources.length === 0) return false;
+        const maxSimilarity = Math.max(...r.sources.map(s => s.similarity));
+        return maxSimilarity >= MIN_COLLECTION_SIMILARITY;
+      })
+      .sort((a, b) => {
+        const aMaxSim = Math.max(...a.sources.map(s => s.similarity));
+        const bMaxSim = Math.max(...b.sources.map(s => s.similarity));
+        return bMaxSim - aMaxSim;
+      })
+      .map(r => r.context);
+
+    const MAX_CONTEXT_LENGTH = 6000;
+    let context = '';
+    
+    for (const result of contexts) {
+      if (result && result.length > 0) {
+        let resultToAdd = result;
+        if (resultToAdd.length > MAX_CONTEXT_LENGTH) {
+          resultToAdd = resultToAdd.substring(0, MAX_CONTEXT_LENGTH);
+          const lastPeriodIndex = resultToAdd.lastIndexOf('.');
+          const lastNewlineIndex = resultToAdd.lastIndexOf('\n');
+          const lastBreakIndex = Math.max(lastPeriodIndex, lastNewlineIndex);
+          if (lastBreakIndex > MAX_CONTEXT_LENGTH * 0.8) {
+            resultToAdd = resultToAdd.substring(0, lastBreakIndex + 1);
+          }
+        }
+        
+        if (context.length + resultToAdd.length > MAX_CONTEXT_LENGTH) {
+          break;
+        }
+        context += resultToAdd + '\n';
+      }
+    }
+
+    return context;
+  }
+
+  private createBatches<T>(items: T[], batchSize: number): T[][] {
+    const batches: T[][] = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+      batches.push(items.slice(i, i + batchSize));
+    }
+    return batches;
+  }
 }
 
 export const chatService = new ChatService();
@@ -760,3 +743,4 @@ export const chatService = new ChatService();
 if (process.env.NODE_ENV !== 'production') {
   // console.log('Debug message');
 }
+
