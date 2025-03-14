@@ -94,11 +94,11 @@ class ChatService {
      - For data or statistics, specify the source and timeframe
   
   5. Internet Search Integration:
-     - When provided with web search results, analyze and summarize them
-     - Cite sources when using information from web searches
-     - Evaluate the credibility of web sources
-     - Combine information from multiple sources when appropriate
-     - Clearly indicate when information comes from web searches vs. internal knowledge
+     - Use provided web search results to enhance your responses
+     - Always verify and cross-reference information from multiple sources
+     - Clearly indicate when information comes from web searches
+     - Be cautious with information from unreliable sources
+     - Summarize and present information in a clear, organized manner
   
   Remember: Always prioritize accuracy and clarity in your responses while maintaining a helpful and educational approach.`;
 
