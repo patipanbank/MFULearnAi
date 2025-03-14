@@ -6,6 +6,7 @@ import { ModelModel } from '../models/Model';
 import { Chat } from '../models/Chat';
 import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
+import { searchService } from './searchService';
 
 interface QueryResult {
   text: string;
@@ -78,6 +79,7 @@ class ChatService {
      - Can analyze and describe images
      - Can read and summarize files
      - For MFU-specific questions, clearly state if information is from official sources
+     - When <SEARCH_RESULTS> are provided, use this real-time information from the internet for your response
   
   3. Interaction Guidelines:
      - Ask for clarification if the question is unclear
@@ -91,6 +93,7 @@ class ChatService {
      - For technical topics, include brief explanations of key terms
      - When handling errors or issues, provide step-by-step troubleshooting
      - For data or statistics, specify the source and timeframe
+     - When using search results, mention that the information is from recent internet sources
   
   Remember: Always prioritize accuracy and clarity in your responses while maintaining a helpful and educational approach.`;
 
@@ -362,6 +365,13 @@ class ChatService {
       }
     }
     
+    // หลังจากได้ context จาก Chroma เรียบร้อยแล้ว
+    // เพิ่มการค้นหาข้อมูลจากอินเทอร์เน็ต
+    const searchResults = await this.searchInternet(query);
+    if (searchResults) {
+      context += searchResults;
+    }
+
     return `${promptTemplate}\n\n${context}`;
   }
 
@@ -751,6 +761,39 @@ class ChatService {
     chat.isPinned = !chat.isPinned;
     await chat.save();
     return chat;
+  }
+
+  private async searchInternet(query: string): Promise<string> {
+    try {
+      // ตรวจสอบว่าคำถามต้องการข้อมูลปัจจุบันหรือไม่
+      const needsRealtimeInfo = this.needsRealtimeInformation(query);
+      if (!needsRealtimeInfo) {
+        return '';
+      }
+      
+      // ดึงข้อมูลจากการค้นหา
+      const searchResult = await searchService.searchAndFetchContent(query);
+      
+      // ส่งคืนผลการค้นหาพร้อมแท็ก
+      return `\n\n<SEARCH_RESULTS>\n${searchResult}\n</SEARCH_RESULTS>`;
+    } catch (error) {
+      console.error('Error in searchInternet:', error);
+      return '';
+    }
+  }
+
+  // เพิ่มฟังก์ชันตรวจสอบว่าคำถามต้องการข้อมูลปัจจุบันหรือไม่
+  private needsRealtimeInformation(query: string): boolean {
+    const realtimeKeywords = [
+      'ล่าสุด', 'ปัจจุบัน', 'วันนี้', 'เมื่อวาน', 'สัปดาห์นี้', 'เดือนนี้', 'ปีนี้',
+      'ข่าว', 'เหตุการณ์', 'ล่าสุด', 'อัปเดต', 'เมื่อเร็วๆ นี้', 'เมื่อไม่นานมานี้',
+      'ตอนนี้', 'วันที่', 'เวลา', 'สด', 'หุ้น', 'ราคา', 'สถานการณ์',
+      'latest', 'current', 'today', 'yesterday', 'this week', 'this month', 'this year',
+      'news', 'event', 'update', 'recent', 'now', 'date', 'time', 'live', 'stock', 'price'
+    ];
+    
+    const lowerQuery = query.toLowerCase();
+    return realtimeKeywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()));
   }
 }
 

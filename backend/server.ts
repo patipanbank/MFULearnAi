@@ -1,4 +1,3 @@
-
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -16,6 +15,7 @@ import bodyParser from 'body-parser';
 import compression from 'compression';
 import adminRoutes from './routes/admin';
 import statsRoutes from './routes/stats';
+import searchRoutes from './routes/search';
 
 const app = express();
 
@@ -66,6 +66,7 @@ app.use('/api/embed', embeddingRoutes);
 app.use('/api/models', modelsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/search', searchRoutes);
 
 // เพิ่มการตั้งค่า timeout
 app.use((req, res, next) => {
