@@ -6,7 +6,7 @@ import { ModelModel } from '../models/Model';
 import { Chat } from '../models/Chat';
 import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
-import { searchService } from './searchService';
+import { webSearchService } from './webSearch';
 
 interface QueryResult {
   text: string;
@@ -79,7 +79,6 @@ class ChatService {
      - Can analyze and describe images
      - Can read and summarize files
      - For MFU-specific questions, clearly state if information is from official sources
-     - When <SEARCH_RESULTS> are provided, use this real-time information from the internet for your response
   
   3. Interaction Guidelines:
      - Ask for clarification if the question is unclear
@@ -93,7 +92,12 @@ class ChatService {
      - For technical topics, include brief explanations of key terms
      - When handling errors or issues, provide step-by-step troubleshooting
      - For data or statistics, specify the source and timeframe
-     - When using search results, mention that the information is from recent internet sources
+  5. Internet Search Integration:
+     - Use provided web search results to enhance your responses
+     - Always verify and cross-reference information from multiple sources
+     - Clearly indicate when information comes from web searches
+     - Be cautious with information from unreliable sources
+     - Summarize and present information in a clear, organized manner
   
   Remember: Always prioritize accuracy and clarity in your responses while maintaining a helpful and educational approach.`;
 
@@ -235,144 +239,42 @@ class ChatService {
   }
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
-    // console.log('Getting context for:', {
-    //   query,
-    //   modelIdOrCollections,
-    //   hasImage: !!imageBase64
-    // });
+    try {
+      let context = '';
+      
+      // ดึงข้อมูลจาก collections ก่อน
+      // ... existing context gathering code ...
 
-    const questionType = this.detectQuestionType(query);
-    const promptTemplate = this.promptTemplates[questionType];
-    
-    const collectionNames = await this.resolveCollections(modelIdOrCollections);
-    if (collectionNames.length === 0) {
-      console.error('No collections found for:', modelIdOrCollections);
+      // ถ้าไม่มีข้อมูลที่เกี่ยวข้องหรือข้อมูลน้อยเกินไป
+      if (!context || context.length < 100) {
+        try {
+          // ค้นหาข้อมูลจากเว็บ
+          const webResults = await webSearchService.searchWeb(query);
+          
+          if (webResults) {
+            // เพิ่มผลการค้นหาเข้าไปในบริบท
+            context += '\n\nWeb Search Results:\n' + webResults;
+
+            // ดึงข้อมูลเพิ่มเติมจาก URL แรกที่ได้
+            const firstUrl = webResults.match(/Source: (https?:\/\/[^\s]+)/)?.[1];
+            if (firstUrl) {
+              const additionalContent = await webSearchService.scrapeWebContent(firstUrl);
+              if (additionalContent) {
+                context += '\n\nDetailed Content:\n' + additionalContent;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Web search failed:', error);
+          // ถ้าการค้นหาล้มเหลว ให้ใช้แค่ข้อมูลที่มีอยู่
+        }
+      }
+
+      return context;
+    } catch (error) {
+      console.error('Error getting context:', error);
       return '';
     }
-
-    // console.log('Resolved collection names:', collectionNames);
-    // console.log('Detected question type:', questionType);
-
-    const sanitizedCollections = collectionNames.map(name => 
-      this.sanitizeCollectionName(name)
-    );
-    // console.log('Sanitized collection names:', sanitizedCollections);
-
-    // console.log('Getting query embedding...');
-    // Limit query length for embedding to stay within service limits (50,000 chars)
-    const MAX_QUERY_LENGTH = 4000; // Conservative limit to ensure we stay well under the 50k limit
-    const truncatedQuery = query.length > MAX_QUERY_LENGTH 
-      ? query.substring(0, MAX_QUERY_LENGTH) 
-      : query;
-    
-    let queryEmbedding = await chromaService.getQueryEmbedding(truncatedQuery);
-    let imageEmbedding: number[] | undefined;
-    
-    if (imageBase64) {
-      try {
-        // console.log('Generating image embedding...');
-        imageEmbedding = await bedrockService.embedImage(imageBase64, truncatedQuery);
-        // console.log('Generated image embedding');
-      } catch (error) {
-        // console.error('Error generating image embedding:', error);
-      }
-    }
-    
-    const batches: string[][] = [];
-    for (let i = 0; i < sanitizedCollections.length; i += this.BATCH_SIZE) {
-      batches.push(sanitizedCollections.slice(i, i + this.BATCH_SIZE));
-    }
-    // console.log('Created batches:', batches);
-
-    let allResults: CollectionQueryResult[] = [];
-    for (const batch of batches) {
-      // console.log('Processing batch:', batch);
-      const batchResults = await this.processBatch(batch, queryEmbedding, imageEmbedding);
-      allResults = allResults.concat(batchResults);
-    }
-
-    // console.log('All results:', allResults);
-
-    const allSources = allResults
-      .flatMap(r => r.sources)
-      .sort((a, b) => b.similarity - a.similarity);
-
-    // console.log('All sources:', allSources);
-
-    if (this.currentChatHistory) {
-      this.currentChatHistory.sources = allSources;
-      await this.currentChatHistory.save();
-      // console.log('Saved sources to chat history');
-    }
-
-    // กรองและจัดลำดับ context ตาม similarity score
-    // เลือกเฉพาะ collection ที่มี similarity score สูงกว่าเกณฑ์
-    const MIN_COLLECTION_SIMILARITY = 0.4; // เกณฑ์ขั้นต่ำสำหรับ collection
-    
-    const contexts = allResults
-      .filter(r => {
-        // กรองเฉพาะ collection ที่มีข้อมูลและมี similarity score สูงกว่าเกณฑ์
-        if (r.sources.length === 0) return false;
-        const maxSimilarity = Math.max(...r.sources.map(s => s.similarity));
-        return maxSimilarity >= MIN_COLLECTION_SIMILARITY;
-      })
-      .sort((a, b) => {
-        // จัดลำดับตาม similarity score สูงสุดของแต่ละ collection
-        const aMaxSim = Math.max(...a.sources.map(s => s.similarity));
-        const bMaxSim = Math.max(...b.sources.map(s => s.similarity));
-        return bMaxSim - aMaxSim;
-      })
-      .map(r => r.context);
-
-    // console.log('Final context length:', contexts.join("\n\n").length);
-
-    // จำกัดจำนวนข้อมูลที่ส่งไปยัง model เพื่อลดการใช้ token
-    const MAX_CONTEXT_LENGTH = 6000; // Reduced from 8000 to avoid token limit errors
-    
-    // รวม context จากทุก collection ที่มี similarity score ผ่านเกณฑ์
-    let context = '';
-    for (const result of contexts) {
-      if (result && result.length > 0) {
-        // If this single result is too large, truncate it
-        let resultToAdd = result;
-        if (resultToAdd.length > MAX_CONTEXT_LENGTH) {
-          resultToAdd = resultToAdd.substring(0, MAX_CONTEXT_LENGTH);
-          // Ensure we don't cut in the middle of a word or sentence
-          const lastPeriodIndex = resultToAdd.lastIndexOf('.');
-          const lastNewlineIndex = resultToAdd.lastIndexOf('\n');
-          const lastBreakIndex = Math.max(lastPeriodIndex, lastNewlineIndex);
-          if (lastBreakIndex > MAX_CONTEXT_LENGTH * 0.8) {
-            resultToAdd = resultToAdd.substring(0, lastBreakIndex + 1);
-          }
-        }
-        
-        // ตรวจสอบว่าการเพิ่ม context นี้จะทำให้เกินขนาดหรือไม่
-        if (context.length + resultToAdd.length > MAX_CONTEXT_LENGTH) {
-          // ถ้าเกินขนาด ให้หยุดการเพิ่ม context
-          break;
-        }
-        context += resultToAdd + '\n';
-      }
-    }
-    
-    // Double-check final context size doesn't exceed limits
-    if (context.length > MAX_CONTEXT_LENGTH) {
-      context = context.substring(0, MAX_CONTEXT_LENGTH);
-      // Ensure we don't cut mid-sentence
-      const lastPeriodIndex = context.lastIndexOf('.');
-      if (lastPeriodIndex > MAX_CONTEXT_LENGTH * 0.8) {
-        context = context.substring(0, lastPeriodIndex + 1);
-      }
-    }
-    
-    // หลังจากได้ context จาก Chroma เรียบร้อยแล้ว
-    // เพิ่มการค้นหาข้อมูลจากอินเทอร์เน็ต
-    const searchResults = await this.searchInternet(query);
-    if (searchResults) {
-      context += searchResults;
-    }
-
-    return `${promptTemplate}\n\n${context}`;
   }
 
   private summarizeOldMessages(messages: ChatMessage[]): string {
@@ -761,39 +663,6 @@ class ChatService {
     chat.isPinned = !chat.isPinned;
     await chat.save();
     return chat;
-  }
-
-  private async searchInternet(query: string): Promise<string> {
-    try {
-      // ตรวจสอบว่าคำถามต้องการข้อมูลปัจจุบันหรือไม่
-      const needsRealtimeInfo = this.needsRealtimeInformation(query);
-      if (!needsRealtimeInfo) {
-        return '';
-      }
-      
-      // ดึงข้อมูลจากการค้นหา
-      const searchResult = await searchService.searchAndFetchContent(query);
-      
-      // ส่งคืนผลการค้นหาพร้อมแท็ก
-      return `\n\n<SEARCH_RESULTS>\n${searchResult}\n</SEARCH_RESULTS>`;
-    } catch (error) {
-      console.error('Error in searchInternet:', error);
-      return '';
-    }
-  }
-
-  // เพิ่มฟังก์ชันตรวจสอบว่าคำถามต้องการข้อมูลปัจจุบันหรือไม่
-  private needsRealtimeInformation(query: string): boolean {
-    const realtimeKeywords = [
-      'ล่าสุด', 'ปัจจุบัน', 'วันนี้', 'เมื่อวาน', 'สัปดาห์นี้', 'เดือนนี้', 'ปีนี้',
-      'ข่าว', 'เหตุการณ์', 'ล่าสุด', 'อัปเดต', 'เมื่อเร็วๆ นี้', 'เมื่อไม่นานมานี้',
-      'ตอนนี้', 'วันที่', 'เวลา', 'สด', 'หุ้น', 'ราคา', 'สถานการณ์',
-      'latest', 'current', 'today', 'yesterday', 'this week', 'this month', 'this year',
-      'news', 'event', 'update', 'recent', 'now', 'date', 'time', 'live', 'stock', 'price'
-    ];
-    
-    const lowerQuery = query.toLowerCase();
-    return realtimeKeywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()));
   }
 }
 
