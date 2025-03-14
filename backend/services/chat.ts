@@ -241,12 +241,9 @@ class ChatService {
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
     try {
-      // console.log('Getting context for:', {
-      //   query,
-      //   modelIdOrCollections,
-      //   hasImage: !!imageBase64
-      // });
-
+      let context = '';
+      
+      // ดึงข้อมูลจาก collections ก่อน
       const questionType = this.detectQuestionType(query);
       const promptTemplate = this.promptTemplates[questionType];
       
@@ -336,7 +333,6 @@ class ChatService {
       const MAX_CONTEXT_LENGTH = 6000; // Reduced from 8000 to avoid token limit errors
       
       // รวม context จากทุก collection ที่มี similarity score ผ่านเกณฑ์
-      let context = '';
       for (const result of contexts) {
         if (result && result.length > 0) {
           // If this single result is too large, truncate it
@@ -371,12 +367,28 @@ class ChatService {
         }
       }
       
-      // ถ้าไม่มีข้อมูลที่เกี่ยวข้องจาก collections หรือข้อมูลมีน้อยเกินไป
+      // ถ้าไม่มีข้อมูลที่เกี่ยวข้องหรือข้อมูลน้อยเกินไป
       if (!context || context.length < 100) {
-        // ค้นหาข้อมูลจากอินเทอร์เน็ต
-        const webResults = await webSearchService.searchWeb(query);
-        if (webResults) {
-          context += '\n\nWeb Search Results:\n' + webResults;
+        try {
+          // ค้นหาข้อมูลจากเว็บ
+          const webResults = await webSearchService.searchWeb(query);
+          
+          if (webResults) {
+            // เพิ่มผลการค้นหาเข้าไปในบริบท
+            context += '\n\nWeb Search Results:\n' + webResults;
+
+            // ดึงข้อมูลเพิ่มเติมจาก URL แรกที่ได้
+            const firstUrl = webResults.match(/Source: (https?:\/\/[^\s]+)/)?.[1];
+            if (firstUrl) {
+              const additionalContent = await webSearchService.scrapeWebContent(firstUrl);
+              if (additionalContent) {
+                context += '\n\nDetailed Content:\n' + additionalContent;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Web search failed:', error);
+          // ถ้าการค้นหาล้มเหลว ให้ใช้แค่ข้อมูลที่มีอยู่
         }
       }
 
