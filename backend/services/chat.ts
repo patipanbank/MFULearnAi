@@ -93,13 +93,6 @@ class ChatService {
      - When handling errors or issues, provide step-by-step troubleshooting
      - For data or statistics, specify the source and timeframe
   
-  5. Internet Search Integration:
-     - Use provided web search results to enhance your responses
-     - Always verify and cross-reference information from multiple sources
-     - Clearly indicate when information comes from web searches
-     - Be cautious with information from unreliable sources
-     - Summarize and present information in a clear, organized manner
-  
   Remember: Always prioritize accuracy and clarity in your responses while maintaining a helpful and educational approach.`;
 
   private readonly promptTemplates = {
@@ -240,19 +233,20 @@ class ChatService {
   }
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
-    try {
-      let context = '';
-      
-      // ดึงข้อมูลจาก collections ก่อน
-      const questionType = this.detectQuestionType(query);
-      const promptTemplate = this.promptTemplates[questionType];
-      
-      const collectionNames = await this.resolveCollections(modelIdOrCollections);
-      if (collectionNames.length === 0) {
-        console.error('No collections found for:', modelIdOrCollections);
-        return '';
-      }
+    // console.log('Getting context for:', {
+    //   query,
+    //   modelIdOrCollections,
+    //   hasImage: !!imageBase64
+    // });
 
+    const questionType = this.detectQuestionType(query);
+    const promptTemplate = this.promptTemplates[questionType];
+    
+    const collectionNames = await this.resolveCollections(modelIdOrCollections);
+    let context = '';
+
+    // ดึงข้อมูลจาก collections ก่อน
+    if (collectionNames.length > 0) {
       // console.log('Resolved collection names:', collectionNames);
       // console.log('Detected question type:', questionType);
 
@@ -333,6 +327,7 @@ class ChatService {
       const MAX_CONTEXT_LENGTH = 6000; // Reduced from 8000 to avoid token limit errors
       
       // รวม context จากทุก collection ที่มี similarity score ผ่านเกณฑ์
+      let context = '';
       for (const result of contexts) {
         if (result && result.length > 0) {
           // If this single result is too large, truncate it
@@ -366,37 +361,22 @@ class ChatService {
           context = context.substring(0, lastPeriodIndex + 1);
         }
       }
-      
-      // ถ้าไม่มีข้อมูลที่เกี่ยวข้องหรือข้อมูลน้อยเกินไป
-      if (!context || context.length < 100) {
-        try {
-          // ค้นหาข้อมูลจากเว็บ
-          const webResults = await webSearchService.searchWeb(query);
-          
-          if (webResults) {
-            // เพิ่มผลการค้นหาเข้าไปในบริบท
-            context += '\n\nWeb Search Results:\n' + webResults;
-
-            // ดึงข้อมูลเพิ่มเติมจาก URL แรกที่ได้
-            const firstUrl = webResults.match(/Source: (https?:\/\/[^\s]+)/)?.[1];
-            if (firstUrl) {
-              const additionalContent = await webSearchService.scrapeWebContent(firstUrl);
-              if (additionalContent) {
-                context += '\n\nDetailed Content:\n' + additionalContent;
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Web search failed:', error);
-          // ถ้าการค้นหาล้มเหลว ให้ใช้แค่ข้อมูลที่มีอยู่
-        }
-      }
-
-      return `${promptTemplate}\n\n${context}`;
-    } catch (error) {
-      console.error('Error getting context:', error);
-      return '';
     }
+
+    // ถ้าไม่มีข้อมูลหรือข้อมูลน้อยเกินไป ให้ค้นหาจากเว็บ
+    if (!context || context.length < 100) {
+      try {
+        const webResults = await webSearchService.searchWeb(query);
+        if (webResults) {
+          context += `\n\nAdditional information from web search:\n${webResults}`;
+        }
+      } catch (error) {
+        console.error('Error fetching web results:', error);
+        // ถ้าเกิดข้อผิดพลาดในการค้นหาเว็บ ให้ใช้แค่ context เดิม
+      }
+    }
+
+    return `${promptTemplate}\n\n${context}`;
   }
 
   private summarizeOldMessages(messages: ChatMessage[]): string {
@@ -785,6 +765,49 @@ class ChatService {
     chat.isPinned = !chat.isPinned;
     await chat.save();
     return chat;
+  }
+
+  // เพิ่มฟังก์ชันใหม่สำหรับประมวลผลข้อมูล
+  private processResults(results: CollectionQueryResult[]): string {
+    const MIN_COLLECTION_SIMILARITY = 0.4;
+    
+    const contexts = results
+      .filter(r => {
+        if (r.sources.length === 0) return false;
+        const maxSimilarity = Math.max(...r.sources.map(s => s.similarity));
+        return maxSimilarity >= MIN_COLLECTION_SIMILARITY;
+      })
+      .sort((a, b) => {
+        const aMaxSim = Math.max(...a.sources.map(s => s.similarity));
+        const bMaxSim = Math.max(...b.sources.map(s => s.similarity));
+        return bMaxSim - aMaxSim;
+      })
+      .map(r => r.context);
+
+    const MAX_CONTEXT_LENGTH = 6000;
+    let context = '';
+    
+    for (const result of contexts) {
+      if (result && result.length > 0) {
+        let resultToAdd = result;
+        if (resultToAdd.length > MAX_CONTEXT_LENGTH) {
+          resultToAdd = resultToAdd.substring(0, MAX_CONTEXT_LENGTH);
+          const lastPeriodIndex = resultToAdd.lastIndexOf('.');
+          const lastNewlineIndex = resultToAdd.lastIndexOf('\n');
+          const lastBreakIndex = Math.max(lastPeriodIndex, lastNewlineIndex);
+          if (lastBreakIndex > MAX_CONTEXT_LENGTH * 0.8) {
+            resultToAdd = resultToAdd.substring(0, lastBreakIndex + 1);
+          }
+        }
+        
+        if (context.length + resultToAdd.length > MAX_CONTEXT_LENGTH) {
+          break;
+        }
+        context += resultToAdd + '\n';
+      }
+    }
+
+    return context;
   }
 }
 
