@@ -145,7 +145,7 @@ const useChatWebSocket = ({
         wsRef.current.close();
       }
     };
-  }, [navigate, currentChatId, setCurrentChatId, setMessages]);
+  }, [navigate]);
 
   return wsRef;
 };
