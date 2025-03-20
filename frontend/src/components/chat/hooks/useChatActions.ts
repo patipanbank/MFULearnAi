@@ -3,6 +3,21 @@ import { useLocation } from 'react-router-dom';
 import { Message } from '../utils/types';
 import { compressImage, prepareMessageFiles, validateImageFile } from '../utils/fileProcessing';
 
+// Add a logger utility
+const logger = {
+  log: (message: string, data?: any) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[ChatActions] ${message}`, data || '');
+    }
+  },
+  error: (message: string, error?: any) => {
+    console.error(`[ChatActions] ${message}`, error || '');
+  },
+  warn: (message: string, data?: any) => {
+    console.warn(`[ChatActions] ${message}`, data || '');
+  }
+};
+
 interface UseChatActionsProps {
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -66,9 +81,19 @@ const useChatActions = ({
     e.preventDefault();
     if (!inputMessage.trim() && !isImageGenerationMode) return;
     if (!selectedModel) {
+      logger.error('No model selected when attempting to submit message');
       alert('Please select a model first');
       return;
     }
+
+    logger.log('Message submission started', { 
+      hasText: !!inputMessage.trim(), 
+      imageMode: isImageGenerationMode,
+      imageCount: selectedImages.length,
+      fileCount: selectedFiles.length,
+      modelId: selectedModel,
+      chatId: currentChatId
+    });
 
     // Re-enable auto-scrolling when sending a new message, but respect user's reading state
     if (!userScrolledManually) {
@@ -79,22 +104,27 @@ const useChatActions = ({
     try {
       const token = localStorage.getItem('auth_token');
       if (!token || !wsRef.current) {
+        logger.error('Not authenticated or WebSocket not connected');
         throw new Error('Not authenticated or WebSocket not connected');
       }
       
       // ตรวจสอบสถานะการเชื่อมต่อ WebSocket
       if (wsRef.current.readyState !== WebSocket.OPEN) {
+        logger.error('WebSocket connection not open', { readyState: wsRef.current.readyState });
         throw new Error('WebSocket connection not open');
       }
       
       // Process files if any
-      const messageFiles = selectedFiles.length > 0 
-        ? await prepareMessageFiles(selectedFiles)
-        : undefined;
+      let messageFiles;
+      if (selectedFiles.length > 0) {
+        logger.log('Processing files for upload', { count: selectedFiles.length });
+        messageFiles = await prepareMessageFiles(selectedFiles);
+      }
       
       // Process images if any
       let messageImages: { data: string; mediaType: string }[] = [];
       if (selectedImages.length > 0) {
+        logger.log('Processing images for upload', { count: selectedImages.length });
         messageImages = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
       }
       
@@ -110,6 +140,7 @@ const useChatActions = ({
       // Add user message to state
       const updatedMessages = [...messages, newMessage];
       setMessages(updatedMessages);
+      logger.log('User message added to state');
 
       // Add placeholder for AI response
       const assistantMessage: Message = {
@@ -125,6 +156,7 @@ const useChatActions = ({
         isComplete: false
       };
       setMessages([...updatedMessages, assistantMessage]);
+      logger.log('Assistant placeholder message added');
 
       // Send message to WebSocket
       const messagePayload = {
@@ -135,13 +167,15 @@ const useChatActions = ({
         chatId: currentChatId
       };
 
+      logger.log('Sending message payload to WebSocket');
       wsRef.current?.send(JSON.stringify(messagePayload));
 
       // Update usage immediately after sending message
       await fetchUsage();
+      logger.log('Message submission completed');
 
     } catch (error) {
-      console.error('Error in handleSubmit:', error);
+      logger.error('Error in handleSubmit', error);
       setMessages(prev => [...prev.slice(0, -1), {
         id: messages.length + 2,
         role: 'assistant',
@@ -166,9 +200,15 @@ const useChatActions = ({
   const handleContinueClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!selectedModel) {
+      logger.error('No model selected when attempting to continue conversation');
       alert('Please select a model first');
       return;
     }
+
+    logger.log('Continue conversation started', { 
+      modelId: selectedModel,
+      chatId: currentChatId
+    });
 
     // Re-enable auto-scrolling when continuing the conversation, but respect user's reading position
     if (!userScrolledManually) {
@@ -179,6 +219,7 @@ const useChatActions = ({
     try {
       const token = localStorage.getItem('auth_token');
       if (!token || !wsRef.current) {
+        logger.error('Not authenticated or WebSocket not connected for continue');
         throw new Error('Not authenticated or WebSocket not connected');
       }
 
@@ -211,6 +252,7 @@ const useChatActions = ({
       
       // Only add the assistant message to the UI
       setMessages([...messages, assistantMessage]);
+      logger.log('Assistant placeholder added for continue');
 
       // Send message to WebSocket with both messages
       const messagePayload = {
@@ -221,13 +263,15 @@ const useChatActions = ({
         chatId: currentChatId
       };
 
+      logger.log('Sending continue payload to WebSocket');
       wsRef.current?.send(JSON.stringify(messagePayload));
 
       // Update usage after sending the message
       fetchUsage();
+      logger.log('Continue request completed');
 
     } catch (error) {
-      console.error('Error in handleContinueClick:', error);
+      logger.error('Error in handleContinueClick', error);
       setMessages(prev => [...prev.slice(0, -1), {
         id: messages.length + 2,
         role: 'assistant',
@@ -248,44 +292,44 @@ const useChatActions = ({
   // Handle key press events
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
-      if (isMobile) {
-        return;
-      } else {
-        if (!e.shiftKey) {
-          e.preventDefault();
+      if (!e.shiftKey && !isMobile) {
+        e.preventDefault();
+        if (canSubmit()) {
           handleSubmit(e);
         }
       }
     }
   };
 
-  // Handle paste events to detect image pasting
+  // Handle paste events
   const handlePaste = async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
+    if (!items) return;
 
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.indexOf('image') !== -1) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file && validateImageFile(file)) {
+    logger.log('Paste event detected');
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          try {
+            await validateImageFile(file);
             setSelectedImages(prev => [...prev, file]);
+            logger.log('Image pasted and added', { filename: file.name, type: file.type });
+          } catch (error) {
+            logger.error('Image validation failed on paste', error);
+            alert(error instanceof Error ? error.message : 'Invalid image');
           }
-          break;
         }
       }
     }
   };
 
-  // Check if the submit button should be enabled
+  // Check if the user can submit a message
   const canSubmit = (): boolean => {
-    const hasText = inputMessage.trim().length > 0;
-    const hasFiles = selectedFiles.length > 0;
-    const hasImages = selectedImages.length > 0;
-    const hasModel = selectedModel !== '';
-    
-    return (hasText || hasFiles || hasImages) && hasModel && !location.pathname.includes('/chat');
+    if (isImageGenerationMode) {
+      return true;
+    }
+    return !!inputMessage.trim();
   };
 
   return {

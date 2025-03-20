@@ -103,6 +103,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   const extWs = ws as ExtendedWebSocket;
   extWs.isAlive = true;
   
+  console.log('New WebSocket connection attempt');
+  
   // Try to get token from URL parameters first
   const url = new URL(req.url!, `http://${req.headers.host}`);
   const urlToken = url.searchParams.get('token');
@@ -118,13 +120,13 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
     return /^[0-9a-fA-F]{24}$/.test(id);
   };
   
-  // console.log('Connection parameters:', {
-  //   fromUrl: !!urlToken,
-  //   fromHeader: !!headerToken,
-  //   finalToken: !!token,
-  //   chatId: urlChatId,
-  //   isValidChatId: urlChatId ? isValidObjectId(urlChatId) : false
-  // });
+  console.log('Connection parameters:', {
+    fromUrl: !!urlToken,
+    fromHeader: !!headerToken,
+    finalToken: !!token,
+    chatId: urlChatId,
+    isValidChatId: urlChatId ? isValidObjectId(urlChatId) : false
+  });
   
   if (!token) {
     console.error('No token found in either URL parameters or headers');
@@ -140,14 +142,14 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
     if (urlChatId) {
       if (isValidObjectId(urlChatId)) {
         extWs.chatId = urlChatId;
-        // console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${extWs.chatId}`);
+        console.log(`WebSocket client connected: ${extWs.userId}, chatId: ${extWs.chatId}`);
       } else {
         console.warn(`Invalid chatId format provided: ${urlChatId}, ignoring it`);
         // Don't set the chatId but allow connection to continue
-        // console.log(`WebSocket client connected: ${extWs.userId}, no valid chatId provided`);
+        console.log(`WebSocket client connected: ${extWs.userId}, no valid chatId provided`);
       }
     } else {
-      // console.log(`WebSocket client connected: ${extWs.userId}, no chatId provided`);
+      console.log(`WebSocket client connected: ${extWs.userId}, no chatId provided`);
     }
   } catch (error) {
     console.error('Invalid token in WebSocket connection:', error);
@@ -161,18 +163,20 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
     console.error(`WebSocket error for user ${extWs.userId}:`, error);
   });
 
-  extWs.on('close', () => {
-    // console.log(`WebSocket client disconnected: ${extWs.userId}`);
+  extWs.on('close', (code, reason) => {
+    console.log(`WebSocket client disconnected: ${extWs.userId}, code: ${code}, reason: ${reason || 'no reason provided'}`);
   });
 
   extWs.on('message', async (message: string) => {
     try {
       const data = JSON.parse(message.toString());
       const userId = extWs.userId;
+      console.log(`Message received from ${userId}, chat: ${extWs.chatId || 'new chat'}`);
 
       // ตรวจสอบ limit ก่อนประมวลผลคำถาม
       const hasRemaining = await usageService.checkUserLimit(userId!);
       if (!hasRemaining) {
+        console.log(`User ${userId} has exceeded daily usage limit`);
         extWs.send(JSON.stringify({
           type: 'error',
           error: 'You have used all your quota for today. Please wait until tomorrow.'
@@ -180,7 +184,15 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         return;
       }
 
-      // console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
+      console.log(`Message content structure:`, {
+        hasMessages: !!data.messages && Array.isArray(data.messages),
+        messageCount: data.messages?.length || 0,
+        modelId: data.modelId,
+        isImageGeneration: data.isImageGeneration,
+        path: data.path,
+        existingChatId: data.chatId,
+        wsStoredChatId: extWs.chatId
+      });
       
       const { messages, modelId, isImageGeneration, path, chatId } = data;
 
@@ -353,7 +365,7 @@ router.post('/', async (req: Request, res: Response) => {
       sendChunk('\nSorry, an error occurred. Please try again.');
     }
 
-    // console.log('Chat response completed');
+    console.log('Chat response completed');
     res.end();
   } catch (error) {
     console.error('Chat error details:', error);
