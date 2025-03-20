@@ -4,67 +4,80 @@ import { IoIosArrowDown } from "react-icons/io";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
 import { Model, Usage } from '../utils/types';
+import { validateImageFile } from '../utils/fileProcessing';
 
 interface ChatInputProps {
   inputMessage: string;
-  handleSubmit: () => void;
-  handleKeyDown: (e: React.KeyboardEvent) => void;
+  setInputMessage: (value: string) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handlePaste: (e: React.ClipboardEvent) => void;
-  isLoading: boolean;
   selectedImages: File[];
+  setSelectedImages: React.Dispatch<React.SetStateAction<File[]>>;
   selectedFiles: File[];
+  setSelectedFiles: React.Dispatch<React.SetStateAction<File[]>>;
+  isImageGenerationMode: boolean;
+  setIsImageGenerationMode: React.Dispatch<React.SetStateAction<boolean>>;
   models: Model[];
   selectedModel: string;
-  isImageGenerationMode: boolean;
-  canSubmit: boolean;
-  usage: Usage | null;
-  onInputChange: (value: string) => void;
-  onImagesChange: (files: File[]) => void;
-  onFilesChange: (files: File[]) => void;
-  onModelChange: (modelId: string) => void;
-  onImageGenerationModeChange: (enabled: boolean) => void;
+  setSelectedModel: (id: string) => void;
+  isLoading: boolean;
+  canSubmit: () => boolean;
   handleScrollToBottom: () => void;
   isNearBottom: boolean;
+  usage: Usage | null;
   isMobile: boolean;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
   inputMessage,
+  setInputMessage,
   handleSubmit,
   handleKeyDown,
   handlePaste,
   selectedImages,
+  setSelectedImages,
   selectedFiles,
+  setSelectedFiles,
+  isImageGenerationMode,
+  setIsImageGenerationMode,
   models,
   selectedModel,
-  isImageGenerationMode,
+  setSelectedModel,
   canSubmit,
-  usage,
-  onInputChange,
-  onImagesChange,
-  onFilesChange,
-  onModelChange,
-  onImageGenerationModeChange,
   handleScrollToBottom,
-  isNearBottom}) => {
+  isNearBottom,
+  usage,
+}) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    onImagesChange(files);
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputMessage(e.target.value);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    onFilesChange(files);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // ถ้าเป็นไฟล์รูปภาพ
+      if (e.target.id === 'image-upload') {
+        const validImages = Array.from(files).filter(validateImageFile);
+        setSelectedImages(prev => [...prev, ...validImages]);
+      } 
+      // ถ้าเป็นไฟล์เอกสาร
+      else if (e.target.id === 'document-upload') {
+        setSelectedFiles(prev => [...prev, ...Array.from(files)]);
+      }
+    }
+    // รีเซ็ต input เพื่อให้สามารถเลือกไฟล์เดิมซ้ำได้
+    e.target.value = '';
   };
 
   const handleRemoveImage = (index: number) => {
-    onImagesChange(selectedImages.filter((_, i) => i !== index));
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleRemoveFile = (index: number) => {
-    onFilesChange(selectedFiles.filter((_, i) => i !== index));
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   // Auto-resize textarea as user types
@@ -93,7 +106,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <textarea
               ref={textareaRef}
               value={inputMessage}
-              onChange={(e) => onInputChange(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               className="flex-1 min-w-0 p-2 text-sm md:text-base rounded-2xl border border-gray-300 dark:border-gray-600 
@@ -121,9 +134,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <button
               type="submit"
               className={`p-2 rounded-full transition-colors flex-shrink-0 ${
-                canSubmit ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                canSubmit() ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
-              disabled={!canSubmit}
+              disabled={!canSubmit()}
               data-verify="false"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,7 +152,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <ModelSelector 
                 models={models} 
                 selectedModel={selectedModel} 
-                setSelectedModel={onModelChange} 
+                setSelectedModel={setSelectedModel} 
               />
 
               {!isImageGenerationMode && (
@@ -149,7 +162,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     id="image-upload"
                     accept="image/*"
                     multiple
-                    onChange={handleImageUpload}
+                    onChange={handleFileSelect}
                     className="hidden"
                   />
                   <button
@@ -168,7 +181,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     type="file"
                     id="document-upload"
                     multiple
-                    onChange={handleFileUpload}
+                    onChange={handleFileSelect}
                     className="hidden"
                   />
                   <button
@@ -191,7 +204,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 ${
                     isImageGenerationMode ? 'bg-blue-100 dark:bg-blue-900' : ''
                   }`}
-                onClick={() => onImageGenerationModeChange(!isImageGenerationMode)}
+                onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

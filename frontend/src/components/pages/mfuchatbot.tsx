@@ -1,120 +1,128 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
+import useChatState from '../chat/hooks/useChatState';
 import useScrollManagement from '../chat/hooks/useScrollManagement';
 import useChatWebSocket from '../chat/hooks/useChatWebSocket';
 import useChatActions from '../chat/hooks/useChatActions';
-import useChatStore from '../../store/chatStore';
-import { config } from '../../config/config';
 
 const MFUChatbot: React.FC = () => {
+  // Get chat state from custom hook
   const {
     messages,
+    setMessages,
     inputMessage,
     setInputMessage,
     isLoading,
+    setIsLoading,
     isImageGenerationMode,
     setIsImageGenerationMode,
+    currentChatId,
+    setCurrentChatId,
+    isMobile,
     models,
-    setModels,
     selectedModel,
     setSelectedModel,
     selectedImages,
     setSelectedImages,
+    usage,
     selectedFiles,
     setSelectedFiles,
-    usage,
-  } = useChatStore();
+    fetchUsage
+  } = useChatState();
 
-  // Initialize WebSocket connection
-  useChatWebSocket();
-
-  // Get scroll management
+  // Get scroll management from custom hook
   const {
     messagesEndRef,
     chatContainerRef,
-  } = useScrollManagement();
+    isNearBottom,
+    setShouldAutoScroll,
+    handleScrollToBottom,
+    userScrolledManually,
+  } = useScrollManagement({ messages });
 
-  // Get chat actions
+  // Get WebSocket connection from custom hook
+  const wsRef = useChatWebSocket({
+    currentChatId,
+    setMessages,
+    setCurrentChatId,
+    fetchUsage,
+    userScrolledManually,
+    setShouldAutoScroll
+  });
+
+  // Get chat actions from custom hook
   const {
     handleSubmit,
     handleKeyDown,
     handlePaste,
     handleContinueClick,
     canSubmit
-  } = useChatActions();
-
-  // Fetch available models on mount
-  useEffect(() => {
-    const fetchModels = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) return;
-
-        const response = await fetch(`${config.apiUrl}/api/models`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setModels(data);
-          if (data.length > 0 && !selectedModel) {
-            setSelectedModel(data[0].id);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching models:', error);
-      }
-    };
-
-    fetchModels();
-  }, [setModels, setSelectedModel, selectedModel]);
+  } = useChatActions({
+    messages,
+    setMessages,
+    inputMessage,
+    setInputMessage,
+    selectedImages,
+    setSelectedImages,
+    selectedFiles,
+    setSelectedFiles,
+    selectedModel,
+    isImageGenerationMode,
+    currentChatId,
+    wsRef,
+    setIsLoading,
+    isMobile,
+    userScrolledManually,
+    setShouldAutoScroll,
+    fetchUsage
+  });
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
-      <div
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
-      >
-        {messages.length === 0 && <WelcomeMessage />}
-        
-        {messages.map((message, index) => (
-          <ChatBubble
-            key={index}
-            message={message}
-            isLastMessage={index === messages.length - 1}
-            isLoading={isLoading && index === messages.length - 1}
-            onContinueClick={handleContinueClick}
-            selectedModel={selectedModel}
-          />
-        ))}
-        
-        <div ref={messagesEndRef} />
+    <div className="flex flex-col h-full" ref={chatContainerRef}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
+        {messages.length === 0 ? (
+          <WelcomeMessage />
+        ) : (
+          <div className="space-y-6">
+            {messages.map((message, index) => (
+              <ChatBubble 
+                key={message.id}
+                message={message}
+                isLastMessage={index === messages.length - 1}
+                isLoading={isLoading}
+                onContinueClick={handleContinueClick}
+                selectedModel={selectedModel}
+              />
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
-      <ChatInput
+      <ChatInput 
         inputMessage={inputMessage}
+        setInputMessage={setInputMessage}
         handleSubmit={handleSubmit}
         handleKeyDown={handleKeyDown}
         handlePaste={handlePaste}
-        isLoading={isLoading}
         selectedImages={selectedImages}
+        setSelectedImages={setSelectedImages}
         selectedFiles={selectedFiles}
+        setSelectedFiles={setSelectedFiles}
+        isImageGenerationMode={isImageGenerationMode}
+        setIsImageGenerationMode={setIsImageGenerationMode}
         models={models}
         selectedModel={selectedModel}
-        isImageGenerationMode={isImageGenerationMode}
+        setSelectedModel={setSelectedModel}
+        isLoading={isLoading}
         canSubmit={canSubmit}
+        handleScrollToBottom={handleScrollToBottom}
+        isNearBottom={isNearBottom}
         usage={usage}
-        onInputChange={setInputMessage}
-        onImagesChange={setSelectedImages}
-        onFilesChange={setSelectedFiles}
-        onModelChange={setSelectedModel}
-        onImageGenerationModeChange={setIsImageGenerationMode} handleScrollToBottom={function (): void {
-          throw new Error('Function not implemented.');
-        } } isNearBottom={false} isMobile={false}      />
+        isMobile={isMobile}
+      />
     </div>
   );
 };
