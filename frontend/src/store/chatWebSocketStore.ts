@@ -156,7 +156,7 @@ export const useWebSocketStore = create<WebSocketState>((set, _get) => ({
 export const useChatWebSocketConnection = (userScrolledManually: boolean) => {
   const navigate = useNavigate();
   const wsRef = useRef<WebSocket | null>(null);
-  const { currentChatId } = useChatStore();
+  const { currentChatId, setCurrentChatId } = useChatStore();
   const { initializeWebSocket } = useWebSocketStore();
   const setShouldAutoScroll = useScrollStore(state => state.setShouldAutoScroll);
   
