@@ -49,7 +49,8 @@ const MFUChatbot: React.FC = () => {
     selectedModel,
     usage,
     setSelectedModel,
-    fetchUsage
+    fetchUsage,
+    fetchModels
   } = useModelStore();
   
   // Scrolling management
@@ -70,6 +71,11 @@ const MFUChatbot: React.FC = () => {
   useEffect(() => {
     initWebSocket();
   }, [initWebSocket]);
+  
+  // Fetch models when component mounts
+  useEffect(() => {
+    fetchModels();
+  }, [fetchModels]);
   
   // Update URL when currentChatId changes
   useEffect(() => {
