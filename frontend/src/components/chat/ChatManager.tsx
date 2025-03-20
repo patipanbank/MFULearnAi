@@ -176,15 +176,8 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
     
     try {
       setIsCreatingChat(true);
-      // Clear URL parameter to ensure we're starting fresh
-      const url = new URL(window.location.href);
-      url.searchParams.delete('chat');
-      window.history.pushState({}, '', url.toString());
-      
       await onCreateNewChat();
       await loadChats();
-    } catch (error) {
-      console.error('Error creating new chat:', error);
     } finally {
       setIsCreatingChat(false);
     }
