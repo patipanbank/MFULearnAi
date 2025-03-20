@@ -81,7 +81,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ message }) => {
               className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-600 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors"
               onClick={() => window.open(`data:${file.mediaType};base64,${file.data}`, '_blank')}
             >
-              <FileIcon type={file.mediaType} />
+              <FileIcon filename={file.name} />
               <div className="flex flex-col">
                 <span className="text-sm font-medium truncate">{file.name}</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</span>
