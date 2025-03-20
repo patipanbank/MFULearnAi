@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Message } from '../utils/types';
 import { compressImage, prepareMessageFiles, validateImageFile } from '../utils/fileProcessing';
@@ -44,6 +44,7 @@ const useChatActions = ({
 }: UseChatActionsProps) => {
   const location = useLocation();
   const processingRequestRef = useRef(false);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Prepare message for submission
   const prepareMessage = useCallback(async (content: string, isUserMessage: boolean = true) => {
@@ -71,10 +72,41 @@ const useChatActions = ({
     } as Message;
   }, [messages.length, selectedFiles, selectedImages, isImageGenerationMode]);
 
-  // Send message to server via WebSocket
-  const sendMessageToServer = useCallback((updatedMessages: Message[], _ontinuationMode: boolean = false) => {
+  // Check WebSocket connection
+  const ensureWebSocketConnection = useCallback(() => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket not connected');
+      console.log('WebSocket not connected, waiting...');
+      return false;
+    }
+    return true;
+  }, [wsRef]);
+
+  // Send message to server via WebSocket
+  const sendMessageToServer = useCallback((updatedMessages: Message[], continuationMode: boolean = false) => {
+    // If WebSocket not ready, retry a few times
+    if (!ensureWebSocketConnection()) {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+      
+      // Try again in 500ms
+      messageTimeoutRef.current = setTimeout(() => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          const messagePayload = {
+            messages: updatedMessages,
+            modelId: selectedModel,
+            isImageGeneration: isImageGenerationMode,
+            path: location.pathname,
+            chatId: currentChatId
+          };
+          wsRef.current.send(JSON.stringify(messagePayload));
+          console.log('Message sent after reconnection');
+        } else {
+          console.error('Failed to send message: WebSocket still not connected');
+        }
+      }, 500);
+      
+      return;
     }
     
     const messagePayload = {
@@ -85,8 +117,15 @@ const useChatActions = ({
       chatId: currentChatId
     };
 
+    console.log('Sending message payload:', {
+      messageCount: updatedMessages.length,
+      modelId: selectedModel,
+      isImageGeneration: isImageGenerationMode,
+      chatId: currentChatId || 'none'
+    });
+
     wsRef.current.send(JSON.stringify(messagePayload));
-  }, [wsRef, selectedModel, isImageGenerationMode, location.pathname, currentChatId]);
+  }, [wsRef, selectedModel, isImageGenerationMode, location.pathname, currentChatId, ensureWebSocketConnection]);
 
   // Handle submit function
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -110,8 +149,8 @@ const useChatActions = ({
 
     try {
       const token = localStorage.getItem('auth_token');
-      if (!token || !wsRef.current) {
-        throw new Error('Not authenticated or WebSocket not connected');
+      if (!token) {
+        throw new Error('Not authenticated');
       }
       
       // Create and add user message
@@ -122,6 +161,13 @@ const useChatActions = ({
       // Add placeholder for AI response
       const assistantMessage = await prepareMessage('', false);
       setMessages([...updatedMessages, assistantMessage]);
+
+      // Ensure WebSocket is connected before sending
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.log('WebSocket not connected, waiting before sending message...');
+        // Wait briefly for WebSocket to connect
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
       // Send message to WebSocket
       sendMessageToServer(updatedMessages);
@@ -189,8 +235,8 @@ const useChatActions = ({
 
     try {
       const token = localStorage.getItem('auth_token');
-      if (!token || !wsRef.current) {
-        throw new Error('Not authenticated or WebSocket not connected');
+      if (!token) {
+        throw new Error('Not authenticated');
       }
 
       // Creating a temporary message that won't be displayed
@@ -211,6 +257,13 @@ const useChatActions = ({
       
       // Only add the assistant message to the UI
       setMessages([...messages, assistantMessage]);
+
+      // Ensure WebSocket is connected before sending
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.log('WebSocket not connected, waiting before continuing...');
+        // Wait briefly for WebSocket to connect
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
       // Send message to WebSocket with both messages
       sendMessageToServer([...messages, continueMessage], true);
@@ -245,7 +298,8 @@ const useChatActions = ({
     prepareMessage,
     setMessages,
     sendMessageToServer,
-    fetchUsage
+    fetchUsage,
+    wsRef
   ]);
 
   // Handle key press events
@@ -295,6 +349,15 @@ const useChatActions = ({
       selectedFiles.length > 0
     );
   }, [inputMessage, selectedImages, selectedFiles, isImageGenerationMode]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     handleSubmit,

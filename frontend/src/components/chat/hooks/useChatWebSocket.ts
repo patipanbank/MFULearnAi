@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { Message } from '../utils/types';
 import { useNavigate } from 'react-router-dom';
 import { isValidObjectId } from '../utils/formatters';
@@ -22,10 +22,18 @@ const useChatWebSocket = ({
 }: UseWebSocketProps) => {
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
+  const reconnectAttemptRef = useRef<number>(0);
+  const maxReconnectAttempts = 3;
   
-  useEffect(() => {
+  // Create function to establish WebSocket connection
+  const connectWebSocket = useCallback(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) return;
+
+    // Close existing connection if open
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.close();
+    }
 
     const wsUrl = new URL(import.meta.env.VITE_WS_URL);
     wsUrl.searchParams.append('token', token);
@@ -38,7 +46,9 @@ const useChatWebSocket = ({
     wsRef.current = new WebSocket(wsUrl.toString());
 
     wsRef.current.onopen = () => {
-      // console.log('WebSocket connection established');
+      console.log('WebSocket connection established');
+      // Reset reconnect attempts on successful connection
+      reconnectAttemptRef.current = 0;
     };
 
     wsRef.current.onmessage = async (event) => {
@@ -61,6 +71,7 @@ const useChatWebSocket = ({
         switch (data.type) {
           case 'chat_created':
             // Just store the chatId, don't update URL yet
+            console.log('Chat created with ID:', data.chatId);
             setCurrentChatId(data.chatId);
             break;
 
@@ -114,6 +125,10 @@ const useChatWebSocket = ({
               } : msg
             ));
             break;
+
+          default:
+            console.log('Received unknown message type:', data.type);
+            break;
         }
 
         // อัพเดท usage หลังจากได้รับข้อความ
@@ -132,20 +147,38 @@ const useChatWebSocket = ({
       }
     };
 
-    wsRef.current.onclose = () => {
-      // console.log('WebSocket connection closed');
+    wsRef.current.onclose = (event) => {
+      console.log('WebSocket connection closed:', event.code, event.reason);
+      
+      // Attempt to reconnect unless closed intentionally
+      if (event.code !== 1000) {
+        if (reconnectAttemptRef.current < maxReconnectAttempts) {
+          reconnectAttemptRef.current++;
+          console.log(`Reconnect attempt ${reconnectAttemptRef.current}/${maxReconnectAttempts}`);
+          setTimeout(connectWebSocket, 1000 * reconnectAttemptRef.current);
+        } else {
+          console.error('Maximum WebSocket reconnect attempts reached');
+        }
+      }
     };
 
     wsRef.current.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
+  }, [currentChatId, navigate, setCurrentChatId, setMessages, userScrolledManually, setShouldAutoScroll, fetchUsage]);
 
+  // Set up WebSocket connection and clean up on unmount
+  useEffect(() => {
+    // Connect initially
+    connectWebSocket();
+    
+    // Clean up on component unmount
     return () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
+      if (wsRef.current) {
+        wsRef.current.close(1000, "Component unmounted");
       }
     };
-  }, [navigate, currentChatId, setCurrentChatId, setMessages]);
+  }, [connectWebSocket]);
 
   return wsRef;
 };
