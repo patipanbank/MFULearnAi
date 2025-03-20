@@ -4,7 +4,6 @@ import { IoIosArrowDown } from "react-icons/io";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
 import { Model, Usage } from '../utils/types';
-import { validateImageFile } from '../utils/fileProcessing';
 
 interface ChatInputProps {
   inputMessage: string;
@@ -50,13 +49,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
   canSubmit,
   handleScrollToBottom,
   isNearBottom,
-  usage,
-  isMobile
-}) => {
+  usage}) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [isModelDropdownOpen, setIsModelDropdownOpen] = React.useState(false);
-
+  
   useEffect(() => {
     autoResize();
   }, [inputMessage]);
