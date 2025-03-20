@@ -7,6 +7,7 @@ import useChatStore from '../../store/useChatStore';
 import useChatWebSocketStore from '../../store/useChatWebSocketStore';
 import useChatActionsStore from '../../store/useChatActionsStore';
 import { useScrollManagement } from '../../store/useScrollStore';
+import { Message } from '../chat/utils/types';
 
 const MFUChatbot: React.FC = () => {
   const location = useLocation();
@@ -128,7 +129,7 @@ const MFUChatbot: React.FC = () => {
           <WelcomeMessage />
         ) : (
           <div className="space-y-6">
-            {messages.map((message, index) => (
+            {messages.map((message: Message, index: number) => (
               <ChatBubble 
                 key={message.id}
                 message={message}

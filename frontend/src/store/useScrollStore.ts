@@ -22,7 +22,7 @@ interface ScrollState {
   checkIfNearBottom: () => boolean;
 }
 
-export const useScrollStore = create<ScrollState>((set, get) => ({
+export const useScrollStore = create<ScrollState>((set: any, get: any) => ({
   // State
   isNearBottom: true,
   shouldAutoScroll: true,
@@ -33,9 +33,9 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
   chatContainerRef: { current: null },
   
   // Actions
-  setIsNearBottom: (isNearBottom) => set({ isNearBottom }),
-  setShouldAutoScroll: (shouldAutoScroll) => set({ shouldAutoScroll }),
-  setUserScrolledManually: (userScrolledManually) => set({ userScrolledManually }),
+  setIsNearBottom: (isNearBottom: boolean) => set({ isNearBottom }),
+  setShouldAutoScroll: (shouldAutoScroll: boolean) => set({ shouldAutoScroll }),
+  setUserScrolledManually: (userScrolledManually: boolean) => set({ userScrolledManually }),
   
   handleScrollToBottom: () => {
     const { messagesEndRef } = get();
