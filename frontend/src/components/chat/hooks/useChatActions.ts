@@ -82,7 +82,7 @@ const useChatActions = ({
   }, [wsRef]);
 
   // Send message to server via WebSocket
-  const sendMessageToServer = useCallback((updatedMessages: Message[], _continuationMode: boolean = false) => {
+  const sendMessageToServer = useCallback((updatedMessages: Message[], continuationMode: boolean = false) => {
     // If WebSocket not ready, retry a few times
     if (!ensureWebSocketConnection()) {
       if (messageTimeoutRef.current) {
@@ -124,12 +124,10 @@ const useChatActions = ({
       chatId: currentChatId || 'none'
     });
 
-    if (wsRef.current) {
-      wsRef.current.send(JSON.stringify(messagePayload));
-    }
+    wsRef.current.send(JSON.stringify(messagePayload));
   }, [wsRef, selectedModel, isImageGenerationMode, location.pathname, currentChatId, ensureWebSocketConnection]);
 
-  // Handle submit function 
+  // Handle submit function
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
