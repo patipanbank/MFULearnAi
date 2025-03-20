@@ -3,47 +3,53 @@ import { RiImageAddFill, RiFileAddFill, RiCloseLine } from 'react-icons/ri';
 import { IoIosArrowDown } from "react-icons/io";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
-import { Model } from '../utils/types';
-import { useChatStateStore } from '../../../store/chatStateStore';
-import { useChatInputStore } from '../../../store/chatInputStore';
+import { Model, Usage } from '../utils/types';
+import { validateImageFile } from '../utils/fileProcessing';
 
 interface ChatInputProps {
+  inputMessage: string;
+  setInputMessage: (value: string) => void;
   handleSubmit: (e: React.FormEvent) => void;
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handlePaste: (e: React.ClipboardEvent) => void;
+  selectedImages: File[];
+  setSelectedImages: React.Dispatch<React.SetStateAction<File[]>>;
+  selectedFiles: File[];
+  setSelectedFiles: React.Dispatch<React.SetStateAction<File[]>>;
+  isImageGenerationMode: boolean;
+  setIsImageGenerationMode: React.Dispatch<React.SetStateAction<boolean>>;
   models: Model[];
+  selectedModel: string;
+  setSelectedModel: (id: string) => void;
+  isLoading: boolean;
+  canSubmit: () => boolean;
   handleScrollToBottom: () => void;
   isNearBottom: boolean;
+  usage: Usage | null;
+  isMobile: boolean;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
+  inputMessage,
+  setInputMessage,
   handleSubmit,
   handleKeyDown,
   handlePaste,
+  selectedImages,
+  setSelectedImages,
+  selectedFiles,
+  setSelectedFiles,
+  isImageGenerationMode,
+  setIsImageGenerationMode,
   models,
+  selectedModel,
+  setSelectedModel,
+  canSubmit,
   handleScrollToBottom,
   isNearBottom,
+  usage,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const {
-    inputMessage,
-    selectedImages,
-    selectedFiles,
-    isImageGenerationMode,
-    setInputMessage,
-    setIsImageGenerationMode,
-    addImages,
-    addFiles,
-    removeImage,
-    removeFile,
-    canSubmit
-  } = useChatInputStore();
-
-  const {  
-    usage, 
-    selectedModel,
-    setSelectedModel 
-  } = useChatStateStore();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
@@ -52,13 +58,26 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
+      // ถ้าเป็นไฟล์รูปภาพ
       if (e.target.id === 'image-upload') {
-        addImages(Array.from(files));
-      } else if (e.target.id === 'document-upload') {
-        addFiles(Array.from(files));
+        const validImages = Array.from(files).filter(validateImageFile);
+        setSelectedImages(prev => [...prev, ...validImages]);
+      } 
+      // ถ้าเป็นไฟล์เอกสาร
+      else if (e.target.id === 'document-upload') {
+        setSelectedFiles(prev => [...prev, ...Array.from(files)]);
       }
     }
+    // รีเซ็ต input เพื่อให้สามารถเลือกไฟล์เดิมซ้ำได้
     e.target.value = '';
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   // Auto-resize textarea as user types
@@ -222,7 +241,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   />
                   <button
                     type="button"
-                    onClick={() => removeImage(index)}
+                    onClick={() => handleRemoveImage(index)}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md"
                   >
                     <RiCloseLine className="h-4 w-4" />
@@ -236,15 +255,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
           {selectedFiles.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {selectedFiles.map((file, index) => (
-                <div key={index} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                  <FileIcon filename={file.name} />
-                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[150px]">
-                    {file.name}
-                  </span>
+                <div key={index} className="relative flex items-center p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                  <FileIcon type={file.type} />
+                  <span className="ml-2 text-xs truncate max-w-[150px]">{file.name}</span>
                   <button
                     type="button"
-                    onClick={() => removeFile(index)}
-                    className="text-gray-500 hover:text-red-500"
+                    onClick={() => handleRemoveFile(index)}
+                    className="ml-2 p-1 text-red-500 hover:text-red-700 rounded-full"
                   >
                     <RiCloseLine className="h-4 w-4" />
                   </button>

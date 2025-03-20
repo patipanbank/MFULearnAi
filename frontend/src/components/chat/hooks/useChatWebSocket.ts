@@ -1,129 +1,153 @@
 import { useEffect, useRef } from 'react';
+import { Message } from '../utils/types';
 import { useNavigate } from 'react-router-dom';
-import { useChatStateStore } from '../../../store/chatStateStore';
-import { useChatActionsStore } from '../../../store/chatActionsStore';
+import { isValidObjectId } from '../utils/formatters';
 
-export const useChatWebSocket = () => {
+interface UseWebSocketProps {
+  currentChatId: string | null;
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  setCurrentChatId: React.Dispatch<React.SetStateAction<string | null>>;
+  fetchUsage: () => Promise<void>;
+  userScrolledManually: boolean;
+  setShouldAutoScroll: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const useChatWebSocket = ({
+  currentChatId,
+  setMessages,
+  setCurrentChatId,
+  fetchUsage,
+  userScrolledManually,
+  setShouldAutoScroll
+}: UseWebSocketProps) => {
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
   
-  const {
-    messages,
-    currentChatId,
-    setMessages,
-    setCurrentChatId,
-    setIsLoading,
-    fetchUsage
-  } = useChatStateStore();
-  
-  const {
-    userScrolledManually,
-    setShouldAutoScroll,
-    setWsRef
-  } = useChatActionsStore();
-
-  // Initialize WebSocket connection
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
-    if (!token) {
-      console.error('No auth token found');
-      navigate('/login');
-      return;
-    }
+    if (!token) return;
 
-    const wsUrl = new URL(process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws');
+    const wsUrl = new URL(import.meta.env.VITE_WS_URL);
     wsUrl.searchParams.append('token', token);
     
-    if (currentChatId) {
-      wsUrl.searchParams.append('chatId', currentChatId);
+    // Only append chatId if it's a valid ObjectId
+    if (currentChatId && isValidObjectId(currentChatId)) {
+      wsUrl.searchParams.append('chat', currentChatId);
     }
     
-    const ws = new WebSocket(wsUrl.toString());
-    wsRef.current = ws;
-    setWsRef(ws);
+    wsRef.current = new WebSocket(wsUrl.toString());
 
-    ws.onopen = () => {
+    wsRef.current.onopen = () => {
       // console.log('WebSocket connection established');
     };
 
-    ws.onmessage = async (event) => {
+    wsRef.current.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
         
-        if (data.type === 'chatCreated') {
-          // Update chat ID in URL and state
-          const newChatId = data.chatId;
-          setCurrentChatId(newChatId);
-          
-          // Update URL without reloading the page
-          const url = new URL(window.location.href);
-          url.searchParams.set('chat', newChatId);
-          window.history.pushState({}, '', url.toString());
-          
+        if (data.error) {
+          console.error('Received error from WebSocket:', data.error);
+          setMessages(prev => prev.map((msg, index) => 
+            index === prev.length - 1 && msg.role === 'assistant' ? {
+              ...msg,
+              content: `Error: ${data.error}`,
+              isComplete: true
+            } : msg
+          ));
           return;
         }
-        
-        if (data.type === 'message') {
-          // Update existing messages
-          const updatedMessages = [...messages];
-          const lastMessage = updatedMessages[updatedMessages.length - 1];
-          
-          if (lastMessage && lastMessage.role === 'assistant' && !lastMessage.isComplete) {
-            updatedMessages[updatedMessages.length - 1] = {
-              ...lastMessage,
-              content: data.content,
-              images: data.images || [],
-              sources: data.sources || [],
-              isComplete: data.isComplete
-            };
-            
-            setMessages(updatedMessages);
-            
-            // Re-enable auto-scrolling after first message chunk if user hasn't scrolled manually
+
+        // Handle different message types
+        switch (data.type) {
+          case 'chat_created':
+            // Just store the chatId, don't update URL yet
+            setCurrentChatId(data.chatId);
+            break;
+
+          case 'content':
+            setMessages(prev => prev.map((msg, index) => 
+              index === prev.length - 1 && msg.role === 'assistant' ? {
+                ...msg,
+                content: msg.content + data.content
+              } : msg
+            ));
+            break;
+
+          case 'complete':
+            // Re-enable auto-scrolling when message is complete, but respect user's reading position
             if (!userScrolledManually) {
               setShouldAutoScroll(true);
             }
             
-            // Fetch usage stats when message completes
-            if (data.isComplete) {
-              fetchUsage();
+            setMessages(prev => {
+              const updatedMessages = prev.map((msg, index) => 
+                index === prev.length - 1 && msg.role === 'assistant' ? {
+                  ...msg,
+                  sources: data.sources || [],
+                  isComplete: true
+                } : msg
+              );
+              return updatedMessages;
+            });
+            
+            // Now that the response is complete, update URL with chatId
+            if (data.chatId) {
+              setCurrentChatId(data.chatId);
+              navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
+              window.dispatchEvent(new CustomEvent('chatUpdated'));
             }
-          }
+            break;
+
+          case 'chat_updated':
+            if (data.shouldUpdateList) {
+              window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+            }
+            break;
+
+          case 'error':
+            console.error('Error from server:', data.error);
+            setMessages(prev => prev.map((msg, index) => 
+              index === prev.length - 1 && msg.role === 'assistant' ? {
+                ...msg,
+                content: `Error: ${data.error}`,
+                isComplete: true
+              } : msg
+            ));
+            break;
+        }
+
+        // อัพเดท usage หลังจากได้รับข้อความ
+        if (data.type === 'complete') {
+          await fetchUsage();
         }
       } catch (error) {
-        console.error('Error processing WebSocket message:', error);
+        console.error('Error handling WebSocket message:', error);
+        setMessages(prev => prev.map((msg, index) => 
+          index === prev.length - 1 && msg.role === 'assistant' ? {
+            ...msg,
+            content: 'Error processing response. Please try again.',
+            isComplete: true
+          } : msg
+        ));
       }
     };
 
-    ws.onclose = () => {
+    wsRef.current.onclose = () => {
       // console.log('WebSocket connection closed');
-      setIsLoading(false);
     };
 
-    ws.onerror = (error) => {
+    wsRef.current.onerror = (error) => {
       console.error('WebSocket error:', error);
-      setIsLoading(false);
     };
 
     return () => {
-      ws.close();
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
     };
-  }, [
-    navigate, 
-    currentChatId, 
-    setCurrentChatId, 
-    messages, 
-    setMessages, 
-    userScrolledManually, 
-    setShouldAutoScroll, 
-    fetchUsage,
-    setIsLoading,
-    setWsRef
-  ]);
+  }, [navigate, currentChatId, setCurrentChatId, setMessages]);
 
-  return {
-    wsRef
-  };
+  return wsRef;
 };
 
 export default useChatWebSocket; 
