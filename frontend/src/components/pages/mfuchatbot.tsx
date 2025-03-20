@@ -1,84 +1,113 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
-import useChatState from '../chat/hooks/useChatState';
 import useScrollManagement from '../chat/hooks/useScrollManagement';
-import useChatWebSocket from '../chat/hooks/useChatWebSocket';
-import useChatActions from '../chat/hooks/useChatActions';
+import { useChatStore } from '../../store/chatStore';
+import { useModelStore } from '../../store/modelStore';
+import { useUIStore } from '../../store/uiStore';
 
 const MFUChatbot: React.FC = () => {
-  // Get chat state from custom hook
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Chat state from Zustand
   const {
     messages,
-    setMessages,
-    inputMessage,
-    setInputMessage,
-    isLoading,
-    setIsLoading,
-    isImageGenerationMode,
-    setIsImageGenerationMode,
     currentChatId,
-    setCurrentChatId,
-    isMobile,
-    models,
-    selectedModel,
-    setSelectedModel,
     selectedImages,
-    setSelectedImages,
-    usage,
     selectedFiles,
-    setSelectedFiles,
-    fetchUsage
-  } = useChatState();
-
-  // Get scroll management from custom hook
-  const {
-    messagesEndRef,
-    chatContainerRef,
-    isNearBottom,
-    setShouldAutoScroll,
-    handleScrollToBottom,
-    userScrolledManually,
-  } = useScrollManagement({ messages });
-
-  // Get WebSocket connection from custom hook
-  const wsRef = useChatWebSocket({
-    currentChatId,
-    setMessages,
+    setMessagesEndRef,
+    setChatContainerRef,
     setCurrentChatId,
-    fetchUsage,
-    userScrolledManually,
-    setShouldAutoScroll
-  });
-
-  // Get chat actions from custom hook
-  const {
+    initWebSocket,
+    loadChatHistory,
     handleSubmit,
     handleKeyDown,
     handlePaste,
     handleContinueClick,
+    handleFileSelect,
+    handleRemoveImage,
+    handleRemoveFile,
     canSubmit
-  } = useChatActions({
-    messages,
-    setMessages,
+  } = useChatStore();
+  
+  // UI state from Zustand
+  const {
+    isLoading,
+    isImageGenerationMode,
+    isMobile,
     inputMessage,
     setInputMessage,
-    selectedImages,
-    setSelectedImages,
-    selectedFiles,
-    setSelectedFiles,
+    setIsImageGenerationMode
+  } = useUIStore();
+  
+  // Model state from Zustand
+  const {
+    models,
     selectedModel,
-    isImageGenerationMode,
-    currentChatId,
-    wsRef,
-    setIsLoading,
-    isMobile,
-    userScrolledManually,
-    setShouldAutoScroll,
+    usage,
+    setSelectedModel,
     fetchUsage
-  });
-
+  } = useModelStore();
+  
+  // Scrolling management
+  const {
+    messagesEndRef,
+    chatContainerRef,
+    isNearBottom,
+    handleScrollToBottom,
+  } = useScrollManagement({ messages });
+  
+  // Set refs in the chat store
+  useEffect(() => {
+    setMessagesEndRef(messagesEndRef);
+    setChatContainerRef(chatContainerRef);
+  }, [messagesEndRef, chatContainerRef, setMessagesEndRef, setChatContainerRef]);
+  
+  // Initialize WebSocket when component mounts
+  useEffect(() => {
+    initWebSocket();
+  }, [initWebSocket]);
+  
+  // Update URL when currentChatId changes
+  useEffect(() => {
+    if (currentChatId) {
+      navigate(`/mfuchatbot?chat=${currentChatId}`, { replace: true });
+    }
+  }, [currentChatId, navigate]);
+  
+  // Load chat history from URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const chatId = urlParams.get('chat');
+    
+    if (chatId) {
+      loadChatHistory(chatId);
+    }
+  }, [location.search, loadChatHistory]);
+  
+  // Listen for chat updates
+  useEffect(() => {
+    const handleChatUpdated = (event: CustomEvent) => {
+      const { chatId } = event.detail || {};
+      if (chatId && chatId !== currentChatId) {
+        setCurrentChatId(chatId);
+      }
+    };
+    
+    window.addEventListener('chatUpdated', handleChatUpdated as EventListener);
+    return () => {
+      window.removeEventListener('chatUpdated', handleChatUpdated as EventListener);
+    };
+  }, [currentChatId, setCurrentChatId]);
+  
+  // Fetch usage data when component mounts
+  useEffect(() => {
+    fetchUsage();
+  }, [fetchUsage]);
+  
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
@@ -101,16 +130,17 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <ChatInput 
+      <ChatInput
         inputMessage={inputMessage}
         setInputMessage={setInputMessage}
         handleSubmit={handleSubmit}
         handleKeyDown={handleKeyDown}
         handlePaste={handlePaste}
         selectedImages={selectedImages}
-        setSelectedImages={setSelectedImages}
         selectedFiles={selectedFiles}
-        setSelectedFiles={setSelectedFiles}
+        handleFileSelect={handleFileSelect}
+        handleRemoveImage={handleRemoveImage}
+        handleRemoveFile={handleRemoveFile}
         isImageGenerationMode={isImageGenerationMode}
         setIsImageGenerationMode={setIsImageGenerationMode}
         models={models}
