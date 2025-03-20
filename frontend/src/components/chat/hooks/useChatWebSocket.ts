@@ -1,54 +1,41 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { config } from '../../../config/config';
+import useChatStore from '../../../store/chatStore';
 import { Message } from '../utils/types';
 import { useNavigate } from 'react-router-dom';
-import { isValidObjectId } from '../utils/formatters';
 
-interface UseWebSocketProps {
-  currentChatId: string | null;
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-  setCurrentChatId: React.Dispatch<React.SetStateAction<string | null>>;
-  fetchUsage: () => Promise<void>;
-  userScrolledManually: boolean;
-  setShouldAutoScroll: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-const useChatWebSocket = ({
-  currentChatId,
-  setMessages,
-  setCurrentChatId,
-  fetchUsage,
-  userScrolledManually,
-  setShouldAutoScroll
-}: UseWebSocketProps) => {
-  const wsRef = useRef<WebSocket | null>(null);
+const useChatWebSocket = () => {
+  const {
+    currentChatId,
+    setMessages,
+    setCurrentChatId,
+    userScrolledManually,
+    setShouldAutoScroll,
+    wsRef,
+    setWsRef,
+    setUsage
+  } = useChatStore();
   const navigate = useNavigate();
   
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
-    if (!token) return;
+    if (!token || !currentChatId) return;
 
-    const wsUrl = new URL(import.meta.env.VITE_WS_URL);
-    wsUrl.searchParams.append('token', token);
-    
-    // Only append chatId if it's a valid ObjectId
-    if (currentChatId && isValidObjectId(currentChatId)) {
-      wsUrl.searchParams.append('chat', currentChatId);
-    }
-    
-    wsRef.current = new WebSocket(wsUrl.toString());
+    const ws = new WebSocket(`${config.wsUrl}?token=${token}&chat_id=${currentChatId}`);
+    setWsRef(ws);
 
-    wsRef.current.onopen = () => {
+    ws.onopen = () => {
       // console.log('WebSocket connection established');
     };
 
-    wsRef.current.onmessage = async (event) => {
+    ws.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
         
         if (data.error) {
           console.error('Received error from WebSocket:', data.error);
-          setMessages(prev => prev.map((msg, index) => 
-            index === prev.length - 1 && msg.role === 'assistant' ? {
+          setMessages((prev: Message[]) => prev.map((msg: Message) => 
+            msg.role === 'assistant' && msg === prev[prev.length - 1] ? {
               ...msg,
               content: `Error: ${data.error}`,
               isComplete: true
@@ -61,12 +48,12 @@ const useChatWebSocket = ({
         switch (data.type) {
           case 'chat_created':
             // Just store the chatId, don't update URL yet
-            setCurrentChatId(data.chatId);
+            setCurrentChatId(data.chat_id);
             break;
 
           case 'content':
-            setMessages(prev => prev.map((msg, index) => 
-              index === prev.length - 1 && msg.role === 'assistant' ? {
+            setMessages((prev: Message[]) => prev.map((msg: Message) => 
+              msg.role === 'assistant' && msg === prev[prev.length - 1] ? {
                 ...msg,
                 content: msg.content + data.content
               } : msg
@@ -79,21 +66,18 @@ const useChatWebSocket = ({
               setShouldAutoScroll(true);
             }
             
-            setMessages(prev => {
-              const updatedMessages = prev.map((msg, index) => 
-                index === prev.length - 1 && msg.role === 'assistant' ? {
-                  ...msg,
-                  sources: data.sources || [],
-                  isComplete: true
-                } : msg
-              );
-              return updatedMessages;
-            });
+            setMessages((prev: Message[]) => prev.map((msg: Message) => 
+              msg.role === 'assistant' && msg === prev[prev.length - 1] ? {
+                ...msg,
+                sources: data.sources || [],
+                isComplete: true
+              } : msg
+            ));
             
             // Now that the response is complete, update URL with chatId
-            if (data.chatId) {
-              setCurrentChatId(data.chatId);
-              navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
+            if (data.chat_id) {
+              setCurrentChatId(data.chat_id);
+              navigate(`/mfuchatbot?chat=${data.chat_id}`, { replace: true });
               window.dispatchEvent(new CustomEvent('chatUpdated'));
             }
             break;
@@ -106,8 +90,8 @@ const useChatWebSocket = ({
 
           case 'error':
             console.error('Error from server:', data.error);
-            setMessages(prev => prev.map((msg, index) => 
-              index === prev.length - 1 && msg.role === 'assistant' ? {
+            setMessages((prev: Message[]) => prev.map((msg: Message) => 
+              msg.role === 'assistant' && msg === prev[prev.length - 1] ? {
                 ...msg,
                 content: `Error: ${data.error}`,
                 isComplete: true
@@ -116,14 +100,13 @@ const useChatWebSocket = ({
             break;
         }
 
-        // อัพเดท usage หลังจากได้รับข้อความ
-        if (data.type === 'complete') {
-          await fetchUsage();
+        if (data.type === 'complete' && data.usage) {
+          setUsage(data.usage);
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
-        setMessages(prev => prev.map((msg, index) => 
-          index === prev.length - 1 && msg.role === 'assistant' ? {
+        setMessages((prev: Message[]) => prev.map((msg: Message) => 
+          msg.role === 'assistant' && msg === prev[prev.length - 1] ? {
             ...msg,
             content: 'Error processing response. Please try again.',
             isComplete: true
@@ -132,20 +115,22 @@ const useChatWebSocket = ({
       }
     };
 
-    wsRef.current.onclose = () => {
+    ws.onclose = () => {
       // console.log('WebSocket connection closed');
+      setWsRef(null);
     };
 
-    wsRef.current.onerror = (error) => {
+    ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
 
     return () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
       }
+      setWsRef(null);
     };
-  }, [navigate, currentChatId, setCurrentChatId, setMessages]);
+  }, [navigate, currentChatId, setCurrentChatId, setMessages, userScrolledManually, setShouldAutoScroll, setWsRef, setUsage]);
 
   return wsRef;
 };

@@ -198,7 +198,7 @@ export const validateImageFile = (file: File): boolean => {
   return true;
 };
 
-export const prepareMessageFiles = async (files: File[]): Promise<MessageFile[]> => {
+export const prepareMessageFiles = async (files: File[], _selectedFiles: File[]): Promise<MessageFile[]> => {
   const messageFiles: MessageFile[] = [];
   
   for (const file of files) {
