@@ -546,10 +546,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { selectedModel } = useModelStore.getState();
     const { isLoading } = useUIStore.getState();
     
-    const hasText = inputMessage.trim().length > 0;
+    const hasText = inputMessage.trim() !== '';
     const hasFiles = selectedFiles.length > 0;
     const hasImages = selectedImages.length > 0;
     const hasModel = selectedModel !== '';
+    
+    console.log('canSubmit conditions:', { hasText, hasFiles, hasImages, hasModel, isLoading, selectedModel });
     
     return (hasText || hasFiles || hasImages) && hasModel && !isLoading;
   },

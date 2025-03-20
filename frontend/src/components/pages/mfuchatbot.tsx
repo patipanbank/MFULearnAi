@@ -74,8 +74,15 @@ const MFUChatbot: React.FC = () => {
   
   // Fetch models when component mounts
   useEffect(() => {
+    console.log('Fetching models...');
     fetchModels();
   }, [fetchModels]);
+  
+  // Debug selectedModel value when it changes
+  useEffect(() => {
+    console.log('Selected model:', selectedModel);
+    console.log('Available models:', models);
+  }, [selectedModel, models]);
   
   // Update URL when currentChatId changes
   useEffect(() => {
