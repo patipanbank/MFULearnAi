@@ -1,13 +1,19 @@
 import React, { useRef, useState } from 'react';
-import { Model } from '../utils/types';
+import { Model, Usage } from '../utils/types';
 
 interface ModelSelectorProps {
   models: Model[];
   selectedModel: string;
-  setSelectedModel: (id: string) => void;
+  onSelectModel: (id: string) => void;
+  usage?: Usage | null;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModel, setSelectedModel }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({ 
+  models, 
+  selectedModel, 
+  onSelectModel,
+  usage
+}) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +46,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModel, se
                   model.id === selectedModel ? 'bg-blue-100 dark:bg-blue-900' : ''
                 }`}
               onClick={() => {
-                setSelectedModel(model.id);
+                onSelectModel(model.id);
                 setIsDropdownOpen(false);
               }}
             >

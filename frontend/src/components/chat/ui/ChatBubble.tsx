@@ -4,22 +4,27 @@ import { Message } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
 import { formatMessageTime } from '../utils/formatters';
+import { useChatActionsStore } from '../../../store/chatActionsStore';
+import { useChatStore } from '../../../store/chatStore';
 
 interface ChatBubbleProps {
   message: Message;
   isLastMessage: boolean;
   isLoading: boolean;
-  onContinueClick: (e: React.MouseEvent) => void;
-  selectedModel: string;
+  selectedModel?: string;
 }
 
 const ChatBubble: React.FC<ChatBubbleProps> = ({ 
   message, 
   isLastMessage, 
-  isLoading, 
-  onContinueClick, 
-  selectedModel 
+  isLoading
 }) => {
+  // Get selected model from store
+  const selectedModel = useChatStore(state => state.selectedModel);
+  
+  // Get handleContinueClick from actions store
+  const handleContinueClick = useChatActionsStore(state => state.handleContinueClick);
+  
   return (
     <div className="message relative">
       <div className={`flex items-start gap-3 ${
@@ -42,22 +47,33 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             />
           )}
         </div>
-
-        <div className={`flex flex-col space-y-2 max-w-[80%] ${
-          message.role === 'user' ? 'items-end' : 'items-start'
-        }`}>
-          <div className="text-sm text-gray-500">
-            {formatMessageTime(message.timestamp)}
-          </div>
-          <div className={`rounded-lg p-3 ${
-            message.role === 'user'
+        
+        <div className={`flex-1 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+          <div className={`inline-block p-3 rounded-lg ${
+            message.role === 'user' 
               ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white'
           }`}>
-            {message.role === 'assistant' && message.content === '' && isLoading ? (
-              <LoadingDots />
-            ) : (
-              <MessageContent message={message} />
+            <MessageContent message={message} selectedModel={selectedModel} />
+            
+            {isLastMessage && message.role === 'assistant' && isLoading && (
+              <div className="mt-2">
+                <LoadingDots />
+              </div>
+            )}
+          </div>
+          
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {formatMessageTime(message.timestamp)}
+            
+            {isLastMessage && message.role === 'assistant' && message.isComplete && (
+              <button 
+                onClick={handleContinueClick}
+                className="ml-2 inline-flex items-center text-blue-500 hover:text-blue-700 transition-colors"
+              >
+                <VscDebugContinue className="mr-1" />
+                Continue
+              </button>
             )}
           </div>
         </div>
@@ -82,25 +98,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             View Sources ({message.sources.length})
-          </button>
-        </div>
-      )}
-
-      {/* Add Continue button after the last assistant message */}
-      {message.role === 'assistant' && message.isComplete && isLastMessage && (
-        <div className="ml-11 mt-2">
-          <button
-            type="button"
-            onClick={onContinueClick}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm ${
-              selectedModel ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-            disabled={!selectedModel}
-            title="Continue writing"
-            data-verify="false"
-          >
-            <VscDebugContinue className="h-4 w-4" />
-            <span>Continue</span>
           </button>
         </div>
       )}
