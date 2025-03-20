@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { config } from '../../../config/config';
 import { ChatHistory, Message, Model, Usage } from '../utils/types';
@@ -18,6 +18,28 @@ const useChatState = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  // Function to reset chat state for a new chat
+  const resetChatState = useCallback(() => {
+    // Clear messages
+    setMessages([]);
+    // Clear current chat ID
+    setCurrentChatId(null);
+    // Clear input
+    setInputMessage('');
+    // Clear selected files and images
+    setSelectedImages([]);
+    setSelectedFiles([]);
+    // Reset image generation mode
+    setIsImageGenerationMode(false);
+    // Reset loading state
+    setIsLoading(false);
+    
+    // Keep model selection
+    
+    // Clear chat parameter from URL
+    navigate('/mfuchatbot', { replace: true });
+  }, [navigate]);
 
   // Check if device is mobile
   useEffect(() => {
@@ -103,12 +125,13 @@ const useChatState = () => {
         const chatId = urlParams.get('chat');
         
         if (!chatId) {
+          resetChatState();
           return;
         }
 
         if (!isValidObjectId(chatId)) {
           console.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
-          navigate('/mfuchatbot', { replace: true });
+          resetChatState();
           return;
         }
 
@@ -149,11 +172,11 @@ const useChatState = () => {
         } else {
           const errorData = await response.text();
           console.error('Failed to load chat:', errorData);
-          navigate('/mfuchatbot', { replace: true });
+          resetChatState();
         }
       } catch (error) {
         console.error('Error loading chat history:', error);
-        navigate('/mfuchatbot', { replace: true });
+        resetChatState();
       }
     };
 
@@ -164,12 +187,7 @@ const useChatState = () => {
       loadChatHistory();
     } else {
       // Reset state for new chat but keep selected model
-      setMessages([]);
-      setCurrentChatId(null);
-      setInputMessage('');
-      setSelectedImages([]);
-      setSelectedFiles([]);
-      setIsImageGenerationMode(false);
+      resetChatState();
       
       // If no model is selected, set default model
       if (!selectedModel && models.length > 0) {
@@ -177,7 +195,7 @@ const useChatState = () => {
         setSelectedModel(defaultModel?.id || models[0].id);
       }
     }
-  }, [location.search, models, navigate]);
+  }, [location.search, models, navigate, resetChatState]);
 
   // Function to fetch usage
   const fetchUsage = async () => {
@@ -222,7 +240,8 @@ const useChatState = () => {
     usage,
     selectedFiles,
     setSelectedFiles,
-    fetchUsage
+    fetchUsage,
+    resetChatState
   };
 };
 

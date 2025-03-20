@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
@@ -29,7 +29,8 @@ const MFUChatbot: React.FC = () => {
     usage,
     selectedFiles,
     setSelectedFiles,
-    fetchUsage
+    fetchUsage,
+    resetChatState
   } = useChatState();
 
   // Get scroll management from custom hook
@@ -41,6 +42,11 @@ const MFUChatbot: React.FC = () => {
     handleScrollToBottom,
     userScrolledManually,
   } = useScrollManagement({ messages });
+
+  // Handle creating a new chat
+  const handleCreateNewChat = useCallback(() => {
+    resetChatState();
+  }, [resetChatState]);
 
   // Get WebSocket connection from custom hook
   const wsRef = useChatWebSocket({
@@ -83,7 +89,7 @@ const MFUChatbot: React.FC = () => {
     <div className="flex flex-col h-full" ref={chatContainerRef}>
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
         {messages.length === 0 ? (
-          <WelcomeMessage />
+          <WelcomeMessage onCreateNewChat={handleCreateNewChat} />
         ) : (
           <div className="space-y-6">
             {messages.map((message, index) => (
@@ -122,6 +128,7 @@ const MFUChatbot: React.FC = () => {
         isNearBottom={isNearBottom}
         usage={usage}
         isMobile={isMobile}
+        onCreateNewChat={handleCreateNewChat}
       />
     </div>
   );

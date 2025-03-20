@@ -27,6 +27,7 @@ interface ChatInputProps {
   isNearBottom: boolean;
   usage: Usage | null;
   isMobile: boolean;
+  onCreateNewChat?: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -48,6 +49,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   handleScrollToBottom,
   isNearBottom,
   usage,
+  onCreateNewChat,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -154,6 +156,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 selectedModel={selectedModel} 
                 setSelectedModel={setSelectedModel} 
               />
+
+              {onCreateNewChat && (
+                <button
+                  type="button"
+                  onClick={onCreateNewChat}
+                  className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">New Chat</span>
+                </button>
+              )}
 
               {!isImageGenerationMode && (
                 <>
