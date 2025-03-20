@@ -13,11 +13,11 @@ interface ChatInputProps {
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handlePaste: (e: React.ClipboardEvent) => void;
   selectedImages: File[];
-  setSelectedImages: React.Dispatch<React.SetStateAction<File[]>>;
+  setSelectedImages: (images: File[]) => void;
   selectedFiles: File[];
-  setSelectedFiles: React.Dispatch<React.SetStateAction<File[]>>;
+  setSelectedFiles: (files: File[]) => void;
   isImageGenerationMode: boolean;
-  setIsImageGenerationMode: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsImageGenerationMode: (isImageGeneration: boolean) => void;
   models: Model[];
   selectedModel: string;
   setSelectedModel: (id: string) => void;
@@ -61,11 +61,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
       // ถ้าเป็นไฟล์รูปภาพ
       if (e.target.id === 'image-upload') {
         const validImages = Array.from(files).filter(validateImageFile);
-        setSelectedImages(prev => [...prev, ...validImages]);
+        setSelectedImages([...selectedImages, ...validImages]);
       } 
       // ถ้าเป็นไฟล์เอกสาร
       else if (e.target.id === 'document-upload') {
-        setSelectedFiles(prev => [...prev, ...Array.from(files)]);
+        setSelectedFiles([...selectedFiles, ...Array.from(files)]);
       }
     }
     // รีเซ็ต input เพื่อให้สามารถเลือกไฟล์เดิมซ้ำได้
@@ -73,11 +73,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleRemoveImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setSelectedImages(selectedImages.filter((_, i) => i !== index));
   };
 
   const handleRemoveFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
   };
 
   // Auto-resize textarea as user types

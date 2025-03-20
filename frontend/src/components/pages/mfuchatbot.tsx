@@ -1,25 +1,24 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
-import useChatState from '../chat/hooks/useChatState';
-import useScrollManagement from '../chat/hooks/useScrollManagement';
-import useChatWebSocket from '../chat/hooks/useChatWebSocket';
-import useChatActions from '../chat/hooks/useChatActions';
+import useChatStore from '../../store/useChatStore';
+import useChatWebSocketStore from '../../store/useChatWebSocketStore';
+import useChatActionsStore from '../../store/useChatActionsStore';
+import { useScrollManagement } from '../../store/useScrollStore';
 
 const MFUChatbot: React.FC = () => {
-  // Get chat state from custom hook
+  const location = useLocation();
+  
+  // Get chat state from Zustand store
   const {
     messages,
-    setMessages,
     inputMessage,
     setInputMessage,
     isLoading,
-    setIsLoading,
     isImageGenerationMode,
     setIsImageGenerationMode,
-    currentChatId,
-    setCurrentChatId,
     isMobile,
     models,
     selectedModel,
@@ -29,10 +28,16 @@ const MFUChatbot: React.FC = () => {
     usage,
     selectedFiles,
     setSelectedFiles,
-    fetchUsage
-  } = useChatState();
+    fetchUsage,
+    fetchModels,
+    loadChatHistory,
+    checkIfMobile
+  } = useChatStore();
 
-  // Get scroll management from custom hook
+  // Initialize WebSocket connection
+  const { initializeWebSocket } = useChatWebSocketStore();
+
+  // Get scroll management from hook
   const {
     messagesEndRef,
     chatContainerRef,
@@ -42,42 +47,79 @@ const MFUChatbot: React.FC = () => {
     userScrolledManually,
   } = useScrollManagement({ messages });
 
-  // Get WebSocket connection from custom hook
-  const wsRef = useChatWebSocket({
-    currentChatId,
-    setMessages,
-    setCurrentChatId,
-    fetchUsage,
-    userScrolledManually,
-    setShouldAutoScroll
-  });
-
-  // Get chat actions from custom hook
+  // Get chat actions from store
   const {
-    handleSubmit,
-    handleKeyDown,
+    handleSubmit: originalHandleSubmit,
+    handleKeyDown: originalHandleKeyDown,
     handlePaste,
-    handleContinueClick,
+    handleContinueClick: originalHandleContinueClick,
     canSubmit
-  } = useChatActions({
-    messages,
-    setMessages,
-    inputMessage,
-    setInputMessage,
-    selectedImages,
-    setSelectedImages,
-    selectedFiles,
-    setSelectedFiles,
-    selectedModel,
-    isImageGenerationMode,
-    currentChatId,
-    wsRef,
-    setIsLoading,
-    isMobile,
-    userScrolledManually,
-    setShouldAutoScroll,
-    fetchUsage
-  });
+  } = useChatActionsStore();
+  
+  // Wrap the action handlers to pass the location
+  const handleSubmit = useCallback((e: React.FormEvent) => {
+    // Only force auto-scroll if user hasn't manually scrolled
+    if (!userScrolledManually) {
+      setShouldAutoScroll(true);
+    }
+    return originalHandleSubmit(e, location);
+  }, [originalHandleSubmit, location, setShouldAutoScroll, userScrolledManually]);
+  
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    return originalHandleKeyDown(e, location);
+  }, [originalHandleKeyDown, location]);
+  
+  const handleContinueClick = useCallback((e: React.MouseEvent) => {
+    // Only force auto-scroll if user hasn't manually scrolled
+    if (!userScrolledManually) {
+      setShouldAutoScroll(true);
+    }
+    return originalHandleContinueClick(e, location);
+  }, [originalHandleContinueClick, location, setShouldAutoScroll, userScrolledManually]);
+
+  // Auto-scroll effect for streaming messages
+  useEffect(() => {
+    // If the last message is from assistant and still loading (streaming)
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage && 
+      lastMessage.role === 'assistant' && 
+      !lastMessage.isComplete && 
+      !userScrolledManually
+    ) {
+      setShouldAutoScroll(true);
+    }
+  }, [messages, setShouldAutoScroll, userScrolledManually]);
+
+  // Initialize chat on mount
+  useEffect(() => {
+    // Check if device is mobile
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    
+    // Fetch models
+    fetchModels();
+    
+    // Fetch usage
+    fetchUsage();
+    
+    // Initialize WebSocket
+    initializeWebSocket();
+    
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+    };
+  }, [checkIfMobile, fetchModels, fetchUsage, initializeWebSocket]);
+
+  // Load chat history when URL changes
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const chatId = urlParams.get('chat');
+    
+    if (chatId) {
+      loadChatHistory(chatId);
+    }
+  }, [location.search, loadChatHistory]);
 
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
