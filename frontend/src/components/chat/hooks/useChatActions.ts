@@ -82,11 +82,6 @@ const useChatActions = ({
         throw new Error('Not authenticated or WebSocket not connected');
       }
       
-      // ตรวจสอบสถานะการเชื่อมต่อ WebSocket
-      if (wsRef.current.readyState !== WebSocket.OPEN) {
-        throw new Error('WebSocket connection not open');
-      }
-      
       // Process files if any
       const messageFiles = selectedFiles.length > 0 
         ? await prepareMessageFiles(selectedFiles)

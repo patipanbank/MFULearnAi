@@ -27,11 +27,6 @@ const useChatWebSocket = ({
     const token = localStorage.getItem('auth_token');
     if (!token) return;
 
-    // ปิดการเชื่อมต่อ WebSocket เดิมถ้ามี
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.close();
-    }
-
     const wsUrl = new URL(import.meta.env.VITE_WS_URL);
     wsUrl.searchParams.append('token', token);
     
@@ -150,7 +145,7 @@ const useChatWebSocket = ({
         wsRef.current.close();
       }
     };
-  }, [navigate, currentChatId, setCurrentChatId, setMessages, fetchUsage, userScrolledManually, setShouldAutoScroll]);
+  }, [navigate, currentChatId, setCurrentChatId, setMessages]);
 
   return wsRef;
 };
