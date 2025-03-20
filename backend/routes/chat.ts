@@ -322,7 +322,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 });
 
 router.post('/', async (req: Request, res: Response) => {
-  console.log('Received chat request');
+  // console.log('Received chat request');
 
   // 1. ส่ง headers ทันทีก่อนทำอย่างอื่น
   res.setHeader('Content-Type', 'text/event-stream');
@@ -332,7 +332,7 @@ router.post('/', async (req: Request, res: Response) => {
 
   // 2. ส่ง initial response เพื่อเริ่ม stream
   res.write(':\n\n');  // Keep-alive ping
-  console.log('Sent initial response');
+  // console.log('Sent initial response');
 
   try {
     const { messages, modelId, collectionName } = req.body;
@@ -348,16 +348,16 @@ router.post('/', async (req: Request, res: Response) => {
     // 4. ส่ง empty chunk เพื่อให้ frontend เริ่มอ่าน stream
     sendChunk('');
     
-    console.log('Starting response generation');
-    console.log('Starting generateResponse:', {
-       modelId,
-       collectionName,
-       messagesCount: messages.length,
-       query
-     });
+    // console.log('Starting response generation');
+    // console.log('Starting generateResponse:', {
+    //   modelId,
+    //   collectionName,
+    //   messagesCount: messages.length,
+    //   query
+    // });
     try {
       for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-        console.log('Sending chunk:', content);
+        // console.log('Sending chunk:', content);
         sendChunk(content);
       }
     } catch (error) {
