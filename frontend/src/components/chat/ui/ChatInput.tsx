@@ -1,9 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { RiImageAddFill, RiFileAddFill, RiCloseLine } from 'react-icons/ri';
 import { IoIosArrowDown } from "react-icons/io";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
-import { Model, Usage } from '../utils/types';
 import { validateImageFile } from '../utils/fileProcessing';
 import { useChatStore } from '../../../store/chatStore';
 import { useScrollStore } from '../../../store/scrollStore';
@@ -27,7 +26,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const selectedFiles = useChatStore(state => state.selectedFiles);
   const setSelectedFiles = useChatStore(state => state.setSelectedFiles);
   const isImageGenerationMode = useChatStore(state => state.isImageGenerationMode);
-  const setIsImageGenerationMode = useChatStore(state => state.setIsImageGenerationMode);
   const models = useChatStore(state => state.models);
   const selectedModel = useChatStore(state => state.selectedModel);
   const setSelectedModel = useChatStore(state => state.setSelectedModel);
@@ -200,6 +198,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   // Create a custom form event
                   const formEvent = { preventDefault: () => {}, currentTarget: { dataset: { userScrolledManually } } } as any;
                   handleSubmit(formEvent);
+
+                  console.log(e);
                 }}
                 disabled={!canSubmit()}
                 className={`ml-auto rounded-md px-4 py-1 font-medium ${

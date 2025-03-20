@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { config } from '../config/config';
 import { ChatHistory, Message, Model, Usage } from '../components/chat/utils/types';
 import { isValidObjectId } from '../components/chat/utils/formatters';
@@ -221,7 +221,6 @@ export const useChatStore = create<ChatState>((set, _get) => ({
 
 // Hook to initialize and manage the chat store based on route changes
 export const useChatStoreInitializer = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { 
     fetchModels, 

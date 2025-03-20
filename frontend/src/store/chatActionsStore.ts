@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { useRef, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useChatStore } from './chatStore';
 import { Message } from '../components/chat/utils/types';
 import { compressImage, prepareMessageFiles, validateImageFile } from '../components/chat/utils/fileProcessing';
@@ -326,9 +325,6 @@ export const useChatActions = () => {
     };
     autoResize();
   }, [inputMessage, textareaRef]);
-  
-  // Store the WebSocket reference in the window object for action handlers
-  const location = useLocation();
   
   return {
     handleSubmit,

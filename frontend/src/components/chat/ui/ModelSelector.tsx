@@ -12,7 +12,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   models, 
   selectedModel, 
   onSelectModel,
-  usage
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
