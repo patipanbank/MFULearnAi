@@ -1,10 +1,6 @@
 import React from 'react';
 
-interface WelcomeMessageProps {
-  onNewChat?: () => void;
-}
-
-const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ onNewChat }) => {
+const WelcomeMessage: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <div className="flex flex-col items-center justify-center mb-1">
@@ -39,12 +35,6 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ onNewChat }) => {
         </div>
       </div>
       <p className="text-gray-600 dark:text-gray-300 -mt-1">How can I help you today?</p>
-      <button 
-        onClick={onNewChat}
-        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-      >
-        Start New Chat
-      </button>
     </div>
   );
 };
