@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { Message, MessageFile } from '../utils/types';
 import { compressImage, validateImageFile } from '../utils/fileProcessing';
 import useChatStore from '../../../store/chatStore';
@@ -19,21 +19,9 @@ const useChatActions = () => {
     setIsLoading,
     isLoading
   } = useChatStore();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = useCallback(async () => {
-    // Clear any previous error
-    setErrorMessage(null);
-    
-    if (!wsRef) {
-      setErrorMessage('Connection to server is not established. Please refresh the page.');
-      return;
-    }
-    
-    if (wsRef.readyState !== WebSocket.OPEN) {
-      setErrorMessage('Connection to server is closed. Please refresh the page.');
-      return;
-    }
+    if (!wsRef || wsRef.readyState !== WebSocket.OPEN) return;
 
     const trimmedMessage = inputMessage.trim();
     if (!trimmedMessage && selectedImages.length === 0 && selectedFiles.length === 0) return;
@@ -43,29 +31,19 @@ const useChatActions = () => {
     try {
       // Process files
       const processedImages = await Promise.all(selectedImages.map(async (file) => {
-        try {
-          const compressed = await compressImage(file);
-          return compressed;
-        } catch (error) {
-          console.error(`Error compressing image ${file.name}:`, error);
-          throw new Error(`Could not process image: ${file.name}`);
-        }
+        const compressed = await compressImage(file);
+        return compressed;
       }));
 
       const processedFiles = await Promise.all(selectedFiles.map(async (file) => {
-        try {
-          const buffer = await file.arrayBuffer();
-          return {
-            name: file.name,
-            type: file.type,
-            data: Buffer.from(buffer).toString('base64'),
-            mediaType: file.type,
-            size: file.size
-          } as MessageFile;
-        } catch (error) {
-          console.error(`Error processing file ${file.name}:`, error);
-          throw new Error(`Could not process file: ${file.name}`);
-        }
+        const buffer = await file.arrayBuffer();
+        return {
+          name: file.name,
+          type: file.type,
+          data: Buffer.from(buffer).toString('base64'),
+          mediaType: file.type,
+          size: file.size
+        } as MessageFile;
       }));
 
       // Create message object
@@ -80,17 +58,6 @@ const useChatActions = () => {
 
       // Add message to state
       setMessages([...messages, newMessage]);
-
-      // Add empty assistant message for streaming response
-      const assistantMessage: Message = {
-        id: `${Date.now() + 1}`,
-        role: 'assistant',
-        content: '',
-        timestamp: { $date: new Date().toISOString() },
-        isComplete: false
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
 
       // Clear input and files
       setInputMessage('');
@@ -110,22 +77,6 @@ const useChatActions = () => {
     } catch (error) {
       console.error('Error sending message:', error);
       setIsLoading(false);
-      
-      // Show user-friendly error
-      if (error instanceof Error) {
-        setErrorMessage(`Error: ${error.message}`);
-      } else {
-        setErrorMessage('An unknown error occurred while sending your message.');
-      }
-      
-      // Remove the last assistant message if it was added
-      setMessages(prev => {
-        const lastMessage = prev[prev.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant' && !lastMessage.content) {
-          return prev.slice(0, -1);
-        }
-        return prev;
-      });
     }
   }, [
     wsRef,
@@ -184,8 +135,7 @@ const useChatActions = () => {
     handleKeyDown,
     handlePaste,
     handleContinueClick,
-    canSubmit,
-    errorMessage
+    canSubmit
   };
 };
 

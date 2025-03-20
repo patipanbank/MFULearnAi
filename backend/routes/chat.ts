@@ -563,20 +563,8 @@ router.route('/clear').delete(async (req: Request, res: Response): Promise<void>
 router.post('/chat', async (req, res) => {
   try {
     const { messages, modelId } = req.body;
-    const userId = (req.user as any)?.username;
+    const text = messages[messages.length - 1].content;
     
-    if (!userId) {
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
-    }
-    
-    if (!messages || !Array.isArray(messages)) {
-      res.status(400).json({ error: 'Invalid messages format' });
-      return;
-    }
-    
-    // Redirect to proper endpoint or implement logic here
-    res.redirect('/api/chat/history');
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error' });
