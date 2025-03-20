@@ -6,7 +6,6 @@ import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 interface SidebarProps {
   onClose?: () => void;
-  startNewChat?: () => void;
 }
 
 interface Message {
@@ -44,7 +43,7 @@ interface RenameState {
   error: string | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose, startNewChat }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
@@ -385,19 +384,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, startNewChat }) => {
           <div className="space-y-1">
             {/* New Chat with dropdown indicator */}
             <div className="relative">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (startNewChat) {
-                    startNewChat();
-                  } else {
-                    navigate('/mfuchatbot');
-                  }
-                  if (onClose) {
-                    onClose();
-                  }
-                }}
-                className={`flex items-center justify-between w-full px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+              <Link
+                to="/mfuchatbot"
+                className={`flex items-center justify-between px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
               >
                 <div className="flex items-center min-w-0 flex-1">
@@ -409,7 +398,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, startNewChat }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 )}
-              </button>
+              </Link>
 
               {/* Search Bar - only shown when more than 10 chats */}
               {sortedChats.length > 10 && (

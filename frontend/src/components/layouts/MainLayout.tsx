@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Header from '../header/header';
 import Sidebar from '../sidebar/sidebar';
 import { FaBars } from 'react-icons/fa';
-import { useChatFunctions } from '../pages/mfuchatbot';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -10,8 +9,6 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Try to get startNewChat from context if available
-  const chatFunctions = useChatFunctions();
 
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-900">
@@ -23,10 +20,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700
         `}
       >
-        <Sidebar 
-          onClose={() => setIsSidebarOpen(false)} 
-          startNewChat={chatFunctions?.startNewChat}
-        />
+        <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
       <div className="flex flex-col flex-1 w-full min-w-0">
