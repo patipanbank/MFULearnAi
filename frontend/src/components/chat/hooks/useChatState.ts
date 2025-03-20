@@ -4,21 +4,6 @@ import { config } from '../../../config/config';
 import { ChatHistory, Message, Model, Usage } from '../utils/types';
 import { isValidObjectId } from '../utils/formatters';
 
-// Add a logger utility
-const logger = {
-  log: (message: string, data?: any) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[Chat] ${message}`, data || '');
-    }
-  },
-  error: (message: string, error?: any) => {
-    console.error(`[Chat] ${message}`, error || '');
-  },
-  warn: (message: string, data?: any) => {
-    console.warn(`[Chat] ${message}`, data || '');
-  }
-};
-
 const useChatState = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,23 +32,21 @@ const useChatState = () => {
   // Fetch available models
   useEffect(() => {
     const fetchModels = async () => {
-      logger.log('Fetching available models');
       try {
         const token = localStorage.getItem('auth_token');
         if (!token) {
-          logger.error('No auth token found');
+          console.error('No auth token found');
           return;
         }
 
         // Validate token format
         const tokenParts = token.split('.');
         if (tokenParts.length !== 3) {
-          logger.error('Invalid token format');
+          console.error('Invalid token format');
           return;
         }
 
         // Fetch models from API
-        logger.log('Making API request to fetch models');
         const response = await fetch(`${config.apiUrl}/api/models`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -73,7 +56,7 @@ const useChatState = () => {
 
         if (!response.ok) {
           const errorText = await response.text();
-          logger.error(`Failed to fetch models: ${response.status}`, errorText);
+          console.error('Failed to fetch models:', response.status, errorText);
           
           if (response.status === 401) {
             localStorage.removeItem('auth_token');
@@ -85,7 +68,6 @@ const useChatState = () => {
         }
 
         const dbModels = await response.json();
-        logger.log('Models fetched successfully', dbModels);
         
         // Transform model data
         const allModels = dbModels.map((model: any) => ({
@@ -99,11 +81,10 @@ const useChatState = () => {
         // Set default model
         if (allModels.length > 0) {
           const defaultModel = allModels.find((model: any) => model.name === 'Default') || allModels[0];
-          logger.log('Setting default model', defaultModel);
           setSelectedModel(defaultModel.id);
         }
       } catch (error) {
-        logger.error('Error fetching models', error);
+        console.error('Error fetching models:', error);
         if (error instanceof Error) {
           alert(error.message);
         }
@@ -121,10 +102,7 @@ const useChatState = () => {
         const urlParams = new URLSearchParams(location.search);
         const chatId = urlParams.get('chat');
         
-        logger.log('Loading chat history', { chatId, pathname: location.pathname });
-        
         if (!chatId) {
-          logger.log('No chat ID in URL, starting new chat');
           // เมื่อไม่มี chatId ให้รีเซ็ต state ทั้งหมดยกเว้น selectedModel
           setMessages([]);
           setCurrentChatId(null);
@@ -136,29 +114,23 @@ const useChatState = () => {
           // เมื่อไม่มี model ที่เลือก ให้รอจนกว่า models จะโหลดเสร็จแล้วเลือก default
           if (!selectedModel && models.length > 0) {
             const defaultModel = models.find(model => model.name === 'Default');
-            logger.log('Setting default model from models list', { 
-              defaultModel: defaultModel?.name, 
-              modelId: defaultModel?.id
-            });
             setSelectedModel(defaultModel?.id || models[0].id);
           }
           return;
         }
 
         if (!isValidObjectId(chatId)) {
-          logger.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
+          console.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
           navigate('/mfuchatbot', { replace: true });
           return;
         }
 
         const token = localStorage.getItem('auth_token');
         if (!token) {
-          logger.error('No auth token found while loading chat history');
           navigate('/login');
           return;
         }
 
-        logger.log('Fetching chat history from API', { chatId });
         const response = await fetch(`${config.apiUrl}/api/chat/chats/${chatId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -167,17 +139,12 @@ const useChatState = () => {
 
         if (response.ok) {
           const chat: ChatHistory = await response.json();
-          logger.log('Chat history loaded successfully', { 
-            chatId: chat._id, 
-            messageCount: chat.messages?.length || 0 
-          });
           
           // Convert MongoDB ObjectId to string if necessary
           const chatIdString = typeof chat._id === 'string' ? chat._id : chat._id.$oid;
           setCurrentChatId(chatIdString);
           
           if (chat.modelId) {
-            logger.log('Setting model from chat history', { modelId: chat.modelId });
             setSelectedModel(chat.modelId);
           }
 
@@ -191,11 +158,10 @@ const useChatState = () => {
               isComplete: true
             }));
             setMessages(processedMessages);
-            logger.log('Messages loaded and processed', { count: processedMessages.length });
           }
         } else {
           const errorData = await response.text();
-          logger.error('Failed to load chat', errorData);
+          console.error('Failed to load chat:', errorData);
           // รีเซ็ต state เมื่อไม่สามารถโหลดแชทได้
           setMessages([]);
           setCurrentChatId(null);
@@ -205,7 +171,7 @@ const useChatState = () => {
           navigate('/mfuchatbot', { replace: true });
         }
       } catch (error) {
-        logger.error('Error loading chat history', error);
+        console.error('Error loading chat history:', error);
         // รีเซ็ต state เมื่อเกิดข้อผิดพลาด
         setMessages([]);
         setCurrentChatId(null);
@@ -222,7 +188,6 @@ const useChatState = () => {
   // Function to fetch usage
   const fetchUsage = async () => {
     try {
-      logger.log('Fetching usage data');
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${config.apiUrl}/api/chat/usage`, {
         headers: {
@@ -231,11 +196,10 @@ const useChatState = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        logger.log('Usage data fetched successfully', data);
         setUsage(data);
       }
     } catch (error) {
-      logger.error('Error fetching usage', error);
+      console.error('Error fetching usage:', error);
     }
   };
 
