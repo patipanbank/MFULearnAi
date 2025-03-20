@@ -124,6 +124,11 @@ const MFUChatbot: React.FC = () => {
     fetchUsage();
   }, [fetchUsage]);
   
+  // Update chatStore inputMessage when UIStore inputMessage changes
+  useEffect(() => {
+    useChatStore.getState().setInputMessage(inputMessage);
+  }, [inputMessage]);
+  
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
