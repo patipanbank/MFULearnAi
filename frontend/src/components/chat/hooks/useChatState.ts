@@ -95,89 +95,81 @@ const useChatState = () => {
     fetchModels();
   }, []);
 
-  // Load chat history when URL changes
-  useEffect(() => {
-    const loadChatHistory = async () => {
-      try {
+  // Load chat history from server
+  const loadChatHistory = async (chatId?: string | null) => {
+    try {
+      if (!chatId) {
         const urlParams = new URLSearchParams(location.search);
-        const chatId = urlParams.get('chat');
+        chatId = urlParams.get('chat');
+      }
+      
+      if (!chatId) {
+        return;
+      }
+
+      if (!isValidObjectId(chatId)) {
+        console.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
+        navigate('/mfuchatbot', { replace: true });
+        return;
+      }
+
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch(`${config.apiUrl}/api/chat/chats/${chatId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const chat: ChatHistory = await response.json();
         
-        if (!chatId) {
-          return;
+        // Convert MongoDB ObjectId to string if necessary
+        const chatIdString = typeof chat._id === 'string' ? chat._id : chat._id.$oid;
+        setCurrentChatId(chatIdString);
+        
+        if (chat.modelId) {
+          setSelectedModel(chat.modelId);
         }
 
-        if (!isValidObjectId(chatId)) {
-          console.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
-          navigate('/mfuchatbot', { replace: true });
-          return;
+        if (chat.messages && Array.isArray(chat.messages)) {
+          const processedMessages = chat.messages.map((msg) => ({
+            ...msg,
+            timestamp: msg.timestamp,
+            images: msg.images || [],
+            sources: msg.sources || [],
+            isImageGeneration: msg.isImageGeneration || false,
+            isComplete: true
+          }));
+          setMessages(processedMessages);
         }
-
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-          navigate('/login');
-          return;
-        }
-
-        const response = await fetch(`${config.apiUrl}/api/chat/chats/${chatId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const chat: ChatHistory = await response.json();
-          
-          // Convert MongoDB ObjectId to string if necessary
-          const chatIdString = typeof chat._id === 'string' ? chat._id : chat._id.$oid;
-          setCurrentChatId(chatIdString);
-          
-          if (chat.modelId) {
-            setSelectedModel(chat.modelId);
-          }
-
-          if (chat.messages && Array.isArray(chat.messages)) {
-            const processedMessages = chat.messages.map((msg) => ({
-              ...msg,
-              timestamp: msg.timestamp,
-              images: msg.images || [],
-              sources: msg.sources || [],
-              isImageGeneration: msg.isImageGeneration || false,
-              isComplete: true
-            }));
-            setMessages(processedMessages);
-          }
-        } else {
-          const errorData = await response.text();
-          console.error('Failed to load chat:', errorData);
-          navigate('/mfuchatbot', { replace: true });
-        }
-      } catch (error) {
-        console.error('Error loading chat history:', error);
+      } else {
+        const errorData = await response.text();
+        console.error('Failed to load chat:', errorData);
         navigate('/mfuchatbot', { replace: true });
       }
-    };
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+      navigate('/mfuchatbot', { replace: true });
+    }
+  };
 
+  // Load chat history when URL changes
+  useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const chatId = urlParams.get('chat');
 
     if (chatId) {
-      loadChatHistory();
+      loadChatHistory(chatId);
     } else {
-      // Reset state for new chat but keep selected model
-      setMessages([]);
-      setCurrentChatId(null);
-      setInputMessage('');
-      setSelectedImages([]);
-      setSelectedFiles([]);
-      setIsImageGenerationMode(false);
-      
-      // If no model is selected, set default model
-      if (!selectedModel && models.length > 0) {
-        const defaultModel = models.find(model => model.name === 'Default');
-        setSelectedModel(defaultModel?.id || models[0].id);
-      }
+      // Use the dedicated function to start a new chat
+      startNewChat();
     }
-  }, [location.search, models, navigate]);
+  }, [location.search]);
 
   // Function to fetch usage
   const fetchUsage = async () => {
@@ -197,15 +189,30 @@ const useChatState = () => {
     }
   };
 
-  // Check usage when component mounts
-  useEffect(() => {
-    fetchUsage();
-  }, []);
+  // Function to start a new chat
+  const startNewChat = () => {
+    // Reset state for new chat but keep selected model
+    setMessages([]);
+    setCurrentChatId(null);
+    setInputMessage('');
+    setSelectedImages([]);
+    setSelectedFiles([]);
+    setIsImageGenerationMode(false);
+    
+    // If no model is selected, set default model
+    if (!selectedModel && models.length > 0) {
+      const defaultModel = models.find(model => model.name === 'Default');
+      setSelectedModel(defaultModel?.id || models[0].id);
+    }
+    
+    // Update URL to remove any chat parameter
+    navigate('/mfuchatbot', { replace: true });
+  };
 
   return {
     messages,
     setMessages,
-    inputMessage, 
+    inputMessage,
     setInputMessage,
     isLoading,
     setIsLoading,
@@ -222,7 +229,8 @@ const useChatState = () => {
     usage,
     selectedFiles,
     setSelectedFiles,
-    fetchUsage
+    fetchUsage,
+    startNewChat
   };
 };
 
