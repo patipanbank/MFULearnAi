@@ -4,7 +4,6 @@ import { IoIosArrowDown } from "react-icons/io";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
 import { Model, Usage } from '../utils/types';
-import { formatFileSize } from '../utils/formatters';
 import { validateImageFile } from '../utils/fileProcessing';
 
 interface ChatInputProps {
@@ -45,12 +44,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
   models,
   selectedModel,
   setSelectedModel,
-  isLoading,
   canSubmit,
   handleScrollToBottom,
   isNearBottom,
   usage,
-  isMobile
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
