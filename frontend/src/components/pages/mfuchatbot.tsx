@@ -2,29 +2,82 @@ import React from 'react';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
-import { useChatStore, useChatStoreInitializer } from '../../store/chatStore';
-import { useScrollManagement } from '../../store/scrollStore';
-import { useChatActions } from '../../store/chatActionsStore';
+import useChatState from '../chat/hooks/useChatState';
+import useScrollManagement from '../chat/hooks/useScrollManagement';
+import useChatWebSocket from '../chat/hooks/useChatWebSocket';
+import useChatActions from '../chat/hooks/useChatActions';
 
 const MFUChatbot: React.FC = () => {
-  // Initialize chat store
-  useChatStoreInitializer();
-  
-  // Get chat state from Zustand store (using selective state to optimize renders)
-  const messages = useChatStore(state => state.messages);
-  const isLoading = useChatStore(state => state.isLoading);
+  // Get chat state from custom hook
+  const {
+    messages,
+    setMessages,
+    inputMessage,
+    setInputMessage,
+    isLoading,
+    setIsLoading,
+    isImageGenerationMode,
+    setIsImageGenerationMode,
+    currentChatId,
+    setCurrentChatId,
+    isMobile,
+    models,
+    selectedModel,
+    setSelectedModel,
+    selectedImages,
+    setSelectedImages,
+    usage,
+    selectedFiles,
+    setSelectedFiles,
+    fetchUsage
+  } = useChatState();
 
   // Get scroll management from custom hook
   const {
     messagesEndRef,
     chatContainerRef,
+    isNearBottom,
+    setShouldAutoScroll,
+    handleScrollToBottom,
     userScrolledManually,
-  } = useScrollManagement(messages);
+  } = useScrollManagement({ messages });
 
-  // Get chat actions
+  // Get WebSocket connection from custom hook
+  const wsRef = useChatWebSocket({
+    currentChatId,
+    setMessages,
+    setCurrentChatId,
+    fetchUsage,
+    userScrolledManually,
+    setShouldAutoScroll
+  });
+
+  // Get chat actions from custom hook
   const {
-    textareaRef
-  } = useChatActions();
+    handleSubmit,
+    handleKeyDown,
+    handlePaste,
+    handleContinueClick,
+    canSubmit
+  } = useChatActions({
+    messages,
+    setMessages,
+    inputMessage,
+    setInputMessage,
+    selectedImages,
+    setSelectedImages,
+    selectedFiles,
+    setSelectedFiles,
+    selectedModel,
+    isImageGenerationMode,
+    currentChatId,
+    wsRef,
+    setIsLoading,
+    isMobile,
+    userScrolledManually,
+    setShouldAutoScroll,
+    fetchUsage
+  });
 
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
@@ -39,6 +92,8 @@ const MFUChatbot: React.FC = () => {
                 message={message}
                 isLastMessage={index === messages.length - 1}
                 isLoading={isLoading}
+                onContinueClick={handleContinueClick}
+                selectedModel={selectedModel}
               />
             ))}
             <div ref={messagesEndRef} />
@@ -47,8 +102,26 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       <ChatInput 
-        textareaRef={textareaRef}
-        userScrolledManually={userScrolledManually}
+        inputMessage={inputMessage}
+        setInputMessage={setInputMessage}
+        handleSubmit={handleSubmit}
+        handleKeyDown={handleKeyDown}
+        handlePaste={handlePaste}
+        selectedImages={selectedImages}
+        setSelectedImages={setSelectedImages}
+        selectedFiles={selectedFiles}
+        setSelectedFiles={setSelectedFiles}
+        isImageGenerationMode={isImageGenerationMode}
+        setIsImageGenerationMode={setIsImageGenerationMode}
+        models={models}
+        selectedModel={selectedModel}
+        setSelectedModel={setSelectedModel}
+        isLoading={isLoading}
+        canSubmit={canSubmit}
+        handleScrollToBottom={handleScrollToBottom}
+        isNearBottom={isNearBottom}
+        usage={usage}
+        isMobile={isMobile}
       />
     </div>
   );
