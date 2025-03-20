@@ -85,7 +85,7 @@ const useChatStore = create<ChatState>((set: any, get: any) => ({
     
     // If no model is selected, set default model
     if (!selectedModel && models.length > 0) {
-      const defaultModel = models.find(model => model.name === 'Default');
+      const defaultModel = models.find((model: Model) => model.name === 'Default');
       set({ selectedModel: defaultModel?.id || models[0].id });
     }
   },
