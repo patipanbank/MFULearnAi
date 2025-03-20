@@ -22,15 +22,34 @@ const useChatWebSocket = () => {
   
   const connectWebSocket = () => {
     const token = localStorage.getItem('auth_token');
-    if (!token || !currentChatId) return null;
+    if (!token) {
+      console.error('Cannot connect WebSocket: No auth token');
+      return null;
+    }
+    
+    if (!currentChatId) {
+      console.error('Cannot connect WebSocket: No chat ID');
+      return null;
+    }
+    
+    // Validate MongoDB ObjectId format
+    const isValidObjectId = (id: string): boolean => {
+      return /^[0-9a-fA-F]{24}$/.test(id);
+    };
+    
+    if (!isValidObjectId(currentChatId)) {
+      console.error(`Cannot connect WebSocket: Invalid chat ID format: ${currentChatId}`);
+      return null;
+    }
 
+    console.log(`Connecting WebSocket with chat ID: ${currentChatId}`);
     const ws = new WebSocket(`${config.wsUrl}?token=${token}&chat_id=${currentChatId}`);
     setWsRef(ws);
 
     ws.onopen = () => {
       // Reset reconnect attempts on successful connection
       reconnectAttempts.current = 0;
-      // console.log('WebSocket connection established');
+      console.log('WebSocket connection established successfully');
     };
 
     ws.onmessage = async (event) => {

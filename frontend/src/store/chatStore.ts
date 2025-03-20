@@ -16,6 +16,7 @@ interface ChatState {
   userScrolledManually: boolean;
   shouldAutoScroll: boolean;
   wsRef: WebSocket | null;
+  isLoadingChat: boolean;
 
   // Actions
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
@@ -32,6 +33,7 @@ interface ChatState {
   setUserScrolledManually: (scrolled: boolean) => void;
   setShouldAutoScroll: (should: boolean) => void;
   setWsRef: (ws: WebSocket | null) => void;
+  setIsLoadingChat: (isLoading: boolean) => void;
   
   // Helper actions
   addMessage: (message: Message) => void;
@@ -55,6 +57,7 @@ const useChatStore = create<ChatState>((set) => ({
   userScrolledManually: false,
   shouldAutoScroll: true,
   wsRef: null,
+  isLoadingChat: false,
 
   // Basic setters
   setMessages: (messages) => set((state) => ({
@@ -73,6 +76,7 @@ const useChatStore = create<ChatState>((set) => ({
   setUserScrolledManually: (scrolled) => set({ userScrolledManually: scrolled }),
   setShouldAutoScroll: (should) => set({ shouldAutoScroll: should }),
   setWsRef: (ws) => set({ wsRef: ws }),
+  setIsLoadingChat: (isLoading) => set({ isLoadingChat: isLoading }),
 
   // Helper actions
   addMessage: (message) => set((state) => ({
