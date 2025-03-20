@@ -44,6 +44,16 @@ const useChatActions = ({
 }: UseChatActionsProps) => {
   const location = useLocation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear any existing timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   // Auto-resize textarea as user types
   useEffect(() => {
@@ -70,6 +80,12 @@ const useChatActions = ({
       return;
     }
 
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     // Re-enable auto-scrolling when sending a new message, but respect user's reading state
     if (!userScrolledManually) {
       setShouldAutoScroll(true);
@@ -78,8 +94,32 @@ const useChatActions = ({
 
     try {
       const token = localStorage.getItem('auth_token');
-      if (!token || !wsRef.current) {
-        throw new Error('Not authenticated or WebSocket not connected');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Check WebSocket connection
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.log('WebSocket not connected, reconnecting...');
+        const wsUrl = new URL(import.meta.env.VITE_WS_URL);
+        wsUrl.searchParams.append('token', token);
+        if (currentChatId) {
+          wsUrl.searchParams.append('chat', currentChatId);
+        }
+        wsRef.current = new WebSocket(wsUrl.toString());
+        
+        // Wait for connection to open
+        await new Promise((resolve, reject) => {
+          const connectTimeout = setTimeout(() => reject(new Error('WebSocket connection timeout')), 5000);
+          wsRef.current!.onopen = () => {
+            clearTimeout(connectTimeout);
+            resolve(true);
+          };
+          wsRef.current!.onerror = (error) => {
+            clearTimeout(connectTimeout);
+            reject(error);
+          };
+        });
       }
       
       // Process files if any
@@ -130,7 +170,23 @@ const useChatActions = ({
         chatId: currentChatId
       };
 
-      wsRef.current?.send(JSON.stringify(messagePayload));
+      wsRef.current.send(JSON.stringify(messagePayload));
+
+      // Set a timeout to handle potential response timeout
+      timeoutRef.current = setTimeout(() => {
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          if (lastMessage.role === 'assistant' && !lastMessage.isComplete) {
+            return [...prev.slice(0, -1), {
+              ...lastMessage,
+              content: lastMessage.content || 'No response received. The server might be busy. Please try again.',
+              isComplete: true
+            }];
+          }
+          return prev;
+        });
+        setIsLoading(false);
+      }, 60000); // 60 seconds timeout
 
       // Update usage immediately after sending message
       await fetchUsage();

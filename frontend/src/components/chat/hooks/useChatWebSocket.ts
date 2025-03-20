@@ -22,6 +22,8 @@ const useChatWebSocket = ({
 }: UseWebSocketProps) => {
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
+  const newChatIdRef = useRef<string | null>(null);
+  const hasNavigatedRef = useRef<boolean>(false);
   
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -36,6 +38,9 @@ const useChatWebSocket = ({
     }
     
     wsRef.current = new WebSocket(wsUrl.toString());
+    
+    // Reset navigation state when creating a new WebSocket
+    hasNavigatedRef.current = false;
 
     wsRef.current.onopen = () => {
       // console.log('WebSocket connection established');
@@ -60,8 +65,16 @@ const useChatWebSocket = ({
         // Handle different message types
         switch (data.type) {
           case 'chat_created':
-            // Just store the chatId, don't update URL yet
+            // Store the new chatId for later use
+            newChatIdRef.current = data.chatId;
             setCurrentChatId(data.chatId);
+            
+            // Update URL if we're creating a new chat and haven't navigated yet
+            if (!currentChatId && !hasNavigatedRef.current) {
+              hasNavigatedRef.current = true;
+              navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
+              window.dispatchEvent(new CustomEvent('chatUpdated'));
+            }
             break;
 
           case 'content':
@@ -90,9 +103,10 @@ const useChatWebSocket = ({
               return updatedMessages;
             });
             
-            // Now that the response is complete, update URL with chatId
-            if (data.chatId) {
+            // Now that the response is complete, update URL with chatId if not done already
+            if (data.chatId && !hasNavigatedRef.current) {
               setCurrentChatId(data.chatId);
+              hasNavigatedRef.current = true;
               navigate(`/mfuchatbot?chat=${data.chatId}`, { replace: true });
               window.dispatchEvent(new CustomEvent('chatUpdated'));
             }
