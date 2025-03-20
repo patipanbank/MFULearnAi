@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { config } from '../../../config/config';
 import useChatStore from '../../../store/chatStore';
 import { Message } from '../utils/types';
@@ -16,15 +16,20 @@ const useChatWebSocket = () => {
     setUsage
   } = useChatStore();
   const navigate = useNavigate();
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 5;
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  useEffect(() => {
+  const connectWebSocket = () => {
     const token = localStorage.getItem('auth_token');
-    if (!token || !currentChatId) return;
+    if (!token || !currentChatId) return null;
 
     const ws = new WebSocket(`${config.wsUrl}?token=${token}&chat_id=${currentChatId}`);
     setWsRef(ws);
 
     ws.onopen = () => {
+      // Reset reconnect attempts on successful connection
+      reconnectAttempts.current = 0;
       // console.log('WebSocket connection established');
     };
 
@@ -115,18 +120,39 @@ const useChatWebSocket = () => {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       // console.log('WebSocket connection closed');
       setWsRef(null);
+      
+      // Don't attempt to reconnect if we're closing cleanly (code 1000)
+      if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
+        const timeout = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
+        console.log(`WebSocket closed. Reconnecting in ${timeout/1000}s (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
+        
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectAttempts.current += 1;
+          connectWebSocket();
+        }, timeout);
+      }
     };
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
+    
+    return ws;
+  };
 
+  useEffect(() => {
+    const ws = connectWebSocket();
+    
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close(1000); // Clean close
       }
       setWsRef(null);
     };

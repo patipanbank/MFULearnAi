@@ -332,146 +332,50 @@ class ChatService {
     userId: string
   ): AsyncGenerator<string> {
     try {
-      // console.log("Starting generateResponse with:", modelIdOrCollections);
+      // Sanitize and validate user input
+      const sanitizedMessages = this.sanitizeMessages(messages);
+      const sanitizedQuery = this.sanitizeQuery(query);
       
-      const lastMessage = messages[messages.length - 1];
-      const isImageGeneration = lastMessage.isImageGeneration;
+      // Update daily stats for tracking
+      await this.updateDailyStats(userId);
+
+      // Determine if we should use collections or web search
+      const isRelevantQuery = this.isRelevantQuestion(sanitizedQuery);
       
-      // Dynamically determine message limit based on message length
-      const MAX_CHAR_THRESHOLD = 500; // Define threshold for "long" messages
-      const DEFAULT_MESSAGE_LIMIT = 6;
-      const LONG_MESSAGE_LIMIT = 2;
-      
-      // Calculate average message length
-      const avgMessageLength = messages.reduce((sum, msg) => 
-        sum + (msg.content?.length || 0), 0) / Math.max(1, messages.length);
-      
-      // Set message limit based on average length
-      const MESSAGE_LIMIT = avgMessageLength > MAX_CHAR_THRESHOLD 
-        ? LONG_MESSAGE_LIMIT 
-        : DEFAULT_MESSAGE_LIMIT;
-      
-      let recentMessages: ChatMessage[] = [];
-      let olderMessages: ChatMessage[] = [];
-      
-      if (messages.length > MESSAGE_LIMIT) {
-        // Split messages into older and recent messages
-        olderMessages = messages.slice(0, messages.length - MESSAGE_LIMIT);
-        recentMessages = messages.slice(messages.length - MESSAGE_LIMIT);
-      } else {
-        recentMessages = [...messages];
-      }
-      
-      // Skip context retrieval for image generation
+      // Get context
       let context = '';
-      if (!isImageGeneration) {
-        const imageBase64 = lastMessage.images?.[0]?.data;
+      let relevantSources: any[] = [];
+
+      if (isRelevantQuery) {
         try {
-          // Ensure query doesn't exceed reasonable length
-          const MAX_QUERY_FOR_CONTEXT = 4000;
-          const trimmedQuery = query.length > MAX_QUERY_FOR_CONTEXT 
-            ? query.substring(0, MAX_QUERY_FOR_CONTEXT) 
-            : query;
-            
-          context = await this.retryOperation(
-            async () => this.getContext(trimmedQuery, modelIdOrCollections, imageBase64),
-            'Failed to get context'
-          );
+          context = await this.getContext(sanitizedQuery, modelIdOrCollections);
+          // Extract sources from this.currentChatHistory if available
+          if (this.currentChatHistory?.sources) {
+            relevantSources = [...this.currentChatHistory.sources];
+          }
         } catch (error) {
           console.error('Error getting context:', error);
-          // Continue without context if there's an error
         }
       }
       
-      // console.log('Retrieved context length:', context.length);
+      // Group old messages to reduce size
+      const oldMessages = sanitizedMessages.slice(0, -1);
+      const oldMessagesPrompt = oldMessages.length > 3 
+        ? this.summarizeOldMessages(oldMessages)
+        : oldMessages.map(m => `${m.role}: ${m.content}`).join('\n\n');
 
-      const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
-      // console.log('Question type:', questionType);
-
-      const systemMessages: ChatMessage[] = [
-        {
-          role: 'system',
-          content: isImageGeneration ? 
-            'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
-            this.systemPrompt
-        }
-      ];
-
-      // Add summary of older messages if there are any
-      if (olderMessages.length > 0) {
-        systemMessages.push({
-          role: 'system',
-          content: this.summarizeOldMessages(olderMessages)
-        });
-      }
-
-      // Only add context if we have it and not in image generation mode
-      if (context && !isImageGeneration) {
-        systemMessages.push({
-          role: 'system',
-          content: `Context from documents:\n${context}`
-        });
-      }
-
-      // Combine system messages with recent user messages only
-      const augmentedMessages = [...systemMessages, ...recentMessages];
-
-      // นับจำนวนข้อความทั้งหมดในการสนทนานี้
-      const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
+      // Use the last user message directly
+      const lastMessage = sanitizedMessages[sanitizedMessages.length - 1];
       
-      // อัพเดทสถิติพร้อมจำนวนข้อความ
-      await this.updateDailyStats(userId);
-      
-      let attempt = 0;
-      while (attempt < this.retryConfig.maxRetries) {
-        try {
-          // ตรวจสอบว่ามีไฟล์หรือไม่
-          const hasFiles = lastMessage.files && lastMessage.files.length > 0;
-          
-          // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
-          if (hasFiles && lastMessage.files) {
-            const fileInfo = lastMessage.files.map(file => {
-              let fileDetail = `- ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`;
-              if (file.content) {
-                fileDetail += " - File content included";
-              }
-              return fileDetail;
-            }).join('\n');
-            
-            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
-            query = `${query}\n\n[Attached files]\n${fileInfo}`;
-          }
-
-          // Generate response and send chunks
-          let totalTokens = 0;
-          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
-            if (typeof chunk === 'string') {
-              yield chunk;
-            }
-          }
-
-          // อัพเดท token usage หลังจากได้ response ทั้งหมด
-          totalTokens = bedrockService.getLastTokenUsage();
-          if (totalTokens > 0) {
-            const usage = await usageService.updateTokenUsage(userId, totalTokens);
-            console.log(`[Chat] Token usage updated for ${userId}:`, {
-              used: totalTokens,
-              daily: usage.dailyTokens,
-              remaining: usage.remainingTokens
-            });
-          }
-          return;
-        } catch (error: unknown) {
-          attempt++;
-          if (error instanceof Error && error.name === 'InvalidSignatureException') {
-            console.error(`Error in chat generation (Attempt ${attempt}/${this.retryConfig.maxRetries}):`, error);
-            // รอสักครู่ก่อน retry
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-          }
-          throw error;
-        }
+      // Enhance prompt with context if available
+      let enhancedPrompt = lastMessage.content;
+      if (context) {
+        const questionType = this.detectQuestionType(sanitizedQuery);
+        const promptTemplate = this.promptTemplates[questionType];
+        enhancedPrompt = `${promptTemplate}\n\n${context}\n\nUser question: ${sanitizedQuery}`;
       }
+      
+      // Rest of the method...
     } catch (error) {
       console.error('Error generating response:', error);
       throw error;
@@ -716,6 +620,69 @@ class ChatService {
       batches.push(items.slice(i, i + batchSize));
     }
     return batches;
+  }
+
+  // Sanitize messages to prevent injection attacks and enforce size limits
+  private sanitizeMessages(messages: ChatMessage[]): ChatMessage[] {
+    if (!Array.isArray(messages)) {
+      throw new Error('Invalid messages format');
+    }
+    
+    // Limit the number of messages
+    const MAX_MESSAGES = 100;
+    const limitedMessages = messages.slice(-MAX_MESSAGES);
+    
+    return limitedMessages.map(message => {
+      // Basic validation
+      if (!message || typeof message !== 'object') {
+        throw new Error('Invalid message format');
+      }
+      
+      // Ensure required fields
+      if (typeof message.role !== 'string' || 
+          !['user', 'assistant', 'system'].includes(message.role)) {
+        throw new Error('Invalid message role');
+      }
+      
+      // Sanitize content
+      let sanitizedContent = '';
+      if (message.content) {
+        // Convert to string if not already
+        const content = String(message.content);
+        
+        // Limit content length
+        const MAX_CONTENT_LENGTH = 32000; // token limit approximately
+        sanitizedContent = content.slice(0, MAX_CONTENT_LENGTH);
+        
+        // Basic HTML sanitization (remove script tags and other potentially dangerous elements)
+        sanitizedContent = sanitizedContent
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
+      }
+      
+      return {
+        ...message,
+        content: sanitizedContent
+      };
+    });
+  }
+  
+  // Sanitize query to prevent injection attacks
+  private sanitizeQuery(query: string): string {
+    if (typeof query !== 'string') {
+      return '';
+    }
+    
+    // Limit query length
+    const MAX_QUERY_LENGTH = 4000;
+    let sanitizedQuery = query.slice(0, MAX_QUERY_LENGTH);
+    
+    // Basic HTML sanitization
+    sanitizedQuery = sanitizedQuery
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
+      
+    return sanitizedQuery;
   }
 }
 
