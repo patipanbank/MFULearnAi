@@ -103,6 +103,19 @@ const useChatState = () => {
         const chatId = urlParams.get('chat');
         
         if (!chatId) {
+          // เมื่อไม่มี chatId ให้รีเซ็ต state ทั้งหมดยกเว้น selectedModel
+          setMessages([]);
+          setCurrentChatId(null);
+          setInputMessage('');
+          setSelectedImages([]);
+          setSelectedFiles([]);
+          setIsImageGenerationMode(false);
+          
+          // เมื่อไม่มี model ที่เลือก ให้รอจนกว่า models จะโหลดเสร็จแล้วเลือก default
+          if (!selectedModel && models.length > 0) {
+            const defaultModel = models.find(model => model.name === 'Default');
+            setSelectedModel(defaultModel?.id || models[0].id);
+          }
           return;
         }
 
@@ -149,35 +162,28 @@ const useChatState = () => {
         } else {
           const errorData = await response.text();
           console.error('Failed to load chat:', errorData);
+          // รีเซ็ต state เมื่อไม่สามารถโหลดแชทได้
+          setMessages([]);
+          setCurrentChatId(null);
+          setInputMessage('');
+          setSelectedImages([]);
+          setSelectedFiles([]);
           navigate('/mfuchatbot', { replace: true });
         }
       } catch (error) {
         console.error('Error loading chat history:', error);
+        // รีเซ็ต state เมื่อเกิดข้อผิดพลาด
+        setMessages([]);
+        setCurrentChatId(null);
+        setInputMessage('');
+        setSelectedImages([]);
+        setSelectedFiles([]);
         navigate('/mfuchatbot', { replace: true });
       }
     };
 
-    const urlParams = new URLSearchParams(location.search);
-    const chatId = urlParams.get('chat');
-
-    if (chatId) {
-      loadChatHistory();
-    } else {
-      // Reset state for new chat but keep selected model
-      setMessages([]);
-      setCurrentChatId(null);
-      setInputMessage('');
-      setSelectedImages([]);
-      setSelectedFiles([]);
-      setIsImageGenerationMode(false);
-      
-      // If no model is selected, set default model
-      if (!selectedModel && models.length > 0) {
-        const defaultModel = models.find(model => model.name === 'Default');
-        setSelectedModel(defaultModel?.id || models[0].id);
-      }
-    }
-  }, [location.search, models, navigate]);
+    loadChatHistory();
+  }, [location.search, models, navigate, selectedModel]);
 
   // Function to fetch usage
   const fetchUsage = async () => {
