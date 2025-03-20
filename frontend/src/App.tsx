@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import MainLayout from './components/layouts/MainLayout';
 import MFUChatbot from './components/pages/mfuchatbot';
 import TrainingDashboard from './components/pages/TrainingDashboard';
@@ -13,20 +12,9 @@ import AdminLogin from './components/login/AdminLogin';
 import CreateAdmin from './components/pages/CreateAdmin';
 import Help from './components/pages/Help';
 import Statistics from './components/pages/Statistics';
-import useChatWebSocketStore from './store/useChatWebSocketStore';
  
+
 const App = () => {
-  const { initializeWebSocket } = useChatWebSocketStore();
-  
-  // Initialize WebSocket connection when the app starts
-  useEffect(() => {
-    // Check if user is authenticated before initializing WebSocket
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      initializeWebSocket();
-    }
-  }, [initializeWebSocket]);
-  
   return (
     <Router>
       <Routes>
