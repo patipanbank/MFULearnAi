@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { config } from '../../../config/config';
 import { ChatHistory, Message, Model, Usage } from '../utils/types';
@@ -18,6 +18,7 @@ const useChatState = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Check if device is mobile
   useEffect(() => {
@@ -29,71 +30,72 @@ const useChatState = () => {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  // Fetch available models
-  useEffect(() => {
-    const fetchModels = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-          console.error('No auth token found');
-          return;
-        }
-
-        // Validate token format
-        const tokenParts = token.split('.');
-        if (tokenParts.length !== 3) {
-          console.error('Invalid token format');
-          return;
-        }
-
-        // Fetch models from API
-        const response = await fetch(`${config.apiUrl}/api/models`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Failed to fetch models:', response.status, errorText);
-          
-          if (response.status === 401) {
-            localStorage.removeItem('auth_token');
-            window.location.href = '/login';
-            return;
-          }
-          
-          throw new Error(`Failed to fetch models: ${errorText}`);
-        }
-
-        const dbModels = await response.json();
-        
-        // Transform model data
-        const allModels = dbModels.map((model: any) => ({
-          id: model._id,
-          name: model.name,
-          modelType: model.modelType
-        }));
-
-        setModels(allModels);
-
-        // Set default model
-        if (allModels.length > 0) {
-          const defaultModel = allModels.find((model: any) => model.name === 'Default') || allModels[0];
-          setSelectedModel(defaultModel.id);
-        }
-      } catch (error) {
-        console.error('Error fetching models:', error);
-        if (error instanceof Error) {
-          alert(error.message);
-        }
-        setModels([]);
+  // Fetch available models - memoized to prevent unnecessary refetches
+  const fetchModels = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.error('No auth token found');
+        return;
       }
-    };
 
+      // Validate token format
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.error('Invalid token format');
+        return;
+      }
+
+      // Fetch models from API
+      const response = await fetch(`${config.apiUrl}/api/models`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch models:', response.status, errorText);
+        
+        if (response.status === 401) {
+          localStorage.removeItem('auth_token');
+          window.location.href = '/login';
+          return;
+        }
+        
+        throw new Error(`Failed to fetch models: ${errorText}`);
+      }
+
+      const dbModels = await response.json();
+      
+      // Transform model data
+      const allModels = dbModels.map((model: any) => ({
+        id: model._id,
+        name: model.name,
+        modelType: model.modelType
+      }));
+
+      setModels(allModels);
+
+      // Set default model only if not already set
+      if (allModels.length > 0 && !selectedModel) {
+        const defaultModel = allModels.find((model: any) => model.name === 'Default') || allModels[0];
+        setSelectedModel(defaultModel.id);
+      }
+    } catch (error) {
+      console.error('Error fetching models:', error);
+      if (error instanceof Error) {
+        alert(error.message);
+      }
+      setModels([]);
+    }
+  }, [selectedModel]);
+
+  // Load models on initial mount
+  useEffect(() => {
     fetchModels();
-  }, []);
+  }, [fetchModels]);
 
   // Load chat history when URL changes
   useEffect(() => {
@@ -103,6 +105,7 @@ const useChatState = () => {
         const chatId = urlParams.get('chat');
         
         if (!chatId) {
+          setIsInitialLoad(false);
           return;
         }
 
@@ -151,9 +154,12 @@ const useChatState = () => {
           console.error('Failed to load chat:', errorData);
           navigate('/mfuchatbot', { replace: true });
         }
+        
+        setIsInitialLoad(false);
       } catch (error) {
         console.error('Error loading chat history:', error);
         navigate('/mfuchatbot', { replace: true });
+        setIsInitialLoad(false);
       }
     };
 
@@ -176,13 +182,17 @@ const useChatState = () => {
         const defaultModel = models.find(model => model.name === 'Default');
         setSelectedModel(defaultModel?.id || models[0].id);
       }
+      
+      setIsInitialLoad(false);
     }
-  }, [location.search, models, navigate]);
+  }, [location.search, models, navigate, selectedModel]);
 
-  // Function to fetch usage
-  const fetchUsage = async () => {
+  // Function to fetch usage - memoized to prevent unnecessary recreations
+  const fetchUsage = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      
       const response = await fetch(`${config.apiUrl}/api/chat/usage`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -195,12 +205,23 @@ const useChatState = () => {
     } catch (error) {
       console.error('Error fetching usage:', error);
     }
-  };
+  }, []);
 
   // Check usage when component mounts
   useEffect(() => {
     fetchUsage();
-  }, []);
+  }, [fetchUsage]);
+
+  // Function to create a new empty chat
+  const createNewChat = useCallback(() => {
+    setMessages([]);
+    setCurrentChatId(null);
+    setInputMessage('');
+    setSelectedImages([]);
+    setSelectedFiles([]);
+    setIsImageGenerationMode(false);
+    navigate('/mfuchatbot', { replace: true });
+  }, [navigate]);
 
   return {
     messages,
@@ -222,7 +243,9 @@ const useChatState = () => {
     usage,
     selectedFiles,
     setSelectedFiles,
-    fetchUsage
+    fetchUsage,
+    createNewChat,
+    isInitialLoad
   };
 };
 

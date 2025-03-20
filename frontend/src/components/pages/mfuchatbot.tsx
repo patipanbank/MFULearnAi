@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
@@ -6,6 +6,7 @@ import useChatState from '../chat/hooks/useChatState';
 import useScrollManagement from '../chat/hooks/useScrollManagement';
 import useChatWebSocket from '../chat/hooks/useChatWebSocket';
 import useChatActions from '../chat/hooks/useChatActions';
+import LoadingDots from '../chat/ui/LoadingDots';
 
 const MFUChatbot: React.FC = () => {
   // Get chat state from custom hook
@@ -29,7 +30,9 @@ const MFUChatbot: React.FC = () => {
     usage,
     selectedFiles,
     setSelectedFiles,
-    fetchUsage
+    fetchUsage,
+    createNewChat,
+    isInitialLoad
   } = useChatState();
 
   // Get scroll management from custom hook
@@ -78,20 +81,33 @@ const MFUChatbot: React.FC = () => {
     setShouldAutoScroll,
     fetchUsage
   });
+  
+  // Automatically scroll to bottom when starting a new chat
+  useEffect(() => {
+    if (messages.length === 0) {
+      setTimeout(() => {
+        handleScrollToBottom();
+      }, 100);
+    }
+  }, [messages.length, handleScrollToBottom]);
 
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
-        {messages.length === 0 ? (
-          <WelcomeMessage />
+        {isInitialLoad ? (
+          <div className="flex justify-center items-center h-full">
+            <LoadingDots />
+          </div>
+        ) : messages.length === 0 ? (
+          <WelcomeMessage onNewChat={createNewChat} />
         ) : (
           <div className="space-y-6">
             {messages.map((message, index) => (
               <ChatBubble 
-                key={message.id}
+                key={`${message.id}-${index}`}
                 message={message}
                 isLastMessage={index === messages.length - 1}
-                isLoading={isLoading}
+                isLoading={isLoading && index === messages.length - 1 && message.role === 'assistant'}
                 onContinueClick={handleContinueClick}
                 selectedModel={selectedModel}
               />

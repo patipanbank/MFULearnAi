@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Message } from '../utils/types';
 import { compressImage, prepareMessageFiles, validateImageFile } from '../utils/fileProcessing';
@@ -43,32 +43,64 @@ const useChatActions = ({
   fetchUsage
 }: UseChatActionsProps) => {
   const location = useLocation();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const processingRequestRef = useRef(false);
 
-  // Auto-resize textarea as user types
-  useEffect(() => {
-    const autoResize = () => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.style.height = 'auto';
-        const lineHeight = 24;
-        const maxLines = 5;
-        const maxHeight = lineHeight * maxLines;
-        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
-        textarea.style.height = `${newHeight}px`;
-      }
+  // Prepare message for submission
+  const prepareMessage = useCallback(async (content: string, isUserMessage: boolean = true) => {
+    // Process files if any
+    const messageFiles = selectedFiles.length > 0 
+      ? await prepareMessageFiles(selectedFiles)
+      : undefined;
+    
+    // Process images if any
+    let messageImages: { data: string; mediaType: string }[] = [];
+    if (selectedImages.length > 0) {
+      messageImages = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
+    }
+    
+    return {
+      id: messages.length + (isUserMessage ? 1 : 2),
+      role: isUserMessage ? 'user' : 'assistant',
+      content: content,
+      timestamp: { $date: new Date().toISOString() },
+      files: isUserMessage ? messageFiles : undefined,
+      images: isUserMessage && messageImages.length > 0 ? messageImages : [],
+      sources: [],
+      isImageGeneration: isImageGenerationMode,
+      isComplete: isUserMessage ? true : false
+    } as Message;
+  }, [messages.length, selectedFiles, selectedImages, isImageGenerationMode]);
+
+  // Send message to server via WebSocket
+  const sendMessageToServer = useCallback((updatedMessages: Message[], _ontinuationMode: boolean = false) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket not connected');
+    }
+    
+    const messagePayload = {
+      messages: updatedMessages,
+      modelId: selectedModel,
+      isImageGeneration: isImageGenerationMode,
+      path: location.pathname,
+      chatId: currentChatId
     };
-    autoResize();
-  }, [inputMessage]);
+
+    wsRef.current.send(JSON.stringify(messagePayload));
+  }, [wsRef, selectedModel, isImageGenerationMode, location.pathname, currentChatId]);
 
   // Handle submit function
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent multiple simultaneous submissions
+    if (processingRequestRef.current) return;
     if (!inputMessage.trim() && !isImageGenerationMode) return;
     if (!selectedModel) {
       alert('Please select a model first');
       return;
     }
+
+    processingRequestRef.current = true;
 
     // Re-enable auto-scrolling when sending a new message, but respect user's reading state
     if (!userScrolledManually) {
@@ -82,55 +114,17 @@ const useChatActions = ({
         throw new Error('Not authenticated or WebSocket not connected');
       }
       
-      // Process files if any
-      const messageFiles = selectedFiles.length > 0 
-        ? await prepareMessageFiles(selectedFiles)
-        : undefined;
-      
-      // Process images if any
-      let messageImages: { data: string; mediaType: string }[] = [];
-      if (selectedImages.length > 0) {
-        messageImages = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
-      }
-      
-      const newMessage: Message = {
-        id: messages.length + 1,
-        role: 'user',
-        content: inputMessage,
-        timestamp: { $date: new Date().toISOString() },
-        files: messageFiles,
-        images: messageImages.length > 0 ? messageImages : undefined
-      };
-
-      // Add user message to state
+      // Create and add user message
+      const newMessage = await prepareMessage(inputMessage, true);
       const updatedMessages = [...messages, newMessage];
       setMessages(updatedMessages);
 
       // Add placeholder for AI response
-      const assistantMessage: Message = {
-        id: messages.length + 2,
-        role: 'assistant',
-        content: '',
-        timestamp: {
-          $date: new Date().toISOString()
-        },
-        images: [],
-        sources: [],
-        isImageGeneration: isImageGenerationMode,
-        isComplete: false
-      };
+      const assistantMessage = await prepareMessage('', false);
       setMessages([...updatedMessages, assistantMessage]);
 
       // Send message to WebSocket
-      const messagePayload = {
-        messages: updatedMessages,
-        modelId: selectedModel,
-        isImageGeneration: isImageGenerationMode,
-        path: location.pathname,
-        chatId: currentChatId
-      };
-
-      wsRef.current?.send(JSON.stringify(messagePayload));
+      sendMessageToServer(updatedMessages);
 
       // Update usage immediately after sending message
       await fetchUsage();
@@ -150,21 +144,43 @@ const useChatActions = ({
         isComplete: true
       }]);
     } finally {
+      processingRequestRef.current = false;
       setIsLoading(false);
       setInputMessage('');
       setSelectedImages([]);
       setSelectedFiles([]);
     }
-  };
+  }, [
+    inputMessage,
+    isImageGenerationMode,
+    selectedModel,
+    userScrolledManually,
+    setShouldAutoScroll,
+    setIsLoading,
+    messages,
+    setMessages,
+    prepareMessage,
+    sendMessageToServer,
+    fetchUsage,
+    setInputMessage,
+    setSelectedImages,
+    setSelectedFiles,
+    wsRef
+  ]);
 
   // Function to handle "Continue" button click
-  const handleContinueClick = (e: React.MouseEvent) => {
+  const handleContinueClick = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
+    
+    // Prevent multiple simultaneous continuation requests
+    if (processingRequestRef.current) return;
     if (!selectedModel) {
       alert('Please select a model first');
       return;
     }
 
+    processingRequestRef.current = true;
+    
     // Re-enable auto-scrolling when continuing the conversation, but respect user's reading position
     if (!userScrolledManually) {
       setShouldAutoScroll(true);
@@ -190,33 +206,14 @@ const useChatActions = ({
         isImageGeneration: false
       };
 
-      // Add placeholder for AI response without showing the user message
-      const assistantMessage: Message = {
-        id: messages.length + 2,
-        role: 'assistant',
-        content: '',
-        timestamp: {
-          $date: new Date().toISOString()
-        },
-        images: [],
-        sources: [],
-        isImageGeneration: false,
-        isComplete: false
-      };
+      // Add placeholder for AI response
+      const assistantMessage = await prepareMessage('', false);
       
       // Only add the assistant message to the UI
       setMessages([...messages, assistantMessage]);
 
       // Send message to WebSocket with both messages
-      const messagePayload = {
-        messages: [...messages, continueMessage],
-        modelId: selectedModel,
-        isImageGeneration: false,
-        path: location.pathname,
-        chatId: currentChatId
-      };
-
-      wsRef.current?.send(JSON.stringify(messagePayload));
+      sendMessageToServer([...messages, continueMessage], true);
 
       // Update usage after sending the message
       fetchUsage();
@@ -236,60 +233,75 @@ const useChatActions = ({
         isComplete: true
       }]);
     } finally {
+      processingRequestRef.current = false;
       setIsLoading(false);
     }
-  };
+  }, [
+    selectedModel,
+    userScrolledManually,
+    setShouldAutoScroll,
+    setIsLoading,
+    messages,
+    prepareMessage,
+    setMessages,
+    sendMessageToServer,
+    fetchUsage
+  ]);
 
   // Handle key press events
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       if (isMobile) {
         return;
       } else {
         if (!e.shiftKey) {
           e.preventDefault();
-          handleSubmit(e);
-        }
-      }
-    }
-  };
-
-  // Handle paste events to detect image pasting
-  const handlePaste = async (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.indexOf('image') !== -1) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file && validateImageFile(file)) {
-            setSelectedImages(prev => [...prev, file]);
+          if (!processingRequestRef.current) {
+            handleSubmit(e as unknown as React.FormEvent);
           }
-          break;
         }
       }
     }
-  };
+  }, [isMobile, handleSubmit]);
 
-  // Check if the submit button should be enabled
-  const canSubmit = (): boolean => {
-    const hasText = inputMessage.trim().length > 0;
-    const hasFiles = selectedFiles.length > 0;
-    const hasImages = selectedImages.length > 0;
-    const hasModel = selectedModel !== '';
+  // Handle paste events
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
     
-    return (hasText || hasFiles || hasImages) && hasModel && !location.pathname.includes('/chat');
-  };
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file && validateImageFile(file)) {
+          e.preventDefault();
+          setSelectedImages(prev => [...prev, file]);
+        }
+      }
+    }
+  }, [setSelectedImages]);
+
+  const canSubmit = useCallback((): boolean => {
+    // Can't submit if already processing a request
+    if (processingRequestRef.current) return false;
+    
+    // Allow submit with empty content for image generation
+    if (isImageGenerationMode) return true;
+    
+    // Need either text, images, or files to submit
+    return (
+      (inputMessage.trim().length > 0) || 
+      selectedImages.length > 0 || 
+      selectedFiles.length > 0
+    );
+  }, [inputMessage, selectedImages, selectedFiles, isImageGenerationMode]);
 
   return {
     handleSubmit,
     handleKeyDown,
     handlePaste,
     handleContinueClick,
-    canSubmit,
-    textareaRef
+    canSubmit
   };
 };
 
