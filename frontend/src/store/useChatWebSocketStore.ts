@@ -18,7 +18,7 @@ interface WebSocketState {
 const SOCKET_RECONNECT_ATTEMPTS = 5;
 const SOCKET_RECONNECT_DELAY = 2000;
 
-const useChatWebSocketStore = create<WebSocketState>((set: any, get: any) => ({
+const useChatWebSocketStore = create<WebSocketState>((set, get) => ({
   ws: null,
   isConnected: false,
   isReconnecting: false,
@@ -177,7 +177,7 @@ const useChatWebSocketStore = create<WebSocketState>((set: any, get: any) => ({
     }
   },
   
-  sendMessage: (messages: Message[], modelId: string, isImageGeneration: boolean, path: string, chatId: string | null) => {
+  sendMessage: (messages, modelId, isImageGeneration, path, chatId) => {
     const { ws, isConnected } = get();
     const chatStore = useChatStore.getState();
     

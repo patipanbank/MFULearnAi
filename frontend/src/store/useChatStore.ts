@@ -38,7 +38,7 @@ interface ChatState {
   resetChat: () => void;
 }
 
-const useChatStore = create<ChatState>((set: any, get: any) => ({
+const useChatStore = create<ChatState>((set, get) => ({
   // Initial state
   messages: [],
   inputMessage: '',
@@ -53,17 +53,17 @@ const useChatStore = create<ChatState>((set: any, get: any) => ({
   selectedFiles: [],
 
   // Basic state setters
-  setMessages: (messages: Message[]) => set({ messages }),
-  setInputMessage: (inputMessage: string) => set({ inputMessage }),
-  setIsLoading: (isLoading: boolean) => set({ isLoading }),
-  setIsImageGenerationMode: (isImageGenerationMode: boolean) => set({ isImageGenerationMode }),
-  setCurrentChatId: (currentChatId: string | null) => set({ currentChatId }),
-  setIsMobile: (isMobile: boolean) => set({ isMobile }),
-  setModels: (models: Model[]) => set({ models }),
-  setSelectedModel: (selectedModel: string) => set({ selectedModel }),
-  setSelectedImages: (selectedImages: File[]) => set({ selectedImages }),
-  setUsage: (usage: Usage | null) => set({ usage }),
-  setSelectedFiles: (selectedFiles: File[]) => set({ selectedFiles }),
+  setMessages: (messages) => set({ messages }),
+  setInputMessage: (inputMessage) => set({ inputMessage }),
+  setIsLoading: (isLoading) => set({ isLoading }),
+  setIsImageGenerationMode: (isImageGenerationMode) => set({ isImageGenerationMode }),
+  setCurrentChatId: (currentChatId) => set({ currentChatId }),
+  setIsMobile: (isMobile) => set({ isMobile }),
+  setModels: (models) => set({ models }),
+  setSelectedModel: (selectedModel) => set({ selectedModel }),
+  setSelectedImages: (selectedImages) => set({ selectedImages }),
+  setUsage: (usage) => set({ usage }),
+  setSelectedFiles: (selectedFiles) => set({ selectedFiles }),
 
   // Check if device is mobile
   checkIfMobile: () => {
@@ -142,7 +142,7 @@ const useChatStore = create<ChatState>((set: any, get: any) => ({
       if (allModels.length > 0) {
         const { selectedModel } = get();
         if (!selectedModel) {
-          const defaultModel = allModels.find((model: Model) => model.name === 'Default') || allModels[0];
+          const defaultModel = allModels.find((model: any) => model.name === 'Default') || allModels[0];
           set({ selectedModel: defaultModel.id });
         }
       }

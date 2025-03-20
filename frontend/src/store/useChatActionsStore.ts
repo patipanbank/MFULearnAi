@@ -15,7 +15,7 @@ interface ChatActionsState {
   canSubmit: () => boolean;
 }
 
-const useChatActionsStore = create<ChatActionsState>((_set: any, get: any) => ({
+const useChatActionsStore = create<ChatActionsState>((_set, get) => ({
   handleSubmit: async (e: React.FormEvent, location: { pathname: string }) => {
     e.preventDefault();
     

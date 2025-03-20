@@ -11,9 +11,7 @@
     "mongoose": "^8.9.3",
     "react-router-dom": "^7.1.1",
     "react-syntax-highlighter": "^15.6.1",
-    "react-toastify": "^11.0.3",
-    "typescript": "^5.8.2",
-    "zustand": "^5.0.3"
+    "react-toastify": "^11.0.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
