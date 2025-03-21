@@ -22,20 +22,25 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({ usage }) => {
   }
   
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+    <div className="relative flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
       <IoIosStats className="h-4 w-4 text-gray-600 dark:text-gray-300" />
       
       <div className="flex flex-col w-full">
-        <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
-          {usage.remainingTokens.toLocaleString()}/{usage.tokenLimit.toLocaleString()} tokens
-        </span>
-        
-        {/* Progress bar - แสดงในโหมด hover */}
-        <div className="hidden group-hover:block w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1 overflow-hidden">
+        {/* Bar แสดงอยู่ตลอดเวลา */}
+        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div 
-            className={`h-full ${barColor} rounded-full`} 
+            className={`h-full ${barColor} rounded-full transition-all duration-300 ease-in-out`} 
             style={{ width: `${usedPercentage}%` }}
           />
+        </div>
+        
+        {/* Tooltip แสดงตัวเลขเมื่อ hover */}
+        <div className="absolute left-1/2 bottom-full -translate-x-1/2 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+          <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+            {usage.dailyTokens.toLocaleString()}/{usage.tokenLimit.toLocaleString()} tokens
+            <div className="text-[10px] text-gray-300">คงเหลือ {usage.remainingTokens.toLocaleString()} tokens</div>
+          </div>
+          <div className="border-t-4 border-l-4 border-r-4 border-transparent border-t-gray-800 w-0 h-0 absolute left-1/2 top-full -translate-x-1/2"></div>
         </div>
       </div>
     </div>
