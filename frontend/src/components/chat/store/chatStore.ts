@@ -5,7 +5,6 @@ import { isValidObjectId } from '../utils/formatters';
 import { config } from '../../../config/config';
 import { useModelStore } from './modelStore';
 import { useUIStore } from './uiStore';
-import { useScrollStore } from './scrollStore';
 
 export interface ChatState {
   // State
@@ -199,6 +198,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (data.type === 'complete') {
           await useModelStore.getState().fetchUsage();
         }
+
+        // เปิดเหตุการณ์ scroll event เมื่อรับข้อความใหม่หรืออัพเดท
+        if (['message', 'update', 'complete'].includes(data.type)) {
+          window.dispatchEvent(new CustomEvent('chatMessageReceived', { 
+            detail: { messageType: data.type } 
+          }));
+        }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
         get().setMessages((prev) => prev.map((msg, index) => 
@@ -231,47 +237,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } : msg
     ));
     
-    // อัพเดตสถานะ scroll หลังจากได้รับเนื้อหาใหม่
-    const scrollStore = useScrollStore.getState();
-    
-    // ตรวจสอบว่ามีการ scroll ด้วยตนเองหรือไม่
-    const { isScrollingManually, isAtBottom } = scrollStore;
-    
-    // ปรับปรุงสถานะปุ่ม scroll to bottom
-    if (!isAtBottom) {
-      // บังคับแสดงปุ่มเมื่อมีการ streaming
-      scrollStore.setShowScrollButton(true);
-    }
-    
-    // ตรวจสอบขนาดของเนื้อหา
-    const container = scrollStore.scrollContainerRef.current;
-    if (container) {
-      const { scrollHeight, clientHeight } = container;
-      
-      // ถ้าเนื้อหาสูงกว่าพื้นที่แสดงผล บังคับแสดงปุ่ม
-      if (scrollHeight > clientHeight) {
-        console.log('[ChatStore] Content height exceeds view during streaming, forcing button to show');
-        scrollStore.setShowScrollButton(true);
+    // แจ้งเตือนการอัพเดตเนื้อหาผ่าน CustomEvent แทนการเรียกใช้ scrollStore โดยตรง
+    window.dispatchEvent(new CustomEvent('chatContentUpdated', {
+      detail: { 
+        type: 'update',
+        forceScroll: false
       }
-    }
-    
-    // ถ้าไม่ได้กำลัง scroll ด้วยตนเอง ให้เลื่อนลงล่าง
-    if (!isScrollingManually && scrollStore.autoScrollEnabled) {
-      setTimeout(() => {
-        scrollStore.scrollToBottom();
-      }, 10);
-    }
+    }));
   },
   
   completeAssistantMessage: (sources) => {
-    // Re-enable auto-scrolling when message is complete, but respect user's reading position
+    // Re-enable auto-scrolling when message is complete
     const { setIsLoading } = useUIStore.getState();
     
     // ตั้งค่า isLoading เป็น false เมื่อข้อความเสร็จสมบูรณ์
     setIsLoading(false);
     
-    // ใช้ handleMessageComplete จาก scrollStore
-    useScrollStore.getState().handleMessageComplete();
+    // แจ้งเตือนว่าข้อความเสร็จสมบูรณ์แล้วผ่าน CustomEvent
+    window.dispatchEvent(new CustomEvent('chatContentUpdated', {
+      detail: { 
+        type: 'complete',
+        forceScroll: true
+      }
+    }));
     
     get().setMessages((prev) => prev.map((msg, index) => 
       index === prev.length - 1 && msg.role === 'assistant' ? {
@@ -345,23 +333,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     try {
       setIsLoading(true);
-      
-      // เปิดใช้งาน auto-scroll เมื่อส่งข้อความใหม่
-      const scrollStore = useScrollStore.getState();
-      scrollStore.setAutoScrollEnabled(true);
-      
-      // บังคับแสดงปุ่ม scroll to bottom เมื่อเริ่มการ streaming
-      const container = scrollStore.scrollContainerRef.current;
-      if (container) {
-        const { scrollHeight, clientHeight, scrollTop } = container;
-        const distanceFromBottom = Math.max(0, scrollHeight - scrollTop - clientHeight);
-        
-        // ถ้าไม่ได้อยู่ที่ด้านล่าง หรือเนื้อหาสูงกว่าพื้นที่แสดงผล บังคับแสดงปุ่ม
-        if (distanceFromBottom > 50 || scrollHeight > clientHeight) {
-          console.log('[ChatStore] Not at bottom or content taller than view, showing button at start of streaming');
-          scrollStore.setShowScrollButton(true);
-        }
-      }
       
       // แปลงรูปภาพและไฟล์
       let images: { data: string; mediaType: string }[] = [];
@@ -558,7 +529,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Continue writing feature
-  handleContinueClick: (e) => {
+  handleContinueClick: (e: React.MouseEvent) => {
     e.preventDefault();
     
     const { setIsLoading } = useUIStore.getState();
@@ -570,11 +541,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
     
+    // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
+    window.dispatchEvent(new CustomEvent('chatScrollAction', {
+      detail: { 
+        action: 'enableAutoScroll',
+        forceScroll: true
+      }
+    }));
+    
     try {
       setIsLoading(true);
-      
-      // เปิดใช้งาน auto-scroll เมื่อสั่งให้ AI ทำงานต่อ
-      useScrollStore.getState().setAutoScrollEnabled(true);
       
       const lastMessage = messages[messages.length - 1];
       const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
@@ -681,12 +657,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       editingMessage: null 
     });
     useUIStore.getState().setIsImageGenerationMode(false);
-    
-    // รีเซ็ตสถานะของ scroll
-    const scrollStore = useScrollStore.getState();
-    scrollStore.setAutoScrollEnabled(true);
-    scrollStore.setIsScrollingManually(false);
-    scrollStore.setShowScrollButton(false);
   },
   
   // Cancel the current generation
@@ -738,7 +708,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Regenerate the last assistant message
-  handleRegenerateMessage: (e) => {
+  handleRegenerateMessage: (e: React.MouseEvent) => {
     e.preventDefault();
     
     const { messages, wsRef, currentChatId } = get();
@@ -746,9 +716,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { setIsLoading } = useUIStore.getState();
     
     if (!selectedModel || !wsRef) {
-      alert('Please select a model first');
+      alert('กรุณาเลือกโมเดลก่อน');
       return;
     }
+    
+    // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
+    window.dispatchEvent(new CustomEvent('chatScrollAction', {
+      detail: { 
+        action: 'enableAutoScroll',
+        forceScroll: true
+      }
+    }));
     
     // Find the last user message
     const lastUserMessageIndex = [...messages].reverse().findIndex(msg => msg.role === 'user');
@@ -769,10 +747,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isImageGeneration: false,
       isComplete: false
     };
-    
-    // Reset scroll position
-    useScrollStore.getState().setAutoScrollEnabled(true);
-    useScrollStore.getState().setIsScrollingManually(false);
     
     // Update messages and set loading state
     set({ messages: [...messagesToKeep, assistantMessage] });

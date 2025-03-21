@@ -1,21 +1,28 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
+import ScrollToBottomButton from '../chat/ui/ScrollToBottomButton';
 import { useChatStore } from '../chat/store/chatStore';
 import { useModelStore } from '../chat/store/modelStore';
 import { useUIStore } from '../chat/store/uiStore';
-import { useScrollStore } from '../chat/store/scrollStore';
 import { isValidObjectId } from '../chat/utils/formatters';
+import useScrollManager from '../../hooks/useScrollManager';
 
 const MFUChatbot: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Refs สำหรับการ scroll
-  const containerRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  // ใช้ hook useScrollManager สำหรับการจัดการ scroll
+  const {
+    messagesEndRef,
+    chatContainerRef,
+    isNearBottom,
+    messageCount: _messageCount,
+    setMessageCount,
+    handleScrollToBottom
+  } = useScrollManager();
   
   // Chat state from Zustand
   const {
@@ -48,19 +55,7 @@ const MFUChatbot: React.FC = () => {
     inputMessage,
     setInputMessage,
     setIsImageGenerationMode,
-    setMessageCount,
   } = useUIStore();
-  
-  // Scroll state from Zustand
-  const {
-    showScrollButton,
-    setScrollRefs,
-    initScrollObserver,
-    handleScrollButtonClick,
-    handleNewMessage,
-    handleMessageComplete,
-    updateScrollPosition
-  } = useScrollStore();
   
   // Model state from Zustand
   const {
@@ -72,49 +67,10 @@ const MFUChatbot: React.FC = () => {
     fetchModels
   } = useModelStore();
   
-  // เซ็ต refs สำหรับการ scroll
-  useEffect(() => {
-    setScrollRefs(containerRef, endRef);
-  }, [setScrollRefs]);
-  
-  // ตั้งค่า scroll observer
-  useEffect(() => {
-    const cleanup = initScrollObserver();
-    return cleanup;
-  }, [initScrollObserver]);
-  
   // อัปเดตจำนวนข้อความเมื่อมีการเปลี่ยนแปลง
   useEffect(() => {
     setMessageCount(messages.length);
   }, [messages, setMessageCount]);
-  
-  // ทำการ auto-scroll เมื่อมีข้อความใหม่หรือสถานะโหลดเปลี่ยนแปลง
-  useEffect(() => {
-    console.log('Messages updated, handling scroll position', { count: messages.length });
-    
-    // รอให้ DOM อัพเดตก่อนตรวจสอบตำแหน่ง scroll
-    const timer = setTimeout(() => {
-      // อัพเดตสถานะ scroll หลังจากเนื้อหาโหลดเสร็จ
-      updateScrollPosition();
-      // แจ้ง scroll store ว่ามีข้อความใหม่
-      handleNewMessage();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [messages, handleNewMessage, updateScrollPosition]);
-  
-  // จัดการเมื่อการโหลดเสร็จสิ้น
-  useEffect(() => {
-    if (!isLoading) {
-      console.log('Message loading completed');
-      
-      // รอให้ DOM อัพเดตก่อนตรวจสอบตำแหน่ง scroll
-      setTimeout(() => {
-        updateScrollPosition();
-        handleMessageComplete();
-      }, 100);
-    }
-  }, [isLoading, handleMessageComplete, updateScrollPosition]);
   
   // Initialize WebSocket when component mounts
   useEffect(() => {
@@ -183,7 +139,7 @@ const MFUChatbot: React.FC = () => {
     <div className="flex flex-col h-full relative">
       <div 
         className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-40 overscroll-contain scroll-smooth"
-        ref={containerRef}
+        ref={chatContainerRef}
         id="chat-messages"
         data-testid="chat-messages-container"
       >
@@ -205,7 +161,7 @@ const MFUChatbot: React.FC = () => {
               />
             ))}
             <div 
-              ref={endRef} 
+              ref={messagesEndRef} 
               id="chat-bottom-anchor"
               data-testid="chat-bottom-anchor"
               className="h-2 w-full my-2"
@@ -213,6 +169,14 @@ const MFUChatbot: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* แสดงปุ่มเลื่อนลงด้านล่างเมื่อมีข้อความและผู้ใช้ไม่ได้อยู่ที่ด้านล่าง */}
+      {messages.length > 0 && (
+        <ScrollToBottomButton 
+          isNearBottom={isNearBottom}
+          onClick={handleScrollToBottom}
+        />
+      )}
 
       <ChatInput
         inputMessage={inputMessage}
@@ -232,8 +196,6 @@ const MFUChatbot: React.FC = () => {
         setSelectedModel={setSelectedModel}
         isLoading={isLoading}
         canSubmit={canSubmit}
-        handleScrollToBottom={handleScrollButtonClick}
-        showScrollButton={showScrollButton}
         usage={usage}
         isMobile={isMobile}
         editingMessage={editingMessage}

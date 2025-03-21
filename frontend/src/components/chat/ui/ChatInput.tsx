@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
-import { IoIosArrowDown } from "react-icons/io";
 import { MdEdit } from "react-icons/md";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
@@ -24,8 +23,6 @@ interface ChatInputProps {
   setSelectedModel: (id: string) => void;
   isLoading: boolean;
   canSubmit: () => boolean;
-  handleScrollToBottom: () => void;
-  showScrollButton: boolean;
   usage: Usage | null;
   isMobile: boolean;
   editingMessage?: Message | null;
@@ -50,8 +47,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   setSelectedModel,
   isLoading,
   canSubmit,
-  handleScrollToBottom,
-  showScrollButton,
   usage,
   editingMessage,
   handleCancelGeneration
@@ -87,28 +82,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-10">
-      {/* Scroll to bottom button - improved visibility based on scroll distance */}
-      {showScrollButton && (
-        <button
-          onClick={handleScrollToBottom}
-          className="fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2.5 md:p-3.5 shadow-lg transition-all duration-300 z-20 animate-pulse flex items-center justify-center"
-          aria-label="Scroll to latest messages"
-          style={{ 
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
-            transform: 'scale(1.05)',
-            animation: 'pulse 2s infinite'
-          }}
-        >
-          <div className="relative">
-            <IoIosArrowDown className="h-5 w-5 md:h-6 md:w-6" />
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
-            </span>
-          </div>
-        </button>
-      )}
 
       <form onSubmit={handleSubmit} className="p-2 md:p-4">
         <div className="flex flex-col gap-2 w-full max-w-[95%] lg:max-w-[85%] mx-auto">
@@ -290,7 +263,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           )}
         </div>
       </form>
-    </div>
   );
 };
 
