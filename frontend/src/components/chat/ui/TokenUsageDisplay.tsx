@@ -35,8 +35,9 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({ usage }) => {
         {/* Tooltip แสดงตัวเลขเมื่อ hover */}
         <div className="absolute left-1/2 bottom-full -translate-x-1/2 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
           <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+          <div className="text-[10px] text-gray-300">Token Usage </div>
             {usage.dailyTokens.toLocaleString()}/{usage.tokenLimit.toLocaleString()} tokens
-            <div className="text-[10px] text-gray-300">คงเหลือ {usage.remainingTokens.toLocaleString()} tokens</div>
+            <div className="text-[10px] text-gray-300">Remaining: {usage.remainingTokens.toLocaleString()} tokens</div>
           </div>
           <div className="border-t-4 border-l-4 border-r-4 border-transparent border-t-gray-800 w-0 h-0 absolute left-1/2 top-full -translate-x-1/2"></div>
         </div>
