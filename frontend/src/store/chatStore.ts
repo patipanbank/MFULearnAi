@@ -700,12 +700,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Send update to backend
         if (currentChatId) {
           try {
-            // Create a copy of all messages with the edited message
-            const allMessages = updatedMessages.map(msg => ({
-              ...msg,
-              timestamp: msg.timestamp?.$date ? { $date: msg.timestamp.$date } : { $date: new Date().toISOString() }
-            }));
-
             const response = await fetch(`${config.apiUrl}/api/chat/edit-message`, {
               method: 'POST',
               headers: {
@@ -715,8 +709,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               body: JSON.stringify({
                 chatId: currentChatId,
                 messageId: message.id,
-                content: message.content,
-                allMessages
+                content: message.content
               })
             });
             
