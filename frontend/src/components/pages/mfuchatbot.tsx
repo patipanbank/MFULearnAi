@@ -138,7 +138,7 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-full relative">
       <div 
-        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-40 overscroll-contain scroll-smooth"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-10 overscroll-contain scroll-smooth"
         ref={chatContainerRef}
         id="chat-messages"
         data-testid="chat-messages-container"
