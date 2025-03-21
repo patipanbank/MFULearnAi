@@ -151,7 +151,7 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-full relative">
       <div 
-        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-10 overscroll-contain scroll-smooth"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-32 overscroll-contain scroll-smooth"
         ref={chatContainerRef}
         id="chat-messages"
         data-testid="chat-messages-container"
@@ -183,15 +183,7 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="relative">
-        {/* แสดงปุ่มเลื่อนลงด้านล่างเมื่อมีข้อความและผู้ใช้ไม่ได้อยู่ที่ด้านล่าง */}
-        {messages.length > 0 && (
-          <ScrollToBottomButton 
-            isNearBottom={isNearBottom}
-            onClick={handleScrollToBottom}
-          />
-        )}
-
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-10">
         <ChatInput
           inputMessage={inputMessage}
           setInputMessage={setInputMessage}
@@ -216,6 +208,14 @@ const MFUChatbot: React.FC = () => {
           handleCancelGeneration={handleCancelGeneration}
         />
       </div>
+      
+      {/* แยก ScrollToBottomButton ออกมาเพื่อให้ทำงานได้ถูกต้องกับ fixed position */}
+      {messages.length > 0 && (
+        <ScrollToBottomButton 
+          isNearBottom={isNearBottom}
+          onClick={handleScrollToBottom}
+        />
+      )}
     </div>
   );
 };
