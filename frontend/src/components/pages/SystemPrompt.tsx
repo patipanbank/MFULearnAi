@@ -32,7 +32,7 @@ const SystemPrompt: React.FC = () => {
       
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        throw new Error('ไม่พบ token สำหรับยืนยันตัวตน');
+        throw new Error('No token for authentication');
       }
       
       const response = await fetch(`${config.apiUrl}/api/admin/system-prompt`, {
@@ -45,9 +45,9 @@ const SystemPrompt: React.FC = () => {
       
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          throw new Error('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+          throw new Error('You do not have permission to access this page');
         }
-        throw new Error('เกิดข้อผิดพลาดในการดึงข้อมูล system prompt');
+        throw new Error('Error fetching system prompt data');
       }
       
       const data = await response.json();
@@ -55,7 +55,7 @@ const SystemPrompt: React.FC = () => {
       setOriginalPrompt(data.prompt);
       setPromptData(data);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ');
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
       console.error('Error fetching system prompt:', error);
     } finally {
       setLoading(false);
@@ -70,13 +70,13 @@ const SystemPrompt: React.FC = () => {
       
       // ตรวจสอบว่า prompt ไม่ว่างเปล่า
       if (!systemPrompt.trim()) {
-        setError('System prompt ไม่สามารถเป็นค่าว่างได้');
+        setError('System prompt cannot be empty');
         return;
       }
       
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        throw new Error('ไม่พบ token สำหรับยืนยันตัวตน');
+        throw new Error('No token for authentication');
       }
       
       const response = await fetch(`${config.apiUrl}/api/admin/system-prompt`, {
@@ -90,23 +90,23 @@ const SystemPrompt: React.FC = () => {
       
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          throw new Error('คุณไม่มีสิทธิ์แก้ไข system prompt');
+          throw new Error('You do not have permission to edit system prompt');
         }
-        throw new Error('เกิดข้อผิดพลาดในการบันทึก system prompt');
+        throw new Error('Error saving system prompt');
       }
       
       const data = await response.json();
       setSystemPrompt(data.prompt);
       setOriginalPrompt(data.prompt);
       setPromptData(data);
-      setSuccessMessage('บันทึก system prompt เรียบร้อยแล้ว');
+      setSuccessMessage('System prompt saved successfully');
       
       // ซ่อนข้อความแจ้งเตือนสำเร็จหลังจาก 3 วินาที
       setTimeout(() => {
         setSuccessMessage(null);
       }, 3000);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ');
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
       console.error('Error saving system prompt:', error);
     } finally {
       setSaving(false);
@@ -133,7 +133,7 @@ const SystemPrompt: React.FC = () => {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex flex-col">
         <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">
-          จัดการ System Prompt
+          Manage System Prompt
         </h1>
         
         {error && (
@@ -150,8 +150,8 @@ const SystemPrompt: React.FC = () => {
         
         {promptData && (
           <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            <p>แก้ไขล่าสุดเมื่อ: {new Date(promptData.updatedAt).toLocaleString('th-TH')}</p>
-            <p>แก้ไขโดย: {promptData.updatedBy}</p>
+            <p>Last updated: {new Date(promptData.updatedAt).toLocaleString('th-TH')}</p>
+            <p>Updated by: {promptData.updatedBy}</p>
           </div>
         )}
         
@@ -164,10 +164,10 @@ const SystemPrompt: React.FC = () => {
             className="w-full h-96 px-4 py-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 font-mono text-sm resize-none"
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
-            placeholder="ใส่ system prompt ที่นี่..."
+            placeholder="Enter system prompt here..."
           />
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            System prompt จะถูกใช้เป็นคำแนะนำเริ่มต้นสำหรับ AI ในทุกการสนทนา
+            System prompt will be used as the default instruction for AI in every conversation
           </p>
         </div>
         
@@ -183,7 +183,7 @@ const SystemPrompt: React.FC = () => {
             }`}
           >
             <FaUndo className="w-4 h-4" />
-            <span>รีเซ็ต</span>
+            <span>Reset</span>
           </button>
           
           <button
@@ -199,12 +199,12 @@ const SystemPrompt: React.FC = () => {
             {saving ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>กำลังบันทึก...</span>
+                <span>Saving...</span>
               </>
             ) : (
               <>
                 <FaSave className="w-4 h-4" />
-                <span>บันทึก</span>
+                <span>Save</span>
               </>
             )}
           </button>

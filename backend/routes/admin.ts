@@ -13,14 +13,14 @@ router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Requ
 
     // ตรวจสอบข้อมูลที่จำเป็น
     if (!username || !password || !firstName || !lastName || !email) {
-      res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+      res.status(400).json({ message: 'Please fill in all required fields' });
       return;
     }
 
     // ตรวจสอบว่ามี username ซ้ำหรือไม่
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      res.status(400).json({ message: 'ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว' });
+      res.status(400).json({ message: 'This username already exists' });
       return;
     }
 
@@ -51,13 +51,13 @@ router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Requ
     };
 
     res.status(201).json({
-      message: 'สร้างผู้ดูแลระบบสำเร็จ',
+      message: 'Admin created successfully',
       admin: adminData
     });
 
   } catch (error) {
     console.error('Error creating admin:', error);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการสร้างผู้ดูแลระบบ' });
+    res.status(500).json({ message: 'Error creating admin' });
   }
 });
 
