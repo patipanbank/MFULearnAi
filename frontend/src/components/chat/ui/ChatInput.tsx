@@ -201,15 +201,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   </button>
                 </>
               )}
-            </div>
-            
-            {/* แสดง Token Usage แยกอีกแถว */}
-            <div className="flex items-center justify-center mt-2">
-              {usage && (
-                <div className="flex-shrink-0 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-1">
-                  <TokenUsageDisplay usage={usage} />
-                </div>
-              )}
+
+              {usage && <TokenUsageDisplay usage={usage} />}
             </div>
           </div>
 
