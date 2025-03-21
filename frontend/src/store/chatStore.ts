@@ -37,7 +37,7 @@ export interface ChatState {
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handlePaste: (e: React.ClipboardEvent) => void;
   handleContinueClick: (e: React.MouseEvent) => void;
-  handleCancelGeneration: (e?: React.MouseEvent) => void;
+  handleCancelGeneration: (e: React.MouseEvent) => void;
   handleEditMessage: (message: Message) => void;
   handleRegenerateMessage: (e: React.MouseEvent) => void;
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -623,25 +623,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   
-  // Cancel generation
-  handleCancelGeneration: (e?: React.MouseEvent) => {
-    e?.preventDefault();
+  // Cancel the current generation
+  handleCancelGeneration: (e) => {
+    e.preventDefault();
     
-    const { wsRef, currentChatId } = get();
+    const { wsRef, messages } = get();
+    const { setIsLoading } = useUIStore.getState();
     
-    if (wsRef && wsRef.readyState === WebSocket.OPEN && currentChatId) {
-      wsRef.send(JSON.stringify({
-        type: 'cancel',
-        chatId: currentChatId
-      }));
-      
-      console.log('Cancellation request sent for chat:', currentChatId);
-    } else {
-      console.error('Cannot cancel: WebSocket not connected or no chat ID');
+    if (!wsRef) {
+      return;
     }
     
-    // Set loading state to false immediately for better UX
-    useUIStore.getState().setIsLoading(false);
+    try {
+      // Send a cancel message to the WebSocket server
+      wsRef.send(JSON.stringify({ 
+        type: 'cancel',
+        chatId: get().currentChatId
+      }));
+      
+      // Update the last message to show it's been cancelled
+      const updatedMessages = [...messages];
+      if (updatedMessages.length > 0) {
+        const lastIdx = updatedMessages.length - 1;
+        if (updatedMessages[lastIdx].role === 'assistant' && !updatedMessages[lastIdx].isComplete) {
+          updatedMessages[lastIdx] = {
+            ...updatedMessages[lastIdx],
+            content: updatedMessages[lastIdx].content + "\n\n[Generation cancelled]",
+            isComplete: true
+          };
+          set({ messages: updatedMessages });
+        }
+      }
+      
+      // Reset loading state
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error cancelling generation:', error);
+    }
   },
   
   // Edit a message
