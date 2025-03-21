@@ -91,7 +91,7 @@ export const useModelStore = create<ModelState>((set, get) => ({
       const token = localStorage.getItem('auth_token');
       if (!token) return;
 
-      const response = await fetch(`${config.apiUrl}/api/usage`, {
+      const response = await fetch(`${config.apiUrl}/api/chat/usage`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -101,16 +101,35 @@ export const useModelStore = create<ModelState>((set, get) => ({
         const usageData = await response.json();
         set({ 
           usage: {
-            dailyTokens: usageData.dailyTokens,
-            tokenLimit: usageData.tokenLimit,
-            remainingTokens: usageData.remainingTokens
+            dailyTokens: usageData.dailyTokens || 0,
+            tokenLimit: usageData.tokenLimit || 1000,
+            remainingTokens: usageData.remainingTokens || 1000
           }
         });
       } else {
-        console.error('Failed to fetch usage data');
+        // Don't show error for 404, just set default values
+        if (response.status === 404) {
+          set({
+            usage: {
+              dailyTokens: 0,
+              tokenLimit: 1000,
+              remainingTokens: 1000
+            }
+          });
+        } else {
+          console.error(`Failed to fetch usage data: ${response.status}`);
+        }
       }
     } catch (error) {
       console.error('Error fetching usage:', error);
+      // Set default values on error
+      set({
+        usage: {
+          dailyTokens: 0,
+          tokenLimit: 1000,
+          remainingTokens: 1000
+        }
+      });
     }
   }
 })); 

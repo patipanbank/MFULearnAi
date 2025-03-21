@@ -138,7 +138,7 @@ const MFUChatbot: React.FC = () => {
       // Reset chat when navigating to /mfuchatbot without chat ID
       useChatStore.getState().resetChat();
     }
-  }, [location.search, loadChatHistory, currentChatId, messages, sendFirstMessage]);
+  }, [location.search, loadChatHistory, currentChatId, messages]);
   
   // Fetch usage data when component mounts
   useEffect(() => {
