@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-interface UIState {
+export interface UIState {
   isLoading: boolean;
   isMobile: boolean;
   isNearBottom: boolean;

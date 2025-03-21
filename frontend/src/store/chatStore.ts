@@ -6,7 +6,7 @@ import { config } from '../config/config';
 import { useModelStore } from './modelStore';
 import { useUIStore } from './uiStore';
 
-interface ChatState {
+export interface ChatState {
   // State
   messages: Message[];
   currentChatId: string | null;
