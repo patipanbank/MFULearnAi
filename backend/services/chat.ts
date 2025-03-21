@@ -473,6 +473,17 @@ class ChatService {
               daily: usage.dailyTokens,
               remaining: usage.remainingTokens
             });
+            
+            // อัปเดตข้อมูล token ในสถิติรายวัน
+            const today = new Date();
+            today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
+            today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
+
+            await ChatStats.findOneAndUpdate(
+              { date: today },
+              { $inc: { totalTokens: totalTokens } },
+              { upsert: true }
+            );
           }
           return;
         } catch (error: unknown) {
