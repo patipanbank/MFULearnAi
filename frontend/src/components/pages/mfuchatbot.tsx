@@ -188,6 +188,7 @@ const MFUChatbot: React.FC = () => {
         usage={usage}
         isMobile={isMobile}
         editingMessage={editingMessage}
+        onCancelClick={handleCancelGeneration}
       />
     </div>
   );
