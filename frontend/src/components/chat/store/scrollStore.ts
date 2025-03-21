@@ -124,7 +124,7 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
             isAtBottom: true,
             isScrollingManually: false,
             autoScrollEnabled: true,
-            showScrollButton: false
+            showScrollButton: false // ซ่อนปุ่มเมื่ออยู่ด้านล่าง
           });
         } else {
           // เมื่อองค์ประกอบด้านล่างไม่มองเห็น = ไม่ได้อยู่ที่ด้านล่าง
@@ -132,7 +132,7 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
             isAtBottom: false,
             isScrollingManually: true,
             autoScrollEnabled: false,
-            showScrollButton: true
+            showScrollButton: true // แสดงปุ่มเมื่อไม่ได้อยู่ด้านล่าง
           });
         }
       },
@@ -148,42 +148,13 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
     set({ bottomObserver: observer });
     
     // ยังคงใช้ MutationObserver เพื่อติดตามการเปลี่ยนแปลงเนื้อหา
-    const contentObserver = new MutationObserver((mutations) => {
-      // ตรวจสอบว่ามีการเปลี่ยนแปลงเนื้อหาจริงๆ (ไม่ใช่แค่ attribute)
-      const hasContentChanges = mutations.some(mutation => 
-        mutation.type === 'childList' || 
-        mutation.type === 'characterData' ||
-        mutation.addedNodes.length > 0
-      );
-      
-      if (!hasContentChanges) return;
-      
+    const contentObserver = new MutationObserver(() => {
       // ตรวจสอบขนาดของเนื้อหาและอัพเดตการแสดงปุ่ม
-      const { scrollHeight, clientHeight, scrollTop } = container;
-      const distanceFromBottom = Math.max(0, scrollHeight - scrollTop - clientHeight);
-      const isCurrentlyAtBottom = get().isAtBottom;
+      const { scrollHeight, clientHeight } = container;
       
-      console.log('[ScrollStore] Content mutation detected', {
-        scrollHeight,
-        clientHeight,
-        distanceFromBottom,
-        isCurrentlyAtBottom,
-        mutations: mutations.length
-      });
-      
-      // ถ้าเนื้อหามีความสูงมากกว่าพื้นที่แสดงผลและไม่ได้อยู่ที่ด้านล่าง
-      if (scrollHeight > clientHeight * 1.2 && !isCurrentlyAtBottom) {
+      if (scrollHeight > clientHeight * 1.2 && !get().isAtBottom) {
         console.log('[ScrollStore] Content height changed and not at bottom');
         set({ showScrollButton: true });
-      }
-      
-      // ถ้ามีการเพิ่มเนื้อหาและอยู่ห่างจากด้านล่างมาก
-      if (distanceFromBottom > 200) {
-        console.log('[ScrollStore] Far from bottom after content change');
-        set({ 
-          showScrollButton: true,
-          isScrollingManually: true
-        });
       }
     });
     
@@ -237,31 +208,22 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
     
     // ใช้ค่า isAtBottom จาก IntersectionObserver (ไม่ต้องคำนวณซ้ำ)
     const isAtBottom = get().isAtBottom;
-    // ควรแสดงปุ่มเมื่อ 1) ไม่ได้อยู่ที่ด้านล่าง และ 2) มีเนื้อหาให้เลื่อน
-    const hasScrollableContent = scrollHeight > clientHeight + 50; // มีเนื้อหามากกว่าพื้นที่แสดงผล + buffer
-    const showButton = !isAtBottom && hasScrollableContent;
     
     console.log('[ScrollStore] Updating scroll position', { 
       scrollTop,
       scrollHeight,
       clientHeight,
       distanceFromBottom,
-      isAtBottom,
-      hasScrollableContent,
-      showButton
+      isAtBottom
     });
     
-    if (showButton) {
+    // เงื่อนไขการแสดงปุ่มที่เรียบง่าย:
+    // - ถ้าไม่ได้อยู่ด้านล่าง = แสดงปุ่ม
+    // - ถ้าอยู่ด้านล่าง = ซ่อนปุ่ม
+    if (!isAtBottom) {
       set({ showScrollButton: true });
-    } else if (isAtBottom) {
+    } else {
       set({ showScrollButton: false });
-    }
-    
-    // บังคับแสดงปุ่มเลื่อนลงในกรณีที่เนื้อหามีความสูงมากกว่าพื้นที่แสดงผลอย่างมาก
-    // และอยู่ห่างจากด้านล่างมากกว่า threshold
-    if (scrollHeight > clientHeight * 1.5 && distanceFromBottom > 100) {
-      console.log('[ScrollStore] Content much taller than view, forcing button to show');
-      set({ showScrollButton: true });
     }
   },
   
@@ -294,35 +256,23 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
       autoScrollEnabled: get().autoScrollEnabled,
       isAtBottom,
       distanceFromBottom,
-      isScrollingManually: get().isScrollingManually,
-      showButton: !isAtBottom
+      isScrollingManually: get().isScrollingManually
     });
     
-    // กรณีที่ 1: เนื้อหามีความสูงมากกว่าพื้นที่แสดงผลและไม่ได้อยู่ที่ด้านล่าง -> แสดงปุ่ม
-    if (scrollHeight > clientHeight * 1.2 && !isAtBottom) {
-      console.log('[ScrollStore] Content taller than view on new message, showing button');
-      set({ 
-        showScrollButton: true,
-        // บังคับ set isScrollingManually เมื่ออยู่ห่างจากด้านล่างมาก
-        isScrollingManually: distanceFromBottom > 200 ? true : get().isScrollingManually
-      });
-    }
-    
-    // กรณีที่ 2: อยู่ห่างจากด้านล่างมาก -> แสดงปุ่ม
-    if (distanceFromBottom > 200) {
-      console.log('[ScrollStore] Far from bottom on new message, showing button');
-      set({
-        showScrollButton: true,
-        isScrollingManually: true
-      });
+    // เงื่อนไขการแสดงปุ่มที่เรียบง่าย:
+    // - ถ้าไม่ได้อยู่ด้านล่าง = แสดงปุ่ม
+    if (!isAtBottom) {
+      set({ showScrollButton: true });
+    } else {
+      set({ showScrollButton: false });
     }
     
     // ถ้าเปิดใช้งาน auto-scroll และไม่ได้กำลังเลื่อนด้วยตนเอง
     if (get().autoScrollEnabled && !get().isScrollingManually) {
       console.log('[ScrollStore] Auto-scrolling to bottom');
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         get().scrollToBottom();
-      }, 10); // ลดจาก 50ms เป็น 10ms เพื่อให้เลื่อนไวขึ้น
+      });
     }
   },
   
@@ -343,20 +293,12 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
       isScrollingManually: get().isScrollingManually
     });
     
-    // กรณีที่ 1: เนื้อหามีความสูงมากกว่าพื้นที่แสดงผลและไม่ได้อยู่ที่ด้านล่าง -> แสดงปุ่ม
-    if (scrollHeight > clientHeight && !isAtBottom) {
-      console.log('[ScrollStore] Content taller than view on message complete, showing button');
+    // เงื่อนไขการแสดงปุ่มที่เรียบง่าย:
+    // - ถ้าไม่ได้อยู่ด้านล่าง = แสดงปุ่ม
+    if (!isAtBottom) {
       set({ showScrollButton: true });
-    }
-    
-    // กรณีที่ 2: อยู่ห่างจากด้านล่างมาก -> แสดงปุ่ม
-    if (distanceFromBottom > 150) {
-      console.log('[ScrollStore] Far from bottom on message complete, showing button');
-      set({
-        showScrollButton: true,
-        // ถ้าอยู่ห่างมาก ให้ถือว่ากำลังเลื่อนด้วยตนเอง
-        isScrollingManually: distanceFromBottom > 300
-      });
+    } else {
+      set({ showScrollButton: false });
     }
     
     // ถ้า auto-scroll เปิดอยู่ และไม่ได้กำลังเลื่อนด้วยตนเอง ให้เลื่อนลงด้านล่าง
