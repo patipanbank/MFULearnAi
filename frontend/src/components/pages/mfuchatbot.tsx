@@ -183,7 +183,7 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-10">
+      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-10">
         <ChatInput
           inputMessage={inputMessage}
           setInputMessage={setInputMessage}
