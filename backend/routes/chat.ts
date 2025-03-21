@@ -819,6 +819,8 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
     const { chatId, messageId, content, allMessages } = req.body;
     const userId = (req.user as any)?.username || '';
 
+    console.log('Edit message request:', { chatId, messageId, hasContent: !!content, hasAllMessages: !!allMessages });
+
     if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
       res.status(400).json({ error: 'Invalid chat ID' });
       return;
@@ -829,8 +831,8 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
       return;
     }
 
-    if (!content) {
-      res.status(400).json({ error: 'Content is required' });
+    if (!content && !allMessages) {
+      res.status(400).json({ error: 'Either content or allMessages is required' });
       return;
     }
 
@@ -844,10 +846,20 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
 
     // If allMessages is provided, update the entire messages array
     if (allMessages && Array.isArray(allMessages)) {
-      chat.set('messages', allMessages.map(msg => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp?.$date || new Date())
-      })));
+      try {
+        chat.set('messages', allMessages.map(msg => ({
+          ...msg,
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp?.$date || new Date()),
+          isEdited: msg.isEdited || false
+        })));
+      } catch (error) {
+        console.error('Error updating messages array:', error);
+        res.status(400).json({ error: 'Invalid message format in allMessages' });
+        return;
+      }
     } else {
       // Otherwise just update the specific message
       const messageIndex = chat.messages.findIndex(m => m.id === messageId);
@@ -856,7 +868,11 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
         return;
       }
 
-      chat.messages[messageIndex].content = content;
+      // Update the content safely
+      chat.messages[messageIndex].set('content', content);
+      
+      // Add isEdited flag using set method
+      chat.messages[messageIndex].set('isEdited', true);
     }
 
     // Save the updated chat

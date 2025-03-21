@@ -700,6 +700,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Send update to backend
         if (currentChatId) {
           try {
+            console.log('Sending edit message request for chat:', currentChatId, 'message:', message.id);
+            
             const response = await fetch(`${config.apiUrl}/api/chat/edit-message`, {
               method: 'POST',
               headers: {
@@ -714,7 +716,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             });
             
             if (!response.ok) {
-              throw new Error('Failed to update message');
+              const errorData = await response.json().catch(() => ({}));
+              console.error('Edit message failed:', response.status, errorData);
+              throw new Error(errorData.error || 'Failed to update message');
             }
             
             // Notify websocket to broadcast update to other connected clients
