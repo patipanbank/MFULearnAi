@@ -14,7 +14,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-900">
       <div 
         className={`
-          fixed top-0 left-0 z-50 w-64 h-full bg-white dark:bg-gray-800 transform transition-transform duration-300 ease-in-out
+          fixed top-0 left-0 z-40 w-64 h-full bg-white dark:bg-gray-800 transform transition-transform duration-300 ease-in-out
           lg:relative lg:translate-x-0 lg:min-w-[16rem] lg:w-64 lg:flex-shrink-0 border-r border-gray-200 dark:border-gray-700
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700
@@ -24,7 +24,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       </div>
 
       <div className="flex flex-col flex-1 w-full min-w-0">
-        <div className="fixed top-0 right-0 left-0 lg:left-64 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="fixed top-0 right-0 left-0 lg:left-64 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center px-4 h-16">
             <button
               className="p-2 lg:hidden"
@@ -43,7 +43,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           />
         )}
 
-        <main className="flex-1 overflow-auto mt-16 lg:mt-16 bg-white dark:bg-gray-800 scrollbar scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700">
+        <main className="flex-1 overflow-auto mt-16 lg:mt-16 bg-white dark:bg-gray-800 scrollbar scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700 pb-32">
           {children}
         </main>
       </div>
