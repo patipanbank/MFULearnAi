@@ -158,6 +158,18 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       {/* Action buttons for assistant messages */}
       {message.role === 'assistant' && isLastMessage && (
         <div className="ml-11 mt-2 flex flex-wrap gap-2">
+          {/* Show cancel button during generation */}
+          {!message.isComplete && onCancelClick && (
+            <button
+              type="button"
+              onClick={onCancelClick}
+              className="px-2 py-2 rounded-full transition-colors bg-red-500 hover:bg-red-600 text-white"
+              title="Stop response"
+            >
+              <MdCancel className="h-5 w-5" />
+            </button>
+          )}
+          
           {/* Show continue, edit, and regenerate buttons once complete */}
           {message.isComplete && (
             <>
