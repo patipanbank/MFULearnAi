@@ -85,7 +85,7 @@ export const useUIStore = create<UIState>((set, get) => ({
       
       // ตรวจจับว่าผู้ใช้กำลังเลื่อนด้วยตนเองโดยเปรียบเทียบกับตำแหน่งล่าสุด
       const lastScrollPosition = get().lastScrollPosition;
-      const isManualScrollAction = Math.abs(scrollTop - lastScrollPosition) > 5;
+      const isManualScrollAction = Math.abs(scrollTop - lastScrollPosition) > 2;
       
       // อัปเดตตำแหน่งล่าสุด
       set({ lastScrollPosition: scrollTop });

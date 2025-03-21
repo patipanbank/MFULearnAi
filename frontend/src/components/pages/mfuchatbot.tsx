@@ -81,6 +81,9 @@ const MFUChatbot: React.FC = () => {
     if (shouldAutoScroll && !userScrolledManually) {
       scrollToBottom();
     }
+    
+    // อัปเดตสถานะการแสดงปุ่ม scroll to bottom ทุกครั้งที่มีข้อความใหม่
+    useUIStore.getState().updateScrollPosition();
   }, [messages, isLoading]);
   
   // Set refs in the chat store
