@@ -13,7 +13,7 @@ const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({ isNearBotto
   return (
     <button
       onClick={onClick}
-      className={`absolute left-1/2 transform -translate-x-1/2 -top-8
+      className={`absolute left-1/2 transform -translate-x-1/2 -top-6
                 bg-blue-500 hover:bg-blue-600 text-white rounded-full 
                 p-2 shadow-lg transition-all duration-300 z-10 ${
                   isNearBottom 
