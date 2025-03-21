@@ -34,7 +34,8 @@ router.get('/daily', roleGuard(['SuperAdmin']), async (req, res) => {
     const formattedStats = stats.map(stat => ({
       date: stat.date,
       uniqueUsers: stat.uniqueUsers.length,
-      totalChats: stat.totalChats
+      totalChats: stat.totalChats,
+      totalTokens: stat.totalTokens || 0
     }));
 
     res.json(formattedStats);

@@ -68,7 +68,7 @@ const wss = new WebSocketServer({
         // console.log('WebSocket connection authorized for user:', decoded.username);
         cb(true);
       } catch (jwtError) {
-        console.error('JWT verification failed:', jwtError);
+        // console.error('JWT verification failed:', jwtError);
         cb(false, 401, 'Invalid token');
         return;
       }
