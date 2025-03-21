@@ -697,49 +697,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
         
         set({ messages: updatedMessages });
         
-        // Send update to backend
+        // Send update to backend - simplified version
         if (currentChatId) {
           try {
-            console.log('Sending edit message request:', {
-              chatId: currentChatId,
-              messageId: message.id,
-              messageIdType: typeof message.id,
-              messageIdStringified: JSON.stringify(message.id),
-              messageIdValue: String(message.id),
-              content: message.content ? message.content.substring(0, 50) + '...' : null
-            });
+            console.log('Editing message with ID:', message.id);
             
-            // Make sure messageId is a string 
-            const messageId = String(message.id);
-            
-            if (!messageId) {
-              throw new Error('Invalid message ID');
-            }
-            
-            const requestBody = {
-              chatId: currentChatId,
-              messageId: messageId,
-              content: message.content
-            };
-            
-            console.log('Final request body:', JSON.stringify(requestBody));
-            
+            // Very simple request with only the essential data
             const response = await fetch(`${config.apiUrl}/api/chat/edit-message`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               },
-              body: JSON.stringify(requestBody)
+              body: JSON.stringify({
+                chatId: currentChatId,
+                messageId: message.id,
+                content: message.content
+              })
             });
             
             if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}));
-              console.error('Edit message failed:', response.status, errorData);
-              throw new Error(errorData.error || 'Failed to update message');
+              throw new Error(`Failed to update message: ${response.status}`);
             }
             
-            // Notify websocket to broadcast update to other connected clients
+            // Notify websocket to broadcast update
             if (wsRef && wsRef.readyState === WebSocket.OPEN) {
               wsRef.send(JSON.stringify({
                 type: 'message_edited',
@@ -748,14 +729,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 content: message.content
               }));
             }
-            
-            console.log('Message updated successfully');
           } catch (error) {
             console.error('Error updating message:', error);
+            set({ messages: messages }); // Revert to original messages on error
             throw error;
           }
-        } else {
-          console.error('Cannot update message: No chat ID');
         }
       }
     } catch (error) {

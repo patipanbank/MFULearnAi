@@ -816,47 +816,34 @@ router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
 // Add API endpoint for editing message
 router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
-    // Log the full request body for debugging
-    console.log('Edit message request body raw:', req.body);
-    console.log('Edit message request body stringified:', JSON.stringify(req.body));
-    
-    const { chatId, messageId, content, allMessages } = req.body;
+    // ข้อมูลพื้นฐาน
+    const { chatId, messageId, content } = req.body;
     const userId = (req.user as any)?.username || '';
 
-    console.log('Edit message request parsed:', { 
+    // ลอกข้อมูลเพื่อตรวจสอบ
+    console.log('Edit request:', { 
       chatId, 
       messageId, 
-      messageIdType: typeof messageId,
-      messageIdToString: String(messageId),
-      messageIdJSON: JSON.stringify(messageId),
-      hasContent: !!content, 
-      contentLength: content?.length,
-      hasAllMessages: !!allMessages 
+      contentLength: content?.length 
     });
 
+    // ตรวจสอบข้อมูลพื้นฐาน
     if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
       res.status(400).json({ error: 'Invalid chat ID' });
       return;
     }
 
-    // Check if messageId exists and convert to string if it's a number
-    if (messageId === undefined || messageId === null) {
+    if (!messageId) {
       res.status(400).json({ error: 'Message ID is required' });
       return;
     }
-    
-    const messageIdStr = String(messageId);
-    if (!messageIdStr) {
-      res.status(400).json({ error: 'Invalid message ID format' });
+
+    if (!content) {
+      res.status(400).json({ error: 'Content is required' });
       return;
     }
-    
-    if (!content && !allMessages) {
-      res.status(400).json({ error: 'Either content or allMessages is required' });
-      return;
-    }
-    
-    // Find the chat
+
+    // ค้นหา chat
     const chat = await Chat.findOne({ _id: chatId, userId });
     
     if (!chat) {
@@ -864,44 +851,32 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
       return;
     }
 
-    // If allMessages is provided, update the entire messages array
-    if (allMessages && Array.isArray(allMessages)) {
-      try {
-        chat.set('messages', allMessages.map(msg => ({
-          ...msg,
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp?.$date || new Date()),
-          isEdited: msg.isEdited || false
-        })));
-      } catch (error) {
-        console.error('Error updating messages array:', error);
-        res.status(400).json({ error: 'Invalid message format in allMessages' });
-        return;
-      }
-    } else {
-      // Otherwise just update the specific message
-      const messageIndex = chat.messages.findIndex(m => String(m.id) === messageIdStr);
-      console.log('Searching for message with ID:', messageIdStr, 'Found at index:', messageIndex);
-      
-      if (messageIndex === -1) {
-        // ลอกดูว่ามี id อะไรบ้างในข้อความทั้งหมด
-        const messageIds = chat.messages.map(m => ({ id: m.id, type: typeof m.id }));
-        console.log('Available message IDs:', JSON.stringify(messageIds));
-        
-        res.status(404).json({ error: 'Message not found' });
-        return;
-      }
-
-      // Update the content safely
-      chat.messages[messageIndex].set('content', content);
-      
-      // Add isEdited flag using set method
-      chat.messages[messageIndex].set('isEdited', true);
+    // ค้นหาข้อความที่ต้องการแก้ไข
+    const messageIdStr = String(messageId);
+    const messageIndex = chat.messages.findIndex(m => String(m.id) === messageIdStr);
+    
+    console.log('Message search:', { 
+      messageIdStr, 
+      messageIndex,
+      messageIds: chat.messages.slice(0, 3).map(m => String(m.id))
+    });
+    
+    if (messageIndex === -1) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
     }
 
-    // Save the updated chat
+    // แก้ไขข้อความอย่างง่าย
+    chat.messages[messageIndex].content = content;
+    
+    // เพิ่ม flag isEdited
+    try {
+      chat.messages[messageIndex].set('isEdited', true);
+    } catch (error) {
+      console.log('Cannot set isEdited directly, ignoring this field');
+    }
+
+    // บันทึกการเปลี่ยนแปลง
     await chat.save();
 
     res.json({ success: true });
