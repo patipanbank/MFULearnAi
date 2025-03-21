@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { config } from '../config/config';
-import { Model, Usage } from '../components/chat/utils/types';
+import { config } from '../../../config/config';
+import { Model, Usage } from '../utils/types';
 
 export interface ModelState {
   // State

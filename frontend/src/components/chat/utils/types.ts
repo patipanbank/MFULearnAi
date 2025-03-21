@@ -33,6 +33,9 @@ export interface Message {
   isImageGeneration?: boolean;
   isComplete?: boolean;
   isEdited?: boolean;
+  error?: boolean;
+  modelId?: string;
+  loading?: boolean;
 }
 
 export interface ChatHistory {

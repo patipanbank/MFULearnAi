@@ -3,10 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
-import useScrollManagement from '../chat/hooks/useScrollManagement';
-import { useChatStore } from '../../store/chatStore';
-import { useModelStore } from '../../store/modelStore';
-import { useUIStore } from '../../store/uiStore';
+import { useChatStore } from '../chat/store/chatStore';
+import { useModelStore } from '../chat/store/modelStore';
+import { useUIStore } from '../chat/store/uiStore';
 import { isValidObjectId } from '../chat/utils/formatters';
 
 const MFUChatbot: React.FC = () => {
@@ -44,8 +43,14 @@ const MFUChatbot: React.FC = () => {
     isImageGenerationMode,
     isMobile,
     inputMessage,
+    isNearBottom,
+    messagesEndRef,
+    chatContainerRef,
     setInputMessage,
-    setIsImageGenerationMode
+    setIsImageGenerationMode,
+    setMessageCount,
+    initScrollListener,
+    handleScrollToBottom,
   } = useUIStore();
   
   // Model state from Zustand
@@ -58,13 +63,16 @@ const MFUChatbot: React.FC = () => {
     fetchModels
   } = useModelStore();
   
-  // Scrolling management
-  const {
-    messagesEndRef,
-    chatContainerRef,
-    isNearBottom,
-    handleScrollToBottom,
-  } = useScrollManagement({ messages });
+  // สร้าง cleanup function สำหรับ scroll listener
+  useEffect(() => {
+    const cleanup = initScrollListener();
+    return cleanup;
+  }, [initScrollListener]);
+  
+  // อัปเดตจำนวนข้อความเมื่อมีการเปลี่ยนแปลง
+  useEffect(() => {
+    setMessageCount(messages.length);
+  }, [messages, setMessageCount]);
   
   // Set refs in the chat store
   useEffect(() => {
@@ -134,11 +142,6 @@ const MFUChatbot: React.FC = () => {
   useEffect(() => {
     fetchUsage();
   }, [fetchUsage]);
-  
-  // Update chatStore inputMessage when UIStore inputMessage changes
-  useEffect(() => {
-    useChatStore.getState().setInputMessage(inputMessage);
-  }, [inputMessage]);
   
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
