@@ -5,6 +5,7 @@ import { isValidObjectId } from '../utils/formatters';
 import { config } from '../../../config/config';
 import { useModelStore } from './modelStore';
 import { useUIStore } from './uiStore';
+import { useScrollStore } from './scrollStore';
 
 export interface ChatState {
   // State
@@ -230,32 +231,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } : msg
     ));
     
-    // Auto-scroll while content is streaming if conditions are right
-    const { userScrolledManually, scrollToBottom } = useUIStore.getState();
-    if (!userScrolledManually) {
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-    }
+    // ใช้ handleNewMessage จาก scrollStore
+    setTimeout(() => {
+      useScrollStore.getState().handleNewMessage();
+    }, 50);
   },
   
   completeAssistantMessage: (sources) => {
     // Re-enable auto-scrolling when message is complete, but respect user's reading position
-    const { userScrolledManually, setShouldAutoScroll, setIsLoading, scrollToBottom, updateScrollPosition } = useUIStore.getState();
+    const { setIsLoading } = useUIStore.getState();
     
     // ตั้งค่า isLoading เป็น false เมื่อข้อความเสร็จสมบูรณ์
     setIsLoading(false);
     
-    // อัปเดตสถานะ scroll ทันทีเมื่อข้อความเสร็จสมบูรณ์
-    updateScrollPosition();
-    
-    if (!userScrolledManually) {
-      setShouldAutoScroll(true);
-      // Explicitly scroll to bottom when message completes
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-    }
+    // ใช้ handleMessageComplete จาก scrollStore
+    useScrollStore.getState().handleMessageComplete();
     
     get().setMessages((prev) => prev.map((msg, index) => 
       index === prev.length - 1 && msg.role === 'assistant' ? {
@@ -320,7 +310,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { selectedModel } = useModelStore.getState();
     const { messages, selectedImages, selectedFiles, currentChatId, wsRef, editingMessage } = get();
     
-    const { isImageGenerationMode, setIsLoading, setShouldAutoScroll, setAwaitingChatId, inputMessage } = useUIStore.getState();
+    const { isImageGenerationMode, setIsLoading, setAwaitingChatId, inputMessage } = useUIStore.getState();
     
     if ((!inputMessage.trim() && !isImageGenerationMode) || !selectedModel) {
       console.log('Cannot submit: empty message or no model selected');
@@ -329,7 +319,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     try {
       setIsLoading(true);
-      setShouldAutoScroll(true);
+      
+      // เปิดใช้งาน auto-scroll เมื่อส่งข้อความใหม่
+      useScrollStore.getState().setAutoScrollEnabled(true);
       
       // แปลงรูปภาพและไฟล์
       let images: { data: string; mediaType: string }[] = [];
@@ -529,7 +521,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   handleContinueClick: (e) => {
     e.preventDefault();
     
-    const { setIsLoading, setShouldAutoScroll } = useUIStore.getState();
+    const { setIsLoading } = useUIStore.getState();
     const { selectedModel } = useModelStore.getState();
     const { messages, wsRef, currentChatId } = get();
     
@@ -540,7 +532,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     try {
       setIsLoading(true);
-      setShouldAutoScroll(true);
+      
+      // เปิดใช้งาน auto-scroll เมื่อสั่งให้ AI ทำงานต่อ
+      useScrollStore.getState().setAutoScrollEnabled(true);
       
       const lastMessage = messages[messages.length - 1];
       const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
@@ -647,6 +641,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       editingMessage: null 
     });
     useUIStore.getState().setIsImageGenerationMode(false);
+    
+    // รีเซ็ตสถานะของ scroll
+    const scrollStore = useScrollStore.getState();
+    scrollStore.setAutoScrollEnabled(true);
+    scrollStore.setIsScrollingManually(false);
+    scrollStore.setShowScrollButton(false);
   },
   
   // Cancel the current generation
@@ -703,7 +703,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     const { messages, wsRef, currentChatId } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
-    const { setIsLoading, setShouldAutoScroll } = useUIStore.getState();
+    const { setIsLoading } = useUIStore.getState();
     
     if (!selectedModel || !wsRef) {
       alert('Please select a model first');
@@ -731,8 +731,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     };
     
     // Reset scroll position
-    setShouldAutoScroll(true);
-    useUIStore.getState().setUserScrolledManually(false);
+    useScrollStore.getState().setAutoScrollEnabled(true);
+    useScrollStore.getState().setIsScrollingManually(false);
     
     // Update messages and set loading state
     set({ messages: [...messagesToKeep, assistantMessage] });

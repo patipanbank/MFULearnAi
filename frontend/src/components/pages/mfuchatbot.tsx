@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
@@ -6,11 +6,16 @@ import ChatInput from '../chat/ui/ChatInput';
 import { useChatStore } from '../chat/store/chatStore';
 import { useModelStore } from '../chat/store/modelStore';
 import { useUIStore } from '../chat/store/uiStore';
+import { useScrollStore } from '../chat/store/scrollStore';
 import { isValidObjectId } from '../chat/utils/formatters';
 
 const MFUChatbot: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Refs สำหรับการ scroll
+  const containerRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   
   // Chat state from Zustand
   const {
@@ -19,8 +24,6 @@ const MFUChatbot: React.FC = () => {
     selectedImages,
     selectedFiles,
     editingMessage,
-    setMessagesEndRef,
-    setChatContainerRef,
     setCurrentChatId,
     initWebSocket,
     loadChatHistory,
@@ -43,15 +46,20 @@ const MFUChatbot: React.FC = () => {
     isImageGenerationMode,
     isMobile,
     inputMessage,
-    isNearBottom,
-    messagesEndRef,
-    chatContainerRef,
     setInputMessage,
     setIsImageGenerationMode,
     setMessageCount,
-    initScrollListener,
-    handleScrollToBottom,
   } = useUIStore();
+  
+  // Scroll state from Zustand
+  const {
+    showScrollButton,
+    setScrollRefs,
+    initScrollObserver,
+    handleScrollButtonClick,
+    handleNewMessage,
+    handleMessageComplete
+  } = useScrollStore();
   
   // Model state from Zustand
   const {
@@ -63,11 +71,16 @@ const MFUChatbot: React.FC = () => {
     fetchModels
   } = useModelStore();
   
-  // สร้าง cleanup function สำหรับ scroll listener
+  // เซ็ต refs สำหรับการ scroll
   useEffect(() => {
-    const cleanup = initScrollListener();
+    setScrollRefs(containerRef, endRef);
+  }, [setScrollRefs]);
+  
+  // ตั้งค่า scroll observer
+  useEffect(() => {
+    const cleanup = initScrollObserver();
     return cleanup;
-  }, [initScrollListener]);
+  }, [initScrollObserver]);
   
   // อัปเดตจำนวนข้อความเมื่อมีการเปลี่ยนแปลง
   useEffect(() => {
@@ -76,21 +89,15 @@ const MFUChatbot: React.FC = () => {
   
   // ทำการ auto-scroll เมื่อมีข้อความใหม่หรือสถานะโหลดเปลี่ยนแปลง
   useEffect(() => {
-    const { shouldAutoScroll, userScrolledManually, scrollToBottom } = useUIStore.getState();
-    // เฉพาะกรณีที่เปิดใช้ auto-scroll และผู้ใช้ไม่ได้เลื่อนเอง
-    if (shouldAutoScroll && !userScrolledManually) {
-      scrollToBottom();
-    }
-    
-    // อัปเดตสถานะการแสดงปุ่ม scroll to bottom ทุกครั้งที่มีข้อความใหม่
-    useUIStore.getState().updateScrollPosition();
-  }, [messages, isLoading]);
+    handleNewMessage();
+  }, [messages, handleNewMessage]);
   
-  // Set refs in the chat store
+  // จัดการเมื่อการโหลดเสร็จสิ้น
   useEffect(() => {
-    setMessagesEndRef(messagesEndRef);
-    setChatContainerRef(chatContainerRef);
-  }, [messagesEndRef, chatContainerRef, setMessagesEndRef, setChatContainerRef]);
+    if (!isLoading) {
+      handleMessageComplete();
+    }
+  }, [isLoading, handleMessageComplete]);
   
   // Initialize WebSocket when component mounts
   useEffect(() => {
@@ -156,7 +163,7 @@ const MFUChatbot: React.FC = () => {
   }, [fetchUsage]);
   
   return (
-    <div className="flex flex-col h-full" ref={chatContainerRef}>
+    <div className="flex flex-col h-full" ref={containerRef}>
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-40">
         {messages.length === 0 ? (
           <WelcomeMessage />
@@ -175,7 +182,7 @@ const MFUChatbot: React.FC = () => {
                 selectedModel={selectedModel}
               />
             ))}
-            <div ref={messagesEndRef} />
+            <div ref={endRef} />
           </div>
         )}
       </div>
@@ -198,8 +205,8 @@ const MFUChatbot: React.FC = () => {
         setSelectedModel={setSelectedModel}
         isLoading={isLoading}
         canSubmit={canSubmit}
-        handleScrollToBottom={handleScrollToBottom}
-        isNearBottom={isNearBottom}
+        handleScrollToBottom={handleScrollButtonClick}
+        showScrollButton={showScrollButton}
         usage={usage}
         isMobile={isMobile}
         editingMessage={editingMessage}

@@ -25,7 +25,7 @@ interface ChatInputProps {
   isLoading: boolean;
   canSubmit: () => boolean;
   handleScrollToBottom: () => void;
-  isNearBottom: boolean;
+  showScrollButton: boolean;
   usage: Usage | null;
   isMobile: boolean;
   editingMessage?: Message | null;
@@ -51,7 +51,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isLoading,
   canSubmit,
   handleScrollToBottom,
-  isNearBottom,
+  showScrollButton,
   usage,
   editingMessage,
   handleCancelGeneration
@@ -89,7 +89,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   return (
     <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-10">
       {/* Scroll to bottom button - improved visibility based on scroll distance */}
-      {!isNearBottom && (
+      {showScrollButton && (
         <button
           onClick={handleScrollToBottom}
           className="fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 md:p-3 shadow-lg transition-all duration-300 z-20"
