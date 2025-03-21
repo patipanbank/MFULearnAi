@@ -7,6 +7,7 @@ import { Chat } from '../models/Chat';
 import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
+import { SystemPrompt } from '../models/SystemPrompt';
 
 interface QueryResult {
   text: string;
@@ -325,6 +326,16 @@ class ChatService {
     }
   }
 
+  private async getSystemPrompt(): Promise<string> {
+    try {
+      const promptDoc = await SystemPrompt.findOne().sort({ updatedAt: -1 });
+      return promptDoc ? promptDoc.prompt : this.systemPrompt;
+    } catch (error) {
+      console.error('Error fetching system prompt, using default:', error);
+      return this.systemPrompt;
+    }
+  }
+
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
@@ -388,12 +399,15 @@ class ChatService {
       const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
       // console.log('Question type:', questionType);
 
+      // ดึง system prompt จากฐานข้อมูล
+      const dynamicSystemPrompt = await this.getSystemPrompt();
+
       const systemMessages: ChatMessage[] = [
         {
           role: 'system',
           content: isImageGeneration ? 
             'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
-            this.systemPrompt
+            dynamicSystemPrompt
         }
       ];
 
