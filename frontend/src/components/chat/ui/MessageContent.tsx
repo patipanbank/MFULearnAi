@@ -61,7 +61,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ message }) => {
         {message.isEdited && (
           <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 italic">
             <MdEdit className="h-3 w-3" />
-            <span>(แก้ไขแล้ว)</span>
+            <span>(Edited)</span>
           </div>
         )}
       </div>

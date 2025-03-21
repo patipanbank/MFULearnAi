@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
-import { MdEdit, MdCancel, MdRefresh, MdClose } from "react-icons/md";
+import { MdEdit, MdCancel, MdRefresh, MdClose, MdContentCopy } from "react-icons/md";
 import { Message } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
@@ -29,6 +29,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
 
   const handleStartEdit = () => {
     setEditedContent(message.content);
@@ -45,6 +46,12 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+  };
+
+  const handleCopyToClipboard = () => {
+    navigator.clipboard.writeText(message.content);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   return (
@@ -156,11 +163,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             <button
               type="button"
               onClick={onCancelClick}
-              className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-red-500 hover:bg-red-600 text-white"
+              className="px-2 py-2 rounded-full transition-colors bg-red-500 hover:bg-red-600 text-white"
               title="Cancel generation"
             >
-              <MdCancel className="h-4 w-4" />
-              <span>Cancel</span>
+              <MdCancel className="h-5 w-5" />
             </button>
           )}
           
@@ -170,41 +176,48 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <button
                 type="button"
                 onClick={onContinueClick}
-                className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm ${
+                className={`p-2 rounded-full transition-colors ${
                   selectedModel ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
                 disabled={!selectedModel}
                 title="Continue writing"
                 data-verify="false"
               >
-                <VscDebugContinue className="h-4 w-4" />
-                <span>Continue</span>
+                <VscDebugContinue className="h-5 w-5" />
               </button>
               
               {onRegenerateClick && (
                 <button
                   type="button"
                   onClick={onRegenerateClick}
-                  className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm ${
+                  className={`p-2 rounded-full transition-colors ${
                     selectedModel ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                   disabled={!selectedModel}
                   title="Regenerate response"
                 >
-                  <MdRefresh className="h-4 w-4" />
-                  <span>Regenerate</span>
+                  <MdRefresh className="h-5 w-5" />
                 </button>
               )}
               
-              {/* Add edit button for assistant messages */}
+              {/* Copy to clipboard button */}
+              <button
+                type="button"
+                onClick={handleCopyToClipboard}
+                className="p-2 rounded-full transition-colors bg-purple-500 hover:bg-purple-600 text-white"
+                title={isCopied ? "Copied!" : "Copy to clipboard"}
+              >
+                <MdContentCopy className="h-5 w-5" />
+              </button>
+              
+              {/* Edit button */}
               <button
                 type="button"
                 onClick={handleStartEdit}
-                className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-gray-500 hover:bg-gray-600 text-white"
+                className="p-2 rounded-full transition-colors bg-gray-500 hover:bg-gray-600 text-white"
                 title="Edit response"
               >
-                <MdEdit className="h-4 w-4" />
-                <span>Edit</span>
+                <MdEdit className="h-5 w-5" />
               </button>
             </>
           )}
@@ -217,11 +230,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           <button
             type="button"
             onClick={() => handleStartEdit()}
-            className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-gray-500 hover:bg-gray-600 text-white"
+            className="p-2 rounded-full transition-colors bg-gray-500 hover:bg-gray-600 text-white"
             title="Edit your message"
           >
-            <MdEdit className="h-4 w-4" />
-            <span>Edit</span>
+            <MdEdit className="h-5 w-5" />
           </button>
         </div>
       )}
