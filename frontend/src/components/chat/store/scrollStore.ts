@@ -16,6 +16,7 @@ interface ScrollState {
   lastScrollPosition: number;
   lastScrollHeight: number;
   lastClientHeight: number;
+  bottomObserver: IntersectionObserver | null;
   
   // Actions - เซ็ตเตอร์พื้นฐาน
   setIsAtBottom: (value: boolean) => void;
@@ -51,6 +52,7 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
   lastScrollPosition: 0,
   lastScrollHeight: 0,
   lastClientHeight: 0,
+  bottomObserver: null,
   
   // เซ็ตเตอร์พื้นฐาน
   setIsAtBottom: (value) => set({ isAtBottom: value }),
@@ -82,91 +84,61 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
   
   // ฟังก์ชันติดตามการเลื่อน
   initScrollObserver: () => {
-    const { scrollContainerRef } = get();
+    const { scrollContainerRef, scrollEndRef } = get();
     const container = scrollContainerRef.current;
-    if (!container) return () => {};
+    const bottomElement = scrollEndRef.current;
     
-    // ฟังก์ชันคำนวณตำแหน่งและอัพเดตสถานะ
-    const calculateScrollPosition = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      
-      // บันทึกค่าล่าสุด
-      const { lastScrollPosition } = get();
-      set({ 
-        lastScrollPosition: scrollTop,
-        lastScrollHeight: scrollHeight,
-        lastClientHeight: clientHeight
-      });
-      
-      // คำนวณระยะห่างจากด้านล่าง
-      const distanceFromBottom = Math.max(0, scrollHeight - scrollTop - clientHeight);
-      
-      // กำหนด threshold ที่มากขึ้นเนื่อองจาก padding ด้านล่างและ fixed elements
-      const threshold = Math.max(50, clientHeight * 0.1); // เพิ่มเป็น 10% ของความสูงหรือ 50px
-      const isAtBottom = distanceFromBottom < threshold;
-      
-      console.log('[ScrollStore] Position calculated:', { 
-        scrollTop, 
-        scrollHeight, 
-        clientHeight, 
-        distanceFromBottom, 
-        threshold,
-        isAtBottom
-      });
-      
-      // ตรวจสอบว่าผู้ใช้กำลังเลื่อนเองหรือไม่ (เคลื่อนไหวมากกว่า 2px)
-      const isManualScrolling = Math.abs(scrollTop - lastScrollPosition) > 2;
-      
-      // อัพเดตสถานะ
-      set({ isAtBottom });
-      
-      // กำหนดให้แสดงปุ่มเมื่อไม่ได้อยู่ที่ด้านล่าง และกำลังไม่อยู่ในสถานะเพิ่งเริ่มต้น
-      const showButton = !isAtBottom;
-      set({ showScrollButton: showButton });
-      
-      // ถ้าผู้ใช้กำลังเลื่อนขึ้นและไม่ได้อยู่ที่ด้านล่าง
-      if (isManualScrolling && !isAtBottom) {
-        console.log('[ScrollStore] Manual scroll detected!', { scrollTop, lastScrollPosition, distanceFromBottom });
-        set({ 
-          isScrollingManually: true,
-          autoScrollEnabled: false,
-          showScrollButton: true
+    if (!container || !bottomElement) return () => {};
+    
+    // สร้าง IntersectionObserver เพื่อติดตามองค์ประกอบด้านล่าง
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const isVisible = entries[0].isIntersecting;
+        const prevIsAtBottom = get().isAtBottom;
+        
+        console.log('[ScrollStore] Bottom visibility changed:', { 
+          isVisible,
+          prevIsAtBottom
         });
+        
+        if (isVisible) {
+          // เมื่อองค์ประกอบด้านล่างมองเห็น = อยู่ที่ด้านล่าง
+          set({
+            isAtBottom: true,
+            isScrollingManually: false,
+            autoScrollEnabled: true,
+            showScrollButton: false
+          });
+        } else {
+          // เมื่อองค์ประกอบด้านล่างไม่มองเห็น = ไม่ได้อยู่ที่ด้านล่าง
+          set({
+            isAtBottom: false,
+            isScrollingManually: true,
+            autoScrollEnabled: false,
+            showScrollButton: true
+          });
+        }
+      },
+      {
+        root: container,
+        threshold: 0.1, // 10% ขององค์ประกอบต้องมองเห็น
+        rootMargin: '100px' // เพิ่มขอบเขตการตรวจจับ
       }
-      
-      // ถ้าผู้ใช้เลื่อนไปถึงด้านล่าง เปิดใช้งาน auto-scroll อีกครั้ง
-      if (isAtBottom && get().isScrollingManually) {
-        console.log('[ScrollStore] User scrolled to bottom, re-enabling auto-scroll');
-        set({
-          isScrollingManually: false,
-          autoScrollEnabled: true,
-          showScrollButton: false
-        });
-      }
-    };
+    );
     
-    // ใช้ requestAnimationFrame เพื่อเพิ่มประสิทธิภาพ
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          calculateScrollPosition();
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
+    // เริ่มสังเกตการณ์องค์ประกอบด้านล่าง
+    observer.observe(bottomElement);
+    set({ bottomObserver: observer });
     
-    // เพิ่ม event listener
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    
-    // เรียกใช้งานทันทีเพื่อตั้งค่าเริ่มต้น
-    calculateScrollPosition();
-    
-    // ทำ mutation observer เพื่อติดตามการเปลี่ยนแปลงเนื้อหาในแชท
+    // ยังคงใช้ MutationObserver เพื่อติดตามการเปลี่ยนแปลงเนื้อหา
     const contentObserver = new MutationObserver(() => {
-      // ตรวจสอบตำแหน่ง scroll หลังจากเนื้อหาเปลี่ยน
-      calculateScrollPosition();
+      // ตรวจสอบขนาดของเนื้อหาและอัพเดตการแสดงปุ่ม
+      const { scrollHeight, clientHeight } = container;
+      
+      if (scrollHeight > clientHeight * 1.2 && !get().isAtBottom) {
+        console.log('[ScrollStore] Content height changed and not at bottom');
+        set({ showScrollButton: true });
+      }
     });
     
     // เริ่มสังเกตการณ์การเปลี่ยนแปลงเนื้อหา
@@ -177,10 +149,28 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
       characterDataOldValue: true 
     });
     
+    // ใช้ scroll event เพื่อบันทึกตำแหน่งล่าสุด (ยังจำเป็นสำหรับฟังก์ชันอื่นๆ)
+    const handleScroll = () => {
+      if (!container) return;
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      
+      set({
+        lastScrollPosition: scrollTop,
+        lastScrollHeight: scrollHeight,
+        lastClientHeight: clientHeight
+      });
+    };
+    
+    // เพิ่ม event listener และเรียกใช้งานทันที
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    
     // ส่งคืนฟังก์ชัน cleanup
     return () => {
-      container.removeEventListener('scroll', handleScroll);
+      observer.disconnect();
       contentObserver.disconnect();
+      container.removeEventListener('scroll', handleScroll);
+      set({ bottomObserver: null });
     };
   },
   
@@ -190,34 +180,28 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
     if (!container) return;
     
     const { scrollTop, scrollHeight, clientHeight } = container;
-    const distanceFromBottom = Math.max(0, scrollHeight - scrollTop - clientHeight);
-    const threshold = Math.max(50, clientHeight * 0.1); // ใช้ค่าเดียวกับใน calculateScrollPosition
-    const isAtBottom = distanceFromBottom < threshold;
     
-    console.log('[ScrollStore] Updating scroll position', { 
-      scrollTop,
-      scrollHeight,
-      clientHeight,
-      distanceFromBottom, 
-      threshold,
-      isAtBottom, 
-      showButton: !isAtBottom 
-    });
-    
-    // เมื่อเนื้อหามีการเปลี่ยนแปลง และไม่ได้อยู่ที่ด้านล่าง
-    // บังคับให้แสดงปุ่ม scroll to bottom
-    const showButton = !isAtBottom;
-    
-    set({ 
-      isAtBottom,
-      showScrollButton: showButton,
+    // บันทึกค่าล่าสุด
+    set({
       lastScrollPosition: scrollTop,
       lastScrollHeight: scrollHeight,
       lastClientHeight: clientHeight
     });
     
+    // ใช้ค่า isAtBottom จาก IntersectionObserver (ไม่ต้องคำนวณซ้ำ)
+    const isAtBottom = get().isAtBottom;
+    const showButton = !isAtBottom;
+    
+    console.log('[ScrollStore] Updating scroll position', { 
+      scrollTop,
+      scrollHeight,
+      clientHeight,
+      isAtBottom,
+      showButton
+    });
+    
     // บังคับแสดงปุ่มเลื่อนลงในกรณีที่เนื้อหามีความสูงมากกว่าพื้นที่แสดงผล
-    if (scrollHeight > clientHeight * 1.5) {
+    if (scrollHeight > clientHeight * 1.2 && !isAtBottom) {
       console.log('[ScrollStore] Content height exceeds view, forcing button to show');
       set({ showScrollButton: true });
     }
@@ -240,38 +224,28 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
   
   // จัดการเมื่อมีข้อความใหม่
   handleNewMessage: () => {
-    // ตรวจสอบตำแหน่ง scroll ก่อน
-    get().updateScrollPosition();
+    // ตรวจสอบขนาดของเนื้อหา
+    const container = get().scrollContainerRef.current;
+    if (!container) return;
     
-    // อัพเดตสถานะเมื่อมีข้อความใหม่
-    const { isAtBottom, isScrollingManually } = get();
+    const { scrollHeight, clientHeight } = container;
+    const isAtBottom = get().isAtBottom;
     
     console.log('[ScrollStore] New message received', { 
       autoScrollEnabled: get().autoScrollEnabled,
       isAtBottom,
-      isScrollingManually,
+      isScrollingManually: get().isScrollingManually,
       showButton: !isAtBottom
     });
     
-    // ตรวจสอบขนาดของเนื้อหา
-    const container = get().scrollContainerRef.current;
-    if (container) {
-      const { scrollHeight, clientHeight } = container;
-      
-      // บังคับแสดงปุ่มเลื่อนลงเมื่อได้รับข้อความใหม่ ถ้าเนื้อหามีความสูงมากกว่าพื้นที่แสดงผล
-      if (scrollHeight > clientHeight * 1.2 && !isAtBottom) {
-        console.log('[ScrollStore] Content taller than view on new message, showing button');
-        set({ showScrollButton: true });
-      }
-    }
-    
-    // แสดงปุ่ม back to bottom ถ้าไม่ได้อยู่ที่ด้านล่าง
-    if (!isAtBottom) {
+    // บังคับแสดงปุ่มเลื่อนลงเมื่อได้รับข้อความใหม่ ถ้าเนื้อหามีความสูงมากกว่าพื้นที่แสดงผล
+    if (scrollHeight > clientHeight * 1.2 && !isAtBottom) {
+      console.log('[ScrollStore] Content taller than view on new message, showing button');
       set({ showScrollButton: true });
     }
     
     // ถ้าเปิดใช้งาน auto-scroll และไม่ได้กำลังเลื่อนด้วยตนเอง
-    if (get().autoScrollEnabled && !isScrollingManually) {
+    if (get().autoScrollEnabled && !get().isScrollingManually) {
       setTimeout(() => {
         get().scrollToBottom();
       }, 50);
@@ -280,37 +254,27 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
   
   // จัดการเมื่อข้อความใหม่เสร็จสมบูรณ์
   handleMessageComplete: () => {
-    // ตรวจสอบตำแหน่ง scroll ก่อน
-    get().updateScrollPosition();
+    // ตรวจสอบขนาดของเนื้อหา
+    const container = get().scrollContainerRef.current;
+    if (!container) return;
     
-    // อัพเดตสถานะเมื่อข้อความเสร็จสมบูรณ์
-    const { isAtBottom, isScrollingManually } = get();
+    const { scrollHeight, clientHeight } = container;
+    const isAtBottom = get().isAtBottom;
     
     console.log('[ScrollStore] Message completed', { 
       autoScrollEnabled: get().autoScrollEnabled, 
       isAtBottom,
-      isScrollingManually
+      isScrollingManually: get().isScrollingManually
     });
     
-    // ตรวจสอบขนาดของเนื้อหา
-    const container = get().scrollContainerRef.current;
-    if (container) {
-      const { scrollHeight, clientHeight } = container;
-      
-      // บังคับแสดงปุ่มเลื่อนลงเมื่อข้อความเสร็จสมบูรณ์ ถ้าเนื้อหามีความสูงมากกว่าพื้นที่แสดงผล
-      if (scrollHeight > clientHeight && !isAtBottom) {
-        console.log('[ScrollStore] Content taller than view on message complete, showing button');
-        set({ showScrollButton: true });
-      }
-    }
-    
-    // แสดงปุ่ม back to bottom ถ้าไม่ได้อยู่ที่ด้านล่าง
-    if (!isAtBottom) {
+    // บังคับแสดงปุ่มเลื่อนลงเมื่อข้อความเสร็จสมบูรณ์ ถ้าเนื้อหามีความสูงมากกว่าพื้นที่แสดงผล
+    if (scrollHeight > clientHeight && !isAtBottom) {
+      console.log('[ScrollStore] Content taller than view on message complete, showing button');
       set({ showScrollButton: true });
     }
     
     // ถ้าเปิดใช้งาน auto-scroll และไม่ได้กำลังเลื่อนด้วยตนเอง
-    if (get().autoScrollEnabled && !isScrollingManually) {
+    if (get().autoScrollEnabled && !get().isScrollingManually) {
       setTimeout(() => {
         get().scrollToBottom();
       }, 50);
