@@ -647,7 +647,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const hasImages = selectedImages.length > 0;
     const hasModel = !!selectedModel;
     
-    console.log('canSubmit conditions:', { hasText, hasFiles, hasImages, hasModel, isLoading, selectedModel });
+    //console.log('canSubmit conditions:', { hasText, hasFiles, hasImages, hasModel, isLoading, selectedModel });
     
     return (hasText || hasFiles || hasImages) && hasModel && !isLoading;
   },
