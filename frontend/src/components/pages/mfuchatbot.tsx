@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { IoIosArrowDown } from "react-icons/io";
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
@@ -154,6 +155,17 @@ const MFUChatbot: React.FC = () => {
   
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
+      {/* Scroll to bottom button - improved visibility based on scroll distance */}
+      {!isNearBottom && (
+        <button
+          onClick={handleScrollToBottom}
+          className="fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 md:p-3 shadow-lg transition-all duration-300 z-20"
+          aria-label="Scroll to latest messages"
+        >
+          <IoIosArrowDown className="h-4 w-4 md:h-5 md:w-5" />
+        </button>
+      )}
+      
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-40">
         {messages.length === 0 ? (
           <WelcomeMessage />
@@ -195,8 +207,6 @@ const MFUChatbot: React.FC = () => {
         setSelectedModel={setSelectedModel}
         isLoading={isLoading}
         canSubmit={canSubmit}
-        handleScrollToBottom={handleScrollToBottom}
-        isNearBottom={isNearBottom}
         usage={usage}
         isMobile={isMobile}
         editingMessage={editingMessage}
