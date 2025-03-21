@@ -14,6 +14,9 @@ const selectCurrentChatId = (state: ChatState) => state.currentChatId;
 const selectSelectedImages = (state: ChatState) => state.selectedImages;
 const selectSelectedFiles = (state: ChatState) => state.selectedFiles;
 const selectCanSubmit = (state: ChatState) => state.canSubmit();
+const selectHandleSubmit = (state: ChatState) => state.handleSubmit;
+const selectHandleContinueClick = (state: ChatState) => state.handleContinueClick;
+const selectCancelGeneration = (state: ChatState) => state.cancelGeneration;
 
 const selectIsLoading = (state: UIState) => state.isLoading;
 const selectIsImageGenerationMode = (state: UIState) => state.isImageGenerationMode;
@@ -34,6 +37,9 @@ const MFUChatbot: React.FC = () => {
   const selectedImages = useChatStore(selectSelectedImages);
   const selectedFiles = useChatStore(selectSelectedFiles);
   const canSubmitChat = useChatStore(selectCanSubmit);
+  const handleSubmit = useChatStore(selectHandleSubmit);
+  const handleContinueClick = useChatStore(selectHandleContinueClick);
+  const handleCancelClick = useChatStore(selectCancelGeneration);
   
   // Access actions from the chat store
   const {
@@ -41,10 +47,8 @@ const MFUChatbot: React.FC = () => {
     setChatContainerRef,
     initWebSocket,
     loadChatHistory,
-    handleSubmit,
     handleKeyDown,
     handlePaste,
-    handleContinueClick,
     handleFileSelect,
     handleRemoveImage,
     handleRemoveFile,
@@ -54,10 +58,8 @@ const MFUChatbot: React.FC = () => {
     setChatContainerRef: state.setChatContainerRef,
     initWebSocket: state.initWebSocket,
     loadChatHistory: state.loadChatHistory,
-    handleSubmit: state.handleSubmit,
     handleKeyDown: state.handleKeyDown,
     handlePaste: state.handlePaste,
-    handleContinueClick: state.handleContinueClick,
     handleFileSelect: state.handleFileSelect,
     handleRemoveImage: state.handleRemoveImage,
     handleRemoveFile: state.handleRemoveFile,
@@ -173,6 +175,7 @@ const MFUChatbot: React.FC = () => {
               isLastMessage={message.id === messages[messages.length - 1].id}
               isLoading={isLoading}
               onContinueClick={handleContinueClick}
+              onCancelClick={handleCancelClick}
               selectedModel={selectedModel}
             />
           ))

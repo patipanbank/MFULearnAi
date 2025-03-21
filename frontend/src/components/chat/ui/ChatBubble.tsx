@@ -1,5 +1,6 @@
 import React from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
+import { IoMdClose } from "react-icons/io";
 import { Message } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
@@ -10,6 +11,7 @@ interface ChatBubbleProps {
   isLastMessage: boolean;
   isLoading: boolean;
   onContinueClick: (e: React.MouseEvent) => void;
+  onCancelClick: (e: React.MouseEvent) => void;
   selectedModel: string;
 }
 
@@ -17,7 +19,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   message, 
   isLastMessage, 
   isLoading, 
-  onContinueClick, 
+  onContinueClick,
+  onCancelClick,
   selectedModel 
 }) => {
   return (
@@ -86,22 +89,39 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         </div>
       )}
 
-      {/* Add Continue button after the last assistant message */}
-      {message.role === 'assistant' && message.isComplete && isLastMessage && (
-        <div className="ml-11 mt-2">
-          <button
-            type="button"
-            onClick={onContinueClick}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm ${
-              selectedModel ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-            disabled={!selectedModel}
-            title="Continue writing"
-            data-verify="false"
-          >
-            <VscDebugContinue className="h-4 w-4" />
-            <span>Continue</span>
-          </button>
+      {/* Add action buttons for assistant messages */}
+      {message.role === 'assistant' && isLastMessage && (
+        <div className="ml-11 mt-2 flex gap-2">
+          {/* Show Cancel button when message is being generated */}
+          {!message.isComplete && isLoading && (
+            <button
+              type="button"
+              onClick={onCancelClick}
+              className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-red-500 hover:bg-red-600 text-white"
+              title="Cancel generation"
+              data-verify="false"
+            >
+              <IoMdClose className="h-4 w-4" />
+              <span>Cancel</span>
+            </button>
+          )}
+          
+          {/* Show Continue button after the message is complete */}
+          {message.isComplete && (
+            <button
+              type="button"
+              onClick={onContinueClick}
+              className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm ${
+                selectedModel ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              disabled={!selectedModel}
+              title="Continue writing"
+              data-verify="false"
+            >
+              <VscDebugContinue className="h-4 w-4" />
+              <span>Continue</span>
+            </button>
+          )}
         </div>
       )}
     </div>
