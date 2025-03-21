@@ -13,16 +13,16 @@ const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({ isNearBotto
   return (
     <button
       onClick={onClick}
-      className={`fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 
+      className={`absolute left-1/2 transform -translate-x-1/2 -top-6
                 bg-blue-500 hover:bg-blue-600 text-white rounded-full 
-                p-2 md:p-3 shadow-lg transition-all duration-300 z-10 ${
+                p-2 shadow-lg transition-all duration-300 z-10 ${
                   isNearBottom 
-                    ? 'opacity-0 pointer-events-none transform translate-y-4' 
-                    : 'opacity-100 transform translate-y-0'
+                    ? 'opacity-0 pointer-events-none translate-y-2' 
+                    : 'opacity-100 translate-y-0'
                 }`}
       aria-label="เลื่อนไปยังข้อความล่าสุด"
     >
-      <IoIosArrowDown className="h-4 w-4 md:h-5 md:w-5" />
+      <IoIosArrowDown className="h-4 w-4" />
     </button>
   );
 };

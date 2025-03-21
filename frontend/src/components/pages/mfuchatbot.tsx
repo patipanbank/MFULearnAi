@@ -170,37 +170,39 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      {/* แสดงปุ่มเลื่อนลงด้านล่างเมื่อมีข้อความและผู้ใช้ไม่ได้อยู่ที่ด้านล่าง */}
-      {messages.length > 0 && (
-        <ScrollToBottomButton 
-          isNearBottom={isNearBottom}
-          onClick={handleScrollToBottom}
-        />
-      )}
+      <div className="relative">
+        {/* แสดงปุ่มเลื่อนลงด้านล่างเมื่อมีข้อความและผู้ใช้ไม่ได้อยู่ที่ด้านล่าง */}
+        {messages.length > 0 && (
+          <ScrollToBottomButton 
+            isNearBottom={isNearBottom}
+            onClick={handleScrollToBottom}
+          />
+        )}
 
-      <ChatInput
-        inputMessage={inputMessage}
-        setInputMessage={setInputMessage}
-        handleSubmit={handleSubmit}
-        handleKeyDown={handleKeyDown}
-        handlePaste={handlePaste}
-        selectedImages={selectedImages}
-        selectedFiles={selectedFiles}
-        handleFileSelect={handleFileSelect}
-        handleRemoveImage={handleRemoveImage}
-        handleRemoveFile={handleRemoveFile}
-        isImageGenerationMode={isImageGenerationMode}
-        setIsImageGenerationMode={setIsImageGenerationMode}
-        models={models}
-        selectedModel={selectedModel}
-        setSelectedModel={setSelectedModel}
-        isLoading={isLoading}
-        canSubmit={canSubmit}
-        usage={usage}
-        isMobile={isMobile}
-        editingMessage={editingMessage}
-        handleCancelGeneration={handleCancelGeneration}
-      />
+        <ChatInput
+          inputMessage={inputMessage}
+          setInputMessage={setInputMessage}
+          handleSubmit={handleSubmit}
+          handleKeyDown={handleKeyDown}
+          handlePaste={handlePaste}
+          selectedImages={selectedImages}
+          selectedFiles={selectedFiles}
+          handleFileSelect={handleFileSelect}
+          handleRemoveImage={handleRemoveImage}
+          handleRemoveFile={handleRemoveFile}
+          isImageGenerationMode={isImageGenerationMode}
+          setIsImageGenerationMode={setIsImageGenerationMode}
+          models={models}
+          selectedModel={selectedModel}
+          setSelectedModel={setSelectedModel}
+          isLoading={isLoading}
+          canSubmit={canSubmit}
+          usage={usage}
+          isMobile={isMobile}
+          editingMessage={editingMessage}
+          handleCancelGeneration={handleCancelGeneration}
+        />
+      </div>
     </div>
   );
 };
