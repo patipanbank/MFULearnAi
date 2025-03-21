@@ -29,6 +29,7 @@ interface ChatInputProps {
   usage: Usage | null;
   isMobile: boolean;
   editingMessage?: Message | null;
+  handleCancelGeneration?: (e: React.MouseEvent) => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -52,7 +53,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
   handleScrollToBottom,
   isNearBottom,
   usage,
-  editingMessage}) => {
+  editingMessage,
+  handleCancelGeneration
+}) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   useEffect(() => {
@@ -72,6 +75,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
       const maxHeight = lineHeight * maxLines;
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
+    }
+  };
+
+  const handleButtonClick = (e: React.MouseEvent) => {
+    if (isLoading && handleCancelGeneration) {
+      handleCancelGeneration(e);
+    } else {
+      handleSubmit(e as any);
     }
   };
   
@@ -132,16 +143,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
             />
             
             <button
-              type="submit"
+              type={isLoading ? "button" : "submit"}
+              onClick={isLoading ? handleButtonClick : undefined}
               className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                isLoading ? 'bg-red-500 hover:bg-red-600 text-white' :
                 canSubmit() ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
               }`}
-              disabled={!canSubmit()}
+              disabled={!isLoading && !canSubmit()}
               data-verify="false"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center w-6 h-6">
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </div>
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
