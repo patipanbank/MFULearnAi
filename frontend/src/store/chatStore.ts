@@ -661,28 +661,92 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Edit a message
-  handleEditMessage: (message) => {
-    const { messages } = get();
-    
-    // ทำงานเฉพาะกับข้อความของผู้ใช้เท่านั้น
-    if (message.role !== 'user') {
-      console.log('Cannot edit non-user messages');
-      return;
-    }
-    
-    // Set the message to edit
-    set({ editingMessage: message });
-    
-    // Put the user message in the input area
-    set({ inputMessage: message.content });
+  handleEditMessage: async (message) => {
+    const { messages, currentChatId, wsRef } = get();
     
     // Find the index of the message to edit
     const messageIndex = messages.findIndex(m => m.id === message.id);
     if (messageIndex === -1) return;
     
-    // Remove this message and all messages after it
-    const newMessages = messages.slice(0, messageIndex);
-    set({ messages: newMessages });
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
+      // If it's a user message, we need to handle it as before
+      if (message.role === 'user') {
+        // Set the message to edit
+        set({ editingMessage: message });
+        
+        // Put the user message in the input area
+        set({ inputMessage: message.content });
+        
+        // Remove this message and all messages after it
+        const newMessages = messages.slice(0, messageIndex);
+        set({ messages: newMessages });
+      } 
+      // If it's an assistant message, we update the content directly
+      else if (message.role === 'assistant') {
+        // Update the message in the local state
+        const updatedMessages = [...messages];
+        updatedMessages[messageIndex] = {
+          ...message,
+          isEdited: true, // Add a flag to indicate this message was edited
+        };
+        
+        set({ messages: updatedMessages });
+        
+        // Send update to backend
+        if (currentChatId) {
+          try {
+            // Create a copy of all messages with the edited message
+            const allMessages = updatedMessages.map(msg => ({
+              ...msg,
+              timestamp: msg.timestamp?.$date ? { $date: msg.timestamp.$date } : { $date: new Date().toISOString() }
+            }));
+
+            const response = await fetch(`${config.apiUrl}/api/chat/edit-message`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                chatId: currentChatId,
+                messageId: message.id,
+                content: message.content,
+                allMessages
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to update message');
+            }
+            
+            // Notify websocket to broadcast update to other connected clients
+            if (wsRef && wsRef.readyState === WebSocket.OPEN) {
+              wsRef.send(JSON.stringify({
+                type: 'message_edited',
+                chatId: currentChatId,
+                messageId: message.id,
+                content: message.content
+              }));
+            }
+            
+            console.log('Message updated successfully');
+          } catch (error) {
+            console.error('Error updating message:', error);
+            throw error;
+          }
+        } else {
+          console.error('Cannot update message: No chat ID');
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleEditMessage:', error);
+      alert('Failed to edit message. Please try again.');
+    }
   },
   
   // Regenerate the last assistant message

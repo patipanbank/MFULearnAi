@@ -32,6 +32,7 @@ export interface Message {
   sources?: Source[];
   isImageGeneration?: boolean;
   isComplete?: boolean;
+  isEdited?: boolean;
 }
 
 export interface ChatHistory {

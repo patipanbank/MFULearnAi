@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
-import { MdEdit, MdCancel, MdRefresh } from "react-icons/md";
+import { MdEdit, MdCancel, MdRefresh, MdClose } from "react-icons/md";
 import { Message } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
@@ -27,8 +27,63 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   onRegenerateClick,
   selectedModel 
 }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
+
+  const handleStartEdit = () => {
+    setEditedContent(message.content);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (onEditClick && editedContent.trim() !== '') {
+      const editedMessage = { ...message, content: editedContent };
+      onEditClick(editedMessage);
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
   return (
     <div className="message relative">
+      {isEditing ? (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+              <h3 className="text-lg font-semibold">Edit Message</h3>
+              <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700">
+                <MdClose className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-4 flex-grow overflow-auto">
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full h-full min-h-[300px] p-3 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
+                placeholder="Edit message content..."
+              />
+            </div>
+            <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
+              <button
+                onClick={handleCancelEdit}
+                className="px-4 py-2 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className={`flex items-start gap-3 ${
         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
       }`}>
@@ -140,6 +195,17 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   <span>Regenerate</span>
                 </button>
               )}
+              
+              {/* Add edit button for assistant messages */}
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-gray-500 hover:bg-gray-600 text-white"
+                title="Edit response"
+              >
+                <MdEdit className="h-4 w-4" />
+                <span>Edit</span>
+              </button>
             </>
           )}
         </div>
@@ -150,7 +216,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         <div className="mr-11 mt-2 flex justify-end">
           <button
             type="button"
-            onClick={() => onEditClick(message)}
+            onClick={() => handleStartEdit()}
             className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-gray-500 hover:bg-gray-600 text-white"
             title="Edit your message"
           >

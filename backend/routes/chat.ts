@@ -170,6 +170,26 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       const data = JSON.parse(message.toString());
       const userId = extWs.userId;
 
+      // Handle message_edited request specifically
+      if (data.type === 'message_edited') {
+        console.log(`User ${userId} edited message in chat ${data.chatId}`);
+        
+        // Broadcast to other clients of same user
+        wss.clients.forEach((client: WebSocket) => {
+          const extClient = client as ExtendedWebSocket;
+          if (extClient.userId === extWs.userId && extClient !== extWs) {
+            extClient.send(JSON.stringify({
+              type: 'message_edited',
+              chatId: data.chatId,
+              messageId: data.messageId,
+              content: data.content
+            }));
+          }
+        });
+        
+        return;
+      }
+
       // Handle cancel request specifically
       if (data.type === 'cancel') {
         console.log(`User ${userId} cancelled generation for chat ${data.chatId}`);
@@ -790,6 +810,62 @@ router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
     res.status(500).json({ 
       error: error instanceof Error ? error.message : 'Failed to parse file' 
     });
+  }
+});
+
+// Add API endpoint for editing message
+router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { chatId, messageId, content, allMessages } = req.body;
+    const userId = (req.user as any)?.username || '';
+
+    if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
+      res.status(400).json({ error: 'Invalid chat ID' });
+      return;
+    }
+
+    if (!messageId) {
+      res.status(400).json({ error: 'Message ID is required' });
+      return;
+    }
+
+    if (!content) {
+      res.status(400).json({ error: 'Content is required' });
+      return;
+    }
+
+    // Find the chat
+    const chat = await Chat.findOne({ _id: chatId, userId });
+    
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found or unauthorized' });
+      return;
+    }
+
+    // If allMessages is provided, update the entire messages array
+    if (allMessages && Array.isArray(allMessages)) {
+      chat.messages = allMessages.map(msg => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp?.$date || new Date())
+      }));
+    } else {
+      // Otherwise just update the specific message
+      const messageIndex = chat.messages.findIndex(m => m.id === messageId);
+      if (messageIndex === -1) {
+        res.status(404).json({ error: 'Message not found' });
+        return;
+      }
+
+      chat.messages[messageIndex].content = content;
+    }
+
+    // Save the updated chat
+    await chat.save();
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error editing message:', error);
+    res.status(500).json({ error: 'Failed to edit message' });
   }
 });
 

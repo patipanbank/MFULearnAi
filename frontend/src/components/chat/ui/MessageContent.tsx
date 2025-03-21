@@ -4,6 +4,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message } from '../utils/types';
 import FileIcon from './FileIcon';
 import { formatFileSize } from '../utils/formatters';
+import { MdEdit } from 'react-icons/md';
 
 interface MessageContentProps {
   message: Message;
@@ -57,6 +58,12 @@ const MessageContent: React.FC<MessageContentProps> = ({ message }) => {
     <div className="space-y-3">
       <div className="whitespace-pre-wrap">
         {renderContent(message.content)}
+        {message.isEdited && (
+          <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 italic">
+            <MdEdit className="h-3 w-3" />
+            <span>(แก้ไขแล้ว)</span>
+          </div>
+        )}
       </div>
       
       {message.images && message.images.length > 0 && (
