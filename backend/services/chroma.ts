@@ -270,7 +270,7 @@ class ChromaService {
     }
   }
 
-  async queryCollection(collectionName: string, query: string, limit: number = 4) {
+  async queryCollection(collectionName: string, query: string, limit: number = 5) {
     await this.initCollection(collectionName);
     const collection = this.collections.get(collectionName);
     const queryEmbedding = await this.titanEmbedService.embedText(query);

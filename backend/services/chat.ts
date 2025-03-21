@@ -7,6 +7,7 @@ import { Chat } from '../models/Chat';
 import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
+import { SystemPrompt } from '../models/SystemPrompt';
 
 interface QueryResult {
   text: string;
@@ -315,13 +316,23 @@ class ChatService {
         }
       );
 
-      console.log(`Updated daily stats for ${userId}:`, {
-        date: today.toISOString(),
-        uniqueUsers: stats.uniqueUsers.length,
-        totalChats: stats.totalChats
-      });
+      // console.log(`Updated daily stats for ${userId}:`, {
+      //   date: today.toISOString(),
+      //   uniqueUsers: stats.uniqueUsers.length,
+      //   totalChats: stats.totalChats
+      // });
     } catch (error) {
       console.error('Error updating daily stats:', error);
+    }
+  }
+
+  private async getSystemPrompt(): Promise<string> {
+    try {
+      const promptDoc = await SystemPrompt.findOne().sort({ updatedAt: -1 });
+      return promptDoc ? promptDoc.prompt : this.systemPrompt;
+    } catch (error) {
+      console.error('Error fetching system prompt, using default:', error);
+      return this.systemPrompt;
     }
   }
 
@@ -388,12 +399,15 @@ class ChatService {
       const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
       // console.log('Question type:', questionType);
 
+      // ดึง system prompt จากฐานข้อมูล
+      const dynamicSystemPrompt = await this.getSystemPrompt();
+
       const systemMessages: ChatMessage[] = [
         {
           role: 'system',
           content: isImageGeneration ? 
             'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
-            this.systemPrompt
+            dynamicSystemPrompt
         }
       ];
 
@@ -459,6 +473,17 @@ class ChatService {
               daily: usage.dailyTokens,
               remaining: usage.remainingTokens
             });
+            
+            // อัปเดตข้อมูล token ในสถิติรายวัน
+            const today = new Date();
+            today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
+            today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
+
+            await ChatStats.findOneAndUpdate(
+              { date: today },
+              { $inc: { totalTokens: totalTokens } },
+              { upsert: true }
+            );
           }
           return;
         } catch (error: unknown) {

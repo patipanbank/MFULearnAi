@@ -12,6 +12,7 @@ import AdminLogin from './components/login/AdminLogin';
 import CreateAdmin from './components/pages/CreateAdmin';
 import Help from './components/pages/Help';
 import Statistics from './components/pages/Statistics';
+import SystemPrompt from './components/pages/SystemPrompt';
  
 
 const App = () => {
@@ -111,6 +112,18 @@ const App = () => {
               <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <Statistics />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/system-prompt"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
+                <MainLayout>
+                  <SystemPrompt />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>

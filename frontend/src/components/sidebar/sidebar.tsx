@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar } from 'react-icons/fa';
+import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -358,8 +358,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
-            }}>MFU</span>{' '}
-            <span>Learn</span>
+            }}>DIN</span>{''}
+            <span>DIN</span>
             <span style={{
               background: 'linear-gradient(to right, #00FFFF, #0099FF)',
               WebkitBackgroundClip: 'text',
@@ -546,27 +546,37 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           )}
 
           {isSuperAdmin && (
-            <Link
-              to="/admin/create"
-              className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-              onClick={onClose}
-            >
-              <FaUserPlus className="w-5 h-5 mr-3 flex-shrink-0" />
-              <span className="font-medium truncate">Create Admin</span>
-            </Link>
-          )}
-
-          {(isSuperAdmin) && (
-            <Link
-              to="/statistics"
-              className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                ${location.pathname === '/statistics' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-              onClick={onClose}
-            >
-              <FaChartBar className="w-5 h-5 mr-3" />
-              <span className="font-medium">Statistics</span>
-            </Link>
+            <>
+              <Link
+                to="/admin/create"
+                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                  ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                onClick={onClose}
+              >
+                <FaUserPlus className="w-5 h-5 mr-3 flex-shrink-0" />
+                <span className="font-medium truncate">Create Admin</span>
+              </Link>
+              
+              <Link
+                to="/statistics"
+                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                  ${location.pathname === '/statistics' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                onClick={onClose}
+              >
+                <FaChartBar className="w-5 h-5 mr-3" />
+                <span className="font-medium">Statistics</span>
+              </Link>
+              
+              <Link
+                to="/system-prompt"
+                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                  ${location.pathname === '/system-prompt' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                onClick={onClose}
+              >
+                <FaCog className="w-5 h-5 mr-3" />
+                <span className="font-medium">Edit System Prompt</span>
+              </Link>
+            </>
           )}
 
           {/* Help link */}

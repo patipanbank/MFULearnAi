@@ -4,6 +4,7 @@ interface IChatStats extends Document {
   date: Date;
   uniqueUsers: string[];
   totalChats: number;
+  totalTokens: number;
 }
 
 const chatStatsSchema = new mongoose.Schema({
@@ -16,6 +17,10 @@ const chatStatsSchema = new mongoose.Schema({
     type: String
   }],
   totalChats: {
+    type: Number,
+    default: 0
+  },
+  totalTokens: {
     type: Number,
     default: 0
   }
