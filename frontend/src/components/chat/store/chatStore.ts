@@ -231,18 +231,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     ));
     
     // Auto-scroll while content is streaming if conditions are right
-    const { userScrolledManually } = useUIStore.getState();
+    const { userScrolledManually, scrollToBottom } = useUIStore.getState();
     if (!userScrolledManually) {
-      const messagesEndRef = get().messagesEndRef;
       setTimeout(() => {
-        messagesEndRef?.current?.scrollIntoView({ behavior: 'smooth' });
+        scrollToBottom(true);
       }, 100);
     }
   },
   
   completeAssistantMessage: (sources) => {
     // Re-enable auto-scrolling when message is complete, but respect user's reading position
-    const { userScrolledManually, setShouldAutoScroll, setIsLoading } = useUIStore.getState();
+    const { userScrolledManually, setShouldAutoScroll, setIsLoading, scrollToBottom } = useUIStore.getState();
     
     // ตั้งค่า isLoading เป็น false เมื่อข้อความเสร็จสมบูรณ์
     setIsLoading(false);
@@ -250,9 +249,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!userScrolledManually) {
       setShouldAutoScroll(true);
       // Explicitly scroll to bottom when message completes
-      const messagesEndRef = get().messagesEndRef;
       setTimeout(() => {
-        messagesEndRef?.current?.scrollIntoView({ behavior: 'smooth' });
+        scrollToBottom(true);
       }, 100);
     }
     

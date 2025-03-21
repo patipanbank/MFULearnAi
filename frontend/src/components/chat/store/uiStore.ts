@@ -30,7 +30,7 @@ export interface UIState {
   // เพิ่ม Actions จาก useScrollManagement
   setMessageCount: (count: number) => void;
   initScrollListener: () => () => void;
-  scrollToBottom: () => void;
+  scrollToBottom: (force?: boolean) => void;
   handleScrollToBottom: () => void;
   updateScrollPosition: () => void;
   
@@ -131,9 +131,9 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
   
   // ฟังก์ชันเลื่อนไปด้านล่าง
-  scrollToBottom: () => {
+  scrollToBottom: (force?: boolean) => {
     const { shouldAutoScroll, messagesEndRef } = get();
-    if (shouldAutoScroll && messagesEndRef.current) {
+    if ((shouldAutoScroll || force) && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   },
@@ -146,12 +146,9 @@ export const useUIStore = create<UIState>((set, get) => ({
       userScrolledManually: false
     });
     
-    // ใช้ RAF เพื่อการเคลื่อนไหวที่ราบรื่นขึ้น
+    // ใช้ scrollToBottom ที่มี force=true
     requestAnimationFrame(() => {
-      const { messagesEndRef } = get();
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
+      get().scrollToBottom(true);
     });
   },
   

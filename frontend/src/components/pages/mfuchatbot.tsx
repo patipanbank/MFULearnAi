@@ -74,6 +74,15 @@ const MFUChatbot: React.FC = () => {
     setMessageCount(messages.length);
   }, [messages, setMessageCount]);
   
+  // ทำการ auto-scroll เมื่อมีข้อความใหม่หรือสถานะโหลดเปลี่ยนแปลง
+  useEffect(() => {
+    const { shouldAutoScroll, userScrolledManually, scrollToBottom } = useUIStore.getState();
+    // เฉพาะกรณีที่เปิดใช้ auto-scroll และผู้ใช้ไม่ได้เลื่อนเอง
+    if (shouldAutoScroll && !userScrolledManually) {
+      scrollToBottom();
+    }
+  }, [messages, isLoading]);
+  
   // Set refs in the chat store
   useEffect(() => {
     setMessagesEndRef(messagesEndRef);
