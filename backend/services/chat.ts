@@ -574,14 +574,14 @@ class ChatService {
     }
   }
 
-  async saveChat(userId: string, modelId: string, messages: any[]) {
+  async saveChat(userId: string, modelId: string, messages: any[], chatId?: string, chatname?: string) {
     try {
       // บันทึกสถิติก่อนที่จะบันทึกแชท
       await this.updateDailyStats(userId);
 
       // หาข้อความแรกของ user
       const firstUserMessage = messages.find(msg => msg.role === 'user');
-      const chatname = firstUserMessage ? firstUserMessage.content.substring(0, 50) : 'Untitled Chat';
+      const generatedChatname = firstUserMessage ? firstUserMessage.content.substring(0, 50) : 'Untitled Chat';
       
       const lastMessage = messages[messages.length - 1];
       const name = lastMessage.content.substring(0, 50);
@@ -598,7 +598,7 @@ class ChatService {
       const chat = new Chat({
         userId,
         modelId,
-        chatname,
+        chatname: chatname || generatedChatname,
         name,
         messages: processedMessages
       });
