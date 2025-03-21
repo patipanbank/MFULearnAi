@@ -753,35 +753,4 @@ router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
   }
 });
 
-// Create empty chat (just generate ID without messages)
-router.post('/create-empty-chat', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { modelId } = req.body;
-    const userId = (req.user as any)?.username || '';
-
-    if (!modelId) {
-      res.status(400).json({ error: 'ModelId is required' });
-      return;
-    }
-
-    // Create a placeholder message just to satisfy schema requirements
-    const placeholderMessage = {
-      role: 'system',
-      content: 'Chat initialized',
-      timestamp: new Date(),
-      images: [],
-      sources: [],
-      isComplete: true
-    };
-
-    const chat = await chatService.saveChat(userId, modelId, [placeholderMessage], undefined, 'New Chat');
-    
-    // Only return the chat ID to keep the response light
-    res.json({ chatId: chat._id.toString() });
-  } catch (error) {
-    console.error('Error creating empty chat:', error);
-    res.status(500).json({ error: 'Failed to create empty chat' });
-  }
-});
-
 export default router;

@@ -36,7 +36,6 @@ export interface ChatState {
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handlePaste: (e: React.ClipboardEvent) => void;
   handleContinueClick: (e: React.MouseEvent) => void;
-  cancelGeneration: (e: React.MouseEvent) => void;
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveImage: (index: number) => void;
   handleRemoveFile: (index: number) => void;
@@ -44,7 +43,6 @@ export interface ChatState {
   resetChat: () => void;
   updateMessageContent: (content: string) => void;
   completeAssistantMessage: (sources?: any[]) => void;
-  createEmptyChat: (modelId: string) => Promise<string | null>;
 }
 
 // Selectors for better performance
@@ -200,15 +198,8 @@ export const useChatStore = create<ChatState>()(
               // Handle different message types
               switch (data.type) {
                 case 'chat_created':
-                  // Store the chatId internally but don't update URL if we already have one
-                  if (!get().currentChatId) {
-                    set({ currentChatId: data.chatId }, false, 'wsMessage/chat_created');
-                    
-                    // Only update URL if not already set by the new workflow
-                    if (!window.location.search.includes(`chat=${data.chatId}`)) {
-                      window.history.replaceState({}, '', `/mfuchatbot?chat=${data.chatId}`);
-                    }
-                  }
+                  // Store the chatId internally but don't update URL yet
+                  get().setCurrentChatId(data.chatId);
                   break;
 
                 case 'content':
@@ -220,23 +211,17 @@ export const useChatStore = create<ChatState>()(
                 case 'complete':
                   get().completeAssistantMessage(data.sources);
                   
-                  // If somehow we don't have the chatId yet, update it
-                  if (data.chatId && !get().currentChatId) {
-                    set({ currentChatId: data.chatId }, false, 'wsMessage/complete');
-                    
-                    // Only update URL if not already set
-                    if (!window.location.search.includes(`chat=${data.chatId}`)) {
-                      window.history.replaceState({}, '', `/mfuchatbot?chat=${data.chatId}`);
-                    }
-                    
+                  // Now that the response is complete, update URL with chatId
+                  if (data.chatId) {
+                    get().setCurrentChatId(data.chatId);
                     // Signal to components that chat has been updated with completed response
                     window.dispatchEvent(new CustomEvent('chatUpdated', { 
                       detail: { chatId: data.chatId, complete: true }
                     }));
+                    
+                    // Signal message completion for usage updates
+                    window.dispatchEvent(new CustomEvent('messageCompleted'));
                   }
-                  
-                  // Signal message completion for usage updates
-                  window.dispatchEvent(new CustomEvent('messageCompleted'));
                   break;
 
                 case 'chat_updated':
@@ -328,42 +313,11 @@ export const useChatStore = create<ChatState>()(
           }
         },
         
-        // Create an empty chat to get a chatId before sending the first message
-        createEmptyChat: async (modelId: string) => {
-          try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) {
-              throw new Error('Not authenticated');
-            }
-
-            const response = await fetch(`${config.apiUrl}/api/chat/create-empty-chat`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ modelId })
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              set({ currentChatId: data.chatId }, false, 'createEmptyChat/success');
-              return data.chatId;
-            } else {
-              console.error('Failed to create empty chat:', response.status);
-              return null;
-            }
-          } catch (error) {
-            console.error('Error creating empty chat:', error);
-            return null;
-          }
-        },
-        
         // Submit a new message
         handleSubmit: async (e) => {
           e.preventDefault();
           
-          const { inputMessage, messages, selectedImages, selectedFiles, currentChatId, wsRef, createEmptyChat } = get();
+          const { inputMessage, messages, selectedImages, selectedFiles, currentChatId, wsRef } = get();
           const selectedModel = useModelStore.getState().selectedModel;
           const isImageGenerationMode = useUIStore.getState().isImageGenerationMode;
           
@@ -381,10 +335,10 @@ export const useChatStore = create<ChatState>()(
           
           try {
             const token = localStorage.getItem('auth_token');
-            if (!token) {
-              throw new Error('Not authenticated');
+            if (!token || !wsRef) {
+              throw new Error('Not authenticated or WebSocket not connected');
             }
-
+            
             // Process files if any
             const messageFiles = selectedFiles.length > 0 
               ? await prepareMessageFiles(selectedFiles)
@@ -424,44 +378,16 @@ export const useChatStore = create<ChatState>()(
             };
             set({ messages: [...updatedMessages, assistantMessage] }, false, 'handleSubmit/addAssistantPlaceholder');
 
-            // If this is a new chat, create an empty chat first to get a chatId
-            let chatId = currentChatId;
-            
-            if (!chatId) {
-              // Create empty chat and get chatId
-              chatId = await createEmptyChat(selectedModel);
-              
-              if (chatId) {
-                // Update navigation with new chatId
-                window.history.replaceState({}, '', `/mfuchatbot?chat=${chatId}`);
-                window.dispatchEvent(new CustomEvent('chatCreated', { detail: { chatId } }));
-              }
-            }
-            
-            // Make sure the WebSocket is connected
-            if (!wsRef) {
-              get().initWebSocket();
-              
-              // Small delay to ensure WebSocket is connected
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            
             // Send message to WebSocket
             const messagePayload = {
               messages: updatedMessages,
               modelId: selectedModel,
               isImageGeneration: isImageGenerationMode,
               path: window.location.pathname,
-              chatId
+              chatId: currentChatId
             };
 
-            const currentWsRef = get().wsRef;
-            // Make sure wsRef exists before sending
-            if (currentWsRef) {
-              currentWsRef.send(JSON.stringify(messagePayload));
-            } else {
-              throw new Error('WebSocket not connected');
-            }
+            wsRef.send(JSON.stringify(messagePayload));
 
           } catch (error) {
             console.error('Error in handleSubmit:', error);
@@ -637,33 +563,6 @@ export const useChatStore = create<ChatState>()(
           
           // Signal UI state reset
           window.dispatchEvent(new CustomEvent('chatReset'));
-        },
-        
-        // Cancel generation
-        cancelGeneration: (e) => {
-          e.preventDefault();
-          
-          const { wsRef, messages } = get();
-          
-          // Close the WebSocket connection to stop the generation
-          if (wsRef && wsRef.readyState === WebSocket.OPEN) {
-            wsRef.close();
-          }
-          
-          // Mark the current assistant message as complete with a cancelled note
-          get().setMessages((prev) => prev.map((msg, index) => 
-            index === prev.length - 1 && msg.role === 'assistant' ? {
-              ...msg,
-              content: msg.content + " [Generation cancelled]",
-              isComplete: true
-            } : msg
-          ));
-          
-          // Signal that we're no longer loading
-          window.dispatchEvent(new CustomEvent('messageSent'));
-          
-          // Reestablish the WebSocket connection
-          get().initWebSocket();
         }
       }),
       { name: 'chat-store' }
@@ -721,16 +620,5 @@ window.addEventListener('modelSelectionNeeded', (e: Event) => {
   const detail = (e as CustomEvent).detail;
   if (detail?.modelId) {
     useModelStore.getState().setSelectedModel(detail.modelId);
-  }
-});
-
-window.addEventListener('chatCreated', (e: Event) => {
-  const detail = (e as CustomEvent).detail;
-  if (detail?.chatId) {
-    // Update chat store with the new chatId if not already set
-    const chatStore = useChatStore.getState();
-    if (!chatStore.currentChatId) {
-      chatStore.setCurrentChatId(detail.chatId);
-    }
   }
 });
