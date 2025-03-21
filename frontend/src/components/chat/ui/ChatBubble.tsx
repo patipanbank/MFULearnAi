@@ -60,7 +60,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">แก้ไขข้อความ</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Message</h3>
               <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                 <MdClose className="h-6 w-6" />
               </button>
@@ -70,7 +70,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
                 className="w-full h-full min-h-[300px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                placeholder="แก้ไขข้อความของคุณ..."
+                placeholder="Edit your message..."
               />
             </div>
             <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
@@ -159,12 +159,12 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       {message.role === 'assistant' && isLastMessage && (
         <div className="ml-11 mt-2 flex flex-wrap gap-2">
           {/* Show cancel button during generation */}
-          {!message.isComplete && isLoading && onCancelClick && (
+          {!message.isComplete && onCancelClick && (
             <button
               type="button"
               onClick={onCancelClick}
               className="px-2 py-2 rounded-full transition-colors bg-red-500 hover:bg-red-600 text-white"
-              title="หยุดการตอบกลับ"
+              title="Stop response"
             >
               <MdCancel className="h-5 w-5" />
             </button>
@@ -182,7 +182,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                     : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                 }`}
                 disabled={!selectedModel}
-                title="เขียนต่อ"
+                title="Continue"
                 data-verify="false"
               >
                 <VscDebugContinue className="h-5 w-5" />
@@ -198,7 +198,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                   }`}
                   disabled={!selectedModel}
-                  title="สร้างคำตอบใหม่"
+                  title="Create new response"
                 >
                   <MdRefresh className="h-5 w-5" />
                 </button>
@@ -209,7 +209,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 type="button"
                 onClick={handleCopyToClipboard}
                 className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-                title={isCopied ? "คัดลอกแล้ว!" : "คัดลอกข้อความ"}
+                title={isCopied ? "Copied!" : "Copy Message"}
               >
                 <MdContentCopy className="h-5 w-5" />
               </button>
@@ -219,7 +219,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 type="button"
                 onClick={handleStartEdit}
                 className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-                title="แก้ไขข้อความ"
+                title="Edit Message"
               >
                 <MdEdit className="h-5 w-5" />
               </button>
@@ -235,7 +235,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             type="button"
             onClick={() => handleStartEdit()}
             className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title="แก้ไขข้อความ"
+            title="Edit Message"
           >
             <MdEdit className="h-5 w-5" />
           </button>

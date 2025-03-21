@@ -246,7 +246,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   completeAssistantMessage: (sources) => {
     // Re-enable auto-scrolling when message is complete, but respect user's reading position
-    const { userScrolledManually, setShouldAutoScroll } = useUIStore.getState();
+    const { userScrolledManually, setShouldAutoScroll, setIsLoading } = useUIStore.getState();
+    
+    // ตั้งค่า isLoading เป็น false เมื่อข้อความเสร็จสมบูรณ์
+    setIsLoading(false);
+    
     if (!userScrolledManually) {
       setShouldAutoScroll(true);
       // Explicitly scroll to bottom when message completes
@@ -419,8 +423,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isComplete: true
         }]
       });
+      // Set isLoading to false in case of error
+      useUIStore.getState().setIsLoading(false);
     } finally {
-      setIsLoading(false);
       // ล้างข้อความใน UIStore ด้วย
       setUIInputMessage('');
       set({
@@ -428,6 +433,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         selectedImages: [],
         selectedFiles: []
       });
+      // ไม่ reset isLoading ที่นี่ เพราะต้องรอให้ streaming เสร็จก่อน
     }
   },
   
@@ -659,6 +665,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       setIsLoading(false);
     } catch (error) {
       console.error('Error cancelling generation:', error);
+      // มั่นใจว่า isLoading ถูกตั้งค่าเป็น false แม้ในกรณีเกิดข้อผิดพลาด
+      setIsLoading(false);
     }
   },
   
