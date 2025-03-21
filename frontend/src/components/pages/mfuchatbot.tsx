@@ -64,7 +64,6 @@ const MFUChatbot: React.FC = () => {
   
   // เรียกใช้ scrollStore แทน useScrollManagement
   const {
-    isAtBottom,
     shouldAutoScroll,
     setMessagesEndRef: setScrollMessagesEndRef,
     setChatContainerRef: setScrollChatContainerRef,
