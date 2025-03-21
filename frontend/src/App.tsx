@@ -13,6 +13,7 @@ import CreateAdmin from './components/pages/CreateAdmin';
 import Help from './components/pages/Help';
 import Statistics from './components/pages/Statistics';
 import SystemPrompt from './components/pages/SystemPrompt';
+import TokenUsageDisplay from './components/pages/TokenUsageDisplay';
  
 
 const App = () => {
@@ -124,6 +125,18 @@ const App = () => {
               <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <SystemPrompt />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/token-usage"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
+                <MainLayout>
+                  <TokenUsageDisplay />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>

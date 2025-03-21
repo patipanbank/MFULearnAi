@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog } from 'react-icons/fa';
+import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaFileAlt } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 
@@ -565,6 +565,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               >
                 <FaChartBar className="w-5 h-5 mr-3" />
                 <span className="font-medium">Statistics</span>
+              </Link>
+              
+              <Link
+                to="/token-usage"
+                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                  ${location.pathname === '/token-usage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                onClick={onClose}
+              >
+                <FaFileAlt className="w-5 h-5 mr-3" />
+                <span className="font-medium">Token Usage</span>
               </Link>
               
               <Link
