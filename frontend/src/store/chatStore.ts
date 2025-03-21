@@ -545,16 +545,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const files = e.target.files;
     if (!files || files.length === 0) return;
     
-    // ถ้าเป็นไฟล์รูปภาพ
-    if (e.target.id === 'image-upload') {
-      get().setSelectedImages((prev) => [...prev, ...Array.from(files)]);
-    } 
-    // ถ้าเป็นไฟล์เอกสาร
-    else if (e.target.id === 'document-upload') {
-      get().setSelectedFiles((prev) => [...prev, ...Array.from(files)]);
-    }
+    // Process all files, categorizing them into images and documents
+    Array.from(files).forEach(file => {
+      const isImage = file.type.startsWith('image/');
+      
+      // Add to selected images if it's an image
+      if (isImage) {
+        get().setSelectedImages(prev => [...prev, file]);
+      } 
+      // Add to selected files if it's a document
+      else {
+        get().setSelectedFiles(prev => [...prev, file]);
+      }
+    });
     
-    // รีเซ็ต input เพื่อให้สามารถเลือกไฟล์เดิมซ้ำได้
+    // Reset input to allow selecting the same file again
     e.target.value = '';
   },
   

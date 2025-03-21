@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { RiImageAddFill, RiFileAddFill, RiCloseLine } from 'react-icons/ri';
+import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
 import { IoIosArrowDown } from "react-icons/io";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
@@ -171,8 +171,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 <>
                   <input
                     type="file"
-                    id="image-upload"
-                    accept="image/*"
+                    id="file-upload"
+                    accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
                     multiple
                     onChange={handleFileSelect}
                     className="hidden"
@@ -182,31 +182,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
                       hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
                     onClick={() => {
-                      document.getElementById('image-upload')?.click();
-                    }}
-                  >
-                    <RiImageAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add Image</span>
-                  </button>
-                  
-                  <input
-                    type="file"
-                    id="document-upload"
-                    accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
-                      hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-                    onClick={() => {
-                      document.getElementById('document-upload')?.click();
+                      document.getElementById('file-upload')?.click();
                     }}
                   >
                     <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Add File</span>
+                    <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Attach File</span>
                   </button>
                 </>
               )}
@@ -224,14 +204,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </div>
           </div>
 
-          {/* Selected Images Preview */}
-          {selectedImages.length > 0 && (
+          {/* Combined Attached Files Preview */}
+          {(selectedImages.length > 0 || selectedFiles.length > 0) && (
             <div className="flex flex-wrap gap-2 mt-2">
+              <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
+                Attached Files ({selectedImages.length + selectedFiles.length})
+              </div>
+              
+              {/* Image previews */}
               {selectedImages.map((image, index) => (
-                <div key={index} className="relative">
+                <div key={`img-${index}`} className="relative">
                   <img
                     src={URL.createObjectURL(image)}
-                    alt={`Selected ${index + 1}`}
+                    alt={`Image ${index + 1}`}
                     className="w-16 h-16 object-cover rounded-lg"
                   />
                   <button
@@ -239,26 +224,28 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     onClick={() => handleRemoveImage(index)}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                   >
-                    ×
+                    <RiCloseLine />
                   </button>
                 </div>
               ))}
-            </div>
-          )}
-
-          {/* Selected Files Preview */}
-          {selectedFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
+              
+              {/* Document previews */}
               {selectedFiles.map((file, index) => (
-                <div key={index} className="relative flex items-center p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                  <FileIcon fileName={file.name} />
-                  <span className="ml-2 text-xs truncate max-w-[150px]">{file.name}</span>
+                <div key={`doc-${index}`} className="relative">
+                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <FileIcon fileName={file.name} />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
+                    <div className="px-1 py-0.5 text-white text-[8px] truncate">
+                      {file.name}
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(index)}
-                    className="ml-2 p-1 text-red-500 hover:text-red-700 rounded-full"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                   >
-                    <RiCloseLine className="h-4 w-4" />
+                    <RiCloseLine />
                   </button>
                 </div>
               ))}
