@@ -104,7 +104,7 @@ export const useModelStore = create<ModelState>((set, get) => ({
       const token = localStorage.getItem('auth_token');
       if (!token) return;
 
-      const response = await fetch(`${config.apiUrl}/api/chat/usage`, {
+      const response = await fetch(`${config.apiUrl}/api/usage`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
