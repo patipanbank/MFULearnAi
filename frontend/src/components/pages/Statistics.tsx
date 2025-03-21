@@ -53,13 +53,13 @@ const Statistics: React.FC = () => {
     icon: React.ReactNode;
     description: string;
   }> = ({ title, value, icon, description }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
         <div className="text-blue-500 dark:text-blue-400">{icon}</div>
       </div>
-      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">{value.toLocaleString()}</p>
-      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{description}</p>
+      <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{value.toLocaleString()}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
     </div>
   );
 
@@ -75,106 +75,96 @@ const Statistics: React.FC = () => {
   const totals = getTotalStats();
 
   return (
-    <div className="w-full">
-      <header className="mb-4 sm:mb-8">
-        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white">Usage Statistics</h1>
-        <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+    <div className="container mx-auto p-6">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Usage Statistics</h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Monitor system usage and engagement metrics
         </p>
       </header>
 
-      <div className="mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-2 sm:mb-4">
-          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-            <label htmlFor="startDate" className="text-sm text-gray-700 dark:text-gray-300">Start Date:</label>
-            <input
-              id="startDate"
-              type="date"
-              value={dateRange.startDate}
-              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-            <label htmlFor="endDate" className="text-sm text-gray-700 dark:text-gray-300">End Date:</label>
-            <input
-              id="endDate"
-              type="date"
-              value={dateRange.endDate}
-              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-          </div>
+      <div className="mb-6">
+        <div className="flex gap-4 mb-4">
+          <input
+            type="date"
+            value={dateRange.startDate}
+            onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+          <input
+            type="date"
+            value={dateRange.endDate}
+            onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
         </div>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-pulse">
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-pulse">
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
-              <div className="h-6 sm:h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
-              <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
             </div>
           ))}
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <StatCard
               title="Total Users"
               value={totals.users}
-              icon={<FaUsers size={20} />}
+              icon={<FaUsers size={24} />}
               description="Total unique users"
             />
             <StatCard
               title="Total Chats"
               value={totals.chats}
-              icon={<FaComments size={20} />}
+              icon={<FaComments size={24} />}
               description="Total chat sessions"
             />
             <StatCard
               title="Total Tokens"
               value={totals.tokens}
-              icon={<FaExchangeAlt size={20} />}
+              icon={<FaExchangeAlt size={24} />}
               description="Total tokens used"
             />
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">Daily Statistics</h2>
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <div className="inline-block min-w-full align-middle">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead>
-                      <tr>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Users</th>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Chats</th>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tokens</th>
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Daily Statistics</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unique Users</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Chats</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Tokens</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {stats.map((day, index) => (
+                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {new Date(day.date).toLocaleDateString('th-TH')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {day.uniqueUsers.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {day.totalChats.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {(day.totalTokens || 0).toLocaleString()}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {stats.map((day, index) => (
-                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
-                            {new Date(day.date).toLocaleDateString('th-TH')}
-                          </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
-                            {day.uniqueUsers.toLocaleString()}
-                          </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
-                            {day.totalChats.toLocaleString()}
-                          </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
-                            {(day.totalTokens || 0).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

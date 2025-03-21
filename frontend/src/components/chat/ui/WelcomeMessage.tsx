@@ -2,18 +2,18 @@ import React from 'react';
 
 const WelcomeMessage: React.FC = () => {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-4 sm:py-8">
+    <div className="flex flex-col items-center justify-center h-full">
       <div className="flex flex-col items-center justify-center mb-1">
         <img
           src="/mfu_logo_chatbot.PNG"
           alt="MFU Logo"
-          className="w-16 h-16 sm:w-24 sm:h-24 mb-2 object-contain"
+          className="w-24 h-24 mb-2 object-contain"
         />
         <div className="text-center">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-0">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-0">
             Welcome to
           </h1>
-          <div className="text-xl sm:text-2xl font-bold -mt-1 mb-0">
+          <div className="text-2xl font-bold -mt-1 mb-0">
             <span style={{
               background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
               WebkitBackgroundClip: 'text',
@@ -34,7 +34,7 @@ const WelcomeMessage: React.FC = () => {
           </div>
         </div>
       </div>
-      <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 -mt-1">How can I help you today?</p>
+      <p className="text-gray-600 dark:text-gray-300 -mt-1">How can I help you today?</p>
     </div>
   );
 };
