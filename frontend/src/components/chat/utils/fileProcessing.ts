@@ -28,10 +28,32 @@ export const compressImage = async (file: File): Promise<{ data: string; mediaTy
         canvas.width = width;
         canvas.height = height;
 
+        // ตรวจสอบ darkmode จาก class ของ document
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        
         const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
+        if (ctx) {
+          // ถ้าอยู่ใน dark mode ให้ใช้ blend mode และสีที่เหมาะสม
+          if (isDarkMode) {
+            // สำหรับภาพบนพื้นหลังดำ เราจะใช้ blend mode แบบ source-over
+            ctx.globalCompositeOperation = 'source-over';
+          }
+          
+          // วาดรูปบน canvas
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // เพิ่มการปรับแต่งเพิ่มเติมสำหรับ darkmode ถ้าจำเป็น
+          if (isDarkMode && false) { // ปิดไว้ก่อน เพื่อความปลอดภัย
+            // อาจจะเพิ่มฟิลเตอร์หรือปรับแต่งภาพเล็กน้อยสำหรับ dark mode
+            // เช่น ลดความสว่างลงเล็กน้อย - ไม่จำเป็นต้องใช้ในกรณีนี้
+            // const imageData = ctx.getImageData(0, 0, width, height);
+            // ... ปรับแต่งพิกเซล ...
+            // ctx.putImageData(imageData, 0, 0);
+          }
+        }
 
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        // ใช้คุณภาพที่ดีขึ้นเล็กน้อยสำหรับการบีบอัด
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
         resolve({
           data: compressedBase64.split(',')[1],
           mediaType: 'image/jpeg'
