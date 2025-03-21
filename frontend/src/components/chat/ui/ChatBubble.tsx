@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
-import { MdEdit, MdRefresh, MdClose, MdContentCopy } from "react-icons/md";
+import { MdEdit, MdCancel, MdRefresh, MdClose, MdContentCopy } from "react-icons/md";
 import { Message } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
@@ -22,6 +22,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   isLastMessage, 
   isLoading, 
   onContinueClick, 
+  onCancelClick,
   onEditClick,
   onRegenerateClick,
   selectedModel 
