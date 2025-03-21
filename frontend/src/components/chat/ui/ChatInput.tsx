@@ -83,143 +83,146 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
   
   return (
-
-      <form onSubmit={handleSubmit} className="p-2 md:p-4">
-        <div className="flex flex-col gap-2 w-full max-w-[95%] lg:max-w-[85%] mx-auto">
-          {/* Edit mode indicator */}
-          {editingMessage && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 dark:bg-yellow-800 rounded-md text-sm">
-              <MdEdit className="h-4 w-4" />
-              <span>Editing message</span>
-            </div>
-          )}
-      
-          {/* Message input area */}
-          <div className="flex items-end gap-2">
-            <textarea
-              ref={textareaRef}
-              value={inputMessage}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              className="flex-1 min-w-0 p-2 text-sm md:text-base rounded-2xl border border-gray-300 dark:border-gray-600 
-                bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
-                focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none
-                scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 
-                scrollbar-track-transparent hover:scrollbar-thumb-gray-400 
-                dark:hover:scrollbar-thumb-gray-500 scrollbar-thumb-rounded-full"
-              style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgb(209 213 219) transparent',
-                minHeight: '44px',
-                maxHeight: '150px'
-              }}
-              placeholder={
-                isImageGenerationMode 
-                  ? "Describe the image you want to generate..." 
-                  : selectedImages.length > 0 
-                    ? "Please describe or ask about these images..." 
-                    : "Type a message..."
-              }
-              rows={1}
-              autoComplete="off"
-              spellCheck="false"
-              data-verify="false"
-            />
-            
-            <button
-              type={isLoading ? "button" : "submit"}
-              onClick={isLoading ? handleButtonClick : undefined}
-              className={`p-2 rounded-full transition-colors flex-shrink-0 ${
-                isLoading ? 'bg-red-500 hover:bg-red-600 text-white' :
-                canSubmit() ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
-              }`}
-              disabled={!isLoading && !canSubmit()}
-              data-verify="false"
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center w-6 h-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              )}
-            </button>
+    <form onSubmit={handleSubmit} className="p-2 md:p-4">
+      <div className="flex flex-col gap-2 w-full max-w-full mx-auto">
+        {/* Edit mode indicator */}
+        {editingMessage && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 dark:bg-yellow-800 rounded-md text-xs sm:text-sm">
+            <MdEdit className="h-4 w-4" />
+            <span>Editing message</span>
           </div>
+        )}
+    
+        {/* Message input area */}
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={textareaRef}
+            value={inputMessage}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            className="flex-1 min-w-0 p-2 text-sm rounded-2xl border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none
+              scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 
+              scrollbar-track-transparent hover:scrollbar-thumb-gray-400 
+              dark:hover:scrollbar-thumb-gray-500 scrollbar-thumb-rounded-full"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgb(209 213 219) transparent',
+              minHeight: '44px',
+              maxHeight: '150px'
+            }}
+            placeholder={
+              isImageGenerationMode 
+                ? "Describe the image you want to generate..." 
+                : selectedImages.length > 0 
+                  ? "Please describe or ask about these images..." 
+                  : "Type a message..."
+            }
+            rows={1}
+            autoComplete="off"
+            spellCheck="false"
+            data-verify="false"
+          />
+          
+          <button
+            type={isLoading ? "button" : "submit"}
+            onClick={isLoading ? handleButtonClick : undefined}
+            className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+              isLoading ? 'bg-red-500 hover:bg-red-600 text-white' :
+              canSubmit() ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={!isLoading && !canSubmit()}
+            data-verify="false"
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            )}
+          </button>
+        </div>
 
-          {/* Controls and options */}
-          <div className="flex flex-wrap gap-2 items-center justify-between">
-            {/* Left side controls */}
-            <div className="flex flex-wrap gap-2 items-center">
+        {/* Controls and options */}
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+          {/* Left side controls */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Model selector in a more compact form on mobile */}
+            <div className="w-full sm:w-auto">
               <ModelSelector 
                 models={models}
                 selectedModel={selectedModel}
                 setSelectedModel={setSelectedModel}
               />
-              
-              <button
-                type="button"
-                onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors
-                  ${isImageGenerationMode 
-                    ? 'border-purple-400 dark:border-purple-500 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' 
-                    : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-xs whitespace-nowrap">
-                  {isImageGenerationMode ? 'Image Gen: ON' : 'Image Gen: OFF'}
-                </span>
-              </button>
-
-              {!isImageGenerationMode && (
-                <>
-                  <input
-                    type="file"
-                    id="file-upload"
-                    accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
-                      hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-                    onClick={() => {
-                      document.getElementById('file-upload')?.click();
-                    }}
-                  >
-                    <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Attach File</span>
-                  </button>
-                </>
-              )}
-
-              {usage && <TokenUsageDisplay usage={usage} />}
             </div>
-          </div>
+            
+            <button
+              type="button"
+              onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-full border transition-colors
+                ${isImageGenerationMode 
+                  ? 'border-purple-400 dark:border-purple-500 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' 
+                  : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-xs whitespace-nowrap">
+                {isImageGenerationMode ? 'Image: ON' : 'Image: OFF'}
+              </span>
+            </button>
 
-          {/* Combined Attached Files Preview */}
-          {(selectedImages.length > 0 || selectedFiles.length > 0) && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
-                Attached Files ({selectedImages.length + selectedFiles.length})
-              </div>
-              
-              {/* Image previews */}
+            {!isImageGenerationMode && (
+              <>
+                <input
+                  type="file"
+                  id="file-upload"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  className="px-2 sm:px-3 py-1.5 flex items-center gap-1 sm:gap-2 rounded-full border border-gray-300 dark:border-gray-600 
+                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                  onClick={() => {
+                    document.getElementById('file-upload')?.click();
+                  }}
+                >
+                  <RiFileAddFill className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600 dark:text-gray-300" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300 hidden sm:inline">Attach File</span>
+                </button>
+              </>
+            )}
+
+            {usage && <TokenUsageDisplay usage={usage} />}
+          </div>
+        </div>
+
+        {/* Combined Attached Files Preview */}
+        {(selectedImages.length > 0 || selectedFiles.length > 0) && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
+              Attached Files ({selectedImages.length + selectedFiles.length})
+            </div>
+            
+            {/* Image previews */}
+            <div className="flex flex-wrap gap-2">
               {selectedImages.map((image, index) => (
                 <div key={`img-${index}`} className="relative">
                   <img
                     src={URL.createObjectURL(image)}
                     alt={`Image ${index + 1}`}
-                    className="w-16 h-16 object-cover rounded-lg"
+                    className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg"
                   />
                   <button
                     type="button"
@@ -234,7 +237,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               {/* Document previews */}
               {selectedFiles.map((file, index) => (
                 <div key={`doc-${index}`} className="relative">
-                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                     <FileIcon fileName={file.name} />
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
@@ -252,9 +255,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </form>
+          </div>
+        )}
+      </div>
+    </form>
   );
 };
 

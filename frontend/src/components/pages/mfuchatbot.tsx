@@ -151,7 +151,7 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-full relative">
       <div 
-        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-10 overscroll-contain scroll-smooth"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 space-y-4 sm:space-y-6 pb-10 overscroll-contain scroll-smooth"
         ref={chatContainerRef}
         id="chat-messages"
         data-testid="chat-messages-container"
@@ -159,7 +159,7 @@ const MFUChatbot: React.FC = () => {
         {messages.length === 0 ? (
           <WelcomeMessage />
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {messages.map((message, index) => (
               <ChatBubble 
                 key={message.id}
@@ -177,7 +177,7 @@ const MFUChatbot: React.FC = () => {
               ref={messagesEndRef} 
               id="chat-bottom-anchor"
               data-testid="chat-bottom-anchor"
-              className="h-2 w-full my-2"
+              className="h-2 w-full my-1 sm:my-2"
             />
           </div>
         )}
