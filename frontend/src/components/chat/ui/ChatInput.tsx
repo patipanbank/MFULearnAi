@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
+import { IoIosArrowDown } from "react-icons/io";
 import { MdEdit } from "react-icons/md";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
@@ -23,6 +24,8 @@ interface ChatInputProps {
   setSelectedModel: (id: string) => void;
   isLoading: boolean;
   canSubmit: () => boolean;
+  handleScrollToBottom: () => void;
+  isNearBottom: boolean;
   usage: Usage | null;
   isMobile: boolean;
   editingMessage?: Message | null;
@@ -47,8 +50,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
   setSelectedModel,
   isLoading,
   canSubmit,
+  handleScrollToBottom,
+  isNearBottom,
   usage,
-  isMobile,
   editingMessage,
   handleCancelGeneration
 }) => {
@@ -84,6 +88,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   return (
     <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-10">
+      {/* Scroll to bottom button - improved visibility based on scroll distance */}
+      {!isNearBottom && (
+        <button
+          onClick={handleScrollToBottom}
+          className="fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 md:p-3 shadow-lg transition-all duration-300 z-20"
+          aria-label="Scroll to latest messages"
+        >
+          <IoIosArrowDown className="h-4 w-4 md:h-5 md:w-5" />
+        </button>
+      )}
+
       <form onSubmit={handleSubmit} className="p-2 md:p-4">
         <div className="flex flex-col gap-2 w-full max-w-[95%] lg:max-w-[85%] mx-auto">
           {/* Edit mode indicator */}
