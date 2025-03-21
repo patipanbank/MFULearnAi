@@ -284,7 +284,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
             if (extWs.readyState === WebSocket.OPEN) {
               extWs.send(JSON.stringify({ 
                 type: 'content',
-                content
+                content,
+                chatId: currentChatId
               }));
             } else {
               break;
@@ -344,7 +345,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
             console.error('Error saving final chat:', error);
             extWs.send(JSON.stringify({ 
               type: 'error',
-              error: 'Failed to save chat history' 
+              error: 'Failed to save chat history',
+              chatId: currentChatId
             }));
           }
         }
@@ -353,7 +355,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         if (extWs.readyState === WebSocket.OPEN) {
           extWs.send(JSON.stringify({ 
             type: 'error',
-            error: 'Error generating response' 
+            error: 'Error generating response'
           }));
         }
       }
@@ -362,7 +364,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       if (extWs.readyState === WebSocket.OPEN) {
         extWs.send(JSON.stringify({ 
           type: 'error',
-          error: error instanceof Error ? error.message : 'Invalid message format' 
+          error: error instanceof Error ? error.message : 'Invalid message format'
         }));
       }
     }
