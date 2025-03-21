@@ -753,35 +753,4 @@ router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
   }
 });
 
-// Create a new empty chat
-router.post('/create', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { modelId } = req.body;
-    const userId = (req.user as any)?.username || '';
-
-    if (!modelId) {
-      res.status(400).json({ error: 'ModelId is required' });
-      return;
-    }
-
-    // Create an empty chat with just the chat ID
-    const chat = new Chat({
-      userId,
-      modelId,
-      chatname: 'New Chat',
-      messages: [{
-        role: 'system',
-        content: 'Chat initialized',
-        timestamp: new Date()
-      }]
-    });
-
-    await chat.save();
-    res.json(chat);
-  } catch (error) {
-    console.error('Error creating empty chat:', error);
-    res.status(500).json({ error: 'Failed to create chat' });
-  }
-});
-
 export default router;

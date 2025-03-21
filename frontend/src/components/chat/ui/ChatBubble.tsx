@@ -20,8 +20,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   onContinueClick, 
   selectedModel 
 }) => {
-  const isGenerating = message.role === 'assistant' && message.content === '' && isLoading;
-
   return (
     <div className="message relative">
       <div className={`flex items-start gap-3 ${
@@ -48,26 +46,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         <div className={`flex flex-col space-y-2 max-w-[80%] ${
           message.role === 'user' ? 'items-end' : 'items-start'
         }`}>
-          <div className="text-sm text-gray-500 flex items-center gap-2">
+          <div className="text-sm text-gray-500">
             {formatMessageTime(message.timestamp)}
-            {isGenerating && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 animate-pulse">
-                Generating...
-              </span>
-            )}
           </div>
           <div className={`rounded-lg p-3 ${
             message.role === 'user'
               ? 'bg-blue-500 text-white'
               : 'bg-gray-200 dark:bg-gray-700 dark:text-white'
-          } ${isGenerating ? 'min-h-[40px] min-w-[120px]' : ''}`}>
-            {isGenerating ? (
-              <div className="flex flex-col space-y-2">
-                <LoadingDots />
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  The assistant is thinking...
-                </div>
-              </div>
+          }`}>
+            {message.role === 'assistant' && message.content === '' && isLoading ? (
+              <LoadingDots />
             ) : (
               <MessageContent message={message} />
             )}
@@ -120,4 +108,4 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   );
 };
 
-export default ChatBubble;
+export default ChatBubble; 
