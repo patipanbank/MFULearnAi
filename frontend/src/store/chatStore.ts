@@ -132,7 +132,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Handle different message types
         switch (data.type) {
           case 'chat_created':
-            // Just store the chatId, don't update URL yet
+            // Store the chatId internally but don't update URL yet
             get().setCurrentChatId(data.chatId);
             break;
 
@@ -146,8 +146,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             // Now that the response is complete, update URL with chatId
             if (data.chatId) {
               get().setCurrentChatId(data.chatId);
-              // Signal to components that chat has been updated
-              window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: data.chatId } }));
+              // Signal to components that chat has been updated with completed response
+              window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: data.chatId, complete: true } }));
             }
             break;
 

@@ -84,12 +84,25 @@ const MFUChatbot: React.FC = () => {
     console.log('Available models:', models);
   }, [selectedModel, models]);
   
-  // Update URL when currentChatId changes
+  // Only update URL when response is complete - not during streaming
+  // Don't update URL immediately when currentChatId changes
   useEffect(() => {
-    if (currentChatId) {
-      navigate(`/mfuchatbot?chat=${currentChatId}`, { replace: true });
-    }
-  }, [currentChatId, navigate]);
+    const handleChatUpdated = (event: CustomEvent) => {
+      const { chatId, complete } = event.detail || {};
+      // Only update URL when response is complete
+      if (chatId && complete) {
+        navigate(`/mfuchatbot?chat=${chatId}`, { replace: true });
+      } else if (chatId && chatId !== currentChatId) {
+        // Just update the internal state without navigation
+        setCurrentChatId(chatId);
+      }
+    };
+    
+    window.addEventListener('chatUpdated', handleChatUpdated as EventListener);
+    return () => {
+      window.removeEventListener('chatUpdated', handleChatUpdated as EventListener);
+    };
+  }, [currentChatId, setCurrentChatId, navigate]);
   
   // Load chat history from URL params
   useEffect(() => {
@@ -103,21 +116,6 @@ const MFUChatbot: React.FC = () => {
       useChatStore.getState().resetChat();
     }
   }, [location.search, loadChatHistory]);
-  
-  // Listen for chat updates
-  useEffect(() => {
-    const handleChatUpdated = (event: CustomEvent) => {
-      const { chatId } = event.detail || {};
-      if (chatId && chatId !== currentChatId) {
-        setCurrentChatId(chatId);
-      }
-    };
-    
-    window.addEventListener('chatUpdated', handleChatUpdated as EventListener);
-    return () => {
-      window.removeEventListener('chatUpdated', handleChatUpdated as EventListener);
-    };
-  }, [currentChatId, setCurrentChatId]);
   
   // Fetch usage data when component mounts
   useEffect(() => {
