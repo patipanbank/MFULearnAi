@@ -30,7 +30,8 @@ const MFUChatbot: React.FC = () => {
     handleFileSelect,
     handleRemoveImage,
     handleRemoveFile,
-    canSubmit
+    canSubmit,
+    sendFirstMessage
   } = useChatStore();
   
   // UI state from Zustand
@@ -104,18 +105,40 @@ const MFUChatbot: React.FC = () => {
     };
   }, [currentChatId, setCurrentChatId, navigate]);
   
-  // Load chat history from URL params
+  // Listen for new chat created event
+  useEffect(() => {
+    const handleNewChatCreated = (event: CustomEvent) => {
+      const { chatId } = event.detail || {};
+      if (chatId) {
+        navigate(`/mfuchatbot?chat=${chatId}`, { replace: true });
+      }
+    };
+    
+    window.addEventListener('newChatCreated', handleNewChatCreated as EventListener);
+    return () => {
+      window.removeEventListener('newChatCreated', handleNewChatCreated as EventListener);
+    };
+  }, [navigate]);
+  
+  // Load chat history from URL params and handle first message sending after navigation
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const chatId = urlParams.get('chat');
     
     if (chatId) {
-      loadChatHistory(chatId);
+      if (chatId === currentChatId && messages.length === 1 && messages[0].role === 'user') {
+        // This is the case where we've just navigated after creating a new chat with the first message
+        // Now we need to send the first message
+        sendFirstMessage(chatId);
+      } else {
+        // Normal case - load existing chat history
+        loadChatHistory(chatId);
+      }
     } else {
       // Reset chat when navigating to /mfuchatbot without chat ID
       useChatStore.getState().resetChat();
     }
-  }, [location.search, loadChatHistory]);
+  }, [location.search, loadChatHistory, currentChatId, messages, sendFirstMessage]);
   
   // Fetch usage data when component mounts
   useEffect(() => {

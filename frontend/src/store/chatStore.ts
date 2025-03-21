@@ -31,6 +31,8 @@ interface ChatState {
   // Actions - Complex operations
   initWebSocket: () => void;
   loadChatHistory: (chatId: string | null) => Promise<void>;
+  createNewChat: (message: string, files?: File[], images?: File[]) => Promise<string | null>;
+  sendFirstMessage: (navigatedChatId: string) => Promise<void>;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handlePaste: (e: React.ClipboardEvent) => void;
@@ -283,7 +285,150 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   
-  // Submit a new message
+  // Create a new chat without sending the message yet
+  createNewChat: async (message, files = [], images = []) => {
+    try {
+      const { selectedModel } = useModelStore.getState();
+      const { setIsLoading } = useUIStore.getState();
+      
+      if (!message.trim() || !selectedModel) {
+        if (!selectedModel) {
+          alert('Please select a model first');
+        }
+        return null;
+      }
+      
+      setIsLoading(true);
+      
+      // Create a new chat via API
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Prepare the message with files/images if any
+      const messageFiles = files.length > 0 
+        ? await prepareMessageFiles(files)
+        : undefined;
+      
+      let messageImages: { data: string; mediaType: string }[] = [];
+      if (images.length > 0) {
+        messageImages = await Promise.all(images.map(async (file) => await compressImage(file)));
+      }
+      
+      const newMessage: Message = {
+        id: 1,
+        role: 'user',
+        content: message,
+        timestamp: { $date: new Date().toISOString() },
+        files: messageFiles,
+        images: messageImages.length > 0 ? messageImages : undefined
+      };
+      
+      // Store the message in state without sending it yet
+      set({ 
+        messages: [newMessage],
+        inputMessage: '',
+        selectedImages: [],
+        selectedFiles: []
+      });
+      
+      // Create a new chat record but don't send the actual message
+      const response = await fetch(`${config.apiUrl}/api/chat/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          modelId: selectedModel
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create new chat');
+      }
+      
+      const data = await response.json();
+      const chatId = data._id;
+      
+      // Set current chat ID and return it for navigation
+      set({ currentChatId: chatId });
+      return chatId;
+      
+    } catch (error) {
+      console.error('Error creating new chat:', error);
+      return null;
+    } finally {
+      useUIStore.getState().setIsLoading(false);
+    }
+  },
+  
+  // Send the first message after navigation
+  sendFirstMessage: async (navigatedChatId) => {
+    try {
+      const { messages, wsRef } = get();
+      const { selectedModel, fetchUsage } = useModelStore.getState();
+      const { setIsLoading } = useUIStore.getState();
+      
+      if (!messages.length || !wsRef || !navigatedChatId) {
+        return;
+      }
+      
+      setIsLoading(true);
+      
+      // Send message to WebSocket
+      const messagePayload = {
+        messages,
+        modelId: selectedModel,
+        isImageGeneration: false,
+        path: window.location.pathname,
+        chatId: navigatedChatId
+      };
+      
+      // Add placeholder for AI response
+      const assistantMessage: Message = {
+        id: messages.length + 1,
+        role: 'assistant',
+        content: '',
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        images: [],
+        sources: [],
+        isImageGeneration: false,
+        isComplete: false
+      };
+      
+      set({ messages: [...messages, assistantMessage] });
+      
+      wsRef.send(JSON.stringify(messagePayload));
+      
+      // Update usage immediately after sending message
+      await fetchUsage();
+      
+    } catch (error) {
+      console.error('Error sending first message:', error);
+      set({ 
+        messages: [...get().messages, {
+          id: get().messages.length + 1,
+          role: 'assistant',
+          content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
+          timestamp: {
+            $date: new Date().toISOString()
+          },
+          images: [],
+          sources: [],
+          isImageGeneration: false,
+          isComplete: true
+        }]
+      });
+    } finally {
+      useUIStore.getState().setIsLoading(false);
+    }
+  },
+  
+  // Submit a new message - modified for new workflow
   handleSubmit: async (e) => {
     e.preventDefault();
     
@@ -310,6 +455,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
         throw new Error('Not authenticated or WebSocket not connected');
       }
       
+      // If this is the first message (no currentChatId), handle with the new workflow
+      if (!currentChatId && messages.length === 0) {
+        // Create a new chat and get the chat ID
+        const chatId = await get().createNewChat(inputMessage, selectedFiles, selectedImages);
+        
+        if (!chatId) {
+          throw new Error('Failed to create new chat');
+        }
+        
+        // Signal that we need to navigate to this chat
+        // Using a custom event instead of using React hooks directly
+        window.dispatchEvent(new CustomEvent('newChatCreated', { 
+          detail: { chatId } 
+        }));
+        
+        return;
+      }
+      
+      // For existing chats, continue with the normal workflow
       // Process files if any
       const messageFiles = selectedFiles.length > 0 
         ? await prepareMessageFiles(selectedFiles)
