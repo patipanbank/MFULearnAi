@@ -700,7 +700,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Send update to backend
         if (currentChatId) {
           try {
-            console.log('Sending edit message request for chat:', currentChatId, 'message:', message.id);
+            console.log('Sending edit message request:', {
+              chatId: currentChatId,
+              messageId: message.id,
+              messageIdType: typeof message.id,
+              content: message.content ? message.content.substring(0, 50) + '...' : null
+            });
+            
+            // Make sure messageId is a string 
+            const messageId = message.id?.toString();
+            
+            if (!messageId) {
+              throw new Error('Invalid message ID');
+            }
             
             const response = await fetch(`${config.apiUrl}/api/chat/edit-message`, {
               method: 'POST',
@@ -710,7 +722,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               },
               body: JSON.stringify({
                 chatId: currentChatId,
-                messageId: message.id,
+                messageId: messageId,
                 content: message.content
               })
             });

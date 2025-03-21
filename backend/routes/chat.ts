@@ -816,10 +816,20 @@ router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
 // Add API endpoint for editing message
 router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
+    // Log the full request body for debugging
+    console.log('Edit message request body:', JSON.stringify(req.body));
+    
     const { chatId, messageId, content, allMessages } = req.body;
     const userId = (req.user as any)?.username || '';
 
-    console.log('Edit message request:', { chatId, messageId, hasContent: !!content, hasAllMessages: !!allMessages });
+    console.log('Edit message request parsed:', { 
+      chatId, 
+      messageId, 
+      messageIdType: typeof messageId,
+      hasContent: !!content, 
+      contentLength: content?.length,
+      hasAllMessages: !!allMessages 
+    });
 
     if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
       res.status(400).json({ error: 'Invalid chat ID' });
