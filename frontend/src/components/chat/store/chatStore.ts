@@ -43,7 +43,7 @@ export interface ChatState {
   handleRemoveFile: (index: number) => void;
   canSubmit: () => boolean;
   resetChat: () => void;
-  updateMessageContent: (content: string, chatId: string | null) => void;
+  updateMessageContent: (content: string) => void;
   completeAssistantMessage: (sources?: any[]) => void;
 }
 
@@ -155,7 +155,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             break;
 
           case 'content':
-            get().updateMessageContent(data.content, data.chatId);
+            get().updateMessageContent(data.content);
             break;
 
           case 'complete':
@@ -196,15 +196,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 isComplete: true
               } : msg
             ));
-            
-            // แจ้งเตือนว่ามีข้อผิดพลาดผ่าน CustomEvent
-            window.dispatchEvent(new CustomEvent('chatContentUpdated', {
-              detail: { 
-                type: 'error',
-                forceScroll: true,
-                chatId: data.chatId || get().currentChatId // ใช้ chatId จาก response หรือ current chatId
-              }
-            }));
             break;
         }
 
@@ -243,11 +234,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Helper methods for WebSocket responses
-  updateMessageContent: (content, chatId) => {
-    const { currentChatId } = get();
-    // ตรวจสอบว่าเรามี chatId ปัจจุบันหรือไม่
+  updateMessageContent: (content) => {
     get().setMessages((prev) => prev.map((msg, index) => 
-      // ปรับปรุงเฉพาะข้อความล่าสุดที่เป็นของ assistant และอยู่ในแชทปัจจุบัน
       index === prev.length - 1 && msg.role === 'assistant' ? {
         ...msg,
         content: msg.content + content
@@ -258,8 +246,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     window.dispatchEvent(new CustomEvent('chatContentUpdated', {
       detail: { 
         type: 'update',
-        forceScroll: false,
-        chatId: chatId || currentChatId // ใช้ chatId จาก parameter หรือ current chatId
+        forceScroll: false
       }
     }));
   },
@@ -267,7 +254,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   completeAssistantMessage: (sources) => {
     // Re-enable auto-scrolling when message is complete
     const { setIsLoading } = useUIStore.getState();
-    const { currentChatId } = get();
     
     // ตั้งค่า isLoading เป็น false เมื่อข้อความเสร็จสมบูรณ์
     setIsLoading(false);
@@ -276,8 +262,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     window.dispatchEvent(new CustomEvent('chatContentUpdated', {
       detail: { 
         type: 'complete',
-        forceScroll: true,
-        chatId: currentChatId // เพิ่ม chatId เข้าไปในอีเวนต์
+        forceScroll: true
       }
     }));
     

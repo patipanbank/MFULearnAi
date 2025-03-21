@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { useChatStore } from '../components/chat/store/chatStore';
 
 /**
  * Hook เพื่อจัดการการเลื่อนในหน้าต่างแชท
@@ -164,28 +163,21 @@ export function useScrollManager() {
   useEffect(() => {
     const handleContentUpdated = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const { type, forceScroll, chatId } = customEvent.detail || {};
+      const { type, forceScroll } = customEvent.detail || {};
       
-      // ดึง currentChatId จาก chatStore
-      const { currentChatId } = useChatStore.getState();
-      
-      // ตรวจสอบว่า chatId ตรงกับ chat ปัจจุบันหรือไม่
-      // ถ้า chatId ไม่ถูกส่งมา หรือตรงกับ chat ปัจจุบัน จึงจะทำการ scroll
-      if ((!chatId || chatId === currentChatId)) {
-        // update หมายถึงการอัพเดตข้อความระหว่าง streaming
-        if (type === 'update') {
-          // เลื่อนอัตโนมัติ ถ้าไม่ได้เลื่อนด้วยตนเอง
-          if (!userScrolledManually && shouldAutoScroll) {
-            setTimeout(() => scrollToBottom(), 10);
-          }
-        } 
-        // complete หมายถึงข้อความเสร็จสมบูรณ์แล้ว
-        else if (type === 'complete' || type === 'error') {
-          // เปิดใช้งานการเลื่อนอัตโนมัติอีกครั้ง ถ้าจำเป็น
-          if (!userScrolledManually || forceScroll) {
-            setShouldAutoScroll(true);
-            scrollToBottom(true);
-          }
+      // update หมายถึงการอัพเดตข้อความระหว่าง streaming
+      if (type === 'update') {
+        // เลื่อนอัตโนมัติ ถ้าไม่ได้เลื่อนด้วยตนเอง
+        if (!userScrolledManually && shouldAutoScroll) {
+          setTimeout(() => scrollToBottom(), 10);
+        }
+      } 
+      // complete หมายถึงข้อความเสร็จสมบูรณ์แล้ว
+      else if (type === 'complete') {
+        // เปิดใช้งานการเลื่อนอัตโนมัติอีกครั้ง ถ้าจำเป็น
+        if (!userScrolledManually || forceScroll) {
+          setShouldAutoScroll(true);
+          scrollToBottom(true);
         }
       }
     };
