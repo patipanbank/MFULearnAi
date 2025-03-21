@@ -64,7 +64,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       </div>
 
       {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-        <div className="ml-2 mt-1">
+        <div className="ml-11 mt-1">
           <button
             onClick={() => {
               const sourceInfo = message.sources?.map(source =>
