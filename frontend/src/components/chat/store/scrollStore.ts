@@ -116,17 +116,21 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
       
       // ถ้าผู้ใช้กำลังเลื่อนขึ้นและไม่ได้อยู่ที่ด้านล่าง
       if (isManualScrolling && !isAtBottom) {
+        console.log('[ScrollStore] Manual scroll detected!', { scrollTop, lastScrollPosition, distanceFromBottom });
         set({ 
           isScrollingManually: true,
-          autoScrollEnabled: false
+          autoScrollEnabled: false,
+          showScrollButton: true
         });
       }
       
       // ถ้าผู้ใช้เลื่อนไปถึงด้านล่าง เปิดใช้งาน auto-scroll อีกครั้ง
       if (isAtBottom && get().isScrollingManually) {
+        console.log('[ScrollStore] User scrolled to bottom, re-enabling auto-scroll');
         set({
           isScrollingManually: false,
-          autoScrollEnabled: true
+          autoScrollEnabled: true,
+          showScrollButton: false
         });
       }
     };
@@ -146,12 +150,27 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
     // เพิ่ม event listener
     container.addEventListener('scroll', handleScroll, { passive: true });
     
-    // อัพเดตตำแหน่งเริ่มต้น
+    // เรียกใช้งานทันทีเพื่อตั้งค่าเริ่มต้น
     calculateScrollPosition();
+    
+    // ทำ mutation observer เพื่อติดตามการเปลี่ยนแปลงเนื้อหาในแชท
+    const contentObserver = new MutationObserver(() => {
+      // ตรวจสอบตำแหน่ง scroll หลังจากเนื้อหาเปลี่ยน
+      calculateScrollPosition();
+    });
+    
+    // เริ่มสังเกตการณ์การเปลี่ยนแปลงเนื้อหา
+    contentObserver.observe(container, { 
+      childList: true,
+      subtree: true, 
+      characterData: true,
+      characterDataOldValue: true 
+    });
     
     // ส่งคืนฟังก์ชัน cleanup
     return () => {
       container.removeEventListener('scroll', handleScroll);
+      contentObserver.disconnect();
     };
   },
   
@@ -165,6 +184,12 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
     const threshold = Math.max(20, clientHeight * 0.05);
     const isAtBottom = distanceFromBottom < threshold;
     
+    console.log('[ScrollStore] Updating scroll position', { 
+      isAtBottom, 
+      distanceFromBottom, 
+      showButton: !isAtBottom 
+    });
+    
     set({ 
       isAtBottom,
       showScrollButton: !isAtBottom,
@@ -176,9 +201,11 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
   
   // จัดการการคลิกปุ่มเลื่อนลงด้านล่าง
   handleScrollButtonClick: () => {
+    console.log('[ScrollStore] Scroll button clicked');
     set({
       autoScrollEnabled: true,
-      isScrollingManually: false
+      isScrollingManually: false,
+      showScrollButton: false
     });
     
     // เลื่อนลงทันที
@@ -189,10 +216,26 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
   
   // จัดการเมื่อมีข้อความใหม่
   handleNewMessage: () => {
+    // ตรวจสอบตำแหน่ง scroll ก่อน
     get().updateScrollPosition();
     
-    // ถ้าเปิดใช้งาน auto-scroll
-    if (get().autoScrollEnabled) {
+    // อัพเดตสถานะเมื่อมีข้อความใหม่
+    const { isAtBottom, isScrollingManually } = get();
+    
+    console.log('[ScrollStore] New message received', { 
+      autoScrollEnabled: get().autoScrollEnabled,
+      isAtBottom,
+      isScrollingManually,
+      showButton: !isAtBottom
+    });
+    
+    // แสดงปุ่ม back to bottom ถ้าไม่ได้อยู่ที่ด้านล่าง
+    if (!isAtBottom) {
+      set({ showScrollButton: true });
+    }
+    
+    // ถ้าเปิดใช้งาน auto-scroll และไม่ได้กำลังเลื่อนด้วยตนเอง
+    if (get().autoScrollEnabled && !isScrollingManually) {
       setTimeout(() => {
         get().scrollToBottom();
       }, 50);
@@ -201,10 +244,25 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
   
   // จัดการเมื่อข้อความใหม่เสร็จสมบูรณ์
   handleMessageComplete: () => {
+    // ตรวจสอบตำแหน่ง scroll ก่อน
     get().updateScrollPosition();
     
-    // ถ้าเปิดใช้งาน auto-scroll
-    if (get().autoScrollEnabled) {
+    // อัพเดตสถานะเมื่อข้อความเสร็จสมบูรณ์
+    const { isAtBottom, isScrollingManually } = get();
+    
+    console.log('[ScrollStore] Message completed', { 
+      autoScrollEnabled: get().autoScrollEnabled, 
+      isAtBottom,
+      isScrollingManually
+    });
+    
+    // แสดงปุ่ม back to bottom ถ้าไม่ได้อยู่ที่ด้านล่าง
+    if (!isAtBottom) {
+      set({ showScrollButton: true });
+    }
+    
+    // ถ้าเปิดใช้งาน auto-scroll และไม่ได้กำลังเลื่อนด้วยตนเอง
+    if (get().autoScrollEnabled && !isScrollingManually) {
       setTimeout(() => {
         get().scrollToBottom();
       }, 50);

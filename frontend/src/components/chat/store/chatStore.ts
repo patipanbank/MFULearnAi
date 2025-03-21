@@ -231,10 +231,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } : msg
     ));
     
-    // ใช้ handleNewMessage จาก scrollStore
-    setTimeout(() => {
-      useScrollStore.getState().handleNewMessage();
-    }, 50);
+    // อัพเดตสถานะ scroll หลังจากได้รับเนื้อหาใหม่
+    const scrollStore = useScrollStore.getState();
+    
+    // ตรวจสอบว่ามีการ scroll ด้วยตนเองหรือไม่
+    const { isScrollingManually, isAtBottom } = scrollStore;
+    
+    // ปรับปรุงสถานะปุ่ม scroll to bottom
+    if (!isAtBottom) {
+      scrollStore.setShowScrollButton(true);
+    }
+    
+    // ถ้าไม่ได้กำลัง scroll ด้วยตนเอง ให้เลื่อนลงล่าง
+    if (!isScrollingManually && scrollStore.autoScrollEnabled) {
+      setTimeout(() => {
+        scrollStore.scrollToBottom();
+      }, 10);
+    }
   },
   
   completeAssistantMessage: (sources) => {

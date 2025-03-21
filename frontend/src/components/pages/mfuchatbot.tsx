@@ -58,7 +58,8 @@ const MFUChatbot: React.FC = () => {
     initScrollObserver,
     handleScrollButtonClick,
     handleNewMessage,
-    handleMessageComplete
+    handleMessageComplete,
+    updateScrollPosition
   } = useScrollStore();
   
   // Model state from Zustand
@@ -89,7 +90,19 @@ const MFUChatbot: React.FC = () => {
   
   // ทำการ auto-scroll เมื่อมีข้อความใหม่หรือสถานะโหลดเปลี่ยนแปลง
   useEffect(() => {
+    // อัพเดตสถานะ scroll ทุกครั้งที่มีข้อความใหม่
+    const handleScrollUpdate = () => {
+      updateScrollPosition();
+    };
+
+    // ตรวจสอบสถานะของ scroll เมื่อมีข้อความใหม่
+    handleScrollUpdate();
     handleNewMessage();
+
+    // ตั้งเวลาเพื่อตรวจสอบอีกครั้งหลังจากเนื้อหาโหลดเสร็จ (เผื่อมีรูปภาพ)
+    const checkScrollTimer = setTimeout(handleScrollUpdate, 500);
+
+    return () => clearTimeout(checkScrollTimer);
   }, [messages, handleNewMessage]);
   
   // จัดการเมื่อการโหลดเสร็จสิ้น
@@ -163,8 +176,8 @@ const MFUChatbot: React.FC = () => {
   }, [fetchUsage]);
   
   return (
-    <div className="flex flex-col h-full" ref={containerRef}>
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-40">
+    <div className="flex flex-col h-full relative" ref={containerRef}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-40 overscroll-contain scroll-smooth">
         {messages.length === 0 ? (
           <WelcomeMessage />
         ) : (
