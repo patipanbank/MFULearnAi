@@ -1,5 +1,6 @@
 import React from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
+import { MdEdit, MdCancel, MdRefresh } from "react-icons/md";
 import { Message } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
@@ -10,6 +11,9 @@ interface ChatBubbleProps {
   isLastMessage: boolean;
   isLoading: boolean;
   onContinueClick: (e: React.MouseEvent) => void;
+  onCancelClick?: (e: React.MouseEvent) => void;
+  onEditClick?: (message: Message) => void;
+  onRegenerateClick?: (e: React.MouseEvent) => void;
   selectedModel: string;
 }
 
@@ -18,6 +22,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   isLastMessage, 
   isLoading, 
   onContinueClick, 
+  onCancelClick,
+  onEditClick,
+  onRegenerateClick,
   selectedModel 
 }) => {
   return (
@@ -86,22 +93,68 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         </div>
       )}
 
-      {/* Add Continue button after the last assistant message */}
-      {message.role === 'assistant' && message.isComplete && isLastMessage && (
-        <div className="ml-11 mt-2">
-          <button
-            type="button"
-            onClick={onContinueClick}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm ${
-              selectedModel ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-            disabled={!selectedModel}
-            title="Continue writing"
-            data-verify="false"
-          >
-            <VscDebugContinue className="h-4 w-4" />
-            <span>Continue</span>
-          </button>
+      {/* Action buttons for assistant messages */}
+      {message.role === 'assistant' && isLastMessage && (
+        <div className="ml-11 mt-2 flex flex-wrap gap-2">
+          {/* Show cancel button during generation */}
+          {!message.isComplete && isLoading && onCancelClick && (
+            <button
+              type="button"
+              onClick={onCancelClick}
+              className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-red-500 hover:bg-red-600 text-white"
+              title="Cancel generation"
+            >
+              <MdCancel className="h-4 w-4" />
+              <span>Cancel</span>
+            </button>
+          )}
+          
+          {/* Show continue, edit, and regenerate buttons once complete */}
+          {message.isComplete && (
+            <>
+              <button
+                type="button"
+                onClick={onContinueClick}
+                className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm ${
+                  selectedModel ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                disabled={!selectedModel}
+                title="Continue writing"
+                data-verify="false"
+              >
+                <VscDebugContinue className="h-4 w-4" />
+                <span>Continue</span>
+              </button>
+              
+              {onRegenerateClick && (
+                <button
+                  type="button"
+                  onClick={onRegenerateClick}
+                  className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm ${
+                    selectedModel ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  disabled={!selectedModel}
+                  title="Regenerate response"
+                >
+                  <MdRefresh className="h-4 w-4" />
+                  <span>Regenerate</span>
+                </button>
+              )}
+            </>
+          )}
+          
+          {/* Edit button for both complete and incomplete messages */}
+          {onEditClick && (
+            <button
+              type="button"
+              onClick={() => onEditClick(message)}
+              className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-gray-500 hover:bg-gray-600 text-white"
+              title="Edit message"
+            >
+              <MdEdit className="h-4 w-4" />
+              <span>Edit</span>
+            </button>
+          )}
         </div>
       )}
     </div>

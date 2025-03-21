@@ -14,6 +14,7 @@ export interface ChatState {
   selectedImages: File[];
   selectedFiles: File[];
   wsRef: WebSocket | null;
+  editingMessage: Message | null;
   
   // Refs (to be set by components)
   messagesEndRef: React.RefObject<HTMLDivElement> | null;
@@ -27,6 +28,7 @@ export interface ChatState {
   setSelectedFiles: (files: File[] | ((prev: File[]) => File[])) => void;
   setMessagesEndRef: (ref: React.RefObject<HTMLDivElement>) => void;
   setChatContainerRef: (ref: React.RefObject<HTMLDivElement>) => void;
+  setEditingMessage: (message: Message | null) => void;
   
   // Actions - Complex operations
   initWebSocket: () => void;
@@ -35,6 +37,9 @@ export interface ChatState {
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handlePaste: (e: React.ClipboardEvent) => void;
   handleContinueClick: (e: React.MouseEvent) => void;
+  handleCancelGeneration: (e: React.MouseEvent) => void;
+  handleEditMessage: (message: Message) => void;
+  handleRegenerateMessage: (e: React.MouseEvent) => void;
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveImage: (index: number) => void;
   handleRemoveFile: (index: number) => void;
@@ -54,6 +59,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   wsRef: null,
   messagesEndRef: null,
   chatContainerRef: null,
+  editingMessage: null,
   
   // Basic state setters
   setMessages: (messagesOrFn) => {
@@ -85,6 +91,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   setMessagesEndRef: (ref) => set({ messagesEndRef: ref }),
   setChatContainerRef: (ref) => set({ chatContainerRef: ref }),
+  setEditingMessage: (message) => set({ editingMessage: message }),
   
   // WebSocket connection
   initWebSocket: () => {
@@ -605,6 +612,144 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!selectedModel && models.length > 0) {
       const defaultModel = models.find(model => model.name === 'Default');
       setSelectedModel(defaultModel?.id || models[0].id);
+    }
+  },
+  
+  // Cancel the current generation
+  handleCancelGeneration: (e) => {
+    e.preventDefault();
+    
+    const { wsRef, messages } = get();
+    const { setIsLoading } = useUIStore.getState();
+    
+    if (!wsRef) {
+      return;
+    }
+    
+    try {
+      // Send a cancel message to the WebSocket server
+      wsRef.send(JSON.stringify({ 
+        type: 'cancel',
+        chatId: get().currentChatId
+      }));
+      
+      // Update the last message to show it's been cancelled
+      const updatedMessages = [...messages];
+      if (updatedMessages.length > 0) {
+        const lastIdx = updatedMessages.length - 1;
+        if (updatedMessages[lastIdx].role === 'assistant' && !updatedMessages[lastIdx].isComplete) {
+          updatedMessages[lastIdx] = {
+            ...updatedMessages[lastIdx],
+            content: updatedMessages[lastIdx].content + "\n\n[Generation cancelled]",
+            isComplete: true
+          };
+          set({ messages: updatedMessages });
+        }
+      }
+      
+      // Reset loading state
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error cancelling generation:', error);
+    }
+  },
+  
+  // Edit a message
+  handleEditMessage: (message) => {
+    const { messages } = get();
+    
+    // Set the message to edit
+    set({ editingMessage: message });
+    
+    // If it's a user message, put it in the input area
+    if (message.role === 'user') {
+      set({ inputMessage: message.content });
+    }
+    
+    // Find the index of the message to edit
+    const messageIndex = messages.findIndex(m => m.id === message.id);
+    if (messageIndex === -1) return;
+    
+    // Remove this message and all messages after it
+    const newMessages = messages.slice(0, messageIndex);
+    set({ messages: newMessages });
+  },
+  
+  // Regenerate the last assistant message
+  handleRegenerateMessage: (e) => {
+    e.preventDefault();
+    
+    const { messages, wsRef, currentChatId } = get();
+    const { selectedModel, fetchUsage } = useModelStore.getState();
+    const { setIsLoading, setShouldAutoScroll } = useUIStore.getState();
+    
+    if (!selectedModel || !wsRef) {
+      alert('Please select a model first');
+      return;
+    }
+    
+    // Find the last user message
+    const lastUserMessageIndex = [...messages].reverse().findIndex(msg => msg.role === 'user');
+    if (lastUserMessageIndex === -1) return;
+    
+    // Get all messages up to and including the last user message
+    const lastUserRealIndex = messages.length - 1 - lastUserMessageIndex;
+    const messagesToKeep = messages.slice(0, lastUserRealIndex + 1);
+    
+    // Add placeholder for new AI response
+    const assistantMessage: Message = {
+      id: messages.length + 1,
+      role: 'assistant',
+      content: '',
+      timestamp: {
+        $date: new Date().toISOString()
+      },
+      images: [],
+      sources: [],
+      isImageGeneration: false,
+      isComplete: false
+    };
+    
+    // Reset scroll position
+    setShouldAutoScroll(true);
+    useUIStore.getState().setUserScrolledManually(false);
+    
+    // Update messages and set loading state
+    set({ messages: [...messagesToKeep, assistantMessage] });
+    setIsLoading(true);
+    
+    try {
+      // Send regenerate request to websocket
+      const messagePayload = {
+        messages: messagesToKeep,
+        modelId: selectedModel,
+        isImageGeneration: false,
+        path: window.location.pathname,
+        chatId: currentChatId,
+        type: 'regenerate'
+      };
+      
+      wsRef.send(JSON.stringify(messagePayload));
+      
+      // Update usage
+      fetchUsage();
+    } catch (error) {
+      console.error('Error in handleRegenerateMessage:', error);
+      set({ 
+        messages: [...messagesToKeep, {
+          id: messages.length + 1,
+          role: 'assistant',
+          content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
+          timestamp: {
+            $date: new Date().toISOString()
+          },
+          images: [],
+          sources: [],
+          isImageGeneration: false,
+          isComplete: true
+        }]
+      });
+      setIsLoading(false);
     }
   }
 }));

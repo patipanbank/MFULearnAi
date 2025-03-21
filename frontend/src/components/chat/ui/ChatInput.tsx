@@ -1,9 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
 import { IoIosArrowDown } from "react-icons/io";
+import { MdEdit } from "react-icons/md";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
-import { Model, Usage } from '../utils/types';
+import { Message, Model, Usage } from '../utils/types';
 
 interface ChatInputProps {
   inputMessage: string;
@@ -27,6 +28,7 @@ interface ChatInputProps {
   isNearBottom: boolean;
   usage: Usage | null;
   isMobile: boolean;
+  editingMessage?: Message | null;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -49,7 +51,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   canSubmit,
   handleScrollToBottom,
   isNearBottom,
-  usage}) => {
+  usage,
+  editingMessage}) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   useEffect(() => {
@@ -87,8 +90,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
       <form onSubmit={handleSubmit} className="p-2 md:p-4">
         <div className="flex flex-col gap-2 max-w-[95%] lg:max-w-[85%] mx-auto">
+          {/* Edit mode indicator */}
+          {editingMessage && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 dark:bg-yellow-800 rounded-md text-sm">
+              <MdEdit className="h-4 w-4" />
+              <span>Editing message</span>
+            </div>
+          )}
+      
           {/* Message input area */}
-          <div className="flex gap-2 w-full">
+          <div className="flex items-end gap-2">
             <textarea
               ref={textareaRef}
               value={inputMessage}

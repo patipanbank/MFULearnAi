@@ -7,6 +7,7 @@ import useScrollManagement from '../chat/hooks/useScrollManagement';
 import { useChatStore } from '../../store/chatStore';
 import { useModelStore } from '../../store/modelStore';
 import { useUIStore } from '../../store/uiStore';
+import { isValidObjectId } from '../chat/utils/formatters';
 
 const MFUChatbot: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const MFUChatbot: React.FC = () => {
     currentChatId,
     selectedImages,
     selectedFiles,
+    editingMessage,
     setMessagesEndRef,
     setChatContainerRef,
     setCurrentChatId,
@@ -27,6 +29,9 @@ const MFUChatbot: React.FC = () => {
     handleKeyDown,
     handlePaste,
     handleContinueClick,
+    handleCancelGeneration,
+    handleEditMessage,
+    handleRegenerateMessage,
     handleFileSelect,
     handleRemoveImage,
     handleRemoveFile,
@@ -78,14 +83,7 @@ const MFUChatbot: React.FC = () => {
     fetchModels();
   }, [fetchModels]);
   
-  // Debug selectedModel value when it changes
-  useEffect(() => {
-    console.log('Selected model:', selectedModel);
-    console.log('Available models:', models);
-  }, [selectedModel, models]);
-  
   // Only update URL when response is complete - not during streaming
-  // Don't update URL immediately when currentChatId changes
   useEffect(() => {
     const handleChatUpdated = (event: CustomEvent) => {
       const { chatId, complete } = event.detail || {};
@@ -121,13 +119,16 @@ const MFUChatbot: React.FC = () => {
     const urlParams = new URLSearchParams(location.search);
     const chatId = urlParams.get('chat');
     
-    if (chatId) {
+    if (chatId && isValidObjectId(chatId)) {
+      console.log('Loading chat history for:', chatId);
       loadChatHistory(chatId);
+      setCurrentChatId(chatId);
     } else {
       // Reset chat when navigating to /mfuchatbot without chat ID
+      console.log('No valid chat ID found');
       useChatStore.getState().resetChat();
     }
-  }, [location.search, loadChatHistory]);
+  }, [location.search, loadChatHistory, setCurrentChatId]);
   
   // Fetch usage data when component mounts
   useEffect(() => {
@@ -153,6 +154,9 @@ const MFUChatbot: React.FC = () => {
                 isLastMessage={index === messages.length - 1}
                 isLoading={isLoading}
                 onContinueClick={handleContinueClick}
+                onCancelClick={handleCancelGeneration}
+                onEditClick={handleEditMessage}
+                onRegenerateClick={handleRegenerateMessage}
                 selectedModel={selectedModel}
               />
             ))}
@@ -183,6 +187,7 @@ const MFUChatbot: React.FC = () => {
         isNearBottom={isNearBottom}
         usage={usage}
         isMobile={isMobile}
+        editingMessage={editingMessage}
       />
     </div>
   );

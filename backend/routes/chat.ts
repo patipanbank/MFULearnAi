@@ -170,7 +170,14 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       const data = JSON.parse(message.toString());
       const userId = extWs.userId;
 
-      // ตรวจสอบ limit ก่อนประมวลผลคำถาม
+      // Handle cancel request specifically
+      if (data.type === 'cancel') {
+        console.log(`User ${userId} cancelled generation for chat ${data.chatId}`);
+        // The frontend will handle UI updates
+        return;
+      }
+
+      // Check user limits before processing
       const hasRemaining = await usageService.checkUserLimit(userId!);
       if (!hasRemaining) {
         extWs.send(JSON.stringify({
@@ -179,10 +186,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         }));
         return;
       }
-
-      // console.log(`Raw WebSocket message received from ${extWs.userId}:`, message.toString());
       
-      const { messages, modelId, isImageGeneration, path, chatId } = data;
+      const { messages, modelId, isImageGeneration, path, chatId, type } = data;
 
       if (!messages || !Array.isArray(messages)) {
         throw new Error('Invalid messages format');
@@ -192,11 +197,14 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         throw new Error('ModelId is required');
       }
 
-      // จัดการ chat ก่อนเริ่มส่งคำตอบ
+      // Check if this is a regenerate request
+      const isRegenerate = type === 'regenerate';
+      
+      // Handle chat updates and message processing
       let savedChat;
       let currentChatId: string;
       try {
-        // ตรวจสอบว่ามีการส่งไฟล์มาหรือไม่
+        // Check if any files were sent with the message
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.files && lastMessage.files.length > 0) {
           console.log(`User ${userId} sent ${lastMessage.files.length} files with their message`);
@@ -205,7 +213,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         if (!chatId) {
           savedChat = await chatService.saveChat(extWs.userId!, modelId, messages);
           currentChatId = savedChat._id.toString();
-          // console.log('Created new chat:', currentChatId);
+          
           // Send chatId immediately after creation
           if (extWs.readyState === WebSocket.OPEN) {
             extWs.send(JSON.stringify({ 
@@ -216,7 +224,6 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         } else {
           savedChat = await chatService.updateChat(chatId, extWs.userId!, messages);
           currentChatId = chatId;
-          // console.log('Updated existing chat:', currentChatId);
         }
 
         // Get query from last message
@@ -225,20 +232,53 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           : messages.map(msg => msg.content).join('\n');
 
         // Generate response and send chunks
-        // console.log('Starting response generation...');
         let assistantResponse = '';
+        let isCancelled = false;
         
-        for await (const content of chatService.generateResponse(messages, query, modelId, extWs.userId!)) {
-          assistantResponse += content;
-          if (extWs.readyState === WebSocket.OPEN) {
-            extWs.send(JSON.stringify({ 
-              type: 'content',
-              content
-            }));
-          } else {
-            // console.log(`Connection closed for user ${extWs.userId}, stopping response generation`);
-            break;
+        // Setup a listener for cancel messages while we're generating
+        const cancelListener = (cancelMsg: string) => {
+          try {
+            const cancelData = JSON.parse(cancelMsg.toString());
+            if (cancelData.type === 'cancel' && cancelData.chatId === currentChatId) {
+              console.log(`Cancellation received during generation for chat ${currentChatId}`);
+              isCancelled = true;
+            }
+          } catch (error) {
+            console.error('Error parsing cancel message:', error);
           }
+        };
+        
+        // Add temporary listener for this generation
+        extWs.on('message', cancelListener);
+        
+        // Generate the response
+        try {
+          for await (const content of chatService.generateResponse(messages, query, modelId, extWs.userId!)) {
+            // Check if the generation has been cancelled
+            if (isCancelled) {
+              console.log(`Breaking out of generation loop due to cancellation for chat ${currentChatId}`);
+              break;
+            }
+            
+            assistantResponse += content;
+            if (extWs.readyState === WebSocket.OPEN) {
+              extWs.send(JSON.stringify({ 
+                type: 'content',
+                content
+              }));
+            } else {
+              break;
+            }
+          }
+        } finally {
+          // Always remove the listener when done
+          extWs.removeListener('message', cancelListener);
+        }
+
+        // If generation was cancelled, we don't need to send completion
+        if (isCancelled) {
+          console.log(`Generation was cancelled for chat ${currentChatId}, not sending completion`);
+          return;
         }
 
         // Send completion signal
