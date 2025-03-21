@@ -174,6 +174,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 }));
               }
             }
+            
+            // อัพเดทจำนวน token ที่ใช้ไป
+            if (data.tokensUsed) {
+              useModelStore.getState().updateTokenUsage(data.tokensUsed);
+            }
             break;
 
           case 'chat_updated':

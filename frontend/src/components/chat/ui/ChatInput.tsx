@@ -3,6 +3,7 @@ import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
 import { MdEdit } from "react-icons/md";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
+import TokenUsageDisplay from './TokenUsageDisplay';
 import { Message, Model, Usage } from '../utils/types';
 
 interface ChatInputProps {
@@ -201,16 +202,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 </>
               )}
 
-              {usage && (
-                <div className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4-4-4z" />
-                  </svg>
-                  <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
-                    {usage.remainingTokens}/{usage.tokenLimit} tokens
-                  </span>
-                </div>
-              )}
+              {usage && <TokenUsageDisplay usage={usage} />}
             </div>
           </div>
 

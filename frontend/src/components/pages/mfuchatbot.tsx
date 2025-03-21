@@ -133,6 +133,19 @@ const MFUChatbot: React.FC = () => {
   // Fetch usage data when component mounts
   useEffect(() => {
     fetchUsage();
+    
+    // อัพเดทข้อมูล token เมื่อมีข้อความใหม่หรือมีการตอบกลับ
+    const handleUpdateUsage = () => {
+      fetchUsage();
+    };
+    
+    window.addEventListener('chatMessageReceived', handleUpdateUsage);
+    window.addEventListener('chatUpdated', handleUpdateUsage);
+    
+    return () => {
+      window.removeEventListener('chatMessageReceived', handleUpdateUsage);
+      window.removeEventListener('chatUpdated', handleUpdateUsage);
+    };
   }, [fetchUsage]);
   
   return (

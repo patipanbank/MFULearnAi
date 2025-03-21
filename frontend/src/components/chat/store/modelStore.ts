@@ -12,6 +12,7 @@ export interface ModelState {
   setModels: (models: Model[]) => void;
   setSelectedModel: (modelId: string) => void;
   setUsage: (usage: Usage | null) => void;
+  updateTokenUsage: (tokensUsed: number) => void;
   
   // Thunks
   fetchModels: () => Promise<void>;
@@ -28,6 +29,18 @@ export const useModelStore = create<ModelState>((set, get) => ({
   setModels: (models) => set({ models }),
   setSelectedModel: (modelId) => set({ selectedModel: modelId }),
   setUsage: (usage) => set({ usage }),
+  updateTokenUsage: (tokensUsed) => {
+    const currentUsage = get().usage;
+    if (currentUsage) {
+      set({
+        usage: {
+          ...currentUsage,
+          dailyTokens: currentUsage.dailyTokens + tokensUsed,
+          remainingTokens: Math.max(0, currentUsage.remainingTokens - tokensUsed)
+        }
+      });
+    }
+  },
   
   // Thunks
   fetchModels: async () => {
