@@ -817,7 +817,8 @@ router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
 router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     // Log the full request body for debugging
-    console.log('Edit message request body:', JSON.stringify(req.body));
+    console.log('Edit message request body raw:', req.body);
+    console.log('Edit message request body stringified:', JSON.stringify(req.body));
     
     const { chatId, messageId, content, allMessages } = req.body;
     const userId = (req.user as any)?.username || '';
@@ -826,6 +827,8 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
       chatId, 
       messageId, 
       messageIdType: typeof messageId,
+      messageIdToString: String(messageId),
+      messageIdJSON: JSON.stringify(messageId),
       hasContent: !!content, 
       contentLength: content?.length,
       hasAllMessages: !!allMessages 
@@ -836,16 +839,23 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
       return;
     }
 
-    if (!messageId) {
+    // Check if messageId exists and convert to string if it's a number
+    if (messageId === undefined || messageId === null) {
       res.status(400).json({ error: 'Message ID is required' });
       return;
     }
-
+    
+    const messageIdStr = String(messageId);
+    if (!messageIdStr) {
+      res.status(400).json({ error: 'Invalid message ID format' });
+      return;
+    }
+    
     if (!content && !allMessages) {
       res.status(400).json({ error: 'Either content or allMessages is required' });
       return;
     }
-
+    
     // Find the chat
     const chat = await Chat.findOne({ _id: chatId, userId });
     
@@ -872,8 +882,14 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
       }
     } else {
       // Otherwise just update the specific message
-      const messageIndex = chat.messages.findIndex(m => m.id === messageId);
+      const messageIndex = chat.messages.findIndex(m => String(m.id) === messageIdStr);
+      console.log('Searching for message with ID:', messageIdStr, 'Found at index:', messageIndex);
+      
       if (messageIndex === -1) {
+        // ลอกดูว่ามี id อะไรบ้างในข้อความทั้งหมด
+        const messageIds = chat.messages.map(m => ({ id: m.id, type: typeof m.id }));
+        console.log('Available message IDs:', JSON.stringify(messageIds));
+        
         res.status(404).json({ error: 'Message not found' });
         return;
       }

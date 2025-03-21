@@ -704,15 +704,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
               chatId: currentChatId,
               messageId: message.id,
               messageIdType: typeof message.id,
+              messageIdStringified: JSON.stringify(message.id),
+              messageIdValue: String(message.id),
               content: message.content ? message.content.substring(0, 50) + '...' : null
             });
             
             // Make sure messageId is a string 
-            const messageId = message.id?.toString();
+            const messageId = String(message.id);
             
             if (!messageId) {
               throw new Error('Invalid message ID');
             }
+            
+            const requestBody = {
+              chatId: currentChatId,
+              messageId: messageId,
+              content: message.content
+            };
+            
+            console.log('Final request body:', JSON.stringify(requestBody));
             
             const response = await fetch(`${config.apiUrl}/api/chat/edit-message`, {
               method: 'POST',
@@ -720,11 +730,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               },
-              body: JSON.stringify({
-                chatId: currentChatId,
-                messageId: messageId,
-                content: message.content
-              })
+              body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {
