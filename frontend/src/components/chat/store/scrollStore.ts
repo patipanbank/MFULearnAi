@@ -88,7 +88,22 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
     const container = scrollContainerRef.current;
     const bottomElement = scrollEndRef.current;
     
-    if (!container || !bottomElement) return () => {};
+    if (!container || !bottomElement) {
+      console.error('[ScrollStore] Cannot initialize observer: missing container or bottom element', {
+        hasContainer: !!container,
+        hasBottomElement: !!bottomElement,
+        containerId: container?.id,
+        bottomId: bottomElement?.id
+      });
+      return () => {};
+    }
+    
+    console.log('[ScrollStore] Initializing IntersectionObserver', {
+      containerId: container.id || 'no-id',
+      containerClass: container.className,
+      bottomElementId: bottomElement.id || 'no-id',
+      bottomElementClass: bottomElement.className
+    });
     
     // สร้าง IntersectionObserver เพื่อติดตามองค์ประกอบด้านล่าง
     const observer = new IntersectionObserver(

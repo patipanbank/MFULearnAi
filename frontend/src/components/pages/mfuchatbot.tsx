@@ -90,27 +90,31 @@ const MFUChatbot: React.FC = () => {
   
   // ทำการ auto-scroll เมื่อมีข้อความใหม่หรือสถานะโหลดเปลี่ยนแปลง
   useEffect(() => {
-    // อัพเดตสถานะ scroll ทุกครั้งที่มีข้อความใหม่
-    const handleScrollUpdate = () => {
+    console.log('Messages updated, handling scroll position', { count: messages.length });
+    
+    // รอให้ DOM อัพเดตก่อนตรวจสอบตำแหน่ง scroll
+    const timer = setTimeout(() => {
+      // อัพเดตสถานะ scroll หลังจากเนื้อหาโหลดเสร็จ
       updateScrollPosition();
-    };
-
-    // ตรวจสอบสถานะของ scroll เมื่อมีข้อความใหม่
-    handleScrollUpdate();
-    handleNewMessage();
-
-    // ตั้งเวลาเพื่อตรวจสอบอีกครั้งหลังจากเนื้อหาโหลดเสร็จ (เผื่อมีรูปภาพ)
-    const checkScrollTimer = setTimeout(handleScrollUpdate, 500);
-
-    return () => clearTimeout(checkScrollTimer);
-  }, [messages, handleNewMessage]);
+      // แจ้ง scroll store ว่ามีข้อความใหม่
+      handleNewMessage();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [messages, handleNewMessage, updateScrollPosition]);
   
   // จัดการเมื่อการโหลดเสร็จสิ้น
   useEffect(() => {
     if (!isLoading) {
-      handleMessageComplete();
+      console.log('Message loading completed');
+      
+      // รอให้ DOM อัพเดตก่อนตรวจสอบตำแหน่ง scroll
+      setTimeout(() => {
+        updateScrollPosition();
+        handleMessageComplete();
+      }, 100);
     }
-  }, [isLoading, handleMessageComplete]);
+  }, [isLoading, handleMessageComplete, updateScrollPosition]);
   
   // Initialize WebSocket when component mounts
   useEffect(() => {
@@ -176,8 +180,13 @@ const MFUChatbot: React.FC = () => {
   }, [fetchUsage]);
   
   return (
-    <div className="flex flex-col h-full relative" ref={containerRef}>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-40 overscroll-contain scroll-smooth">
+    <div className="flex flex-col h-full relative">
+      <div 
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 pb-40 overscroll-contain scroll-smooth"
+        ref={containerRef}
+        id="chat-messages"
+        data-testid="chat-messages-container"
+      >
         {messages.length === 0 ? (
           <WelcomeMessage />
         ) : (
@@ -195,7 +204,11 @@ const MFUChatbot: React.FC = () => {
                 selectedModel={selectedModel}
               />
             ))}
-            <div ref={endRef} />
+            <div 
+              ref={endRef} 
+              id="chat-bottom-anchor"
+              data-testid="chat-bottom-anchor"
+            />
           </div>
         )}
       </div>
