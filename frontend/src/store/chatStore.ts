@@ -318,7 +318,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     const { inputMessage, messages, selectedImages, selectedFiles, currentChatId, wsRef, editingMessage } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
-    const { isImageGenerationMode, setIsLoading, setShouldAutoScroll, setAwaitingChatId } = useUIStore.getState();
+    const { isImageGenerationMode, setIsLoading, setShouldAutoScroll, setAwaitingChatId, setInputMessage: setUIInputMessage } = useUIStore.getState();
     
     if ((!inputMessage.trim() && !isImageGenerationMode) || !selectedModel) {
       if (!selectedModel) {
@@ -421,6 +421,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
     } finally {
       setIsLoading(false);
+      // ล้างข้อความใน UIStore ด้วย
+      setUIInputMessage('');
       set({
         inputMessage: '',
         selectedImages: [],
