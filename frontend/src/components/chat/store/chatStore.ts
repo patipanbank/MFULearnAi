@@ -239,7 +239,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     // ปรับปรุงสถานะปุ่ม scroll to bottom
     if (!isAtBottom) {
+      // บังคับแสดงปุ่มเมื่อมีการ streaming
       scrollStore.setShowScrollButton(true);
+    }
+    
+    // ตรวจสอบขนาดของเนื้อหา
+    const container = scrollStore.scrollContainerRef.current;
+    if (container) {
+      const { scrollHeight, clientHeight } = container;
+      
+      // ถ้าเนื้อหาสูงกว่าพื้นที่แสดงผล บังคับแสดงปุ่ม
+      if (scrollHeight > clientHeight) {
+        console.log('[ChatStore] Content height exceeds view during streaming, forcing button to show');
+        scrollStore.setShowScrollButton(true);
+      }
     }
     
     // ถ้าไม่ได้กำลัง scroll ด้วยตนเอง ให้เลื่อนลงล่าง
@@ -334,7 +347,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       setIsLoading(true);
       
       // เปิดใช้งาน auto-scroll เมื่อส่งข้อความใหม่
-      useScrollStore.getState().setAutoScrollEnabled(true);
+      const scrollStore = useScrollStore.getState();
+      scrollStore.setAutoScrollEnabled(true);
+      
+      // บังคับแสดงปุ่ม scroll to bottom เมื่อเริ่มการ streaming
+      const container = scrollStore.scrollContainerRef.current;
+      if (container) {
+        const { scrollHeight, clientHeight, scrollTop } = container;
+        const distanceFromBottom = Math.max(0, scrollHeight - scrollTop - clientHeight);
+        
+        // ถ้าไม่ได้อยู่ที่ด้านล่าง หรือเนื้อหาสูงกว่าพื้นที่แสดงผล บังคับแสดงปุ่ม
+        if (distanceFromBottom > 50 || scrollHeight > clientHeight) {
+          console.log('[ChatStore] Not at bottom or content taller than view, showing button at start of streaming');
+          scrollStore.setShowScrollButton(true);
+        }
+      }
       
       // แปลงรูปภาพและไฟล์
       let images: { data: string; mediaType: string }[] = [];

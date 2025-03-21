@@ -99,11 +99,20 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
       });
       
       // คำนวณระยะห่างจากด้านล่าง
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      const distanceFromBottom = Math.max(0, scrollHeight - scrollTop - clientHeight);
       
-      // กำหนด threshold
-      const threshold = Math.max(20, clientHeight * 0.05);
+      // กำหนด threshold ที่มากขึ้นเนื่อองจาก padding ด้านล่างและ fixed elements
+      const threshold = Math.max(50, clientHeight * 0.1); // เพิ่มเป็น 10% ของความสูงหรือ 50px
       const isAtBottom = distanceFromBottom < threshold;
+      
+      console.log('[ScrollStore] Position calculated:', { 
+        scrollTop, 
+        scrollHeight, 
+        clientHeight, 
+        distanceFromBottom, 
+        threshold,
+        isAtBottom
+      });
       
       // ตรวจสอบว่าผู้ใช้กำลังเลื่อนเองหรือไม่ (เคลื่อนไหวมากกว่า 2px)
       const isManualScrolling = Math.abs(scrollTop - lastScrollPosition) > 2;
@@ -111,8 +120,9 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
       // อัพเดตสถานะ
       set({ isAtBottom });
       
-      // แสดง/ซ่อนปุ่มเลื่อนไปด้านล่าง
-      set({ showScrollButton: !isAtBottom });
+      // กำหนดให้แสดงปุ่มเมื่อไม่ได้อยู่ที่ด้านล่าง และกำลังไม่อยู่ในสถานะเพิ่งเริ่มต้น
+      const showButton = !isAtBottom;
+      set({ showScrollButton: showButton });
       
       // ถ้าผู้ใช้กำลังเลื่อนขึ้นและไม่ได้อยู่ที่ด้านล่าง
       if (isManualScrolling && !isAtBottom) {
@@ -180,23 +190,37 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
     if (!container) return;
     
     const { scrollTop, scrollHeight, clientHeight } = container;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    const threshold = Math.max(20, clientHeight * 0.05);
+    const distanceFromBottom = Math.max(0, scrollHeight - scrollTop - clientHeight);
+    const threshold = Math.max(50, clientHeight * 0.1); // ใช้ค่าเดียวกับใน calculateScrollPosition
     const isAtBottom = distanceFromBottom < threshold;
     
     console.log('[ScrollStore] Updating scroll position', { 
-      isAtBottom, 
+      scrollTop,
+      scrollHeight,
+      clientHeight,
       distanceFromBottom, 
+      threshold,
+      isAtBottom, 
       showButton: !isAtBottom 
     });
     
+    // เมื่อเนื้อหามีการเปลี่ยนแปลง และไม่ได้อยู่ที่ด้านล่าง
+    // บังคับให้แสดงปุ่ม scroll to bottom
+    const showButton = !isAtBottom;
+    
     set({ 
       isAtBottom,
-      showScrollButton: !isAtBottom,
+      showScrollButton: showButton,
       lastScrollPosition: scrollTop,
       lastScrollHeight: scrollHeight,
       lastClientHeight: clientHeight
     });
+    
+    // บังคับแสดงปุ่มเลื่อนลงในกรณีที่เนื้อหามีความสูงมากกว่าพื้นที่แสดงผล
+    if (scrollHeight > clientHeight * 1.5) {
+      console.log('[ScrollStore] Content height exceeds view, forcing button to show');
+      set({ showScrollButton: true });
+    }
   },
   
   // จัดการการคลิกปุ่มเลื่อนลงด้านล่าง
@@ -229,6 +253,18 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
       showButton: !isAtBottom
     });
     
+    // ตรวจสอบขนาดของเนื้อหา
+    const container = get().scrollContainerRef.current;
+    if (container) {
+      const { scrollHeight, clientHeight } = container;
+      
+      // บังคับแสดงปุ่มเลื่อนลงเมื่อได้รับข้อความใหม่ ถ้าเนื้อหามีความสูงมากกว่าพื้นที่แสดงผล
+      if (scrollHeight > clientHeight * 1.2 && !isAtBottom) {
+        console.log('[ScrollStore] Content taller than view on new message, showing button');
+        set({ showScrollButton: true });
+      }
+    }
+    
     // แสดงปุ่ม back to bottom ถ้าไม่ได้อยู่ที่ด้านล่าง
     if (!isAtBottom) {
       set({ showScrollButton: true });
@@ -255,6 +291,18 @@ export const useScrollStore = create<ScrollState>((set, get) => ({
       isAtBottom,
       isScrollingManually
     });
+    
+    // ตรวจสอบขนาดของเนื้อหา
+    const container = get().scrollContainerRef.current;
+    if (container) {
+      const { scrollHeight, clientHeight } = container;
+      
+      // บังคับแสดงปุ่มเลื่อนลงเมื่อข้อความเสร็จสมบูรณ์ ถ้าเนื้อหามีความสูงมากกว่าพื้นที่แสดงผล
+      if (scrollHeight > clientHeight && !isAtBottom) {
+        console.log('[ScrollStore] Content taller than view on message complete, showing button');
+        set({ showScrollButton: true });
+      }
+    }
     
     // แสดงปุ่ม back to bottom ถ้าไม่ได้อยู่ที่ด้านล่าง
     if (!isAtBottom) {

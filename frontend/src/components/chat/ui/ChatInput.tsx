@@ -92,8 +92,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
       {showScrollButton && (
         <button
           onClick={handleScrollToBottom}
-          className="fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2.5 md:p-3.5 shadow-lg transition-all duration-300 z-20 animate-pulse"
+          className="fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2.5 md:p-3.5 shadow-lg transition-all duration-300 z-20 animate-pulse flex items-center justify-center"
           aria-label="Scroll to latest messages"
+          style={{ 
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+            transform: 'scale(1.05)',
+            animation: 'pulse 2s infinite'
+          }}
         >
           <div className="relative">
             <IoIosArrowDown className="h-5 w-5 md:h-6 md:w-6" />
