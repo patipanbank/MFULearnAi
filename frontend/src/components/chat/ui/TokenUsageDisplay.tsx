@@ -1,6 +1,5 @@
 import React from 'react';
 import { Usage } from '../utils/types';
-import { IoIosStats } from 'react-icons/io';
 
 interface TokenUsageDisplayProps {
   usage: Usage | null;
@@ -22,8 +21,7 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({ usage }) => {
   }
   
   return (
-    <div className="relative flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
-      <IoIosStats className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+    <div className="relative flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">  
       
       <div className="flex flex-col w-full">
         {/* Bar แสดงอยู่ตลอดเวลา */}
