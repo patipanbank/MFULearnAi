@@ -98,9 +98,21 @@ const MFUChatbot: React.FC = () => {
       }
     };
     
+    // Handle the early URL updates from WebSocket messages
+    const handleChatUrlUpdated = (event: CustomEvent) => {
+      const { chatId, early } = event.detail || {};
+      if (chatId && early && chatId !== currentChatId) {
+        console.log('URL updated early for chatId:', chatId);
+        setCurrentChatId(chatId);
+      }
+    };
+    
     window.addEventListener('chatUpdated', handleChatUpdated as EventListener);
+    window.addEventListener('chatUrlUpdated', handleChatUrlUpdated as EventListener);
+    
     return () => {
       window.removeEventListener('chatUpdated', handleChatUpdated as EventListener);
+      window.removeEventListener('chatUrlUpdated', handleChatUrlUpdated as EventListener);
     };
   }, [currentChatId, setCurrentChatId, navigate]);
   

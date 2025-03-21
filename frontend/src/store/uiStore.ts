@@ -8,6 +8,7 @@ export interface UIState {
   userScrolledManually: boolean;
   isImageGenerationMode: boolean;
   inputMessage: string;
+  awaitingChatId: boolean;
   
   // Actions
   setIsLoading: (isLoading: boolean) => void;
@@ -17,6 +18,7 @@ export interface UIState {
   setUserScrolledManually: (scrolled: boolean) => void;
   setIsImageGenerationMode: (mode: boolean) => void;
   setInputMessage: (message: string) => void;
+  setAwaitingChatId: (awaiting: boolean) => void;
   
   // Derived actions
   initMobileDetection: () => void;
@@ -32,6 +34,7 @@ export const useUIStore = create<UIState>((set) => ({
   userScrolledManually: false,
   isImageGenerationMode: false,
   inputMessage: '',
+  awaitingChatId: false,
   
   // Actions
   setIsLoading: (isLoading) => set({ isLoading }),
@@ -41,6 +44,7 @@ export const useUIStore = create<UIState>((set) => ({
   setUserScrolledManually: (scrolled) => set({ userScrolledManually: scrolled }),
   setIsImageGenerationMode: (mode) => set({ isImageGenerationMode: mode }),
   setInputMessage: (message) => set({ inputMessage: message }),
+  setAwaitingChatId: (awaiting) => set({ awaitingChatId: awaiting }),
   
   // Derived actions
   initMobileDetection: () => {

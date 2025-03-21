@@ -132,8 +132,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Handle different message types
         switch (data.type) {
           case 'chat_created':
-            // Store the chatId internally but don't update URL yet
+            // Store the chatId internally
             get().setCurrentChatId(data.chatId);
+            
+            // Check if we're waiting for chat ID for early navigation
+            const { awaitingChatId, setAwaitingChatId } = useUIStore.getState();
+            if (awaitingChatId && data.chatId) {
+              // Navigate to chat URL immediately
+              setAwaitingChatId(false);
+              
+              // Use history.replaceState to update URL without causing a navigation event
+              window.history.replaceState(null, '', `/mfuchatbot?chat=${data.chatId}`);
+              
+              // Trigger an event to notify that we've updated the URL
+              window.dispatchEvent(new CustomEvent('chatUrlUpdated', { 
+                detail: { chatId: data.chatId, early: true } 
+              }));
+            }
             break;
 
           case 'content':
@@ -143,11 +158,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
           case 'complete':
             get().completeAssistantMessage(data.sources);
             
-            // Now that the response is complete, update URL with chatId
+            // Now that the response is complete, update URL with chatId if not done already
             if (data.chatId) {
               get().setCurrentChatId(data.chatId);
-              // Signal to components that chat has been updated with completed response
-              window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: data.chatId, complete: true } }));
+              
+              // Only navigate if we haven't done early navigation
+              const { awaitingChatId } = useUIStore.getState();
+              if (!awaitingChatId) {
+                // Signal to components that chat has been updated with completed response
+                window.dispatchEvent(new CustomEvent('chatUpdated', { 
+                  detail: { chatId: data.chatId, complete: true } 
+                }));
+              }
             }
             break;
 
@@ -289,7 +311,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     const { inputMessage, messages, selectedImages, selectedFiles, currentChatId, wsRef } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
-    const { isImageGenerationMode, setIsLoading, setShouldAutoScroll } = useUIStore.getState();
+    const { isImageGenerationMode, setIsLoading, setShouldAutoScroll, setAwaitingChatId } = useUIStore.getState();
     
     if ((!inputMessage.trim() && !isImageGenerationMode) || !selectedModel) {
       if (!selectedModel) {
@@ -357,6 +379,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         path: window.location.pathname,
         chatId: currentChatId
       };
+
+      // If this is a new chat, set the flag to indicate we're waiting for a chatId
+      if (!currentChatId) {
+        setAwaitingChatId(true);
+      }
 
       wsRef.send(JSON.stringify(messagePayload));
 
