@@ -137,11 +137,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
               type={isLoading ? "button" : "submit"}
               onClick={isLoading ? onCancelClick : undefined}
               className={`p-2 rounded-full transition-colors flex-shrink-0 ${
-                isLoading 
-                  ? 'text-red-500 hover:text-red-600 active:scale-90' 
-                  : canSubmit() 
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-                    : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
+                isLoading ? 'bg-transparent text-gray-500 hover:text-red-500' : 
+                canSubmit() ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
               }`}
               disabled={!isLoading && !canSubmit()}
               title={isLoading ? "Cancel generation" : "Send message"}

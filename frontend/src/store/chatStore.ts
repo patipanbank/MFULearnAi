@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Message, ChatHistory, MessageFile } from '../components/chat/utils/types';
+import { Message, ChatHistory } from '../components/chat/utils/types';
 import { compressImage, prepareMessageFiles } from '../components/chat/utils/fileProcessing';
 import { isValidObjectId } from '../components/chat/utils/formatters';
 import { config } from '../config/config';
@@ -312,94 +312,122 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   
-  // Submit a message
+  // Submit a new message
   handleSubmit: async (e) => {
     e.preventDefault();
     
-    const ui = useUIStore.getState();
+    const { inputMessage, messages, selectedImages, selectedFiles, currentChatId, wsRef, editingMessage } = get();
+    const { selectedModel, fetchUsage } = useModelStore.getState();
+    const { isImageGenerationMode, setIsLoading, setShouldAutoScroll, setAwaitingChatId, setInputMessage: setUIInputMessage } = useUIStore.getState();
     
-    // Prevent submission while loading or if unable to submit
-    if (ui.isLoading || !get().canSubmit()) {
-      console.log('Submission prevented: isLoading or cannot submit');
+    if ((!inputMessage.trim() && !isImageGenerationMode) || !selectedModel) {
+      if (!selectedModel) {
+        alert('Please select a model first');
+      }
       return;
     }
+
+    // Always re-enable auto-scrolling when sending a new message
+    setShouldAutoScroll(true);
+    useUIStore.getState().setUserScrolledManually(false);
     
-    // Set loading immediately when submission starts
-    ui.setIsLoading(true);
-    
-    // Get necessary state
-    const { inputMessage, selectedImages, selectedFiles, currentChatId, wsRef } = get();
-    const { selectedModel } = useModelStore.getState();
-    
-    // Process any files or images
-    let processedFiles: MessageFile[] = [];
-    if (selectedFiles.length > 0) {
-      processedFiles = await prepareMessageFiles(selectedFiles);
-    }
-    
-    let processedImages: { data: string; mediaType: string }[] = [];
-    if (selectedImages.length > 0) {
-      // Compress images if needed
-      processedImages = await Promise.all(
-        selectedImages.map(async (image) => await compressImage(image))
-      );
-    }
-    
-    // Create the new message
-    const userMessage: Message = {
-      id: Date.now(),
-      role: 'user',
-      content: inputMessage.trim(),
-      timestamp: { $date: new Date().toISOString() },
-      files: processedFiles.length > 0 ? processedFiles : undefined,
-      images: processedImages.length > 0 ? processedImages : undefined
-    };
-    
-    // Add message to state and create placeholder for assistant's response
-    set((state) => {
-      // Create placeholder for assistant's response
-      const assistantPlaceholder: Message = {
-        id: Number(userMessage.id) + 1,
+    setIsLoading(true);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token || !wsRef) {
+        throw new Error('Not authenticated or WebSocket not connected');
+      }
+      
+      // Process files if any
+      const messageFiles = selectedFiles.length > 0 
+        ? await prepareMessageFiles(selectedFiles)
+        : undefined;
+      
+      // Process images if any
+      let messageImages: { data: string; mediaType: string }[] = [];
+      if (selectedImages.length > 0) {
+        messageImages = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
+      }
+      
+      const newMessage: Message = {
+        id: messages.length + 1,
+        role: 'user',
+        content: inputMessage,
+        timestamp: { $date: new Date().toISOString() },
+        files: messageFiles,
+        images: messageImages.length > 0 ? messageImages : undefined
+      };
+
+      // Add user message to state
+      const updatedMessages = [...messages, newMessage];
+      set({ messages: updatedMessages });
+
+      // Add placeholder for AI response
+      const assistantMessage: Message = {
+        id: messages.length + 2,
         role: 'assistant',
         content: '',
-        timestamp: { $date: new Date().toISOString() }
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        images: [],
+        sources: [],
+        isImageGeneration: isImageGenerationMode,
+        isComplete: false
       };
-      
-      return {
-        messages: [...state.messages, userMessage, assistantPlaceholder],
-        inputMessage: '', // Clear input
-        selectedImages: [],
-        selectedFiles: [],
-        editingMessage: null // Reset editing state if a message was being edited
-      };
-    });
-    
-    // Always scroll to bottom when sending a message
-    ui.setShouldAutoScroll(true);
-    
-    // Use Websocket to send the message
-    if (wsRef && wsRef.readyState === WebSocket.OPEN) {
-      try {
-        const messagePayload = {
-          type: 'chat',
-          message: userMessage.content,
-          chatId: currentChatId,
-          modelId: selectedModel,
-          files: processedFiles.length > 0 ? processedFiles : undefined,
-          images: processedImages.length > 0 ? processedImages : undefined
-        };
-        
-        wsRef.send(JSON.stringify(messagePayload));
-        console.log('Message sent via WebSocket:', messagePayload);
-        
-        // Expect immediate response that sets loading state (processed in message event handler)
-      } catch (error) {
-        console.error('Error sending message:', error);
-        ui.setIsLoading(false); // Reset loading state on error
+      set({ messages: [...updatedMessages, assistantMessage] });
+
+      // Reset editing state if we were editing a message
+      if (editingMessage) {
+        set({ editingMessage: null });
+        console.log('Message edited and submitted');
       }
-    } else {
-      console.error('WebSocket not connected. Unable to send message.');
-      ui.setIsLoading(false); // Reset loading state if WebSocket not available
+
+      // Send message to WebSocket
+      const messagePayload = {
+        messages: updatedMessages,
+        modelId: selectedModel,
+        isImageGeneration: isImageGenerationMode,
+        path: window.location.pathname,
+        chatId: currentChatId
+      };
+
+      // If this is a new chat, set the flag to indicate we're waiting for a chatId
+      if (!currentChatId) {
+        setAwaitingChatId(true);
+      }
+
+      wsRef.send(JSON.stringify(messagePayload));
+
+      // Update usage immediately after sending message
+      await fetchUsage();
+
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      set({ 
+        messages: [...get().messages.slice(0, -1), {
+          id: messages.length + 2,
+          role: 'assistant',
+          content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
+          timestamp: {
+            $date: new Date().toISOString()
+          },
+          images: [],
+          sources: [],
+          isImageGeneration: false,
+          isComplete: true
+        }]
+      });
+    } finally {
+      setIsLoading(false);
+      // ล้างข้อความใน UIStore ด้วย
+      setUIInputMessage('');
+      set({
+        inputMessage: '',
+        selectedImages: [],
+        selectedFiles: []
+      });
     }
   },
   
