@@ -858,11 +858,38 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
     console.log('Message search:', { 
       messageIdStr, 
       messageIndex,
-      messageIds: chat.messages.slice(0, 3).map(m => String(m.id))
+      messageIds: chat.messages.slice(0, 5).map(m => ({ 
+        id: m.id, 
+        idType: typeof m.id,
+        idString: String(m.id) 
+      }))
     });
     
     if (messageIndex === -1) {
-      res.status(404).json({ error: 'Message not found' });
+      // ถ้าไม่พบข้อความ ให้ตรวจสอบลักษณะของ messages array
+      const messagesInfo = {
+        totalMessages: chat.messages.length,
+        firstFew: chat.messages.slice(0, 3).map(m => ({
+          id: m.id,
+          idType: typeof m.id,
+          role: m.role,
+          contentPreview: m.content?.substring(0, 20)
+        }))
+      };
+      
+      console.error('Message not found:', {
+        requestedId: messageId,
+        requestedIdType: typeof messageId,
+        messagesInfo
+      });
+      
+      res.status(404).json({ 
+        error: 'Message not found',
+        details: {
+          messageId,
+          availableIds: chat.messages.slice(0, 5).map(m => String(m.id))
+        }
+      });
       return;
     }
 

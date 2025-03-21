@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
+import { Schema } from 'mongoose';
 
 interface ChatMessage {
+  id: number | string;
   role: string;
   content: string;
   timestamp?: Date;
@@ -22,6 +24,7 @@ interface ChatMessage {
   }>;
   isImageGeneration?: boolean;
   isComplete?: boolean;
+  isEdited?: boolean;
 }
 
 const chatSchema = new mongoose.Schema({
@@ -39,6 +42,7 @@ const chatSchema = new mongoose.Schema({
   },
   messages: {
     type: [{
+      id: Schema.Types.Mixed,
       role: String,
       content: String,
       timestamp: { type: Date, default: Date.now },
@@ -59,7 +63,8 @@ const chatSchema = new mongoose.Schema({
         similarity: Number
       }],
       isImageGeneration: Boolean,
-      isComplete: Boolean
+      isComplete: Boolean,
+      isEdited: Boolean
     }],
     required: true,
     validate: {

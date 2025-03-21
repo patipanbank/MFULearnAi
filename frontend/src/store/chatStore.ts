@@ -719,7 +719,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             });
             
             if (!response.ok) {
-              throw new Error(`Failed to update message: ${response.status}`);
+              const errorData = await response.json().catch(e => ({ error: `Network error: ${e}` }));
+              console.error('Edit message failed:', {
+                status: response.status,
+                statusText: response.statusText,
+                errorData
+              });
+              throw new Error(`Failed to update message: ${response.status} - ${errorData.error || response.statusText}`);
             }
             
             // Notify websocket to broadcast update
