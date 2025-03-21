@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
-import useScrollWithStore from '../chat/hooks/useScrollWithStore';
+import useScrollManagement from '../chat/hooks/useScrollManagement';
 import { useChatStore } from '../../store/chatStore';
 import { useModelStore } from '../../store/modelStore';
 import { useUIStore } from '../../store/uiStore';
@@ -64,7 +64,7 @@ const MFUChatbot: React.FC = () => {
     chatContainerRef,
     isNearBottom,
     handleScrollToBottom,
-  } = useScrollWithStore({ messages });
+  } = useScrollManagement({ messages });
   
   // Set refs in the chat store
   useEffect(() => {

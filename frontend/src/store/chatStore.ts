@@ -5,7 +5,6 @@ import { isValidObjectId } from '../components/chat/utils/formatters';
 import { config } from '../config/config';
 import { useModelStore } from './modelStore';
 import { useUIStore } from './uiStore';
-import { useScrollStore } from './scrollStore';
 
 export interface ChatState {
   // State
@@ -236,7 +235,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     ));
     
     // Auto-scroll while content is streaming if conditions are right
-    const { userScrolledManually } = useScrollStore.getState();
+    const { userScrolledManually } = useUIStore.getState();
     if (!userScrolledManually) {
       const messagesEndRef = get().messagesEndRef;
       setTimeout(() => {
@@ -247,8 +246,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   completeAssistantMessage: (sources) => {
     // Re-enable auto-scrolling when message is complete, but respect user's reading position
-    const { userScrolledManually, setShouldAutoScroll } = useScrollStore.getState();
-    const { setIsLoading } = useUIStore.getState();
+    const { userScrolledManually, setShouldAutoScroll, setIsLoading } = useUIStore.getState();
     
     // ตั้งค่า isLoading เป็น false เมื่อข้อความเสร็จสมบูรณ์
     setIsLoading(false);
@@ -324,7 +322,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     const { inputMessage, messages, selectedImages, selectedFiles, currentChatId, wsRef, editingMessage } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
-    const { isImageGenerationMode, setIsLoading, setAwaitingChatId, setInputMessage: setUIInputMessage } = useUIStore.getState();
+    const { isImageGenerationMode, setIsLoading, setShouldAutoScroll, setAwaitingChatId, setInputMessage: setUIInputMessage } = useUIStore.getState();
     
     if ((!inputMessage.trim() && !isImageGenerationMode) || !selectedModel) {
       if (!selectedModel) {
@@ -334,8 +332,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     // Always re-enable auto-scrolling when sending a new message
-    useScrollStore.getState().setShouldAutoScroll(true);
-    useScrollStore.getState().setUserScrolledManually(false);
+    setShouldAutoScroll(true);
+    useUIStore.getState().setUserScrolledManually(false);
     
     setIsLoading(true);
 
@@ -479,7 +477,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     const { messages, currentChatId, wsRef } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
-    const { setIsLoading } = useUIStore.getState();
+    const { setIsLoading, setShouldAutoScroll } = useUIStore.getState();
     
     if (!selectedModel) {
       alert('Please select a model first');
@@ -487,8 +485,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     // Always re-enable auto-scrolling when continuing
-    useScrollStore.getState().setShouldAutoScroll(true);
-    useScrollStore.getState().setUserScrolledManually(false);
+    setShouldAutoScroll(true);
+    useUIStore.getState().setUserScrolledManually(false);
     
     setIsLoading(true);
 
@@ -629,10 +627,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const defaultModel = models.find(model => model.name === 'Default');
       setSelectedModel(defaultModel?.id || models[0].id);
     }
-
-    // Reset scroll position
-    useScrollStore.getState().setShouldAutoScroll(true);
-    useScrollStore.getState().setUserScrolledManually(false);
   },
   
   // Cancel the current generation
@@ -770,7 +764,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     const { messages, wsRef, currentChatId } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
-    const { setIsLoading } = useUIStore.getState();
+    const { setIsLoading, setShouldAutoScroll } = useUIStore.getState();
     
     if (!selectedModel || !wsRef) {
       alert('Please select a model first');
@@ -800,8 +794,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     };
     
     // Reset scroll position
-    useScrollStore.getState().setShouldAutoScroll(true);
-    useScrollStore.getState().setUserScrolledManually(false);
+    setShouldAutoScroll(true);
+    useUIStore.getState().setUserScrolledManually(false);
     
     // Update messages and set loading state
     set({ messages: [...messagesToKeep, assistantMessage] });
