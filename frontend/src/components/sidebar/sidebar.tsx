@@ -554,7 +554,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 onClick={onClose}
               >
                 <FaUserPlus className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">สร้างแอดมิน</span>
+                <span className="font-medium truncate">Create Admin</span>
               </Link>
               
               <Link
@@ -564,7 +564,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 onClick={onClose}
               >
                 <FaChartBar className="w-5 h-5 mr-3" />
-                <span className="font-medium">สถิติ</span>
+                <span className="font-medium">Statistics</span>
               </Link>
               
               <Link
@@ -574,7 +574,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 onClick={onClose}
               >
                 <FaCog className="w-5 h-5 mr-3" />
-                <span className="font-medium">แก้ไข System Prompt</span>
+                <span className="font-medium">Edit System Prompt</span>
               </Link>
             </>
           )}

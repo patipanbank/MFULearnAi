@@ -22,12 +22,6 @@ const SystemPrompt: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // ตรวจสอบสิทธิ์การเข้าถึง
-    if (!isSuperAdmin) {
-      navigate('/mfuchatbot');
-      return;
-    }
-    
     fetchSystemPrompt();
   }, [isSuperAdmin, navigate]);
 
