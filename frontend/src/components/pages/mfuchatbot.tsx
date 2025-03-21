@@ -4,9 +4,25 @@ import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
 import useScrollManagement from '../chat/hooks/useScrollManagement';
-import { useChatStore } from '../../store/chatStore';
-import { useModelStore } from '../../store/modelStore';
-import { useUIStore } from '../../store/uiStore';
+import { useChatStore, ChatState } from '../../store/chatStore';
+import { useModelStore, ModelState } from '../../store/modelStore';
+import { useUIStore, UIState } from '../../store/uiStore';
+
+// Create selectors for optimized rendering
+const selectMessages = (state: ChatState) => state.messages;
+const selectCurrentChatId = (state: ChatState) => state.currentChatId;
+const selectSelectedImages = (state: ChatState) => state.selectedImages;
+const selectSelectedFiles = (state: ChatState) => state.selectedFiles;
+const selectCanSubmit = (state: ChatState) => state.canSubmit();
+
+const selectIsLoading = (state: UIState) => state.isLoading;
+const selectIsImageGenerationMode = (state: UIState) => state.isImageGenerationMode;
+const selectIsMobile = (state: UIState) => state.isMobile;
+const selectInputMessage = (state: UIState) => state.inputMessage;
+
+const selectModels = (state: ModelState) => state.models;
+const selectSelectedModel = (state: ModelState) => state.selectedModel;
+const selectUsage = (state: ModelState) => state.usage;
 
 const MFUChatbot: React.FC = () => {
   const navigate = useNavigate();
