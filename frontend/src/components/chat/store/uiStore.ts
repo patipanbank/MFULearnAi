@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { createRef, MutableRefObject } from 'react';
 
 export interface UIState {
   isLoading: boolean;
@@ -19,7 +18,7 @@ export interface UIState {
   initMobileDetection: () => void;
 }
 
-export const useUIStore = create<UIState>((set, get) => ({
+export const useUIStore = create<UIState>((set, _get) => ({
   // State
   isLoading: false,
   isMobile: false,
