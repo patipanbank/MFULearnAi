@@ -157,13 +157,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* Action buttons for assistant messages */}
       {message.role === 'assistant' && isLastMessage && (
-        <div className="ml-11 mt-2 flex flex-wrap gap-2">
+        <div className="ml-11 mt-2 flex flex-wrap gap-3">
           {/* Show cancel button during generation */}
           {!message.isComplete && isLoading && onCancelClick && (
             <button
               type="button"
               onClick={onCancelClick}
-              className="px-2 py-2 rounded-full transition-colors bg-red-500 hover:bg-red-600 text-white"
+              className="text-red-500 hover:text-red-600 active:scale-90 transition-all duration-200"
               title="Cancel generation"
             >
               <MdCancel className="h-5 w-5" />
@@ -176,8 +176,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <button
                 type="button"
                 onClick={onContinueClick}
-                className={`p-2 rounded-full transition-colors ${
-                  selectedModel ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                className={`transition-all duration-200 active:scale-90 ${
+                  selectedModel ? 'text-blue-500 hover:text-blue-600' : 'text-gray-300 cursor-not-allowed'
                 }`}
                 disabled={!selectedModel}
                 title="Continue writing"
@@ -190,8 +190,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 <button
                   type="button"
                   onClick={onRegenerateClick}
-                  className={`p-2 rounded-full transition-colors ${
-                    selectedModel ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  className={`transition-all duration-200 active:scale-90 ${
+                    selectedModel ? 'text-green-500 hover:text-green-600' : 'text-gray-300 cursor-not-allowed'
                   }`}
                   disabled={!selectedModel}
                   title="Regenerate response"
@@ -204,17 +204,17 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <button
                 type="button"
                 onClick={handleCopyToClipboard}
-                className="p-2 rounded-full transition-colors bg-purple-500 hover:bg-purple-600 text-white"
+                className="text-purple-500 hover:text-purple-600 transition-all duration-200 active:scale-90"
                 title={isCopied ? "Copied!" : "Copy to clipboard"}
               >
-                <MdContentCopy className="h-5 w-5" />
+                <MdContentCopy className={`h-5 w-5 ${isCopied ? 'animate-pulse' : ''}`} />
               </button>
               
               {/* Edit button */}
               <button
                 type="button"
                 onClick={handleStartEdit}
-                className="p-2 rounded-full transition-colors bg-gray-500 hover:bg-gray-600 text-white"
+                className="text-gray-500 hover:text-gray-600 transition-all duration-200 active:scale-90"
                 title="Edit response"
               >
                 <MdEdit className="h-5 w-5" />
@@ -230,7 +230,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           <button
             type="button"
             onClick={() => handleStartEdit()}
-            className="p-2 rounded-full transition-colors bg-gray-500 hover:bg-gray-600 text-white"
+            className="text-gray-500 hover:text-gray-600 transition-all duration-200 active:scale-90"
             title="Edit your message"
           >
             <MdEdit className="h-5 w-5" />
