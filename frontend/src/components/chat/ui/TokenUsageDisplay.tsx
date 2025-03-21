@@ -21,7 +21,7 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({ usage }) => {
   }
   
   return (
-    <div className="relative flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">  
+    <div className="relative flex items-center gap-1 px-3 py-1.5">  
       <div className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Token</div> 
       <div className="flex flex-col w-full">
         {/* Bar แสดงอยู่ตลอดเวลา */}
