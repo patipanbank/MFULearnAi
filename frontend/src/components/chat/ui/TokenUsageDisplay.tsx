@@ -27,7 +27,7 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({ usage }) => {
       
       <div className="flex flex-col w-full">
         {/* Bar แสดงอยู่ตลอดเวลา */}
-        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div 
             className={`h-full ${barColor} rounded-full transition-all duration-300 ease-in-out`} 
             style={{ width: `${usedPercentage}%` }}
