@@ -1,17 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
-import useScrollManagement from '../chat/hooks/useScrollManagement';
 import { useChatStore } from '../../store/chatStore';
 import { useModelStore } from '../../store/modelStore';
 import { useUIStore } from '../../store/uiStore';
+import { useScrollStore } from '../../store/scrollStore';
 import { isValidObjectId } from '../chat/utils/formatters';
 
 const MFUChatbot: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // เพิ่ม refs สำหรับ scroll
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   
   // Chat state from Zustand
   const {
@@ -58,20 +62,36 @@ const MFUChatbot: React.FC = () => {
     fetchModels
   } = useModelStore();
   
-  // Scrolling management
+  // เรียกใช้ scrollStore แทน useScrollManagement
   const {
-    messagesEndRef,
-    chatContainerRef,
-    isNearBottom,
-    handleScrollToBottom,
-    scrollToBottom
-  } = useScrollManagement({ messages });
+    isAtBottom,
+    shouldAutoScroll,
+    setMessagesEndRef: setScrollMessagesEndRef,
+    setChatContainerRef: setScrollChatContainerRef,
+    scrollToBottom,
+    handleScroll,
+  } = useScrollStore();
   
-  // Set refs in the chat store
+  // Set refs
   useEffect(() => {
-    setMessagesEndRef(messagesEndRef);
-    setChatContainerRef(chatContainerRef);
-  }, [messagesEndRef, chatContainerRef, setMessagesEndRef, setChatContainerRef]);
+    if (messagesEndRef.current && chatContainerRef.current) {
+      // ตั้งค่า refs ใน scrollStore
+      setScrollMessagesEndRef(messagesEndRef);
+      setScrollChatContainerRef(chatContainerRef);
+      
+      // ตั้งค่า refs ใน chatStore (ถ้ายังต้องการใช้)
+      setMessagesEndRef(messagesEndRef);
+      setChatContainerRef(chatContainerRef);
+      
+      // เพิ่ม event listener สำหรับการเลื่อน
+      const container = chatContainerRef.current;
+      container.addEventListener('scroll', handleScroll);
+      
+      return () => {
+        container.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [setScrollMessagesEndRef, setScrollChatContainerRef, setMessagesEndRef, setChatContainerRef, handleScroll]);
   
   // Initialize WebSocket when component mounts
   useEffect(() => {
@@ -143,13 +163,13 @@ const MFUChatbot: React.FC = () => {
   
   // Auto scroll to bottom when new messages are added
   useEffect(() => {
-    if (messages.length > 0 && messagesEndRef.current) {
+    if (messages.length > 0 && shouldAutoScroll) {
       // Small delay to ensure DOM updates are processed
       setTimeout(() => {
         scrollToBottom();
       }, 100);
     }
-  }, [messages.length, scrollToBottom]);
+  }, [messages.length, shouldAutoScroll, scrollToBottom]);
   
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
@@ -194,8 +214,6 @@ const MFUChatbot: React.FC = () => {
         setSelectedModel={setSelectedModel}
         isLoading={isLoading}
         canSubmit={canSubmit}
-        handleScrollToBottom={handleScrollToBottom}
-        isNearBottom={isNearBottom}
         usage={usage}
         isMobile={isMobile}
         editingMessage={editingMessage}
