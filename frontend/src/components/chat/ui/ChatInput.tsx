@@ -48,6 +48,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isLoading,
   canSubmit,
   usage,
+  isMobile,
   editingMessage,
   handleCancelGeneration
 }) => {
