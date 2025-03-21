@@ -3,7 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { config } from '../config/config';
 import { Model, Usage } from '../components/chat/utils/types';
 
-export interface ModelState {
+interface ModelState {
   // State
   models: Model[];
   selectedModel: string;
