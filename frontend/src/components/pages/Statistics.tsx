@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
-import { FaUsers, FaComments } from 'react-icons/fa';
+import { FaUsers, FaComments, FaExchangeAlt } from 'react-icons/fa';
 
 interface DailyStats {
   date: string;
   uniqueUsers: number;
   totalChats: number;
+  totalTokens: number;
 }
 
 const Statistics: React.FC = () => {
@@ -63,11 +64,12 @@ const Statistics: React.FC = () => {
   );
 
   const getTotalStats = () => {
-    if (stats.length === 0) return { users: 0, chats: 0 };
+    if (stats.length === 0) return { users: 0, chats: 0, tokens: 0 };
     return stats.reduce((acc, curr) => ({
       users: acc.users + curr.uniqueUsers,
-      chats: acc.chats + curr.totalChats
-    }), { users: 0, chats: 0 });
+      chats: acc.chats + curr.totalChats,
+      tokens: acc.tokens + (curr.totalTokens || 0)
+    }), { users: 0, chats: 0, tokens: 0 });
   };
 
   const totals = getTotalStats();
@@ -99,8 +101,8 @@ const Statistics: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[1, 2].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
             <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-pulse">
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
               <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
@@ -110,9 +112,9 @@ const Statistics: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <StatCard
-              title="Unique Users"
+              title="Total Users"
               value={totals.users}
               icon={<FaUsers size={24} />}
               description="Total unique users"
@@ -122,6 +124,12 @@ const Statistics: React.FC = () => {
               value={totals.chats}
               icon={<FaComments size={24} />}
               description="Total chat sessions"
+            />
+            <StatCard
+              title="Total Tokens"
+              value={totals.tokens}
+              icon={<FaExchangeAlt size={24} />}
+              description="Total tokens used"
             />
           </div>
 
@@ -135,19 +143,23 @@ const Statistics: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unique Users</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Chats</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Tokens</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {stats.map((day, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {new Date(day.date).toLocaleDateString()}
+                          {new Date(day.date).toLocaleDateString('th-TH')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {day.uniqueUsers}
+                          {day.uniqueUsers.toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {day.totalChats}
+                          {day.totalChats.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {(day.totalTokens || 0).toLocaleString()}
                         </td>
                       </tr>
                     ))}
