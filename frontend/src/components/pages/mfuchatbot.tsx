@@ -208,7 +208,6 @@ const MFUChatbot: React.FC = () => {
               ref={endRef} 
               id="chat-bottom-anchor"
               data-testid="chat-bottom-anchor"
-              className="h-2 w-full my-2"
             />
           </div>
         )}
