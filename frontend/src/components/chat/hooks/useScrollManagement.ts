@@ -89,10 +89,9 @@ const useScrollManagement = ({ messages }: UseScrollManagementProps) => {
 
   // Function to scroll to bottom
   const scrollToBottom = () => {
-    // Force scroll to bottom without checking shouldAutoScroll condition
-    requestAnimationFrame(() => {
+    if (shouldAutoScroll) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    });
+    }
   };
 
   // Function to handle scroll to bottom button click
@@ -101,20 +100,10 @@ const useScrollManagement = ({ messages }: UseScrollManagementProps) => {
     setIsNearBottom(true);
     setUserScrolledManually(false);
     
-    // Force immediate scroll - more reliable than relying on state changes
-    const scrollToBottomImmediately = () => {
-      if (messagesEndRef.current) {
-        // Use instant scroll first for reliability
-        messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
-        
-        // Then apply smooth scroll for better UX
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 0);
-      }
-    };
-    
-    scrollToBottomImmediately();
+    // Use RAF for smoother animation
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    });
   };
 
   return {
