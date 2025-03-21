@@ -5,7 +5,6 @@ import { MdEdit } from "react-icons/md";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
 import { Message, Model, Usage } from '../utils/types';
-import { useScrollStore } from '../../../store/scrollStore';
 
 interface ChatInputProps {
   inputMessage: string;
@@ -25,6 +24,8 @@ interface ChatInputProps {
   setSelectedModel: (id: string) => void;
   isLoading: boolean;
   canSubmit: () => boolean;
+  handleScrollToBottom: () => void;
+  isNearBottom: boolean;
   usage: Usage | null;
   isMobile: boolean;
   editingMessage?: Message | null;
@@ -49,13 +50,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
   setSelectedModel,
   isLoading,
   canSubmit,
+  handleScrollToBottom,
+  isNearBottom,
   usage,
   editingMessage,
   handleCancelGeneration
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
-  const { isAtBottom, scrollToBottom } = useScrollStore();
   
   useEffect(() => {
     autoResize();
@@ -87,24 +88,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   return (
     <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-10">
-      {!isAtBottom && (
+      {/* Scroll to bottom button - improved visibility based on scroll distance */}
+      {!isNearBottom && (
         <button
-          onClick={() => scrollToBottom()}
-          className="fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 md:p-3 shadow-lg transition-all duration-300 z-50 animate-pulse hover:animate-none hover:scale-110 active:scale-95 focus:outline-none"
-          aria-label="กลับไปยังข้อความล่าสุด"
+          onClick={handleScrollToBottom}
+          className="fixed bottom-[180px] md:bottom-[120px] right-4 md:right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 md:p-3 shadow-lg transition-all duration-300 z-50 animate-pulse hover:animate-none hover:scale-110 active:scale-95"
+          aria-label="Scroll to latest messages"
         >
-          <div className="relative">
-            <IoIosArrowDown className="h-5 w-5 md:h-6 md:w-6" />
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-            </span>
-          </div>
+          <IoIosArrowDown className="h-4 w-4 md:h-5 md:w-5" />
         </button>
       )}
 
       <form onSubmit={handleSubmit} className="p-2 md:p-4">
         <div className="flex flex-col gap-2 w-full max-w-[95%] lg:max-w-[85%] mx-auto">
+          {/* Edit mode indicator */}
           {editingMessage && (
             <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 dark:bg-yellow-800 rounded-md text-sm">
               <MdEdit className="h-4 w-4" />
@@ -112,6 +109,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </div>
           )}
       
+          {/* Message input area */}
           <div className="flex items-end gap-2">
             <textarea
               ref={textareaRef}
@@ -168,7 +166,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           </div>
 
+          {/* Controls and options */}
           <div className="flex flex-wrap gap-2 items-center justify-between">
+            {/* Left side controls */}
             <div className="flex flex-wrap gap-2 items-center">
               <ModelSelector 
                 models={models}
@@ -230,12 +230,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </div>
           </div>
 
+          {/* Combined Attached Files Preview */}
           {(selectedImages.length > 0 || selectedFiles.length > 0) && (
             <div className="flex flex-wrap gap-2 mt-2">
               <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Attached Files ({selectedImages.length + selectedFiles.length})
               </div>
               
+              {/* Image previews */}
               {selectedImages.map((image, index) => (
                 <div key={`img-${index}`} className="relative">
                   <img
@@ -253,6 +255,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 </div>
               ))}
               
+              {/* Document previews */}
               {selectedFiles.map((file, index) => (
                 <div key={`doc-${index}`} className="relative">
                   <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
