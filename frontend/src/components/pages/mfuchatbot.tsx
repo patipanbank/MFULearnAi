@@ -5,7 +5,7 @@ import ChatBubble from '../chat/ui/ChatBubble';
 import ChatInput from '../chat/ui/ChatInput';
 import useScrollManagement from '../chat/hooks/useScrollManagement';
 import { useChatStore, ChatState } from '../../store/chatStore';
-import { useModelStore, ModelState } from '../../store/modelStore';
+import { useModelStore, type ModelState } from '../../store/modelStore';
 import { useUIStore, UIState } from '../../store/uiStore';
 
 // Create selectors for optimized rendering

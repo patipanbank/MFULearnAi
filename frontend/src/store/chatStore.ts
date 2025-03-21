@@ -643,7 +643,7 @@ export const useChatStore = create<ChatState>()(
         cancelGeneration: (e) => {
           e.preventDefault();
           
-          const { wsRef, messages } = get();
+          const { wsRef } = get();
           
           // Close the WebSocket connection to stop the generation
           if (wsRef && wsRef.readyState === WebSocket.OPEN) {
