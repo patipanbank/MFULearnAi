@@ -233,9 +233,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Auto-scroll while content is streaming if conditions are right
     const { userScrolledManually, scrollToBottom } = useUIStore.getState();
     if (!userScrolledManually) {
-      setTimeout(() => {
+      // ใช้ requestAnimationFrame แทน setTimeout เพื่อให้สอดคล้องกับการอัพเดท DOM
+      requestAnimationFrame(() => {
         scrollToBottom(true);
-      }, 100);
+      });
     }
   },
   
@@ -246,14 +247,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // ตั้งค่า isLoading เป็น false เมื่อข้อความเสร็จสมบูรณ์
     setIsLoading(false);
     
-    if (!userScrolledManually) {
-      setShouldAutoScroll(true);
-      // Explicitly scroll to bottom when message completes
-      setTimeout(() => {
-        scrollToBottom(true);
-      }, 100);
-    }
-    
     get().setMessages((prev) => prev.map((msg, index) => 
       index === prev.length - 1 && msg.role === 'assistant' ? {
         ...msg,
@@ -261,6 +254,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isComplete: true
       } : msg
     ));
+    
+    // ตรวจสอบการ scroll หลังจากอัพเดท message เรียบร้อยแล้ว
+    if (!userScrolledManually) {
+      setShouldAutoScroll(true);
+      // ใช้ requestAnimationFrame แทน setTimeout เพื่อประสิทธิภาพที่ดีกว่า
+      requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
+    }
   },
   
   // Load chat history

@@ -80,9 +80,22 @@ const MFUChatbot: React.FC = () => {
     const { shouldAutoScroll, userScrolledManually, scrollToBottom } = useUIStore.getState();
     // เฉพาะกรณีที่เปิดใช้ auto-scroll และผู้ใช้ไม่ได้เลื่อนเอง
     if (shouldAutoScroll && !userScrolledManually) {
-      scrollToBottom();
+      // ใช้ requestAnimationFrame เพื่อให้แน่ใจว่า DOM ได้อัพเดทแล้ว
+      requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
     }
-  }, [messages, isLoading]);
+  }, [messages]);
+  
+  // แยก useEffect สำหรับการโหลด เพื่อให้ scroll ทำงานได้ดีขึ้น
+  useEffect(() => {
+    if (isLoading) {
+      const { scrollToBottom } = useUIStore.getState();
+      requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
+    }
+  }, [isLoading]);
   
   // Set refs in the chat store
   useEffect(() => {

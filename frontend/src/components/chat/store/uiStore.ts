@@ -79,13 +79,13 @@ export const useUIStore = create<UIState>((set, get) => ({
       // คำนวณระยะห่างจากด้านล่าง (ในหน่วยพิกเซล)
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
       
-      // กำหนด threshold สำหรับการพิจารณาว่า "ใกล้ถึงด้านล่าง" (3% ของความสูงหรืออย่างน้อย 10px)
-      const dynamicThreshold = Math.max(10, clientHeight * 0.03);
+      // กำหนด threshold สำหรับการพิจารณาว่า "ใกล้ถึงด้านล่าง" (5% ของความสูงหรืออย่างน้อย 20px)
+      const dynamicThreshold = Math.max(20, clientHeight * 0.05);
       const isAtBottom = distanceFromBottom < dynamicThreshold;
       
       // ตรวจจับว่าผู้ใช้กำลังเลื่อนด้วยตนเองโดยเปรียบเทียบกับตำแหน่งล่าสุด
       const lastScrollPosition = get().lastScrollPosition;
-      const isManualScrollAction = Math.abs(scrollTop - lastScrollPosition) > 5;
+      const isManualScrollAction = Math.abs(scrollTop - lastScrollPosition) > 10; // เพิ่มค่า threshold
       
       // อัปเดตตำแหน่งล่าสุด
       set({ lastScrollPosition: scrollTop });
@@ -124,6 +124,9 @@ export const useUIStore = create<UIState>((set, get) => ({
 
     chatContainer.addEventListener('scroll', scrollListener, { passive: true });
     
+    // เรียกใช้ handleScroll ครั้งแรกเพื่อตั้งค่าสถานะเริ่มต้น
+    handleScroll();
+    
     // ทำความสะอาด
     return () => {
       chatContainer.removeEventListener('scroll', scrollListener);
@@ -133,8 +136,36 @@ export const useUIStore = create<UIState>((set, get) => ({
   // ฟังก์ชันเลื่อนไปด้านล่าง
   scrollToBottom: (force?: boolean) => {
     const { shouldAutoScroll, messagesEndRef } = get();
-    if ((shouldAutoScroll || force) && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    const chatContainer = get().chatContainerRef.current;
+    
+    if (!chatContainer || !messagesEndRef.current) return;
+    
+    if (shouldAutoScroll || force) {
+      try {
+        // ใช้ requestAnimationFrame เพื่อให้แน่ใจว่า DOM อัพเดทเรียบร้อยแล้ว
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ 
+            behavior: force ? 'auto' : 'smooth', 
+            block: 'end'
+          });
+          
+          // อัพเดทสถานะเพื่อให้ UI แสดงถูกต้อง
+          setTimeout(() => {
+            if (chatContainer) {
+              const { scrollTop, scrollHeight, clientHeight } = chatContainer;
+              const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+              const isAtBottom = distanceFromBottom < 20;
+              
+              set({ 
+                isNearBottom: isAtBottom,
+                lastScrollPosition: scrollTop
+              });
+            }
+          }, 100);
+        });
+      } catch (error) {
+        console.error('Error in scrollToBottom:', error);
+      }
     }
   },
   
@@ -146,9 +177,19 @@ export const useUIStore = create<UIState>((set, get) => ({
       userScrolledManually: false
     });
     
-    // ใช้ scrollToBottom ที่มี force=true
+    // ใช้ requestAnimationFrame เพื่อให้แน่ใจว่า state ได้อัพเดทแล้ว
     requestAnimationFrame(() => {
-      get().scrollToBottom(true);
+      // ใช้ behavior: 'auto' แทน 'smooth' เพื่อให้การคลิกปุ่มมีการตอบสนองที่รวดเร็ว
+      const { messagesEndRef } = get();
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+      }
+      
+      // อัพเดทตำแหน่งการ scroll หลังจากเลื่อนไปที่ด้านล่าง
+      const chatContainer = get().chatContainerRef.current;
+      if (chatContainer) {
+        set({ lastScrollPosition: chatContainer.scrollTop });
+      }
     });
   },
   
