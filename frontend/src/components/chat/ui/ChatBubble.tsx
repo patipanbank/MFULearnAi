@@ -142,19 +142,21 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               )}
             </>
           )}
-          
-          {/* Edit button for both complete and incomplete messages */}
-          {onEditClick && (
-            <button
-              type="button"
-              onClick={() => onEditClick(message)}
-              className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-gray-500 hover:bg-gray-600 text-white"
-              title="Edit message"
-            >
-              <MdEdit className="h-4 w-4" />
-              <span>Edit</span>
-            </button>
-          )}
+        </div>
+      )}
+      
+      {/* Edit button only for user messages */}
+      {message.role === 'user' && isLastMessage && onEditClick && (
+        <div className="mr-11 mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => onEditClick(message)}
+            className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 text-sm bg-gray-500 hover:bg-gray-600 text-white"
+            title="Edit your message"
+          >
+            <MdEdit className="h-4 w-4" />
+            <span>Edit</span>
+          </button>
         </div>
       )}
     </div>

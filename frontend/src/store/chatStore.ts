@@ -316,7 +316,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   handleSubmit: async (e) => {
     e.preventDefault();
     
-    const { inputMessage, messages, selectedImages, selectedFiles, currentChatId, wsRef } = get();
+    const { inputMessage, messages, selectedImages, selectedFiles, currentChatId, wsRef, editingMessage } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
     const { isImageGenerationMode, setIsLoading, setShouldAutoScroll, setAwaitingChatId } = useUIStore.getState();
     
@@ -377,6 +377,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isComplete: false
       };
       set({ messages: [...updatedMessages, assistantMessage] });
+
+      // Reset editing state if we were editing a message
+      if (editingMessage) {
+        set({ editingMessage: null });
+        console.log('Message edited and submitted');
+      }
 
       // Send message to WebSocket
       const messagePayload = {
@@ -658,13 +664,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   handleEditMessage: (message) => {
     const { messages } = get();
     
+    // ทำงานเฉพาะกับข้อความของผู้ใช้เท่านั้น
+    if (message.role !== 'user') {
+      console.log('Cannot edit non-user messages');
+      return;
+    }
+    
     // Set the message to edit
     set({ editingMessage: message });
     
-    // If it's a user message, put it in the input area
-    if (message.role === 'user') {
-      set({ inputMessage: message.content });
-    }
+    // Put the user message in the input area
+    set({ inputMessage: message.content });
     
     // Find the index of the message to edit
     const messageIndex = messages.findIndex(m => m.id === message.id);
