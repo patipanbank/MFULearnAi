@@ -708,17 +708,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   canSubmit: () => {
     const { inputMessage, selectedFiles, selectedImages } = get();
     const { selectedModel } = useModelStore.getState();
-    const { isLoading, isImageGenerationMode } = useUIStore.getState();
+    const { isLoading } = useUIStore.getState();
     
     const hasText = inputMessage.trim() !== '';
     const hasFiles = selectedFiles.length > 0;
     const hasImages = selectedImages.length > 0;
-    const hasModel = !!selectedModel;
+    const hasModel = selectedModel !== '';
     
-    // In image generation mode, we allow submission even without text
-    const contentValid = isImageGenerationMode ? true : (hasText || hasFiles || hasImages);
+    console.log('canSubmit conditions:', { hasText, hasFiles, hasImages, hasModel, isLoading, selectedModel });
     
-    return contentValid && hasModel && !isLoading;
+    return (hasText || hasFiles || hasImages) && hasModel && !isLoading;
   },
   
   // Reset chat state
