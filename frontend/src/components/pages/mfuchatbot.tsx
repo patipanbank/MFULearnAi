@@ -64,6 +64,7 @@ const MFUChatbot: React.FC = () => {
     chatContainerRef,
     isNearBottom,
     handleScrollToBottom,
+    scrollToBottom
   } = useScrollManagement({ messages });
   
   // Set refs in the chat store
@@ -140,9 +141,19 @@ const MFUChatbot: React.FC = () => {
     useChatStore.getState().setInputMessage(inputMessage);
   }, [inputMessage]);
   
+  // Auto scroll to bottom when new messages are added
+  useEffect(() => {
+    if (messages.length > 0 && messagesEndRef.current) {
+      // Small delay to ensure DOM updates are processed
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [messages.length, scrollToBottom]);
+  
   return (
     <div className="flex flex-col h-full" ref={chatContainerRef}>
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-40">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-40" id="chat-messages-container">
         {messages.length === 0 ? (
           <WelcomeMessage />
         ) : (
