@@ -844,10 +844,10 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
 
     // If allMessages is provided, update the entire messages array
     if (allMessages && Array.isArray(allMessages)) {
-      chat.messages = allMessages.map(msg => ({
+      chat.set('messages', allMessages.map(msg => ({
         ...msg,
         timestamp: new Date(msg.timestamp?.$date || new Date())
-      }));
+      })));
     } else {
       // Otherwise just update the specific message
       const messageIndex = chat.messages.findIndex(m => m.id === messageId);
