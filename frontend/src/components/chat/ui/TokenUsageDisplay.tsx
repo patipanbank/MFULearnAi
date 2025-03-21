@@ -26,6 +26,7 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({ usage }) => {
       <div className="flex flex-col w-full">
         {/* Bar แสดงอยู่ตลอดเวลา */}
         <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-1 mt-0.5 border border-gray-300 dark:border-gray-600 md:min-w-[120px]">
+        <div className="text-[10px] text-gray-300">Token Usage </div>
           <div 
             className={`h-full ${barColor} rounded-full transition-all duration-300 ease-in-out min-w-[15px]`} 
             style={{ width: `${Math.max(10, usedPercentage)}%` }}
@@ -35,7 +36,6 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({ usage }) => {
         {/* Tooltip แสดงตัวเลขเมื่อ hover */}
         <div className="absolute left-1/2 bottom-full -translate-x-1/2 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
           <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
-          <div className="text-[10px] text-gray-300">Token Usage </div>
             {usage.dailyTokens.toLocaleString()}/{usage.tokenLimit.toLocaleString()} tokens
             <div className="text-[10px] text-gray-300">Remaining: {usage.remainingTokens.toLocaleString()} tokens</div>
           </div>
