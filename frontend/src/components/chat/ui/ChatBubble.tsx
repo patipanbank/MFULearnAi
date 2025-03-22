@@ -61,6 +61,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   };
 
   const onStartEdit = () => {
+    console.log('Start editing message:', message);
     handleStartEdit(message);
   };
 
@@ -72,9 +73,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const renderEditCanvas = () => {
     if (message.role === 'user') {
       return renderUserEditCanvas();
-    } else {
+    } else if (message.role === 'assistant') {
       return renderAssistantEditCanvas();
     }
+    return null;
   };
 
   // Canvas สำหรับแก้ไขข้อความของ User (รองรับการอัพโหลดไฟล์)
@@ -120,14 +122,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             </button>
           </div>
           
-          {/* แสดงไฟล์ที่เลือกและไฟล์เดิม */}
+          {/* แสดงไฟล์ทั้งหมดรวมกัน */}
           {(selectedImageFiles.length > 0 || selectedDocFiles.length > 0 || existingImageFiles.length > 0 || existingDocFiles.length > 0) && (
             <div className="flex flex-wrap gap-2 px-4 pb-2 mt-2">
               <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
                 ไฟล์แนบ ({selectedImageFiles.length + selectedDocFiles.length + existingImageFiles.length + existingDocFiles.length})
               </div>
               
-              {/* ไฟล์ภาพเดิม */}
+              {/* ไฟล์ภาพที่มีอยู่เดิม */}
               {existingImageFiles.map((image, index) => (
                 <div key={`existing-img-${index}`} className="relative">
                   <img
@@ -138,27 +140,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveExistingImage(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                  >
-                    <RiCloseLine />
-                  </button>
-                </div>
-              ))}
-              
-              {/* ไฟล์เอกสารเดิม */}
-              {existingDocFiles.map((file, index) => (
-                <div key={`existing-doc-${index}`} className="relative">
-                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <FileIcon fileName={file.name} />
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
-                    <div className="px-1 py-0.5 text-white text-[8px] truncate">
-                      {file.name}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveExistingDoc(index)}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                   >
                     <RiCloseLine />
@@ -184,6 +165,27 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 </div>
               ))}
               
+              {/* ไฟล์เอกสารที่มีอยู่เดิม */}
+              {existingDocFiles.map((file, index) => (
+                <div key={`existing-doc-${index}`} className="relative">
+                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <FileIcon fileName={file.name} />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
+                    <div className="px-1 py-0.5 text-white text-[8px] truncate">
+                      {file.name}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveExistingDoc(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    <RiCloseLine />
+                  </button>
+                </div>
+              ))}
+
               {/* ไฟล์เอกสารใหม่ */}
               {selectedDocFiles.map((file, index) => (
                 <div key={`new-doc-${index}`} className="relative">
@@ -284,7 +286,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   return (
     <div className="message relative">
-      {isEditing && renderEditCanvas()}
+      {isEditing && message.id === useChatInputStore.getState().editingMessage?.id && renderEditCanvas()}
 
       <div className={`flex items-start gap-3 ${
         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'

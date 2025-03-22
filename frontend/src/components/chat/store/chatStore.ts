@@ -361,12 +361,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
         
         // ถ้าเป็นข้อความของผู้ใช้
         if (editingMessage.role === 'user') {
+          console.log('[chatStore] กำลังแก้ไขข้อความผู้ใช้:', editingMessage);
+          console.log('[chatStore] ข้อมูลที่จะใช้แก้ไข:', {
+            content: inputMessage, 
+            images, 
+            files,
+            existingImages: editingMessage.images,
+            existingFiles: editingMessage.files
+          });
+          
           // สร้างข้อความผู้ใช้ที่แก้ไขแล้ว
           const updatedUserMessage: Message = {
             ...editingMessage,
             content: inputMessage,
-            images: images.length > 0 ? images : editingMessage.images,
-            files: files.length > 0 ? files : editingMessage.files,
+            // ใช้ images ที่ส่งมา หากมี หรือใช้ที่มีอยู่เดิม
+            images: images.length > 0 || editingMessage.images ? [...(images || []), ...(editingMessage.images || [])] : undefined,
+            // ใช้ files ที่ส่งมา หากมี หรือใช้ที่มีอยู่เดิม
+            files: files.length > 0 || editingMessage.files ? [...(files || []), ...(editingMessage.files || [])] : undefined,
             isEdited: true
           };
           

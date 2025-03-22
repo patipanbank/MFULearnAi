@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Message, MessageFile } from '../utils/types';
 import { useChatStore } from './chatStore';
+import { config } from '../../../config/config';
 
 interface ChatInputState {
   // State
@@ -163,7 +164,7 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
   handleSaveEdit: async (message, onEditClick) => {
     const { inputMessage, selectedImageFiles, selectedDocFiles, existingImageFiles, existingDocFiles } = get();
     
-    if (!inputMessage && !selectedImageFiles.length && !selectedDocFiles.length) {
+    if (!inputMessage && !selectedImageFiles.length && !selectedDocFiles.length && !existingImageFiles.length && !existingDocFiles.length) {
       // ถ้าไม่มีข้อความหรือไฟล์ที่จะบันทึก ให้ยกเลิกการแก้ไข
       set({ isEditing: false });
       return;
@@ -219,7 +220,7 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         Promise.all(docReadPromises)
       ]);
       
-      // แยกรูปภาพตาม schema
+      // รวมไฟล์ภาพทั้งหมด (ตาม schema)
       const allImages = existingImageFiles.map(file => ({
         data: file.data,
         mediaType: file.mediaType
@@ -228,22 +229,27 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         mediaType: file.mediaType
       })));
       
-      // ไฟล์เอกสาร
-      const allFiles = existingDocFiles.concat(newDocFiles);
-      
-      const editedMessage = {
-        ...message,
-        content: inputMessage,
-        // แยกไฟล์ภาพและเอกสารตาม schema
-        images: message.role === 'user' ? allImages : message.images,
-        files: message.role === 'user' ? allFiles : message.files
-      };
+      // รวมไฟล์เอกสารทั้งหมด
+      const allFiles = [...existingDocFiles, ...newDocFiles];
       
       const chatStore = useChatStore.getState();
       
       // แยกการทำงานระหว่าง User และ Assistant
       if (message.role === 'user') {
         // สำหรับข้อความของ User: ทำงานแบบ resubmit
+        
+        // เตรียมข้อความที่จะแก้ไข (เพื่อ resubmit)
+        const editedMessage = {
+          ...message,
+          content: inputMessage,
+          images: allImages.length > 0 ? allImages : undefined,
+          files: allFiles.length > 0 ? allFiles : undefined,
+          isEdited: true  // เพิ่มการระบุว่าเป็นข้อความที่แก้ไขแล้ว
+        };
+        
+        console.log('[chatInputStore] แก้ไขข้อความ User:', editedMessage);
+        
+        // ตั้งค่าข้อความที่แก้ไขใน chatStore เพื่อให้ handleSubmit รับไปดำเนินการต่อ
         chatStore.setEditingMessage(editedMessage);
         
         // สร้าง synthetic event เพื่อส่งให้ handleSubmit
@@ -251,6 +257,7 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
           preventDefault: () => {}
         } as React.FormEvent;
         
+        // ส่งข้อความที่แก้ไขแล้ว (resubmit)
         await chatStore.handleSubmit(event);
       } else if (message.role === 'assistant') {
         // สำหรับข้อความของ Assistant: เพียงอัพเดทข้อความในฐานข้อมูล
@@ -258,6 +265,13 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         if (!token) {
           throw new Error('ไม่พบ token สำหรับการยืนยันตัวตน');
         }
+        
+        // สร้างข้อความที่แก้ไขแล้ว
+        const editedMessage = {
+          ...message,
+          content: inputMessage,
+          isEdited: true
+        };
         
         // อัพเดทข้อความใน state
         chatStore.setMessages(prev => 
@@ -271,17 +285,47 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         if (wsRef && chatId) {
           // ส่งคำสั่งแก้ไขข้อความผ่าน WebSocket
           wsRef.send(JSON.stringify({
-            type: 'edit_assistant_message',
+            type: 'message_edited',
             chatId: chatId,
             messageId: message.id,
             content: inputMessage
           }));
         }
+        
+        // ส่ง API request โดยตรงเพื่อบันทึกลงฐานข้อมูล
+        if (chatId) {
+          fetch(`${config.apiUrl}/api/chat/edit-message`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              chatId: chatId,
+              messageId: message.id,
+              content: inputMessage,
+              role: 'assistant',
+              isEdited: true
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('บันทึกการแก้ไขข้อความสำเร็จ:', data);
+          })
+          .catch(error => {
+            console.error('เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+          });
+        }
       }
       
       // เรียกใช้ callback onEditClick ถ้ามี
-      if (onEditClick) {
-        onEditClick(editedMessage);
+      if (onEditClick && message) {
+        onEditClick(message);
       }
       
       // รีเซ็ตสถานะหลังจากการบันทึก
