@@ -944,13 +944,22 @@ router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin
       return;
     }
 
-    // เพิ่มข้อความลงในการสนทนา
-    chat.messages.push({
+    // สร้างข้อความที่จะเพิ่ม
+    const newMessage = {
       id: message.id || Date.now(),
       role: message.role,
       content: message.content,
       timestamp: message.timestamp || { $date: new Date().toISOString() }
-    });
+    };
+    
+    // เพิ่มไฟล์แนบถ้ามี
+    if (message.files && Array.isArray(message.files) && message.files.length > 0) {
+      console.log(`Adding ${message.files.length} files to the message`);
+      (newMessage as any).files = message.files;
+    }
+
+    // เพิ่มข้อความลงในการสนทนา
+    chat.messages.push(newMessage);
 
     // บันทึกการเปลี่ยนแปลง
     await chat.save();

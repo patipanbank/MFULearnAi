@@ -811,7 +811,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         timestamp: {
           $date: new Date().toISOString()
         },
-        isImageGeneration: false
+        isImageGeneration: false,
+        files: message.files // ใช้ไฟล์ที่ได้รับจากการแก้ไข
       };
       
       // สร้างข้อความใหม่ของ assistant สำหรับการตอบกลับ
@@ -852,7 +853,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isImageGeneration: false,
           path: window.location.pathname,
           chatId: currentChatId,
-          type: 'message'
+          type: 'message',
+          files: message.files // ส่งไฟล์ไปด้วย
         }));
         
         // อัพเดทการใช้งาน

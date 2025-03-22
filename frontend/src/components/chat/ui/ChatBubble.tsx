@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
-import { MdEdit, MdRefresh, MdClose, MdContentCopy } from "react-icons/md";
-import { Message } from '../utils/types';
+import { MdEdit, MdRefresh, MdClose, MdContentCopy, MdUpload, MdDeleteOutline } from "react-icons/md";
+import { Message, MessageFile } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
 import { formatMessageTime } from '../utils/formatters';
@@ -32,6 +32,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [existingFiles, setExistingFiles] = useState<MessageFile[]>(message.files || []);
 
   const handleStartEdit = () => {
     setEditedContent(message.content);
@@ -40,7 +43,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   const handleSaveEdit = () => {
     if (onEditClick && editedContent.trim() !== '') {
-      const editedMessage = { ...message, content: editedContent };
+      const editedMessage = { 
+        ...message, 
+        content: editedContent,
+        files: message.role === 'user' ? existingFiles : message.files // เฉพาะ user สามารถแก้ไขไฟล์ได้
+      };
       onEditClick(editedMessage);
       setIsEditing(false);
     }
@@ -48,6 +55,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setSelectedFiles([]);
+    setExistingFiles(message.files || []);
   };
 
   const handleCopyToClipboard = () => {
@@ -62,44 +71,190 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     }
   };
 
-  return (
-    <div className="message relative">
-      {isEditing ? (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {message.role === 'user' ? 'แก้ไขข้อความผู้ใช้' : 'แก้ไขข้อความแชทบอท'}
-              </h3>
-              <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
-                <MdClose className="h-6 w-6" />
-              </button>
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const newFiles = Array.from(files);
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const handleRemoveSelectedFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  const handleRemoveExistingFile = (index: number) => {
+    setExistingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // แยก Canvas สำหรับ User และ Assistant
+  const renderEditCanvas = () => {
+    if (message.role === 'user') {
+      return renderUserEditCanvas();
+    } else {
+      return renderAssistantEditCanvas();
+    }
+  };
+
+  // Canvas สำหรับแก้ไขข้อความของ User (รองรับการอัพโหลดไฟล์)
+  const renderUserEditCanvas = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
+          <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              แก้ไขข้อความผู้ใช้
+            </h3>
+            <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+              <MdClose className="h-6 w-6" />
+            </button>
+          </div>
+          
+          <div className="p-4 flex-grow overflow-auto">
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="w-full h-full min-h-[200px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+              placeholder="แก้ไขข้อความของคุณ..."
+            />
+          </div>
+          
+          {/* ส่วนจัดการไฟล์ที่มีอยู่แล้ว */}
+          {existingFiles && existingFiles.length > 0 && (
+            <div className="px-4 pb-2">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ไฟล์แนบปัจจุบัน:</h4>
+              <div className="flex flex-wrap gap-2">
+                {existingFiles.map((file, index) => (
+                  <div key={`existing-${index}`} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">
+                    <span className="text-xs truncate max-w-[150px]">{file.name}</span>
+                    <button 
+                      onClick={() => handleRemoveExistingFile(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <MdDeleteOutline className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="p-4 flex-grow overflow-auto">
-              <textarea
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                className="w-full h-full min-h-[300px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                placeholder="แก้ไขข้อความของคุณ..."
-              />
-            </div>
-            <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
-              <button
-                onClick={handleCancelEdit}
-                className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-              >
-                {message.role === 'user' ? 'บันทึกและส่งใหม่' : 'บันทึกการแก้ไข'}
-              </button>
-            </div>
+          )}
+          
+          {/* ส่วนอัพโหลดไฟล์ใหม่ */}
+          <div className="px-4 pb-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              className="hidden"
+              multiple
+            />
+            
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              <MdUpload className="h-4 w-4" />
+              เพิ่มไฟล์แนบ
+            </button>
+            
+            {selectedFiles.length > 0 && (
+              <div className="mt-2">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ไฟล์ที่เลือกใหม่:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedFiles.map((file, index) => (
+                    <div key={`selected-${index}`} className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md">
+                      <span className="text-xs truncate max-w-[150px]">{file.name}</span>
+                      <button 
+                        onClick={() => handleRemoveSelectedFile(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <MdDeleteOutline className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
+            <button
+              onClick={handleCancelEdit}
+              className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              ยกเลิก
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+            >
+              บันทึกและส่งใหม่
+            </button>
           </div>
         </div>
-      ) : null}
+      </div>
+    );
+  };
+
+  // Canvas สำหรับแก้ไขข้อความของ Assistant (ไม่อนุญาตให้อัพโหลดไฟล์เพิ่ม)
+  const renderAssistantEditCanvas = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
+          <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              แก้ไขข้อความแชทบอท
+            </h3>
+            <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+              <MdClose className="h-6 w-6" />
+            </button>
+          </div>
+          
+          <div className="p-4 flex-grow overflow-auto">
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="w-full h-full min-h-[300px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+              placeholder="แก้ไขข้อความของแชทบอท..."
+            />
+          </div>
+          
+          {/* แสดงไฟล์ที่มีอยู่ (แบบอ่านอย่างเดียว) */}
+          {message.files && message.files.length > 0 && (
+            <div className="px-4 pb-2">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ไฟล์แนบ:</h4>
+              <div className="flex flex-wrap gap-2">
+                {message.files.map((file, index) => (
+                  <div key={index} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">
+                    <span className="text-xs truncate max-w-[150px]">{file.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
+            <button
+              onClick={handleCancelEdit}
+              className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              ยกเลิก
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+            >
+              บันทึกการแก้ไข
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="message relative">
+      {isEditing && renderEditCanvas()}
 
       <div className={`flex items-start gap-3 ${
         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
@@ -139,6 +294,24 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <MessageContent message={message} />
             )}
           </div>
+          
+          {/* แสดงไฟล์แนบ */}
+          {message.files && message.files.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-1">
+              {message.files.map((file, index) => (
+                <div
+                  key={index}
+                  className={`text-xs px-2 py-1 rounded-md flex items-center gap-1 ${
+                    message.role === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white'
+                  }`}
+                >
+                  <span className="truncate max-w-[100px]">{file.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
