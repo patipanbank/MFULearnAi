@@ -36,7 +36,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const [isCopied, setIsCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ใช้ state จาก chatInputStore
+  // Use state from chatInputStore
   const {
     isEditing,
     selectedImageFiles, selectedDocFiles,
@@ -62,25 +62,25 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   };
 
   const onStartEdit = () => {
-    console.log('Start editing message:', message);
+    // console.log('Start editing message:', message);
     handleStartEdit(message);
   };
 
   const onSaveEdit = () => {
-    console.log('กำลังบันทึกการแก้ไขข้อความ:', message.id);
+    // console.log('Saving message edit:', message.id);
     
-    // แยกการทำงานระหว่าง user และ assistant
+    // Separate logic for user and assistant messages
     if (message.role === 'user') {
-      // สำหรับ user: ส่งข้อความใหม่เข้าระบบเหมือนการส่งข้อความปกติ
+      // For user: send a new message as in normal submission
       const chatStore = useChatStore.getState();
       const chatInputStore = useChatInputStore.getState();
       
-      // เตรียมข้อมูลสำหรับส่งข้อความใหม่
-      // รวมไฟล์ภาพเดิมและไฟล์ภาพที่อัพโหลดใหม่
+      // Prepare data for sending a new message
+      // Combine existing and newly uploaded image files
       const processNewImages = async () => {
         if (selectedImageFiles.length === 0) return [];
         
-        // แปลงไฟล์ภาพใหม่เป็น base64
+        // Convert new image files to base64
         return Promise.all(selectedImageFiles.map(file => {
           return new Promise<{ data: string; mediaType: string }>((resolve) => {
             const reader = new FileReader();
@@ -98,11 +98,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         }));
       };
       
-      // รวมไฟล์เอกสารเดิมและไฟล์เอกสารที่อัพโหลดใหม่
+      // Combine existing and newly uploaded document files
       const processNewDocs = async () => {
         if (selectedDocFiles.length === 0) return [];
         
-        // แปลงไฟล์เอกสารใหม่เป็น base64
+        // Convert new document files to base64
         return Promise.all(selectedDocFiles.map(file => {
           return new Promise<{ name: string; data: string; mediaType: string; size: number }>((resolve) => {
             const reader = new FileReader();
@@ -122,10 +122,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         }));
       };
       
-      // ประมวลผลไฟล์ทั้งหมด
+      // Process all files
       Promise.all([processNewImages(), processNewDocs()])
       .then(([newImages, newDocs]) => {
-        // รวมไฟล์ภาพทั้งหมด (เก่า + ใหม่)
+        // Combine all image files (existing + new)
         const allImages = [
           ...existingImageFiles.map(file => ({
             data: file.data,
@@ -134,19 +134,19 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           ...newImages
         ];
         
-        // รวมไฟล์เอกสารทั้งหมด (เก่า + ใหม่)
+        // Combine all document files (existing + new)
         const allFiles = [
           ...existingDocFiles,
           ...newDocs
         ];
         
-        console.log('[ChatBubble] ส่งข้อความใหม่จากข้อมูลที่แก้ไข:', {
+        /* console.log('[ChatBubble] Sending new message from edited data:', {
           content: inputMessage,
           images: allImages.length,
           files: allFiles.length
-        });
+        }); */
         
-        // สร้างข้อความผู้ใช้ใหม่ (ไม่เกี่ยวข้องกับข้อความเดิม)
+        // Create a new user message (not related to the original message)
         const newUserMessage: Message = {
           id: `new-${Date.now()}`,
           role: 'user',
@@ -156,7 +156,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           files: allFiles.length > 0 ? allFiles : undefined
         };
         
-        // สร้างข้อความรอตอบจาก AI
+        // Create a waiting assistant message
         const newAssistantMessage: Message = {
           id: `new-assistant-${Date.now()}`,
           role: 'assistant',
@@ -166,10 +166,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           isComplete: false
         };
         
-        // เพิ่มข้อความใหม่เข้าไปใน state
+        // Add new messages to state
         chatStore.setMessages([...chatStore.messages, newUserMessage, newAssistantMessage]);
         
-        // ส่งข้อความผ่าน WebSocket
+        // Send message via WebSocket
         const wsRef = chatStore.wsRef;
         const currentChatId = chatStore.currentChatId;
         
@@ -185,12 +185,12 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             path: window.location.pathname
           }));
           
-          console.log('ส่งข้อความใหม่ผ่าน WebSocket สำเร็จ');
+          // console.log('Successfully sent new message via WebSocket');
         } else {
-          console.error('WebSocket ไม่ได้เชื่อมต่อ');
+          // console.error('WebSocket not connected');
         }
         
-        // รีเซ็ตสถานะหลังจากการส่งข้อความ
+        // Reset state after sending message
         chatInputStore.resetFileSelections();
         useChatInputStore.setState({
           isEditing: false,
@@ -200,13 +200,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         });
       })
       .catch(error => {
-        console.error('เกิดข้อผิดพลาดในการประมวลผลไฟล์:', error);
+        // console.error('Error processing files:', error);
       });
     } else {
-      // สำหรับ assistant: ยังคงใช้ handleSaveEdit เหมือนเดิม
+      // For assistant: still use handleSaveEdit as before
       handleSaveEdit(message, (updatedMessage) => {
-        console.log('การแก้ไขสำเร็จ, ข้อความที่อัพเดทแล้ว:', updatedMessage);
-        // เรียกใช้ callback ดั้งเดิมถ้ามี
+        // console.log('Edit successful, updated message:', updatedMessage);
+        // Call original callback if exists
         if (onEditClick) {
           onEditClick(updatedMessage);
         }
@@ -214,7 +214,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     }
   };
 
-  // แยก Canvas สำหรับ User และ Assistant
+  // Separate Canvas for User and Assistant
   const renderEditCanvas = () => {
     if (message.role === 'user') {
       return renderUserEditCanvas();
@@ -224,14 +224,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     return null;
   };
 
-  // Canvas สำหรับแก้ไขข้อความของ User (รองรับการอัพโหลดไฟล์)
+  // Canvas for editing User message (supports file uploads)
   const renderUserEditCanvas = () => {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
           <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              แก้ไขข้อความผู้ใช้
+              Edit User Message
             </h3>
             <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
               <MdClose className="h-6 w-6" />
@@ -243,11 +243,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               className="w-full h-full min-h-[200px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-              placeholder="แก้ไขข้อความของคุณ..."
+              placeholder="Edit your message..."
             />
           </div>
 
-          {/* ส่วนอัพโหลดไฟล์ใหม่ */}
+          {/* File upload section */}
           <div className="px-4 pb-2">
             <input
               type="file"
@@ -263,18 +263,18 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
             >
               <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-              <span className="text-xs text-gray-700 dark:text-gray-300">แนบไฟล์</span>
+              <span className="text-xs text-gray-700 dark:text-gray-300">Attach Files</span>
             </button>
           </div>
           
-          {/* แสดงไฟล์ทั้งหมดรวมกัน */}
+          {/* Display all files */}
           {(selectedImageFiles.length > 0 || selectedDocFiles.length > 0 || existingImageFiles.length > 0 || existingDocFiles.length > 0) && (
             <div className="flex flex-wrap gap-2 px-4 pb-2 mt-2">
               <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
-                ไฟล์แนบ ({selectedImageFiles.length + selectedDocFiles.length + existingImageFiles.length + existingDocFiles.length})
+                Attachments ({selectedImageFiles.length + selectedDocFiles.length + existingImageFiles.length + existingDocFiles.length})
               </div>
               
-              {/* ไฟล์ภาพที่มีอยู่เดิม */}
+              {/* Existing image files */}
               {existingImageFiles.map((image, index) => (
                 <div key={`existing-img-${index}`} className="relative">
                   <img
@@ -292,7 +292,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 </div>
               ))}
               
-              {/* ไฟล์ภาพใหม่ */}
+              {/* New image files */}
               {selectedImageFiles.map((image, index) => (
                 <div key={`new-img-${index}`} className="relative">
                   <img
@@ -310,7 +310,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 </div>
               ))}
               
-              {/* ไฟล์เอกสารที่มีอยู่เดิม */}
+              {/* Existing document files */}
               {existingDocFiles.map((file, index) => (
                 <div key={`existing-doc-${index}`} className="relative">
                   <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
@@ -331,7 +331,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 </div>
               ))}
 
-              {/* ไฟล์เอกสารใหม่ */}
+              {/* New document files */}
               {selectedDocFiles.map((file, index) => (
                 <div key={`new-doc-${index}`} className="relative">
                   <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
@@ -359,13 +359,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               onClick={handleCancelEdit}
               className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              ยกเลิก
+              Cancel
             </button>
             <button
               onClick={onSaveEdit}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
-              บันทึกและส่งใหม่
+              Save and Send
             </button>
           </div>
         </div>
@@ -373,14 +373,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     );
   };
 
-  // Canvas สำหรับแก้ไขข้อความของ Assistant (ไม่อนุญาตให้อัพโหลดไฟล์เพิ่ม)
+  // Canvas for editing Assistant message (no file upload allowed)
   const renderAssistantEditCanvas = () => {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
           <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              แก้ไขข้อความแชทบอท
+              Edit Assistant Message
             </h3>
             <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
               <MdClose className="h-6 w-6" />
@@ -392,14 +392,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               className="w-full h-full min-h-[300px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-              placeholder="แก้ไขข้อความของแชทบอท..."
+              placeholder="Edit assistant message..."
             />
           </div>
           
-          {/* แสดงไฟล์ที่มีอยู่ (แบบอ่านอย่างเดียว) */}
+          {/* Display existing files (read-only) */}
           {message.files && message.files.length > 0 && (
             <div className="px-4 pb-2">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ไฟล์แนบ:</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Attachments:</h4>
               <div className="flex flex-wrap gap-2">
                 {message.files.map((file, index) => (
                   <div key={index} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">
@@ -415,13 +415,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               onClick={handleCancelEdit}
               className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              ยกเลิก
+              Cancel
             </button>
             <button
               onClick={onSaveEdit}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
-              บันทึกการแก้ไข
+              Save Edit
             </button>
           </div>
         </div>
@@ -492,7 +492,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            ดูแหล่งข้อมูล ({message.sources.length})
+            View Sources ({message.sources.length})
           </button>
         </div>
       )}
@@ -500,7 +500,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       {/* Action buttons for assistant messages */}
       {message.role === 'assistant' && message.isComplete && (
         <div className="ml-11 mt-2 flex flex-wrap gap-2">
-          {/* Continue button - แสดงเมื่อเป็นข้อความ assistant ล่าสุด */}
+          {/* Continue button - shown for the latest assistant message */}
           {isLastAssistantMessage && (
             <button
               type="button"
@@ -529,7 +529,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
               }`}
               disabled={!selectedModel}
-              title={isLastAssistantMessage ? "สร้างคำตอบใหม่" : "ลบประวัติสนทนาที่ใหม่กว่าและสร้างคำตอบใหม่"}
+              title={isLastAssistantMessage ? "Regenerate response" : "Clear newer history and regenerate response"}
             >
               <MdRefresh className="h-5 w-5" />
             </button>
@@ -540,7 +540,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             type="button"
             onClick={handleCopyToClipboard}
             className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title={isCopied ? "คัดลอกแล้ว!" : "คัดลอกข้อความ"}
+            title={isCopied ? "Copied!" : "Copy to clipboard"}
           >
             <MdContentCopy className="h-5 w-5" />
           </button>
@@ -550,7 +550,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             type="button"
             onClick={onStartEdit}
             className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title="แก้ไขข้อความ"
+            title="Edit message"
           >
             <MdEdit className="h-5 w-5" />
           </button>
@@ -565,7 +565,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             type="button"
             onClick={handleCopyToClipboard}
             className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title={isCopied ? "คัดลอกแล้ว!" : "คัดลอกข้อความ"}
+            title={isCopied ? "Copied!" : "Copy to clipboard"}
           >
             <MdContentCopy className="h-5 w-5" />
           </button>
@@ -576,7 +576,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               type="button"
               onClick={onStartEdit}
               className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-              title="แก้ไขข้อความ"
+              title="Edit message"
             >
               <MdEdit className="h-5 w-5" />
             </button>

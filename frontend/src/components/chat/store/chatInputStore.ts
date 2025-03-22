@@ -247,7 +247,7 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
           isEdited: true  // เพิ่มการระบุว่าเป็นข้อความที่แก้ไขแล้ว
         };
         
-        console.log('[chatInputStore] แก้ไขข้อความ User:', editedMessage);
+        //console.log('[chatInputStore] แก้ไขข้อความ User:', editedMessage);
         
         // ตั้งค่าข้อความที่แก้ไขใน chatStore เพื่อให้ handleSubmit รับไปดำเนินการต่อ
         chatStore.setEditingMessage(editedMessage);
@@ -273,18 +273,18 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
           isEdited: true
         };
         
-        console.log('[chatInputStore] กำลังแก้ไขข้อความ Assistant:', editedMessage);
+        //console.log('[chatInputStore] กำลังแก้ไขข้อความ Assistant:', editedMessage);
         
         // อัพเดทข้อความใน state
         chatStore.setMessages(prev => {
           const newMessages = prev.map(msg => msg.id === message.id ? editedMessage : msg);
-          console.log('[chatInputStore] อัพเดทข้อความใน UI สำเร็จ', newMessages);
+          //console.log('[chatInputStore] อัพเดทข้อความใน UI สำเร็จ', newMessages);
           return newMessages;
         });
         
         // เรียกใช้ callback onEditClick ถ้ามีทันทีหลังอัพเดท state
         if (onEditClick) {
-          console.log('[chatInputStore] เรียกใช้ onEditClick callback');
+          //console.log('[chatInputStore] เรียกใช้ onEditClick callback');
           onEditClick(editedMessage);
         }
         
@@ -342,7 +342,7 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         isProcessingFiles: false
       });
     } catch (error) {
-      console.error('เกิดข้อผิดพลาดในการอัปโหลดไฟล์:', error);
+      //console.error('เกิดข้อผิดพลาดในการอัปโหลดไฟล์:', error);
       set({ isProcessingFiles: false });
     }
   },
