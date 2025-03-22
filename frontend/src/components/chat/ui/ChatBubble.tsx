@@ -45,22 +45,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   const handleSaveEdit = () => {
     if (onEditClick && editedContent.trim() !== '') {
-      // แปลงไฟล์ที่เพิ่งอัพโหลดเป็นรูปแบบ MessageFile
-      const newFiles: MessageFile[] = selectedFiles.map(file => {
-        // สร้าง Base64 จากไฟล์ที่อัพโหลด
-        const reader = new FileReader();
-        
-        return {
-          name: file.name,
-          size: file.size,
-          mediaType: file.type,
-          data: '', // จะถูกเติมข้อมูลเมื่อ FileReader อ่านเสร็จ
-        };
-      });
-      
-      // รวมไฟล์ที่มีอยู่กับไฟล์ใหม่
-      const allFiles = [...existingFiles];
-      
       // ตรวจสอบว่าต้องเพิ่มไฟล์ใหม่หรือไม่
       if (message.role === 'user' && selectedFiles.length > 0) {
         // แสดงสถานะกำลังประมวลผลไฟล์
