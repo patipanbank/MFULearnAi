@@ -370,11 +370,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
             isEdited: true
           };
           
-          // ลบข้อความนี้และข้อความหลังจากนี้ทั้งหมด
-          const newMessages = messages.slice(0, messageIndex);
+          // ไม่ลบข้อความหลังจากนี้ แต่อัพเดทข้อความที่แก้ไข
+          const updatedMessages = [...messages];
+          updatedMessages[messageIndex] = updatedUserMessage;
           
-          // เพิ่มข้อความที่แก้ไขแล้ว
-          newMessages.push(updatedUserMessage);
+          // อัพเดทข้อความในสถานะ
+          set({ messages: updatedMessages });
+          
+          // สร้างข้อความผู้ใช้ใหม่ (คัดลอกจากข้อความที่แก้ไข)
+          const newUserMessage: Message = {
+            id: Date.now(),
+            role: 'user',
+            content: inputMessage,
+            images: images.length > 0 ? images : undefined,
+            files: files.length > 0 ? files : undefined,
+            timestamp: { $date: new Date().toISOString() },
+            isImageGeneration: isImageGenerationMode
+          };
           
           // สร้างข้อความตอบกลับใหม่จาก AI
           const newAssistantMessage: Message = {
@@ -387,25 +399,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
             isComplete: false
           };
           
-          // เพิ่มข้อความตอบกลับใหม่
-          newMessages.push(newAssistantMessage);
+          // เพิ่มข้อความใหม่ต่อท้าย
+          const newMessages = [...updatedMessages, newUserMessage, newAssistantMessage];
           
           // อัปเดตข้อความทั้งหมด
           set({ messages: newMessages });
           
           // ส่งข้อความที่แก้ไขผ่าน WebSocket
           if (wsRef) {
+            // ส่งการแก้ไข
+            wsRef.send(JSON.stringify({
+              type: 'message_edited',
+              chatId: currentChatId,
+              messageId: editingMessage.id,
+              content: inputMessage
+            }));
+            
+            // จากนั้นส่งข้อความใหม่
             setAwaitingChatId(true);
             wsRef.send(JSON.stringify({
-              type: 'edit',
+              type: 'message',
               content: inputMessage,
               chatId: currentChatId,
               modelId: selectedModel,
-              messageId: editingMessage.id,
+              messageId: newUserMessage.id,
               images: images,
               files: files,
               isImageGeneration: isImageGenerationMode,
-              messages: newMessages,
+              messages: [newUserMessage],
               path: window.location.pathname
             }));
           }
@@ -771,22 +792,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { selectedModel, fetchUsage } = useModelStore.getState();
     const { setIsLoading } = useUIStore.getState();
     
-    // หากเป็นการแก้ไขข้อความของผู้ใช้และส่งออกไป
+    // หากเป็นการแก้ไขข้อความของผู้ใช้
     if (message.role === 'user') {
       // ค้นหาข้อความเดิมและตำแหน่ง
       const messageIndex = messages.findIndex(m => m.id === message.id);
       if (messageIndex === -1) {
         console.error('ไม่พบข้อความที่จะแก้ไข');
         return;
-      }
-      
-      // ตรวจสอบว่าเป็นข้อความผู้ใช้ล่าสุดหรือไม่
-      let isLastUserMessage = true;
-      for (let i = messageIndex + 1; i < messages.length; i++) {
-        if (messages[i].role === 'user') {
-          isLastUserMessage = false;
-          break;
-        }
       }
       
       // อัพเดทข้อความที่แก้ไข
@@ -796,68 +808,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isEdited: true
       };
       
-      // ถ้าเป็นข้อความ user ล่าสุด จะตัดข้อความที่เป็น assistant ที่มาหลังจากนี้ออกและส่งใหม่
-      if (isLastUserMessage && messageIndex < messages.length - 1) {
-        // ตัดข้อความ assistant ที่อยู่หลังจากนี้ออก
-        const messagesToKeep = updatedMessages.slice(0, messageIndex + 1);
-        
-        // สร้างข้อความใหม่ของ assistant
-        const assistantMessage: Message = {
-          id: Date.now(),
-          role: 'assistant',
-          content: '',
-          timestamp: {
-            $date: new Date().toISOString()
-          },
-          isImageGeneration: false,
-          isComplete: false
-        };
-        
-        // อัพเดทข้อความและตั้งค่า loading
-        set({ messages: [...messagesToKeep, assistantMessage] });
-        setIsLoading(true);
-        
-        try {
-          // ส่งคำขอไปยัง websocket
-          const messagePayload = {
-            messages: messagesToKeep,
-            modelId: selectedModel,
-            isImageGeneration: false,
-            path: window.location.pathname,
-            chatId: currentChatId,
-            type: 'message'
-          };
-          
-          if (!wsRef) {
-            console.error('WebSocket connection not available');
-            return;
-          }
-          
-          wsRef.send(JSON.stringify(messagePayload));
-          
-          // อัพเดท usage
-          fetchUsage();
-        } catch (error) {
-          console.error('Error in handleEditMessage:', error);
-          set({ 
-            messages: [...updatedMessages, {
-              id: Date.now(),
-              role: 'assistant',
-              content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
-              timestamp: {
-                $date: new Date().toISOString()
-              },
-              isImageGeneration: false,
-              isComplete: true
-            }]
-          });
-          setIsLoading(false);
-        }
-      } else {
-        // ถ้าไม่ใช่ข้อความล่าสุด เพียงแค่อัพเดทข้อความเดิม
-        set({ messages: updatedMessages });
-        
-        // ส่งการแก้ไขไปยัง WebSocket เพื่อแจ้งเตือนอุปกรณ์อื่น (ถ้ามี)
+      // อัพเดทข้อความในสถานะ
+      set({ messages: updatedMessages });
+      
+      // ส่งข้อความที่แก้ไขไปยัง backend
+      try {
+        // ส่งการแก้ไขไปยัง WebSocket เพื่อแจ้งเตือนอุปกรณ์อื่น
         if (wsRef) {
           wsRef.send(JSON.stringify({
             type: 'message_edited',
@@ -866,6 +822,90 @@ export const useChatStore = create<ChatState>((set, get) => ({
             content: message.content
           }));
         }
+        
+        // ส่ง API request เพื่อบันทึกลงฐานข้อมูล
+        const token = localStorage.getItem('auth_token');
+        if (token && currentChatId) {
+          fetch(`${config.apiUrl}/api/chat/edit-message`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              chatId: currentChatId,
+              messageId: message.id,
+              content: message.content
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('บันทึกการแก้ไขข้อความสำเร็จ:', data);
+            
+            // หลังจากบันทึกการแก้ไขสำเร็จแล้ว เพิ่มข้อความใหม่ของ user และรอการตอบกลับจาก assistant
+            // สร้างข้อความผู้ใช้ใหม่ (คัดลอกจากข้อความที่แก้ไข)
+            const newUserMessage: Message = {
+              id: Date.now(),
+              role: 'user',
+              content: message.content,
+              timestamp: {
+                $date: new Date().toISOString()
+              },
+              isImageGeneration: false
+            };
+            
+            // สร้างข้อความใหม่ของ assistant สำหรับการตอบกลับ
+            const newAssistantMessage: Message = {
+              id: Date.now() + 1,
+              role: 'assistant',
+              content: '',
+              timestamp: {
+                $date: new Date().toISOString()
+              },
+              isImageGeneration: false,
+              isComplete: false
+            };
+            
+            // อัพเดทข้อความโดยเพิ่มข้อความใหม่ต่อท้าย
+            const newMessages = [...updatedMessages, newUserMessage, newAssistantMessage];
+            set({ messages: newMessages });
+            setIsLoading(true);
+            
+            // ส่งคำขอไปยัง websocket
+            try {
+              if (!wsRef) {
+                console.error('WebSocket connection not available');
+                return;
+              }
+              
+              // ส่งข้อความสำหรับการตอบกลับใหม่
+              wsRef.send(JSON.stringify({
+                messages: [newUserMessage],
+                modelId: selectedModel,
+                isImageGeneration: false,
+                path: window.location.pathname,
+                chatId: currentChatId,
+                type: 'message'
+              }));
+              
+              // อัพเดท usage
+              fetchUsage();
+            } catch (error) {
+              console.error('Error in handleEditMessage:', error);
+              setIsLoading(false);
+            }
+          })
+          .catch(error => {
+            console.error('เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+          });
+        }
+      } catch (error) {
+        console.error('เกิดข้อผิดพลาดในการส่งคำขอแก้ไขข้อความ:', error);
       }
     } else if (message.role === 'assistant') {
       // ค้นหาข้อความเดิมและตำแหน่ง

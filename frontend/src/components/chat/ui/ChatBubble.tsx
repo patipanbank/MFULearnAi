@@ -62,11 +62,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     }
   };
 
-  // สำหรับการแก้ไขข้อความของ user ส่งข้อความไปทันที
+  // สำหรับการแก้ไขข้อความของ user 
   const handleSaveUserEdit = () => {
     if (onEditClick && editedContent.trim() !== '' && message.role === 'user') {
       const editedMessage = { ...message, content: editedContent };
-      onEditClick(editedMessage);
+      onEditClick(editedMessage); // ส่งข้อความที่แก้ไขไปยัง store
       setIsEditing(false);
     }
   };
