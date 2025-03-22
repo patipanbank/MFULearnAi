@@ -158,8 +158,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           content: inputMessage,
           timestamp: { $date: new Date().toISOString() },
           images: allImages.length > 0 ? allImages : undefined,
-          files: allFiles.length > 0 ? allFiles : undefined,
-          processedFiles: message.processedFiles
+          files: allFiles.length > 0 ? allFiles : undefined
         };
         
         // Create a waiting assistant message
