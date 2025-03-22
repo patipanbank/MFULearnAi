@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
 import { MdEdit, MdRefresh, MdClose, MdContentCopy } from "react-icons/md";
 import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
-import { Message } from '../utils/types';
+import { Message, MessageFile } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
 import { formatMessageTime } from '../utils/formatters';
@@ -34,17 +34,21 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   isLastAssistantMessage = false
 }) => {
   const [isCopied, setIsCopied] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // ใช้ chatStore สำหรับ attach file ตามรูปแบบของ ChatInput
+  const chatStore = useChatStore();
+  const { 
+    selectedImages, 
+    selectedFiles, 
+    handleFileSelect, 
+    handleRemoveImage, 
+    handleRemoveFile,
+  } = chatStore;
 
   // Use state from chatInputStore
   const {
     isEditing,
-    selectedImageFiles, selectedDocFiles,
-    
     inputMessage, setInputMessage,
-    handleFileSelect,
-    handleRemoveSelectedImage, handleRemoveSelectedDoc,
-    
     handleSaveEdit, handleCancelEdit,
     handleStartEdit
   } = useChatInputStore();
@@ -62,7 +66,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   };
 
   const onStartEdit = () => {
-    // console.log('Start editing message:', message);
+    // รีเซ็ตไฟล์ที่เลือกใน chatStore
+    chatStore.setSelectedImages([]);
+    chatStore.setSelectedFiles([]);
+    
+    // เริ่มการแก้ไขใน chatInputStore
     handleStartEdit(message);
   };
 
@@ -73,76 +81,78 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     if (message.role === 'user') {
       // For user: send a new message as in normal submission
       const chatStore = useChatStore.getState();
-      const chatInputStore = useChatInputStore.getState();
+      
+      // ใช้ข้อมูลจาก chatStore แทน chatInputStore
+      const { 
+        selectedImages, 
+        selectedFiles, 
+        wsRef, 
+        currentChatId, 
+        messages 
+      } = chatStore;
       
       // Prepare data for sending a new message
-      // Combine existing and newly uploaded image files
-      const processNewImages = async () => {
-        if (selectedImageFiles.length === 0) return [];
-        
-        // Convert new image files to base64
-        return Promise.all(selectedImageFiles.map(file => {
-          return new Promise<{ data: string; mediaType: string }>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              if (e.target && e.target.result) {
-                const base64 = e.target.result.toString().split(',')[1];
-                resolve({
-                  data: base64,
-                  mediaType: file.type
-                });
-              }
-            };
-            reader.readAsDataURL(file);
+      // รับค่าที่ประมวลผลไฟล์
+      const processFiles = async () => {
+        // จัดการรูปภาพ
+        let images: { data: string; mediaType: string }[] = [];
+        if (selectedImages.length > 0) {
+          // แปลงไฟล์รูปภาพเป็น base64
+          const imgPromises = selectedImages.map(async (file) => {
+            return new Promise<{ data: string; mediaType: string }>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                if (e.target && e.target.result) {
+                  const base64 = e.target.result.toString().split(',')[1];
+                  resolve({
+                    data: base64,
+                    mediaType: file.type
+                  });
+                }
+              };
+              reader.readAsDataURL(file);
+            });
           });
-        }));
-      };
-      
-      // Combine existing and newly uploaded document files
-      const processNewDocs = async () => {
-        if (selectedDocFiles.length === 0) return [];
+          images = await Promise.all(imgPromises);
+        }
         
-        // Convert new document files to base64
-        return Promise.all(selectedDocFiles.map(file => {
-          return new Promise<{ name: string; data: string; mediaType: string; size: number }>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              if (e.target && e.target.result) {
-                const base64 = e.target.result.toString().split(',')[1];
-                resolve({
-                  name: file.name,
-                  data: base64,
-                  mediaType: file.type,
-                  size: file.size
-                });
-              }
-            };
-            reader.readAsDataURL(file);
+        // จัดการไฟล์เอกสาร
+        let files: MessageFile[] = [];
+        if (selectedFiles.length > 0) {
+          // แปลงไฟล์เอกสารเป็น base64
+          const filePromises = selectedFiles.map(async (file) => {
+            return new Promise<MessageFile>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                if (e.target && e.target.result) {
+                  const base64 = e.target.result.toString().split(',')[1];
+                  resolve({
+                    name: file.name,
+                    data: base64,
+                    mediaType: file.type,
+                    size: file.size
+                  });
+                }
+              };
+              reader.readAsDataURL(file);
+            });
           });
-        }));
+          files = await Promise.all(filePromises);
+        }
+        
+        return { images, files };
       };
       
       // Process all files
-      Promise.all([processNewImages(), processNewDocs()])
-      .then(([newImages, newDocs]) => {
-        // ใช้เฉพาะไฟล์ใหม่ที่ผู้ใช้อัพโหลด
-        const allImages = [...newImages];
-        const allFiles = [...newDocs];
-        
-        /* console.log('[ChatBubble] Sending new message from edited data:', {
-          content: inputMessage,
-          images: allImages.length,
-          files: allFiles.length
-        }); */
-        
-        // Create a new user message (not related to the original message)
+      processFiles().then(({ images, files }) => {
+        // Create a new user message
         const newUserMessage: Message = {
           id: `new-${Date.now()}`,
           role: 'user',
           content: inputMessage,
           timestamp: { $date: new Date().toISOString() },
-          images: allImages.length > 0 ? allImages : undefined,
-          files: allFiles.length > 0 ? allFiles : undefined
+          images: images.length > 0 ? images : undefined,
+          files: files.length > 0 ? files : undefined
         };
         
         // Create a waiting assistant message
@@ -156,40 +166,33 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         };
         
         // Add new messages to state
-        chatStore.setMessages([...chatStore.messages, newUserMessage, newAssistantMessage]);
+        chatStore.setMessages([...messages, newUserMessage, newAssistantMessage]);
         
         // Send message via WebSocket
-        const wsRef = chatStore.wsRef;
-        const currentChatId = chatStore.currentChatId;
-        
         if (wsRef && currentChatId) {
           wsRef.send(JSON.stringify({
             type: 'chat',
             content: inputMessage,
             chatId: currentChatId,
             modelId: selectedModel,
-            images: allImages.length > 0 ? allImages : undefined,
-            files: allFiles.length > 0 ? allFiles : undefined,
-            messages: [...chatStore.messages, newUserMessage],
+            images: images.length > 0 ? images : undefined,
+            files: files.length > 0 ? files : undefined,
+            messages: [...messages, newUserMessage],
             path: window.location.pathname
           }));
-          
-          // console.log('Successfully sent new message via WebSocket');
-        } else {
-          // console.error('WebSocket not connected');
         }
         
         // Reset state after sending message
-        chatInputStore.resetFileSelections();
+        chatStore.setSelectedImages([]);
+        chatStore.setSelectedFiles([]);
         useChatInputStore.setState({
           isEditing: false,
           inputMessage: '',
-          editingMessage: null,
-          isProcessingFiles: false
+          editingMessage: null
         });
       })
-      .catch(_error => {
-        // Error processing files
+      .catch(error => {
+        console.error('Error processing files:', error);
       });
     } else {
       // For assistant: still use handleSaveEdit as before
@@ -240,19 +243,22 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           <div className="px-4 pb-2">
             <input
               type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              className="hidden"
+              id="chatbubble-file-upload"
               accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
               multiple
+              onChange={handleFileSelect}
+              className="hidden"
             />
             
             <button
-              onClick={() => fileInputRef.current?.click()}
+              type="button"
               className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+              onClick={() => {
+                document.getElementById('chatbubble-file-upload')?.click();
+              }}
             >
               <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-              <span className="text-xs text-gray-700 dark:text-gray-300">Attach Files</span>
+              <span className="text-xs text-gray-700 dark:text-gray-300">Attach File</span>
             </button>
             
             {/* คำแนะนำสำหรับผู้ใช้ */}
@@ -261,16 +267,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             </div>
           </div>
           
-          {/* Display all files */}
-          {(selectedImageFiles.length > 0 || selectedDocFiles.length > 0) && (
-            <div className="flex flex-wrap gap-2 px-4 pb-2 mt-2">
+          {/* Combined Attached Files Preview */}
+          {(selectedImages.length > 0 || selectedFiles.length > 0) && (
+            <div className="flex flex-wrap gap-2 mt-2 px-4 pb-2">
               <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
-                Attachments ({selectedImageFiles.length + selectedDocFiles.length})
+                Attached Files ({selectedImages.length + selectedFiles.length})
               </div>
               
-              {/* New image files */}
-              {selectedImageFiles.map((image, index) => (
-                <div key={`new-img-${index}`} className="relative">
+              {/* Image previews */}
+              {selectedImages.map((image, index) => (
+                <div key={`img-${index}`} className="relative">
                   <img
                     src={URL.createObjectURL(image)}
                     alt={`Image ${index + 1}`}
@@ -278,7 +284,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   />
                   <button
                     type="button"
-                    onClick={() => handleRemoveSelectedImage(index)}
+                    onClick={() => handleRemoveImage(index)}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                   >
                     <RiCloseLine />
@@ -286,9 +292,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 </div>
               ))}
               
-              {/* New document files */}
-              {selectedDocFiles.map((file, index) => (
-                <div key={`new-doc-${index}`} className="relative">
+              {/* Document previews */}
+              {selectedFiles.map((file, index) => (
+                <div key={`doc-${index}`} className="relative">
                   <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                     <FileIcon fileName={file.name} />
                   </div>
@@ -299,7 +305,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleRemoveSelectedDoc(index)}
+                    onClick={() => handleRemoveFile(index)}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                   >
                     <RiCloseLine />
