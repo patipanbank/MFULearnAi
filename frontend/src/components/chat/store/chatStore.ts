@@ -418,12 +418,72 @@ export const useChatStore = create<ChatState>((set, get) => ({
             editingMessage: null
           });
         }
-        // ถ้าเป็นข้อความของ AI (ในกรณีนี้เราไม่ต้องส่งข้อความใหม่ แค่แก้ไขข้อความในฐานข้อมูล)
+        // ถ้าเป็นข้อความของ AI
         else if (editingMessage.role === 'assistant') {
-          // ไม่รองรับการแก้ไขข้อความของ AI โดยตรงในตัวอย่างนี้
-          // หากต้องการรองรับจริงๆ ควรมีการทำ API call ไปยัง server เพื่อแก้ไขข้อความ
-          console.log('Editing assistant messages is not supported');
-          set({ editingMessage: null });
+          // แก้ไขข้อความใน store
+          const updatedMessages = [...messages];
+          const messageIndex = messages.findIndex(m => m.id === editingMessage.id);
+          
+          if (messageIndex !== -1) {
+            updatedMessages[messageIndex] = {
+              ...editingMessage,
+              content: inputMessage,
+              isEdited: true
+            };
+            
+            // อัพเดทข้อความในสถานะ
+            set({ messages: updatedMessages });
+            
+            // ส่งไปยัง API และ WebSocket
+            try {
+              // ส่งการแก้ไขไปยัง WebSocket เพื่อแจ้งเตือนอุปกรณ์อื่น
+              if (wsRef) {
+                wsRef.send(JSON.stringify({
+                  type: 'message_edited',
+                  chatId: currentChatId,
+                  messageId: editingMessage.id,
+                  content: inputMessage
+                }));
+              }
+              
+              // ส่ง API request เพื่อบันทึกลงฐานข้อมูล
+              const token = localStorage.getItem('auth_token');
+              if (token && currentChatId) {
+                fetch(`${config.apiUrl}/api/chat/edit-message`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    chatId: currentChatId,
+                    messageId: editingMessage.id,
+                    content: inputMessage
+                  })
+                })
+                .then(response => {
+                  if (!response.ok) {
+                    throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
+                  }
+                  return response.json();
+                })
+                .then(data => {
+                  console.log('บันทึกการแก้ไขข้อความสำเร็จ:', data);
+                })
+                .catch(error => {
+                  console.error('เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+                });
+              }
+            } catch (error) {
+              console.error('เกิดข้อผิดพลาดในการส่งคำขอแก้ไขข้อความ:', error);
+            }
+          }
+          
+          // ล้างค่าต่างๆ
+          useUIStore.getState().setInputMessage('');
+          set({ 
+            editingMessage: null
+          });
         }
       } else {
         // Create a new user message
@@ -833,6 +893,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
           messageId: message.id,
           content: message.content
         }));
+      }
+      
+      // ส่ง API request ไปยัง backend เพื่อบันทึกข้อมูลลงฐานข้อมูล
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token || !currentChatId) {
+          console.error('ไม่พบ token หรือ chat ID');
+          return;
+        }
+        
+        fetch(`${config.apiUrl}/api/chat/edit-message`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            chatId: currentChatId,
+            messageId: message.id,
+            content: message.content,
+            role: 'assistant'
+          })
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('บันทึกการแก้ไขข้อความสำเร็จ:', data);
+        })
+        .catch(error => {
+          console.error('เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+        });
+      } catch (error) {
+        console.error('เกิดข้อผิดพลาดในการส่งคำขอแก้ไขข้อความ:', error);
       }
     }
   },
