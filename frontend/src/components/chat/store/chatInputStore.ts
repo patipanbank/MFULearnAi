@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Message, MessageFile } from '../utils/types';
+import { useChatStore } from './chatStore';
 
 interface ChatInputState {
   // State
@@ -238,6 +239,19 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         files: message.role === 'user' ? allFiles : message.files
       };
       
+      // กำหนดให้ใช้ editingMessage ของ chatStore เพื่อให้ handleSubmit จัดการกับการแก้ไข
+      const chatStore = useChatStore.getState();
+      chatStore.setEditingMessage(editedMessage);
+      
+      // เรียกใช้ handleSubmit ผ่าน chatStore เพื่อส่งข้อความที่แก้ไขแล้ว
+      // สร้าง synthetic event เพื่อส่งให้ handleSubmit
+      const event = {
+        preventDefault: () => {}
+      } as React.FormEvent;
+      
+      await chatStore.handleSubmit(event);
+      
+      // เรียกใช้ callback onEditClick ถ้ามี (สำหรับการอัพเดท UI หรือการจัดการอื่นๆ)
       if (onEditClick) {
         onEditClick(editedMessage);
       }
