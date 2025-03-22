@@ -62,7 +62,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     }
   };
 
-  // สำหรับข้อความของ user เมื่อกดบันทึกจะส่งข้อความที่แก้ไขไปเลย
+  // สำหรับการแก้ไขข้อความของ user ส่งข้อความไปทันที
   const handleSaveUserEdit = () => {
     if (onEditClick && editedContent.trim() !== '' && message.role === 'user') {
       const editedMessage = { ...message, content: editedContent };

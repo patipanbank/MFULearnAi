@@ -807,11 +807,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }));
         }
       }
-    } else {
-      // สำหรับข้อความของ assistant ให้ใช้วิธีเดิม
-      // เพียงแค่แสดงในช่อง input
-      setInputMessage(message.content);
-      set({ editingMessage: message });
+    } else if (message.role === 'assistant') {
+      // ค้นหาข้อความเดิมและตำแหน่ง
+      const messageIndex = messages.findIndex(m => m.id === message.id);
+      if (messageIndex === -1) {
+        console.error('ไม่พบข้อความที่จะแก้ไข');
+        return;
+      }
+      
+      // อัพเดทข้อความที่แก้ไขโดยตรง
+      const updatedMessages = [...messages];
+      updatedMessages[messageIndex] = {
+        ...message,
+        isEdited: true
+      };
+      
+      // อัพเดทข้อความในสถานะ
+      set({ messages: updatedMessages });
+      
+      // ส่งการแก้ไขไปยัง WebSocket เพื่อแจ้งเตือนอุปกรณ์อื่น (ถ้ามี)
+      if (wsRef) {
+        wsRef.send(JSON.stringify({
+          type: 'message_edited',
+          chatId: currentChatId,
+          messageId: message.id,
+          content: message.content
+        }));
+      }
     }
   },
   
