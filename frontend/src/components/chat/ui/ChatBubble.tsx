@@ -2,10 +2,12 @@ import React, { useState, useRef } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
 import { MdEdit, MdRefresh, MdClose, MdContentCopy, MdUpload, MdDeleteOutline } from "react-icons/md";
 import { FaSpinner } from "react-icons/fa";
+import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
 import { Message, MessageFile } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
 import { formatMessageTime } from '../utils/formatters';
+import FileIcon from './FileIcon';
 
 interface ChatBubbleProps {
   message: Message;
@@ -33,25 +35,60 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [isCopied, setIsCopied] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([]);
+  const [selectedDocFiles, setSelectedDocFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [existingFiles, setExistingFiles] = useState<MessageFile[]>(message.files || []);
+  const [existingImageFiles, setExistingImageFiles] = useState<MessageFile[]>([]);
+  const [existingDocFiles, setExistingDocFiles] = useState<MessageFile[]>([]);
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
 
   const handleStartEdit = () => {
     setEditedContent(message.content);
     setIsEditing(true);
+    
+    // แยกไฟล์ตามประเภท (ภาพ vs เอกสาร)
+    if (message.files && message.files.length > 0) {
+      const images: MessageFile[] = [];
+      const docs: MessageFile[] = [];
+      
+      message.files.forEach(file => {
+        if (file.mediaType.startsWith('image/')) {
+          images.push(file);
+        } else {
+          docs.push(file);
+        }
+      });
+      
+      setExistingImageFiles(images);
+      setExistingDocFiles(docs);
+    }
   };
 
   const handleSaveEdit = () => {
     if (onEditClick && editedContent.trim() !== '') {
       // ตรวจสอบว่าต้องเพิ่มไฟล์ใหม่หรือไม่
-      if (message.role === 'user' && selectedFiles.length > 0) {
+      if (message.role === 'user' && (selectedImageFiles.length > 0 || selectedDocFiles.length > 0)) {
         // แสดงสถานะกำลังประมวลผลไฟล์
         setIsProcessingFiles(true);
         
-        // สร้าง Promise สำหรับอ่านไฟล์ทั้งหมด
-        const fileReadPromises = selectedFiles.map(file => {
+        // สร้าง Promise สำหรับอ่านไฟล์ภาพทั้งหมด
+        const imageReadPromises = selectedImageFiles.map(file => {
+          return new Promise<MessageFile>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              resolve({
+                name: file.name,
+                size: file.size,
+                mediaType: file.type,
+                data: (reader.result as string).split(',')[1] || '',
+              });
+            };
+            reader.readAsDataURL(file);
+          });
+        });
+        
+        // สร้าง Promise สำหรับอ่านไฟล์เอกสารทั้งหมด
+        const docReadPromises = selectedDocFiles.map(file => {
           return new Promise<MessageFile>((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -67,12 +104,15 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         });
         
         // อ่านข้อมูลไฟล์ทั้งหมดและส่งข้อความ
-        Promise.all(fileReadPromises)
+        Promise.all([...imageReadPromises, ...docReadPromises])
           .then(newFileData => {
+            // รวมไฟล์เก่าและไฟล์ใหม่ทั้งหมด
+            const allFiles = [...existingImageFiles, ...existingDocFiles, ...newFileData];
+            
             const editedMessage = {
               ...message,
               content: editedContent,
-              files: message.role === 'user' ? [...existingFiles, ...newFileData] : message.files
+              files: message.role === 'user' ? allFiles : message.files
             };
             onEditClick(editedMessage);
             setIsEditing(false);
@@ -90,7 +130,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       const editedMessage = { 
         ...message, 
         content: editedContent,
-        files: message.role === 'user' ? existingFiles : message.files
+        files: message.role === 'user' ? [...existingImageFiles, ...existingDocFiles] : message.files
       };
       onEditClick(editedMessage);
       setIsEditing(false);
@@ -99,8 +139,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setSelectedFiles([]);
-    setExistingFiles(message.files || []);
+    setSelectedImageFiles([]);
+    setSelectedDocFiles([]);
+    setExistingImageFiles([]);
+    setExistingDocFiles([]);
   };
 
   const handleCopyToClipboard = () => {
@@ -119,16 +161,36 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     const files = e.target.files;
     if (!files || files.length === 0) return;
     
-    const newFiles = Array.from(files);
-    setSelectedFiles(prev => [...prev, ...newFiles]);
+    // แยกไฟล์ตามประเภท
+    const newImageFiles: File[] = [];
+    const newDocFiles: File[] = [];
+    
+    Array.from(files).forEach(file => {
+      if (file.type.startsWith('image/')) {
+        newImageFiles.push(file);
+      } else {
+        newDocFiles.push(file);
+      }
+    });
+    
+    setSelectedImageFiles(prev => [...prev, ...newImageFiles]);
+    setSelectedDocFiles(prev => [...prev, ...newDocFiles]);
   };
 
-  const handleRemoveSelectedFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveSelectedImage = (index: number) => {
+    setSelectedImageFiles(prev => prev.filter((_, i) => i !== index));
   };
   
-  const handleRemoveExistingFile = (index: number) => {
-    setExistingFiles(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveSelectedDoc = (index: number) => {
+    setSelectedDocFiles(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  const handleRemoveExistingImage = (index: number) => {
+    setExistingImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveExistingDoc = (index: number) => {
+    setExistingDocFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   // แยก Canvas สำหรับ User และ Assistant
@@ -162,27 +224,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               placeholder="แก้ไขข้อความของคุณ..."
             />
           </div>
-          
-          {/* ส่วนจัดการไฟล์ที่มีอยู่แล้ว */}
-          {existingFiles && existingFiles.length > 0 && (
-            <div className="px-4 pb-2">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ไฟล์แนบปัจจุบัน:</h4>
-              <div className="flex flex-wrap gap-2">
-                {existingFiles.map((file, index) => (
-                  <div key={`existing-${index}`} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">
-                    <span className="text-xs truncate max-w-[150px]">{file.name}</span>
-                    <button 
-                      onClick={() => handleRemoveExistingFile(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <MdDeleteOutline className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
+
           {/* ส่วนอัพโหลดไฟล์ใหม่ */}
           <div className="px-4 pb-2">
             <input
@@ -190,36 +232,105 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               ref={fileInputRef}
               onChange={handleFileSelect}
               className="hidden"
+              accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
               multiple
             />
             
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
             >
-              <MdUpload className="h-4 w-4" />
-              เพิ่มไฟล์แนบ
+              <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+              <span className="text-xs text-gray-700 dark:text-gray-300">แนบไฟล์</span>
             </button>
-            
-            {selectedFiles.length > 0 && (
-              <div className="mt-2">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ไฟล์ที่เลือกใหม่:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedFiles.map((file, index) => (
-                    <div key={`selected-${index}`} className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md">
-                      <span className="text-xs truncate max-w-[150px]">{file.name}</span>
-                      <button 
-                        onClick={() => handleRemoveSelectedFile(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <MdDeleteOutline className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
+          
+          {/* แสดงไฟล์ที่เลือกและไฟล์เดิม */}
+          {(selectedImageFiles.length > 0 || selectedDocFiles.length > 0 || existingImageFiles.length > 0 || existingDocFiles.length > 0) && (
+            <div className="flex flex-wrap gap-2 px-4 pb-2 mt-2">
+              <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
+                ไฟล์แนบ ({selectedImageFiles.length + selectedDocFiles.length + existingImageFiles.length + existingDocFiles.length})
+              </div>
+              
+              {/* ไฟล์ภาพเดิม */}
+              {existingImageFiles.map((image, index) => (
+                <div key={`existing-img-${index}`} className="relative">
+                  <img
+                    src={`data:${image.mediaType};base64,${image.data}`}
+                    alt={`Image ${index + 1}`}
+                    className="w-16 h-16 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveExistingImage(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    <RiCloseLine />
+                  </button>
+                </div>
+              ))}
+              
+              {/* ไฟล์เอกสารเดิม */}
+              {existingDocFiles.map((file, index) => (
+                <div key={`existing-doc-${index}`} className="relative">
+                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <FileIcon fileName={file.name} />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
+                    <div className="px-1 py-0.5 text-white text-[8px] truncate">
+                      {file.name}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveExistingDoc(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    <RiCloseLine />
+                  </button>
+                </div>
+              ))}
+              
+              {/* ไฟล์ภาพใหม่ */}
+              {selectedImageFiles.map((image, index) => (
+                <div key={`new-img-${index}`} className="relative">
+                  <img
+                    src={URL.createObjectURL(image)}
+                    alt={`Image ${index + 1}`}
+                    className="w-16 h-16 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSelectedImage(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    <RiCloseLine />
+                  </button>
+                </div>
+              ))}
+              
+              {/* ไฟล์เอกสารใหม่ */}
+              {selectedDocFiles.map((file, index) => (
+                <div key={`new-doc-${index}`} className="relative">
+                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <FileIcon fileName={file.name} />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
+                    <div className="px-1 py-0.5 text-white text-[8px] truncate">
+                      {file.name}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSelectedDoc(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    <RiCloseLine />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           
           <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
             <button
@@ -305,6 +416,43 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     );
   };
 
+  // ปรับปรุงการแสดงไฟล์แนบในข้อความ
+  const renderAttachedFiles = () => {
+    if (!message.files || message.files.length === 0) return null;
+    
+    const imageFiles = message.files.filter(file => file.mediaType.startsWith('image/'));
+    const docFiles = message.files.filter(file => !file.mediaType.startsWith('image/'));
+    
+    return (
+      <div className="flex flex-wrap gap-2 mt-1">
+        {/* แสดงรูปภาพ */}
+        {imageFiles.map((file, index) => (
+          <div key={`img-${index}`} className="relative">
+            <img
+              src={`data:${file.mediaType};base64,${file.data}`}
+              alt={file.name}
+              className="w-16 h-16 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
+            />
+          </div>
+        ))}
+        
+        {/* แสดงไฟล์เอกสาร */}
+        {docFiles.map((file, index) => (
+          <div key={`doc-${index}`} className="relative">
+            <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+              <FileIcon fileName={file.name} />
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
+              <div className="px-1 py-0.5 text-white text-[8px] truncate">
+                {file.name}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="message relative">
       {isEditing && renderEditCanvas()}
@@ -349,22 +497,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           </div>
           
           {/* แสดงไฟล์แนบ */}
-          {message.files && message.files.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-1">
-              {message.files.map((file, index) => (
-                <div
-                  key={index}
-                  className={`text-xs px-2 py-1 rounded-md flex items-center gap-1 ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white'
-                  }`}
-                >
-                  <span className="truncate max-w-[100px]">{file.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {renderAttachedFiles()}
         </div>
       </div>
 
