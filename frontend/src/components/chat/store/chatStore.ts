@@ -709,7 +709,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   handleEditMessage: (message) => {
     const { messages, wsRef, currentChatId } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
-    const { setInputMessage, setIsLoading } = useUIStore.getState();
+    const { setIsLoading } = useUIStore.getState();
     
     // หากเป็นการแก้ไขข้อความของผู้ใช้และส่งออกไป
     if (message.role === 'user') {
