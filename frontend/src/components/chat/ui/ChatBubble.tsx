@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
 import { MdEdit, MdRefresh, MdClose, MdContentCopy, MdUpload, MdDeleteOutline } from "react-icons/md";
+import { FaSpinner } from "react-icons/fa";
 import { Message, MessageFile } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
@@ -35,6 +36,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [existingFiles, setExistingFiles] = useState<MessageFile[]>(message.files || []);
+  const [isProcessingFiles, setIsProcessingFiles] = useState(false);
 
   const handleStartEdit = () => {
     setEditedContent(message.content);
@@ -43,10 +45,68 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   const handleSaveEdit = () => {
     if (onEditClick && editedContent.trim() !== '') {
+      // แปลงไฟล์ที่เพิ่งอัพโหลดเป็นรูปแบบ MessageFile
+      const newFiles: MessageFile[] = selectedFiles.map(file => {
+        // สร้าง Base64 จากไฟล์ที่อัพโหลด
+        const reader = new FileReader();
+        
+        return {
+          name: file.name,
+          size: file.size,
+          mediaType: file.type,
+          data: '', // จะถูกเติมข้อมูลเมื่อ FileReader อ่านเสร็จ
+        };
+      });
+      
+      // รวมไฟล์ที่มีอยู่กับไฟล์ใหม่
+      const allFiles = [...existingFiles];
+      
+      // ตรวจสอบว่าต้องเพิ่มไฟล์ใหม่หรือไม่
+      if (message.role === 'user' && selectedFiles.length > 0) {
+        // แสดงสถานะกำลังประมวลผลไฟล์
+        setIsProcessingFiles(true);
+        
+        // สร้าง Promise สำหรับอ่านไฟล์ทั้งหมด
+        const fileReadPromises = selectedFiles.map(file => {
+          return new Promise<MessageFile>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              resolve({
+                name: file.name,
+                size: file.size,
+                mediaType: file.type,
+                data: (reader.result as string).split(',')[1] || '',
+              });
+            };
+            reader.readAsDataURL(file);
+          });
+        });
+        
+        // อ่านข้อมูลไฟล์ทั้งหมดและส่งข้อความ
+        Promise.all(fileReadPromises)
+          .then(newFileData => {
+            const editedMessage = {
+              ...message,
+              content: editedContent,
+              files: message.role === 'user' ? [...existingFiles, ...newFileData] : message.files
+            };
+            onEditClick(editedMessage);
+            setIsEditing(false);
+            setIsProcessingFiles(false);
+          })
+          .catch(error => {
+            console.error('เกิดข้อผิดพลาดในการอ่านไฟล์:', error);
+            setIsProcessingFiles(false);
+          });
+        
+        return; // ออกจากฟังก์ชันเพื่อรอให้ Promise ทำงานเสร็จ
+      }
+      
+      // กรณีไม่มีไฟล์ใหม่ หรือไม่ใช่ข้อความของ user
       const editedMessage = { 
         ...message, 
         content: editedContent,
-        files: message.role === 'user' ? existingFiles : message.files // เฉพาะ user สามารถแก้ไขไฟล์ได้
+        files: message.role === 'user' ? existingFiles : message.files
       };
       onEditClick(editedMessage);
       setIsEditing(false);
@@ -181,14 +241,23 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             <button
               onClick={handleCancelEdit}
               className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+              disabled={isProcessingFiles}
             >
               ยกเลิก
             </button>
             <button
               onClick={handleSaveEdit}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 flex items-center gap-2"
+              disabled={isProcessingFiles}
             >
-              บันทึกและส่งใหม่
+              {isProcessingFiles ? (
+                <>
+                  <FaSpinner className="animate-spin h-4 w-4" />
+                  <span>กำลังประมวลผล...</span>
+                </>
+              ) : (
+                <span>บันทึกและส่งใหม่</span>
+              )}
             </button>
           </div>
         </div>

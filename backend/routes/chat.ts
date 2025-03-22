@@ -228,6 +228,16 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.files && lastMessage.files.length > 0) {
           console.log(`User ${userId} sent ${lastMessage.files.length} files with their message`);
+          
+          // ตรวจสอบข้อมูลของไฟล์
+          lastMessage.files.forEach((file: any, index: number) => {
+            console.log(`File ${index + 1}:`, {
+              name: file.name,
+              type: file.mediaType,
+              size: file.size,
+              hasData: !!file.data
+            });
+          });
         }
         
         if (!chatId) {
@@ -955,6 +965,17 @@ router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin
     // เพิ่มไฟล์แนบถ้ามี
     if (message.files && Array.isArray(message.files) && message.files.length > 0) {
       console.log(`Adding ${message.files.length} files to the message`);
+      
+      // แสดงข้อมูลไฟล์
+      message.files.forEach((file: any, index: number) => {
+        console.log(`File ${index + 1} details:`, {
+          name: file.name,
+          mediaType: file.mediaType,
+          size: file.size,
+          dataLength: file.data ? file.data.length : 0
+        });
+      });
+      
       (newMessage as any).files = message.files;
     }
 

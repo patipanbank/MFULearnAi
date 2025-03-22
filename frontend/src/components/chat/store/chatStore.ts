@@ -812,8 +812,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
           $date: new Date().toISOString()
         },
         isImageGeneration: false,
-        files: message.files // ใช้ไฟล์ที่ได้รับจากการแก้ไข
+        files: message.files // ใช้ไฟล์ที่ได้รับจากการแก้ไข (รวมไฟล์เดิมและไฟล์ใหม่)
       };
+      
+      // ตรวจสอบและแสดงข้อมูลไฟล์ที่จะส่ง
+      if (message.files && message.files.length > 0) {
+        console.log(`กำลังส่งข้อความพร้อมไฟล์ ${message.files.length} ไฟล์`);
+      }
       
       // สร้างข้อความใหม่ของ assistant สำหรับการตอบกลับ
       const newAssistantMessage: Message = {
@@ -847,15 +852,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
         
         // ส่งข้อความใหม่สำหรับการตอบกลับ
-        wsRef.send(JSON.stringify({
+        const payload = {
           messages: [newUserMessage],
           modelId: selectedModel,
           isImageGeneration: false,
           path: window.location.pathname,
           chatId: currentChatId,
           type: 'message',
-          files: message.files // ส่งไฟล์ไปด้วย
-        }));
+          files: newUserMessage.files // ส่งไฟล์ไปด้วย
+        };
+        
+        // ตรวจสอบไฟล์แนบก่อนส่ง
+        if (newUserMessage.files && newUserMessage.files.length > 0) {
+          console.log('ไฟล์แนบที่จะส่ง:', newUserMessage.files.map(file => ({
+            name: file.name,
+            size: file.size,
+            type: file.mediaType,
+            dataPreview: file.data ? file.data.substring(0, 50) + '...' : 'ไม่มีข้อมูล'
+          })));
+        }
+        
+        console.log('ส่งข้อความที่แก้ไขพร้อมไฟล์:', {
+          messageContent: newUserMessage.content.substring(0, 50) + '...',
+          filesCount: newUserMessage.files?.length || 0
+        });
+        
+        wsRef.send(JSON.stringify(payload));
         
         // อัพเดทการใช้งาน
         fetchUsage();
@@ -877,6 +899,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
             body: JSON.stringify({
               message: newUserMessage
             })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`การบันทึกข้อความล้มเหลว: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('บันทึกข้อความพร้อมไฟล์แนบสำเร็จ:', { 
+              success: data.success,
+              filesCount: newUserMessage.files?.length || 0 
+            });
           })
           .catch(error => {
             console.error('เกิดข้อผิดพลาดในการบันทึกข้อความใหม่:', error);
