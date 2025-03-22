@@ -418,26 +418,26 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   // ปรับปรุงการแสดงไฟล์แนบในข้อความ
   const renderAttachedFiles = () => {
-    if (!message.files || message.files.length === 0) return null;
+    const hasImages = message.images && message.images.length > 0;
+    const hasFiles = message.files && message.files.length > 0;
     
-    const imageFiles = message.files.filter(file => file.mediaType.startsWith('image/'));
-    const docFiles = message.files.filter(file => !file.mediaType.startsWith('image/'));
+    if (!hasImages && !hasFiles) return null;
     
     return (
       <div className="flex flex-wrap gap-2 mt-2">
-        {/* แสดงรูปภาพ */}
-        {imageFiles.map((file, index) => (
+        {/* แสดงรูปภาพจากฟิลด์ images โดยเฉพาะ */}
+        {hasImages && message.images!.map((image, index) => (
           <div key={`img-${index}`} className="relative">
             <img
-              src={`data:${file.mediaType};base64,${file.data}`}
-              alt={file.name}
+              src={`data:${image.mediaType};base64,${image.data}`}
+              alt={`รูปภาพ ${index + 1}`}
               className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
             />
           </div>
         ))}
         
-        {/* แสดงไฟล์เอกสาร */}
-        {docFiles.map((file, index) => (
+        {/* แสดงไฟล์เอกสารจากฟิลด์ files */}
+        {hasFiles && message.files!.map((file, index) => (
           <div key={`doc-${index}`} className="relative">
             <div className="w-24 h-24 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
               <FileIcon fileName={file.name} />
