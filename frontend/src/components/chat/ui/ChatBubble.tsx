@@ -8,6 +8,7 @@ import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
 import { formatMessageTime } from '../utils/formatters';
 import FileIcon from './FileIcon';
+import { useChatInputStore } from '../store/chatInputStore';
 
 interface ChatBubbleProps {
   message: Message;
@@ -32,137 +33,22 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   messageIndex = 0,
   isLastAssistantMessage = false
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState('');
   const [isCopied, setIsCopied] = useState(false);
-  const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([]);
-  const [selectedDocFiles, setSelectedDocFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [existingImageFiles, setExistingImageFiles] = useState<MessageFile[]>([]);
-  const [existingDocFiles, setExistingDocFiles] = useState<MessageFile[]>([]);
-  const [isProcessingFiles, setIsProcessingFiles] = useState(false);
 
-  const handleStartEdit = () => {
-    setIsEditing(true);
-    setEditedContent(message.content);
-    
-    // แยกการจัดเก็บไฟล์ภาพและเอกสารเดิม
-    if (message.images && message.images.length > 0) {
-      // แปลงโครงสร้างไฟล์ภาพให้เข้ากับรูปแบบที่ใช้ในการแก้ไข
-      const imageFiles = message.images.map((image, index) => ({
-        name: `รูปภาพ ${index + 1}`,
-        data: image.data,
-        mediaType: image.mediaType,
-        size: 0
-      }));
-      setExistingImageFiles(imageFiles);
-    } else {
-      setExistingImageFiles([]);
-    }
-    
-    if (message.files && message.files.length > 0) {
-      setExistingDocFiles(message.files);
-    } else {
-      setExistingDocFiles([]);
-    }
-  };
-
-  const handleSaveEdit = () => {
-    if (!editedContent && !selectedImageFiles.length && !selectedDocFiles.length) {
-      // ถ้าไม่มีข้อความหรือไฟล์ที่จะบันทึก ให้ยกเลิกการแก้ไข
-      setIsEditing(false);
-      return;
-    }
-    
-    // เริ่มประมวลผลไฟล์
-    setIsProcessingFiles(true);
-
-    // อัปโหลดไฟล์ภาพใหม่
-    const imageReadPromises: Promise<{ name: string; data: string; mediaType: string; size: number }>[] = selectedImageFiles.map(file => {
-      return new Promise<{ name: string; data: string; mediaType: string; size: number }>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          if (e.target && e.target.result) {
-            const base64 = e.target.result.toString().split(',')[1];
-            resolve({
-              name: file.name,
-              data: base64,
-              mediaType: file.type,
-              size: file.size
-            });
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    });
-
-    // อัปโหลดไฟล์เอกสารใหม่
-    const docReadPromises: Promise<{ name: string; data: string; mediaType: string; size: number }>[] = selectedDocFiles.map(file => {
-      return new Promise<{ name: string; data: string; mediaType: string; size: number }>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          if (e.target && e.target.result) {
-            const base64 = e.target.result.toString().split(',')[1];
-            resolve({
-              name: file.name,
-              data: base64,
-              mediaType: file.type,
-              size: file.size
-            });
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    });
-
-    // รอให้อัปโหลดไฟล์ทั้งหมดเสร็จแล้วบันทึก
-    Promise.all([
-      Promise.all(imageReadPromises), 
-      Promise.all(docReadPromises)
-    ])
-      .then(([newImageFiles, newDocFiles]) => {
-        // แยกรูปภาพตาม schema
-        const allImages = existingImageFiles.map(file => ({
-          data: file.data,
-          mediaType: file.mediaType
-        })).concat(newImageFiles.map(file => ({
-          data: file.data,
-          mediaType: file.mediaType
-        })));
-        
-        // ไฟล์เอกสาร
-        const allFiles = existingDocFiles.concat(newDocFiles);
-        
-        const editedMessage = {
-          ...message,
-          content: editedContent,
-          // แยกไฟล์ภาพและเอกสารตาม schema
-          images: message.role === 'user' ? allImages : message.images,
-          files: message.role === 'user' ? allFiles : message.files
-        };
-        
-        if (onEditClick) {
-          onEditClick(editedMessage);
-        }
-        setIsEditing(false);
-        setEditedContent('');
-        setSelectedImageFiles([]);
-        setSelectedDocFiles([]);
-        setIsProcessingFiles(false);
-      })
-      .catch(() => {
-        // กรณีเกิดข้อผิดพลาด
-        setIsProcessingFiles(false);
-      });
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setSelectedImageFiles([]);
-    setSelectedDocFiles([]);
-    setExistingImageFiles([]);
-    setExistingDocFiles([]);
-  };
+  // ใช้ state จาก chatInputStore
+  const {
+    isEditing, setIsEditing,
+    selectedImageFiles, selectedDocFiles,
+    existingImageFiles, existingDocFiles,
+    isProcessingFiles,
+    inputMessage, setInputMessage,
+    handleFileSelect,
+    handleRemoveSelectedImage, handleRemoveSelectedDoc,
+    handleRemoveExistingImage, handleRemoveExistingDoc,
+    handleSaveEdit, handleCancelEdit,
+    handleStartEdit
+  } = useChatInputStore();
 
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(message.content);
@@ -176,40 +62,12 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    // แยกไฟล์ตามประเภท
-    const newImageFiles: File[] = [];
-    const newDocFiles: File[] = [];
-    
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        newImageFiles.push(file);
-      } else {
-        newDocFiles.push(file);
-      }
-    });
-    
-    setSelectedImageFiles(prev => [...prev, ...newImageFiles]);
-    setSelectedDocFiles(prev => [...prev, ...newDocFiles]);
+  const onStartEdit = () => {
+    handleStartEdit(message);
   };
 
-  const handleRemoveSelectedImage = (index: number) => {
-    setSelectedImageFiles(prev => prev.filter((_, i) => i !== index));
-  };
-  
-  const handleRemoveSelectedDoc = (index: number) => {
-    setSelectedDocFiles(prev => prev.filter((_, i) => i !== index));
-  };
-  
-  const handleRemoveExistingImage = (index: number) => {
-    setExistingImageFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleRemoveExistingDoc = (index: number) => {
-    setExistingDocFiles(prev => prev.filter((_, i) => i !== index));
+  const onSaveEdit = () => {
+    handleSaveEdit(message, onEditClick);
   };
 
   // แยก Canvas สำหรับ User และ Assistant
@@ -237,8 +95,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           
           <div className="p-4 flex-grow overflow-auto">
             <textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
               className="w-full h-full min-h-[200px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
               placeholder="แก้ไขข้อความของคุณ..."
             />
@@ -355,23 +213,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             <button
               onClick={handleCancelEdit}
               className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-              disabled={isProcessingFiles}
             >
               ยกเลิก
             </button>
             <button
-              onClick={handleSaveEdit}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 flex items-center gap-2"
-              disabled={isProcessingFiles}
+              onClick={onSaveEdit}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
-              {isProcessingFiles ? (
-                <>
-                  <FaSpinner className="animate-spin h-4 w-4" />
-                  <span>กำลังประมวลผล...</span>
-                </>
-              ) : (
-                <span>บันทึกและส่งใหม่</span>
-              )}
+              บันทึกและส่งใหม่
             </button>
           </div>
         </div>
@@ -395,8 +244,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           
           <div className="p-4 flex-grow overflow-auto">
             <textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
               className="w-full h-full min-h-[300px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
               placeholder="แก้ไขข้อความของแชทบอท..."
             />
@@ -424,50 +273,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               ยกเลิก
             </button>
             <button
-              onClick={handleSaveEdit}
+              onClick={onSaveEdit}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
               บันทึกการแก้ไข
             </button>
           </div>
         </div>
-      </div>
-    );
-  };
-
-  // ปรับปรุงการแสดงไฟล์แนบในข้อความ
-  const renderAttachedFiles = () => {
-    const hasImages = message.images && message.images.length > 0;
-    const hasFiles = message.files && message.files.length > 0;
-    
-    if (!hasImages && !hasFiles) return null;
-    
-    return (
-      <div className="flex flex-wrap gap-2 mt-2">
-        {/* แสดงรูปภาพจากฟิลด์ images โดยเฉพาะ */}
-        {hasImages && message.images!.map((image, index) => (
-          <div key={`img-${index}`} className="relative">
-            <img
-              src={`data:${image.mediaType};base64,${image.data}`}
-              alt={`รูปภาพ ${index + 1}`}
-              className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
-            />
-          </div>
-        ))}
-        
-        {/* แสดงไฟล์เอกสารจากฟิลด์ files */}
-        {hasFiles && message.files!.map((file, index) => (
-          <div key={`doc-${index}`} className="relative">
-            <div className="w-24 h-24 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-              <FileIcon fileName={file.name} />
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
-              <div className="px-1 py-0.5 text-white text-xs truncate">
-                {file.name}
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
     );
   };
@@ -511,10 +323,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             {message.role === 'assistant' && message.content === '' && isLoading ? (
               <LoadingDots />
             ) : (
-              <div className="flex flex-col">
-                <MessageContent message={message} />
-                {renderAttachedFiles()}
-              </div>
+              <MessageContent message={message} />
             )}
           </div>
         </div>
@@ -594,7 +403,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           {/* Edit button */}
           <button
             type="button"
-            onClick={handleStartEdit}
+            onClick={onStartEdit}
             className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
             title="แก้ไขข้อความ"
           >
@@ -620,7 +429,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           {onEditClick && (
             <button
               type="button"
-              onClick={() => handleStartEdit()}
+              onClick={onStartEdit}
               className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
               title="แก้ไขข้อความ"
             >
