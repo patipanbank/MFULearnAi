@@ -13,10 +13,6 @@ import multer from 'multer';
 import { fileParserService } from '../services/fileParser';
 import { titanImageEmbedService } from '../services/titanImageEmbed';
 import { titanEmbedService } from '../services/titan';
-import { Server as HttpServer } from 'http';
-import { randomUUID } from 'crypto';
-import { SystemPrompt } from '../models/SystemPrompt';
-import cors from 'cors';
 
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
@@ -230,25 +226,13 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       let savedChat;
       let currentChatId: string;
       try {
-        // Check if any files were sent with the message
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.files && lastMessage.files.length > 0) {
-          console.log(`User ${userId} sent ${lastMessage.files.length} files with their message`);
-          
-          // ตรวจสอบข้อมูลของไฟล์
-          lastMessage.files.forEach((file: any, index: number) => {
-            console.log(`File ${index + 1}:`, {
-              name: file.name,
-              type: file.mediaType,
-              size: file.size,
-              hasData: !!file.data
-            });
-          });
-        }
-        
+        // บันทึกแชทก่อนที่จะประมวลผลไฟล์และสร้างคำตอบจาก AI
         if (!chatId) {
           savedChat = await chatService.saveChat(extWs.userId!, modelId, messages);
           currentChatId = savedChat._id.toString();
+          
+          // อัพเดท extWs.chatId เพื่อให้ส่วนอื่นๆ ใช้ได้ด้วย
+          extWs.chatId = currentChatId;
           
           // Send chatId immediately after creation
           if (extWs.readyState === WebSocket.OPEN) {
@@ -260,128 +244,21 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         } else {
           savedChat = await chatService.updateChat(chatId, extWs.userId!, messages);
           currentChatId = chatId;
-        }
-
-        // Get query from last message
-        const query = isImageGeneration
-          ? messages[messages.length - 1].content
-          : messages.map(msg => msg.content).join('\n');
-
-        // Generate response and send chunks
-        let assistantResponse = '';
-        let isCancelled = false;
-        
-        // Setup a listener for cancel messages while we're generating
-        const cancelListener = (cancelMsg: string) => {
-          try {
-            const cancelData = JSON.parse(cancelMsg.toString());
-            if (cancelData.type === 'cancel' && cancelData.chatId === currentChatId) {
-              console.log(`Cancellation received during generation for chat ${currentChatId}`);
-              isCancelled = true;
-            }
-          } catch (error) {
-            console.error('Error parsing cancel message:', error);
-          }
-        };
-        
-        // Add temporary listener for this generation
-        extWs.on('message', cancelListener);
-        
-        // Generate the response
-        try {
-          for await (const content of chatService.generateResponse(messages, query, modelId, extWs.userId!)) {
-            // Check if the generation has been cancelled
-            if (isCancelled) {
-              console.log(`Breaking out of generation loop due to cancellation for chat ${currentChatId}`);
-              break;
-            }
-            
-            assistantResponse += content;
-            if (extWs.readyState === WebSocket.OPEN) {
-              extWs.send(JSON.stringify({ 
-                type: 'content',
-                content
-              }));
-            } else {
-              break;
-            }
-          }
-        } finally {
-          // Always remove the listener when done
-          extWs.removeListener('message', cancelListener);
-        }
-
-        // If generation was cancelled, we don't need to send completion
-        if (isCancelled) {
-          console.log(`Generation was cancelled for chat ${currentChatId}, not sending completion`);
-          return;
-        }
-
-        // Send completion signal
-        if (extWs.readyState === WebSocket.OPEN) {
-          const allMessages = [...messages];
-          allMessages.push({
-            id: messages.length + 1,
-            role: 'assistant',
-            content: assistantResponse,
-            timestamp: new Date(),
-            sources: [],
-            isImageGeneration: isImageGeneration || false,
-            isComplete: true
-          });
-
-          // Update chat with final messages
-          try {
-            const finalChat = await chatService.updateChat(
-              currentChatId,
-              extWs.userId!,
-              allMessages
-            );
-
-            extWs.send(JSON.stringify({ 
-              type: 'complete',
-              chatId: currentChatId,
-              shouldUpdateList: true,
-              timestamp: new Date().toISOString()
-            }));
-
-            // Broadcast to other clients of same user
-            wss.clients.forEach((client: WebSocket) => {
-              const extClient = client as ExtendedWebSocket;
-              if (extClient.userId === extWs.userId && extClient !== extWs) {
-                extClient.send(JSON.stringify({
-                  type: 'chat_updated',
-                  shouldUpdateList: true,
-                  timestamp: new Date().toISOString()
-                }));
-              }
-            });
-          } catch (error) {
-            console.error('Error saving final chat:', error);
-            extWs.send(JSON.stringify({ 
-              type: 'error',
-              error: 'Failed to save chat history' 
-            }));
-          }
-        }
-      } catch (error) {
-        console.error(`Error generating response:`, error);
-        if (extWs.readyState === WebSocket.OPEN) {
-          extWs.send(JSON.stringify({ 
-            type: 'error',
-            error: 'Error generating response' 
-          }));
-        }
-      }
-
-      // ตรวจสอบการส่งไฟล์หรือรูปภาพ
-      if (data.type === 'chat') {
-        const { messages, modelId, chatId } = data;
-        
-        if (messages && Array.isArray(messages)) {
-          // Get the last message (the one that might contain files/images)
-          const lastMessage = messages[messages.length - 1];
           
+          // ตรวจสอบว่า extWs.chatId มีค่าหรือไม่
+          if (!extWs.chatId) {
+            extWs.chatId = currentChatId;
+          }
+        }
+        
+        // ประมวลผลไฟล์และรูปภาพก่อนที่จะสร้างคำตอบจาก AI
+        console.log(`Processing attachments before generating AI response`);
+        const lastMessage = messages[messages.length - 1];
+        
+        // ตรวจสอบมีรูปภาพหรือไฟล์หรือไม่
+        if ((lastMessage.images && lastMessage.images.length > 0) || 
+            (lastMessage.files && lastMessage.files.length > 0)) {
+            
           try {
             // Process attached images if any
             if (lastMessage.images && lastMessage.images.length > 0) {
@@ -490,28 +367,27 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
                     
                     // Batch process the embeddings (สร้าง embeddings ทีละแบทช์)
                     const BATCH_SIZE = 5; // จำนวน chunks ในหนึ่งแบทช์
-                    const embeddings = [];
+                    const chunkEmbeddings: number[][] = [];
                     
                     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
                       const batchChunks = chunks.slice(i, i + BATCH_SIZE);
                       console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(chunks.length/BATCH_SIZE)}`);
                       
                       // ประมวลผล embeddings แบบขนาน
-                      const batchEmbeddings = await Promise.all(
+                      const batchEmbeddings: number[][] = await Promise.all(
                         batchChunks.map(chunk => titanEmbedService.embedText(chunk.substring(0, 5000)))
                       );
                       
-                      embeddings.push(...batchEmbeddings);
+                      chunkEmbeddings.push(...batchEmbeddings);
                     }
                     
+                    // สร้างรูปแบบข้อมูลให้ตรงกับ Schema ใน MongoDB
                     return {
-                      index,
                       name: file.name,
-                      extractedText: extractedText.substring(0, 1000) + (extractedText.length > 1000 ? '...' : ''),
-                      chunks: chunks.length, 
-                      hasEmbeddings: embeddings.length > 0,
-                      embeddings: embeddings,
-                      chunkTexts: chunks.map(chunk => chunk.substring(0, 500) + (chunk.length > 500 ? '...' : ''))
+                      chunks: chunkEmbeddings.map((embedding, i) => ({
+                        text: chunks[i],
+                        embedding: embedding || []
+                      }))
                     };
                   } catch (fileError) {
                     console.error(`Error processing file ${index + 1}:`, fileError);
@@ -525,17 +401,167 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
               );
               
               // Attach processed file data to the message
-              lastMessage.processedFiles = processedFiles.filter(f => !f.error);
+              lastMessage.processedFiles = processedFiles.filter(f => !f.error && f.chunks);
               console.log(`Successfully processed ${lastMessage.processedFiles.length} out of ${filesToProcess.length} files`);
+              console.log(`ProcessedFiles data structure:`, JSON.stringify(lastMessage.processedFiles[0], null, 2));
               
               if (lastMessage.files.length > MAX_FILES_TO_PROCESS) {
                 console.log(`Note: Only processed ${MAX_FILES_TO_PROCESS} out of ${lastMessage.files.length} files`);
               }
+              
+              // อัพเดทข้อความที่มีข้อมูล processedFiles กลับไปยังฐานข้อมูล
+              if (chatId || savedChat) {
+                const chatIdToUse = chatId || currentChatId;
+                console.log(`Updating chat ${chatIdToUse} with processedFiles before AI response`);
+                
+                try {
+                  await chatService.updateChat(chatIdToUse!, extWs.userId!, messages);
+                  console.log(`Successfully updated message with processedFiles before AI response`);
+                } catch (updateError) {
+                  console.error(`Error updating chat with processedFiles:`, updateError);
+                }
+              }
             }
           } catch (attachmentError) {
-            console.error("Error processing attachments:", attachmentError);
+            console.error("Error processing attachments before AI response:", attachmentError);
             // Continue with the message even if attachment processing fails
           }
+        }
+        
+        // Get query from last message และเพิ่มข้อมูลจาก processedFiles
+        // ตรวจสอบว่ามี processedFiles หรือไม่
+        const lastUserMessage = messages[messages.length - 1];
+        
+        // ตรวจสอบและเตรียมข้อมูลเพิ่มเติมสำหรับ AI
+        let enhancedQuery = isImageGeneration 
+          ? lastUserMessage.content 
+          : messages.map(msg => msg.content).join('\n');
+        
+        // ถ้ามี processedFiles ในข้อความล่าสุด ให้ดึงข้อมูลออกมา
+        if (lastUserMessage.processedFiles && lastUserMessage.processedFiles.length > 0) {
+          console.log(`Using processedFiles for AI context. Found ${lastUserMessage.processedFiles.length} processed files`);
+          
+          // ใส่ข้อมูลจากไฟล์แนบเข้าไปในคำถาม
+          const enhancedContext = await chatService.extractContextFromAttachments(lastUserMessage, lastUserMessage.content);
+          
+          if (enhancedContext) {
+            console.log(`Enhanced context created from processedFiles, length: ${enhancedContext.length}`);
+            enhancedQuery = `${enhancedContext}\n\nUser question: ${lastUserMessage.content}`;
+          }
+        }
+        
+        console.log(`Generating AI response with${lastUserMessage.processedFiles?.length ? ' enhanced' : ' standard'} query`);
+
+        // Generate response and send chunks
+        let assistantResponse = '';
+        let isCancelled = false;
+        
+        // Setup a listener for cancel messages while we're generating
+        const cancelListener = (cancelMsg: string) => {
+          try {
+            const cancelData = JSON.parse(cancelMsg.toString());
+            if (cancelData.type === 'cancel' && cancelData.chatId === currentChatId) {
+              console.log(`Cancellation received during generation for chat ${currentChatId}`);
+              isCancelled = true;
+            }
+          } catch (error) {
+            console.error('Error parsing cancel message:', error);
+          }
+        };
+        
+        // Add temporary listener for this generation
+        extWs.on('message', cancelListener);
+        
+        // Generate the response
+        try {
+          for await (const content of chatService.generateResponse(messages, enhancedQuery, modelId, extWs.userId!)) {
+            // Check if the generation has been cancelled
+            if (isCancelled) {
+              console.log(`Breaking out of generation loop due to cancellation for chat ${currentChatId}`);
+              break;
+            }
+            
+            assistantResponse += content;
+            if (extWs.readyState === WebSocket.OPEN) {
+              extWs.send(JSON.stringify({ 
+                type: 'content',
+                content
+              }));
+            } else {
+              break;
+            }
+          }
+        } finally {
+          // Always remove the listener when done
+          extWs.removeListener('message', cancelListener);
+        }
+
+        // If generation was cancelled, we don't need to send completion
+        if (isCancelled) {
+          console.log(`Generation was cancelled for chat ${currentChatId}, not sending completion`);
+          return;
+        }
+
+        // Send completion signal
+        if (extWs.readyState === WebSocket.OPEN) {
+          // ค้นหาข้อความล่าสุดจาก user ที่อาจมี imageEmbeddings หรือ processedFiles
+          const allMessages = [...messages];
+          allMessages.push({
+            id: messages.length + 1,
+            role: 'assistant',
+            content: assistantResponse,
+            timestamp: new Date(),
+            sources: [],
+            // เพิ่มการคัดลอกข้อมูล embedding และ processedFiles จากข้อความล่าสุดของ user (ถ้ามี)
+            imageEmbeddings: lastUserMessage.imageEmbeddings || [],
+            processedFiles: Array.isArray(lastUserMessage.processedFiles) ? 
+              [...lastUserMessage.processedFiles] : 
+              lastUserMessage.processedFiles || [],
+            isImageGeneration: isImageGeneration || false,
+            isComplete: true
+          });
+
+          // Update chat with final messages
+          try {
+            const finalChat = await chatService.updateChat(
+              currentChatId,
+              extWs.userId!,
+              allMessages
+            );
+
+            extWs.send(JSON.stringify({ 
+              type: 'complete',
+              chatId: currentChatId,
+              shouldUpdateList: true,
+              timestamp: new Date().toISOString()
+            }));
+
+            // Broadcast to other clients of same user
+            wss.clients.forEach((client: WebSocket) => {
+              const extClient = client as ExtendedWebSocket;
+              if (extClient.userId === extWs.userId && extClient !== extWs) {
+                extClient.send(JSON.stringify({
+                  type: 'chat_updated',
+                  shouldUpdateList: true,
+                  timestamp: new Date().toISOString()
+                }));
+              }
+            });
+          } catch (error) {
+            console.error('Error saving final chat:', error);
+            extWs.send(JSON.stringify({ 
+              type: 'error',
+              error: 'Failed to save chat history' 
+            }));
+          }
+        }
+      } catch (error) {
+        console.error(`Error generating response:`, error);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ 
+            type: 'error',
+            error: 'Error generating response' 
+          }));
         }
       }
     } catch (error) {

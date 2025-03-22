@@ -406,38 +406,65 @@ class ChatService {
   }[]> {
     if (!files || files.length === 0) return [];
 
+    console.log(`Processing ${files.length} files for embedding`);
+    
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        if (!file.content) return null;
-        
-        // แบ่งเนื้อหาเอกสารเป็นชั้นๆ
-        const chunks = splitTextIntoChunks(file.content);
-        
-        // คำนวณ embeddings สำหรับทุกชั้น
-        const chunksWithEmbeddings = await Promise.all(
-          chunks.map(async (chunk) => {
-            try {
-              const embedding = await titanEmbedService.embedText(chunk);
-              return {
-                text: chunk,
-                embedding
-              };
-            } catch (error) {
-              console.error(`Error embedding chunk for file ${file.name}:`, error);
-              return null;
+        try {
+          // ถ้าไม่มี content ให้สร้าง content จากข้อมูลที่มี
+          let fileContent = file.content;
+          
+          if (!fileContent || fileContent.trim() === '') {
+            console.log(`File ${file.name} has no content, trying to create one`);
+            
+            // กรณีไม่มี content ให้ใช้ข้อมูลที่มีอยู่
+            if (file.mediaType.startsWith('image/')) {
+              // สำหรับรูปภาพให้ใช้ชื่อไฟล์เป็นคำอธิบาย
+              fileContent = `Image file: ${file.name}, Size: ${Math.round(file.size/1024)} KB`;
+            } else {
+              // สำหรับไฟล์เอกสารอื่นๆ
+              fileContent = `Document file: ${file.name}, Type: ${file.mediaType}, Size: ${Math.round(file.size/1024)} KB`;
             }
-          })
-        );
-        
-        // กรอง chunksWithEmbeddings ที่เป็น null ออกและระบุ type ให้ชัดเจน
-        const validChunks = chunksWithEmbeddings.filter((chunk): chunk is { text: string; embedding: number[] } => 
-          chunk !== null
-        );
-        
-        return {
-          name: file.name,
-          chunks: validChunks
-        };
+            
+            console.log(`Created placeholder content for ${file.name}`);
+          }
+          
+          // แบ่งเนื้อหาเอกสารเป็นชั้นๆ
+          const chunks = splitTextIntoChunks(fileContent);
+          console.log(`Split ${file.name} into ${chunks.length} chunks`);
+          
+          // คำนวณ embeddings สำหรับทุกชั้น
+          const chunksWithEmbeddings = await Promise.all(
+            chunks.map(async (chunk, index) => {
+              try {
+                console.log(`Embedding chunk ${index+1}/${chunks.length} for ${file.name}`);
+                const embedding = await titanEmbedService.embedText(chunk);
+                return {
+                  text: chunk,
+                  embedding
+                };
+              } catch (error) {
+                console.error(`Error embedding chunk ${index+1} for file ${file.name}:`, error);
+                return null;
+              }
+            })
+          );
+          
+          // กรอง chunksWithEmbeddings ที่เป็น null ออกและระบุ type ให้ชัดเจน
+          const validChunks = chunksWithEmbeddings.filter((chunk): chunk is { text: string; embedding: number[] } => 
+            chunk !== null
+          );
+          
+          console.log(`Successfully processed ${validChunks.length}/${chunks.length} chunks for ${file.name}`);
+          
+          return {
+            name: file.name,
+            chunks: validChunks
+          };
+        } catch (error) {
+          console.error(`Error processing file ${file.name}:`, error);
+          return null;
+        }
       })
     );
     
@@ -446,6 +473,8 @@ class ChatService {
       name: string; 
       chunks: { text: string; embedding: number[] }[] 
     } => file !== null);
+    
+    console.log(`Successfully processed ${result.length}/${files.length} files with embeddings`);
     
     return result;
   }
@@ -610,6 +639,7 @@ class ChatService {
           userId,
           modelId: typeof modelIdOrCollections === 'string' ? modelIdOrCollections : 'multiple',
           timestamp: new Date(),
+          date: new Date(),
           numMessages: totalMessages,
           questionType
         });
@@ -742,6 +772,8 @@ class ChatService {
         timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
         images: msg.images || [],
         sources: msg.sources || [],
+        imageEmbeddings: msg.imageEmbeddings || [],
+        processedFiles: msg.processedFiles || [],
         isImageGeneration: msg.isImageGeneration || false,
         isComplete: msg.isComplete || false
       }));
@@ -778,6 +810,8 @@ class ChatService {
               timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
               images: msg.images || [],
               sources: msg.sources || [],
+              imageEmbeddings: msg.imageEmbeddings || [],
+              processedFiles: msg.processedFiles || [],
               isImageGeneration: msg.isImageGeneration || false,
               isComplete: msg.isComplete || false
             }))
@@ -933,6 +967,16 @@ class ChatService {
                             lowerQuery.includes('search for');
     
     return hasTimeKeyword || hasFactKeyword || hasWebIndicator;
+  }
+
+  /**
+   * Public interface for processing attachment embeddings 
+   * @param message The message containing attachment embeddings
+   * @param query The user's query text
+   * @returns Additional context derived from attachments
+   */
+  public async extractContextFromAttachments(lastMessage: ChatMessage, query: string): Promise<string> {
+    return this.processAttachmentEmbeddings(lastMessage, query);
   }
 }
 

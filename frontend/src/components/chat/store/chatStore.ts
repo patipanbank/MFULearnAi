@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Message, ChatHistory, MessageFile } from '../utils/types';
-import { compressImage, prepareMessageFiles, processImagesForEmbeddings } from '../utils/fileProcessing';
+import { compressImage, prepareMessageFiles } from '../utils/fileProcessing';
 import { isValidObjectId } from '../utils/formatters';
 import { config } from '../../../config/config';
 import { useModelStore } from './modelStore';
@@ -324,122 +324,122 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   // Submit a new message
   handleSubmit: async (e) => {
+    e.preventDefault();
+    
+    const { inputMessage, setInputMessage, setIsLoading, isImageGenerationMode } = useUIStore.getState();
+    const { selectedModel } = useModelStore.getState();
+    
+    // ตรวจสอบว่าสามารถส่งข้อความได้หรือไม่
+    if (!get().canSubmit()) return;
+    
+    setIsLoading(true);
+
     try {
-      e.preventDefault();
+      const token = localStorage.getItem('auth_token');
+      const { wsRef, selectedImages, selectedFiles, messages, currentChatId } = get();
       
-      const { selectedModel } = useModelStore.getState();
-      const { messages, selectedImages, selectedFiles, currentChatId, wsRef, editingMessage } = get();
-      
-      const { isImageGenerationMode, setIsLoading, inputMessage } = useUIStore.getState();
-      
-      // ตรวจสอบว่ามีข้อความที่จะส่งหรือไม่ และเลือกโมเดลหรือยัง
-      if ((!inputMessage.trim() && !isImageGenerationMode) || !selectedModel) {
-        console.log('Cannot submit: empty message or no model selected');
-        return;
+      if (!token || !wsRef) {
+        throw new Error('ไม่ได้เข้าสู่ระบบหรือ WebSocket ไม่ได้เชื่อมต่อ');
       }
+
+      // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
+      window.dispatchEvent(new CustomEvent('chatScrollAction', {
+        detail: { 
+          action: 'enableAutoScroll',
+          forceScroll: true
+        }
+      }));
       
-      // ตรวจสอบการเชื่อมต่อ WebSocket
-      if (!wsRef || wsRef.readyState !== WebSocket.OPEN) {
-        console.error('WebSocket not connected or not ready');
-        set({ errorMessage: 'No WebSocket connection, please refresh the page' } as Partial<ChatState>);
-        return;
-      }
+      // เตรียมไฟล์ที่จะส่ง
+      const messageFiles = await prepareMessageFiles(selectedFiles);
       
-      // แสดงสถานะกำลังโหลด
-      setIsLoading(true);
-      
-      // แปลงรูปภาพและไฟล์
-      let images: { data: string; mediaType: string }[] = [];
-      let files: MessageFile[] = [];
-      
-      // จัดการรูปภาพ
+      // เตรียมรูปภาพที่จะส่ง
+      let messageImages: MessageFile[] = [];
       if (selectedImages.length > 0) {
-        images = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
+        messageImages = await Promise.all(selectedImages.map(async (image) => {
+          const compressed = await compressImage(image);
+          return {
+            name: image.name,
+            data: compressed.data,
+            mediaType: compressed.mediaType,
+            size: image.size
+          };
+        }));
       }
       
-      // จัดการไฟล์
-      if (selectedFiles.length > 0) {
-        files = await prepareMessageFiles(selectedFiles);
-      }
+      // สร้างข้อความใหม่ของผู้ใช้
+      const newMessage: Message = {
+        id: `temp-user-${Date.now()}`,
+        role: 'user',
+        content: inputMessage,
+        timestamp: { $date: new Date().toISOString() },
+        files: messageFiles.length > 0 ? messageFiles : undefined,
+        images: messageImages.length > 0 ? messageImages : undefined
+      };
+
+      // เพิ่มข้อความของผู้ใช้ลงในสถานะ
+      const updatedMessages = [...messages, newMessage];
+      get().setMessages(updatedMessages);
+
+      // เพิ่มพื้นที่สำหรับคำตอบของ AI
+      const assistantMessage: Message = {
+        id: `temp-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: '',
+        timestamp: { $date: new Date().toISOString() },
+        modelId: selectedModel,
+        images: [],
+        sources: [],
+        isImageGeneration: isImageGenerationMode,
+        isComplete: false
+      };
       
-      // ดึง embeddings ของรูปภาพ (ถ้ามี)
-      let imageEmbeddings = null;
-      if (images.length > 0) {
-        imageEmbeddings = await processImagesForEmbeddings(images);
-      }
+      get().setMessages([...updatedMessages, assistantMessage]);
+
+      // ส่งข้อความผ่าน WebSocket
+      const messagePayload = {
+        type: 'message',
+        messages: updatedMessages,
+        modelId: selectedModel,
+        isImageGeneration: isImageGenerationMode,
+        path: window.location.pathname,
+        chatId: currentChatId
+      };
+
+      wsRef.send(JSON.stringify(messagePayload));
+
+      // อัพเดทข้อมูลต่างๆ หลังส่งข้อความ
+      await useModelStore.getState().fetchUsage();
       
-      // Handle message edit mode
-      if (editingMessage) {
-        // จัดการข้อความที่กำลังแก้ไข
-        wsRef.send(JSON.stringify({
-          type: 'message_edited',
-          messageId: editingMessage.id,
-          content: inputMessage,
-          role: editingMessage.role,
-          images,
-          files,
-          existingImages: editingMessage.images,
-          existingFiles: editingMessage.files,
-          imageEmbeddings
-        }));
-        
-      } else {
-        // สร้างข้อความผู้ใช้ใหม่
-        const newUserMessage: Message = {
-          id: `temp-${Date.now()}`,
-          role: 'user',
-          content: inputMessage,
-          timestamp: { $date: new Date().toISOString() },
-          images: images.length > 0 ? images : undefined,
-          files: files.length > 0 ? files : undefined,
-          isImageGeneration: isImageGenerationMode
-        };
-        
-        // สร้างข้อความตอบกลับใหม่จาก AI
-        const newAssistantMessage: Message = {
-          id: `temp-assistant-${Date.now()}`,
-          role: 'assistant',
-          content: '',
-          timestamp: { $date: new Date().toISOString() },
-          isImageGeneration: isImageGenerationMode,
-          modelId: selectedModel,
-          isComplete: false
-        };
-        
-        // สร้างข้อความที่อัปเดตแล้ว (รวมข้อความของผู้ใช้ที่เพิ่มเข้ามาใหม่)
-        // หมายเหตุ: เราเพิ่มเฉพาะข้อความผู้ใช้เข้าไปใน updatedMessages เพื่อส่งไปยัง backend
-        // เนื่องจาก backend จะสร้างข้อความจาก AI เอง
-        const updatedMessages = [...messages, newUserMessage];
-        
-        // เพิ่มข้อความทั้งคู่ลงในสถานะ UI
-        set((state) => ({
-          messages: [...state.messages, newUserMessage, newAssistantMessage]
-        }));
-        
-        // ส่งข้อความไปยัง WebSocket
-        // ส่ง updatedMessages ที่สร้างขึ้นก่อนหน้านี้ไปด้วย
-        wsRef.send(JSON.stringify({
-          type: 'chat',
-          content: inputMessage,
-          chatId: currentChatId,
-          modelId: selectedModel,
-          images: images,
-          files: files,
-          isImageGeneration: isImageGenerationMode,
-          messages: updatedMessages, // ส่ง messages ทั้งหมดรวมข้อความใหม่
-          path: window.location.pathname, // เพิ่ม path เพื่อให้เหมือนโค้ดเดิม
-          imageEmbeddings: imageEmbeddings
-        }));
-        
-        // ล้างการเลือกภาพและไฟล์
-        set({ 
-          selectedImages: [],
-          selectedFiles: [],
-        });
+      // รีเซ็ตค่าต่างๆ หลังส่งข้อความ
+      setInputMessage('');
+      get().setSelectedImages([]);
+      get().setSelectedFiles([]);
+      
+      // ถ้าเป็นข้อความแรก ให้แจ้งเตือน UI ว่ากำลังรอ chatId
+      if (!currentChatId) {
+        useUIStore.getState().setAwaitingChatId(true);
       }
+
     } catch (error) {
-      console.error('Error sending message:', error);
-      set({ errorMessage: 'Error sending message. Please try again.' } as Partial<ChatState>);
+      console.error('เกิดข้อผิดพลาดในการส่งข้อความ:', error);
+      
+      // กรณีเกิดข้อผิดพลาด ให้แสดงข้อความแจ้งเตือน
+      get().setMessages(prev => [
+        ...prev.slice(0, -1), 
+        {
+          id: `error-${Date.now()}`,
+          role: 'assistant',
+          content: error instanceof Error ? 
+            `เกิดข้อผิดพลาด: ${error.message}` : 
+            'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ',
+          timestamp: { $date: new Date().toISOString() },
+          isComplete: true
+        }
+      ]);
+      
+    } finally {
+      setIsLoading(false);
     }
   },
   
