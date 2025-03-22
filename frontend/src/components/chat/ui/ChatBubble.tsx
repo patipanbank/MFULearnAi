@@ -424,14 +424,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     const docFiles = message.files.filter(file => !file.mediaType.startsWith('image/'));
     
     return (
-      <div className="flex flex-wrap gap-2 mt-1">
+      <div className="flex flex-wrap gap-2 mt-2">
         {/* แสดงรูปภาพ */}
         {imageFiles.map((file, index) => (
           <div key={`img-${index}`} className="relative">
             <img
               src={`data:${file.mediaType};base64,${file.data}`}
               alt={file.name}
-              className="w-16 h-16 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
+              className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
             />
           </div>
         ))}
@@ -439,11 +439,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         {/* แสดงไฟล์เอกสาร */}
         {docFiles.map((file, index) => (
           <div key={`doc-${index}`} className="relative">
-            <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="w-24 h-24 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
               <FileIcon fileName={file.name} />
             </div>
             <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
-              <div className="px-1 py-0.5 text-white text-[8px] truncate">
+              <div className="px-1 py-0.5 text-white text-xs truncate">
                 {file.name}
               </div>
             </div>
@@ -492,12 +492,12 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             {message.role === 'assistant' && message.content === '' && isLoading ? (
               <LoadingDots />
             ) : (
-              <MessageContent message={message} />
+              <div className="flex flex-col">
+                <MessageContent message={message} />
+                {renderAttachedFiles()}
+              </div>
             )}
           </div>
-          
-          {/* แสดงไฟล์แนบ */}
-          {renderAttachedFiles()}
         </div>
       </div>
 
