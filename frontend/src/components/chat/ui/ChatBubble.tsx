@@ -8,6 +8,7 @@ import LoadingDots from './LoadingDots';
 import { formatMessageTime } from '../utils/formatters';
 import FileIcon from './FileIcon';
 import { useChatInputStore } from '../store/chatInputStore';
+import { useChatStore } from '../store/chatStore';
 
 interface ChatBubbleProps {
   message: Message;
@@ -66,7 +67,64 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   };
 
   const onSaveEdit = () => {
-    handleSaveEdit(message, onEditClick);
+    console.log('กำลังบันทึกการแก้ไขข้อความ:', message.id);
+    
+    // แยกการทำงานระหว่าง user และ assistant
+    if (message.role === 'user') {
+      // สำหรับ user: ทำงานเหมือนปุ่ม submit ใน ChatInput
+      const chatStore = useChatStore.getState();
+      const chatInputStore = useChatInputStore.getState();
+      
+      // เตรียมข้อมูลสำหรับส่งไปยัง chatStore
+      const editedMessage = {
+        ...message,
+        content: inputMessage,
+        images: [...(chatInputStore.existingImageFiles.map(file => ({
+          data: file.data,
+          mediaType: file.mediaType
+        })))],
+        files: [...chatInputStore.existingDocFiles],
+        isEdited: true
+      };
+      
+      console.log('[ChatBubble] แก้ไขข้อความ User โดยตรง:', editedMessage);
+      
+      // ตั้งค่าข้อความที่แก้ไขใน chatStore
+      chatStore.setEditingMessage(editedMessage);
+      
+      // สร้าง synthetic event เพื่อส่งให้ handleSubmit
+      const event = {
+        preventDefault: () => {}
+      } as React.FormEvent;
+      
+      // เรียกใช้ handleSubmit โดยตรง
+      chatStore.handleSubmit(event).then(() => {
+        console.log('ส่งข้อความแก้ไขสำเร็จ');
+        
+        // รีเซ็ตสถานะหลังจากการบันทึก
+        chatInputStore.resetFileSelections();
+        useChatInputStore.setState({
+          isEditing: false,
+          inputMessage: '',
+          editingMessage: null,
+          isProcessingFiles: false
+        });
+        
+        // เรียกใช้ callback ดั้งเดิมถ้ามี
+        if (onEditClick) {
+          onEditClick(editedMessage);
+        }
+      });
+    } else {
+      // สำหรับ assistant: ยังคงใช้ handleSaveEdit เหมือนเดิม
+      handleSaveEdit(message, (updatedMessage) => {
+        console.log('การแก้ไขสำเร็จ, ข้อความที่อัพเดทแล้ว:', updatedMessage);
+        // เรียกใช้ callback ดั้งเดิมถ้ามี
+        if (onEditClick) {
+          onEditClick(updatedMessage);
+        }
+      });
+    }
   };
 
   // แยก Canvas สำหรับ User และ Assistant

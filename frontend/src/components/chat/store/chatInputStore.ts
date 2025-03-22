@@ -273,10 +273,20 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
           isEdited: true
         };
         
+        console.log('[chatInputStore] กำลังแก้ไขข้อความ Assistant:', editedMessage);
+        
         // อัพเดทข้อความใน state
-        chatStore.setMessages(prev => 
-          prev.map(msg => msg.id === message.id ? editedMessage : msg)
-        );
+        chatStore.setMessages(prev => {
+          const newMessages = prev.map(msg => msg.id === message.id ? editedMessage : msg);
+          console.log('[chatInputStore] อัพเดทข้อความใน UI สำเร็จ', newMessages);
+          return newMessages;
+        });
+        
+        // เรียกใช้ callback onEditClick ถ้ามีทันทีหลังอัพเดท state
+        if (onEditClick) {
+          console.log('[chatInputStore] เรียกใช้ onEditClick callback');
+          onEditClick(editedMessage);
+        }
         
         // ส่งคำขอไปยัง API เพื่ออัพเดทข้อความในฐานข้อมูล
         const wsRef = chatStore.wsRef;
@@ -315,17 +325,12 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
             return response.json();
           })
           .then(data => {
-            console.log('บันทึกการแก้ไขข้อความสำเร็จ:', data);
+            console.log('[chatInputStore] บันทึกการแก้ไขข้อความสำเร็จ:', data);
           })
           .catch(error => {
-            console.error('เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+            console.error('[chatInputStore] เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
           });
         }
-      }
-      
-      // เรียกใช้ callback onEditClick ถ้ามี
-      if (onEditClick && message) {
-        onEditClick(message);
       }
       
       // รีเซ็ตสถานะหลังจากการบันทึก

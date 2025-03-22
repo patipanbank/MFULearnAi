@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message } from '../utils/types';
@@ -10,8 +10,15 @@ interface MessageContentProps {
   message: Message;
 }
 
-const MessageContent: React.FC<MessageContentProps> = ({ message }) => {
+const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [contentKey, setContentKey] = useState<number>(0);
+  
+  // ใช้ useEffect เพื่อบังคับให้คอมโพเนนต์เรนเดอร์ใหม่เมื่อ message.content เปลี่ยน
+  useEffect(() => {
+    console.log('MessageContent ได้รับข้อความใหม่:', message.content);
+    setContentKey(prevKey => prevKey + 1);
+  }, [message.content]);
 
   const copyToClipboard = (code: string, index: number) => {
     navigator.clipboard.writeText(code);
@@ -55,7 +62,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ message }) => {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" key={`message-content-${contentKey}`}>
       <div className="whitespace-pre-wrap">
         {renderContent(message.content)}
         {message.isEdited && (
@@ -109,6 +116,6 @@ const MessageContent: React.FC<MessageContentProps> = ({ message }) => {
       )}
     </div>
   );
-};
+});
 
 export default MessageContent; 
