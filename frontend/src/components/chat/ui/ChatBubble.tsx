@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
-import { MdEdit, MdRefresh, MdClose, MdContentCopy, MdUpload, MdDeleteOutline } from "react-icons/md";
+import { MdEdit, MdRefresh, MdClose, MdContentCopy } from "react-icons/md";
 import { FaSpinner } from "react-icons/fa";
 import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
 import { Message, MessageFile } from '../utils/types';
