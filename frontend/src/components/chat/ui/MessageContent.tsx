@@ -14,9 +14,9 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [contentKey, setContentKey] = useState<number>(0);
   
-  // ใช้ useEffect เพื่อบังคับให้คอมโพเนนต์เรนเดอร์ใหม่เมื่อ message.content เปลี่ยน
+  // Force component to re-render when message.content changes
   useEffect(() => {
-    console.log('MessageContent ได้รับข้อความใหม่:', message.content);
+    // Re-render when content changes
     setContentKey(prevKey => prevKey + 1);
   }, [message.content]);
 
@@ -24,6 +24,20 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
     navigator.clipboard.writeText(code);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  // Handle file open in new tab
+  const handleFileOpen = (file: any) => {
+    if (!file || !file.data || !file.mediaType) {
+      alert("File data is missing or corrupted");
+      return;
+    }
+    
+    try {
+      window.open(`data:${file.mediaType};base64,${file.data}`, '_blank');
+    } catch (error) {
+      alert("Unable to open file. The file might be corrupted.");
+    }
   };
 
   const renderContent = (content: string) => {
@@ -76,13 +90,15 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
       {message.images && message.images.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {message.images.map((image, idx) => (
-            <img
-              key={idx}
-              src={`data:${image.mediaType};base64,${image.data}`}
-              alt={`Attached image ${idx + 1}`}
-              className="max-h-60 rounded-lg cursor-pointer"
-              onClick={() => window.open(`data:${image.mediaType};base64,${image.data}`, '_blank')}
-            />
+            image && image.data && image.mediaType ? (
+              <img
+                key={idx}
+                src={`data:${image.mediaType};base64,${image.data}`}
+                alt={`Attached image ${idx + 1}`}
+                className="max-h-60 rounded-lg cursor-pointer"
+                onClick={() => window.open(`data:${image.mediaType};base64,${image.data}`, '_blank')}
+              />
+            ) : null
           ))}
         </div>
       )}
@@ -90,17 +106,19 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
       {message.files && message.files.length > 0 && (
         <div className="flex flex-col gap-2 mt-2">
           {message.files.map((file, idx) => (
-            <div 
-              key={idx}
-              className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-600 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors"
-              onClick={() => window.open(`data:${file.mediaType};base64,${file.data}`, '_blank')}
-            >
-              <FileIcon type={file.mediaType} />
-              <div className="flex flex-col">
-                <span className="text-sm font-medium truncate">{file.name}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</span>
+            file && file.name ? (
+              <div 
+                key={idx}
+                className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-600 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors"
+                onClick={() => handleFileOpen(file)}
+              >
+                <FileIcon type={file.mediaType} />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium truncate">{file.name}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</span>
+                </div>
               </div>
-            </div>
+            ) : null
           ))}
         </div>
       )}

@@ -136,7 +136,12 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         
         // Combine all document files (existing + new)
         const allFiles = [
-          ...existingDocFiles,
+          ...existingDocFiles.map(file => ({
+            name: file.name,
+            data: file.data,
+            mediaType: file.mediaType,
+            size: file.size
+          })),
           ...newDocs
         ];
         
@@ -200,7 +205,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         });
       })
       .catch(_error => {
-        // console.error('Error processing files:', error);
+        // Error processing files
       });
     } else {
       // For assistant: still use handleSaveEdit as before
