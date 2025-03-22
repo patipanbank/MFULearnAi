@@ -479,7 +479,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                   body: JSON.stringify({
                     chatId: currentChatId,
                     messageId: editingMessage.id,
-                    content: inputMessage
+                    content: inputMessage,
+                    role: 'assistant',
+                    isEdited: true
                   })
                 })
                 .then(response => {
@@ -792,7 +794,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { selectedModel, fetchUsage } = useModelStore.getState();
     const { setIsLoading } = useUIStore.getState();
     
-    // หากเป็นการแก้ไขข้อความของผู้ใช้
     if (message.role === 'user') {
       // ค้นหาข้อความเดิมและตำแหน่ง
       const messageIndex = messages.findIndex(m => m.id === message.id);
@@ -835,7 +836,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             body: JSON.stringify({
               chatId: currentChatId,
               messageId: message.id,
-              content: message.content
+              content: message.content,
+              role: 'user',
+              isEdited: true
             })
           })
           .then(response => {
@@ -915,7 +918,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
       
-      // อัพเดทข้อความที่แก้ไขโดยตรง
+      // อัพเดทข้อความที่แก้ไขโดยตรง โดยไม่ลบข้อความหลังจากนี้
       const updatedMessages = [...messages];
       updatedMessages[messageIndex] = {
         ...message,
@@ -953,7 +956,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             chatId: currentChatId,
             messageId: message.id,
             content: message.content,
-            role: 'assistant'
+            role: 'assistant',
+            isEdited: true
           })
         })
         .then(response => {
@@ -996,6 +1000,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
     
     // ถ้ามีการระบุ messageIndex ให้ลบข้อความที่ใหม่กว่าออกทั้งหมด
+    // แต่ไม่ให้กระทบกับข้อความที่เคยถูกแก้ไขแล้ว (isEdited = true)
     if (messageIndex !== undefined && messageIndex >= 0 && messageIndex < messages.length) {
       // หาข้อความ user ที่อยู่ก่อนหรือที่ตำแหน่ง messageIndex
       let lastUserMessageIndex = messageIndex;

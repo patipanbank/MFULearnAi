@@ -41,7 +41,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const handleSaveEdit = () => {
     if (onEditClick && editedContent.trim() !== '') {
       const editedMessage = { ...message, content: editedContent };
-      onEditClick(editedMessage);
+      onEditClick(editedMessage); // เพียงแค่ส่งข้อความที่แก้ไขไปยัง store
       setIsEditing(false);
     }
   };
