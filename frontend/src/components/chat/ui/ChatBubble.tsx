@@ -13,8 +13,10 @@ interface ChatBubbleProps {
   onContinueClick: (e: React.MouseEvent) => void;
   onCancelClick?: (e: React.MouseEvent) => void;
   onEditClick?: (message: Message) => void;
-  onRegenerateClick?: (e: React.MouseEvent) => void;
+  onRegenerateClick?: (e: React.MouseEvent, index?: number) => void;
   selectedModel: string;
+  messageIndex?: number;
+  totalMessages?: number;
 }
 
 const ChatBubble: React.FC<ChatBubbleProps> = ({ 
@@ -24,7 +26,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   onContinueClick, 
   onEditClick,
   onRegenerateClick,
-  selectedModel 
+  selectedModel,
+  messageIndex = 0,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
@@ -53,13 +56,21 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleRegenerateClick = (e: React.MouseEvent) => {
+    if (onRegenerateClick) {
+      onRegenerateClick(e, messageIndex);
+    }
+  };
+
   return (
     <div className="message relative">
       {isEditing ? (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Message</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {message.role === 'user' ? 'Edit User Message' : 'Edit Chatbot Message'}
+              </h3>
               <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                 <MdClose className="h-6 w-6" />
               </button>
@@ -77,7 +88,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 onClick={handleCancelEdit}
                 className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                ยกเลิก
+                Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
@@ -155,77 +166,89 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       )}
 
       {/* Action buttons for assistant messages */}
-      {message.role === 'assistant' && isLastMessage && (
+      {message.role === 'assistant' && message.isComplete && (
         <div className="ml-11 mt-2 flex flex-wrap gap-2">
-          {/* Show continue, edit, and regenerate buttons once complete */}
-          {message.isComplete && (
-            <>
-              <button
-                type="button"
-                onClick={onContinueClick}
-                className={`p-2 rounded-md transition-colors ${
-                  selectedModel 
-                    ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
-                    : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                }`}
-                disabled={!selectedModel}
-                title="Continue"
-                data-verify="false"
-              >
-                <VscDebugContinue className="h-5 w-5" />
-              </button>
-              
-              {onRegenerateClick && (
-                <button
-                  type="button"
-                  onClick={onRegenerateClick}
-                  className={`p-2 rounded-md transition-colors ${
-                    selectedModel 
-                      ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
-                      : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                  }`}
-                  disabled={!selectedModel}
-                  title="Create new response"
-                >
-                  <MdRefresh className="h-5 w-5" />
-                </button>
-              )}
-              
-              {/* Copy to clipboard button */}
-              <button
-                type="button"
-                onClick={handleCopyToClipboard}
-                className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-                title={isCopied ? "Copied!" : "Copy Message"}
-              >
-                <MdContentCopy className="h-5 w-5" />
-              </button>
-              
-              {/* Edit button */}
-              <button
-                type="button"
-                onClick={handleStartEdit}
-                className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-                title="Edit Message"
-              >
-                <MdEdit className="h-5 w-5" />
-              </button>
-            </>
+          {/* Continue button - only for the last message */}
+          {isLastMessage && (
+            <button
+              type="button"
+              onClick={onContinueClick}
+              className={`p-2 rounded-md transition-colors ${
+                selectedModel 
+                  ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
+                  : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+              }`}
+              disabled={!selectedModel}
+              title="Continue"
+              data-verify="false"
+            >
+              <VscDebugContinue className="h-5 w-5" />
+            </button>
           )}
-        </div>
-      )}
-      
-      {/* Edit button only for user messages */}
-      {message.role === 'user' && isLastMessage && onEditClick && (
-        <div className="mr-11 mt-2 flex justify-end">
+          
+          {/* Regenerate button - for all assistant messages */}
+          {onRegenerateClick && (
+            <button
+              type="button"
+              onClick={handleRegenerateClick}
+              className={`p-2 rounded-md transition-colors ${
+                selectedModel 
+                  ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
+                  : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+              }`}
+              disabled={!selectedModel}
+              title={isLastMessage ? "สร้างคำตอบใหม่" : "ลบประวัติสนทนาที่ใหม่กว่าและสร้างคำตอบใหม่"}
+            >
+              <MdRefresh className="h-5 w-5" />
+            </button>
+          )}
+          
+          {/* Copy to clipboard button */}
           <button
             type="button"
-            onClick={() => handleStartEdit()}
+            onClick={handleCopyToClipboard}
             className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title="Edit Message"
+            title={isCopied ? "คัดลอกแล้ว!" : "คัดลอกข้อความ"}
+          >
+            <MdContentCopy className="h-5 w-5" />
+          </button>
+          
+          {/* Edit button */}
+          <button
+            type="button"
+            onClick={handleStartEdit}
+            className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+            title="แก้ไขข้อความ"
           >
             <MdEdit className="h-5 w-5" />
           </button>
+        </div>
+      )}
+      
+      {/* Action buttons for user messages */}
+      {message.role === 'user' && (
+        <div className={`${message.role === 'user' ? 'mr-11' : 'ml-11'} mt-2 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          {/* Copy button */}
+          <button
+            type="button"
+            onClick={handleCopyToClipboard}
+            className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+            title={isCopied ? "คัดลอกแล้ว!" : "คัดลอกข้อความ"}
+          >
+            <MdContentCopy className="h-5 w-5" />
+          </button>
+          
+          {/* Edit button - for all user messages */}
+          {onEditClick && (
+            <button
+              type="button"
+              onClick={() => handleStartEdit()}
+              className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+              title="แก้ไขข้อความ"
+            >
+              <MdEdit className="h-5 w-5" />
+            </button>
+          )}
         </div>
       )}
     </div>

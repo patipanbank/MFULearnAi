@@ -37,7 +37,7 @@ export interface ChatState {
   handleContinueClick: (e: React.MouseEvent) => void;
   handleCancelGeneration: (e: React.MouseEvent) => void;
   handleEditMessage: (message: Message) => void;
-  handleRegenerateMessage: (e: React.MouseEvent) => void;
+  handleRegenerateMessage: (e: React.MouseEvent, messageIndex?: number) => void;
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveImage: (index: number) => void;
   handleRemoveFile: (index: number) => void;
@@ -713,7 +713,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Regenerate the last assistant message
-  handleRegenerateMessage: (e: React.MouseEvent) => {
+  handleRegenerateMessage: (e: React.MouseEvent, messageIndex?: number) => {
     e.preventDefault();
     
     const { messages, wsRef, currentChatId } = get();
@@ -733,6 +733,82 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
     
+    // ถ้ามีการระบุ messageIndex ให้ลบข้อความที่ใหม่กว่าออกทั้งหมด
+    if (messageIndex !== undefined && messageIndex >= 0 && messageIndex < messages.length) {
+      // หาข้อความ user ที่อยู่ก่อนหรือที่ตำแหน่ง messageIndex
+      let lastUserMessageIndex = messageIndex;
+      
+      // ถ้าข้อความที่เลือกเป็น assistant ให้หาข้อความ user ก่อนหน้านี้
+      if (messages[messageIndex].role === 'assistant') {
+        for (let i = messageIndex; i >= 0; i--) {
+          if (messages[i].role === 'user') {
+            lastUserMessageIndex = i;
+            break;
+          }
+        }
+      }
+      
+      // ถ้าไม่เจอข้อความผู้ใช้ ยกเลิกการทำงาน
+      if (messages[lastUserMessageIndex].role !== 'user') {
+        console.error('ไม่พบข้อความผู้ใช้ที่เกี่ยวข้อง');
+        return;
+      }
+      
+      // เก็บเฉพาะข้อความถึงข้อความผู้ใช้ที่เกี่ยวข้อง
+      const messagesToKeep = messages.slice(0, lastUserMessageIndex + 1);
+      
+      // Add placeholder for new AI response
+      const assistantMessage: Message = {
+        id: Date.now(),
+        role: 'assistant',
+        content: '',
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        isImageGeneration: false,
+        isComplete: false
+      };
+      
+      // Update messages and set loading state
+      set({ messages: [...messagesToKeep, assistantMessage] });
+      setIsLoading(true);
+      
+      try {
+        // Send regenerate request to websocket
+        const messagePayload = {
+          messages: messagesToKeep,
+          modelId: selectedModel,
+          isImageGeneration: false,
+          path: window.location.pathname,
+          chatId: currentChatId,
+          type: 'regenerate'
+        };
+        
+        wsRef.send(JSON.stringify(messagePayload));
+        
+        // Update usage
+        fetchUsage();
+      } catch (error) {
+        console.error('Error in handleRegenerateMessage:', error);
+        set({ 
+          messages: [...messagesToKeep, {
+            id: Date.now(),
+            role: 'assistant',
+            content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
+            timestamp: {
+              $date: new Date().toISOString()
+            },
+            isImageGeneration: false,
+            isComplete: true
+          }]
+        });
+        setIsLoading(false);
+      }
+      
+      return;
+    }
+    
+    // ถ้าไม่ระบุ messageIndex ให้ทำงานตามแบบเดิม (regenerate ข้อความสุดท้าย)
     // Find the last user message
     const lastUserMessageIndex = [...messages].reverse().findIndex(msg => msg.role === 'user');
     if (lastUserMessageIndex === -1) return;
@@ -743,7 +819,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     // Add placeholder for new AI response
     const assistantMessage: Message = {
-      id: messages.length + 1,
+      id: Date.now(),
       role: 'assistant',
       content: '',
       timestamp: {
@@ -776,7 +852,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.error('Error in handleRegenerateMessage:', error);
       set({ 
         messages: [...messagesToKeep, {
-          id: messages.length + 1,
+          id: Date.now(),
           role: 'assistant',
           content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
           timestamp: {

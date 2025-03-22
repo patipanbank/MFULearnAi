@@ -171,6 +171,8 @@ const MFUChatbot: React.FC = () => {
                 onEditClick={handleEditMessage}
                 onRegenerateClick={handleRegenerateMessage}
                 selectedModel={selectedModel}
+                messageIndex={index}
+                totalMessages={messages.length}
               />
             ))}
             <div 
