@@ -40,11 +40,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const {
     isEditing,
     selectedImageFiles, selectedDocFiles,
-    existingImageFiles, existingDocFiles,
+    
     inputMessage, setInputMessage,
     handleFileSelect,
     handleRemoveSelectedImage, handleRemoveSelectedDoc,
-    handleRemoveExistingImage, handleRemoveExistingDoc,
+    
     handleSaveEdit, handleCancelEdit,
     handleStartEdit
   } = useChatInputStore();
@@ -125,25 +125,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       // Process all files
       Promise.all([processNewImages(), processNewDocs()])
       .then(([newImages, newDocs]) => {
-        // Combine all image files (existing + new)
-        const allImages = [
-          ...existingImageFiles.map(file => ({
-            data: file.data,
-            mediaType: file.mediaType
-          })),
-          ...newImages
-        ];
-        
-        // Combine all document files (existing + new)
-        const allFiles = [
-          ...existingDocFiles.map(file => ({
-            name: file.name,
-            data: file.data,
-            mediaType: file.mediaType,
-            size: file.size
-          })),
-          ...newDocs
-        ];
+        // ใช้เฉพาะไฟล์ใหม่ที่ผู้ใช้อัพโหลด
+        const allImages = [...newImages];
+        const allFiles = [...newDocs];
         
         /* console.log('[ChatBubble] Sending new message from edited data:', {
           content: inputMessage,
@@ -270,32 +254,19 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
               <span className="text-xs text-gray-700 dark:text-gray-300">Attach Files</span>
             </button>
+            
+            {/* คำแนะนำสำหรับผู้ใช้ */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 px-4 py-1">
+              * คุณต้องอัพโหลดไฟล์ใหม่ทั้งหมดที่ต้องการแนบ (ไฟล์เดิมจะไม่ถูกนำมาใช้)
+            </div>
           </div>
           
           {/* Display all files */}
-          {(selectedImageFiles.length > 0 || selectedDocFiles.length > 0 || existingImageFiles.length > 0 || existingDocFiles.length > 0) && (
+          {(selectedImageFiles.length > 0 || selectedDocFiles.length > 0) && (
             <div className="flex flex-wrap gap-2 px-4 pb-2 mt-2">
               <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
-                Attachments ({selectedImageFiles.length + selectedDocFiles.length + existingImageFiles.length + existingDocFiles.length})
+                Attachments ({selectedImageFiles.length + selectedDocFiles.length})
               </div>
-              
-              {/* Existing image files */}
-              {existingImageFiles.map((image, index) => (
-                <div key={`existing-img-${index}`} className="relative">
-                  <img
-                    src={`data:${image.mediaType};base64,${image.data}`}
-                    alt={`Image ${index + 1}`}
-                    className="w-16 h-16 object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveExistingImage(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                  >
-                    <RiCloseLine />
-                  </button>
-                </div>
-              ))}
               
               {/* New image files */}
               {selectedImageFiles.map((image, index) => (
@@ -315,27 +286,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 </div>
               ))}
               
-              {/* Existing document files */}
-              {existingDocFiles.map((file, index) => (
-                <div key={`existing-doc-${index}`} className="relative">
-                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <FileIcon fileName={file.name} />
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
-                    <div className="px-1 py-0.5 text-white text-[8px] truncate">
-                      {file.name}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveExistingDoc(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                  >
-                    <RiCloseLine />
-                  </button>
-                </div>
-              ))}
-
               {/* New document files */}
               {selectedDocFiles.map((file, index) => (
                 <div key={`new-doc-${index}`} className="relative">

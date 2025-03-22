@@ -137,28 +137,11 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
     set({
       isEditing: true,
       editingMessage: message,
-      inputMessage: message.content
+      inputMessage: message.content,
+      // ไม่ดึงข้อมูลไฟล์จาก message เดิมมาใช้ แต่ให้ user อัพโหลดใหม่
+      existingImageFiles: [],
+      existingDocFiles: []
     });
-    
-    // แยกการจัดเก็บไฟล์ภาพและเอกสารเดิม
-    if (message.images && message.images.length > 0) {
-      // แปลงโครงสร้างไฟล์ภาพให้เข้ากับรูปแบบที่ใช้ในการแก้ไข
-      const imageFiles = message.images.map((image, index) => ({
-        name: `รูปภาพ ${index + 1}`,
-        data: image.data,
-        mediaType: image.mediaType,
-        size: 0
-      }));
-      set({ existingImageFiles: imageFiles });
-    } else {
-      set({ existingImageFiles: [] });
-    }
-    
-    if (message.files && message.files.length > 0) {
-      set({ existingDocFiles: message.files });
-    } else {
-      set({ existingDocFiles: [] });
-    }
   },
   
   handleSaveEdit: async (message, onEditClick) => {
