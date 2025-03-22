@@ -247,4 +247,58 @@ export const prepareMessageFiles = async (files: File[]): Promise<MessageFile[]>
   }
   
   return messageFiles;
+};
+
+/**
+ * ส่งรูปภาพไปยัง backend เพื่อทำ embedding
+ * @param imageData รูปภาพที่แปลงเป็น base64 แล้ว
+ * @returns ผลลัพธ์ embedding จาก backend
+ */
+export const getImageEmbedding = async (imageData: string): Promise<number[] | null> => {
+  try {
+    const response = await fetch('/api/embeddings/image', {
+      method: 'POST',
+      body: JSON.stringify({ imageData }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to get image embedding');
+    }
+    
+    const result = await response.json();
+    return result.embedding;
+  } catch (error) {
+    console.error('Error getting image embedding:', error);
+    return null;
+  }
+};
+
+/**
+ * ประมวลผลรูปภาพทั้งหมดเพื่อขอ embeddings จาก backend
+ * @param images ข้อมูลรูปภาพที่บีบอัดและแปลงเป็น base64 แล้ว
+ * @returns ผลลัพธ์ embeddings ของรูปภาพทั้งหมด
+ */
+export const processImagesForEmbeddings = async (images: { data: string; mediaType: string }[]): Promise<number[][] | null> => {
+  if (!images || images.length === 0) return null;
+  
+  try {
+    const embeddings = await Promise.all(
+      images.map(async (image) => {
+        const embedding = await getImageEmbedding(image.data);
+        return embedding;
+      })
+    );
+    
+    // กรอง embeddings ที่เป็น null ออก
+    const validEmbeddings = embeddings.filter((embedding): embedding is number[] => embedding !== null);
+    
+    return validEmbeddings.length > 0 ? validEmbeddings : null;
+  } catch (error) {
+    console.error('Error processing images for embeddings:', error);
+    return null;
+  }
 }; 

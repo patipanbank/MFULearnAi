@@ -16,4 +16,15 @@ export interface ChatMessage {
   sources?: Array<any>;
   isImageGeneration?: boolean;
   isComplete?: boolean;
+  id?: string;
+  parentMessageId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  isEdited?: boolean;
+  imageEmbeddings?: any[];
+  processedFiles?: {
+    name: string;
+    extractedText?: string;
+    [key: string]: any;
+  }[];
 } 
