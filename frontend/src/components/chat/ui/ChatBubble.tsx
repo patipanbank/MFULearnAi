@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { VscDebugContinue } from "react-icons/vsc";
 import { MdEdit, MdRefresh, MdClose, MdContentCopy } from "react-icons/md";
-import { FaSpinner } from "react-icons/fa";
 import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
-import { Message, MessageFile } from '../utils/types';
+import { Message } from '../utils/types';
 import MessageContent from './MessageContent';
 import LoadingDots from './LoadingDots';
 import { formatMessageTime } from '../utils/formatters';
@@ -38,10 +37,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   // ใช้ state จาก chatInputStore
   const {
-    isEditing, setIsEditing,
+    isEditing,
     selectedImageFiles, selectedDocFiles,
     existingImageFiles, existingDocFiles,
-    isProcessingFiles,
     inputMessage, setInputMessage,
     handleFileSelect,
     handleRemoveSelectedImage, handleRemoveSelectedDoc,
