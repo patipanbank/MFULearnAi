@@ -43,98 +43,117 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
 
   const handleStartEdit = () => {
-    setEditedContent(message.content);
     setIsEditing(true);
+    setEditedContent(message.content);
     
-    // แยกไฟล์ตามประเภท (ภาพ vs เอกสาร)
+    // แยกการจัดเก็บไฟล์ภาพและเอกสารเดิม
+    if (message.images && message.images.length > 0) {
+      // แปลงโครงสร้างไฟล์ภาพให้เข้ากับรูปแบบที่ใช้ในการแก้ไข
+      const imageFiles = message.images.map((image, index) => ({
+        name: `รูปภาพ ${index + 1}`,
+        data: image.data,
+        mediaType: image.mediaType,
+        size: 0
+      }));
+      setExistingImageFiles(imageFiles);
+    } else {
+      setExistingImageFiles([]);
+    }
+    
     if (message.files && message.files.length > 0) {
-      const images: MessageFile[] = [];
-      const docs: MessageFile[] = [];
-      
-      message.files.forEach(file => {
-        if (file.mediaType.startsWith('image/')) {
-          images.push(file);
-        } else {
-          docs.push(file);
-        }
-      });
-      
-      setExistingImageFiles(images);
-      setExistingDocFiles(docs);
+      setExistingDocFiles(message.files);
+    } else {
+      setExistingDocFiles([]);
     }
   };
 
   const handleSaveEdit = () => {
-    if (onEditClick && editedContent.trim() !== '') {
-      // ตรวจสอบว่าต้องเพิ่มไฟล์ใหม่หรือไม่
-      if (message.role === 'user' && (selectedImageFiles.length > 0 || selectedDocFiles.length > 0)) {
-        // แสดงสถานะกำลังประมวลผลไฟล์
-        setIsProcessingFiles(true);
-        
-        // สร้าง Promise สำหรับอ่านไฟล์ภาพทั้งหมด
-        const imageReadPromises = selectedImageFiles.map(file => {
-          return new Promise<MessageFile>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              resolve({
-                name: file.name,
-                size: file.size,
-                mediaType: file.type,
-                data: (reader.result as string).split(',')[1] || '',
-              });
-            };
-            reader.readAsDataURL(file);
-          });
-        });
-        
-        // สร้าง Promise สำหรับอ่านไฟล์เอกสารทั้งหมด
-        const docReadPromises = selectedDocFiles.map(file => {
-          return new Promise<MessageFile>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              resolve({
-                name: file.name,
-                size: file.size,
-                mediaType: file.type,
-                data: (reader.result as string).split(',')[1] || '',
-              });
-            };
-            reader.readAsDataURL(file);
-          });
-        });
-        
-        // อ่านข้อมูลไฟล์ทั้งหมดและส่งข้อความ
-        Promise.all([...imageReadPromises, ...docReadPromises])
-          .then(newFileData => {
-            // รวมไฟล์เก่าและไฟล์ใหม่ทั้งหมด
-            const allFiles = [...existingImageFiles, ...existingDocFiles, ...newFileData];
-            
-            const editedMessage = {
-              ...message,
-              content: editedContent,
-              files: message.role === 'user' ? allFiles : message.files
-            };
-            onEditClick(editedMessage);
-            setIsEditing(false);
-            setIsProcessingFiles(false);
-          })
-          .catch(error => {
-            console.error('เกิดข้อผิดพลาดในการอ่านไฟล์:', error);
-            setIsProcessingFiles(false);
-          });
-        
-        return; // ออกจากฟังก์ชันเพื่อรอให้ Promise ทำงานเสร็จ
-      }
-      
-      // กรณีไม่มีไฟล์ใหม่ หรือไม่ใช่ข้อความของ user
-      const editedMessage = { 
-        ...message, 
-        content: editedContent,
-        files: message.role === 'user' ? [...existingImageFiles, ...existingDocFiles] : message.files
-      };
-      onEditClick(editedMessage);
+    if (!editedContent && !selectedImageFiles.length && !selectedDocFiles.length) {
+      // ถ้าไม่มีข้อความหรือไฟล์ที่จะบันทึก ให้ยกเลิกการแก้ไข
       setIsEditing(false);
+      return;
     }
+    
+    // เริ่มประมวลผลไฟล์
+    setIsProcessingFiles(true);
+
+    // อัปโหลดไฟล์ภาพใหม่
+    const imageReadPromises: Promise<{ name: string; data: string; mediaType: string; size: number }>[] = selectedImageFiles.map(file => {
+      return new Promise<{ name: string; data: string; mediaType: string; size: number }>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target && e.target.result) {
+            const base64 = e.target.result.toString().split(',')[1];
+            resolve({
+              name: file.name,
+              data: base64,
+              mediaType: file.type,
+              size: file.size
+            });
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    // อัปโหลดไฟล์เอกสารใหม่
+    const docReadPromises: Promise<{ name: string; data: string; mediaType: string; size: number }>[] = selectedDocFiles.map(file => {
+      return new Promise<{ name: string; data: string; mediaType: string; size: number }>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target && e.target.result) {
+            const base64 = e.target.result.toString().split(',')[1];
+            resolve({
+              name: file.name,
+              data: base64,
+              mediaType: file.type,
+              size: file.size
+            });
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    // รอให้อัปโหลดไฟล์ทั้งหมดเสร็จแล้วบันทึก
+    Promise.all([
+      Promise.all(imageReadPromises), 
+      Promise.all(docReadPromises)
+    ])
+      .then(([newImageFiles, newDocFiles]) => {
+        // แยกรูปภาพตาม schema
+        const allImages = existingImageFiles.map(file => ({
+          data: file.data,
+          mediaType: file.mediaType
+        })).concat(newImageFiles.map(file => ({
+          data: file.data,
+          mediaType: file.mediaType
+        })));
+        
+        // ไฟล์เอกสาร
+        const allFiles = existingDocFiles.concat(newDocFiles);
+        
+        const editedMessage = {
+          ...message,
+          content: editedContent,
+          // แยกไฟล์ภาพและเอกสารตาม schema
+          images: message.role === 'user' ? allImages : message.images,
+          files: message.role === 'user' ? allFiles : message.files
+        };
+        
+        if (onEditClick) {
+          onEditClick(editedMessage);
+        }
+        setIsEditing(false);
+        setEditedContent('');
+        setSelectedImageFiles([]);
+        setSelectedDocFiles([]);
+        setIsProcessingFiles(false);
+      })
+      .catch(() => {
+        // กรณีเกิดข้อผิดพลาด
+        setIsProcessingFiles(false);
+      });
   };
 
   const handleCancelEdit = () => {
