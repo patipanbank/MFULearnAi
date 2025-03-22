@@ -76,70 +76,131 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       const chatInputStore = useChatInputStore.getState();
       
       // เตรียมข้อมูลสำหรับส่งข้อความใหม่
-      const images = chatInputStore.existingImageFiles.map(file => ({
-        data: file.data,
-        mediaType: file.mediaType
-      }));
-      
-      const files = chatInputStore.existingDocFiles;
-      
-      console.log('[ChatBubble] ส่งข้อความใหม่จากข้อมูลที่แก้ไข:', {
-        content: inputMessage,
-        images,
-        files
-      });
-      
-      // สร้างข้อความผู้ใช้ใหม่ (ไม่เกี่ยวข้องกับข้อความเดิม)
-      const newUserMessage: Message = {
-        id: `new-${Date.now()}`,
-        role: 'user',
-        content: inputMessage,
-        timestamp: { $date: new Date().toISOString() },
-        images: images.length > 0 ? images : undefined,
-        files: files.length > 0 ? files : undefined
-      };
-      
-      // สร้างข้อความรอตอบจาก AI
-      const newAssistantMessage: Message = {
-        id: `new-assistant-${Date.now()}`,
-        role: 'assistant',
-        content: '',
-        timestamp: { $date: new Date().toISOString() },
-        modelId: selectedModel,
-        isComplete: false
-      };
-      
-      // เพิ่มข้อความใหม่เข้าไปใน state
-      chatStore.setMessages([...chatStore.messages, newUserMessage, newAssistantMessage]);
-      
-      // ส่งข้อความผ่าน WebSocket
-      const wsRef = chatStore.wsRef;
-      const currentChatId = chatStore.currentChatId;
-      
-      if (wsRef && currentChatId) {
-        wsRef.send(JSON.stringify({
-          type: 'chat',
-          content: inputMessage,
-          chatId: currentChatId,
-          modelId: selectedModel,
-          images: images.length > 0 ? images : undefined,
-          files: files.length > 0 ? files : undefined,
-          messages: [...chatStore.messages, newUserMessage],
-          path: window.location.pathname
-        }));
+      // รวมไฟล์ภาพเดิมและไฟล์ภาพที่อัพโหลดใหม่
+      const processNewImages = async () => {
+        if (selectedImageFiles.length === 0) return [];
         
-        console.log('ส่งข้อความใหม่ผ่าน WebSocket สำเร็จ');
-      } else {
-        console.error('WebSocket ไม่ได้เชื่อมต่อ');
-      }
+        // แปลงไฟล์ภาพใหม่เป็น base64
+        return Promise.all(selectedImageFiles.map(file => {
+          return new Promise<{ data: string; mediaType: string }>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              if (e.target && e.target.result) {
+                const base64 = e.target.result.toString().split(',')[1];
+                resolve({
+                  data: base64,
+                  mediaType: file.type
+                });
+              }
+            };
+            reader.readAsDataURL(file);
+          });
+        }));
+      };
       
-      // รีเซ็ตสถานะหลังจากการส่งข้อความ
-      chatInputStore.resetFileSelections();
-      useChatInputStore.setState({
-        isEditing: false,
-        inputMessage: '',
-        editingMessage: null,
-        isProcessingFiles: false
+      // รวมไฟล์เอกสารเดิมและไฟล์เอกสารที่อัพโหลดใหม่
+      const processNewDocs = async () => {
+        if (selectedDocFiles.length === 0) return [];
+        
+        // แปลงไฟล์เอกสารใหม่เป็น base64
+        return Promise.all(selectedDocFiles.map(file => {
+          return new Promise<{ name: string; data: string; mediaType: string; size: number }>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              if (e.target && e.target.result) {
+                const base64 = e.target.result.toString().split(',')[1];
+                resolve({
+                  name: file.name,
+                  data: base64,
+                  mediaType: file.type,
+                  size: file.size
+                });
+              }
+            };
+            reader.readAsDataURL(file);
+          });
+        }));
+      };
+      
+      // ประมวลผลไฟล์ทั้งหมด
+      Promise.all([processNewImages(), processNewDocs()])
+      .then(([newImages, newDocs]) => {
+        // รวมไฟล์ภาพทั้งหมด (เก่า + ใหม่)
+        const allImages = [
+          ...existingImageFiles.map(file => ({
+            data: file.data,
+            mediaType: file.mediaType
+          })),
+          ...newImages
+        ];
+        
+        // รวมไฟล์เอกสารทั้งหมด (เก่า + ใหม่)
+        const allFiles = [
+          ...existingDocFiles,
+          ...newDocs
+        ];
+        
+        console.log('[ChatBubble] ส่งข้อความใหม่จากข้อมูลที่แก้ไข:', {
+          content: inputMessage,
+          images: allImages.length,
+          files: allFiles.length
+        });
+        
+        // สร้างข้อความผู้ใช้ใหม่ (ไม่เกี่ยวข้องกับข้อความเดิม)
+        const newUserMessage: Message = {
+          id: `new-${Date.now()}`,
+          role: 'user',
+          content: inputMessage,
+          timestamp: { $date: new Date().toISOString() },
+          images: allImages.length > 0 ? allImages : undefined,
+          files: allFiles.length > 0 ? allFiles : undefined
+        };
+        
+        // สร้างข้อความรอตอบจาก AI
+        const newAssistantMessage: Message = {
+          id: `new-assistant-${Date.now()}`,
+          role: 'assistant',
+          content: '',
+          timestamp: { $date: new Date().toISOString() },
+          modelId: selectedModel,
+          isComplete: false
+        };
+        
+        // เพิ่มข้อความใหม่เข้าไปใน state
+        chatStore.setMessages([...chatStore.messages, newUserMessage, newAssistantMessage]);
+        
+        // ส่งข้อความผ่าน WebSocket
+        const wsRef = chatStore.wsRef;
+        const currentChatId = chatStore.currentChatId;
+        
+        if (wsRef && currentChatId) {
+          wsRef.send(JSON.stringify({
+            type: 'chat',
+            content: inputMessage,
+            chatId: currentChatId,
+            modelId: selectedModel,
+            images: allImages.length > 0 ? allImages : undefined,
+            files: allFiles.length > 0 ? allFiles : undefined,
+            messages: [...chatStore.messages, newUserMessage],
+            path: window.location.pathname
+          }));
+          
+          console.log('ส่งข้อความใหม่ผ่าน WebSocket สำเร็จ');
+        } else {
+          console.error('WebSocket ไม่ได้เชื่อมต่อ');
+        }
+        
+        // รีเซ็ตสถานะหลังจากการส่งข้อความ
+        chatInputStore.resetFileSelections();
+        useChatInputStore.setState({
+          isEditing: false,
+          inputMessage: '',
+          editingMessage: null,
+          isProcessingFiles: false
+        });
+      })
+      .catch(error => {
+        console.error('เกิดข้อผิดพลาดในการประมวลผลไฟล์:', error);
       });
     } else {
       // สำหรับ assistant: ยังคงใช้ handleSaveEdit เหมือนเดิม
