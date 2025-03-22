@@ -199,7 +199,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           isProcessingFiles: false
         });
       })
-      .catch(error => {
+      .catch(_error => {
         // console.error('Error processing files:', error);
       });
     } else {
