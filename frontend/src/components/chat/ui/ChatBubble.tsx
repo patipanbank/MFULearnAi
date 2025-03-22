@@ -71,49 +71,75 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     
     // แยกการทำงานระหว่าง user และ assistant
     if (message.role === 'user') {
-      // สำหรับ user: ทำงานเหมือนปุ่ม submit ใน ChatInput
+      // สำหรับ user: ส่งข้อความใหม่เข้าระบบเหมือนการส่งข้อความปกติ
       const chatStore = useChatStore.getState();
       const chatInputStore = useChatInputStore.getState();
       
-      // เตรียมข้อมูลสำหรับส่งไปยัง chatStore
-      const editedMessage = {
-        ...message,
+      // เตรียมข้อมูลสำหรับส่งข้อความใหม่
+      const images = chatInputStore.existingImageFiles.map(file => ({
+        data: file.data,
+        mediaType: file.mediaType
+      }));
+      
+      const files = chatInputStore.existingDocFiles;
+      
+      console.log('[ChatBubble] ส่งข้อความใหม่จากข้อมูลที่แก้ไข:', {
         content: inputMessage,
-        images: [...(chatInputStore.existingImageFiles.map(file => ({
-          data: file.data,
-          mediaType: file.mediaType
-        })))],
-        files: [...chatInputStore.existingDocFiles],
-        isEdited: true
+        images,
+        files
+      });
+      
+      // สร้างข้อความผู้ใช้ใหม่ (ไม่เกี่ยวข้องกับข้อความเดิม)
+      const newUserMessage: Message = {
+        id: `new-${Date.now()}`,
+        role: 'user',
+        content: inputMessage,
+        timestamp: { $date: new Date().toISOString() },
+        images: images.length > 0 ? images : undefined,
+        files: files.length > 0 ? files : undefined
       };
       
-      console.log('[ChatBubble] แก้ไขข้อความ User โดยตรง:', editedMessage);
+      // สร้างข้อความรอตอบจาก AI
+      const newAssistantMessage: Message = {
+        id: `new-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: '',
+        timestamp: { $date: new Date().toISOString() },
+        modelId: selectedModel,
+        isComplete: false
+      };
       
-      // ตั้งค่าข้อความที่แก้ไขใน chatStore
-      chatStore.setEditingMessage(editedMessage);
+      // เพิ่มข้อความใหม่เข้าไปใน state
+      chatStore.setMessages([...chatStore.messages, newUserMessage, newAssistantMessage]);
       
-      // สร้าง synthetic event เพื่อส่งให้ handleSubmit
-      const event = {
-        preventDefault: () => {}
-      } as React.FormEvent;
+      // ส่งข้อความผ่าน WebSocket
+      const wsRef = chatStore.wsRef;
+      const currentChatId = chatStore.currentChatId;
       
-      // เรียกใช้ handleSubmit โดยตรง
-      chatStore.handleSubmit(event).then(() => {
-        console.log('ส่งข้อความแก้ไขสำเร็จ');
+      if (wsRef && currentChatId) {
+        wsRef.send(JSON.stringify({
+          type: 'chat',
+          content: inputMessage,
+          chatId: currentChatId,
+          modelId: selectedModel,
+          images: images.length > 0 ? images : undefined,
+          files: files.length > 0 ? files : undefined,
+          messages: [...chatStore.messages, newUserMessage],
+          path: window.location.pathname
+        }));
         
-        // รีเซ็ตสถานะหลังจากการบันทึก
-        chatInputStore.resetFileSelections();
-        useChatInputStore.setState({
-          isEditing: false,
-          inputMessage: '',
-          editingMessage: null,
-          isProcessingFiles: false
-        });
-        
-        // เรียกใช้ callback ดั้งเดิมถ้ามี
-        if (onEditClick) {
-          onEditClick(editedMessage);
-        }
+        console.log('ส่งข้อความใหม่ผ่าน WebSocket สำเร็จ');
+      } else {
+        console.error('WebSocket ไม่ได้เชื่อมต่อ');
+      }
+      
+      // รีเซ็ตสถานะหลังจากการส่งข้อความ
+      chatInputStore.resetFileSelections();
+      useChatInputStore.setState({
+        isEditing: false,
+        inputMessage: '',
+        editingMessage: null,
+        isProcessingFiles: false
       });
     } else {
       // สำหรับ assistant: ยังคงใช้ handleSaveEdit เหมือนเดิม
