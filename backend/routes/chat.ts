@@ -817,13 +817,15 @@ router.post('/parse-file', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
 router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     // ข้อมูลพื้นฐาน
-    const { chatId, messageId, content } = req.body;
+    const { chatId, messageId, content, role, isEdited } = req.body;
     const userId = (req.user as any)?.username || '';
 
     // ลอกข้อมูลเพื่อตรวจสอบ
     console.log('Edit request:', { 
       chatId, 
-      messageId, 
+      messageId,
+      role,
+      isEdited,
       contentLength: content?.length 
     });
 
@@ -896,11 +898,14 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
     // แก้ไขข้อความอย่างง่าย
     chat.messages[messageIndex].content = content;
     
-    // เพิ่ม flag isEdited
-    try {
-      chat.messages[messageIndex].set('isEdited', true);
-    } catch (error) {
-      console.log('Cannot set isEdited directly, ignoring this field');
+    // เพิ่ม flag isEdited เฉพาะสำหรับข้อความ assistant
+    // หมายเหตุ: ข้อความ user ที่แก้ไขจะทำงานเป็น resubmit ในฝั่ง client แล้ว
+    if (role === 'assistant' && isEdited) {
+      try {
+        chat.messages[messageIndex].set('isEdited', true);
+      } catch (error) {
+        console.log('Cannot set isEdited directly, ignoring this field');
+      }
     }
 
     // บันทึกการเปลี่ยนแปลง
@@ -910,6 +915,50 @@ router.post('/edit-message', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
   } catch (error) {
     console.error('Error editing message:', error);
     res.status(500).json({ error: 'Failed to edit message' });
+  }
+});
+
+// เพิ่มข้อความลงในการสนทนา - สำหรับการส่งข้อความใหม่หลังจากแก้ไข (resubmit)
+router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { chatId } = req.params;
+    const { message } = req.body;
+    const userId = (req.user as any)?.username || '';
+
+    // ตรวจสอบข้อมูลพื้นฐาน
+    if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
+      res.status(400).json({ error: 'Invalid chat ID' });
+      return;
+    }
+
+    if (!message || !message.content || !message.role) {
+      res.status(400).json({ error: 'Message content and role are required' });
+      return;
+    }
+
+    // ค้นหา chat
+    const chat = await Chat.findOne({ _id: chatId, userId });
+    
+    if (!chat) {
+      res.status(404).json({ error: 'Chat not found or unauthorized' });
+      return;
+    }
+
+    // เพิ่มข้อความลงในการสนทนา
+    chat.messages.push({
+      id: message.id || Date.now(),
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp || { $date: new Date().toISOString() }
+    });
+
+    // บันทึกการเปลี่ยนแปลง
+    await chat.save();
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error adding message:', error);
+    res.status(500).json({ error: 'Failed to add message' });
   }
 });
 

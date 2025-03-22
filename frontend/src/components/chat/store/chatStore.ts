@@ -802,113 +802,86 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
       
-      // อัพเดทข้อความที่แก้ไข
-      const updatedMessages = [...messages];
-      updatedMessages[messageIndex] = {
-        ...message,
-        isEdited: true
+      // เมื่อแก้ไขข้อความของ user: เป็นการส่งข้อความใหม่ (resubmit)
+      // สร้างข้อความผู้ใช้ใหม่จากข้อความที่แก้ไข
+      const newUserMessage: Message = {
+        id: Date.now(),
+        role: 'user',
+        content: message.content,
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        isImageGeneration: false
       };
       
-      // อัพเดทข้อความในสถานะ
-      set({ messages: updatedMessages });
+      // สร้างข้อความใหม่ของ assistant สำหรับการตอบกลับ
+      const newAssistantMessage: Message = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: '',
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        isImageGeneration: false,
+        isComplete: false
+      };
       
-      // ส่งข้อความที่แก้ไขไปยัง backend
+      // อัพเดทข้อความโดยเพิ่มข้อความใหม่ต่อท้าย
+      set({ messages: [...messages, newUserMessage, newAssistantMessage] });
+      setIsLoading(true);
+      
+      // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
+      window.dispatchEvent(new CustomEvent('chatScrollAction', {
+        detail: { 
+          action: 'enableAutoScroll',
+          forceScroll: true
+        }
+      }));
+      
+      // ส่งคำขอไปยัง websocket
       try {
-        // ส่งการแก้ไขไปยัง WebSocket เพื่อแจ้งเตือนอุปกรณ์อื่น
-        if (wsRef) {
-          wsRef.send(JSON.stringify({
-            type: 'message_edited',
-            chatId: currentChatId,
-            messageId: message.id,
-            content: message.content
-          }));
+        if (!wsRef) {
+          console.error('WebSocket connection not available');
+          return;
         }
         
-        // ส่ง API request เพื่อบันทึกลงฐานข้อมูล
+        // ส่งข้อความใหม่สำหรับการตอบกลับ
+        wsRef.send(JSON.stringify({
+          messages: [newUserMessage],
+          modelId: selectedModel,
+          isImageGeneration: false,
+          path: window.location.pathname,
+          chatId: currentChatId,
+          type: 'message'
+        }));
+        
+        // อัพเดทการใช้งาน
+        fetchUsage();
+      } catch (error) {
+        console.error('Error in handleEditMessage (resubmit):', error);
+        setIsLoading(false);
+      }
+      
+      // บันทึกข้อความใหม่ลงฐานข้อมูล
+      try {
         const token = localStorage.getItem('auth_token');
         if (token && currentChatId) {
-          fetch(`${config.apiUrl}/api/chat/edit-message`, {
+          fetch(`${config.apiUrl}/api/chat/history/${currentChatId}/messages`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-              chatId: currentChatId,
-              messageId: message.id,
-              content: message.content,
-              role: 'user',
-              isEdited: true
+              message: newUserMessage
             })
           })
-          .then(response => {
-            if (!response.ok) {
-              throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then(data => {
-            console.log('บันทึกการแก้ไขข้อความสำเร็จ:', data);
-            
-            // หลังจากบันทึกการแก้ไขสำเร็จแล้ว เพิ่มข้อความใหม่ของ user และรอการตอบกลับจาก assistant
-            // สร้างข้อความผู้ใช้ใหม่ (คัดลอกจากข้อความที่แก้ไข)
-            const newUserMessage: Message = {
-              id: Date.now(),
-              role: 'user',
-              content: message.content,
-              timestamp: {
-                $date: new Date().toISOString()
-              },
-              isImageGeneration: false
-            };
-            
-            // สร้างข้อความใหม่ของ assistant สำหรับการตอบกลับ
-            const newAssistantMessage: Message = {
-              id: Date.now() + 1,
-              role: 'assistant',
-              content: '',
-              timestamp: {
-                $date: new Date().toISOString()
-              },
-              isImageGeneration: false,
-              isComplete: false
-            };
-            
-            // อัพเดทข้อความโดยเพิ่มข้อความใหม่ต่อท้าย
-            const newMessages = [...updatedMessages, newUserMessage, newAssistantMessage];
-            set({ messages: newMessages });
-            setIsLoading(true);
-            
-            // ส่งคำขอไปยัง websocket
-            try {
-              if (!wsRef) {
-                console.error('WebSocket connection not available');
-                return;
-              }
-              
-              // ส่งข้อความสำหรับการตอบกลับใหม่
-              wsRef.send(JSON.stringify({
-                messages: [newUserMessage],
-                modelId: selectedModel,
-                isImageGeneration: false,
-                path: window.location.pathname,
-                chatId: currentChatId,
-                type: 'message'
-              }));
-              
-              // อัพเดท usage
-              fetchUsage();
-            } catch (error) {
-              console.error('Error in handleEditMessage:', error);
-              setIsLoading(false);
-            }
-          })
           .catch(error => {
-            console.error('เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+            console.error('เกิดข้อผิดพลาดในการบันทึกข้อความใหม่:', error);
           });
         }
       } catch (error) {
-        console.error('เกิดข้อผิดพลาดในการส่งคำขอแก้ไขข้อความ:', error);
+        console.error('เกิดข้อผิดพลาดในการส่งคำขอบันทึกข้อความใหม่:', error);
       }
     } else if (message.role === 'assistant') {
       // ค้นหาข้อความเดิมและตำแหน่ง
@@ -918,11 +891,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
       
-      // อัพเดทข้อความที่แก้ไขโดยตรง โดยไม่ลบข้อความหลังจากนี้
+      // อัพเดทข้อความที่แก้ไขโดยตรง 
       const updatedMessages = [...messages];
       updatedMessages[messageIndex] = {
         ...message,
-        isEdited: true
+        isEdited: true // เพิ่ม flag isEdited สำหรับข้อความ assistant ที่ถูกแก้ไข
       };
       
       // อัพเดทข้อความในสถานะ

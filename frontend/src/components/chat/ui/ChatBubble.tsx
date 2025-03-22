@@ -41,7 +41,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const handleSaveEdit = () => {
     if (onEditClick && editedContent.trim() !== '') {
       const editedMessage = { ...message, content: editedContent };
-      onEditClick(editedMessage); // เพียงแค่ส่งข้อความที่แก้ไขไปยัง store
+      onEditClick(editedMessage);
       setIsEditing(false);
     }
   };
@@ -59,15 +59,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const handleRegenerateClick = (e: React.MouseEvent) => {
     if (onRegenerateClick) {
       onRegenerateClick(e, messageIndex);
-    }
-  };
-
-  // สำหรับการแก้ไขข้อความของ user 
-  const handleSaveUserEdit = () => {
-    if (onEditClick && editedContent.trim() !== '' && message.role === 'user') {
-      const editedMessage = { ...message, content: editedContent };
-      onEditClick(editedMessage); // ส่งข้อความที่แก้ไขไปยัง store
-      setIsEditing(false);
     }
   };
 
@@ -100,10 +91,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 ยกเลิก
               </button>
               <button
-                onClick={message.role === 'user' ? handleSaveUserEdit : handleSaveEdit}
+                onClick={handleSaveEdit}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
               >
-                {message.role === 'user' ? 'บันทึกและส่ง' : 'บันทึก'}
+                {message.role === 'user' ? 'บันทึกและส่งใหม่' : 'บันทึกการแก้ไข'}
               </button>
             </div>
           </div>
