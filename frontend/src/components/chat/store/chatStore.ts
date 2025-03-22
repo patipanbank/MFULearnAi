@@ -707,9 +707,112 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   // Edit a message
   handleEditMessage: (message) => {
-    // ใช้ setInputMessage จาก uiStore แทน
-    useUIStore.getState().setInputMessage(message.content);
-    set({ editingMessage: message });
+    const { messages, wsRef, currentChatId } = get();
+    const { selectedModel, fetchUsage } = useModelStore.getState();
+    const { setInputMessage, setIsLoading } = useUIStore.getState();
+    
+    // หากเป็นการแก้ไขข้อความของผู้ใช้และส่งออกไป
+    if (message.role === 'user') {
+      // ค้นหาข้อความเดิมและตำแหน่ง
+      const messageIndex = messages.findIndex(m => m.id === message.id);
+      if (messageIndex === -1) {
+        console.error('ไม่พบข้อความที่จะแก้ไข');
+        return;
+      }
+      
+      // ตรวจสอบว่าเป็นข้อความผู้ใช้ล่าสุดหรือไม่
+      let isLastUserMessage = true;
+      for (let i = messageIndex + 1; i < messages.length; i++) {
+        if (messages[i].role === 'user') {
+          isLastUserMessage = false;
+          break;
+        }
+      }
+      
+      // อัพเดทข้อความที่แก้ไข
+      const updatedMessages = [...messages];
+      updatedMessages[messageIndex] = {
+        ...message,
+        isEdited: true
+      };
+      
+      // ถ้าเป็นข้อความ user ล่าสุด จะตัดข้อความที่เป็น assistant ที่มาหลังจากนี้ออกและส่งใหม่
+      if (isLastUserMessage && messageIndex < messages.length - 1) {
+        // ตัดข้อความ assistant ที่อยู่หลังจากนี้ออก
+        const messagesToKeep = updatedMessages.slice(0, messageIndex + 1);
+        
+        // สร้างข้อความใหม่ของ assistant
+        const assistantMessage: Message = {
+          id: Date.now(),
+          role: 'assistant',
+          content: '',
+          timestamp: {
+            $date: new Date().toISOString()
+          },
+          isImageGeneration: false,
+          isComplete: false
+        };
+        
+        // อัพเดทข้อความและตั้งค่า loading
+        set({ messages: [...messagesToKeep, assistantMessage] });
+        setIsLoading(true);
+        
+        try {
+          // ส่งคำขอไปยัง websocket
+          const messagePayload = {
+            messages: messagesToKeep,
+            modelId: selectedModel,
+            isImageGeneration: false,
+            path: window.location.pathname,
+            chatId: currentChatId,
+            type: 'message'
+          };
+          
+          if (!wsRef) {
+            console.error('WebSocket connection not available');
+            return;
+          }
+          
+          wsRef.send(JSON.stringify(messagePayload));
+          
+          // อัพเดท usage
+          fetchUsage();
+        } catch (error) {
+          console.error('Error in handleEditMessage:', error);
+          set({ 
+            messages: [...updatedMessages, {
+              id: Date.now(),
+              role: 'assistant',
+              content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
+              timestamp: {
+                $date: new Date().toISOString()
+              },
+              isImageGeneration: false,
+              isComplete: true
+            }]
+          });
+          setIsLoading(false);
+        }
+      } else {
+        // ถ้าไม่ใช่ข้อความล่าสุด เพียงแค่อัพเดทข้อความเดิม
+        set({ messages: updatedMessages });
+        
+        // ส่งการแก้ไขไปยัง WebSocket เพื่อแจ้งเตือนอุปกรณ์อื่น (ถ้ามี)
+        if (wsRef) {
+          wsRef.send(JSON.stringify({
+            type: 'message_edited',
+            chatId: currentChatId,
+            messageId: message.id,
+            content: message.content
+          }));
+        }
+      }
+    } else {
+      // สำหรับข้อความของ assistant ให้ใช้วิธีเดิม
+      // เพียงแค่แสดงในช่อง input
+      setInputMessage(message.content);
+      set({ editingMessage: message });
+    }
   },
   
   // Regenerate the last assistant message

@@ -16,18 +16,18 @@ interface ChatBubbleProps {
   onRegenerateClick?: (e: React.MouseEvent, index?: number) => void;
   selectedModel: string;
   messageIndex?: number;
-  totalMessages?: number;
+  isLastAssistantMessage?: boolean;
 }
 
 const ChatBubble: React.FC<ChatBubbleProps> = ({ 
   message, 
-  isLastMessage, 
   isLoading, 
   onContinueClick, 
   onEditClick,
   onRegenerateClick,
   selectedModel,
   messageIndex = 0,
+  isLastAssistantMessage = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
@@ -62,6 +62,15 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     }
   };
 
+  // สำหรับข้อความของ user เมื่อกดบันทึกจะส่งข้อความที่แก้ไขไปเลย
+  const handleSaveUserEdit = () => {
+    if (onEditClick && editedContent.trim() !== '' && message.role === 'user') {
+      const editedMessage = { ...message, content: editedContent };
+      onEditClick(editedMessage);
+      setIsEditing(false);
+    }
+  };
+
   return (
     <div className="message relative">
       {isEditing ? (
@@ -69,7 +78,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {message.role === 'user' ? 'Edit User Message' : 'Edit Chatbot Message'}
+                {message.role === 'user' ? 'แก้ไขข้อความผู้ใช้' : 'แก้ไขข้อความแชทบอท'}
               </h3>
               <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                 <MdClose className="h-6 w-6" />
@@ -80,7 +89,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
                 className="w-full h-full min-h-[300px] p-3 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                placeholder="Edit your message..."
+                placeholder="แก้ไขข้อความของคุณ..."
               />
             </div>
             <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
@@ -88,13 +97,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 onClick={handleCancelEdit}
                 className="px-4 py-2 border rounded-md text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                Cancel
+                ยกเลิก
               </button>
               <button
-                onClick={handleSaveEdit}
+                onClick={message.role === 'user' ? handleSaveUserEdit : handleSaveEdit}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
               >
-                บันทึก
+                {message.role === 'user' ? 'บันทึกและส่ง' : 'บันทึก'}
               </button>
             </div>
           </div>
@@ -168,8 +177,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       {/* Action buttons for assistant messages */}
       {message.role === 'assistant' && message.isComplete && (
         <div className="ml-11 mt-2 flex flex-wrap gap-2">
-          {/* Continue button - only for the last message */}
-          {isLastMessage && (
+          {/* Continue button - แสดงเมื่อเป็นข้อความ assistant ล่าสุด */}
+          {isLastAssistantMessage && (
             <button
               type="button"
               onClick={onContinueClick}
@@ -197,7 +206,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
               }`}
               disabled={!selectedModel}
-              title={isLastMessage ? "สร้างคำตอบใหม่" : "ลบประวัติสนทนาที่ใหม่กว่าและสร้างคำตอบใหม่"}
+              title={isLastAssistantMessage ? "สร้างคำตอบใหม่" : "ลบประวัติสนทนาที่ใหม่กว่าและสร้างคำตอบใหม่"}
             >
               <MdRefresh className="h-5 w-5" />
             </button>

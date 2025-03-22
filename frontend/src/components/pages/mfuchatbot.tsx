@@ -160,21 +160,36 @@ const MFUChatbot: React.FC = () => {
           <WelcomeMessage />
         ) : (
           <div className="space-y-6">
-            {messages.map((message, index) => (
-              <ChatBubble 
-                key={message.id}
-                message={message}
-                isLastMessage={index === messages.length - 1}
-                isLoading={isLoading}
-                onContinueClick={handleContinueClick}
-                onCancelClick={handleCancelGeneration}
-                onEditClick={handleEditMessage}
-                onRegenerateClick={handleRegenerateMessage}
-                selectedModel={selectedModel}
-                messageIndex={index}
-                totalMessages={messages.length}
-              />
-            ))}
+            {messages.map((message, index) => {
+              // ตรวจสอบว่าเป็นข้อความ assistant ล่าสุดหรือไม่
+              const isLastAssistantMessage = (() => {
+                // เริ่มหาจากข้อความล่าสุดย้อนขึ้นไป
+                for (let i = messages.length - 1; i >= 0; i--) {
+                  if (messages[i].role === 'assistant' && i === index) {
+                    return true;
+                  } else if (messages[i].role === 'assistant') {
+                    return false;
+                  }
+                }
+                return false;
+              })();
+
+              return (
+                <ChatBubble 
+                  key={message.id}
+                  message={message}
+                  isLastMessage={index === messages.length - 1}
+                  isLoading={isLoading}
+                  onContinueClick={handleContinueClick}
+                  onCancelClick={handleCancelGeneration}
+                  onEditClick={handleEditMessage}
+                  onRegenerateClick={handleRegenerateMessage}
+                  selectedModel={selectedModel}
+                  messageIndex={index}
+                  isLastAssistantMessage={isLastAssistantMessage}
+                />
+              );
+            })}
             <div 
               ref={messagesEndRef} 
               id="chat-bottom-anchor"
