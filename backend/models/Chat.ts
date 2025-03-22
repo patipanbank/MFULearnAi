@@ -22,14 +22,6 @@ interface ChatMessage {
     filename: string;
     similarity: number;
   }>;
-  imageEmbeddings?: number[][];
-  processedFiles?: Array<{
-    name: string;
-    chunks: Array<{
-      text: string;
-      embedding: number[];
-    }>;
-  }>;
   isImageGeneration?: boolean;
   isComplete?: boolean;
   isEdited?: boolean;
@@ -69,14 +61,6 @@ const chatSchema = new mongoose.Schema({
         collectionName: String,
         filename: String,
         similarity: Number
-      }],
-      imageEmbeddings: [[Number]],
-      processedFiles: [{
-        name: String,
-        chunks: [{
-          text: String,
-          embedding: [Number]
-        }]
       }],
       isImageGeneration: Boolean,
       isComplete: Boolean,

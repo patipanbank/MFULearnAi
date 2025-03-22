@@ -36,14 +36,6 @@ export interface Message {
   error?: boolean;
   modelId?: string;
   loading?: boolean;
-  imageEmbeddings?: number[][];
-  processedFiles?: {
-    name: string;
-    chunks: {
-      text: string;
-      embedding: number[];
-    }[];
-  }[];
 }
 
 export interface ChatHistory {

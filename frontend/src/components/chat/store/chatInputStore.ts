@@ -159,11 +159,6 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
     } else {
       set({ existingDocFiles: [] });
     }
-    
-    // เก็บข้อมูล processedFiles ไว้ในข้อความที่กำลังแก้ไข
-    if (message.processedFiles && message.processedFiles.length > 0) {
-      console.log(`[ChatInputStore] Found ${message.processedFiles.length} processed files in message being edited`);
-    }
   },
   
   handleSaveEdit: async (message, onEditClick) => {
@@ -244,22 +239,18 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         // สำหรับข้อความของ User: ทำงานแบบ resubmit
         
         // เตรียมข้อความที่จะแก้ไข (เพื่อ resubmit)
-        const updatedMessage = {
+        const editedMessage = {
           ...message,
           content: inputMessage,
-          timestamp: { $date: new Date().toISOString() },
           images: allImages.length > 0 ? allImages : undefined,
           files: allFiles.length > 0 ? allFiles : undefined,
-          processedFiles: message.processedFiles,
-          isEdited: true
+          isEdited: true  // เพิ่มการระบุว่าเป็นข้อความที่แก้ไขแล้ว
         };
         
-        if (updatedMessage.processedFiles && updatedMessage.processedFiles.length > 0) {
-          console.log(`[ChatInputStore] Preserved ${updatedMessage.processedFiles.length} processed files during edit`);
-        }
+        //console.log('[chatInputStore] แก้ไขข้อความ User:', editedMessage);
         
         // ตั้งค่าข้อความที่แก้ไขใน chatStore เพื่อให้ handleSubmit รับไปดำเนินการต่อ
-        chatStore.setEditingMessage(updatedMessage);
+        chatStore.setEditingMessage(editedMessage);
         
         // สร้าง synthetic event เพื่อส่งให้ handleSubmit
         const event = {
@@ -276,23 +267,17 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         }
         
         // สร้างข้อความที่แก้ไขแล้ว
-        const updatedMessage = {
+        const editedMessage = {
           ...message,
           content: inputMessage,
-          timestamp: { $date: new Date().toISOString() },
-          images: allImages.length > 0 ? allImages : undefined,
-          files: allFiles.length > 0 ? allFiles : undefined,
-          processedFiles: message.processedFiles,
           isEdited: true
         };
         
-        if (updatedMessage.processedFiles && updatedMessage.processedFiles.length > 0) {
-          console.log(`[ChatInputStore] Preserved ${updatedMessage.processedFiles.length} processed files during edit`);
-        }
+        //console.log('[chatInputStore] กำลังแก้ไขข้อความ Assistant:', editedMessage);
         
         // อัพเดทข้อความใน state
         chatStore.setMessages(prev => {
-          const newMessages = prev.map(msg => msg.id === message.id ? updatedMessage : msg);
+          const newMessages = prev.map(msg => msg.id === message.id ? editedMessage : msg);
           //console.log('[chatInputStore] อัพเดทข้อความใน UI สำเร็จ', newMessages);
           return newMessages;
         });
@@ -300,7 +285,7 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         // เรียกใช้ callback onEditClick ถ้ามีทันทีหลังอัพเดท state
         if (onEditClick) {
           //console.log('[chatInputStore] เรียกใช้ onEditClick callback');
-          onEditClick(updatedMessage);
+          onEditClick(editedMessage);
         }
         
         // ส่งคำขอไปยัง API เพื่ออัพเดทข้อความในฐานข้อมูล

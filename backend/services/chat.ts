@@ -8,8 +8,6 @@ import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
-import { titanEmbedService } from './titan';
-import { splitTextIntoChunks } from '../utils/textUtils';
 
 interface QueryResult {
   text: string;
@@ -338,175 +336,6 @@ class ChatService {
     }
   }
 
-  /**
-   * Processes attachment embeddings from a message to provide additional context for response generation.
-   * This includes both image embeddings and file content embeddings.
-   *
-   * @param message The message containing attachment embeddings
-   * @param query The user's query text
-   * @returns Additional context derived from attachments
-   */
-  private async processAttachmentEmbeddings(lastMessage: ChatMessage, query: string): Promise<string> {
-    let contextBuilder: string[] = [];
-    
-    // Process image embeddings if available
-    if (lastMessage.imageEmbeddings && lastMessage.imageEmbeddings.length > 0) {
-      contextBuilder.push(`Observations from attached images:`);
-      
-      // Add a description based on available embeddings
-      const imageCount = lastMessage.imageEmbeddings.length;
-      contextBuilder.push(`There ${imageCount === 1 ? 'is' : 'are'} ${imageCount} image${imageCount > 1 ? 's' : ''} attached to this message.`);
-      contextBuilder.push(`The images appear to contain visual information relevant to the query.`);
-    }
-    
-    // Process file content if available - using chunking and batching
-    if (lastMessage.files && lastMessage.files.length > 0) {
-      try {
-        // ประมวลผลเอกสารที่แนบมา
-        const processedFiles = await this.processFilesForEmbedding(lastMessage.files);
-        
-        if (processedFiles && processedFiles.length > 0) {
-          contextBuilder.push(`Information from attached documents:`);
-          
-          // กำหนดจำนวน chunks สูงสุดที่จะรวมเข้าไปในบริบท
-          const MAX_CHUNKS_PER_FILE = 3; 
-          
-          // สร้างบริบทจากเอกสารที่ประมวลผล
-          for (const file of processedFiles) {
-            contextBuilder.push(`From document ${file.name}:`);
-            
-            // เพิ่มเนื้อหาจาก chunks
-            const chunks = file.chunks.slice(0, MAX_CHUNKS_PER_FILE);
-            for (const chunk of chunks) {
-              contextBuilder.push(chunk.text);
-            }
-            
-            if (file.chunks.length > MAX_CHUNKS_PER_FILE) {
-              contextBuilder.push(`Note: Only showing ${MAX_CHUNKS_PER_FILE} most relevant segments from ${file.chunks.length} total segments in ${file.name}.`);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error processing document files:', error);
-      }
-    }
-    
-    return contextBuilder.length > 0 ? contextBuilder.join("\n") : "";
-  }
-
-  /**
-   * ประมวลผลเอกสารแบบแบตช์และแบ่งชั้น
-   */
-  private async processFilesForEmbedding(files: { name: string; data: string; mediaType: string; size: number; content?: string }[]): Promise<{
-    name: string;
-    chunks: {
-      text: string;
-      embedding: number[];
-    }[];
-  }[]> {
-    if (!files || files.length === 0) return [];
-
-    console.log(`Processing ${files.length} files for embedding`);
-    
-    const processedFiles = await Promise.all(
-      files.map(async (file) => {
-        try {
-          // ถ้าไม่มี content ให้สร้าง content จากข้อมูลที่มี
-          let fileContent = file.content;
-          
-          if (!fileContent || fileContent.trim() === '') {
-            console.log(`File ${file.name} has no content, trying to create one`);
-            
-            // กรณีไม่มี content ให้ใช้ข้อมูลที่มีอยู่
-            if (file.mediaType.startsWith('image/')) {
-              // สำหรับรูปภาพให้ใช้ชื่อไฟล์เป็นคำอธิบาย
-              fileContent = `Image file: ${file.name}, Size: ${Math.round(file.size/1024)} KB`;
-            } else {
-              // สำหรับไฟล์เอกสารอื่นๆ
-              fileContent = `Document file: ${file.name}, Type: ${file.mediaType}, Size: ${Math.round(file.size/1024)} KB`;
-            }
-            
-            console.log(`Created placeholder content for ${file.name}`);
-          }
-          
-          // แบ่งเนื้อหาเอกสารเป็นชั้นๆ
-          const chunks = splitTextIntoChunks(fileContent);
-          console.log(`Split ${file.name} into ${chunks.length} chunks`);
-          
-          // คำนวณ embeddings สำหรับทุกชั้น
-          const chunksWithEmbeddings = await Promise.all(
-            chunks.map(async (chunk, index) => {
-              try {
-                console.log(`Embedding chunk ${index+1}/${chunks.length} for ${file.name}`);
-                const embedding = await titanEmbedService.embedText(chunk);
-                return {
-                  text: chunk,
-                  embedding
-                };
-              } catch (error) {
-                console.error(`Error embedding chunk ${index+1} for file ${file.name}:`, error);
-                return null;
-              }
-            })
-          );
-          
-          // กรอง chunksWithEmbeddings ที่เป็น null ออกและระบุ type ให้ชัดเจน
-          const validChunks = chunksWithEmbeddings.filter((chunk): chunk is { text: string; embedding: number[] } => 
-            chunk !== null
-          );
-          
-          console.log(`Successfully processed ${validChunks.length}/${chunks.length} chunks for ${file.name}`);
-          
-          return {
-            name: file.name,
-            chunks: validChunks
-          };
-        } catch (error) {
-          console.error(`Error processing file ${file.name}:`, error);
-          return null;
-        }
-      })
-    );
-    
-    // กรอง processedFiles ที่เป็น null ออกและระบุ type ให้ชัดเจน
-    const result = processedFiles.filter((file): file is { 
-      name: string; 
-      chunks: { text: string; embedding: number[] }[] 
-    } => file !== null);
-    
-    console.log(`Successfully processed ${result.length}/${files.length} files with embeddings`);
-    
-    return result;
-  }
-
-  /**
-   * สร้างบริบทจากเอกสารที่ประมวลผลแล้ว
-   */
-  private getDocumentContext(processedFiles: {
-    name: string;
-    chunks: {
-      text: string;
-      embedding: number[];
-    }[];
-  }[], query: string): string {
-    if (!processedFiles || processedFiles.length === 0) return "";
-    
-    let documentContext = "";
-    
-    // รวบรวมบริบทจากทุกไฟล์
-    for (const file of processedFiles) {
-      if (file.chunks && file.chunks.length > 0) {
-        documentContext += `\nInformation from document "${file.name}":\n`;
-        // เพิ่มสูงสุด 3 chunks เพื่อไม่ให้บริบทยาวเกินไป
-        for (let i = 0; i < Math.min(3, file.chunks.length); i++) {
-          documentContext += `${file.chunks[i].text}\n`;
-        }
-      }
-    }
-    
-    return documentContext;
-  }
-
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
@@ -543,7 +372,7 @@ class ChatService {
       } else {
         recentMessages = [...messages];
       }
-
+      
       // Skip context retrieval for image generation
       let context = '';
       if (!isImageGeneration) {
@@ -565,45 +394,20 @@ class ChatService {
         }
       }
       
-      // Process attachment embeddings if available
-      let attachmentContext = "";
-      if (lastMessage && (lastMessage.imageEmbeddings || lastMessage.files)) {
-        try {
-          attachmentContext = await this.processAttachmentEmbeddings(lastMessage, query);
-          
-          // Add attachment context to main context
-          if (attachmentContext) {
-            if (context) context += '\n\n';
-            context += attachmentContext;
-          }
-        } catch (attachmentError) {
-          console.error('Error processing attachment embeddings:', attachmentError);
-          // Continue without attachment context
-        }
-      }
-      
       // console.log('Retrieved context length:', context.length);
 
       const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
       // console.log('Question type:', questionType);
 
       // ดึง system prompt จากฐานข้อมูล
-      let systemPrompt = this.systemPrompt;
-      try {
-        const defaultPrompt = await SystemPrompt.findOne({ isDefault: true });
-        if (defaultPrompt) {
-          systemPrompt = defaultPrompt.prompt;
-        }
-      } catch (error) {
-        console.error('Error fetching system prompt:', error);
-        // Continue with default system prompt
-      }
+      const dynamicSystemPrompt = await this.getSystemPrompt();
 
-      // Prepare messages for the LLM
       const systemMessages: ChatMessage[] = [
         {
           role: 'system',
-          content: systemPrompt
+          content: isImageGeneration ? 
+            'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
+            dynamicSystemPrompt
         }
       ];
 
@@ -619,7 +423,7 @@ class ChatService {
       if (context && !isImageGeneration) {
         systemMessages.push({
           role: 'system',
-          content: this.promptTemplates[questionType]
+          content: `Context from documents:\n${context}`
         });
       }
 
@@ -627,60 +431,75 @@ class ChatService {
       const augmentedMessages = [...systemMessages, ...recentMessages];
 
       // นับจำนวนข้อความทั้งหมดในการสนทนานี้
-      let totalMessages = messages.length + 1;
-
-      // บันทึกสถิติการสนทนา
-      try {
-        // บันทึก token usage สำหรับการใช้งาน
-        await usageService.updateTokenUsage(userId, query.length);
-        
-        // บันทึกสถิติการใช้งาน
-        const chatStats = new ChatStats({
-          userId,
-          modelId: typeof modelIdOrCollections === 'string' ? modelIdOrCollections : 'multiple',
-          timestamp: new Date(),
-          date: new Date(),
-          numMessages: totalMessages,
-          questionType
-        });
-        await chatStats.save();
-      } catch (error) {
-        console.error('Error saving chat stats:', error);
-        // Continue without saving stats
-      }
-
-      // Process response based on type
-      if (isImageGeneration) {
+      const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
+      
+      // อัพเดทสถิติพร้อมจำนวนข้อความ
+      await this.updateDailyStats(userId);
+      
+      let attempt = 0;
+      while (attempt < this.retryConfig.maxRetries) {
         try {
-          const imageResult = await bedrockService.generateImage(query);
-          yield imageResult;
-        } catch (error) {
-          console.error('Error generating image:', error);
-          yield "I'm sorry, I wasn't able to generate that image. Please try a different description.";
-        }
-      } else {
-        try {
+          // ตรวจสอบว่ามีไฟล์หรือไม่
+          const hasFiles = lastMessage.files && lastMessage.files.length > 0;
+          
+          // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
+          if (hasFiles && lastMessage.files) {
+            const fileInfo = lastMessage.files.map(file => {
+              let fileDetail = `- ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`;
+              if (file.content) {
+                fileDetail += " - File content included";
+              }
+              return fileDetail;
+            }).join('\n');
+            
+            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
+            query = `${query}\n\n[Attached files]\n${fileInfo}`;
+          }
+
           // Generate response and send chunks
           let totalTokens = 0;
           for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
             if (typeof chunk === 'string') {
               yield chunk;
-            } else if (typeof chunk === 'object' && chunk !== null) {
-              const tokenChunk = chunk as { token: string };
-              if ('token' in tokenChunk) {
-                totalTokens += 1;
-                yield tokenChunk.token;
-              }
             }
           }
-        } catch (error) {
-          console.error('Error generating response:', error);
-          yield "I'm sorry, I encountered an error while generating a response. Please try again.";
+
+          // อัพเดท token usage หลังจากได้ response ทั้งหมด
+          totalTokens = bedrockService.getLastTokenUsage();
+          if (totalTokens > 0) {
+            const usage = await usageService.updateTokenUsage(userId, totalTokens);
+            console.log(`[Chat] Token usage updated for ${userId}:`, {
+              used: totalTokens,
+              daily: usage.dailyTokens,
+              remaining: usage.remainingTokens
+            });
+            
+            // อัปเดตข้อมูล token ในสถิติรายวัน
+            const today = new Date();
+            today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
+            today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
+
+            await ChatStats.findOneAndUpdate(
+              { date: today },
+              { $inc: { totalTokens: totalTokens } },
+              { upsert: true }
+            );
+          }
+          return;
+        } catch (error: unknown) {
+          attempt++;
+          if (error instanceof Error && error.name === 'InvalidSignatureException') {
+            console.error(`Error in chat generation (Attempt ${attempt}/${this.retryConfig.maxRetries}):`, error);
+            // รอสักครู่ก่อน retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+          throw error;
         }
       }
     } catch (error) {
-      console.error('Error in generateResponse:', error);
-      yield "I apologize, but I'm having trouble processing your request. Please try again later.";
+      console.error('Error generating response:', error);
+      throw error;
     }
   }
 
@@ -772,8 +591,6 @@ class ChatService {
         timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
         images: msg.images || [],
         sources: msg.sources || [],
-        imageEmbeddings: msg.imageEmbeddings || [],
-        processedFiles: msg.processedFiles || [],
         isImageGeneration: msg.isImageGeneration || false,
         isComplete: msg.isComplete || false
       }));
@@ -810,8 +627,6 @@ class ChatService {
               timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
               images: msg.images || [],
               sources: msg.sources || [],
-              imageEmbeddings: msg.imageEmbeddings || [],
-              processedFiles: msg.processedFiles || [],
               isImageGeneration: msg.isImageGeneration || false,
               isComplete: msg.isComplete || false
             }))
@@ -926,57 +741,6 @@ class ChatService {
       batches.push(items.slice(i, i + batchSize));
     }
     return batches;
-  }
-
-  /**
-   * Determines whether the query might benefit from web search augmentation.
-   * Examines query for patterns indicating need for real-time or external information.
-   */
-  private shouldAugmentWithWebSearch(query: string): boolean {
-    // Convert to lowercase for case-insensitive matching
-    const lowerQuery = query.toLowerCase();
-    
-    // Keywords suggesting current events or recent information
-    const timeKeywords = [
-      'latest', 'recent', 'current', 'today', 'yesterday', 'this week',
-      'this month', 'this year', 'last week', 'last month', 'last year',
-      'breaking news', 'update', 'new'
-    ];
-    
-    // Keywords suggesting specific factual information
-    const factKeywords = [
-      'what is', 'who is', 'where is', 'when did', 'how many',
-      'which', 'why', 'define', 'explain', 'information about',
-      'data on', 'statistics', 'research'
-    ];
-    
-    // Check for time-based keywords
-    const hasTimeKeyword = timeKeywords.some(keyword => 
-      lowerQuery.includes(keyword)
-    );
-    
-    // Check for fact-based keywords
-    const hasFactKeyword = factKeywords.some(keyword => 
-      lowerQuery.includes(keyword)
-    );
-    
-    // Additional patterns suggesting external information need
-    const hasWebIndicator = lowerQuery.includes('website') || 
-                            lowerQuery.includes('internet') ||
-                            lowerQuery.includes('online') ||
-                            lowerQuery.includes('search for');
-    
-    return hasTimeKeyword || hasFactKeyword || hasWebIndicator;
-  }
-
-  /**
-   * Public interface for processing attachment embeddings 
-   * @param message The message containing attachment embeddings
-   * @param query The user's query text
-   * @returns Additional context derived from attachments
-   */
-  public async extractContextFromAttachments(lastMessage: ChatMessage, query: string): Promise<string> {
-    return this.processAttachmentEmbeddings(lastMessage, query);
   }
 }
 
