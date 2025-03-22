@@ -239,19 +239,47 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         files: message.role === 'user' ? allFiles : message.files
       };
       
-      // กำหนดให้ใช้ editingMessage ของ chatStore เพื่อให้ handleSubmit จัดการกับการแก้ไข
       const chatStore = useChatStore.getState();
-      chatStore.setEditingMessage(editedMessage);
       
-      // เรียกใช้ handleSubmit ผ่าน chatStore เพื่อส่งข้อความที่แก้ไขแล้ว
-      // สร้าง synthetic event เพื่อส่งให้ handleSubmit
-      const event = {
-        preventDefault: () => {}
-      } as React.FormEvent;
+      // แยกการทำงานระหว่าง User และ Assistant
+      if (message.role === 'user') {
+        // สำหรับข้อความของ User: ทำงานแบบ resubmit
+        chatStore.setEditingMessage(editedMessage);
+        
+        // สร้าง synthetic event เพื่อส่งให้ handleSubmit
+        const event = {
+          preventDefault: () => {}
+        } as React.FormEvent;
+        
+        await chatStore.handleSubmit(event);
+      } else if (message.role === 'assistant') {
+        // สำหรับข้อความของ Assistant: เพียงอัพเดทข้อความในฐานข้อมูล
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          throw new Error('ไม่พบ token สำหรับการยืนยันตัวตน');
+        }
+        
+        // อัพเดทข้อความใน state
+        chatStore.setMessages(prev => 
+          prev.map(msg => msg.id === message.id ? editedMessage : msg)
+        );
+        
+        // ส่งคำขอไปยัง API เพื่ออัพเดทข้อความในฐานข้อมูล
+        const wsRef = chatStore.wsRef;
+        const chatId = chatStore.currentChatId;
+        
+        if (wsRef && chatId) {
+          // ส่งคำสั่งแก้ไขข้อความผ่าน WebSocket
+          wsRef.send(JSON.stringify({
+            type: 'edit_assistant_message',
+            chatId: chatId,
+            messageId: message.id,
+            content: inputMessage
+          }));
+        }
+      }
       
-      await chatStore.handleSubmit(event);
-      
-      // เรียกใช้ callback onEditClick ถ้ามี (สำหรับการอัพเดท UI หรือการจัดการอื่นๆ)
+      // เรียกใช้ callback onEditClick ถ้ามี
       if (onEditClick) {
         onEditClick(editedMessage);
       }
