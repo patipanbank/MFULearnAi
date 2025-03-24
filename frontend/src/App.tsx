@@ -13,11 +13,24 @@ import CreateAdmin from './components/pages/CreateAdmin';
 import Help from './components/pages/Help';
 import Statistics from './components/pages/Statistics';
 import SystemPrompt from './components/pages/SystemPrompt';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
  
 
 const App = () => {
   return (
     <Router>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/auth-callback" element={<AuthCallback />} />
