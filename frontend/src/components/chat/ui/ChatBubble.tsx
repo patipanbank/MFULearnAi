@@ -35,7 +35,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 }) => {
   const [isCopied, setIsCopied] = useState(false);
   
-  // ใช้ chatStore สำหรับ attach file ตามรูปแบบของ ChatInput
+  // ใช้ chatStore สำหรับ attach file
   const chatStore = useChatStore();
   const { 
     selectedImages, 
@@ -49,8 +49,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const {
     isEditing,
     inputMessage, setInputMessage,
-    handleSaveEdit, handleCancelEdit,
-    handleStartEdit
+    handleCancelEdit,
   } = useChatInputStore();
 
   const handleCopyToClipboard = () => {
@@ -71,7 +70,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     chatStore.setSelectedFiles([]);
     
     // เริ่มการแก้ไขใน chatInputStore
-    handleStartEdit(message);
+    useChatInputStore.getState().handleStartEdit(message);
   };
 
   const onSaveEdit = () => {
@@ -82,7 +81,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       // For user: send a new message as in normal submission
       const chatStore = useChatStore.getState();
       
-      // ใช้ข้อมูลจาก chatStore แทน chatInputStore
+      // ใช้ข้อมูลจาก chatStore
       const { 
         selectedImages, 
         selectedFiles, 
@@ -195,14 +194,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         console.error('Error processing files:', error);
       });
     } else {
-      // For assistant: still use handleSaveEdit as before
-      handleSaveEdit(message, (updatedMessage) => {
-        // console.log('Edit successful, updated message:', updatedMessage);
-        // Call original callback if exists
-        if (onEditClick) {
-          onEditClick(updatedMessage);
-        }
-      });
+      // For assistant: use the chatInputStore's handleSaveEdit function
+      const updatedMessage: Message = {
+        ...message,
+        content: inputMessage
+      };
+      
+      // ใช้ function handleSaveEdit จาก chatInputStore
+      useChatInputStore.getState().handleSaveEdit(updatedMessage, onEditClick);
     }
   };
 
@@ -216,7 +215,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     return null;
   };
 
-  // Canvas for editing User message (supports file uploads)
+  // Canvas for editing User message (with file upload)
   const renderUserEditCanvas = () => {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
