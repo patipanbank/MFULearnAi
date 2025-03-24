@@ -230,7 +230,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             
             {/* คำแนะนำสำหรับผู้ใช้ */}
             <div className="text-xs text-gray-500 dark:text-gray-400 px-4 py-1">
-              * คุณต้องอัพโหลดไฟล์ใหม่ทั้งหมดที่ต้องการแนบ (ไฟล์เดิมจะไม่ถูกนำมาใช้)
+              * You must upload all new files you want to attach (old files will not be used)
             </div>
           </div>
           

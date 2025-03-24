@@ -202,7 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   const handleDelete = async (chatId: string) => {
-    if (!confirm('คุณต้องการลบแชทนี้ใช่หรือไม่?')) return;
+    if (!confirm('Are you sure you want to delete this chat?')) return;
 
     try {
       const token = localStorage.getItem('auth_token');

@@ -502,14 +502,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
                   return response.json();
                 })
                 .then(data => {
-                  console.log('บันทึกการแก้ไขข้อความสำเร็จ:', data);
+                  console.log('Message edit saved successfully:', data);
                 })
                 .catch(error => {
-                  console.error('เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+                  console.error('Error saving message edit:', error);
                 });
               }
             } catch (error) {
-              console.error('เกิดข้อผิดพลาดในการส่งคำขอแก้ไขข้อความ:', error);
+              console.error('Error sending message edit request:', error);
             }
           }
           
@@ -809,7 +809,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // ค้นหาข้อความเดิมและตำแหน่ง
       const messageIndex = messages.findIndex(m => m.id === message.id);
       if (messageIndex === -1) {
-        console.error('ไม่พบข้อความที่จะแก้ไข');
+        console.error('Message to edit not found');
         return;
       }
       
@@ -879,7 +879,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             name: file.name,
             size: file.size,
             type: file.mediaType,
-            dataPreview: file.data ? file.data.substring(0, 50) + '...' : 'ไม่มีข้อมูล'
+            dataPreview: file.data ? file.data.substring(0, 50) + '...' : 'No data'
           })));
         }
         
@@ -918,23 +918,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
             return response.json();
           })
           .then(data => {
-            console.log('บันทึกข้อความพร้อมไฟล์แนบสำเร็จ:', { 
+            console.log('Message saved with attachments successfully:', { 
               success: data.success,
               filesCount: newUserMessage.files?.length || 0 
             });
           })
           .catch(error => {
-            console.error('เกิดข้อผิดพลาดในการบันทึกข้อความใหม่:', error);
+            console.error('Error saving new message:', error);
           });
         }
       } catch (error) {
-        console.error('เกิดข้อผิดพลาดในการส่งคำขอบันทึกข้อความใหม่:', error);
+        console.error('Error sending save message request:', error);
       }
     } else if (message.role === 'assistant') {
       // ค้นหาข้อความเดิมและตำแหน่ง
       const messageIndex = messages.findIndex(m => m.id === message.id);
       if (messageIndex === -1) {
-        console.error('ไม่พบข้อความที่จะแก้ไข');
+        console.error('Message to edit not found');
         return;
       }
       
@@ -962,7 +962,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       try {
         const token = localStorage.getItem('auth_token');
         if (!token || !currentChatId) {
-          console.error('ไม่พบ token หรือ chat ID');
+          console.error('Token or chat ID not found');
           return;
         }
         
@@ -982,18 +982,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         })
         .then(response => {
           if (!response.ok) {
-            throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
+            throw new Error(`Failed to edit message: ${response.status}`);
           }
           return response.json();
         })
         .then(data => {
-          console.log('บันทึกการแก้ไขข้อความสำเร็จ:', data);
+          console.log('Message edit saved successfully:', data);
         })
         .catch(error => {
-          console.error('เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+          console.error('Error saving message edit:', error);
         });
       } catch (error) {
-        console.error('เกิดข้อผิดพลาดในการส่งคำขอแก้ไขข้อความ:', error);
+        console.error('Error sending message edit request:', error);
       }
     }
   },
@@ -1007,7 +1007,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { setIsLoading } = useUIStore.getState();
     
     if (!selectedModel || !wsRef) {
-      alert('กรุณาเลือกโมเดลก่อน');
+      alert('Please select a model first');
       return;
     }
     
@@ -1037,7 +1037,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       // ถ้าไม่เจอข้อความผู้ใช้ ยกเลิกการทำงาน
       if (messages[lastUserMessageIndex].role !== 'user') {
-        console.error('ไม่พบข้อความผู้ใช้ที่เกี่ยวข้อง');
+        console.error('Related user message not found');
         return;
       }
       

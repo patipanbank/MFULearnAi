@@ -14,7 +14,7 @@ const MFUChatbot: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ใช้ hook useScrollManager สำหรับการจัดการ scroll
+  // Using useScrollManager hook for scroll management
   const {
     messagesEndRef,
     chatContainerRef,
@@ -67,7 +67,7 @@ const MFUChatbot: React.FC = () => {
     fetchModels
   } = useModelStore();
   
-  // อัปเดตจำนวนข้อความเมื่อมีการเปลี่ยนแปลง
+  // Update message count when messages change
   useEffect(() => {
     setMessageCount(messages.length);
   }, [messages, setMessageCount]);
@@ -134,7 +134,7 @@ const MFUChatbot: React.FC = () => {
   useEffect(() => {
     fetchUsage();
     
-    // อัพเดทข้อมูล token เมื่อมีข้อความใหม่หรือมีการตอบกลับ
+    // Update token data when there's a new message or response
     const handleUpdateUsage = () => {
       fetchUsage();
     };
@@ -161,9 +161,9 @@ const MFUChatbot: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {messages.map((message, index) => {
-              // ตรวจสอบว่าเป็นข้อความ assistant ล่าสุดหรือไม่
+              // Check if this is the latest assistant message
               const isLastAssistantMessage = (() => {
-                // เริ่มหาจากข้อความล่าสุดย้อนขึ้นไป
+                // Start searching from the latest message
                 for (let i = messages.length - 1; i >= 0; i--) {
                   if (messages[i].role === 'assistant' && i === index) {
                     return true;
@@ -201,7 +201,7 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-10">
-        {/* แสดงปุ่มเลื่อนลงด้านล่างเมื่อมีข้อความและผู้ใช้ไม่ได้อยู่ที่ด้านล่าง */}
+        {/* Show scroll to bottom button when there are messages and user is not at the bottom */}
         {messages.length > 0 && (
           <div className="relative w-full max-w-[95%] lg:max-w-[85%] mx-auto h-0">
             <ScrollToBottomButton 

@@ -246,7 +246,7 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
         // สำหรับข้อความของ Assistant: เพียงอัพเดทข้อความในฐานข้อมูล
         const token = localStorage.getItem('auth_token');
         if (!token) {
-          throw new Error('ไม่พบ token สำหรับการยืนยันตัวตน');
+          throw new Error('Authentication token not found');
         }
         
         // สร้างข้อความที่แก้ไขแล้ว
@@ -303,15 +303,15 @@ export const useChatInputStore = create<ChatInputState>((set, get) => ({
           })
           .then(response => {
             if (!response.ok) {
-              throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
+              throw new Error(`Failed to edit message: ${response.status}`);
             }
             return response.json();
           })
           .then(data => {
-            console.log('[chatInputStore] บันทึกการแก้ไขข้อความสำเร็จ:', data);
+            console.log('[chatInputStore] Save edited message success:', data);
           })
           .catch(error => {
-            console.error('[chatInputStore] เกิดข้อผิดพลาดในการบันทึกการแก้ไขข้อความ:', error);
+            console.error('[chatInputStore] Error saving edited message:', error);
           });
         }
       }

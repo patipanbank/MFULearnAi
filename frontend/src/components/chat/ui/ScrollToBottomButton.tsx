@@ -7,7 +7,7 @@ interface ScrollToBottomButtonProps {
 }
 
 /**
- * ปุ่มเลื่อนลงด้านล่างที่แสดงเมื่อผู้ใช้ไม่ได้อยู่ที่ตำแหน่งล่างสุด
+ * Button to scroll down to bottom when user is not at the bottom position
  */
 const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({ isNearBottom, onClick }) => {
   return (
@@ -20,7 +20,7 @@ const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({ isNearBotto
                     ? 'opacity-0 pointer-events-none translate-y-2' 
                     : 'opacity-100 translate-y-0'
                 }`}
-      aria-label="เลื่อนไปยังข้อความล่าสุด"
+      aria-label="Scroll to latest messages"
     >
       <IoIosArrowDown className="h-4 w-4" />
     </button>
