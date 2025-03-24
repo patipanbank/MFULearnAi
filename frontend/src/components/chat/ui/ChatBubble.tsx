@@ -9,6 +9,7 @@ import { formatMessageTime } from '../utils/formatters';
 import FileIcon from './FileIcon';
 import { useChatInputStore } from '../store/chatInputStore';
 import { useChatStore } from '../store/chatStore';
+import { prepareMessageFiles, compressImage } from '../utils/fileProcessing';
 
 interface ChatBubbleProps {
   message: Message;
@@ -91,52 +92,19 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       } = chatStore;
       
       // Prepare data for sending a new message
-      // รับค่าที่ประมวลผลไฟล์
+      // ใช้ฟังก์ชันการประมวลผลไฟล์เดียวกับที่ chatStore ใช้
       const processFiles = async () => {
         // จัดการรูปภาพ
         let images: { data: string; mediaType: string }[] = [];
         if (selectedImages.length > 0) {
-          // แปลงไฟล์รูปภาพเป็น base64
-          const imgPromises = selectedImages.map(async (file) => {
-            return new Promise<{ data: string; mediaType: string }>((resolve) => {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                if (e.target && e.target.result) {
-                  const base64 = e.target.result.toString().split(',')[1];
-                  resolve({
-                    data: base64,
-                    mediaType: file.type
-                  });
-                }
-              };
-              reader.readAsDataURL(file);
-            });
-          });
-          images = await Promise.all(imgPromises);
+          // ใช้ compressImage เพื่อบีบอัดรูปภาพก่อนแปลงเป็น base64
+          images = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
         }
         
-        // จัดการไฟล์เอกสาร
+        // จัดการไฟล์เอกสาร - ใช้ prepareMessageFiles จาก fileProcessing.ts
         let files: MessageFile[] = [];
         if (selectedFiles.length > 0) {
-          // แปลงไฟล์เอกสารเป็น base64
-          const filePromises = selectedFiles.map(async (file) => {
-            return new Promise<MessageFile>((resolve) => {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                if (e.target && e.target.result) {
-                  const base64 = e.target.result.toString().split(',')[1];
-                  resolve({
-                    name: file.name,
-                    data: base64,
-                    mediaType: file.type,
-                    size: file.size
-                  });
-                }
-              };
-              reader.readAsDataURL(file);
-            });
-          });
-          files = await Promise.all(filePromises);
+          files = await prepareMessageFiles(selectedFiles);
         }
         
         return { images, files };
