@@ -5,7 +5,6 @@ import { isValidObjectId } from '../utils/formatters';
 import { config } from '../../../config/config';
 import { useModelStore } from './modelStore';
 import { useUIStore } from './uiStore';
-import { toast } from 'react-toastify';
 
 export interface ChatState {
   // State
@@ -123,24 +122,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         
         if (data.error) {
           console.error('Received error from WebSocket:', data.error);
-          
-          // ตรวจสอบว่าเป็นข้อความแจ้งเตือนการ streaming หรือไม่
-          if (data.error.includes('กรุณารอให้การสร้างข้อความก่อนหน้าเสร็จสิ้นก่อน')) {
-            // แสดง toast warning
-            toast.warn('กรุณารอให้การสร้างข้อความก่อนหน้าเสร็จสิ้นก่อน', {
-              position: "top-right",
-              autoClose: 3000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            });
-            
-            // ตั้งค่า isLoading เป็น false เพื่อให้ UI อัพเดท
-            useUIStore.getState().setIsLoading(false);
-            return;
-          }
-          
           get().setMessages((prev) => prev.map((msg, index) => 
             index === prev.length - 1 && msg.role === 'assistant' ? {
               ...msg,
@@ -148,9 +129,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
               isComplete: true
             } : msg
           ));
-          
-          // ตั้งค่า isLoading เป็น false
-          useUIStore.getState().setIsLoading(false);
           return;
         }
 
@@ -351,24 +329,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { selectedModel } = useModelStore.getState();
     const { messages, selectedImages, selectedFiles, currentChatId, wsRef, editingMessage } = get();
     
-    const { isImageGenerationMode, setIsLoading, setAwaitingChatId, inputMessage, isLoading } = useUIStore.getState();
-    
-    // เพิ่มการตรวจสอบ isLoading เพื่อป้องกันการส่งข้อความซ้ำในฝั่ง frontend
-    if (isLoading) {
-      console.log('Cannot submit while streaming is in progress');
-      
-      // แสดง toast warning
-      toast.warn('กรุณารอให้การสร้างข้อความก่อนหน้าเสร็จสิ้นก่อน', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-      
-      return;
-    }
+    const { isImageGenerationMode, setIsLoading, setAwaitingChatId, inputMessage } = useUIStore.getState();
     
     if ((!inputMessage.trim() && !isImageGenerationMode) || !selectedModel) {
       console.log('Cannot submit: empty message or no model selected');

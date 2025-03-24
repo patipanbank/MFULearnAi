@@ -16,9 +16,6 @@ const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
 const CLIENT_TIMEOUT = 35000;
 
-// สร้าง Map เพื่อเก็บสถานะการ streaming ของผู้ใช้แต่ละคน
-const streamingUsers = new Map<string, boolean>();
-
 interface ExtendedWebSocket extends WebSocket {
   isAlive: boolean;
   userId?: string;
@@ -196,24 +193,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       // Handle cancel request specifically
       if (data.type === 'cancel') {
         console.log(`User ${userId} cancelled generation for chat ${data.chatId}`);
-        
-        // เมื่อได้รับคำสั่งยกเลิก ให้รีเซ็ตสถานะ streaming ของผู้ใช้
-        if (userId) {
-          streamingUsers.set(userId, false);
-          console.log(`Reset streaming status for user ${userId}`);
-        }
-        
         // The frontend will handle UI updates
-        return;
-      }
-
-      // เพิ่มการตรวจสอบสถานะ streaming (เฉพาะคำสั่ง chat เท่านั้น)
-      if (data.type === 'chat' && userId && streamingUsers.get(userId)) {
-        console.log(`User ${userId} attempted to send a new message while streaming`);
-        extWs.send(JSON.stringify({
-          type: 'error',
-          error: 'กรุณารอให้การสร้างข้อความก่อนหน้าเสร็จสิ้นก่อน'
-        }));
         return;
       }
 
@@ -239,12 +219,6 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
       // Check if this is a regenerate request
       const isRegenerate = type === 'regenerate';
-      
-      // ถ้าเป็นคำสั่งประเภท chat หรือ regenerate ให้ตั้งค่าสถานะ streaming เป็น true
-      if ((type === 'chat' || isRegenerate) && userId) {
-        streamingUsers.set(userId, true);
-        console.log(`Set streaming status to true for user ${userId}`);
-      }
       
       // Handle chat updates and message processing
       let savedChat;
@@ -384,21 +358,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
             }));
           }
         }
-
-        // ตอนท้ายของการประมวลผล (ไม่ว่าจะสำเร็จหรือยกเลิก) ให้รีเซ็ตสถานะ streaming
-        if (userId) {
-          streamingUsers.set(userId, false);
-          console.log(`Reset streaming status for user ${userId}`);
-        }
       } catch (error) {
         console.error(`Error generating response:`, error);
-        
-        // รีเซ็ตสถานะ streaming ในกรณีเกิดข้อผิดพลาด
-        if (userId) {
-          streamingUsers.set(userId, false);
-          console.log(`Reset streaming status for user ${userId} due to error`);
-        }
-        
         if (extWs.readyState === WebSocket.OPEN) {
           extWs.send(JSON.stringify({ 
             type: 'error',
@@ -408,13 +369,6 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       }
     } catch (error) {
       console.error(`Error processing message:`, error);
-      
-      // รีเซ็ตสถานะ streaming ในกรณีเกิดข้อผิดพลาดในการประมวลผลข้อความ
-      if (extWs.userId) {
-        streamingUsers.set(extWs.userId, false);
-        console.log(`Reset streaming status for user ${extWs.userId} due to message processing error`);
-      }
-      
       if (extWs.readyState === WebSocket.OPEN) {
         extWs.send(JSON.stringify({ 
           type: 'error',
@@ -423,40 +377,10 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       }
     }
   });
-  
-  // ในกรณีที่ WebSocket ถูกปิด ให้รีเซ็ตสถานะ streaming
-  extWs.on('close', () => {
-    // console.log(`WebSocket client disconnected: ${extWs.userId}`);
-    // รีเซ็ตสถานะ streaming เมื่อ WebSocket ถูกปิด
-    if (extWs.userId) {
-      streamingUsers.set(extWs.userId, false);
-      console.log(`Reset streaming status for user ${extWs.userId} due to connection closed`);
-    }
-  });
 });
 
 router.post('/', async (req: Request, res: Response) => {
   // console.log('Received chat request');
-  
-  // ตรวจสอบ user ID
-  const userId = (req.user as any)?.username;
-  if (!userId) {
-    res.status(401).json({ error: 'User not authenticated' });
-    return;
-  }
-  
-  // ตรวจสอบสถานะ streaming ของผู้ใช้
-  if (streamingUsers.get(userId)) {
-    res.status(429).json({ 
-      error: 'กรุณารอให้การสร้างข้อความก่อนหน้าเสร็จสิ้นก่อน',
-      isStreaming: true
-    });
-    return;
-  }
-  
-  // ตั้งค่าสถานะ streaming เป็น true
-  streamingUsers.set(userId, true);
-  console.log(`Set streaming status to true for user ${userId} in HTTP route`);
 
   // 1. ส่ง headers ทันทีก่อนทำอย่างอื่น
   res.setHeader('Content-Type', 'text/event-stream');
@@ -501,16 +425,8 @@ router.post('/', async (req: Request, res: Response) => {
 
     // console.log('Chat response completed');
     res.end();
-    
-    // รีเซ็ตสถานะ streaming เมื่อเสร็จสิ้น
-    streamingUsers.set(userId, false);
-    console.log(`Reset streaming status for user ${userId} in HTTP route`);
   } catch (error) {
     console.error('Chat error details:', error);
-    
-    // รีเซ็ตสถานะ streaming ในกรณีเกิดข้อผิดพลาด
-    streamingUsers.set(userId, false);
-    console.log(`Reset streaming status for user ${userId} due to error in HTTP route`);
     
     // ถ้ายังไม่ได้ส่ง headers
     if (!res.headersSent) {
