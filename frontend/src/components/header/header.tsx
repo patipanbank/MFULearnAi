@@ -29,7 +29,7 @@ const Header = () => {
               {/* ป็อปอัพแสดงรายละเอียด */}
               {showPopup && (
                 <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-50">
-                  <div className="space-y-2">
+                  <div className="space-y-2 text-left">
                     <p className="text-sm"><span className="font-semibold">Name:</span> {userData.username}</p>
                     <p className="text-sm"><span className="font-semibold">Email:</span> {userData.email}</p>
                     <p className="text-sm"><span className="font-semibold">Department:</span> {userData.department}</p>
