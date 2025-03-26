@@ -28,13 +28,13 @@ const Header = () => {
 
               {/* ป็อปอัพแสดงรายละเอียด */}
               {showPopup && (
-                <div className="absolute right-0 mt-2 w-full sm:w-72 md:w-80 lg:w-64 max-w-xs bg-white dark:bg-gray-700 rounded-lg shadow-lg p-3 sm:p-4 z-50">
+                <div className="absolute right-0 mt-2 min-w-max max-w-xs bg-white dark:bg-gray-700 rounded-lg shadow-lg p-3 sm:p-4 z-50">
                   <div className="space-y-2 text-left">
-                    <p className="text-xs sm:text-sm"><span className="font-semibold">Name:</span> {userData.firstName} {userData.lastName}</p>
-                    <p className="text-xs sm:text-sm"><span className="font-semibold">ID:</span> {userData.username}</p>
-                    <p className="text-xs sm:text-sm"><span className="font-semibold">Email:</span> {userData.email}</p>
-                    <p className="text-xs sm:text-sm"><span className="font-semibold">Department:</span> {userData.department}</p>
-                    <p className="text-xs sm:text-sm"><span className="font-semibold">Group:</span> {userData.groups?.join(', ')}</p>
+                    <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Name:</span> {userData.firstName} {userData.lastName}</p>
+                    <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">ID:</span> {userData.username}</p>
+                    <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Email:</span> {userData.email}</p>
+                    <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Department:</span> {userData.department}</p>
+                    <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Group:</span> {userData.groups?.join(', ')}</p>
                   </div>
                 </div>
               )}
