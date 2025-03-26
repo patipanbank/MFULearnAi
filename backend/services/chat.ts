@@ -258,23 +258,19 @@ class ChatService {
       context = this.processResults(allResults);
     }
 
-    // ค้นหาข้อมูลเพิ่มเติมจากเว็บเฉพาะเมื่อ:
-    // 1. มีข้อมูลจาก collection แต่อาจจะไม่ครบถ้วน หรือ
-    // 2. ไม่มีข้อมูลจาก collection เลย
+    // แก้ไขส่วนนี้: ใช้เฉพาะคำถามล่าสุดในการค้นหาเว็บ
+    const lastQuestion = query.split('\n').pop() || query;
     try {
-      const webResults = await webSearchService.searchWeb(query);
+      const webResults = await webSearchService.searchWeb(lastQuestion);
       if (webResults) {
-        // ถ้ามีข้อมูลจาก collection อยู่แล้ว
         if (context) {
           context += '\n\nAdditional supporting information:\n' + webResults;
         } else {
-          // ถ้าไม่มีข้อมูลจาก collection เลย
           context = 'Based on web search results:\n' + webResults;
         }
       }
     } catch (error) {
       console.error('Error fetching web results:', error);
-      // ถ้าเกิดข้อผิดพลาดในการค้นหาเว็บ ใช้แค่ข้อมูลจาก collection
     }
 
     return `${promptTemplate}\n\n${context}`;
