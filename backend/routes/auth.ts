@@ -41,6 +41,7 @@ const samlStrategy = new SamlStrategy(
       const email = profile['User.Email'];
       const firstName = profile['first_name'];
       const lastName = profile['last_name'];
+      const department = profile['depart_name'];
       const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
       // console.log('=== Extracted Values ===');
@@ -78,6 +79,7 @@ const samlStrategy = new SamlStrategy(
           email,
           firstName,
           lastName,
+          department,
           groups: Array.isArray(groups) ? groups : [groups],
           role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]),
           updated: new Date()
@@ -97,6 +99,7 @@ const samlStrategy = new SamlStrategy(
         email: user.email,
         first_name: user.firstName,
         last_name: user.lastName,
+        depart_name: user.department,
         groups: user.groups
       };
 
@@ -138,6 +141,7 @@ router.post('/saml/callback',
           email: req.user.userData.email,
           firstName: req.user.userData.first_name,
           lastName: req.user.userData.last_name,
+          department: req.user.userData.depart_name,
           groups: [mapGroupToRole(req.user.userData.groups || [])]
         };
 
@@ -148,6 +152,7 @@ router.post('/saml/callback',
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
+          department: userData.department,
           groups: userData.groups
         },
         process.env.JWT_SECRET || 'your-secret-key',
@@ -235,6 +240,7 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
+        department: user.department,
         role: user.role,
         groups: user.groups
       },
@@ -249,6 +255,7 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
+        department: user.department,
         role: user.role,
         groups: user.groups
       }
