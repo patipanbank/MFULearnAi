@@ -161,19 +161,22 @@ const CreateAdmin: React.FC = () => {
             className="react-select-container"
             classNamePrefix="react-select"
             styles={{
-              control: (base) => ({
+              control: (base, state) => ({
                 ...base,
                 minHeight: '42px',
                 borderRadius: '0.5rem',
-                borderColor: 'rgb(209 213 219)',
-                backgroundColor: 'white',
+                borderColor: state.isFocused 
+                  ? '#3B82F6' 
+                  : 'rgb(209 213 219)',
+                backgroundColor: 'rgb(255 255 255)',
                 '&:hover': {
                   borderColor: 'rgb(156 163 175)'
                 },
                 '@media (prefers-color-scheme: dark)': {
                   backgroundColor: 'rgb(55 65 81)',
-                  borderColor: 'rgb(75 85 99)',
-                  color: 'white',
+                  borderColor: state.isFocused 
+                    ? '#3B82F6' 
+                    : 'rgb(75 85 99)',
                   '&:hover': {
                     borderColor: 'rgb(107 114 128)'
                   }
@@ -182,22 +185,27 @@ const CreateAdmin: React.FC = () => {
               menu: (base) => ({
                 ...base,
                 zIndex: 9999,
+                backgroundColor: 'rgb(255 255 255)',
                 '@media (prefers-color-scheme: dark)': {
-                  backgroundColor: 'rgb(55 65 81)',
-                  color: 'white'
+                  backgroundColor: 'rgb(55 65 81)'
                 }
               }),
               option: (base, state) => ({
                 ...base,
-                backgroundColor: state.isFocused ? 'rgb(59 130 246)' : 'transparent',
-                color: state.isFocused ? 'white' : 'inherit',
+                backgroundColor: state.isFocused 
+                  ? 'rgb(59 130 246)' 
+                  : 'transparent',
+                color: state.isFocused 
+                  ? 'white' 
+                  : 'rgb(17 24 39)',
                 '&:hover': {
                   backgroundColor: 'rgb(59 130 246)',
                   color: 'white'
                 },
                 '@media (prefers-color-scheme: dark)': {
-                  backgroundColor: state.isFocused ? 'rgb(59 130 246)' : 'transparent',
-                  color: state.isFocused ? 'white' : 'white',
+                  color: state.isFocused 
+                    ? 'white' 
+                    : 'rgb(243 244 246)',
                   '&:hover': {
                     backgroundColor: 'rgb(59 130 246)',
                     color: 'white'
@@ -206,12 +214,14 @@ const CreateAdmin: React.FC = () => {
               }),
               singleValue: (base) => ({
                 ...base,
+                color: 'rgb(17 24 39)',
                 '@media (prefers-color-scheme: dark)': {
-                  color: 'white'
+                  color: 'rgb(243 244 246)'
                 }
               }),
               placeholder: (base) => ({
                 ...base,
+                color: 'rgb(107 114 128)',
                 '@media (prefers-color-scheme: dark)': {
                   color: 'rgb(156 163 175)'
                 }
