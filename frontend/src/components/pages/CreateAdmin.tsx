@@ -161,7 +161,7 @@ const CreateAdmin: React.FC = () => {
             className="react-select-container"
             classNamePrefix="react-select"
             styles={{
-              control: (base, state) => ({
+              control: (base) => ({
                 ...base,
                 minHeight: '42px',
                 borderRadius: '0.5rem',
@@ -169,45 +169,11 @@ const CreateAdmin: React.FC = () => {
                 backgroundColor: 'white',
                 '&:hover': {
                   borderColor: 'rgb(156 163 175)'
-                },
-                '@media (prefers-color-scheme: dark)': {
-                  backgroundColor: 'rgb(55 65 81)',
-                  borderColor: 'rgb(75 85 99)',
-                  color: 'rgb(243 244 246)',
-                  '&:hover': {
-                    borderColor: 'rgb(107 114 128)'
-                  }
                 }
               }),
               menu: (base) => ({
                 ...base,
-                zIndex: 9999,
-                backgroundColor: 'white',
-                '@media (prefers-color-scheme: dark)': {
-                  backgroundColor: 'rgb(55 65 81)'
-                }
-              }),
-              option: (base, state) => ({
-                ...base,
-                backgroundColor: state.isFocused ? 'rgb(243 244 246)' : 'transparent',
-                color: 'rgb(17 24 39)',
-                '&:hover': {
-                  backgroundColor: 'rgb(243 244 246)'
-                },
-                '@media (prefers-color-scheme: dark)': {
-                  backgroundColor: state.isFocused ? 'rgb(75 85 99)' : 'transparent',
-                  color: 'rgb(243 244 246)',
-                  '&:hover': {
-                    backgroundColor: 'rgb(75 85 99)'
-                  }
-                }
-              }),
-              singleValue: (base) => ({
-                ...base,
-                color: 'rgb(17 24 39)',
-                '@media (prefers-color-scheme: dark)': {
-                  color: 'rgb(243 244 246)'
-                }
+                zIndex: 9999
               })
             }}
             theme={(theme) => ({
@@ -218,17 +184,6 @@ const CreateAdmin: React.FC = () => {
                 primary75: '#60A5FA',
                 primary50: '#93C5FD',
                 primary25: '#BFDBFE',
-                neutral0: 'white',
-                neutral5: 'rgb(243 244 246)',
-                neutral10: 'rgb(243 244 246)',
-                neutral20: 'rgb(209 213 219)',
-                neutral30: 'rgb(156 163 175)',
-                neutral40: 'rgb(107 114 128)',
-                neutral50: 'rgb(107 114 128)',
-                neutral60: 'rgb(75 85 99)',
-                neutral70: 'rgb(75 85 99)',
-                neutral80: 'rgb(31 41 55)',
-                neutral90: 'rgb(17 24 39)',
               },
             })}
           />
