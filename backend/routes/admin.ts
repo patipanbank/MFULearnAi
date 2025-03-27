@@ -9,10 +9,10 @@ const router = Router();
 
 router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response) => {
   try {
-    const { username, password, firstName, lastName, email } = req.body;
+    const { username, password, firstName, lastName, email, department } = req.body;
 
     // ตรวจสอบข้อมูลที่จำเป็น
-    if (!username || !password || !firstName || !lastName || !email) {
+    if (!username || !password || !firstName || !lastName || !email || !department) {
       res.status(400).json({ message: 'Please fill in all required fields' });
       return;
     }
@@ -35,6 +35,7 @@ router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Requ
       email,
       firstName,
       lastName,
+      department,
       role: 'Admin',
       groups: ['Admin']
     });
@@ -47,6 +48,7 @@ router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Requ
       email: newAdmin.email,
       firstName: newAdmin.firstName,
       lastName: newAdmin.lastName,
+      department: newAdmin.department,
       role: newAdmin.role
     };
 
