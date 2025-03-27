@@ -7,7 +7,8 @@ const CreateAdmin: React.FC = () => {
     password: '',
     firstName: '',
     lastName: '',
-    email: ''
+    email: '',
+    department: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,8 @@ const CreateAdmin: React.FC = () => {
         password: '',
         firstName: '',
         lastName: '',
-        email: ''
+        email: '',
+        department: ''
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error creating admin');
@@ -125,6 +127,23 @@ const CreateAdmin: React.FC = () => {
               bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             required
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Department
+          </label>
+          <select
+            value={formData.department}
+            onChange={(e) => setFormData({...formData, department: e.target.value})}
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            required
+          >
+            <option value="">Select Department</option>
+            <option value="Center for Information Technology Services">Center for Information Technology Services</option>
+            <option value="Finance and Accounting Division">Finance and Accounting Division</option>
+          </select>
         </div>
 
         {error && (
