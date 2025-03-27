@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
   nameID: { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
   password: { type: String },
-  email: String,
+  email: { type: String, required: true },
   firstName: String,
   lastName: String,
   department: String,
