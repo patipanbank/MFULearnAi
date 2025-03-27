@@ -159,7 +159,7 @@ const CreateAdmin: React.FC = () => {
             placeholder=" Select department"
             isClearable
             className="react-select-container"
-            classNamePrefix="react-select dark:border-gray-600 dark:bg-gray-700 text-gray-900"
+            classNamePrefix="react-select dark:border-gray-600 text-gray-900"
             styles={{
               control: (base) => ({
                 ...base,
