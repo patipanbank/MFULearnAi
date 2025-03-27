@@ -62,8 +62,12 @@ const Login: React.FC = () => {
           >
             Login with MFU SSO
           </button>
-        </div>
-
+          <div className="mt-4 text-right">
+            <button className="text-sm text-gray-600 hover:text-gray-800 underline">
+              admin login
+            </button>
+          </div>
+        </div> 
         {/* <div className="mt-8">
           <button
             onClick={() => setShowLogin(true)}
