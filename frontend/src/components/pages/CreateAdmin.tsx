@@ -166,6 +166,7 @@ const CreateAdmin: React.FC = () => {
                 borderRadius: '0.5rem',
                 borderColor: 'rgb(209 213 219)',
                 backgroundColor: 'white',
+                color: 'rgb(17 24 39)',
                 '&:hover': {
                   borderColor: 'rgb(156 163 175)'
                 },
@@ -176,6 +177,13 @@ const CreateAdmin: React.FC = () => {
                   '&:hover': {
                     borderColor: 'rgb(107 114 128)'
                   }
+                }
+              }),
+              input: (base) => ({
+                ...base,
+                color: 'rgb(17 24 39)',
+                '.dark &': {
+                  color: 'white'
                 }
               }),
               menu: (base) => ({
