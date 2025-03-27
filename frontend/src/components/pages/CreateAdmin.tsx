@@ -217,6 +217,41 @@ const CreateAdmin: React.FC = () => {
                 '@media (prefers-color-scheme: dark)': {
                   color: 'rgb(156 163 175)'
                 }
+              }),
+              dropdownIndicator: (base) => ({
+                ...base,
+                color: 'rgb(107 114 128)',
+                '@media (prefers-color-scheme: dark)': {
+                  color: 'rgb(156 163 175)'
+                }
+              }),
+              clearIndicator: (base) => ({
+                ...base,
+                color: 'rgb(107 114 128)',
+                '@media (prefers-color-scheme: dark)': {
+                  color: 'rgb(156 163 175)'
+                }
+              }),
+              multiValue: (base) => ({
+                ...base,
+                backgroundColor: 'rgb(59 130 246)',
+                color: 'white',
+                '@media (prefers-color-scheme: dark)': {
+                  backgroundColor: 'rgb(59 130 246)',
+                  color: 'white'
+                }
+              }),
+              multiValueLabel: (base) => ({
+                ...base,
+                color: 'white'
+              }),
+              multiValueRemove: (base) => ({
+                ...base,
+                color: 'white',
+                ':hover': {
+                  backgroundColor: 'rgb(37 99 235)',
+                  color: 'white'
+                }
               })
             }}
             theme={(theme) => ({
