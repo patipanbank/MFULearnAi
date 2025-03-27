@@ -1,5 +1,24 @@
 import React, { useState } from 'react';
 import { config } from '../../config/config';
+import Select from 'react-select';
+
+const departments = [
+  { value: 'Center for Information Technology Services', label: 'Center for Information Technology Services' },
+  { value: 'Finance and Accounting Division', label: 'Finance and Accounting Division' },
+  { value: 'Registrar Division', label: 'Registrar Division' },
+  { value: 'Research Administration Division', label: 'Research Administration Division' },
+  { value: 'Student Development Affairs Division', label: 'Student Development Affairs Division' },
+  { value: 'MFU Sport Complex Centre', label: 'MFU Sport Complex Centre' },
+  { value: 'Living and Learning Support Centre', label: 'Living and Learning Support Centre' },
+  { value: 'Global Relations Division', label: 'Global Relations Division' },
+  { value: 'Quality Assurance and Curriculum Development Division', label: 'Quality Assurance and Curriculum Development Division' },
+  { value: 'Academic Extension and Development Office', label: 'Academic Extension and Development Office' },
+  { value: 'Postgraduate Studies Office', label: 'Postgraduate Studies Office' },
+  { value: 'Placement and Co-Operative Education Division', label: 'Placement and Co-Operative Education Division' },
+  { value: 'Tea and Coffee Institute', label: 'Tea and Coffee Institute' },
+  { value: 'Scientific and Technological Instruments Center', label: 'Scientific and Technological Instruments Center' },
+  { value: 'Centre of Excellence in Fungal Research', label: 'Centre of Excellence in Fungal Research' }
+];
 
 const CreateAdmin: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -133,31 +152,41 @@ const CreateAdmin: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Department
           </label>
-          <select
-            value={formData.department}
-            onChange={(e) => setFormData({...formData, department: e.target.value})}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            required
-          >
-            <option value="">Select</option>
-            <option value="Center for Information Technology Services">Center for Information Technology Services</option>
-            <option value="Finance and Accounting Division">Finance and Accounting Division</option>
-            <option value="Registrar Division">Registrar Division</option>
-            <option value="Research Administration Division">Research Administration Division</option>
-            <option value="Student Development Affairs Division">Student Development Affairs Division</option>
-            <option value="MFU Sport Complex Centre">MFU Sport Complex Centre</option>
-            <option value="Living and Learning Support Centre">Living and Learning Support Centre</option>
-            <option value="Global Relations Division">Global Relations Division</option>
-            <option value="Quality Assurance and Curriculum Development Division">Quality Assurance and Curriculum Development Division</option>
-            <option value="Academic Extension and Development Office">Academic Extension and Development Office</option>
-            <option value="Postgraduate Studies Office">Postgraduate Studies Office</option>
-            <option value="Placement and Co-Operative Education Division">Placement and Co-Operative Education Division</option>
-            <option value="Tea and Coffee Institute">Tea and Coffee Institute</option>
-            <option value="Scientific and Technological Instruments Center">Scientific and Technological Instruments Center</option>
-            <option value="Centre of Excellence in Fungal Research">Centre of Excellence in Fungal Research</option>
-
-          </select>
+          <Select
+            value={departments.find(dept => dept.value === formData.department)}
+            onChange={(selected) => setFormData({...formData, department: selected?.value || ''})}
+            options={departments}
+            placeholder="Select department..."
+            isClearable
+            className="react-select-container"
+            classNamePrefix="react-select"
+            styles={{
+              control: (base) => ({
+                ...base,
+                minHeight: '42px',
+                borderRadius: '0.5rem',
+                borderColor: 'rgb(209 213 219)',
+                backgroundColor: 'white',
+                '&:hover': {
+                  borderColor: 'rgb(156 163 175)'
+                }
+              }),
+              menu: (base) => ({
+                ...base,
+                zIndex: 9999
+              })
+            }}
+            theme={(theme) => ({
+              ...theme,
+              colors: {
+                ...theme.colors,
+                primary: '#3B82F6',
+                primary75: '#60A5FA',
+                primary50: '#93C5FD',
+                primary25: '#BFDBFE',
+              },
+            })}
+          />
         </div>
 
         {error && (
