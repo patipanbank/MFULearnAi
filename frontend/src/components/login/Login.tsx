@@ -62,7 +62,7 @@ const Login: React.FC = () => {
           >
             Login with MFU SSO
           </button>
-        </div>
+        </div> 
         {/* <div className="mt-8">
           <button
             onClick={() => setShowLogin(true)}
