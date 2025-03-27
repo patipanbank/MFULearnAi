@@ -62,7 +62,14 @@ const Login: React.FC = () => {
           >
             Login with MFU SSO
           </button>
-        </div> 
+        </div>
+        <div className="mt-4">
+          <button
+            className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          >
+            ปุ่มใหม่
+          </button>
+        </div>
         {/* <div className="mt-8">
           <button
             onClick={() => setShowLogin(true)}
