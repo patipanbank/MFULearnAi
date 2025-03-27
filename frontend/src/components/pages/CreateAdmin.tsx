@@ -143,6 +143,20 @@ const CreateAdmin: React.FC = () => {
             <option value="">Select</option>
             <option value="Center for Information Technology Services">Center for Information Technology Services</option>
             <option value="Finance and Accounting Division">Finance and Accounting Division</option>
+            <option value="Registrar Division">Registrar Division</option>
+            <option value="Research Administration Division">Research Administration Division</option>
+            <option value="Student Development Affairs Division">Student Development Affairs Division</option>
+            <option value="MFU Sport Complex Centre">MFU Sport Complex Centre</option>
+            <option value="Living and Learning Support Centre">Living and Learning Support Centre</option>
+            <option value="Global Relations Division">Global Relations Division</option>
+            <option value="Quality Assurance and Curriculum Development Division">Quality Assurance and Curriculum Development Division</option>
+            <option value="Academic Extension and Development Office">Academic Extension and Development Office</option>
+            <option value="Postgraduate Studies Office">Postgraduate Studies Office</option>
+            <option value="Placement and Co-Operative Education Division">Placement and Co-Operative Education Division</option>
+            <option value="Tea and Coffee Institute">Tea and Coffee Institute</option>
+            <option value="Scientific and Technological Instruments Center">Scientific and Technological Instruments Center</option>
+            <option value="Centre of Excellence in Fungal Research">Centre of Excellence in Fungal Research</option>
+
           </select>
         </div>
 
