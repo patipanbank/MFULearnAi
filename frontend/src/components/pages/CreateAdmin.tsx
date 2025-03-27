@@ -169,7 +169,7 @@ const CreateAdmin: React.FC = () => {
                 '&:hover': {
                   borderColor: 'rgb(156 163 175)'
                 },
-                '@media (prefers-color-scheme: dark)': {
+                '.dark &': {
                   backgroundColor: 'rgb(55 65 81)',
                   borderColor: 'rgb(75 85 99)',
                   color: 'white',
@@ -182,7 +182,7 @@ const CreateAdmin: React.FC = () => {
                 ...base,
                 zIndex: 9999,
                 backgroundColor: 'white',
-                '@media (prefers-color-scheme: dark)': {
+                '.dark &': {
                   backgroundColor: 'rgb(55 65 81)',
                   color: 'white'
                 }
@@ -195,7 +195,7 @@ const CreateAdmin: React.FC = () => {
                   backgroundColor: 'rgb(59 130 246)',
                   color: 'white'
                 },
-                '@media (prefers-color-scheme: dark)': {
+                '.dark &': {
                   backgroundColor: state.isFocused ? 'rgb(59 130 246)' : 'transparent',
                   color: 'white',
                   '&:hover': {
@@ -207,28 +207,28 @@ const CreateAdmin: React.FC = () => {
               singleValue: (base) => ({
                 ...base,
                 color: 'rgb(17 24 39)',
-                '@media (prefers-color-scheme: dark)': {
+                '.dark &': {
                   color: 'white'
                 }
               }),
               placeholder: (base) => ({
                 ...base,
                 color: 'rgb(107 114 128)',
-                '@media (prefers-color-scheme: dark)': {
+                '.dark &': {
                   color: 'rgb(156 163 175)'
                 }
               }),
               dropdownIndicator: (base) => ({
                 ...base,
                 color: 'rgb(107 114 128)',
-                '@media (prefers-color-scheme: dark)': {
+                '.dark &': {
                   color: 'rgb(156 163 175)'
                 }
               }),
               clearIndicator: (base) => ({
                 ...base,
                 color: 'rgb(107 114 128)',
-                '@media (prefers-color-scheme: dark)': {
+                '.dark &': {
                   color: 'rgb(156 163 175)'
                 }
               }),
@@ -236,7 +236,7 @@ const CreateAdmin: React.FC = () => {
                 ...base,
                 backgroundColor: 'rgb(59 130 246)',
                 color: 'white',
-                '@media (prefers-color-scheme: dark)': {
+                '.dark &': {
                   backgroundColor: 'rgb(59 130 246)',
                   color: 'white'
                 }
