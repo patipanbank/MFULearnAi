@@ -156,7 +156,7 @@ const CreateAdmin: React.FC = () => {
             value={departments.find(dept => dept.value === formData.department)}
             onChange={(selected) => setFormData({...formData, department: selected?.value || ''})}
             options={departments}
-            placeholder="Select department..."
+            placeholder=" Select department"
             isClearable
             className="react-select-container"
             classNamePrefix="react-select"
