@@ -156,7 +156,7 @@ const CreateAdmin: React.FC = () => {
             value={departments.find(dept => dept.value === formData.department)}
             onChange={(selected) => setFormData({...formData, department: selected?.value || ''})}
             options={departments}
-            placeholder=" Select department"
+            placeholder="Select department..."
             isClearable
             className="react-select-container"
             classNamePrefix="react-select"
@@ -166,15 +166,40 @@ const CreateAdmin: React.FC = () => {
                 minHeight: '42px',
                 borderRadius: '0.5rem',
                 borderColor: 'rgb(209 213 219)',
-                backgroundColor: 'white',
+                backgroundColor: document.documentElement.classList.contains('dark') ? 'rgb(55 65 81)' : 'white',
+                color: document.documentElement.classList.contains('dark') ? 'white' : 'black',
                 '&:hover': {
                   borderColor: 'rgb(156 163 175)'
                 }
               }),
               menu: (base) => ({
                 ...base,
-                zIndex: 9999
-              })
+                zIndex: 9999,
+                backgroundColor: document.documentElement.classList.contains('dark') ? 'rgb(55 65 81)' : 'white',
+                color: document.documentElement.classList.contains('dark') ? 'white' : 'black',
+              }),
+              option: (base, state) => ({
+                ...base,
+                backgroundColor: state.isFocused 
+                  ? (document.documentElement.classList.contains('dark') ? 'rgb(75 85 99)' : 'rgb(243 244 246)')
+                  : 'transparent',
+                color: document.documentElement.classList.contains('dark') ? 'white' : 'black',
+                '&:hover': {
+                  backgroundColor: document.documentElement.classList.contains('dark') ? 'rgb(75 85 99)' : 'rgb(243 244 246)',
+                },
+              }),
+              singleValue: (base) => ({
+                ...base,
+                color: document.documentElement.classList.contains('dark') ? 'white' : 'black',
+              }),
+              input: (base) => ({
+                ...base,
+                color: document.documentElement.classList.contains('dark') ? 'white' : 'black',
+              }),
+              placeholder: (base) => ({
+                ...base,
+                color: document.documentElement.classList.contains('dark') ? 'rgb(156 163 175)' : 'rgb(107 114 128)',
+              }),
             }}
             theme={(theme) => ({
               ...theme,
