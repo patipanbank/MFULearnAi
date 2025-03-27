@@ -140,7 +140,7 @@ const CreateAdmin: React.FC = () => {
               bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             required
           >
-            <option value="">Select Department</option>
+            <option value="">Select</option>
             <option value="Center for Information Technology Services">Center for Information Technology Services</option>
             <option value="Finance and Accounting Division">Finance and Accounting Division</option>
           </select>
