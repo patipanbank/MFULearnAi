@@ -124,7 +124,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
 ---------------------------------*/
 interface ModelCardProps {
   model: Model;
-  onCollectionsEdit: (model: Model) => void;
+  onCollectionsEdit: (model: Model, isReadOnly?: boolean) => void;
   onDelete: (modelId: string) => void;
   isDeleting: string | null;
 }
@@ -132,8 +132,12 @@ interface ModelCardProps {
 export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, onDelete, isDeleting }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
   const { isAdmin, isSuperAdmin, user } = useAuth();
+  
+  // ตรวจสอบว่าผู้ใช้ปัจจุบันเป็นผู้สร้าง model นี้หรือไม่
+  const isCreator = user?.nameID === model.createdBy || user?.username === model.createdBy;
 
   const handleCardClick = () => {
+    // ตรวจสอบสิทธิ์การเข้าถึง
     if (model.modelType === 'official' && !isAdmin && !isSuperAdmin) {
       window.alert('You do not have permission to access official models');
       return;
@@ -146,7 +150,13 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
       }
     }
     
-    onCollectionsEdit(model);
+    // เรียกใช้ฟังก์ชันที่เหมาะสม ขึ้นอยู่กับว่าเป็นผู้สร้างหรือไม่
+    if (isCreator) {
+      onCollectionsEdit(model); // ผู้สร้างสามารถแก้ไขได้
+    } else {
+      // ผู้ใช้อื่นสามารถดูได้แต่ไม่สามารถแก้ไขได้
+      onCollectionsEdit(model, true); // ส่งพารามิเตอร์ isReadOnly เป็น true
+    }
   };
 
   return (
@@ -158,18 +168,21 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
         transform hover:scale-[1.02]"
       onClick={handleCardClick}
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowMenu(!showMenu);
-        }}
-        className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
-          dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
-          hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-        title="Options"
-      >
-        <FaEllipsisH size={16} />
-      </button>
+      {/* แสดงปุ่ม Options เฉพาะเมื่อผู้ใช้เป็นผู้สร้าง model */}
+      {isCreator && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMenu(!showMenu);
+          }}
+          className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-gray-600 
+            dark:text-gray-500 dark:hover:text-gray-300 rounded-lg
+            hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+          title="Options"
+        >
+          <FaEllipsisH size={16} />
+        </button>
+      )}
 
       {showMenu && (
         <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
@@ -387,6 +400,7 @@ interface ModelCollectionsModalProps {
   searchQuery: string;
   isCollectionsLoading: boolean;
   isSavingCollections: boolean;
+  isReadOnly?: boolean;
   onSearchChange: (value: string) => void;
   onCollectionToggle: (collectionName: string) => void;
   onConfirm: () => void;
@@ -394,18 +408,18 @@ interface ModelCollectionsModalProps {
 }
 
 const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
-  model,
   availableCollections,
   selectedCollections,
   searchQuery,
   isCollectionsLoading,
   isSavingCollections,
+  isReadOnly = false,
   onSearchChange,
   onCollectionToggle,
   onConfirm,
   onClose,
 }) => {
-  const { isAdmin, isSuperAdmin } = useAuth();
+  const { user } = useAuth();
 
   const getPermissionStyle = (permission?: CollectionPermission | string[] | undefined) => {
     if (Array.isArray(permission)) {
@@ -439,19 +453,17 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     .filter(collection => {
       if (!collection || typeof collection !== 'object') return false;
       
-      // Show all collections for staff users
-      if (isAdmin || isSuperAdmin) return true;
-
-      // For personal models, show public collections and private collections
-      if (model.modelType === 'personal') {
-        const permission = collection.permission && typeof collection.permission === 'string' 
-          ? collection.permission.toLowerCase() 
-          : '';
-        return permission === 'public' || permission === 'private';
-      }
-
-      // For other model types (which shouldn't be accessible to non-staff anyway)
-      return false;
+      // พิจารณาเงื่อนไขการเข้าถึง:
+      // 1. Public collections - ทุกคนเข้าถึงได้
+      // 2. Private collections - เฉพาะเจ้าของเท่านั้น
+      const permission = collection.permission && typeof collection.permission === 'string'
+        ? collection.permission.toLowerCase()
+        : '';
+      
+      const isPublic = permission === 'public';
+      const isOwner = collection.createdBy === user?.nameID || collection.createdBy === user?.username;
+      
+      return isPublic || isOwner;
     })
     .filter(collection => {
       if (!collection || !collection.name) return false;
@@ -498,8 +510,8 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
             filteredCollections.map((collection) => (
               <div
                 key={collection.id}
-                onClick={() => onCollectionToggle(collection.name)}
-                className={`flex items-center justify-between p-4 rounded-xl cursor-pointer 
+                onClick={() => !isReadOnly && onCollectionToggle(collection.name)}
+                className={`flex items-center justify-between p-4 rounded-xl ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'} 
                   transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700/50
                   ${selectedCollections.includes(collection.name) 
                     ? 'bg-blue-50/50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400' 
@@ -549,25 +561,28 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
               rounded-xl transition-all duration-200
               disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Cancel
+            {isReadOnly ? 'Close' : 'Cancel'}
           </button>
-          <button
-            onClick={onConfirm}
-            disabled={isSavingCollections}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
-              hover:from-blue-700 hover:to-blue-800 text-white rounded-xl 
-              transition-all duration-200 transform hover:scale-[1.02]
-              disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSavingCollections ? (
-              <div className="flex items-center">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                Saving...
-              </div>
-            ) : (
-              'Save Changes'
-            )}
-          </button>
+          
+          {!isReadOnly && (
+            <button
+              onClick={onConfirm}
+              disabled={isSavingCollections}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
+                hover:from-blue-700 hover:to-blue-800 text-white rounded-xl 
+                transition-all duration-200 transform hover:scale-[1.02]
+                disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSavingCollections ? (
+                <div className="flex items-center">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Saving...
+                </div>
+              ) : (
+                'Save Changes'
+              )}
+            </button>
+          )}
         </div>
       </div>
     </BaseModal>
@@ -855,7 +870,7 @@ const ModelCreation: React.FC = () => {
     }
   }, [editingModel]);
 
-  // เพิ่มฟังก์ชันกรอง models
+  // เพิ่มฟังก์ชันกรอง models เพื่อแสดง model ที่เป็น public และ department เดียวกัน
   const filteredModels = useMemo(() => {
     if (!models) return [];
     
@@ -865,9 +880,23 @@ const ModelCreation: React.FC = () => {
     
     const tokenPayload = JSON.parse(atob(token.split('.')[1]));
     const currentUser = tokenPayload.nameID || tokenPayload.username;
+    const userDepartment = tokenPayload.department;
     
-    // กรองเฉพาะ models ที่ผู้ใช้สร้าง
-    return models.filter(model => model.createdBy === currentUser);
+    // กรองให้แสดง:
+    // 1. models ที่ผู้ใช้สร้างโมเดลเอง
+    // 2. models ที่เป็น department เดียวกับผู้ใช้
+    return models.filter(model => {
+      // เงื่อนไขที่ 1: ผู้ใช้สร้างโมเดลเอง
+      const isCreator = model.createdBy === currentUser;
+      
+      // เงื่อนไขที่ 2: โมเดลเป็น department เดียวกับผู้ใช้
+      const isSameDepartment = model.modelType === 'department' && model.department === userDepartment;
+      
+      // เงื่อนไขที่ 3: โมเดลเป็น public (แสดงให้ทุกคนเห็น)
+      const isOfficial = model.modelType === 'official';
+      
+      return isCreator || isSameDepartment || isOfficial;
+    });
   }, [models]);
 
   return (
@@ -936,6 +965,7 @@ const ModelCreation: React.FC = () => {
               searchQuery={searchQuery}
               isCollectionsLoading={isCollectionsLoading}
               isSavingCollections={isSavingCollections}
+              isReadOnly={!((user?.nameID === editingModel.createdBy) || (user?.username === editingModel.createdBy))}
               onSearchChange={setSearchQuery}
               onCollectionToggle={toggleCollectionSelection}
               onConfirm={confirmCollections}
