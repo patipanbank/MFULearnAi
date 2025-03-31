@@ -17,7 +17,9 @@ const departments = [
   { value: 'Placement and Co-Operative Education Division', label: 'Placement and Co-Operative Education Division' },
   { value: 'Tea and Coffee Institute', label: 'Tea and Coffee Institute' },
   { value: 'Scientific and Technological Instruments Center', label: 'Scientific and Technological Instruments Center' },
-  { value: 'Centre of Excellence in Fungal Research', label: 'Centre of Excellence in Fungal Research' }
+  { value: 'Centre of Excellence in Fungal Research', label: 'Centre of Excellence in Fungal Research' },
+  { value: 'computer engineering', label: 'Computer Engineering' }
+  
 ];
 
 const CreateAdmin: React.FC = () => {
