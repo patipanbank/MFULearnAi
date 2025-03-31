@@ -77,7 +77,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModel, se
       </button>
 
       {isDropdownOpen && (
-        <div className="absolute z-10 mt-1 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 py-1">
+        <div className="absolute z-10 bottom-full mb-1 w-56 origin-bottom-right rounded-md bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 py-1">
           {filteredModels.length > 0 ? (
             filteredModels.map((model) => (
               <button
