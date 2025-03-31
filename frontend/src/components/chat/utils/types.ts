@@ -54,7 +54,8 @@ export interface ChatHistory {
 export interface Model {
   id: string;
   name: string;
-  modelType: 'official' | 'personal';
+  modelType: 'official' | 'personal' | 'department';
+  department?: string;
 }
 
 export interface Usage {

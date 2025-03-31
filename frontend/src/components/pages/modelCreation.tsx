@@ -34,7 +34,8 @@ interface Model {
   id: string;
   name: string;
   collections: string[]; // list of collection names selected in the model
-  modelType: 'official' | 'personal';
+  modelType: 'official' | 'personal' | 'department';
+  department?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -53,14 +54,6 @@ enum CollectionPermission {
   PRIVATE = 'PRIVATE'
 }
 
-interface FilteredCollection {
-  id: string;
-  name: string;
-  createdBy: string;
-  created: string;
-  permission: CollectionPermission;
-}
-
 /* -------------------------------
    Utility Functions
 ---------------------------------*/
@@ -70,6 +63,8 @@ const getModelTypeStyle = (type: string) => {
       return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
     case 'personal':
       return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
+    case 'department':
+      return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
     default:
       return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400';
   }
@@ -136,13 +131,21 @@ interface ModelCardProps {
 
 export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, onDelete, isDeleting }) => {
   const [showMenu, setShowMenu] = useState<boolean>(false);
-  const { isAdmin, isSuperAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin, user } = useAuth();
 
   const handleCardClick = () => {
     if (model.modelType === 'official' && !isAdmin && !isSuperAdmin) {
       window.alert('You do not have permission to access official models');
       return;
     }
+    
+    if (model.modelType === 'department' && !isAdmin && !isSuperAdmin) {
+      if (user?.department !== model.department) {
+        window.alert('You do not have permission to access this department model');
+        return;
+      }
+    }
+    
     onCollectionsEdit(model);
   };
 
@@ -205,6 +208,11 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Created by: {model.createdBy}
           </p>
+          {model.modelType === 'department' && (
+            <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
+              Department: {model.department}
+            </p>
+          )}
         </div>
         
         <div className="mt-auto space-y-4">
@@ -256,11 +264,13 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
 ---------------------------------*/
 interface NewModelModalProps {
   newModelName: string;
-  newModelType: 'official' | 'personal';
+  newModelType: 'official' | 'personal' | 'department';
   isCreating: boolean;
   isStaff: boolean;
+  departmentName: string;
   onNameChange: (value: string) => void;
-  onTypeChange: (value: 'official' | 'personal') => void;
+  onTypeChange: (value: 'official' | 'personal' | 'department') => void;
+  onDepartmentChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   onCancel: () => void;
 }
@@ -270,8 +280,10 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
   newModelType,
   isCreating,
   isStaff,
+  departmentName,
   onNameChange,
   onTypeChange,
+  onDepartmentChange,
   onSubmit,
   onCancel,
 }) => (
@@ -309,7 +321,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
         </label>
         <select
           value={newModelType}
-          onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal')}
+          onChange={(e) => onTypeChange(e.target.value as 'official' | 'personal' | 'department')}
           disabled={isCreating}
           className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 
             bg-white dark:bg-gray-700 text-gray-900 dark:text-white
@@ -321,35 +333,58 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
           {isStaff && (
             <>
               <option value="official">Official</option>
+              <option value="department">Department</option>
             </>
           )}
         </select>
       </div>
 
-      <div className="flex justify-end gap-3 mt-6">
+      {newModelType === 'department' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Department
+          </label>
+          <input
+            type="text"
+            placeholder="Enter department name"
+            value={departmentName}
+            onChange={(e) => onDepartmentChange(e.target.value)}
+            disabled={isCreating}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
+              placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200
+              disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+        </div>
+      )}
+
+      <div className="flex justify-end space-x-3 mt-6">
         <button
           type="button"
           onClick={onCancel}
           disabled={isCreating}
-          className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
-            rounded-xl transition-all duration-200
+          className="px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 
+            bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700
+            transition-colors duration-200
             disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Cancel
         </button>
         <button
           type="submit"
-          disabled={isCreating}
-          className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 
-            hover:from-blue-700 hover:to-blue-800 text-white rounded-xl 
-            transition-all duration-200 transform hover:scale-[1.02]
-            disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isCreating || !newModelName.trim() || (newModelType === 'department' && !departmentName.trim())}
+          className="px-4 py-2 rounded-lg text-white 
+            bg-blue-600 hover:bg-blue-700
+            transition-colors duration-200
+            disabled:opacity-50 disabled:cursor-not-allowed
+            flex items-center"
         >
           {isCreating ? (
-            <div className="flex items-center">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
               Creating...
-            </div>
+            </>
           ) : (
             'Create Model'
           )}
@@ -387,7 +422,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
   onConfirm,
   onClose,
 }) => {
-  const { isStaff } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
 
   const getPermissionStyle = (permission?: CollectionPermission | string[] | undefined) => {
     if (Array.isArray(permission)) {
@@ -422,7 +457,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
       if (!collection || typeof collection !== 'object') return false;
       
       // Show all collections for staff users
-      if (isStaff) return true;
+      if (isAdmin || isSuperAdmin) return true;
 
       // For personal models, show public collections and private collections
       if (model.modelType === 'personal') {
@@ -570,6 +605,7 @@ const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...'
 );
 
 const ModelCreation: React.FC = () => {
+  const { isAdmin, isSuperAdmin, user } = useAuth();
   const [models, setModels] = useState<Model[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModelsLoading, setIsModelsLoading] = useState(false);
@@ -579,25 +615,14 @@ const ModelCreation: React.FC = () => {
   const [showNewModelModal, setShowNewModelModal] = useState<boolean>(false);
   const [newModelName, setNewModelName] = useState<string>('');
   const [editingModel, setEditingModel] = useState<Model | null>(null);
-  const [isStaff, setIsStaff] = useState<boolean>(false);
   
   // For the model collections modal
   const [availableCollections, setAvailableCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
-  const [newModelType, setNewModelType] = useState<'official' | 'personal'>('personal');
+  const [newModelType, setNewModelType] = useState<'official' | 'personal' | 'department'>((isAdmin || isSuperAdmin) ? 'official' : 'personal');
   const [isSavingCollections, setIsSavingCollections] = useState(false);
-
-  // Get user role and permissions on component mount
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      const userGroups = tokenPayload.groups || [];
-      setIsStaff(userGroups.includes('Admin') || userGroups.includes('SuperAdmin'));
-      setNewModelType((userGroups.includes('Admin') || userGroups.includes('SuperAdmin')) ? 'official' : 'personal');
-    }
-  }, []);
+  const [departmentName, setDepartmentName] = useState<string>(user?.department || '');
 
   // Load models with permission filtering
   useEffect(() => {
@@ -633,6 +658,7 @@ const ModelCreation: React.FC = () => {
           name: model.name,
           collections: model.collections || [],
           modelType: model.modelType,
+          department: model.department,
           createdAt: model.createdAt,
           updatedAt: model.updatedAt,
           createdBy: model.createdBy
@@ -661,6 +687,11 @@ const ModelCreation: React.FC = () => {
       return;
     }
 
+    if (newModelType === 'department' && !departmentName.trim()) {
+      alert('Please enter a department name');
+      return;
+    }
+
     setIsCreating(true);
     try {
       const token = localStorage.getItem('auth_token');
@@ -683,6 +714,7 @@ const ModelCreation: React.FC = () => {
         body: JSON.stringify({
           name: newModelName.trim(),
           modelType: newModelType,
+          department: newModelType === 'department' ? departmentName.trim() : undefined,
           createdBy
         }),
       });
@@ -698,6 +730,7 @@ const ModelCreation: React.FC = () => {
         name: data.name,
         collections: data.collections || [],
         modelType: data.modelType,
+        department: data.department,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
         createdBy: data.createdBy
@@ -706,7 +739,8 @@ const ModelCreation: React.FC = () => {
       setModels(prevModels => [...prevModels, newModel]);
       setShowNewModelModal(false);
       setNewModelName('');
-      setNewModelType(isStaff ? 'official' : 'personal');
+      setDepartmentName('');
+      setNewModelType((isAdmin || isSuperAdmin) ? 'official' : 'personal');
     } catch (error) {
       console.error('Error creating model:', error);
       alert(error instanceof Error ? error.message : 'Failed to create model');
@@ -755,20 +789,6 @@ const ModelCreation: React.FC = () => {
         throw new Error('No auth token found');
       }
 
-      // ดึง user info จาก token
-      const tokenPayload = jwtDecode<{ 
-        role: string; 
-        nameID?: string; 
-        username: string;
-        groups?: string[];
-      }>(token);
-
-      const userRole = tokenPayload.groups?.includes('SuperAdmin') ? 'SuperAdmin'
-        : tokenPayload.groups?.includes('Admin') ? 'Admin' 
-        : tokenPayload.groups?.includes('Staffs') ? 'Staffs' 
-        : 'Students';
-      const currentUser = tokenPayload.nameID || tokenPayload.username;
-
       const response = await fetch(`${config.apiUrl}/api/training/collections`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -788,22 +808,7 @@ const ModelCreation: React.FC = () => {
         permission: collection.permission || CollectionPermission.PUBLIC
       }));
 
-      // กรอง collections ตามเงื่อนไข
-      const filteredCollections = transformedCollections.filter((collection: FilteredCollection) => {
-        if (userRole === 'Admin' || userRole === 'SuperAdmin') {
-          // Admin เห็น PUBLIC ทั้งหมด และ PRIVATE ที่ตัวเองสร้าง
-          return collection.permission === CollectionPermission.PUBLIC || 
-                 (collection.permission === CollectionPermission.PRIVATE && 
-                  collection.createdBy === currentUser);
-        } else {
-          // Staffs และ Students เห็น PUBLIC ทั้งหมด และ PRIVATE ที่ตัวเองสร้าง
-          return collection.permission === CollectionPermission.PUBLIC || 
-                 (collection.permission === CollectionPermission.PRIVATE && 
-                  collection.createdBy === currentUser);
-        }
-      });
-
-      setAvailableCollections(filteredCollections);
+      setAvailableCollections(transformedCollections);
     } catch (error) {
       console.error('Error fetching collections:', error);
       alert('Failed to fetch collections. Please try again.');
@@ -928,9 +933,11 @@ const ModelCreation: React.FC = () => {
               newModelName={newModelName}
               newModelType={newModelType}
               isCreating={isCreating}
-              isStaff={isStaff}
+              isStaff={isAdmin || isSuperAdmin}
+              departmentName={departmentName}
               onNameChange={(value) => setNewModelName(value)}
               onTypeChange={(value) => setNewModelType(value)}
+              onDepartmentChange={(value) => setDepartmentName(value)}
               onSubmit={handleCreateModel}
               onCancel={() => setShowNewModelModal(false)}
             />
