@@ -283,7 +283,6 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
   departmentName,
   onNameChange,
   onTypeChange,
-  onDepartmentChange,
   onSubmit,
   onCancel,
 }) => (
@@ -333,31 +332,11 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
           {isStaff && (
             <>
               <option value="official">Official</option>
-              <option value="department">Department</option>
+              {departmentName && <option value="department">Department ({departmentName})</option>}
             </>
           )}
         </select>
       </div>
-
-      {newModelType === 'department' && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Department
-          </label>
-          <input
-            type="text"
-            placeholder="Enter department name"
-            value={departmentName}
-            onChange={(e) => onDepartmentChange(e.target.value)}
-            disabled={isCreating}
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 
-              bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
-              placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-        </div>
-      )}
 
       <div className="flex justify-end space-x-3 mt-6">
         <button
@@ -373,7 +352,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
         </button>
         <button
           type="submit"
-          disabled={isCreating || !newModelName.trim() || (newModelType === 'department' && !departmentName.trim())}
+          disabled={isCreating || !newModelName.trim() || (newModelType === 'department' && !departmentName)}
           className="px-4 py-2 rounded-lg text-white 
             bg-blue-600 hover:bg-blue-700
             transition-colors duration-200
@@ -687,8 +666,8 @@ const ModelCreation: React.FC = () => {
       return;
     }
 
-    if (newModelType === 'department' && !departmentName.trim()) {
-      alert('Please enter a department name');
+    if (newModelType === 'department' && !user?.department) {
+      alert('You cannot create a department model without a department assigned to your account');
       return;
     }
 
@@ -714,7 +693,7 @@ const ModelCreation: React.FC = () => {
         body: JSON.stringify({
           name: newModelName.trim(),
           modelType: newModelType,
-          department: newModelType === 'department' ? departmentName.trim() : undefined,
+          department: newModelType === 'department' ? user?.department : undefined,
           createdBy
         }),
       });
