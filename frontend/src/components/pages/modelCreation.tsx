@@ -150,9 +150,14 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
       }
     }
     
-    // เรียกใช้ฟังก์ชันที่เหมาะสม ขึ้นอยู่กับว่าเป็นผู้สร้างหรือไม่
-    if (isCreator) {
-      onCollectionsEdit(model); // ผู้สร้างสามารถแก้ไขได้
+    // เช็คเงื่อนไขสำหรับ department model ให้ admin ในแผนกเดียวกันแก้ไขได้
+    const isDepartmentAdmin = model.modelType === 'department' && 
+      isAdmin && 
+      user?.department === model.department;
+    
+    // เรียกใช้ฟังก์ชันที่เหมาะสม ขึ้นอยู่กับว่าเป็นผู้สร้างหรือเป็น admin ในแผนกเดียวกัน
+    if (isCreator || isDepartmentAdmin) {
+      onCollectionsEdit(model); // ผู้สร้างหรือ admin ในแผนกเดียวกันสามารถแก้ไขได้
     } else {
       // ผู้ใช้อื่นสามารถดูได้แต่ไม่สามารถแก้ไขได้
       onCollectionsEdit(model, true); // ส่งพารามิเตอร์ isReadOnly เป็น true
@@ -168,8 +173,8 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onCollectionsEdit, 
         transform hover:scale-[1.02]"
       onClick={handleCardClick}
     >
-      {/* แสดงปุ่ม Options เฉพาะเมื่อผู้ใช้เป็นผู้สร้าง model */}
-      {isCreator && (
+      {/* เช็คเงื่อนไขสำหรับ department model ให้ admin ในแผนกเดียวกันเห็นปุ่ม Options ด้วย */}
+      {(isCreator || (model.modelType === 'department' && isAdmin && user?.department === model.department)) && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -479,10 +484,12 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     <BaseModal onClose={onClose} containerClasses="w-[40rem]">
       <div className="mb-6">
         <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Edit Model Collections
+          {isReadOnly ? "View Model Collections" : "Edit Model Collections"}
         </h3>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Select collections to associate with this model
+          {isReadOnly 
+            ? "Collections associated with this model" 
+            : "Select collections to associate with this model"}
         </p>
       </div>
 
@@ -492,7 +499,7 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
           placeholder="Search collections..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          disabled={isCollectionsLoading}
+          disabled={isCollectionsLoading || isReadOnly}
           className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 
             bg-white dark:bg-gray-700 text-gray-900 dark:text-white
             focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent
@@ -970,7 +977,15 @@ const ModelCreation: React.FC = () => {
               searchQuery={searchQuery}
               isCollectionsLoading={isCollectionsLoading}
               isSavingCollections={isSavingCollections}
-              isReadOnly={!((user?.nameID === editingModel.createdBy) || (user?.username === editingModel.createdBy))}
+              isReadOnly={!(
+                // ผู้สร้างโมเดล
+                (user?.nameID === editingModel.createdBy) || 
+                (user?.username === editingModel.createdBy) ||
+                // หรือ admin ในแผนกเดียวกันกับ department model
+                (editingModel.modelType === 'department' && 
+                  isAdmin && 
+                  user?.department === editingModel.department)
+              )}
               onSearchChange={setSearchQuery}
               onCollectionToggle={toggleCollectionSelection}
               onConfirm={confirmCollections}
