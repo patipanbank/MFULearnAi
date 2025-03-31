@@ -203,7 +203,7 @@ router.get('/collections', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
  */
 router.post('/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response) => {
   try {
-    const { name, permission } = req.body;
+    const { name, permission, type } = req.body;
     const user = (req as any).user;
     
     // Use nameID if available, otherwise fall back to username (for admin users)
@@ -212,7 +212,7 @@ router.post('/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmi
       throw new Error('User identifier not found');
     }
     
-    const newCollection = await chromaService.createCollection(name, permission, createdBy);
+    const newCollection = await chromaService.createCollection(name, permission, createdBy, type);
     
     // Track collection creation
     await TrainingHistory.create({
@@ -221,7 +221,8 @@ router.post('/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmi
       collectionName: name,
       action: 'create_collection',
       details: {
-        permission
+        permission,
+        type
       }
     });
     
@@ -231,6 +232,7 @@ router.post('/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmi
         id: newCollection.id.toString(),
         name: newCollection.name,
         permission: newCollection.permission,
+        type: newCollection.type,
         createdBy: newCollection.createdBy
       }
     });
@@ -247,7 +249,7 @@ router.post('/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmi
 router.put('/collections/:id', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name: newName, permission } = req.body;
+    const { name: newName, permission, type } = req.body;
     const user = (req as any).user;
 
     const collection: CollectionDocument | null = await CollectionModel.findById(id).exec();
@@ -266,6 +268,7 @@ router.put('/collections/:id', roleGuard(['Staffs', 'Admin', 'Students', 'SuperA
     // Update collection details
     collection.name = newName;
     collection.permission = permission;
+    collection.type = type;
     await collection.save();
     
     res.json({ message: 'Collection updated successfully' });

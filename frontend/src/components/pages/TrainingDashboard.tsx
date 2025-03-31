@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
-import { Collection, CollectionPermission } from '../../types/collection';
+import { Collection, CollectionPermission, CollectionType } from '../../types/collection';
 
 // ----------------------
 // Type Definitions
@@ -131,8 +131,10 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 interface NewCollectionModalProps {
   newCollectionName: string;
   newCollectionPermission: string;
+  newCollectionType: string;
   onNameChange: (value: string) => void;
   onPermissionChange: (value: string) => void;
+  onTypeChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   onCancel: () => void;
   isAdmin: boolean;
@@ -142,8 +144,10 @@ interface NewCollectionModalProps {
 const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
   newCollectionName,
   newCollectionPermission,
+  newCollectionType,
   onNameChange,
   onPermissionChange,
+  onTypeChange,
   onSubmit,
   onCancel,
   isAdmin,
@@ -242,6 +246,21 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({
               </select>
             </div>
           )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Collection Type
+            </label>
+            <select
+              value={newCollectionType}
+              onChange={(e) => onTypeChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            >
+              <option value="DEFAULT">Default</option>
+              <option value="DEPARTMENT">Department</option>
+            </select>
+          </div>
           <div className="flex flex-col space-y-2 pt-4">
             <button
               type="submit"
@@ -480,15 +499,21 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
 interface SettingsModalProps {
   updatedCollectionName: string;
   updatedCollectionPermission: string;
+  updatedCollectionType: string;
   onNameChange: (value: string) => void;
   onPermissionChange: (value: string) => void;
+  onTypeChange: (value: string) => void;
   onClose: () => void;
   onSubmit: (e: FormEvent) => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
+  updatedCollectionName,
   updatedCollectionPermission,
+  updatedCollectionType,
+  onNameChange,
   onPermissionChange,
+  onTypeChange,
   onClose,
   onSubmit,
 }) => {
@@ -523,6 +548,37 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           e.stopPropagation();
           onSubmit(e);
         }} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Collection Name
+            </label>
+            <input
+              type="text"
+              value={updatedCollectionName}
+              onChange={(e) => onNameChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+              placeholder="Enter collection name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Collection Type
+            </label>
+            <select
+              value={updatedCollectionType}
+              onChange={(e) => onTypeChange(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            >
+              <option value="DEFAULT">Default</option>
+              <option value="DEPARTMENT">Department</option>
+            </select>
+          </div>
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Access Permission
@@ -579,6 +635,7 @@ const TrainingDashboard: React.FC = () => {
   const [showNewCollectionModal, setShowNewCollectionModal] = useState<boolean>(false);
   const [newCollectionName, setNewCollectionName] = useState<string>('');
   const [newCollectionPermission, setNewCollectionPermission] = useState<string>('PRIVATE');
+  const [newCollectionType, setNewCollectionType] = useState<string>('DEFAULT');
 
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
@@ -590,6 +647,7 @@ const TrainingDashboard: React.FC = () => {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [updatedCollectionName, setUpdatedCollectionName] = useState<string>('');
   const [updatedCollectionPermission, setUpdatedCollectionPermission] = useState<string>('PRIVATE');
+  const [updatedCollectionType, setUpdatedCollectionType] = useState<string>('DEFAULT');
 
   const [isCollectionsLoading, setIsCollectionsLoading] = useState<boolean>(false);
 
@@ -624,7 +682,8 @@ const TrainingDashboard: React.FC = () => {
         name: mongo.name || '',
         createdBy: mongo.createdBy || 'Unknown',
         created: mongo.created || mongo.createdAt || new Date().toISOString(),
-        permission: mongo.permission || CollectionPermission.PUBLIC
+        permission: mongo.permission || CollectionPermission.PUBLIC,
+        type: mongo.type || CollectionType.DEFAULT
       }));
 
       // console.log('Transformed collections:', transformedCollections);
@@ -703,6 +762,7 @@ const TrainingDashboard: React.FC = () => {
           ? 'PRIVATE' 
           : (selectedCollection.permission?.toString() || 'PRIVATE')
       );
+      setUpdatedCollectionType(selectedCollection.type || 'DEFAULT');
       fetchUploadedFiles(selectedCollection.name);
     }
   }, [selectedCollection, fetchUploadedFiles]);
@@ -749,6 +809,7 @@ const TrainingDashboard: React.FC = () => {
                   ...col,
                   name: updatedCollectionData.name || col.name,
                   permission: updatedCollectionData.permission || col.permission,
+                  type: updatedCollectionData.type || col.type,
                   lastModified: currentTime,
                 }
               : col
@@ -760,6 +821,7 @@ const TrainingDashboard: React.FC = () => {
           ...prev!,
           name: updatedCollectionData.name || prev!.name,
           permission: updatedCollectionData.permission || prev!.permission,
+          type: updatedCollectionData.type || prev!.type,
           lastModified: currentTime,
         }));
 
@@ -787,63 +849,13 @@ const TrainingDashboard: React.FC = () => {
   }, [selectedCollection?.id, fetchUploadedFiles]);
 
   const handleCollectionSelect = async (collection: Collection) => {
-    // Set selected collection immediately for better UX
     setSelectedCollection(collection);
-    // Files will be loaded by the useEffect hook
-    
-    try {
-      const response = await fetch(
-        `${config.apiUrl}/api/training/collections`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch collections');
-      }
-
-      const data = await response.json();
-      const freshData = data.find((c: any) => c._id === collection.id || c.id === collection.id);
-
-      if (!freshData) {
-        // Collection no longer exists
-        // console.log(`Collection ${collection.id} no longer exists, removing from list`);
-        setCollections(prev => prev.filter(c => c.id !== collection.id));
-        setSelectedCollection(null);
-        return;
-      }
-      
-      // Update collections list with fresh data
-      setCollections(prevCollections =>
-        prevCollections.map(col =>
-          col.id === collection.id
-            ? {
-                ...col,
-                name: freshData.name || col.name,
-                permission: freshData.permission || col.permission,
-                created: col.created,
-                createdBy: col.createdBy,
-              }
-            : col
-        )
-      );
-
-      // Update selected collection with fresh data
-      setSelectedCollection(prev => ({
-        ...prev!,
-        name: freshData.name || prev!.name,
-        permission: freshData.permission || prev!.permission,
-        created: collection.created,
-        createdBy: collection.createdBy,
-      }));
-
-    } catch (error) {
-      console.error('Error fetching collection details:', error);
-      // On error, keep using existing collection data
-    }
+    setUpdatedCollectionName(collection.name);
+    setUpdatedCollectionPermission(
+      collection.permission?.toString() || CollectionPermission.PRIVATE
+    );
+    setUpdatedCollectionType(collection.type || 'DEFAULT');
+    await fetchUploadedFiles(collection.name);
   };
 
   const handleCreateCollection = async (e: FormEvent) => {
@@ -870,6 +882,7 @@ const TrainingDashboard: React.FC = () => {
         body: JSON.stringify({
           name: newCollectionName,
           permission: permission,
+          type: newCollectionType
         }),
       });
 
@@ -880,6 +893,7 @@ const TrainingDashboard: React.FC = () => {
       await fetchCollections(); // รีโหลดข้อมูล collections
       setShowNewCollectionModal(false);
       setNewCollectionName('');
+      setNewCollectionType('DEFAULT');
     } catch (error) {
       console.error('Error creating collection:', error);
       alert('Failed to create collection. Please try again.');
@@ -997,6 +1011,7 @@ const TrainingDashboard: React.FC = () => {
         body: JSON.stringify({
           name: updatedCollectionName,
           permission: updatedCollectionPermission,
+          type: updatedCollectionType
         }),
       });
 
@@ -1011,7 +1026,7 @@ const TrainingDashboard: React.FC = () => {
         {
           timestamp: currentTime,
           action: 'SETTINGS_UPDATE',
-          details: `Name changed to: ${updatedCollectionName}, Permission changed to: ${updatedCollectionPermission}`
+          details: `Name changed to: ${updatedCollectionName}, Permission changed to: ${updatedCollectionPermission}, Type changed to: ${updatedCollectionType}`
         }
       ];
 
@@ -1020,6 +1035,7 @@ const TrainingDashboard: React.FC = () => {
         id: selectedCollection.id,
         name: updatedCollectionName,
         permission: updatedCollectionPermission as CollectionPermission,
+        type: updatedCollectionType as CollectionType,
         created: selectedCollection.created,
         createdBy: selectedCollection.createdBy,
         lastModified: currentTime,
@@ -1038,36 +1054,11 @@ const TrainingDashboard: React.FC = () => {
 
       setSelectedCollection(updatedCollection);
 
-      // Log successful update
-      // console.log(`Collection ${selectedCollection.id} settings updated:`, {
-      //   previousName: selectedCollection.name,
-      //   newName: updatedCollectionName,
-      //   previousPermission: selectedCollection.permission,
-      //   newPermission: updatedCollectionPermission,
-      //   updateTime: currentTime
-      // });
-
       await fetchUploadedFiles(updatedCollectionName);
       await fetchCollections();
 
     } catch (error) {
       console.error('Error updating collection:', error);
-      // Enhanced error logging
-      console.error(`Failed to update collection ${selectedCollection.id}:`, {
-        attemptedChanges: {
-          name: updatedCollectionName,
-          permission: updatedCollectionPermission
-        },
-        currentState: {
-          name: selectedCollection.name,
-          permission: selectedCollection.permission,
-          lastModified: selectedCollection.lastModified
-        },
-        error: error instanceof Error ? {
-          message: error.message,
-          stack: error.stack
-        } : 'Unknown error type'
-      });
       alert(error instanceof Error ? error.message : 'Failed to update collection. Please try again.');
     }
   };
@@ -1114,6 +1105,28 @@ const TrainingDashboard: React.FC = () => {
         return 'Public';
       default:
         return 'Unknown';
+    }
+  };
+
+  // Add a helper function to get the type style
+  const getTypeStyle = (type?: CollectionType) => {
+    switch (type) {
+      case CollectionType.DEPARTMENT:
+        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400';
+      case CollectionType.DEFAULT:
+      default:
+        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
+    }
+  };
+
+  // Add a helper function to get the type label
+  const getTypeLabel = (type?: CollectionType) => {
+    switch (type) {
+      case CollectionType.DEPARTMENT:
+        return 'Department';
+      case CollectionType.DEFAULT:
+      default:
+        return 'Default';
     }
   };
 
@@ -1207,9 +1220,14 @@ const TrainingDashboard: React.FC = () => {
                     <span className="truncate">{collection.createdBy}</span>
                   </div>
                   <div className="flex justify-between items-center mt-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
-                      {getPermissionLabel(collection.permission)}
-                    </span>
+                    <div className="flex gap-2">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getPermissionStyle(collection.permission)}`}>
+                        {getPermissionLabel(collection.permission)}
+                      </span>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getTypeStyle(collection.type)}`}>
+                        {getTypeLabel(collection.type)}
+                      </span>
+                    </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       {getRelativeTime(collection.created)}
                     </div>
@@ -1256,8 +1274,10 @@ const TrainingDashboard: React.FC = () => {
         <SettingsModal
           updatedCollectionName={updatedCollectionName}
           updatedCollectionPermission={updatedCollectionPermission}
+          updatedCollectionType={updatedCollectionType}
           onNameChange={setUpdatedCollectionName}
           onPermissionChange={setUpdatedCollectionPermission}
+          onTypeChange={setUpdatedCollectionType}
           onClose={() => setShowSettings(false)}
           onSubmit={handleUpdateSettings}
         />
@@ -1267,8 +1287,10 @@ const TrainingDashboard: React.FC = () => {
         <NewCollectionModal
           newCollectionName={newCollectionName}
           newCollectionPermission={newCollectionPermission}
+          newCollectionType={newCollectionType}
           onNameChange={setNewCollectionName}
           onPermissionChange={setNewCollectionPermission}
+          onTypeChange={setNewCollectionType}
           onSubmit={handleCreateCollection}
           onCancel={() => {
             setShowNewCollectionModal(false);
