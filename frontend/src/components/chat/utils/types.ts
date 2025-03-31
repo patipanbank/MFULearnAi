@@ -56,6 +56,7 @@ export interface Model {
   name: string;
   modelType: 'official' | 'personal' | 'department';
   department?: string;
+  createdBy?: string;
 }
 
 export interface Usage {

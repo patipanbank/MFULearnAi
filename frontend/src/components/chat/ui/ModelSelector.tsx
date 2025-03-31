@@ -29,10 +29,19 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModel, se
     };
   }, [isDropdownOpen]);
 
-  // Filter department models based on user department
+  // Filter models based on permissions - same as modelCreation page
   const filteredModels = models.filter(model => {
-    if (model.modelType !== 'department') return true;
-    return model.department === user?.department;
+    // 1. โมเดลที่ผู้ใช้สร้างเอง
+    const isCreator = model.createdBy === user?.nameID || model.createdBy === user?.username;
+    
+    // 2. โมเดล official (แสดงให้ทุกคนเห็น)
+    const isOfficial = model.modelType === 'official';
+    
+    // 3. โมเดล department ที่อยู่ในแผนกเดียวกัน
+    const isSameDepartment = model.modelType === 'department' && model.department === user?.department;
+    
+    // แสดงเฉพาะโมเดลที่ตรงเงื่อนไขอย่างน้อย 1 ข้อ
+    return isCreator || isOfficial || isSameDepartment;
   });
 
   const getModelTypeBadge = (modelType: string, department?: string) => {
