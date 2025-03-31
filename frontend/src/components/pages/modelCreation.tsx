@@ -453,6 +453,11 @@ const ModelCollectionsModal: React.FC<ModelCollectionsModalProps> = ({
     .filter(collection => {
       if (!collection || typeof collection !== 'object') return false;
       
+      // เมื่ออยู่ในโหมด read-only (ไม่ใช่ผู้สร้าง) แสดงเฉพาะ collections ที่อยู่ในโมเดลเท่านั้น
+      if (isReadOnly) {
+        return selectedCollections.includes(collection.name);
+      }
+      
       // พิจารณาเงื่อนไขการเข้าถึง:
       // 1. Public collections - ทุกคนเข้าถึงได้
       // 2. Private collections - เฉพาะเจ้าของเท่านั้น
