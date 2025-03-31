@@ -267,6 +267,8 @@ interface NewModelModalProps {
   newModelType: 'official' | 'personal' | 'department';
   isCreating: boolean;
   isStaff: boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
   departmentName: string;
   onNameChange: (value: string) => void;
   onTypeChange: (value: 'official' | 'personal' | 'department') => void;
@@ -280,6 +282,8 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
   newModelType,
   isCreating,
   isStaff,
+  isAdmin,
+  isSuperAdmin,
   departmentName,
   onNameChange,
   onTypeChange,
@@ -332,7 +336,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
           {isStaff && (
             <>
               <option value="official">Official</option>
-              {departmentName && <option value="department">Department ({departmentName})</option>}
+              {(isAdmin || isSuperAdmin) ? <option value="department">Department</option> : departmentName && <option value="department">Department ({departmentName})</option>}
             </>
           )}
         </select>
@@ -352,7 +356,7 @@ const NewModelModal: React.FC<NewModelModalProps> = ({
         </button>
         <button
           type="submit"
-          disabled={isCreating || !newModelName.trim() || (newModelType === 'department' && !departmentName)}
+          disabled={isCreating || !newModelName.trim() || (newModelType === 'department' && !departmentName && !(isAdmin || isSuperAdmin))}
           className="px-4 py-2 rounded-lg text-white 
             bg-blue-600 hover:bg-blue-700
             transition-colors duration-200
@@ -666,7 +670,8 @@ const ModelCreation: React.FC = () => {
       return;
     }
 
-    if (newModelType === 'department' && !user?.department) {
+    // Admin และ SuperAdmin สามารถสร้าง department model ได้โดยไม่จำเป็นต้องมี department
+    if (newModelType === 'department' && !user?.department && !(isAdmin || isSuperAdmin)) {
       alert('You cannot create a department model without a department assigned to your account');
       return;
     }
@@ -693,7 +698,7 @@ const ModelCreation: React.FC = () => {
         body: JSON.stringify({
           name: newModelName.trim(),
           modelType: newModelType,
-          department: newModelType === 'department' ? user?.department : undefined,
+          department: newModelType === 'department' ? (user?.department || 'General') : undefined,
           createdBy
         }),
       });
@@ -913,6 +918,8 @@ const ModelCreation: React.FC = () => {
               newModelType={newModelType}
               isCreating={isCreating}
               isStaff={isAdmin || isSuperAdmin}
+              isAdmin={isAdmin}
+              isSuperAdmin={isSuperAdmin}
               departmentName={departmentName}
               onNameChange={(value) => setNewModelName(value)}
               onTypeChange={(value) => setNewModelType(value)}
