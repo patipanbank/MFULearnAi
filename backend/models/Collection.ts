@@ -5,16 +5,10 @@ export enum CollectionPermission {
   PRIVATE = 'PRIVATE'
 }
 
-export enum CollectionType {
-  DEFAULT = 'DEFAULT',
-  DEPARTMENT = 'DEPARTMENT'
-}
-
 export interface ICollection {
   name: string;
   permission: string;
   createdBy: string;
-  type: string;
   createdAt?: Date;  // Optional since Mongoose adds it automatically
   updatedAt?: Date;  // Optional since Mongoose adds it automatically
   // add other fields as needed
@@ -26,7 +20,6 @@ const collectionSchema = new Schema<CollectionDocument>({
   name: { type: String, required: true },
   permission: { type: String, required: true },
   createdBy: { type: String, required: true },
-  type: { type: String, default: CollectionType.DEFAULT },
   // add default values if needed
 }, { timestamps: true });
 

@@ -1,9 +1,9 @@
+
 import { ChromaClient } from 'chromadb';
 import { ICollection, CollectionModel, CollectionDocument } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
 import { TitanEmbedService } from '../services/titan';
 import { HydratedDocument } from 'mongoose';
-import { CollectionType } from '../models/Collection';
 
 interface DocumentMetadata {
   filename: string;
@@ -419,7 +419,7 @@ class ChromaService {
     }
   }
 
-  async createCollection(name: string, permission: CollectionPermission, createdBy: string, type: string = CollectionType.DEFAULT): Promise<HydratedDocument<CollectionDocument>> {
+  async createCollection(name: string, permission: CollectionPermission, createdBy: string): Promise<HydratedDocument<CollectionDocument>> {
     try {
       // Check if collection already exists
       const existingCollection = await CollectionModel.findOne({ name });
@@ -431,8 +431,7 @@ class ChromaService {
       const collection = await CollectionModel.create({
         name,
         permission,
-        createdBy,
-        type
+        createdBy
       });
 
       // Initialize collection in ChromaDB
@@ -449,7 +448,7 @@ class ChromaService {
     try {
       const defaultCollection = await CollectionModel.findOne({ name: 'Default' });
       if (!defaultCollection) {
-        await this.createCollection('Default', CollectionPermission.PUBLIC, 'system', CollectionType.DEFAULT);
+        await this.createCollection('Default', CollectionPermission.PUBLIC, 'system');
         // console.log('Created default collection');
       }
     } catch (error) {
@@ -523,7 +522,6 @@ class ChromaService {
           name,
           permission: CollectionPermission.PUBLIC,
           createdBy: user.nameID,
-          type: CollectionType.DEFAULT,
           created: new Date()
         });
       }
