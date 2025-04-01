@@ -2,23 +2,43 @@ import React, { useState } from 'react';
 import { config } from '../../config/config';
 import Select from 'react-select';
 
+// const departments = [
+//   { value: 'Center for Information Technology Services', label: 'Center for Information Technology Services' },
+//   { value: 'Finance and Accounting Division', label: 'Finance and Accounting Division' },
+//   { value: 'Registrar Division', label: 'Registrar Division' },
+//   { value: 'Research Administration Division', label: 'Research Administration Division' },
+//   { value: 'Student Development Affairs Division', label: 'Student Development Affairs Division' },
+//   { value: 'MFU Sport Complex Centre', label: 'MFU Sport Complex Centre' },
+//   { value: 'Living and Learning Support Centre', label: 'Living and Learning Support Centre' },
+//   { value: 'Global Relations Division', label: 'Global Relations Division' },
+//   { value: 'Quality Assurance and Curriculum Development Division', label: 'Quality Assurance and Curriculum Development Division' },
+//   { value: 'Academic Extension and Development Office', label: 'Academic Extension and Development Office' },
+//   { value: 'Postgraduate Studies Office', label: 'Postgraduate Studies Office' },
+//   { value: 'Placement and Co-Operative Education Division', label: 'Placement and Co-Operative Education Division' },
+//   { value: 'Tea and Coffee Institute', label: 'Tea and Coffee Institute' },
+//   { value: 'Scientific and Technological Instruments Center', label: 'Scientific and Technological Instruments Center' },
+//   { value: 'Centre of Excellence in Fungal Research', label: 'Centre of Excellence in Fungal Research' },
+//   { value: 'computer engineering', label: 'Computer Engineering' }
+//   
+// ];
+
 const departments = [
-  { value: 'Center for Information Technology Services', label: 'Center for Information Technology Services' },
-  { value: 'Finance and Accounting Division', label: 'Finance and Accounting Division' },
-  { value: 'Registrar Division', label: 'Registrar Division' },
-  { value: 'Research Administration Division', label: 'Research Administration Division' },
-  { value: 'Student Development Affairs Division', label: 'Student Development Affairs Division' },
-  { value: 'MFU Sport Complex Centre', label: 'MFU Sport Complex Centre' },
-  { value: 'Living and Learning Support Centre', label: 'Living and Learning Support Centre' },
-  { value: 'Global Relations Division', label: 'Global Relations Division' },
-  { value: 'Quality Assurance and Curriculum Development Division', label: 'Quality Assurance and Curriculum Development Division' },
-  { value: 'Academic Extension and Development Office', label: 'Academic Extension and Development Office' },
-  { value: 'Postgraduate Studies Office', label: 'Postgraduate Studies Office' },
-  { value: 'Placement and Co-Operative Education Division', label: 'Placement and Co-Operative Education Division' },
-  { value: 'Tea and Coffee Institute', label: 'Tea and Coffee Institute' },
-  { value: 'Scientific and Technological Instruments Center', label: 'Scientific and Technological Instruments Center' },
-  { value: 'Centre of Excellence in Fungal Research', label: 'Centre of Excellence in Fungal Research' },
-  { value: 'computer engineering', label: 'Computer Engineering' }
+  { value: 'center for information technology services', label: 'center for information technology services' },
+  { value: 'finance and accounting division', label: 'finance and accounting division' },
+  { value: 'registrar division', label: 'registrar division' },
+  { value: 'research administration division', label: 'research administration division' },
+  { value: 'student development affairs division', label: 'student development affairs division' },
+  { value: 'mfu sport complex centre', label: 'mfu sport complex centre' },
+  { value: 'living and learning support centre', label: 'living and learning support centre' },
+  { value: 'global relations division', label: 'global relations division' },
+  { value: 'quality assurance and curriculum development division', label: 'quality assurance and curriculum development division' },
+  { value: 'academic extension and development office', label: 'academic extension and development office' },
+  { value: 'postgraduate studies office', label: 'postgraduate studies office' },
+  { value: 'placement and co-operative education division', label: 'placement and co-operative education division' },
+  { value: 'tea and coffee institute', label: 'tea and coffee institute' },
+  { value: 'scientific and technological instruments center', label: 'scientific and technological instruments center' },
+  { value: 'centre of excellence in fungal research', label: 'centre of excellence in fungal research' },
+  { value: 'computer engineering', label: 'computer engineering' }
   
 ];
 
