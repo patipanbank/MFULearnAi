@@ -192,7 +192,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const handleLogout = async () => {
     try {
       localStorage.clear();
-      const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://mfu.mfu.ac.th';
       const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
       // แก้ไข URL สำหรับ logout
       window.location.href = `${config.apiUrl}/api/auth/logout/saml?wreply=${returnUrl}`;
