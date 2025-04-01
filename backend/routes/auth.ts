@@ -41,7 +41,7 @@ const samlStrategy = new SamlStrategy(
       const email = profile['User.Email'];
       const firstName = profile['first_name'];
       const lastName = profile['last_name'];
-      const department = profile['depart_name'];
+      const department = profile['depart_name']?.toLowerCase() || '';
       const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
       console.log('=== Extracted Values ===');
