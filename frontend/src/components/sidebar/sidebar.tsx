@@ -192,8 +192,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const handleLogout = async () => {
     try {
       localStorage.clear();
-      // เปลี่ยนเป็น redirect ไปที่หน้า login ของ DINDIN AI โดยตรง
-      window.location.href = 'https://mfulearnai.mfu.ac.th/login';
+      const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th');
+      // ใช้ config.apiUrl เพื่อเรียก endpoint logout/saml ที่ backend ของเรา
+      window.location.href = `${config.apiUrl}/api/auth/logout/saml?wreply=${returnUrl}`;
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = 'https://mfulearnai.mfu.ac.th/login';
