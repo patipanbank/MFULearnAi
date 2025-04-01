@@ -188,7 +188,7 @@ router.get('/logout', (req, res) => {
 
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
-    const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th');
+    const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th/login');
     const logoutUrl = `https://authsso.mfu.ac.th/adfs/ls?wa=wsignout1.0&wreply=${returnUrl}`;
     
     // ส่ง URL กลับไปให้ frontend

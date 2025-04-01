@@ -203,7 +203,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         if (data.redirectUrl) {
           window.location.href = data.redirectUrl;
         } else {
-          window.location.href = 'https://mfulearnai.mfu.ac.th';
+          window.location.href = 'https://mfulearnai.mfu.ac.th/login';
         }
       } else {
         throw new Error('Logout failed');
@@ -211,7 +211,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     } catch (error) {
       console.error('Logout error:', error);
       localStorage.clear();
-      window.location.href = 'https://mfulearnai.mfu.ac.th';
+      window.location.href = 'https://mfulearnai.mfu.ac.th/login';
     }
   };
 
