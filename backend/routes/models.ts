@@ -18,23 +18,34 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserR
     // ดึงข้อมูลผู้ใช้
     const userId = user.nameID || user.username;
     const userGroups = user.groups || [];
-    const isStaff = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
+    const isAdmin = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
+    const userDepartment = user.department;
     
     // Get all models
     const models = await ModelModel.find({}).lean();
     // console.log('Found models:', models);
     
     // กรองโมเดลตามเงื่อนไข:
-    // ทุก User เห็นเฉพาะ official และ personal ของตัวเอง
+    // 1. ทุก User เห็นเฉพาะ official และ personal ของตัวเอง
+    // 2. User เห็น department models ที่ตรงกับ department ของตัวเอง
     const filteredModels = models.filter(model => {
-      return (
-        model.modelType === 'official' || // เห็น official ทั้งหมด
-        (model.modelType === 'personal' && model.createdBy === userId) // เห็น personal ของตัวเอง
-      );
+      // Official models - ทุกคนมองเห็น
+      if (model.modelType === 'official') {
+        return true;
+      }
+      
+      // Personal models - เฉพาะเจ้าของเท่านั้น
+      if (model.modelType === 'personal' && model.createdBy === userId) {
+        return true;
+      }
+      
+      // Department models - เฉพาะคนในแผนกเดียวกัน
+      if (model.modelType === 'department' && model.department === userDepartment) {
+        return true;
+      }
+      
+      return false;
     });
-
-    // console.log('Filtered models:', filteredModels);
-    // console.log('Current user ID:', userId);
 
     res.json(filteredModels);
   } catch (error) {
@@ -50,7 +61,7 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserR
 router.post('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    const { name, modelType } = req.body;
+    const { name, modelType, department } = req.body;
     
     // Validate required fields
     if (!name || !modelType) {
@@ -60,11 +71,17 @@ router.post('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as User
 
     // Check if user has Admin privileges from groups array
     const userGroups = user.groups || [];
-    const isStaff = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
+    const isAdmin = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
 
-    // Only Admin or SuperAdmin can create official
-    if ((modelType === 'official') && !isStaff) {
-      res.status(403).json({ message: 'Only Admin or SuperAdmin can create official' });
+    // Only Admin or SuperAdmin can create official or department models
+    if ((modelType === 'official' || modelType === 'department') && !isAdmin) {
+      res.status(403).json({ message: 'Only Admin or SuperAdmin can create official or department models' });
+      return;
+    }
+
+    // Department models require a department field
+    if (modelType === 'department' && !department) {
+      res.status(400).json({ error: 'Department is required for department models' });
       return;
     }
 
@@ -80,6 +97,7 @@ router.post('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as User
       name,
       createdBy,
       modelType,
+      department: modelType === 'department' ? department : undefined,
       collections: [], // Start with empty collections array
     });
 

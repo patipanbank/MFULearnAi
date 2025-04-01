@@ -60,7 +60,8 @@ interface ChatHistory {
 interface Model {
   id: string;
   name: string;
-  modelType: 'official' | 'personal';
+  modelType: 'official' | 'personal' | 'department';
+  department?: string;
 }
 
 // const modelNames: { [key: string]: string } = {
@@ -284,7 +285,8 @@ const MFUChatbot: React.FC = () => {
         const allModels = dbModels.map((model: any) => ({
           id: model._id,
           name: model.name,
-          modelType: model.modelType
+          modelType: model.modelType,
+          department: model.department
         }));
 
         // console.log('Loaded models:', allModels);

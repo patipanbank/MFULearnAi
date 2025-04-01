@@ -84,7 +84,9 @@ export const useModelStore = create<ModelState>((set, get) => ({
       const allModels: Model[] = data.map((model: any) => ({
         id: model._id,
         name: model.name,
-        modelType: model.modelType
+        modelType: model.modelType,
+        department: model.department,
+        createdBy: model.createdBy
       }));
       
       set({ models: allModels });

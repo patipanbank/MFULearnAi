@@ -1,5 +1,46 @@
 import React, { useState } from 'react';
 import { config } from '../../config/config';
+import Select from 'react-select';
+
+// const departments = [
+//   { value: 'Center for Information Technology Services', label: 'Center for Information Technology Services' },
+//   { value: 'Finance and Accounting Division', label: 'Finance and Accounting Division' },
+//   { value: 'Registrar Division', label: 'Registrar Division' },
+//   { value: 'Research Administration Division', label: 'Research Administration Division' },
+//   { value: 'Student Development Affairs Division', label: 'Student Development Affairs Division' },
+//   { value: 'MFU Sport Complex Centre', label: 'MFU Sport Complex Centre' },
+//   { value: 'Living and Learning Support Centre', label: 'Living and Learning Support Centre' },
+//   { value: 'Global Relations Division', label: 'Global Relations Division' },
+//   { value: 'Quality Assurance and Curriculum Development Division', label: 'Quality Assurance and Curriculum Development Division' },
+//   { value: 'Academic Extension and Development Office', label: 'Academic Extension and Development Office' },
+//   { value: 'Postgraduate Studies Office', label: 'Postgraduate Studies Office' },
+//   { value: 'Placement and Co-Operative Education Division', label: 'Placement and Co-Operative Education Division' },
+//   { value: 'Tea and Coffee Institute', label: 'Tea and Coffee Institute' },
+//   { value: 'Scientific and Technological Instruments Center', label: 'Scientific and Technological Instruments Center' },
+//   { value: 'Centre of Excellence in Fungal Research', label: 'Centre of Excellence in Fungal Research' },
+//   { value: 'computer engineering', label: 'Computer Engineering' }
+//   
+// ];
+
+const departments = [
+  { value: 'center for information technology services', label: 'center for information technology services' },
+  { value: 'finance and accounting division', label: 'finance and accounting division' },
+  { value: 'registrar division', label: 'registrar division' },
+  { value: 'research administration division', label: 'research administration division' },
+  { value: 'student development affairs division', label: 'student development affairs division' },
+  { value: 'mfu sport complex centre', label: 'mfu sport complex centre' },
+  { value: 'living and learning support centre', label: 'living and learning support centre' },
+  { value: 'global relations division', label: 'global relations division' },
+  { value: 'quality assurance and curriculum development division', label: 'quality assurance and curriculum development division' },
+  { value: 'academic extension and development office', label: 'academic extension and development office' },
+  { value: 'postgraduate studies office', label: 'postgraduate studies office' },
+  { value: 'placement and co-operative education division', label: 'placement and co-operative education division' },
+  { value: 'tea and coffee institute', label: 'tea and coffee institute' },
+  { value: 'scientific and technological instruments center', label: 'scientific and technological instruments center' },
+  { value: 'centre of excellence in fungal research', label: 'centre of excellence in fungal research' },
+  { value: 'computer engineering', label: 'computer engineering' }
+  
+];
 
 const CreateAdmin: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -7,7 +48,8 @@ const CreateAdmin: React.FC = () => {
     password: '',
     firstName: '',
     lastName: '',
-    email: ''
+    email: '',
+    department: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +83,8 @@ const CreateAdmin: React.FC = () => {
         password: '',
         firstName: '',
         lastName: '',
-        email: ''
+        email: '',
+        department: ''
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error creating admin');
@@ -124,6 +167,133 @@ const CreateAdmin: React.FC = () => {
             className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
               bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Department
+          </label>
+          <Select
+            value={departments.find(dept => dept.value === formData.department)}
+            onChange={(selected) => setFormData({...formData, department: selected?.value || ''})}
+            options={departments}
+            placeholder=" Select department"
+            isClearable
+            className="react-select-container"
+            styles={{
+              control: (base) => ({
+                ...base,
+                minHeight: '42px',
+                borderRadius: '0.5rem',
+                borderColor: 'rgb(209 213 219)',
+                backgroundColor: 'white',
+                color: 'rgb(17 24 39)',
+                '&:hover': {
+                  borderColor: 'rgb(156 163 175)'
+                },
+                '.dark &': {
+                  backgroundColor: 'rgb(55 65 81)',
+                  borderColor: 'rgb(75 85 99)',
+                  color: 'white',
+                  '&:hover': {
+                    borderColor: 'rgb(107 114 128)'
+                  }
+                }
+              }),
+              input: (base) => ({
+                ...base,
+                color: 'rgb(17 24 39)',
+                '.dark &': {
+                  color: 'white'
+                }
+              }),
+              menu: (base) => ({
+                ...base,
+                zIndex: 9999,
+                backgroundColor: 'white',
+                '.dark &': {
+                  backgroundColor: 'rgb(55 65 81)',
+                  color: 'white'
+                }
+              }),
+              option: (base, state) => ({
+                ...base,
+                backgroundColor: state.isFocused ? 'rgb(59 130 246)' : 'transparent',
+                color: state.isFocused ? 'white' : 'inherit',
+                '&:hover': {
+                  backgroundColor: 'rgb(59 130 246)',
+                  color: 'white'
+                },
+                '.dark &': {
+                  backgroundColor: state.isFocused ? 'rgb(59 130 246)' : 'transparent',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgb(59 130 246)',
+                    color: 'white'
+                  }
+                }
+              }),
+              singleValue: (base) => ({
+                ...base,
+                color: 'rgb(17 24 39)',
+                '.dark &': {
+                  color: 'white'
+                }
+              }),
+              placeholder: (base) => ({
+                ...base,
+                color: 'rgb(107 114 128)',
+                '.dark &': {
+                  color: 'rgb(156 163 175)'
+                }
+              }),
+              dropdownIndicator: (base) => ({
+                ...base,
+                color: 'rgb(107 114 128)',
+                '.dark &': {
+                  color: 'rgb(156 163 175)'
+                }
+              }),
+              clearIndicator: (base) => ({
+                ...base,
+                color: 'rgb(107 114 128)',
+                '.dark &': {
+                  color: 'rgb(156 163 175)'
+                }
+              }),
+              multiValue: (base) => ({
+                ...base,
+                backgroundColor: 'rgb(59 130 246)',
+                color: 'white',
+                '.dark &': {
+                  backgroundColor: 'rgb(59 130 246)',
+                  color: 'white'
+                }
+              }),
+              multiValueLabel: (base) => ({
+                ...base,
+                color: 'white'
+              }),
+              multiValueRemove: (base) => ({
+                ...base,
+                color: 'white',
+                ':hover': {
+                  backgroundColor: 'rgb(37 99 235)',
+                  color: 'white'
+                }
+              })
+            }}
+            theme={(theme) => ({
+              ...theme,
+              colors: {
+                ...theme.colors,
+                primary: '#3B82F6',
+                primary75: '#60A5FA',
+                primary50: '#93C5FD',
+                primary25: '#BFDBFE',
+              },
+            })}
           />
         </div>
 

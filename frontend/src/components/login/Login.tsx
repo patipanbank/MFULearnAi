@@ -8,6 +8,11 @@ const Login: React.FC = () => {
   const handleMFUSSOLogin = () => {
     window.location.href = `${config.apiUrl}/api/auth/login/saml`;
   };
+
+  const handleAdminLogin = () => {
+    window.location.href = 'https://mfulearnai.mfu.ac.th/admin/login';
+  };
+
   // const navigator = useNavigate();
   // const login_guest =  async() =>  {
   //   try {
@@ -62,7 +67,15 @@ const Login: React.FC = () => {
           >
             Login with MFU SSO
           </button>
-        </div>
+          <div className="mt-2 text-right">
+            <button 
+              onClick={handleAdminLogin}
+              className="text-xs text-gray-500 hover:text-black underline px-1 py-0.5 transition-colors duration-200"
+            >
+              admin login
+            </button>
+          </div>
+        </div> 
         {/* <div className="mt-8">
           <button
             onClick={() => setShowLogin(true)}
