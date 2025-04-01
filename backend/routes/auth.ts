@@ -192,6 +192,7 @@ router.get('/logout/saml', (req, res) => {
     const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
     const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
     
+    console.log('Logout URL:', logoutUrl);
     res.redirect(logoutUrl);
   });
 });

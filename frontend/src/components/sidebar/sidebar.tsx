@@ -192,9 +192,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const handleLogout = async () => {
     try {
       localStorage.clear();
-      // for development
-      // window.location.href = 'http://localhost:5173/login';
-      window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
+      const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
+      // แก้ไข URL สำหรับ logout
+      window.location.href = `${config.apiUrl}/api/auth/logout/saml?wreply=${returnUrl}`;
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
