@@ -191,27 +191,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const handleLogout = async () => {
     try {
-      // เรียกใช้ API logout ก่อน
-      const response = await fetch(`${config.apiUrl}/api/auth/logout/saml`, {
-        method: 'GET',
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.clear(); // เคลียร์ localStorage หลังจากได้ URL
-        if (data.redirectUrl) {
-          window.location.href = data.redirectUrl;
-        } else {
-          window.location.href = 'https://mfulearnai.mfu.ac.th/login';
-        }
-      } else {
-        throw new Error('Logout failed');
-      }
+      localStorage.clear();
+      // for development
+      // window.location.href = 'http://localhost:5173/login';
+      window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
     } catch (error) {
       console.error('Logout error:', error);
-      localStorage.clear();
-      window.location.href = 'https://mfulearnai.mfu.ac.th/login';
+      window.location.href = '/login';
     }
   };
 

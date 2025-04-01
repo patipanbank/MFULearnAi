@@ -188,11 +188,11 @@ router.get('/logout', (req, res) => {
 
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
-    const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th/login');
-    const logoutUrl = `https://authsso.mfu.ac.th/adfs/ls?wa=wsignout1.0&wreply=${returnUrl}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
+    const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
     
-    // ส่ง URL กลับไปให้ frontend
-    res.json({ redirectUrl: logoutUrl });
+    res.redirect(logoutUrl);
   });
 });
 
