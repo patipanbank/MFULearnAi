@@ -190,19 +190,7 @@ router.get('/logout/saml', (req, res) => {
   req.logout(() => {
     const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
     const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
-    
-    // เปลี่ยนการสร้าง URL ให้มีพารามิเตอร์ wa=wsignout1.0 และ wreply ที่ถูกต้อง
-    let logoutUrl = `${process.env.SAML_IDP_SLO_URL}`;
-    
-    // ตรวจสอบว่า URL มี ? อยู่แล้วหรือไม่
-    if (!logoutUrl.includes('?')) {
-      logoutUrl += '?wa=wsignout1.0';
-    } else if (!logoutUrl.includes('wa=wsignout1.0')) {
-      logoutUrl += '&wa=wsignout1.0';
-    }
-    
-    // เพิ่ม wreply parameter
-    logoutUrl += `&wreply=${returnUrl}`;
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
     
     res.redirect(logoutUrl);
   });
