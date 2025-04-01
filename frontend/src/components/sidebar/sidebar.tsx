@@ -191,8 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const handleLogout = async () => {
     try {
-      localStorage.clear();
-      // เรียกใช้ API logout
+      // เรียกใช้ API logout ก่อน
       const response = await fetch(`${config.apiUrl}/api/auth/logout/saml`, {
         method: 'GET',
         credentials: 'include'
@@ -200,6 +199,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       
       if (response.ok) {
         const data = await response.json();
+        localStorage.clear(); // เคลียร์ localStorage หลังจากได้ URL
         if (data.redirectUrl) {
           window.location.href = data.redirectUrl;
         } else {
@@ -210,6 +210,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       }
     } catch (error) {
       console.error('Logout error:', error);
+      localStorage.clear();
       window.location.href = 'https://mfulearnai.mfu.ac.th';
     }
   };
