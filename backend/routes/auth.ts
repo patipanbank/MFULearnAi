@@ -189,9 +189,10 @@ router.get('/logout', (req, res) => {
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
     const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th');
-    // ใช้ SAML_IDP_SLO_URL จาก .env
-    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}?wreply=${returnUrl}`;
-    res.redirect(logoutUrl);
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}?wa=wsignout1.0&wreply=${returnUrl}`;
+    
+    // ส่ง URL กลับไปให้ frontend
+    res.json({ redirectUrl: logoutUrl });
   });
 });
 

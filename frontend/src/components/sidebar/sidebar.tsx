@@ -192,12 +192,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const handleLogout = async () => {
     try {
       localStorage.clear();
-      const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th');
-      // ใช้ config.apiUrl เพื่อเรียก endpoint logout/saml ที่ backend ของเรา
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml?wreply=${returnUrl}`;
+      // เรียกใช้ API logout
+      const response = await fetch(`${config.apiUrl}/api/auth/logout/saml`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          window.location.href = 'https://mfulearnai.mfu.ac.th';
+        }
+      } else {
+        throw new Error('Logout failed');
+      }
     } catch (error) {
       console.error('Logout error:', error);
-      window.location.href = 'https://mfulearnai.mfu.ac.th/login';
+      window.location.href = 'https://mfulearnai.mfu.ac.th';
     }
   };
 
