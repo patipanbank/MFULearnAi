@@ -41,6 +41,7 @@ const samlStrategy = new SamlStrategy(
       const email = profile['User.Email'];
       const firstName = profile['first_name'];
       const lastName = profile['last_name'];
+      const departmentID = profile['depart_id']
       const department = profile['depart_name']?.toLowerCase() || '';
       const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
@@ -51,6 +52,7 @@ const samlStrategy = new SamlStrategy(
         email,
         firstName,
         lastName,
+        departmentID,
         department,
         groups
       });
@@ -80,6 +82,7 @@ const samlStrategy = new SamlStrategy(
           email,
           firstName,
           lastName,
+          departmentID,
           department,
           groups: Array.isArray(groups) ? groups : [groups],
           role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]),
@@ -100,6 +103,7 @@ const samlStrategy = new SamlStrategy(
         email: user.email,
         first_name: user.firstName,
         last_name: user.lastName,
+        depart_id: user.departmentID,
         depart_name: user.department,
         groups: user.groups
       };
@@ -142,6 +146,7 @@ router.post('/saml/callback',
           email: req.user.userData.email,
           firstName: req.user.userData.first_name,
           lastName: req.user.userData.last_name,
+          departmentID: req.user.userData.depart_id,
           department: req.user.userData.depart_name,
           groups: [mapGroupToRole(req.user.userData.groups || [])]
         };
@@ -153,6 +158,7 @@ router.post('/saml/callback',
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
+          departmentID: userData.departmentID,
           department: userData.department,
           groups: userData.groups
         },
