@@ -42,6 +42,7 @@ const samlStrategy = new SamlStrategy(
       const firstName = profile['first_name'];
       const lastName = profile['last_name'];
       const department = profile['depart_name']?.toLowerCase() || '';
+      const departmentId = profile['depart_id'] || '';
       const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
       console.log('=== Extracted Values ===');
@@ -52,6 +53,7 @@ const samlStrategy = new SamlStrategy(
         firstName,
         lastName,
         department,
+        departmentId,
         groups
       });
 
@@ -81,6 +83,7 @@ const samlStrategy = new SamlStrategy(
           firstName,
           lastName,
           department,
+          departmentId,
           groups: Array.isArray(groups) ? groups : [groups],
           role: mapGroupToRole(Array.isArray(groups) ? groups : [groups]),
           updated: new Date()
@@ -101,6 +104,7 @@ const samlStrategy = new SamlStrategy(
         first_name: user.firstName,
         last_name: user.lastName,
         depart_name: user.department,
+        depart_id: user.departmentId,
         groups: user.groups
       };
 
@@ -143,6 +147,7 @@ router.post('/saml/callback',
           firstName: req.user.userData.first_name,
           lastName: req.user.userData.last_name,
           department: req.user.userData.depart_name,
+          depart_id: req.user.userData.depart_id,
           groups: [mapGroupToRole(req.user.userData.groups || [])]
         };
 
@@ -154,6 +159,7 @@ router.post('/saml/callback',
           firstName: userData.firstName,
           lastName: userData.lastName,
           department: userData.department,
+          depart_id: userData.depart_id,
           groups: userData.groups
         },
         process.env.JWT_SECRET || 'your-secret-key',
