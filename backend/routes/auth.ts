@@ -188,7 +188,7 @@ router.get('/logout', (req, res) => {
 
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
-    const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th/login');
+    const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th');
     const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
     
     res.redirect(logoutUrl);

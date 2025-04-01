@@ -193,7 +193,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     try {
       localStorage.clear();
       // ใช้ & แทน ? เพราะมีพารามิเตอร์ wa=wsignout1.0 อยู่แล้ว
-      const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th/login');
+      const returnUrl = encodeURIComponent('https://mfulearnai.mfu.ac.th');
       window.location.href = `https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0&wreply=${returnUrl}`;
     } catch (error) {
       console.error('Logout error:', error);
