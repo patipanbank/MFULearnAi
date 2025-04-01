@@ -51,6 +51,7 @@ const samlStrategy = new SamlStrategy(
         email,
         firstName,
         lastName,
+        department,
         groups
       });
 
