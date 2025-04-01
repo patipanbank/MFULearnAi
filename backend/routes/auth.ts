@@ -44,15 +44,15 @@ const samlStrategy = new SamlStrategy(
       const department = profile['depart_name'];
       const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
 
-      // console.log('=== Extracted Values ===');
-      // console.log({
-      //   nameID,
-      //   username,
-      //   email,
-      //   firstName,
-      //   lastName,
-      //   groups
-      // });
+      console.log('=== Extracted Values ===');
+      console.log({
+        nameID,
+        username,
+        email,
+        firstName,
+        lastName,
+        groups
+      });
 
       if (!nameID) {
         console.error('Missing required fields:', { nameID });
