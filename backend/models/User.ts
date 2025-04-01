@@ -12,6 +12,7 @@ interface IUser extends mongoose.Document {
   lastName?: string;
   role: UserRole;
   department: string;
+  departmentId: string;
   groups: string[];
   created: Date;
   updated: Date;
@@ -26,6 +27,7 @@ const userSchema = new mongoose.Schema({
   firstName: String,
   lastName: String,
   department: String,
+  departmentId: String,
   role: { 
     type: String, 
     enum: ['Admin', 'Staffs', 'Students', 'SuperAdmin'],
