@@ -192,13 +192,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const handleLogout = async () => {
     try {
       localStorage.clear();
-      // ใช้ logout SAML เพื่อจัดการกับการล้างเซสชัน ADFS
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      // for development
+      // window.location.href = 'http://localhost:5173/login';
+      window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
     }
   };
+
   const handleDelete = async (chatId: string) => {
     if (!confirm('Are you sure you want to delete this chat?')) return;
 
