@@ -189,6 +189,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // const handleLogout = async () => {
+  //   try {
+  //     localStorage.clear();
+  //     // for development
+  //     // window.location.href = 'http://localhost:5173/login';
+  //     window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
+  //   } catch (error) {
+  //     console.error('Logout error:', error);
+  //     window.location.href = '/login';
+  //   }
+  // };
+
   const handleLogout = async () => {
     try {
       localStorage.clear();
