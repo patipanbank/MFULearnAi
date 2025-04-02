@@ -186,29 +186,17 @@ router.get('/logout', (req, res) => {
   });
 });
 
-// router.get('/logout/saml', (req, res) => {
-//   req.logout(() => {
-//     // const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
-//     // const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
-//     // const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
-//     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-
-//     const logoutUrl = `${process.env.SAML_IDP_SLO_URL}`;    
-//     res.redirect(logoutUrl);
-//   });
-// });
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
+    // const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
+    // const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
+    // const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
-    const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
-    const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
-    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}?wa=wsignoutcleanup1.0&wreply=${returnUrl}`;
-    
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}`;    
     res.redirect(logoutUrl);
   });
 });
-
 
 router.get('/metadata', (req, res) => {
   const metadata = samlStrategy.generateServiceProviderMetadata(null, process.env.SAML_CERTIFICATE);
