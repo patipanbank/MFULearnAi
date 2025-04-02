@@ -188,9 +188,10 @@ router.get('/logout', (req, res) => {
 
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
-    const frontendUrl = process.env.FRONTEND_URL || 'https://dindinai.mfu.ac.th';
-    const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
-    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
+    // const frontendUrl = process.env.FRONTEND_URL || 'https://dindinai.mfu.ac.th';
+    // const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
+    // const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}`;
     
     res.redirect(logoutUrl);
   });
