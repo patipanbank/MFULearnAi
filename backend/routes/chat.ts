@@ -165,24 +165,19 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
     // console.log(`WebSocket client disconnected: ${extWs.userId}`);
   });
 
-  extWs.on('message', async (message: Buffer | string) => {
+  extWs.on('message', async (message: string) => {
     try {
-      // Ensure message is a string before parsing
-      const messageString = message.toString();
-      const data = JSON.parse(messageString);
-      
-      // Basic validation of incoming data structure
-      if (!data || typeof data !== 'object') {
-          throw new Error('Invalid message format: Expected JSON object.');
-      }
+      const data = JSON.parse(message.toString());
+      const userId = extWs.userId;
 
-      // --- Handle non-chat messages directly (e.g., editing, cancellation) ---
+      // Handle message_edited request specifically
       if (data.type === 'message_edited') {
-        // Existing logic for broadcasting edits
-        console.log(`User ${extWs.userId} edited message in chat ${data.chatId}`);
+        console.log(`User ${userId} edited message in chat ${data.chatId}`);
+        
+        // Broadcast to other clients of same user
         wss.clients.forEach((client: WebSocket) => {
           const extClient = client as ExtendedWebSocket;
-          if (extClient.userId === extWs.userId && extClient !== extWs && client.readyState === WebSocket.OPEN) {
+          if (extClient.userId === extWs.userId && extClient !== extWs) {
             extClient.send(JSON.stringify({
               type: 'message_edited',
               chatId: data.chatId,
@@ -191,75 +186,199 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
             }));
           }
         });
-        return; // Edit handled, don't proceed to chatService.processMessage
+        
+        return;
       }
 
+      // Handle cancel request specifically
       if (data.type === 'cancel') {
-        // Cancellation logic might need integration with bedrockInteractionService or chatService
-        // For now, just log it, assuming frontend/service handles the stop
-        console.log(`User ${extWs.userId} requested cancellation for chat ${data.chatId}`);
-        // TODO: Implement actual cancellation signal propagation if needed
-        return; // Cancel handled
+        console.log(`User ${userId} cancelled generation for chat ${data.chatId}`);
+        // The frontend will handle UI updates
+        return;
+      }
+
+      // Check user limits before processing
+      const hasRemaining = await usageService.checkUserLimit(userId!);
+      if (!hasRemaining) {
+        extWs.send(JSON.stringify({
+          type: 'error',
+          error: 'You have used all your quota for today. Please wait until tomorrow.'
+        }));
+        return;
       }
       
-      // --- Pass chat-related messages to the ChatService --- 
-      // Assume messages intended for chat processing have a 'messages' array
-      if (data.messages && Array.isArray(data.messages)) {
-           // Delegate the core chat processing (RAG, AI call, streaming, saving) 
-           // to the refactored chatService
-           await chatService.processMessage(extWs, data);
-      } else if (data.type === 'regenerate') {
-           // Handle regeneration request
-           console.log(`User ${extWs.userId} requested regeneration for chat ${data.chatId}`);
-           if(data.chatId) {
-               try {
-                   // Call regenerateResponse - Note: This currently doesn't stream back via WS
-                   // TODO: Refactor regenerateResponse to stream back via ws object passed in
-                   const result = await chatService.regenerateResponse(data.chatId, extWs.userId || '');
-                   if (result && ws.readyState === WebSocket.OPEN) {
-                        // Send completion signal after regeneration (similar to processMessage)
-                       ws.send(JSON.stringify({ 
-                           type: 'completed', // Or a specific 'regenerated' type
-                           chatId: data.chatId, 
-                           sources: result.sources 
-                        }));
-                        // Optionally send the full regenerated response if needed by frontend
-                        // ws.send(JSON.stringify({ type: 'full_response', chatId: data.chatId, content: result.fullResponse }));
-                   } else if (ws.readyState === WebSocket.OPEN) {
-                       ws.send(JSON.stringify({ type: 'error', chatId: data.chatId, error: 'Failed to regenerate response.' }));
-                   }
-               } catch (regenError: any) {
-                   console.error('Regeneration failed:', regenError);
-                   if (ws.readyState === WebSocket.OPEN) {
-                       ws.send(JSON.stringify({ type: 'error', chatId: data.chatId, error: regenError.message || 'Regeneration failed.' }));
-                   }
-               }
-           } else {
-               if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: 'error', error: 'Missing chatId for regeneration.' }));
-               }
-           }
-      } else {
-          // Handle other unknown message types or formats
-          console.warn('Received unknown message type or format:', data);
-           if (ws.readyState === WebSocket.OPEN) {
-               ws.send(JSON.stringify({ type: 'error', error: 'Unknown message format' }));
-           }
+      const { messages, modelId, isImageGeneration, path, chatId, type } = data;
+
+      if (!messages || !Array.isArray(messages)) {
+        throw new Error('Invalid messages format');
       }
 
-    } catch (error: any) {
-      console.error(`Error processing WS message:`, error);
+      if (!modelId) {
+        throw new Error('ModelId is required');
+      }
+
+      // Check if this is a regenerate request
+      const isRegenerate = type === 'regenerate';
+      
+      // Handle chat updates and message processing
+      let savedChat;
+      let currentChatId: string;
+      try {
+        // Check if any files were sent with the message
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.files && lastMessage.files.length > 0) {
+          console.log(`User ${userId} sent ${lastMessage.files.length} files with their message`);
+          
+          // ตรวจสอบข้อมูลของไฟล์
+          lastMessage.files.forEach((file: any, index: number) => {
+            console.log(`File ${index + 1}:`, {
+              name: file.name,
+              type: file.mediaType,
+              size: file.size,
+              hasData: !!file.data
+            });
+          });
+        }
+        
+        if (!chatId) {
+          savedChat = await chatService.saveChat(extWs.userId!, modelId, messages);
+          currentChatId = savedChat._id.toString();
+          
+          // Send chatId immediately after creation
+          if (extWs.readyState === WebSocket.OPEN) {
+            extWs.send(JSON.stringify({ 
+              type: 'chat_created',
+              chatId: currentChatId
+            }));
+          }
+        } else {
+          savedChat = await chatService.updateChat(chatId, extWs.userId!, messages);
+          currentChatId = chatId;
+        }
+
+        // Get query from last message
+        const query = isImageGeneration
+          ? messages[messages.length - 1].content
+          : messages.map(msg => msg.content).join('\n');
+
+        // Generate response and send chunks
+        let assistantResponse = '';
+        let isCancelled = false;
+        
+        // Setup a listener for cancel messages while we're generating
+        const cancelListener = (cancelMsg: string) => {
+          try {
+            const cancelData = JSON.parse(cancelMsg.toString());
+            if (cancelData.type === 'cancel' && cancelData.chatId === currentChatId) {
+              console.log(`Cancellation received during generation for chat ${currentChatId}`);
+              isCancelled = true;
+            }
+          } catch (error) {
+            console.error('Error parsing cancel message:', error);
+          }
+        };
+        
+        // Add temporary listener for this generation
+        extWs.on('message', cancelListener);
+        
+        // Generate the response
+        try {
+          for await (const content of chatService.generateResponse(messages, query, modelId, extWs.userId!)) {
+            // Check if the generation has been cancelled
+            if (isCancelled) {
+              console.log(`Breaking out of generation loop due to cancellation for chat ${currentChatId}`);
+              break;
+            }
+            
+            assistantResponse += content;
+            if (extWs.readyState === WebSocket.OPEN) {
+              extWs.send(JSON.stringify({ 
+                type: 'content',
+                content
+              }));
+            } else {
+              break;
+            }
+          }
+        } finally {
+          // Always remove the listener when done
+          extWs.removeListener('message', cancelListener);
+        }
+
+        // If generation was cancelled, we don't need to send completion
+        if (isCancelled) {
+          console.log(`Generation was cancelled for chat ${currentChatId}, not sending completion`);
+          return;
+        }
+
+        // Send completion signal
+        if (extWs.readyState === WebSocket.OPEN) {
+          const allMessages = [...messages];
+          allMessages.push({
+            id: messages.length + 1,
+            role: 'assistant',
+            content: assistantResponse,
+            timestamp: new Date(),
+            sources: [],
+            isImageGeneration: isImageGeneration || false,
+            isComplete: true
+          });
+
+          // Update chat with final messages
+          try {
+            const finalChat = await chatService.updateChat(
+              currentChatId,
+              extWs.userId!,
+              allMessages
+            );
+
+            extWs.send(JSON.stringify({ 
+              type: 'complete',
+              chatId: currentChatId,
+              shouldUpdateList: true,
+              timestamp: new Date().toISOString()
+            }));
+
+            // Broadcast to other clients of same user
+            wss.clients.forEach((client: WebSocket) => {
+              const extClient = client as ExtendedWebSocket;
+              if (extClient.userId === extWs.userId && extClient !== extWs) {
+                extClient.send(JSON.stringify({
+                  type: 'chat_updated',
+                  shouldUpdateList: true,
+                  timestamp: new Date().toISOString()
+                }));
+              }
+            });
+          } catch (error) {
+            console.error('Error saving final chat:', error);
+            extWs.send(JSON.stringify({ 
+              type: 'error',
+              error: 'Failed to save chat history' 
+            }));
+          }
+        }
+      } catch (error) {
+        console.error(`Error generating response:`, error);
+        if (extWs.readyState === WebSocket.OPEN) {
+          extWs.send(JSON.stringify({ 
+            type: 'error',
+            error: 'Error generating response' 
+          }));
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing message:`, error);
       if (extWs.readyState === WebSocket.OPEN) {
         extWs.send(JSON.stringify({ 
           type: 'error',
-          error: `Invalid message received: ${error.message || 'Unknown error'}` 
+          error: error instanceof Error ? error.message : 'Invalid message format' 
         }));
       }
     }
   });
 });
 
-/* Comment out the old HTTP streaming route
 router.post('/', async (req: Request, res: Response) => {
   // console.log('Received chat request');
 
@@ -321,28 +440,27 @@ router.post('/', async (req: Request, res: Response) => {
     res.end();
   }
 });
-*/
 
 router.post('/history', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { messages, modelId, title } = req.body;
+    const { messages, modelId } = req.body;
     const userId = (req.user as any)?.username || '';
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    if (!messages || !Array.isArray(messages)) {
       res.status(400).json({ error: 'Invalid messages format' });
       return;
     }
+
     if (!modelId) {
       res.status(400).json({ error: 'ModelId is required' });
       return;
     }
 
-    // Call the refactored service method
-    const savedChat = await chatService.saveInitialChat(userId, modelId, messages, title);
-    res.status(201).json(savedChat);
+    const chat = await chatService.saveChat(userId, modelId, messages);
+    res.json(chat);
   } catch (error) {
-    console.error('Error creating chat history:', error);
-    res.status(500).json({ error: 'Failed to save chat history' });
+    console.error('Error saving chat:', error);
+    res.status(500).json({ error: 'Failed to save chat' });
   }
 });
 
@@ -376,7 +494,7 @@ router.get('/chats/:chatId', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdm
     }
 
     const { chatId } = req.params;
-    const chat = await chatService.getChatById(chatId, userId);
+    const chat = await chatService.getChat(userId, chatId);
     res.json(chat);
   } catch (error) {
     if (error instanceof Error) {
@@ -408,7 +526,7 @@ router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin', 'SuperA
     const { chatId } = req.params;
     const { messages } = req.body;
     
-    const updatedChat = await chatService.updateChat(chatId, userId, req.body);
+    const updatedChat = await chatService.updateChat(chatId, userId, messages);
     res.json(updatedChat);
   } catch (error) {
     if (error instanceof Error) {
@@ -468,7 +586,7 @@ router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin', 
     }
 
     const { chatId } = req.params;
-    const chat = await chatService.getChatById(chatId, userId);
+    const chat = await chatService.getChat(userId, chatId);
     res.json(chat);
   } catch (error) {
     if (error instanceof Error && error.message === 'Chat not found') {
@@ -486,9 +604,9 @@ router.get('/history/:chatId/export', roleGuard(['Students', 'Staffs', 'Admin', 
 router.post('/history/import', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.username || '';
-    const { messages, modelId, title } = req.body;
+    const { messages } = req.body;
     
-    const importedChat = await chatService.saveInitialChat(userId, modelId || 'default', messages, title);
+    const importedChat = await chatService.saveChat(userId, 'default', messages);
     res.json(importedChat);
   } catch (error) {
     console.error('Error importing chat:', error);
@@ -509,6 +627,17 @@ router.route('/clear').delete(async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('Error clearing chat history:', error);
     res.status(500).json({ error: 'Failed to clear chat history' });
+  }
+});
+
+router.post('/chat', async (req, res) => {
+  try {
+    const { messages, modelId } = req.body;
+    const text = messages[messages.length - 1].content;
+    
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -634,14 +763,14 @@ router.put('/history/:chatId/pin', roleGuard(['Students', 'Staffs', 'Admin', 'Su
     }
 
     // Verify chat exists and belongs to user
-    const chat = await chatService.getChatById(chatId, userId);
+    const chat = await chatService.getChat(userId, chatId);
     if (!chat) {
       res.status(404).json({ error: 'Chat not found' });
       return;
     }
 
     // Toggle isPinned status
-    const updatedChat = await chatService.togglePinChat(chatId, userId);
+    const updatedChat = await chatService.togglePinChat(userId, chatId);
     res.json(updatedChat);
   } catch (error) {
     console.error('Error toggling chat pin status:', error);
@@ -860,60 +989,6 @@ router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin
   } catch (error) {
     console.error('Error adding message:', error);
     res.status(500).json({ error: 'Failed to add message' });
-  }
-});
-
-// Add message to existing chat (Example - might not be used if all handled via WS)
-router.post('/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
-    const { chatId } = req.params;
-    const { message } = req.body; // Assuming message is a single ChatMessage object
-    const userId = (req.user as any)?.username || '';
-
-    if (!message || typeof message !== 'object' || !message.role || !message.content) {
-        res.status(400).json({ error: 'Invalid message format' });
-        return;
-    }
-
-    try {
-        // Ensure user owns the chat before adding message
-        const chat = await chatService.getChatById(chatId, userId);
-        if (!chat) {
-            res.status(404).json({ error: 'Chat not found or access denied' });
-            return;
-        }
-
-        const updatedChat = await chatService.addMessage(chatId, message);
-        if (updatedChat) {
-            res.status(200).json(updatedChat);
-        } else {
-            // This case might occur if addMessageToChat fails internally after check
-            res.status(500).json({ error: 'Failed to add message' });
-        }
-    } catch (error) {
-        console.error(`Error adding message to chat ${chatId}:`, error);
-        res.status(500).json({ error: 'Failed to add message' });
-    }
-});
-
-// Get all chats for the logged-in user
-router.get('/', async (req: Request, res: Response) => {
-  try {
-    const userId = (req.user as any)?.username;
-    if (!userId) {
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
-    }
-
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-
-    const chats = await chatService.getChats(userId, page, limit);
-    res.json(chats);
-  } catch (error) {
-    console.error('Error getting chats:', error);
-    res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Failed to get chats' 
-    });
   }
 });
 

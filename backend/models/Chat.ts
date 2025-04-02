@@ -25,8 +25,6 @@ interface ChatMessage {
   isImageGeneration?: boolean;
   isComplete?: boolean;
   isEdited?: boolean;
-  feedback?: string;
-  updatedAt?: Date;
 }
 
 const chatSchema = new mongoose.Schema({
@@ -66,14 +64,7 @@ const chatSchema = new mongoose.Schema({
       }],
       isImageGeneration: Boolean,
       isComplete: Boolean,
-      isEdited: Boolean,
-      feedback: {
-        type: String,
-        enum: ['like', 'dislike']
-      },
-      updatedAt: {
-        type: Date
-      }
+      isEdited: Boolean
     }],
     required: true,
     validate: {

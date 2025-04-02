@@ -154,7 +154,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
             break;
 
-          case 'chunk':
+          case 'content':
             get().updateMessageContent(data.content);
             break;
 
@@ -416,8 +416,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           // อัปเดตข้อความทั้งหมด
           set({ messages: newMessages });
           
-          // Send message edit notification (This part is correct)
+          // ส่งข้อความที่แก้ไขผ่าน WebSocket
           if (wsRef) {
+            // ส่งการแก้ไข
             wsRef.send(JSON.stringify({
               type: 'message_edited',
               chatId: currentChatId,
@@ -425,15 +426,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
               content: inputMessage
             }));
             
-            // Send the resubmit message for the AI to generate a new response
-            setAwaitingChatId(true); // Assume new response might create new chat if ID was null
+            // จากนั้นส่งข้อความใหม่
+            setAwaitingChatId(true);
             wsRef.send(JSON.stringify({
+              type: 'message',
+              content: inputMessage,
               chatId: currentChatId,
               modelId: selectedModel,
+              messageId: newUserMessage.id,
               images: images,
               files: files,
               isImageGeneration: isImageGenerationMode,
-              messages: newMessages, // Send history including the edited message + new placeholder
+              messages: [newUserMessage],
               path: window.location.pathname
             }));
           }
@@ -550,13 +554,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
           setAwaitingChatId(true);
           console.log('Sending message via WebSocket');
           wsRef.send(JSON.stringify({
+            type: 'chat',
+            content: inputMessage,
             chatId: currentChatId,
             modelId: selectedModel,
             images: images,
             files: files,
             isImageGeneration: isImageGenerationMode,
-            messages: updatedMessages, // Send the full history + new message
-            path: window.location.pathname // Keep path if backend uses it
+            messages: updatedMessages, // ส่ง messages ทั้งหมดรวมข้อความใหม่
+            path: window.location.pathname // เพิ่ม path เพื่อให้เหมือนโค้ดเดิม
           }));
         } else {
           console.error('WebSocket not connected');
@@ -1059,6 +1065,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const messagePayload = {
           messages: messagesToKeep,
           modelId: selectedModel,
+          isImageGeneration: false,
+          path: window.location.pathname,
           chatId: currentChatId,
           type: 'regenerate'
         };
@@ -1115,11 +1123,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       // Send regenerate request to websocket
       const messagePayload = {
-        messages: messagesToKeep,
+        messages: messagesToKeep, // ส่งเฉพาะข้อความถึงข้อความผู้ใช้ล่าสุด
         modelId: selectedModel,
+        isImageGeneration: false,
+        path: window.location.pathname,
         chatId: currentChatId,
         type: 'regenerate'
       };
+      
       wsRef.send(JSON.stringify(messagePayload));
       
       // Update usage
