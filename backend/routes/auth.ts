@@ -188,11 +188,8 @@ router.get('/logout', (req, res) => {
 
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
-    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}`;
-    res.json({ 
-      logoutUrl,
-      redirectUrl: 'https://mfulearnai.mfu.ac.th'
-    });
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}?RelayState=https://mfulearnai.mfu.ac.th`;
+    res.redirect(logoutUrl);
   });
 });
 

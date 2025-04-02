@@ -193,13 +193,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     try {
       localStorage.clear();
       // เรียกใช้ endpoint logout/saml
-      const response = await fetch(`${config.apiUrl}/api/auth/logout/saml`);
-      const data = await response.json();
-      window.location.href = data.logoutUrl;
-      // หลังจาก logout เสร็จ จะ redirect ไปที่ URL ที่กำหนด
-      setTimeout(() => {
-        window.location.href = data.redirectUrl;
-      }, 1000);
+      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
