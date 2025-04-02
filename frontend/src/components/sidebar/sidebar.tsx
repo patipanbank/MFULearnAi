@@ -192,7 +192,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const handleLogout = async () => {
     try {
       localStorage.clear();
-      // เรียกใช้ endpoint logout/saml
+      // เปลี่ยนจากการเรียก ADFS โดยตรง เป็นเรียกผ่าน API endpoint
       window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
     } catch (error) {
       console.error('Logout error:', error);
