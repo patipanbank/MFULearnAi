@@ -191,6 +191,8 @@ router.get('/logout/saml', (req, res) => {
     // const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
     // const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
     // const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
     const logoutUrl = `${process.env.SAML_IDP_SLO_URL}`;    
     res.redirect(logoutUrl);
   });
