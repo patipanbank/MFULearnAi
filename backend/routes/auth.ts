@@ -241,6 +241,7 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
+        email: user.email,
         department: user.department,
         role: user.role,
         groups: user.groups
@@ -256,6 +257,7 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
+        email: user.email,
         department: user.department,
         role: user.role,
         groups: user.groups

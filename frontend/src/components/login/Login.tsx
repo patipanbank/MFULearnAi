@@ -10,7 +10,7 @@ const Login: React.FC = () => {
   };
 
   const handleAdminLogin = () => {
-    window.location.href = 'https://mfulearnai.mfu.ac.th/admin/login';
+    window.location.href = import.meta.env.VITE_ADMIN_LOGIN_URL;
   };
 
   // const navigator = useNavigate();
