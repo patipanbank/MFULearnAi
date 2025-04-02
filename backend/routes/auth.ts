@@ -199,11 +199,10 @@ router.get('/logout/saml', (req, res) => {
   req.logout(() => {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
-      // แก้ไขการต่อ URL parameter จาก & เป็น ?
-      const baseLogoutUrl = process.env.SAML_IDP_SLO_URL?.replace('?wa=wsignout1.0', '') || '';
-      // const logoutUrl = `${baseLogoutUrl}?wa=wsignout1.0&wreply=${frontendUrl}`;
+      const returnUrl = encodeURIComponent(frontendUrl);
+      const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
       
-      res.redirect(frontendUrl);
+      res.redirect(logoutUrl);
     } catch (error) {
       console.error('Logout error:', error);
       res.redirect(`${process.env.FRONTEND_URL}/login?error=logout_failed`);
