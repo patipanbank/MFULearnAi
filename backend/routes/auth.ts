@@ -188,11 +188,17 @@ router.get('/logout', (req, res) => {
 
 router.get('/logout/saml', (req, res) => {
   req.logout(() => {
-    const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
-    const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
-    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
-    
-    res.redirect(logoutUrl);
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
+      const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
+      const baseLogoutUrl = process.env.SAML_IDP_SLO_URL?.replace('?wa=wsignout1.0', '') || '';
+      const logoutUrl = `${baseLogoutUrl}?wa=wsignout1.0&wreply=${returnUrl}`;
+      
+      res.redirect(logoutUrl);
+    } catch (error) {
+      console.error('Logout error:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=logout_failed`);
+    }
   });
 });
 
