@@ -994,6 +994,15 @@ router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin
 });
 
 // Intent classification endpoint
+// This endpoint provides direct access to the intent classification service
+// The system now relies EXCLUSIVELY on intent classification for response generation:
+// 1. Each message is classified for intent with confidence score
+// 2. Detected intents determine how context is retrieved (using optimized queries)
+// 3. System prompts are selected and enhanced based on the specific intent
+// 4. LLM parameters (temperature, max tokens) are adjusted based on intent
+// 5. Certain intents skip context retrieval for faster responses
+// 6. Intent entities are extracted and used to enhance responses
+// 7. The old question type detection has been removed in favor of this approach
 router.post('/classify-intent', async (req: Request, res: Response): Promise<void> => {
   try {
     const { message } = req.body;
