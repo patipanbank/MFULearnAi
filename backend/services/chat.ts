@@ -717,7 +717,7 @@ Return ONLY the category name without any explanation or additional text.
               sources: msg.sources || [],
               isImageGeneration: msg.isImageGeneration || false,
               isComplete: msg.isComplete || false
-            })),
+            }))
           }
         },
         { new: true }
