@@ -65,9 +65,14 @@ export class IntentClassifierService {
       examples: ["Goodbye", "Talk to you later", "ลาก่อน", "แล้วพบกันใหม่"]
     },
     {
-      name: "image_request",
-      description: "Request to generate or analyze an image",
-      examples: ["Create an image of", "Generate a picture", "สร้างรูปภาพ", "วาดรูป"]
+      name: "image_generation",
+      description: "Request to generate or create a new image",
+      examples: ["Create an image of", "Generate a picture of", "Draw a", "สร้างรูปภาพ", "วาดรูป"]
+    },
+    {
+      name: "image_analysis",
+      description: "Request to analyze, describe, or explain an image",
+      examples: ["What's in this image?", "Describe this picture", "Analyze this image", "วิเคราะห์รูปภาพนี้", "อธิบายภาพนี้"]
     },
     {
       name: "other",

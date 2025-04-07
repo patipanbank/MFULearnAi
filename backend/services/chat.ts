@@ -788,9 +788,17 @@ class ChatService {
       // Perform specialized handling based on the top intent
       const topIntent = intents[0];
       
-      if (topIntent.name === "image_request" && topIntent.confidence > 0.7) {
+      if (topIntent.name === "image_generation" && topIntent.confidence > 0.7) {
         message.isImageGeneration = true;
         console.log('Image generation request detected with high confidence');
+      }
+      
+      // Handle image analysis intent - don't trigger image generation
+      if (topIntent.name === "image_analysis" && topIntent.confidence > 0.7) {
+        console.log('Image analysis request detected with high confidence');
+        // Add special flag for image analysis if needed
+        message.metadata = message.metadata || {};
+        message.metadata.requiresImageAnalysis = true;
       }
       
       // Add more specialized intent handling here as needed
