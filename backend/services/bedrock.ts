@@ -342,62 +342,6 @@ export class BedrockService {
   getLastTokenUsage(): number {
     return this.lastTokenUsage;
   }
-
-  /**
-   * Gets a text completion from the model
-   * @param prompt The prompt to send to the model
-   * @returns The text completion response
-   */
-  async getTextCompletion(prompt: string): Promise<string> {
-    try {
-      const modelId = this.models.claude35;
-      const config = {
-        temperature: 0.3, // Low temperature for more deterministic responses
-        topP: 0.8,
-        maxTokens: 100 // Keep it short for sentiment analysis responses
-      };
-
-      const command = new InvokeModelCommand({
-        modelId: modelId,
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify({
-          anthropic_version: "bedrock-2023-05-31",
-          max_tokens: config.maxTokens,
-          temperature: config.temperature,
-          top_p: config.topP,
-          messages: [
-            {
-              role: "user",
-              content: prompt
-            }
-          ]
-        })
-      });
-
-      const response = await this.client.send(command);
-
-      if (!response.body) {
-        throw new Error("Empty response body");
-      }
-
-      const responseData = JSON.parse(new TextDecoder().decode(response.body));
-      
-      if (!responseData.content || !responseData.content[0] || !responseData.content[0].text) {
-        throw new Error("Invalid response format");
-      }
-
-      // Track token usage if available
-      if (responseData.usage) {
-        this.lastTokenUsage = responseData.usage.output_tokens || 0;
-      }
-
-      return responseData.content[0].text;
-    } catch (error) {
-      console.error("Error getting text completion:", error);
-      throw error;
-    }
-  }
 }
 
 export const bedrockService = new BedrockService();
