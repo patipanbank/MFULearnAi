@@ -91,8 +91,11 @@ export class IntentClassifierService {
    */
   async classifyIntent(message: string): Promise<Intent[]> {
     try {
+      console.log('Starting intent classification for message:', message);
+      
       // Construct a prompt for intent classification
       const prompt = this.buildIntentClassificationPrompt(message);
+      console.log('Built classification prompt');
       
       const command = new InvokeModelCommand({
         modelId: this.modelId,
@@ -112,7 +115,9 @@ export class IntentClassifierService {
         })
       });
       
+      console.log(`Sending classification request to model: ${this.modelId}`);
       const response = await this.client.send(command);
+      console.log('Received response from model');
       
       if (!response.body) {
         throw new Error("Empty response body from Bedrock");
@@ -127,6 +132,7 @@ export class IntentClassifierService {
       
       // Extract the JSON from the response
       const responseContent = parsedResponse.content[0].text;
+      console.log('Raw model response:', responseContent);
       
       // Parse the JSON response
       try {
@@ -139,6 +145,7 @@ export class IntentClassifierService {
         }
         
         const intentResult = JSON.parse(jsonStr) as Intent[];
+        console.log('Successfully parsed intent classification result:', JSON.stringify(intentResult, null, 2));
         return intentResult;
       } catch (parseError) {
         console.error("Error parsing intent classification response:", parseError);
@@ -198,9 +205,11 @@ Ensure your response is valid JSON and follows the exact format above. DO NOT in
     entities?: {[key: string]: any};
     confidence: number;
   }> {
+    console.log('Analyzing message for intent:', message);
     const intents = await this.classifyIntent(message);
     const topIntent = intents[0];
     
+    console.log('Analysis complete. Top intent:', topIntent.name, 'with confidence:', topIntent.confidence);
     return {
       intent: topIntent.name,
       entities: topIntent.entities,

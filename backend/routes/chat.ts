@@ -1003,7 +1003,11 @@ router.post('/classify-intent', async (req: Request, res: Response): Promise<voi
       return;
     }
     
+    console.log('Received intent classification request for message:', message);
+    
     const intents = await intentClassifierService.classifyIntent(message);
+    
+    console.log('Classification complete. Returning intents:', JSON.stringify(intents, null, 2));
     
     res.json({ intents });
   } catch (error) {
