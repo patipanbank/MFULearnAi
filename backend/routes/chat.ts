@@ -241,7 +241,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         }
         
         if (!chatId) {
-          savedChat = await chatService.saveChat(extWs.userId!, modelId, messages);
+          savedChat = await chatService.saveChat(extWs.userId!, modelId, messages, {});
           currentChatId = savedChat._id.toString();
           
           // Send chatId immediately after creation
@@ -456,7 +456,7 @@ router.post('/history', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] 
       return;
     }
 
-    const chat = await chatService.saveChat(userId, modelId, messages);
+    const chat = await chatService.saveChat(userId, modelId, messages, {});
     res.json(chat);
   } catch (error) {
     console.error('Error saving chat:', error);
@@ -606,7 +606,7 @@ router.post('/history/import', roleGuard(['Students', 'Staffs', 'Admin', 'SuperA
     const userId = (req.user as any)?.username || '';
     const { messages } = req.body;
     
-    const importedChat = await chatService.saveChat(userId, 'default', messages);
+    const importedChat = await chatService.saveChat(userId, 'default', messages, {});
     res.json(importedChat);
   } catch (error) {
     console.error('Error importing chat:', error);
