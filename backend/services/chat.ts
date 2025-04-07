@@ -290,16 +290,141 @@ class ChatService {
       return '';
     }
 
-    // Create a concise summary of the older messages
-    const summary = messages.map(msg => {
-      const role = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
-      const content = msg.content.length > 100 
-        ? `${msg.content.substring(0, 97)}...` 
-        : msg.content;
-      return `${role}: ${content}`;
-    }).join('\n');
+    // Group messages into conversation turns
+    const conversationTurns: { user: string, assistant: string }[] = [];
+    let currentTurn: { user: string, assistant: string } = { user: '', assistant: '' };
 
-    return `Previous conversation summary:\n${summary}`;
+    for (let i = 0; i < messages.length; i++) {
+      const message = messages[i];
+      
+      if (message.role === 'user') {
+        // If we already have content in the current turn, save it and start a new one
+        if (currentTurn.user || currentTurn.assistant) {
+          conversationTurns.push({...currentTurn});
+          currentTurn = { user: '', assistant: '' };
+        }
+        currentTurn.user = message.content;
+      } else if (message.role === 'assistant') {
+        currentTurn.assistant = message.content;
+        
+        // If this is the last message or the next message is from a user, save this turn
+        if (i === messages.length - 1 || messages[i + 1].role === 'user') {
+          conversationTurns.push({...currentTurn});
+          currentTurn = { user: '', assistant: '' };
+        }
+      }
+    }
+
+    // If there's an incomplete turn at the end, add it
+    if (currentTurn.user || currentTurn.assistant) {
+      conversationTurns.push(currentTurn);
+    }
+
+    // For very long conversations, only keep the most recent 70% of turns
+    let turnsToInclude = conversationTurns;
+    if (conversationTurns.length > 10) {
+      const startIndex = Math.floor(conversationTurns.length * 0.3);
+      turnsToInclude = conversationTurns.slice(startIndex);
+    }
+
+    // Generate a more sophisticated summary
+    let summary = "Previous conversation summary:\n\n";
+    
+    // First, provide a high-level overview of what was discussed
+    const topicKeywords = this.extractTopicKeywords(messages);
+    if (topicKeywords.length > 0) {
+      summary += `Topics discussed: ${topicKeywords.join(', ')}\n\n`;
+    }
+
+    // Then summarize each conversation turn
+    turnsToInclude.forEach((turn, index) => {
+      // Make a more concise summary for older turns
+      const isOlderTurn = index < Math.floor(turnsToInclude.length * 0.5);
+      
+      // Process user message
+      const userContent = isOlderTurn 
+        ? this.summarizeContent(turn.user, 100) 
+        : this.summarizeContent(turn.user, 150);
+      
+      // Process assistant message
+      const assistantContent = isOlderTurn
+        ? this.summarizeContent(turn.assistant, 100)
+        : this.summarizeContent(turn.assistant, 200);
+      
+      summary += `User: ${userContent}\n`;
+      summary += `Assistant: ${assistantContent}\n\n`;
+    });
+
+    return summary;
+  }
+
+  private summarizeContent(content: string, maxLength: number): string {
+    if (!content) return '';
+    
+    // If content is already shorter than max length, return it as is
+    if (content.length <= maxLength) return content;
+    
+    // Extract the first sentence (likely contains the main point)
+    const firstSentenceMatch = content.match(/^.*?[.!?]/);
+    const firstSentence = firstSentenceMatch ? firstSentenceMatch[0] : '';
+    
+    // If the first sentence is already too long, truncate it
+    if (firstSentence.length >= maxLength) {
+      return `${content.substring(0, maxLength - 3)}...`;
+    }
+    
+    // Try to include the last sentence too to preserve conclusions
+    const lastSentenceMatch = content.match(/[^.!?]*[.!?]$/);
+    const lastSentence = lastSentenceMatch ? lastSentenceMatch[0] : '';
+    
+    // If first + last sentence fit within max length, use them
+    if (firstSentence.length + lastSentence.length + 5 <= maxLength) {
+      return `${firstSentence} [...] ${lastSentence}`;
+    }
+    
+    // Otherwise, just use the first sentence and truncate if needed
+    return firstSentence.length > maxLength - 3 
+      ? `${firstSentence.substring(0, maxLength - 3)}...` 
+      : `${firstSentence} [...]`;
+  }
+
+  private extractTopicKeywords(messages: ChatMessage[]): string[] {
+    // Simple keyword extraction based on term frequency
+    const text = messages.map(msg => msg.content).join(' ');
+    
+    // Remove common words and punctuation
+    const cleanText = text.toLowerCase()
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
+      .replace(/\s{2,}/g, ' ');
+    
+    // Split into words and count frequency
+    const words = cleanText.split(' ');
+    const wordFrequency: Record<string, number> = {};
+    
+    const stopWords = [
+      'a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'am', 'was', 'were', 
+      'be', 'been', 'being', 'to', 'of', 'for', 'in', 'on', 'at', 'by', 'with',
+      'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after',
+      'above', 'below', 'from', 'up', 'down', 'that', 'this', 'these', 'those', 'it',
+      'i', 'you', 'he', 'she', 'they', 'we', 'who', 'what', 'which', 'whose', 'whom',
+      'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more',
+      'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same',
+      'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should',
+      'now', 'me', 'my', 'your', 'their', 'his', 'her', 'our', 'its', 'there', 'here'
+    ];
+
+    // Count word frequency, skipping stop words and short words
+    words.forEach(word => {
+      if (word.length > 3 && !stopWords.includes(word)) {
+        wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+      }
+    });
+    
+    // Get top keywords
+    return Object.entries(wordFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 7)
+      .map(entry => entry[0]);
   }
 
   private async updateDailyStats(userId: string): Promise<void> {
@@ -353,29 +478,64 @@ class ChatService {
       const lastMessage = messages[messages.length - 1];
       const isImageGeneration = lastMessage.isImageGeneration;
       
-      // Dynamically determine message limit based on message length
-      const MAX_CHAR_THRESHOLD = 500; // Define threshold for "long" messages
-      const DEFAULT_MESSAGE_LIMIT = 6;
-      const LONG_MESSAGE_LIMIT = 2;
-      
-      // Calculate average message length
-      const avgMessageLength = messages.reduce((sum, msg) => 
-        sum + (msg.content?.length || 0), 0) / Math.max(1, messages.length);
-      
-      // Set message limit based on average length
-      const MESSAGE_LIMIT = avgMessageLength > MAX_CHAR_THRESHOLD 
-        ? LONG_MESSAGE_LIMIT 
-        : DEFAULT_MESSAGE_LIMIT;
+      // Dynamic message management based on conversation complexity
+      // Choose which strategy to use - we'll use adaptive for better context handling
+      const useAdaptiveStrategy = true; // Set to false to use fixed strategy
       
       let recentMessages: ChatMessage[] = [];
       let olderMessages: ChatMessage[] = [];
       
-      if (messages.length > MESSAGE_LIMIT) {
-        // Split messages into older and recent messages
-        olderMessages = messages.slice(0, messages.length - MESSAGE_LIMIT);
-        recentMessages = messages.slice(messages.length - MESSAGE_LIMIT);
+      if (!useAdaptiveStrategy) {
+        // Fixed approach: Keep a specific number of most recent messages
+        const MAX_CHAR_THRESHOLD = 500; // Define threshold for "long" messages
+        const DEFAULT_MESSAGE_LIMIT = 6;
+        const LONG_MESSAGE_LIMIT = 2;
+        
+        // Calculate average message length
+        const avgMessageLength = messages.reduce((sum, msg) => 
+          sum + (msg.content?.length || 0), 0) / Math.max(1, messages.length);
+        
+        // Set message limit based on average length
+        const MESSAGE_LIMIT = avgMessageLength > MAX_CHAR_THRESHOLD 
+          ? LONG_MESSAGE_LIMIT 
+          : DEFAULT_MESSAGE_LIMIT;
+        
+        if (messages.length > MESSAGE_LIMIT) {
+          // Split messages into older and recent messages
+          olderMessages = messages.slice(0, messages.length - MESSAGE_LIMIT);
+          recentMessages = messages.slice(messages.length - MESSAGE_LIMIT);
+        } else {
+          recentMessages = [...messages];
+        }
       } else {
-        recentMessages = [...messages];
+        // Adaptive approach: Dynamically determine how many messages to keep
+        // based on message complexity, importance, and token budgets
+        
+        // For very short conversations (≤ 4 messages), keep everything
+        if (messages.length <= 4) {
+          recentMessages = [...messages];
+        }
+        // For medium conversations, keep more recent messages
+        else if (messages.length <= 10) {
+          // Keep the most recent 70% of messages, but at least 4
+          const keepCount = Math.max(4, Math.floor(messages.length * 0.7));
+          olderMessages = messages.slice(0, messages.length - keepCount);
+          recentMessages = messages.slice(messages.length - keepCount);
+        }
+        // For longer conversations, be more aggressive with summarization
+        else {
+          // Keep the last 30-40% of messages based on complexity
+          // Get estimated token count for entire conversation
+          const estimatedTokens = messages.reduce((sum, msg) => 
+            sum + (msg.content?.length || 0) / 4, 0);
+          
+          // Adjust keep percentage based on estimated token count
+          const keepPercentage = estimatedTokens > 4000 ? 0.3 : 0.4;
+          const keepCount = Math.max(4, Math.floor(messages.length * keepPercentage));
+          
+          olderMessages = messages.slice(0, messages.length - keepCount);
+          recentMessages = messages.slice(messages.length - keepCount);
+        }
       }
       
       // Skip context retrieval for image generation
@@ -419,6 +579,11 @@ class ChatService {
         olderMessages.length > 0 ? 
         this.summarizeOldMessages(olderMessages) : 
         '';
+      
+      // Log when we're using the sophisticated summarization
+      if (olderMessages.length > 0) {
+        console.log(`Using sophisticated summarization for ${olderMessages.length} older messages`);
+      }
       
       // Generate Claude conversation
       const chatMessages: ChatMessage[] = [
