@@ -172,7 +172,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
       // Handle message_edited request specifically
       if (data.type === 'message_edited') {
-        console.log(`User ${userId} edited message in chat ${data.chatId}`);
+        console.log(`User ${extWs.userId} edited message in chat ${data.chatId}`);
         
         // Broadcast to other clients of same user
         wss.clients.forEach((client: WebSocket) => {
@@ -192,7 +192,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
       // Handle cancel request specifically
       if (data.type === 'cancel') {
-        console.log(`User ${userId} cancelled generation for chat ${data.chatId}`);
+        console.log(`User ${extWs.userId} cancelled generation for chat ${data.chatId}`);
         // The frontend will handle UI updates
         return;
       }
@@ -207,6 +207,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         return;
       }
       
+      // Extract isThinkMode from data if it exists
+      const isThinkMode = data.isThinkMode || false;
       const { messages, modelId, isImageGeneration, path, chatId, type } = data;
 
       if (!messages || !Array.isArray(messages)) {
@@ -224,58 +226,42 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       let savedChat;
       let currentChatId: string;
       try {
-        // Check if any files were sent with the message
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.files && lastMessage.files.length > 0) {
-          console.log(`User ${userId} sent ${lastMessage.files.length} files with their message`);
-          
-          // ตรวจสอบข้อมูลของไฟล์
-          lastMessage.files.forEach((file: any, index: number) => {
-            console.log(`File ${index + 1}:`, {
-              name: file.name,
-              type: file.mediaType,
-              size: file.size,
-              hasData: !!file.data
-            });
-          });
+        // For empty chatId, create a new chat first
+        if (!chatId) {
+          try {
+            const chatname = extractChatName(data.content);
+            const chat = await chatService.saveChat(extWs.userId!, modelId, messages);
+            currentChatId = chat.id;
+            
+            // Send the new chatId back to the client
+            if (extWs.readyState === WebSocket.OPEN) {
+              extWs.send(JSON.stringify({ 
+                type: 'chat_created',
+                chatId: currentChatId
+              }));
+            }
+          } catch (error) {
+            console.error('Error creating new chat:', error);
+            extWs.send(JSON.stringify({ 
+              type: 'error',
+              error: 'Failed to create new chat' 
+            }));
+            return;
+          }
         }
         
-        if (!chatId) {
-          savedChat = await chatService.saveChat(extWs.userId!, modelId, messages);
-          currentChatId = savedChat._id.toString();
-          
-          // Send chatId immediately after creation
-          if (extWs.readyState === WebSocket.OPEN) {
-            extWs.send(JSON.stringify({ 
-              type: 'chat_created',
-              chatId: currentChatId
-            }));
-          }
-        } else {
-          savedChat = await chatService.updateChat(chatId, extWs.userId!, messages);
-          currentChatId = chatId;
-        }
-
-        // Get query from last message
-        const query = isImageGeneration
-          ? messages[messages.length - 1].content
-          : messages.map(msg => msg.content).join('\n');
-
-        // Generate response and send chunks
+        const lastMessage = messages[messages.length - 1];
+        const userInput = lastMessage.content;
+        
+        // Initialize AI response message
         let assistantResponse = '';
+        
+        // Stream response chunks
         let isCancelled = false;
         
         // Setup a listener for cancel messages while we're generating
         const cancelListener = (cancelMsg: string) => {
-          try {
-            const cancelData = JSON.parse(cancelMsg.toString());
-            if (cancelData.type === 'cancel' && cancelData.chatId === currentChatId) {
-              console.log(`Cancellation received during generation for chat ${currentChatId}`);
-              isCancelled = true;
-            }
-          } catch (error) {
-            console.error('Error parsing cancel message:', error);
-          }
+          isCancelled = true;
         };
         
         // Add temporary listener for this generation
@@ -283,7 +269,13 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         
         // Generate the response
         try {
-          for await (const content of chatService.generateResponse(messages, query, modelId, extWs.userId!)) {
+          for await (const content of chatService.generateResponse(
+            messages, 
+            userInput, 
+            modelId, 
+            extWs.userId!,
+            isThinkMode
+          )) {
             // Check if the generation has been cancelled
             if (isCancelled) {
               console.log(`Breaking out of generation loop due to cancellation for chat ${currentChatId}`);
@@ -303,12 +295,6 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         } finally {
           // Always remove the listener when done
           extWs.removeListener('message', cancelListener);
-        }
-
-        // If generation was cancelled, we don't need to send completion
-        if (isCancelled) {
-          console.log(`Generation was cancelled for chat ${currentChatId}, not sending completion`);
-          return;
         }
 
         // Send completion signal
@@ -393,7 +379,7 @@ router.post('/', async (req: Request, res: Response) => {
   // console.log('Sent initial response');
 
   try {
-    const { messages, modelId, collectionName } = req.body;
+    const { messages, modelId, collectionName, isThinkMode } = req.body;
     const lastMessage = messages[messages.length - 1];
     const query = lastMessage.content;
 
@@ -414,7 +400,7 @@ router.post('/', async (req: Request, res: Response) => {
     //   query
     // });
     try {
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
+      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName, isThinkMode)) {
         // console.log('Sending chunk:', content);
         sendChunk(content);
       }
@@ -426,18 +412,9 @@ router.post('/', async (req: Request, res: Response) => {
     // console.log('Chat response completed');
     res.end();
   } catch (error) {
-    console.error('Chat error details:', error);
-    
-    // ถ้ายังไม่ได้ส่ง headers
-    if (!res.headersSent) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-    }
-    
-    const errorData = JSON.stringify({ content: 'Sorry, an error occurred. Please try again.' });
-    res.write(`data: ${errorData}\n\n`);
-    res.end();
+    // Handle error
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed to generate response' });
   }
 });
 

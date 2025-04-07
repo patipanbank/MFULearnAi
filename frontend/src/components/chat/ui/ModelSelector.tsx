@@ -5,13 +5,30 @@ import { useAuth } from '../../../hooks/useAuth';
 interface ModelSelectorProps {
   models: Model[];
   selectedModel: string;
-  setSelectedModel: (id: string) => void;
+  onChange?: (id: string) => void;
+  setSelectedModel?: (id: string) => void; // Keep for backward compatibility
+  disabled?: boolean;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModel, setSelectedModel }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({ 
+  models, 
+  selectedModel, 
+  onChange, 
+  setSelectedModel,
+  disabled = false
+}) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+
+  // Handle both onChange and setSelectedModel for backward compatibility
+  const handleModelChange = (modelId: string) => {
+    if (onChange) {
+      onChange(modelId);
+    } else if (setSelectedModel) {
+      setSelectedModel(modelId);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,9 +90,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModel, se
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600 
-          hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 min-w-[120px] md:min-w-[180px]"
-        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-600 
+          ${!disabled ? 'hover:bg-gray-100 dark:hover:bg-gray-700' : 'opacity-70 cursor-not-allowed'}
+          transition-all duration-200 min-w-[120px] md:min-w-[180px]`}
+        onClick={() => !disabled && setIsDropdownOpen(!isDropdownOpen)}
+        disabled={disabled}
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -96,7 +115,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModel, se
                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                 onClick={() => {
-                  setSelectedModel(model.id);
+                  handleModelChange(model.id);
                   setIsDropdownOpen(false);
                 }}
               >

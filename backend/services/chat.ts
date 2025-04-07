@@ -336,35 +336,102 @@ class ChatService {
     messages: ChatMessage[],
     query: string,
     modelIdOrCollections: string | string[],
-    userId: string
+    userId: string,
+    isThinkMode: boolean = false
   ): AsyncGenerator<string> {
     try {
-      // console.log("Starting generateResponse with:", modelIdOrCollections);
-      
       const lastMessage = messages[messages.length - 1];
       const isImageGeneration = lastMessage.isImageGeneration;
       
-      // Dynamically determine message limit based on message length
-      const MAX_CHAR_THRESHOLD = 500; // Define threshold for "long" messages
-      const DEFAULT_MESSAGE_LIMIT = 6;
-      const LONG_MESSAGE_LIMIT = 2;
+      // Enhanced message limit determination based on content complexity, not just length
+      const analyzeMessageComplexity = (message: ChatMessage): number => {
+        const content = message.content || '';
+        const baseComplexity = content.length;
+        
+        // Increase complexity score for messages with images or files
+        const hasAttachments = (message.images?.length || 0) + (message.files?.length || 0) > 0;
+        const attachmentMultiplier = hasAttachments ? 1.5 : 1;
+        
+        // Increase complexity for messages containing code blocks or structured data
+        const hasCodeBlocks = (content.match(/```/g) || []).length > 0;
+        const hasStructuredData = content.includes('{') && content.includes('}');
+        const contentMultiplier = hasCodeBlocks || hasStructuredData ? 1.3 : 1;
+        
+        return baseComplexity * attachmentMultiplier * contentMultiplier;
+      };
       
-      // Calculate average message length
-      const avgMessageLength = messages.reduce((sum, msg) => 
-        sum + (msg.content?.length || 0), 0) / Math.max(1, messages.length);
+      // Calculate total complexity and determine message limit
+      const totalComplexity = messages.reduce((sum, msg) => sum + analyzeMessageComplexity(msg), 0);
+      const averageComplexity = totalComplexity / Math.max(1, messages.length);
       
-      // Set message limit based on average length
-      const MESSAGE_LIMIT = avgMessageLength > MAX_CHAR_THRESHOLD 
-        ? LONG_MESSAGE_LIMIT 
-        : DEFAULT_MESSAGE_LIMIT;
+      // Dynamic message limits based on complexity
+      const HIGH_COMPLEXITY_THRESHOLD = 2000;
+      const MEDIUM_COMPLEXITY_THRESHOLD = 800;
       
+      let MESSAGE_LIMIT: number;
+      if (averageComplexity > HIGH_COMPLEXITY_THRESHOLD) {
+        MESSAGE_LIMIT = 3; // Fewer messages for very complex content
+      } else if (averageComplexity > MEDIUM_COMPLEXITY_THRESHOLD) {
+        MESSAGE_LIMIT = 5; // Medium number for moderately complex content
+      } else {
+        MESSAGE_LIMIT = 8; // More messages for simpler content
+      }
+      
+      // Message splitting with improved summarization strategy
       let recentMessages: ChatMessage[] = [];
       let olderMessages: ChatMessage[] = [];
       
       if (messages.length > MESSAGE_LIMIT) {
-        // Split messages into older and recent messages
-        olderMessages = messages.slice(0, messages.length - MESSAGE_LIMIT);
-        recentMessages = messages.slice(messages.length - MESSAGE_LIMIT);
+        // Identify key messages that should be preserved regardless of age
+        const isKeyMessage = (msg: ChatMessage): boolean => {
+          // Preserve messages with files or images
+          if ((msg.images?.length || 0) > 0 || (msg.files?.length || 0) > 0) return true;
+          
+          // Preserve messages with specific instructions or important context
+          const importantPatterns = [
+            /please remember/i,
+            /important context/i,
+            /keep in mind/i,
+            /for reference/i,
+            /guidelines/i
+          ];
+          
+          return importantPatterns.some(pattern => pattern.test(msg.content || ''));
+        };
+        
+        // Separate messages, ensuring key messages are kept
+        const keyMessages = messages.filter(isKeyMessage);
+        const nonKeyMessages = messages.filter(msg => !isKeyMessage(msg));
+        
+        // If we have key messages, ensure they're included
+        if (keyMessages.length > 0) {
+          // Calculate how many non-key messages we can include
+          const remainingSlots = Math.max(0, MESSAGE_LIMIT - keyMessages.length);
+          
+          // Always include the most recent messages if possible
+          if (nonKeyMessages.length > remainingSlots) {
+            // Include the most recent non-key messages
+            const recentNonKey = nonKeyMessages.slice(-remainingSlots);
+            
+            // Combine the key messages with recent non-key messages
+            const combinedMessages = [...keyMessages, ...recentNonKey];
+            
+            // Sort by original position to maintain conversation flow
+            combinedMessages.sort((a, b) => {
+              return messages.indexOf(a) - messages.indexOf(b);
+            });
+            
+            olderMessages = messages.filter(msg => !combinedMessages.includes(msg));
+            recentMessages = combinedMessages;
+          } else {
+            // If we have enough slots for all non-key messages, include everything
+            recentMessages = messages;
+          }
+        } else {
+          // If no key messages, just take the most recent ones
+          olderMessages = messages.slice(0, messages.length - MESSAGE_LIMIT);
+          recentMessages = messages.slice(messages.length - MESSAGE_LIMIT);
+        }
       } else {
         recentMessages = [...messages];
       }
@@ -374,11 +441,39 @@ class ChatService {
       if (!isImageGeneration) {
         const imageBase64 = lastMessage.images?.[0]?.data;
         try {
-          // Ensure query doesn't exceed reasonable length
+          // Advanced query processing - trim and focus on key elements
+          const extractKeyQueryElements = (fullQuery: string): string => {
+            // Remove common conversational filler
+            let processedQuery = fullQuery.replace(/^(hey|hi|hello|excuse me|by the way|so|well|um|uh)/i, '').trim();
+            
+            // If query is very long, try to extract the main question or request
+            if (processedQuery.length > 1000) {
+              // Look for question marks
+              const questions = processedQuery.split(/\?/).filter(q => q.length > 20);
+              if (questions.length > 0) {
+                // Take the last 2 questions as they're likely most relevant
+                return questions.slice(-2).join('? ') + '?';
+              }
+              
+              // Look for clear request patterns
+              const requestMatches = processedQuery.match(/(could you|can you|please|i need|i want|help me|explain|find|tell me about).*?[.?!]/i);
+              if (requestMatches && requestMatches[0].length > 30) {
+                return requestMatches[0];
+              }
+              
+              // If all else fails, take the last 1000 characters
+              return processedQuery.slice(-1000);
+            }
+            
+            return processedQuery;
+          };
+          
+          // Ensure query doesn't exceed reasonable length, focusing on key elements
           const MAX_QUERY_FOR_CONTEXT = 4000;
-          const trimmedQuery = query.length > MAX_QUERY_FOR_CONTEXT 
-            ? query.substring(0, MAX_QUERY_FOR_CONTEXT) 
-            : query;
+          const optimizedQuery = extractKeyQueryElements(query);
+          const trimmedQuery = optimizedQuery.length > MAX_QUERY_FOR_CONTEXT 
+            ? optimizedQuery.substring(0, MAX_QUERY_FOR_CONTEXT) 
+            : optimizedQuery;
             
           context = await this.retryOperation(
             async () => this.getContext(trimmedQuery, modelIdOrCollections, imageBase64),
@@ -390,24 +485,37 @@ class ChatService {
         }
       }
       
-      // console.log('Retrieved context length:', context.length);
-
       const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
-      // console.log('Question type:', questionType);
-
-      // ดึง system prompt จากฐานข้อมูล
+      
+      // Enhanced system prompt with improved context and reasoning instructions
       const dynamicSystemPrompt = await this.getSystemPrompt();
+
+      // Modify system prompt if think mode is enabled
+      let systemPromptContent = dynamicSystemPrompt;
+      if (isThinkMode && !isImageGeneration) {
+        systemPromptContent = `${systemPromptContent}
+
+For this response, I'd like you to use a detailed thinking process:
+1. Break down complex topics step-by-step
+2. Explain your reasoning explicitly
+3. Consider multiple perspectives or approaches when relevant
+4. Be thorough in your explanations 
+5. Use examples to illustrate concepts when helpful
+6. Think through the problem systematically before providing a solution
+
+Remember to keep responses clear, concise and well-structured, but focus on providing deeper insights and more thorough explanations than usual.`;
+      }
 
       const systemMessages: ChatMessage[] = [
         {
           role: 'system',
           content: isImageGeneration ? 
             'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
-            dynamicSystemPrompt
+            systemPromptContent
         }
       ];
 
-      // Add summary of older messages if there are any
+      // Add enhanced summary of older messages if there are any
       if (olderMessages.length > 0) {
         systemMessages.push({
           role: 'system',
@@ -417,28 +525,41 @@ class ChatService {
 
       // Only add context if we have it and not in image generation mode
       if (context && !isImageGeneration) {
+        // Process context to extract most relevant parts if it's very long
+        const MAX_CONTEXT_LENGTH = 15000;
+        let processedContext = context;
+        
+        if (context.length > MAX_CONTEXT_LENGTH) {
+          // Extract key sections using semantic relevance or heuristics
+          // For now, use a simple approach of taking beginning, middle and end
+          const beginning = context.substring(0, MAX_CONTEXT_LENGTH * 0.4);
+          const middle = context.substring(context.length / 2 - MAX_CONTEXT_LENGTH * 0.2, context.length / 2 + MAX_CONTEXT_LENGTH * 0.1);
+          const end = context.substring(context.length - MAX_CONTEXT_LENGTH * 0.3);
+          processedContext = `${beginning}\n...\n${middle}\n...\n${end}`;
+        }
+        
         systemMessages.push({
           role: 'system',
-          content: `Context from documents:\n${context}`
+          content: `Context from documents:\n${processedContext}`
         });
       }
 
       // Combine system messages with recent user messages only
       const augmentedMessages = [...systemMessages, ...recentMessages];
 
-      // นับจำนวนข้อความทั้งหมดในการสนทนานี้
-      const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
+      // Count total messages in this conversation
+      const messageCount = messages.length + 1; // include new message
       
-      // อัพเดทสถิติพร้อมจำนวนข้อความ
+      // Update statistics with message count
       await this.updateDailyStats(userId);
       
       let attempt = 0;
       while (attempt < this.retryConfig.maxRetries) {
         try {
-          // ตรวจสอบว่ามีไฟล์หรือไม่
+          // Check for files
           const hasFiles = lastMessage.files && lastMessage.files.length > 0;
           
-          // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
+          // If there are files, create special message for AI about attached files
           if (hasFiles && lastMessage.files) {
             const fileInfo = lastMessage.files.map(file => {
               let fileDetail = `- ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`;
@@ -448,19 +569,22 @@ class ChatService {
               return fileDetail;
             }).join('\n');
             
-            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
+            // Add file information to the query
             query = `${query}\n\n[Attached files]\n${fileInfo}`;
           }
 
+          // Adjust model parameters for think mode
+          let modelConfig = isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel;
+          
           // Generate response and send chunks
           let totalTokens = 0;
-          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
+          for await (const chunk of bedrockService.chat(augmentedMessages, modelConfig, isThinkMode)) {
             if (typeof chunk === 'string') {
               yield chunk;
             }
           }
 
-          // อัพเดท token usage หลังจากได้ response ทั้งหมด
+          // Update token usage after response
           totalTokens = bedrockService.getLastTokenUsage();
           if (totalTokens > 0) {
             const usage = await usageService.updateTokenUsage(userId, totalTokens);
@@ -470,10 +594,10 @@ class ChatService {
               remaining: usage.remainingTokens
             });
             
-            // อัปเดตข้อมูล token ในสถิติรายวัน
+            // Update token in daily stats
             const today = new Date();
-            today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
-            today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
+            today.setHours(today.getHours() + 7); // Convert to Thai time
+            today.setHours(0, 0, 0, 0); // Reset to start of day
 
             await ChatStats.findOneAndUpdate(
               { date: today },
@@ -486,7 +610,7 @@ class ChatService {
           attempt++;
           if (error instanceof Error && error.name === 'InvalidSignatureException') {
             console.error(`Error in chat generation (Attempt ${attempt}/${this.retryConfig.maxRetries}):`, error);
-            // รอสักครู่ก่อน retry
+            // Wait before retry
             await new Promise(resolve => setTimeout(resolve, 1000));
             continue;
           }

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { RiFileAddFill, RiCloseLine } from 'react-icons/ri';
 import { MdEdit } from "react-icons/md";
+import { FaBrain } from "react-icons/fa";
 import FileIcon from './FileIcon';
 import ModelSelector from './ModelSelector';
 import TokenUsageDisplay from './TokenUsageDisplay';
@@ -19,6 +20,8 @@ interface ChatInputProps {
   handleRemoveFile: (index: number) => void;
   isImageGenerationMode: boolean;
   setIsImageGenerationMode: (mode: boolean) => void;
+  isThinkMode?: boolean;
+  setIsThinkMode?: (mode: boolean) => void;
   models: Model[];
   selectedModel: string;
   setSelectedModel: (id: string) => void;
@@ -43,6 +46,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   handleRemoveFile,
   isImageGenerationMode,
   setIsImageGenerationMode,
+  isThinkMode = false,
+  setIsThinkMode = () => {},
   models,
   selectedModel,
   setSelectedModel,
@@ -150,36 +155,56 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
 
           {/* Controls and options */}
-          <div className="flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
             {/* Left side controls */}
-            <div className="flex flex-wrap gap-2 items-center">
-              <ModelSelector 
+            <div className="flex items-center gap-2 flex-grow">
+              <ModelSelector
                 models={models}
                 selectedModel={selectedModel}
-                setSelectedModel={setSelectedModel}
+                onChange={setSelectedModel}
+                disabled={isLoading}
               />
               
-              {/* ซ่อนปุ่ม Image Gen */}
-              {false && (
-                <button
-                  type="button"
-                  onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors
-                    ${isImageGenerationMode 
-                      ? 'border-purple-400 dark:border-purple-500 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' 
-                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-xs whitespace-nowrap">
-                    {isImageGenerationMode ? 'Image Gen: ON' : 'Image Gen: OFF'}
-                  </span>
-                </button>
-              )}
+              {/* Image generation mode toggle */}
+              <button
+                type="button"
+                onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
+                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
+                  isImageGenerationMode 
+                    ? 'bg-purple-100 text-purple-700 border border-purple-300 dark:bg-purple-900 dark:text-purple-200 dark:border-purple-700' 
+                    : 'bg-gray-100 text-gray-700 border border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                }`}
+                disabled={isLoading}
+              >
+                <span className="hidden md:inline">
+                  {isImageGenerationMode ? "Image Mode" : "Chat Mode"}
+                </span>
+                <span className="md:hidden">
+                  {isImageGenerationMode ? "🖼️" : "💬"}
+                </span>
+              </button>
+              
+              {/* NEW: Think mode toggle */}
+              <button
+                type="button"
+                onClick={() => setIsThinkMode(!isThinkMode)}
+                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
+                  isThinkMode 
+                    ? 'bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700' 
+                    : 'bg-gray-100 text-gray-700 border border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                }`}
+                disabled={isLoading || isImageGenerationMode}
+                title={isThinkMode ? "Detailed thinking mode: AI will provide more thoughtful, step-by-step responses" : "Standard response mode"}
+              >
+                <FaBrain className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">
+                  {isThinkMode ? "Think Mode" : "Quick Mode"}
+                </span>
+              </button>
+            </div>
 
-              {/* แสดงปุ่มแนบไฟล์เสมอ (ไม่ขึ้นกับ isImageGenerationMode) */}
+            {/* Right side controls */}
+            <div className="flex items-center gap-2 ml-auto">
               <>
                 <input
                   type="file"
