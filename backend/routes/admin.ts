@@ -7,6 +7,116 @@ import { SystemPrompt } from '../models/SystemPrompt';
 
 const router = Router();
 
+// Get all admin users (SuperAdmin only)
+router.get('/all', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const admins = await User.find({ role: 'Admin' })
+      .select('-password') // Exclude password from the response
+      .sort({ created: -1 });
+    
+    res.status(200).json(admins);
+  } catch (error) {
+    console.error('Error fetching admins:', error);
+    res.status(500).json({ message: 'Error fetching admins' });
+  }
+});
+
+// Get specific admin by ID (SuperAdmin only)
+router.get('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const admin = await User.findOne({ _id: req.params.id, role: 'Admin' })
+      .select('-password'); // Exclude password from the response
+    
+    if (!admin) {
+      res.status(404).json({ message: 'Admin not found' });
+      return;
+    }
+    
+    res.status(200).json(admin);
+  } catch (error) {
+    console.error('Error fetching admin:', error);
+    res.status(500).json({ message: 'Error fetching admin' });
+  }
+});
+
+// Update admin information (SuperAdmin only)
+router.put('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { username, password, firstName, lastName, email, department } = req.body;
+    const adminId = req.params.id;
+
+    // Find the admin user first
+    const admin = await User.findOne({ _id: adminId, role: 'Admin' });
+    if (!admin) {
+      res.status(404).json({ message: 'Admin not found' });
+      return;
+    }
+
+    // If username is provided and different from current, check for duplicates
+    if (username && username !== admin.username) {
+      const existingUser = await User.findOne({ username });
+      if (existingUser) {
+        res.status(400).json({ message: 'This username already exists' });
+        return;
+      }
+      admin.username = username;
+      admin.nameID = username; // Also update nameID to match username
+    }
+
+    // Update password if provided
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      admin.password = hashedPassword;
+    }
+
+    // Update other fields if provided
+    if (firstName) admin.firstName = firstName;
+    if (lastName) admin.lastName = lastName;
+    if (email) admin.email = email;
+    if (department) admin.department = department;
+
+    // Save the updated admin
+    await admin.save();
+
+    // Return the updated admin without the password
+    const adminData = {
+      _id: admin._id,
+      username: admin.username,
+      nameID: admin.nameID,
+      email: admin.email,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      department: admin.department,
+      role: admin.role
+    };
+
+    res.status(200).json({
+      message: 'Admin updated successfully',
+      admin: adminData
+    });
+  } catch (error) {
+    console.error('Error updating admin:', error);
+    res.status(500).json({ message: 'Error updating admin' });
+  }
+});
+
+// Delete admin (SuperAdmin only)
+router.delete('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const admin = await User.findOneAndDelete({ _id: req.params.id, role: 'Admin' });
+    
+    if (!admin) {
+      res.status(404).json({ message: 'Admin not found' });
+      return;
+    }
+    
+    res.status(200).json({ message: 'Admin deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting admin:', error);
+    res.status(500).json({ message: 'Error deleting admin' });
+  }
+});
+
 router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response) => {
   try {
     const { username, password, firstName, lastName, email, department } = req.body;
