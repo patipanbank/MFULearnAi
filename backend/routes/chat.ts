@@ -546,6 +546,35 @@ router.put('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin', 'SuperA
   }
 });
 
+// Get paginated messages for a specific chat
+router.get('/chats/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.username;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const { chatId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    const messages = await chatService.getChatMessagesPaginated(userId, chatId, page, limit);
+    res.json(messages);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Chat not found') {
+        res.status(404).json({ error: 'Chat not found' });
+        return;
+      }
+    }
+    console.error('Error getting chat messages:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to get chat messages' 
+    });
+  }
+});
+
 // Delete specific chat
 router.delete('/history/:chatId', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']), async (req: Request, res: Response): Promise<void> => {
   try {

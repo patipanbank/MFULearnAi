@@ -8,6 +8,7 @@ import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
+import { chatService as chatHistoryService } from './chatHistory';
 
 interface QueryResult {
   text: string;
@@ -737,6 +738,11 @@ class ChatService {
       batches.push(items.slice(i, i + batchSize));
     }
     return batches;
+  }
+
+  // Bridge to chatHistory service for pagination
+  async getChatMessagesPaginated(userId: string, chatId: string, page: number = 1, limit: number = 20) {
+    return chatHistoryService.getChatMessagesPaginated(userId, chatId, page, limit);
   }
 }
 
