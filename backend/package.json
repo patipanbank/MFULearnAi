@@ -7,7 +7,8 @@
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
     "start": "node dist/server.js",
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test-intent": "node examples/test-intent.js"
   },
   "keywords": [],
   "author": "",

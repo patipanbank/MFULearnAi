@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 import { usageService } from '../services/usageService';
 import multer from 'multer';
 import { fileParserService } from '../services/fileParser';
+import { intentClassifierService } from '../services/intentClassifier';
 
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
@@ -989,6 +990,25 @@ router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin
   } catch (error) {
     console.error('Error adding message:', error);
     res.status(500).json({ error: 'Failed to add message' });
+  }
+});
+
+// Intent classification endpoint
+router.post('/classify-intent', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { message } = req.body;
+    
+    if (!message) {
+      res.status(400).json({ error: 'Message is required' });
+      return;
+    }
+    
+    const intents = await intentClassifierService.classifyIntent(message);
+    
+    res.json({ intents });
+  } catch (error) {
+    console.error('Error classifying intent:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
