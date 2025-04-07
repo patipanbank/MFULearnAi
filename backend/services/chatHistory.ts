@@ -52,45 +52,6 @@ class ChatService {
     }
   }
 
-  async getChatMessagesPaginated(
-    userId: string, 
-    chatId: string, 
-    page: number = 1, 
-    limit: number = 20
-  ): Promise<PaginationResult<any>> {
-    try {
-      // Find the chat
-      const chat = await Chat.findOne({ _id: chatId, userId });
-      if (!chat) {
-        throw new Error('Chat not found');
-      }
-
-      // Get total message count
-      const totalMessages = chat.messages.length;
-      
-      // Calculate pagination
-      const skip = (page - 1) * limit;
-      const totalPages = Math.ceil(totalMessages / limit);
-      
-      // Get paginated messages
-      // Safely handle the case where skip might be beyond array bounds
-      const startIndex = Math.min(skip, totalMessages);
-      const endIndex = Math.min(skip + limit, totalMessages);
-      const paginatedMessages = chat.messages.slice(startIndex, endIndex);
-      
-      return {
-        data: paginatedMessages,
-        total: totalMessages,
-        page,
-        totalPages,
-        hasMore: endIndex < totalMessages
-      };
-    } catch (error) {
-      console.error('Error getting paginated messages:', error);
-      throw new Error(`Failed to get messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
   async saveChat(
     userId: string,
     modelId: string,

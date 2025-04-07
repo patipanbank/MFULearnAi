@@ -15,12 +15,6 @@ export interface ChatState {
   wsRef: WebSocket | null;
   editingMessage: Message | null;
   
-  // Pagination state
-  currentPage: number;
-  totalPages: number;
-  isLoadingMoreMessages: boolean;
-  hasMoreMessages: boolean;
-  
   // Refs (to be set by components)
   messagesEndRef: React.RefObject<HTMLDivElement> | null;
   chatContainerRef: React.RefObject<HTMLDivElement> | null;
@@ -37,7 +31,6 @@ export interface ChatState {
   // Actions - Complex operations
   initWebSocket: () => void;
   loadChatHistory: (chatId: string | null) => Promise<void>;
-  loadChatMessagesPaginated: (page?: number, limit?: number) => Promise<void>;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handlePaste: (e: React.ClipboardEvent) => void;
@@ -64,12 +57,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messagesEndRef: null,
   chatContainerRef: null,
   editingMessage: null,
-  
-  // Pagination initial state
-  currentPage: 1,
-  totalPages: 1,
-  isLoadingMoreMessages: false,
-  hasMoreMessages: false,
   
   // Basic state setters
   setMessages: (messagesOrFn) => {
@@ -307,96 +294,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
 
-      // Load first page of messages
-      set({ 
-        currentChatId: chatId,
-        currentPage: 1,
-        hasMoreMessages: false
-      });
-      
-      await get().loadChatMessagesPaginated(1);
-      
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-      get().resetChat();
-    }
-  },
-  
-  // Load paginated chat messages
-  loadChatMessagesPaginated: async (page = 1, limit = 20) => {
-    const { currentChatId } = get();
-    
-    if (!currentChatId) {
-      return;
-    }
-    
-    try {
-      set({ isLoadingMoreMessages: true });
-      
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        return;
-      }
-
-      const response = await fetch(`${config.apiUrl}/api/chat/chats/${currentChatId}/messages?page=${page}&limit=${limit}`, {
+      const response = await fetch(`${config.apiUrl}/api/chat/chats/${chatId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (response.ok) {
-        const result = await response.json();
+        const chat: ChatHistory = await response.json();
         
-        if (page === 1) {
-          // First page, replace all messages
-          set({
-            messages: result.data || [],
-            currentPage: page,
-            totalPages: result.totalPages,
-            hasMoreMessages: result.hasMore
-          });
-        } else {
-          // Append messages to the beginning of the current messages list
-          set((state) => ({
-            messages: [...result.data, ...state.messages],
-            currentPage: page,
-            hasMoreMessages: result.hasMore
-          }));
-        }
+        set({
+          messages: chat.messages || [],
+          currentChatId: chatId
+        });
         
-        // Set selected model only on first page load
-        if (page === 1) {
-          // Get chat details to set selected model
-          const chatResponse = await fetch(`${config.apiUrl}/api/chat/chats/${currentChatId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (chatResponse.ok) {
-            const chat: ChatHistory = await chatResponse.json();
-            if (chat.modelId) {
-              useModelStore.getState().setSelectedModel(chat.modelId);
-            }
-          }
+        // Set selected model
+        if (chat.modelId) {
+          useModelStore.getState().setSelectedModel(chat.modelId);
         }
       } else {
-        console.error('Failed to load chat messages:', response.status, await response.text());
-        
-        if (page === 1) {
-          // Only reset if this was the initial load
-          get().resetChat();
-        }
-      }
-    } catch (error) {
-      console.error('Error loading chat messages:', error);
-      
-      if (page === 1) {
-        // Only reset if this was the initial load
+        console.error('Failed to load chat history:', response.status, await response.text());
         get().resetChat();
       }
-    } finally {
-      set({ isLoadingMoreMessages: false });
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+      get().resetChat();
     }
   },
   
