@@ -32,7 +32,6 @@ const MFUChatbot: React.FC = () => {
     selectedFiles,
     editingMessage,
     currentPage,
-    totalPages,
     hasMoreMessages,
     isLoadingMoreMessages,
     setCurrentChatId,
