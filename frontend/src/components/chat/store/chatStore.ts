@@ -331,180 +331,174 @@ export const useChatStore = create<ChatState>((set, get) => ({
     e.preventDefault();
     
     try {
-      // Get current state
-      const { 
-        messages, 
-        currentChatId, 
-        selectedImages, 
-        selectedFiles, 
-        wsRef, 
-        editingMessage,
-        isThinkMode  // Add this
-      } = get();
-      
-      // Get UI state
-      const { 
-        inputMessage, 
-        setInputMessage, 
-        setIsLoading, 
-        isImageGenerationMode,
-        setAwaitingChatId 
-      } = useUIStore.getState();
-      
+      const { wsRef, currentChatId, messages, selectedImages, selectedFiles, editingMessage, isThinkMode } = get();
+      const { inputMessage, isImageGenerationMode, setAwaitingChatId, setIsLoading } = useUIStore.getState();
       const { selectedModel } = useModelStore.getState();
       
-      // Skip if input is empty
-      if (!inputMessage.trim()) return;
+      if (!wsRef || !selectedModel) {
+        console.error('WebSocket not connected or no model selected');
+        return;
+      }
       
-      // Handle editing existing message 
+      if (inputMessage.trim() === '' && selectedImages.length === 0 && selectedFiles.length === 0) {
+        // Empty input, nothing to do
+        return;
+      }
+      
+      // Handling edited messages
       if (editingMessage) {
-        // Handle edit flow as before...
-        
-        // ... existing edit flow code ...
-
-      } 
-      // Normal new message flow
-      else {
-        // Set loading state
         setIsLoading(true);
         
-        // Process files
-        // NOTE: File compression and processing should be handled in a separate function
-        const processFiles = async () => {
-          const imageFiles = [...selectedImages];
-          const docFiles = [...selectedFiles];
-          
-          // Store for processed files
-          let images: MessageFile[] = [];
-          let files: MessageFile[] = [];
-          
-          // Process image files
-          if (imageFiles.length > 0) {
-            images = await Promise.all(
-              imageFiles.map(async (file) => {
-                // Compress image if needed
-                const compressedData = await compressImage(file);
-                
-                return {
-                  name: file.name,
-                  size: file.size,
-                  mediaType: file.type,
-                  data: compressedData
-                };
-              })
-            );
-          }
-          
-          // Process document files
-          if (docFiles.length > 0) {
-            files = await prepareMessageFiles(docFiles);
-          }
-          
-          return { images, files };
-        };
+        const editedMessageIndex = messages.findIndex(msg => msg.id === editingMessage.id);
+        if (editedMessageIndex === -1) {
+          console.error('Edited message not found in messages array');
+          return;
+        }
         
-        // Create a copy of current messages for manipulation
         const updatedMessages = [...messages];
         
-        // Create a new user message
-        const newUserMessage: Message = {
-          id: Date.now(),
-          role: 'user',
-          content: inputMessage,
-          timestamp: {
-            $date: new Date().toISOString()
-          },
-          isImageGeneration: isImageGenerationMode
+        // Update the edited message
+        updatedMessages[editedMessageIndex] = {
+          ...editingMessage,
+          content: inputMessage.trim(),
+          isComplete: true
         };
         
-        // Create a placeholder for AI response
-        const newAssistantMessage: Message = {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: '',
-          timestamp: {
-            $date: new Date().toISOString()
-          },
-          isImageGeneration: isImageGenerationMode,
-          isComplete: false
-        };
+        // Remove all messages after the edited message
+        updatedMessages.splice(editedMessageIndex + 1);
         
-        // Add messages to state
-        updatedMessages.push(newUserMessage);
-        updatedMessages.push(newAssistantMessage);
+        // Update messages in state
         set({ messages: updatedMessages });
         
-        // Process files
-        const { images, files } = await processFiles();
+        // Clear editing state and input
+        set({ editingMessage: null });
+        useUIStore.getState().setInputMessage('');
         
-        // Add images and files to the user message if any
-        if (images.length > 0 || files.length > 0) {
-          set((state) => ({
-            messages: state.messages.map((msg) => {
-              if (msg.id === newUserMessage.id) {
-                return {
-                  ...msg,
-                  images: images.length > 0 ? images : undefined,
-                  files: files.length > 0 ? files : undefined
-                };
-              }
-              return msg;
-            })
-          }));
-          
-          // Also update the user message object itself
-          newUserMessage.images = images.length > 0 ? images : undefined;
-          newUserMessage.files = files.length > 0 ? files : undefined;
-        }
-        
-        // Scroll to bottom after state update
-        window.dispatchEvent(new CustomEvent('chatContentUpdated', {
-          detail: { 
-            type: 'new', 
-            forceScroll: true 
-          }
+        // Send the edited message for processing
+        wsRef.send(JSON.stringify({
+          type: 'message_edited',
+          content: inputMessage.trim(),
+          chatId: currentChatId,
+          modelId: selectedModel,
+          path: window.location.pathname,
+          messages: updatedMessages,
+          isThinkMode: isThinkMode // Add the think mode flag
         }));
         
-        // Send message via WebSocket
-        if (wsRef) {
-          setAwaitingChatId(true);
-          console.log('Sending message via WebSocket');
-          wsRef.send(JSON.stringify({
-            type: 'chat',
-            content: inputMessage,
-            chatId: currentChatId,
-            modelId: selectedModel,
-            images: images,
-            files: files,
-            isImageGeneration: isImageGenerationMode,
-            isThinkMode: isThinkMode, // Add the think mode flag
-            messages: updatedMessages, // ส่ง messages ทั้งหมดรวมข้อความใหม่
-            path: window.location.pathname // เพิ่ม path เพื่อให้เหมือนโค้ดเดิม
-          }));
-        } else {
-          console.error('WebSocket not connected');
-          set((state) => ({
-            messages: state.messages.map((msg) => 
-              msg.id === newAssistantMessage.id 
-                ? { ...msg, content: 'Error: WebSocket not connected. Please refresh and try again.', loading: false, error: true } 
-                : msg
-            )
-          }));
-          
-          // Set isLoading to false in case of error
-          useUIStore.getState().setIsLoading(false);
+        return;
+      }
+      
+      // Normal new message flow
+      setIsLoading(true);
+      
+      // Process files
+      // NOTE: File compression and processing should be handled in a separate function
+      const processFiles = async () => {
+        const imageFiles = [...selectedImages];
+        const docFiles = [...selectedFiles];
+        
+        // Store for processed files
+        let images: MessageFile[] = [];
+        let files: MessageFile[] = [];
+        
+        // Process image files
+        if (imageFiles.length > 0) {
+          images = await Promise.all(
+            imageFiles.map(async (file) => {
+              // Compress image if needed
+              const compressedData = await compressImage(file);
+              
+              return {
+                name: file.name,
+                size: file.size,
+                mediaType: file.type,
+                data: compressedData.data // Extract the string data directly
+              };
+            })
+          );
         }
         
-        // Clear the input and selected files
-        useUIStore.getState().setInputMessage('');
-        set({ 
-          selectedImages: [],
-          selectedFiles: [],
-          editingMessage: null
-        });
+        // Process document files
+        if (docFiles.length > 0) {
+          files = await prepareMessageFiles(docFiles);
+        }
         
-        // ไม่ reset isLoading ที่นี่ เพราะต้องรอให้ streaming เสร็จก่อน
+        return { images, files };
+      };
+      
+      // Process files
+      const { images, files } = await processFiles();
+      
+      // Create a new user message
+      const newUserMessage: Message = {
+        id: Date.now(),
+        role: 'user',
+        content: inputMessage,
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        isImageGeneration: isImageGenerationMode
+      };
+      
+      // Create a placeholder for AI response
+      const newAssistantMessage: Message = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: '',
+        timestamp: {
+          $date: new Date().toISOString()
+        },
+        isImageGeneration: isImageGenerationMode,
+        isComplete: false
+      };
+      
+      // Add messages to state
+      const updatedMessages = [...messages, newUserMessage, newAssistantMessage];
+      set({ messages: updatedMessages });
+      
+      // Add images and files to the user message if any
+      if (images.length > 0 || files.length > 0) {
+        set((state) => ({
+          messages: state.messages.map((msg) => {
+            if (msg.id === newUserMessage.id) {
+              return {
+                ...msg,
+                images: images.length > 0 ? images : undefined,
+                files: files.length > 0 ? files : undefined
+              };
+            }
+            return msg;
+          })
+        }));
+        
+        // Also update the user message object itself
+        newUserMessage.images = images.length > 0 ? images : undefined;
+        newUserMessage.files = files.length > 0 ? files : undefined;
       }
+      
+      // Scroll to bottom after state update
+      window.dispatchEvent(new CustomEvent('chatContentUpdated', {
+        detail: { 
+          type: 'new', 
+          forceScroll: true 
+        }
+      }));
+      
+      // Send message via WebSocket
+      setAwaitingChatId(true);
+      console.log('Sending message via WebSocket');
+      wsRef.send(JSON.stringify({
+        type: 'chat',
+        content: inputMessage,
+        chatId: currentChatId,
+        modelId: selectedModel,
+        images: images,
+        files: files,
+        isImageGeneration: isImageGenerationMode,
+        isThinkMode: isThinkMode, // Add the think mode flag
+        messages: updatedMessages, // ส่ง messages ทั้งหมดรวมข้อความใหม่
+        path: window.location.pathname // เพิ่ม path เพื่อให้เหมือนโค้ดเดิม
+      }));
     } catch (error) {
       console.error('Error submitting message:', error);
     }
@@ -916,19 +910,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Regenerate the last assistant message
-  handleRegenerateMessage: (e: React.MouseEvent, messageIndex?: number) => {
+  handleRegenerateMessage: (e, messageIndex) => {
     e.preventDefault();
     
-    const { messages, wsRef, currentChatId } = get();
-    const { selectedModel, fetchUsage } = useModelStore.getState();
+    const { wsRef, messages, currentChatId, isThinkMode } = get();
     const { setIsLoading } = useUIStore.getState();
+    const { selectedModel } = useModelStore.getState();
     
-    if (!selectedModel || !wsRef) {
-      alert('Please select a model first');
+    if (!wsRef) {
+      console.error('Cannot regenerate: WebSocket not connected');
       return;
     }
     
-    // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
+    // Find the target message index
+    let targetIndex = messages.length - 1;
+    let lastUserIndex = -1;
+    
+    // Find the last user message
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserIndex = i;
+        break;
+      }
+    }
+    
+    if (messageIndex !== undefined) {
+      // Use the specified index
+      targetIndex = messageIndex;
+    } else if (lastUserIndex >= 0) {
+      // Use the index after the last user message
+      targetIndex = lastUserIndex + 1;
+    }
+    
+    if (targetIndex < 0 || targetIndex >= messages.length || messages[targetIndex].role !== 'assistant') {
+      console.error('Invalid target message for regeneration');
+      return;
+    }
+    
+    // Enable auto-scroll
     window.dispatchEvent(new CustomEvent('chatScrollAction', {
       detail: { 
         action: 'enableAutoScroll',
@@ -936,136 +955,46 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
     
-    // ถ้ามีการระบุ messageIndex ให้ลบข้อความที่ใหม่กว่าออกทั้งหมด
-    // แต่ไม่ให้กระทบกับข้อความที่เคยถูกแก้ไขแล้ว (isEdited = true)
-    if (messageIndex !== undefined && messageIndex >= 0 && messageIndex < messages.length) {
-      // หาข้อความ user ที่อยู่ก่อนหรือที่ตำแหน่ง messageIndex
-      let lastUserMessageIndex = messageIndex;
+    try {
+      setIsLoading(true);
       
-      // ถ้าข้อความที่เลือกเป็น assistant ให้หาข้อความ user ก่อนหน้านี้
-      if (messages[messageIndex].role === 'assistant') {
-        for (let i = messageIndex; i >= 0; i--) {
-          if (messages[i].role === 'user') {
-            lastUserMessageIndex = i;
-            break;
-          }
-        }
-      }
+      // Update messages to show loading state
+      const updatedMessages = [...messages];
       
-      // ถ้าไม่เจอข้อความผู้ใช้ ยกเลิกการทำงาน
-      if (messages[lastUserMessageIndex].role !== 'user') {
-        console.error('Related user message not found');
-        return;
-      }
-      
-      // เก็บเฉพาะข้อความถึงข้อความผู้ใช้ที่เกี่ยวข้อง
-      const messagesToKeep = messages.slice(0, lastUserMessageIndex + 1);
-      
-      // Add placeholder for new AI response
-      const assistantMessage: Message = {
-        id: Date.now(),
-        role: 'assistant',
+      // Update assistant message to show loading state
+      updatedMessages[targetIndex] = {
+        ...updatedMessages[targetIndex],
         content: '',
-        timestamp: {
-          $date: new Date().toISOString()
-        },
-        isImageGeneration: false,
         isComplete: false
       };
       
-      // Update messages and set loading state
-      set({ messages: [...messagesToKeep, assistantMessage] });
-      setIsLoading(true);
+      set({ messages: updatedMessages });
       
-      try {
-        // Send regenerate request to websocket
-        const messagePayload = {
-          messages: messagesToKeep,
-          modelId: selectedModel,
-          isImageGeneration: false,
-          path: window.location.pathname,
-          chatId: currentChatId,
-          type: 'regenerate'
-        };
-        
-        wsRef.send(JSON.stringify(messagePayload));
-        
-        // Update usage
-        fetchUsage();
-      } catch (error) {
-        console.error('Error in handleRegenerateMessage:', error);
-        set({ 
-          messages: [...messagesToKeep, {
-            id: Date.now(),
-            role: 'assistant',
-            content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
-            timestamp: {
-              $date: new Date().toISOString()
-            },
-            isImageGeneration: false,
-            isComplete: true
-          }]
-        });
-        setIsLoading(false);
+      // Get the latest user message
+      const userMessageIndex = targetIndex - 1;
+      
+      // Ensure we have a valid user message
+      if (userMessageIndex < 0 || updatedMessages[userMessageIndex].role !== 'user') {
+        throw new Error('Cannot find corresponding user message');
       }
       
-      return;
-    }
-    
-    // ถ้าไม่ระบุ messageIndex ให้ทำงานตามแบบเดิม (regenerate ข้อความสุดท้าย)
-    // Find the last user message
-    const lastUserMessageIndex = [...messages].reverse().findIndex(msg => msg.role === 'user');
-    if (lastUserMessageIndex === -1) return;
-    
-    // Get all messages up to and including the last user message
-    const lastUserRealIndex = messages.length - 1 - lastUserMessageIndex;
-    const messagesToKeep = messages.slice(0, lastUserRealIndex + 1);
-    
-    // Add placeholder for new AI response
-    const assistantMessage: Message = {
-      id: Date.now(),
-      role: 'assistant',
-      content: '',
-      timestamp: {
-        $date: new Date().toISOString()
-      },
-      isImageGeneration: false,
-      isComplete: false
-    };
-    
-    // Update messages and set loading state
-    set({ messages: [...messagesToKeep, assistantMessage] });
-    setIsLoading(true);
-    
-    try {
-      // Send regenerate request to websocket
-      const messagePayload = {
-        messages: messagesToKeep, // ส่งเฉพาะข้อความถึงข้อความผู้ใช้ล่าสุด
-        modelId: selectedModel,
-        isImageGeneration: false,
-        path: window.location.pathname,
+      const userMessage = updatedMessages[userMessageIndex];
+      
+      console.log('Regenerating message:', userMessage);
+      
+      // Send the WebSocket message with proper typing
+      wsRef.send(JSON.stringify({
+        type: 'message',
+        content: userMessage.content,
         chatId: currentChatId,
-        type: 'regenerate'
-      };
-      
-      wsRef.send(JSON.stringify(messagePayload));
-      
-      // Update usage
-      fetchUsage();
+        modelId: selectedModel,
+        path: window.location.pathname,
+        messages: updatedMessages.slice(0, targetIndex),
+        isImageGeneration: userMessage.isImageGeneration || false,
+        isThinkMode: isThinkMode
+      }));
     } catch (error) {
-      console.error('Error in handleRegenerateMessage:', error);
-      set({ 
-        messages: [...messagesToKeep, {
-          id: Date.now(),
-          role: 'assistant',
-          content: error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred',
-          timestamp: {
-            $date: new Date().toISOString()
-          },
-          isImageGeneration: false,
-          isComplete: true
-        }]
-      });
+      console.error('Error regenerating message:', error);
       setIsLoading(false);
     }
   }
