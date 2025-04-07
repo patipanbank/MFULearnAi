@@ -8,6 +8,8 @@ import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
+import { textPreprocessor } from './textPreprocessor';
+import { ChatSentiment } from '../models/ChatSentiment';
 
 interface QueryResult {
   text: string;
@@ -332,6 +334,82 @@ class ChatService {
     }
   }
 
+  private readonly sentimentCategories = {
+    POSITIVE: 'positive',
+    NEGATIVE: 'negative',
+    NEUTRAL: 'neutral',
+    QUESTION: 'question',
+    COMPLAINT: 'complaint',
+    SUGGESTION: 'suggestion'
+  };
+
+  /**
+   * Analyze the sentiment of a message using the LLM
+   * @param text The text to analyze
+   * @returns The sentiment category
+   */
+  private async analyzeSentiment(text: string): Promise<string> {
+    try {
+      // Preprocess the text before analysis
+      const preprocessedText = await textPreprocessor.preprocess(text);
+      
+      const sentimentPrompt = `
+Analyze the sentiment of the following message and categorize it into one of these categories:
+- positive: expresses satisfaction, gratitude, or positive emotions
+- negative: expresses dissatisfaction, frustration, or negative emotions
+- neutral: factual, informational, or emotionally neutral
+- question: primarily asking for information
+- complaint: specifically expressing a grievance about a service or situation
+- suggestion: offering ideas for improvement
+
+Message to analyze: "${preprocessedText}"
+
+Return ONLY the category name without any explanation or additional text.
+`;
+
+      // Use the bedrock service to get the sentiment
+      const response = await bedrockService.getTextCompletion(sentimentPrompt);
+      
+      // Clean and normalize the response
+      const sentiment = response.trim().toLowerCase();
+      
+      // Map to our defined categories or default to neutral
+      const validCategories = Object.values(this.sentimentCategories);
+      return validCategories.includes(sentiment) ? sentiment : this.sentimentCategories.NEUTRAL;
+    } catch (error) {
+      console.error('Error analyzing sentiment:', error);
+      return this.sentimentCategories.NEUTRAL; // Default to neutral on error
+    }
+  }
+
+  /**
+   * Save sentiment data for analytics
+   */
+  private async saveSentimentRecord(
+    userId: string, 
+    chatId: string, 
+    messageId: string,
+    text: string, 
+    sentiment: string
+  ): Promise<void> {
+    try {
+      const sentimentRecord = new ChatSentiment({
+        userId,
+        chatId,
+        messageId,
+        text,
+        sentiment,
+        dateTime: new Date()
+      });
+      
+      await sentimentRecord.save();
+      console.log(`Saved sentiment record for message ${messageId}: ${sentiment}`);
+    } catch (error) {
+      console.error('Error saving sentiment record:', error);
+      // Non-critical error, don't throw
+    }
+  }
+
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
@@ -432,71 +510,84 @@ class ChatService {
       // อัพเดทสถิติพร้อมจำนวนข้อความ
       await this.updateDailyStats(userId);
       
-      let attempt = 0;
-      while (attempt < this.retryConfig.maxRetries) {
-        try {
-          // ตรวจสอบว่ามีไฟล์หรือไม่
-          const hasFiles = lastMessage.files && lastMessage.files.length > 0;
-          
-          // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
-          if (hasFiles && lastMessage.files) {
-            const fileInfo = lastMessage.files.map(file => {
-              let fileDetail = `- ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`;
-              if (file.content) {
-                fileDetail += " - File content included";
-              }
-              return fileDetail;
-            }).join('\n');
+      // Analyze sentiment of the user's query
+      const sentiment = await this.analyzeSentiment(query);
+      
+      // Log the sentiment for analytics
+      console.log(`Sentiment analysis for message: ${sentiment}`);
+      
+      // Create metadata with sentiment information
+      const metadata = { sentiment };
+      
+      try {
+        // Start generating response using bedrock chat
+        const chatStream = bedrockService.chat(augmentedMessages, this.chatModel);
+        
+        let chat;
+        // Create a new chat or update an existing one with the sentiment info
+        if (!this.currentChatHistory) {
+          chat = await this.saveChat(userId, 
+            typeof modelIdOrCollections === 'string' ? modelIdOrCollections : 'defaultModel', 
+            augmentedMessages, 
+            metadata);
             
-            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
-            query = `${query}\n\n[Attached files]\n${fileInfo}`;
-          }
-
-          // Generate response and send chunks
-          let totalTokens = 0;
-          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
-            if (typeof chunk === 'string') {
-              yield chunk;
-            }
-          }
-
-          // อัพเดท token usage หลังจากได้ response ทั้งหมด
-          totalTokens = bedrockService.getLastTokenUsage();
-          if (totalTokens > 0) {
-            const usage = await usageService.updateTokenUsage(userId, totalTokens);
-            console.log(`[Chat] Token usage updated for ${userId}:`, {
-              used: totalTokens,
-              daily: usage.dailyTokens,
-              remaining: usage.remainingTokens
-            });
-            
-            // อัปเดตข้อมูล token ในสถิติรายวัน
-            const today = new Date();
-            today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
-            today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
-
-            await ChatStats.findOneAndUpdate(
-              { date: today },
-              { $inc: { totalTokens: totalTokens } },
-              { upsert: true }
+          // After creating the chat, save the sentiment record
+          if (chat && lastMessage.id) {
+            await this.saveSentimentRecord(
+              userId,
+              chat._id.toString(),
+              lastMessage.id.toString(),
+              query,
+              sentiment
             );
           }
-          return;
-        } catch (error: unknown) {
-          attempt++;
-          if (error instanceof Error && error.name === 'InvalidSignatureException') {
-            console.error(`Error in chat generation (Attempt ${attempt}/${this.retryConfig.maxRetries}):`, error);
-            // รอสักครู่ก่อน retry
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
+        } else {
+          chat = await this.updateChat(
+            (this.currentChatHistory as any)._id.toString(),
+            userId,
+            augmentedMessages
+          );
+          
+          // For existing chats, still save the sentiment record
+          if (chat && lastMessage.id) {
+            await this.saveSentimentRecord(
+              userId,
+              chat._id.toString(),
+              lastMessage.id.toString(),
+              query,
+              sentiment
+            );
           }
-          throw error;
         }
+        
+        // Process model response
+        let response = '';
+        for await (const chunk of chatStream) {
+          response += chunk;
+          yield chunk;
+        }
+        
+        // Process token usage metrics
+        const outputTokens = bedrockService.getLastTokenUsage();
+        const inputTokens = this.estimateTokenCount(augmentedMessages);
+        
+        // Record usage
+        await usageService.recordUsage(userId, inputTokens, outputTokens);
+        
+      } catch (error) {
+        console.error('Error in chat generation:', error);
+        yield 'I apologize, but I encountered an error while processing your request. Please try again.';
       }
     } catch (error) {
       console.error('Error generating response:', error);
       throw error;
     }
+  }
+
+  private estimateTokenCount(messages: ChatMessage[]): number {
+    // Simple estimation: ~1 token per 4 characters
+    const totalChars = messages.reduce((sum, msg) => sum + (msg.content?.length || 0), 0);
+    return Math.ceil(totalChars / 4);
   }
 
   private async retryOperation<T>(
@@ -570,7 +661,7 @@ class ChatService {
     }
   }
 
-  async saveChat(userId: string, modelId: string, messages: any[]) {
+  async saveChat(userId: string, modelId: string, messages: any[], metadata: any) {
     try {
       // บันทึกสถิติก่อนที่จะบันทึกแชท
       await this.updateDailyStats(userId);
@@ -596,7 +687,8 @@ class ChatService {
         modelId,
         chatname,
         name,
-        messages: processedMessages
+        messages: processedMessages,
+        metadata
       });
 
       await chat.save();

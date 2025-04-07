@@ -82,6 +82,10 @@ const chatSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  metadata: {
+    type: Schema.Types.Mixed,
+    default: {}
+  },
   createdAt: {
     type: Date,
     default: Date.now,
