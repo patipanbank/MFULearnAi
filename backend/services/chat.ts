@@ -9,6 +9,7 @@ import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
 import { chatService as chatHistoryService } from './chatHistory';
+import { questionAnalysisService, QuestionAnalysis } from './questionAnalysis';
 
 interface QueryResult {
   text: string;
@@ -223,6 +224,8 @@ class ChatService {
   }
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
+    // Use the question analysis to get a more targeted context
+    const questionAnalysis = questionAnalysisService.analyzeQuestion(query);
     const questionType = this.detectQuestionType(query);
     const promptTemplate = this.promptTemplates[questionType];
     
@@ -235,7 +238,8 @@ class ChatService {
         this.sanitizeCollectionName(name)
       );
 
-      const truncatedQuery = query.slice(0, 512);
+      // Use preprocessed question from analysis for better queries
+      const truncatedQuery = questionAnalysis.preprocessedQuestion.slice(0, 512);
       let queryEmbedding = await chromaService.getQueryEmbedding(truncatedQuery);
       let imageEmbedding: number[] | undefined;
       
@@ -261,17 +265,21 @@ class ChatService {
 
     // แก้ไขส่วนนี้: ใช้เฉพาะคำถามล่าสุดในการค้นหาเว็บ
     const lastQuestion = query.split('\n').pop() || query;
-    try {
-      const webResults = await webSearchService.searchWeb(lastQuestion);
-      if (webResults) {
-        if (context) {
-          context += '\n\nAdditional supporting information:\n' + webResults;
-        } else {
-          context = 'Based on web search results:\n' + webResults;
+    
+    // Only attempt web search if the question analysis indicates need for external data
+    if (questionAnalysis.requiresExternalData) {
+      try {
+        const webResults = await webSearchService.searchWeb(lastQuestion);
+        if (webResults) {
+          if (context) {
+            context += '\n\nAdditional supporting information:\n' + webResults;
+          } else {
+            context = 'Based on web search results:\n' + webResults;
+          }
         }
+      } catch (error) {
+        console.error('Error fetching web results:', error);
       }
-    } catch (error) {
-      console.error('Error fetching web results:', error);
     }
 
     return `${promptTemplate}\n\n${context}`;
@@ -372,128 +380,100 @@ class ChatService {
       
       // Skip context retrieval for image generation
       let context = '';
+      
       if (!isImageGeneration) {
-        const imageBase64 = lastMessage.images?.[0]?.data;
         try {
-          // Ensure query doesn't exceed reasonable length
-          const MAX_QUERY_FOR_CONTEXT = 4000;
-          const trimmedQuery = query.length > MAX_QUERY_FOR_CONTEXT 
-            ? query.substring(0, MAX_QUERY_FOR_CONTEXT) 
-            : query;
-            
-          context = await this.retryOperation(
-            async () => this.getContext(trimmedQuery, modelIdOrCollections, imageBase64),
-            'Failed to get context'
-          );
+          // Get question analysis
+          const questionAnalysis = questionAnalysisService.analyzeQuestion(query, messages);
+          
+          // Use context based on analysis
+          context = await this.getContext(query, modelIdOrCollections, lastMessage.images?.[0]?.data);
+          
+          // Update context with custom prompt from the question analysis
+          if (questionAnalysis.customPrompt) {
+            context = `${questionAnalysis.customPrompt}\n\n${context}`;
+          }
+          
+          // Log the analysis for debugging
+          console.log('Question analysis:', {
+            intent: questionAnalysis.intent,
+            complexity: questionAnalysis.questionComplexity,
+            entities: questionAnalysis.entities.map(e => `${e.type}: ${e.value}`),
+            requiresExternalData: questionAnalysis.requiresExternalData
+          });
         } catch (error) {
-          console.error('Error getting context:', error);
-          // Continue without context if there's an error
+          console.error('Error in context retrieval:', error);
+          // Fallback to standard context if analysis fails
+          context = await this.getContext(query, modelIdOrCollections, lastMessage.images?.[0]?.data);
         }
       }
+
+      // Retrieve and merge the system prompt
+      const systemPrompt = await this.getSystemPrompt();
       
-      // console.log('Retrieved context length:', context.length);
+      // Update daily user stats
+      await this.updateDailyStats(userId);
 
-      const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
-      // console.log('Question type:', questionType);
-
-      // ดึง system prompt จากฐานข้อมูล
-      const dynamicSystemPrompt = await this.getSystemPrompt();
-
-      const systemMessages: ChatMessage[] = [
+      // Create a conversation summary for older messages to maintain context while reducing token usage
+      const olderMessagesContext = 
+        olderMessages.length > 0 ? 
+        this.summarizeOldMessages(olderMessages) : 
+        '';
+      
+      // Generate Claude conversation
+      const chatMessages: ChatMessage[] = [
+        // Add system prompt as the first message
+        { role: 'system', content: systemPrompt },
+        
+        // Add summary of older messages if available
+        ...(olderMessagesContext ? [{ role: 'assistant', content: olderMessagesContext }] : []),
+        
+        // Add recent messages
+        ...recentMessages.slice(0, -1),
+        
+        // Add the last message with context
         {
-          role: 'system',
-          content: isImageGeneration ? 
-            'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
-            dynamicSystemPrompt
+          role: 'user',
+          content: context ? `${query}\n\nHere is some context to help you answer:\n${context}` : query,
+          images: lastMessage.images,
+          files: lastMessage.files,
+          isImageGeneration: lastMessage.isImageGeneration
         }
       ];
 
-      // Add summary of older messages if there are any
-      if (olderMessages.length > 0) {
-        systemMessages.push({
-          role: 'system',
-          content: this.summarizeOldMessages(olderMessages)
-        });
-      }
-
-      // Only add context if we have it and not in image generation mode
-      if (context && !isImageGeneration) {
-        systemMessages.push({
-          role: 'system',
-          content: `Context from documents:\n${context}`
-        });
-      }
-
-      // Combine system messages with recent user messages only
-      const augmentedMessages = [...systemMessages, ...recentMessages];
-
-      // นับจำนวนข้อความทั้งหมดในการสนทนานี้
-      const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
-      
-      // อัพเดทสถิติพร้อมจำนวนข้อความ
-      await this.updateDailyStats(userId);
-      
-      let attempt = 0;
-      while (attempt < this.retryConfig.maxRetries) {
-        try {
-          // ตรวจสอบว่ามีไฟล์หรือไม่
-          const hasFiles = lastMessage.files && lastMessage.files.length > 0;
+      try {
+        // Log token usage after generation
+        for await (const chunk of bedrockService.chat(chatMessages, this.chatModel)) {
+          yield chunk;
+        }
+      } catch (error) {
+        console.error('Error in bedrockService.chat:', error);
+        
+        // Simplified retry with fewer messages if we hit a limit
+        if (chatMessages.length > 3) {
+          console.log('Retrying with simplified context due to error');
           
-          // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
-          if (hasFiles && lastMessage.files) {
-            const fileInfo = lastMessage.files.map(file => {
-              let fileDetail = `- ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`;
-              if (file.content) {
-                fileDetail += " - File content included";
-              }
-              return fileDetail;
-            }).join('\n');
-            
-            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
-            query = `${query}\n\n[Attached files]\n${fileInfo}`;
-          }
-
-          // Generate response and send chunks
-          let totalTokens = 0;
-          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
-            if (typeof chunk === 'string') {
-              yield chunk;
+          // Simplified messages with just system prompt, last user question, and context
+          const simplifiedMessages: ChatMessage[] = [
+            { role: 'system', content: systemPrompt },
+            {
+              role: 'user',
+              content: context ? `${query}\n\nHere is some context to help you answer:\n${context}` : query,
+              images: lastMessage.images,
+              files: lastMessage.files,
+              isImageGeneration: lastMessage.isImageGeneration
             }
+          ];
+          
+          for await (const chunk of bedrockService.chat(simplifiedMessages, this.chatModel)) {
+            yield chunk;
           }
-
-          // อัพเดท token usage หลังจากได้ response ทั้งหมด
-          totalTokens = bedrockService.getLastTokenUsage();
-          if (totalTokens > 0) {
-            const usage = await usageService.updateTokenUsage(userId, totalTokens);
-            console.log(`[Chat] Token usage updated for ${userId}:`, {
-              used: totalTokens,
-              daily: usage.dailyTokens,
-              remaining: usage.remainingTokens
-            });
-            
-            // อัปเดตข้อมูล token ในสถิติรายวัน
-            const today = new Date();
-            today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
-            today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
-
-            await ChatStats.findOneAndUpdate(
-              { date: today },
-              { $inc: { totalTokens: totalTokens } },
-              { upsert: true }
-            );
-          }
-          return;
-        } catch (error: unknown) {
-          attempt++;
-          if (error instanceof Error && error.name === 'InvalidSignatureException') {
-            console.error(`Error in chat generation (Attempt ${attempt}/${this.retryConfig.maxRetries}):`, error);
-            // รอสักครู่ก่อน retry
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-          }
+        } else {
+          // Re-throw the error if we can't simplify further
           throw error;
         }
       }
+
     } catch (error) {
       console.error('Error generating response:', error);
       throw error;

@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 import { usageService } from '../services/usageService';
 import multer from 'multer';
 import { fileParserService } from '../services/fileParser';
+import { questionAnalysisService } from '../services/questionAnalysis';
 
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
@@ -1018,6 +1019,37 @@ router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin
   } catch (error) {
     console.error('Error adding message:', error);
     res.status(500).json({ error: 'Failed to add message' });
+  }
+});
+
+// Add new route for question analysis testing
+router.post('/analyze', roleGuard(['Admin', 'SuperAdmin', 'Staffs'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { question, messages } = req.body;
+    
+    if (!question) {
+      res.status(400).json({ error: 'Question is required' });
+      return;
+    }
+    
+    // Convert messages format if provided, or use empty array
+    const formattedMessages = messages?.map((msg: any) => ({
+      role: msg.role,
+      content: msg.content
+    })) || [];
+    
+    // Analyze the question
+    const analysis = questionAnalysisService.analyzeQuestion(question, formattedMessages);
+    
+    res.json({
+      analysis,
+      message: 'Question analysis completed successfully'
+    });
+  } catch (error) {
+    console.error('Error analyzing question:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to analyze question'
+    });
   }
 });
 
