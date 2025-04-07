@@ -51,12 +51,10 @@ const MFUChatbot: React.FC = () => {
   const {
     isLoading,
     isImageGenerationMode,
-    isThinkMode,
     isMobile,
     inputMessage,
     setInputMessage,
     setIsImageGenerationMode,
-    setIsThinkMode
   } = useUIStore();
   
   // Model state from Zustand
@@ -226,8 +224,6 @@ const MFUChatbot: React.FC = () => {
           handleRemoveFile={handleRemoveFile}
           isImageGenerationMode={isImageGenerationMode}
           setIsImageGenerationMode={setIsImageGenerationMode}
-          isThinkMode={isThinkMode}
-          setIsThinkMode={setIsThinkMode}
           models={models}
           selectedModel={selectedModel}
           setSelectedModel={setSelectedModel}

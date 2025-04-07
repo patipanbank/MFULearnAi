@@ -122,7 +122,7 @@ export class BedrockService {
     return 'factual'; // Default
   }
 
-  private getModelConfig(messages: ChatMessage[], isThinkMode: boolean = false): ModelConfig {
+  private getModelConfig(messages: ChatMessage[]): ModelConfig {
     const lastMessage = messages[messages.length - 1];
     
     if (lastMessage.isImageGeneration) {
@@ -133,18 +133,6 @@ export class BedrockService {
     }
 
     const messageType = this.detectMessageType(messages);
-    
-    // Adjust parameters for think mode
-    if (isThinkMode) {
-      // Use a lower temperature and higher tokens for think mode
-      return {
-        ...this.defaultConfig,
-        ...this.questionTypeConfigs[messageType],
-        temperature: Math.max(0.3, this.questionTypeConfigs[messageType].temperature - 0.2), // Lower temperature for more focused responses
-        maxTokens: Math.min(4000, this.questionTypeConfigs[messageType].maxTokens * 1.5) // More tokens for detailed thinking
-      };
-    }
-    
     return {
       ...this.defaultConfig,
       ...this.questionTypeConfigs[messageType]
@@ -196,9 +184,9 @@ export class BedrockService {
     }
   }
 
-  async *chat(messages: ChatMessage[], modelId: string, isThinkMode: boolean = false): AsyncGenerator<string> {
+  async *chat(messages: ChatMessage[], modelId: string): AsyncGenerator<string> {
     try {
-      const config = this.getModelConfig(messages, isThinkMode);
+      const config = this.getModelConfig(messages);
       // console.log('Using model config:', config);
 
       const lastMessage = messages[messages.length - 1];
@@ -324,7 +312,7 @@ export class BedrockService {
                 inputTokens = metrics.inputTokenCount;
                 outputTokens = metrics.outputTokenCount;
               }
-              
+
               if (parsedChunk.type === 'content_block_delta' && 
                   parsedChunk.delta?.type === 'text_delta' && 
                   parsedChunk.delta?.text) {
