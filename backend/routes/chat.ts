@@ -224,7 +224,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       
       // Handle chat updates and message processing
       let savedChat;
-      let currentChatId: string | null = null;
+      let currentChatId: string;
       try {
         // For empty chatId, create a new chat first
         if (!chatId) {
@@ -313,7 +313,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
           // Update chat with final messages
           try {
             const finalChat = await chatService.updateChat(
-              currentChatId!,
+              currentChatId,
               extWs.userId!,
               allMessages
             );
@@ -968,18 +968,5 @@ router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin
     res.status(500).json({ error: 'Failed to add message' });
   }
 });
-
-// Add this helper function above where it's used
-const extractChatName = (content: string): string => {
-  // Extract a chat name from the first message content
-  // Take the first 50 characters or up to the first period, newline, or question mark
-  const endIndex = Math.min(
-    content.indexOf('.') > 0 ? content.indexOf('.') : 50,
-    content.indexOf('\n') > 0 ? content.indexOf('\n') : 50,
-    content.indexOf('?') > 0 ? content.indexOf('?') : 50,
-    50
-  );
-  return content.substring(0, endIndex).trim() || 'Untitled Chat';
-};
 
 export default router;
