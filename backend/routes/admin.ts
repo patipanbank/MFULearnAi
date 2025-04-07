@@ -4,6 +4,7 @@ import User from '../models/User';
 import { roleGuard } from '../middleware/roleGuard';
 import { UserRole } from '../models/User';
 import { SystemPrompt } from '../models/SystemPrompt';
+import { ensureDepartmentExists } from '../services/auto_department_service';
 
 const router = Router();
 
@@ -67,6 +68,11 @@ router.put('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request,
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
       admin.password = hashedPassword;
+    }
+
+    // Ensure department exists if provided
+    if (department) {
+      await ensureDepartmentExists(department);
     }
 
     // Update other fields if provided
@@ -133,6 +139,9 @@ router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Requ
       res.status(400).json({ message: 'This username already exists' });
       return;
     }
+
+    // Ensure department exists
+    await ensureDepartmentExists(department);
 
     // เข้ารหัสรหัสผ่าน
     const hashedPassword = await bcrypt.hash(password, 10);

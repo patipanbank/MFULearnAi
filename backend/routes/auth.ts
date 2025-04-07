@@ -6,6 +6,10 @@ import { connectDB } from '../lib/mongodb';
 import User from '../models/User';
 // import { guest_login } from '../controllers/user_controller';
 import bcrypt from 'bcrypt';
+import fs from 'fs';
+import { JWT_SECRET } from '../config/config';
+import { guest_login } from '../controllers/user_controller';
+import { ensureDepartmentExists } from '../services/auto_department_service';
 
 const router = Router();
 
@@ -72,6 +76,12 @@ const samlStrategy = new SamlStrategy(
         );
         return isStudent ? 'Students' : 'Staffs';
       };
+
+      // Ensure the department exists in our database if it's provided
+      if (department) {
+        await ensureDepartmentExists(department);
+      }
+
       const user = await User.findOneAndUpdate(
         { username },
         {
@@ -136,15 +146,20 @@ router.post('/saml/callback',
         return isStudent ? 'Students' : 'Staffs';
       };
 
-        const userData = {
-          nameID: req.user.userData.nameID,
-          username: req.user.userData.username,
-          email: req.user.userData.email,
-          firstName: req.user.userData.first_name,
-          lastName: req.user.userData.last_name,
-          department: req.user.userData.depart_name,
-          groups: [mapGroupToRole(req.user.userData.groups || [])]
-        };
+      const userData = {
+        nameID: req.user.userData.nameID,
+        username: req.user.userData.username,
+        email: req.user.userData.email,
+        firstName: req.user.userData.first_name,
+        lastName: req.user.userData.last_name,
+        department: req.user.userData.depart_name,
+        groups: [mapGroupToRole(req.user.userData.groups || [])]
+      };
+
+      // Automatically create department if it doesn't exist
+      if (userData.department) {
+        await ensureDepartmentExists(userData.department);
+      }
 
       const token = jwt.sign(
         { 
@@ -236,6 +251,11 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
       return;
     }
 
+    // Ensure department exists if the admin has one assigned
+    if (user.department) {
+      await ensureDepartmentExists(user.department);
+    }
+
     // สร้าง token
     const token = jwt.sign(
       { 
@@ -248,8 +268,8 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
         role: user.role,
         groups: user.groups
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '1d' }
+      JWT_SECRET,
+      { expiresIn: '24h' }
     );
 
     // ส่งข้อมูลกลับ
