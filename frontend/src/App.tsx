@@ -15,7 +15,6 @@ import Statistics from './components/pages/Statistics';
 import SystemPrompt from './components/pages/SystemPrompt';
 import ManageDepartment from './components/pages/ManageDepartment';
 import ManageAdmin from './components/pages/ManageAdmin';
-import QuestionAnalysis from './components/pages/QuestionAnalysis';
  
 
 const App = () => {
@@ -93,18 +92,6 @@ const App = () => {
               <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <ManageAdmin />
-                </MainLayout>
-              </RoleGuard>
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/question-analysis"
-          element={
-            <AuthGuard>
-              <RoleGuard allowedGroups={['Admin', 'SuperAdmin']}>
-                <MainLayout>
-                  <QuestionAnalysis />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>
