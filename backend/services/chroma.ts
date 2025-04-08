@@ -1,3 +1,4 @@
+
 import { ChromaClient } from 'chromadb';
 import { ICollection, CollectionModel, CollectionDocument } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
@@ -137,17 +138,7 @@ class ChromaService {
    */
   async getQueryEmbedding(query: string): Promise<number[]> {
     try {
-      // Import the tokenization utility
-      const { enhanceQueryForEmbedding } = require('../utils/tokenization');
-      
-      // Apply advanced tokenization to optimize the query before embedding
-      const enhancedQuery = enhanceQueryForEmbedding(query);
-      
-      console.log(`[ChromaService] Original query: "${query}"`);
-      console.log(`[ChromaService] Enhanced query: "${enhancedQuery}"`);
-      
-      // Get embedding for the enhanced query
-      const embedding = await this.titanEmbedService.embedText(enhancedQuery);
+      const embedding = await this.titanEmbedService.embedText(query);
       return embedding;
     } catch (error) {
       console.error("ChromaService: Error computing query embedding:", error);

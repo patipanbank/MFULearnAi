@@ -204,43 +204,21 @@ class ChatService {
   }
 
   private detectQuestionType(query: string): string {
-    try {
-      // Import the tokenization utility for improved question analysis
-      const { Tokenizer } = require('../utils/tokenization');
-      
-      // Extract key phrases to better understand question intent
-      const keyPhrases: string[] = Tokenizer.extractKeyPhrases(query);
-      console.log(`[ChatService] Question key phrases:`, keyPhrases);
-      
-      // Simple rule-based detection enhanced with phrase analysis
-      if (query.match(/แนะนำ|ที่ไหน|ต้องการ|อยากได้|ช่วย|ตัวอย่าง/i) || 
-          keyPhrases.some((phrase: string) => phrase.match(/ช่วย|แนะนำ|ตัวอย่าง/))) {
-        return 'recommendation';
-      } else if (query.match(/แตกต่าง|อะไรคือ|เปรียบเทียบ|ข้อดี|ข้อเสีย/i) ||
-                keyPhrases.some((phrase: string) => phrase.match(/เปรียบเทียบ|ข้อดี|ข้อเสีย/))) {
-        return 'comparison';
-      } else if (query.match(/ทำไม|เพราะ|สาเหตุ|อธิบาย/i) ||
-                keyPhrases.some((phrase: string) => phrase.match(/อธิบาย|เพราะ|ทำไม/))) {
-        return 'explanation';
-      } else if (query.match(/ขั้นตอน|วิธี|ทำอย่างไร|อย่างไร/i) ||
-                keyPhrases.some((phrase: string) => phrase.match(/ขั้นตอน|วิธี|อย่างไร/))) {
-        return 'procedure';
-      } else if (query.match(/อะไร|ใคร|เมื่อไหร่|ที่ไหน/i) ||
-                keyPhrases.some((phrase: string) => phrase.match(/คือ|คือใคร|คืออะไร/))) {
-        return 'factual';
+    const patterns = {
+      [this.questionTypes.FACTUAL]: /^(what|when|where|who|which|how many|how much)/i,
+      [this.questionTypes.ANALYTICAL]: /^(why|how|what if|what are the implications|analyze|compare|contrast)/i,
+      [this.questionTypes.CONCEPTUAL]: /^(explain|describe|define|what is|what are|how does)/i,
+      [this.questionTypes.PROCEDURAL]: /^(how to|how do|what steps|how can|show me how)/i,
+      [this.questionTypes.CLARIFICATION]: /^(can you clarify|what do you mean|please explain|could you elaborate)/i
+    };
+
+    for (const [type, pattern] of Object.entries(patterns)) {
+      if (pattern.test(query)) {
+        return type;
       }
-      
-      // Use token count to help determine complexity
-      const tokenCount = Tokenizer.countTokens(query);
-      if (tokenCount > 50) { // More complex questions typically have more tokens
-        return 'complex';
-      }
-      
-      return 'general';
-    } catch (error) {
-      console.error('Error in detectQuestionType:', error);
-      return 'general'; // Default type if detection fails
     }
+
+    return this.questionTypes.FACTUAL; // Default to factual if no pattern matches
   }
 
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
