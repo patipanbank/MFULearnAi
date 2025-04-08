@@ -993,16 +993,16 @@ router.post('/history/:chatId/messages', roleGuard(['Students', 'Staffs', 'Admin
   }
 });
 
-// Intent and Topic classification endpoint
-// This endpoint provides direct access to the intent and topic classification service
-// The system now analyzes both intent (what the user wants) and topic (what the subject is):
-// 1. Each message is classified for both intent and topic with confidence scores
-// 2. The system combines both signals for better context retrieval with optimized queries
-// 3. System prompts are enhanced with both intent and topic specific instructions
-// 4. LLM parameters are adjusted based on a blend of intent and topic configurations
-// 5. Context retrieval may be skipped based on both intent and topic analysis
-// 6. The combined approach provides more precise, relevant, and tailored responses
-// 7. Entity extraction from the message enhances context and response quality
+// Intent classification endpoint
+// This endpoint provides direct access to the intent classification service
+// The system now relies EXCLUSIVELY on intent classification for response generation:
+// 1. Each message is classified for intent with confidence score
+// 2. Detected intents determine how context is retrieved (using optimized queries)
+// 3. System prompts are selected and enhanced based on the specific intent
+// 4. LLM parameters (temperature, max tokens) are adjusted based on intent
+// 5. Certain intents skip context retrieval for faster responses
+// 6. Intent entities are extracted and used to enhance responses
+// 7. The old question type detection has been removed in favor of this approach
 router.post('/classify-intent', async (req: Request, res: Response): Promise<void> => {
   try {
     const { message } = req.body;
@@ -1012,15 +1012,15 @@ router.post('/classify-intent', async (req: Request, res: Response): Promise<voi
       return;
     }
     
-    console.log('Received intent/topic classification request for message:', message);
+    console.log('Received intent classification request for message:', message);
     
-    const classification = await intentClassifierService.classifyMessageWithTopics(message);
+    const intents = await intentClassifierService.classifyIntent(message);
     
-    console.log('Classification complete. Results:', JSON.stringify(classification, null, 2));
+    console.log('Classification complete. Returning intents:', JSON.stringify(intents, null, 2));
     
-    res.json(classification);
+    res.json({ intents });
   } catch (error) {
-    console.error('Error classifying message:', error);
+    console.error('Error classifying intent:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
