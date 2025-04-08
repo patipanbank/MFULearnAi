@@ -8,7 +8,6 @@ import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
-import { intentClassifierService } from './intentClassifier';
 
 interface QueryResult {
   text: string;
@@ -343,23 +342,6 @@ class ChatService {
       // console.log("Starting generateResponse with:", modelIdOrCollections);
       
       const lastMessage = messages[messages.length - 1];
-      
-      // Apply intent classification to the last message
-      try {
-        const processedMessage = await this.processMessage(lastMessage);
-        // Replace the last message with the processed one that includes intent information
-        messages[messages.length - 1] = processedMessage;
-        
-        // If the message was classified as an image generation request with high confidence,
-        // update the isImageGeneration flag
-        if (processedMessage.isImageGeneration) {
-          lastMessage.isImageGeneration = true;
-        }
-      } catch (error) {
-        console.error('Error in intent classification:', error);
-        // Continue with original message if there's an error in intent classification
-      }
-      
       const isImageGeneration = lastMessage.isImageGeneration;
       
       // Dynamically determine message limit based on message length
@@ -755,43 +737,6 @@ class ChatService {
       batches.push(items.slice(i, i + batchSize));
     }
     return batches;
-  }
-
-  /**
-   * Process a user message to classify intent and perform specialized handling
-   */
-  async processMessage(message: ChatMessage): Promise<ChatMessage> {
-    try {
-      // Classify the intent of the user message
-      const intents = await intentClassifierService.classifyIntent(message.content);
-      
-      // Add the intent classification to the message metadata or sources
-      message.sources = message.sources || [];
-      message.sources.push({
-        modelId: 'intent-classifier',
-        collectionName: 'intents',
-        filename: 'intent-analysis',
-        similarity: intents[0].confidence,
-        metadata: {
-          intents,
-          primaryIntent: intents[0].name
-        }
-      });
-      
-      // Perform specialized handling based on the top intent
-      const topIntent = intents[0];
-      
-      if (topIntent.name === "image_request" && topIntent.confidence > 0.7) {
-        message.isImageGeneration = true;
-      }
-      
-      // Add more specialized intent handling here as needed
-      
-      return message;
-    } catch (error) {
-      console.error("Error processing message intent:", error);
-      return message;
-    }
   }
 }
 
