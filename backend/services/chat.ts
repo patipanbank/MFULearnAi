@@ -765,13 +765,6 @@ class ChatService {
       // Classify the intent of the user message
       const intents = await intentClassifierService.classifyIntent(message.content);
       
-      // Log the intent classification results
-      console.log('Intent classification results:', JSON.stringify(intents, null, 2));
-      console.log('Primary intent:', intents[0].name, 'with confidence:', intents[0].confidence);
-      if (intents[0].entities) {
-        console.log('Extracted entities:', JSON.stringify(intents[0].entities, null, 2));
-      }
-      
       // Add the intent classification to the message metadata or sources
       message.sources = message.sources || [];
       message.sources.push({
@@ -790,7 +783,6 @@ class ChatService {
       
       if (topIntent.name === "image_request" && topIntent.confidence > 0.7) {
         message.isImageGeneration = true;
-        console.log('Image generation request detected with high confidence');
       }
       
       // Add more specialized intent handling here as needed
