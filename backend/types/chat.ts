@@ -16,5 +16,4 @@ export interface ChatMessage {
   sources?: Array<any>;
   isImageGeneration?: boolean;
   isComplete?: boolean;
-  metadata?: Record<string, any>;
 } 
