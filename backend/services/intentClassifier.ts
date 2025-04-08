@@ -593,7 +593,7 @@ Ensure your response is valid JSON and follows the exact format above. DO NOT in
               }
             }
           ],
-          tool_choice: "auto"
+          tool_choice: { type: "auto" }
         })
       });
       
@@ -650,6 +650,61 @@ Ensure your response is valid JSON and follows the exact format above. DO NOT in
       };
     } catch (error) {
       console.error("Error in tool calling classification and response:", error);
+      
+      // If there's a ValidationException related to tool_choice, fallback to manual classification
+      if (
+        error && 
+        typeof error === 'object' && 
+        'name' in error && 
+        error.name === 'ValidationException' && 
+        'message' in error && 
+        typeof error.message === 'string' && 
+        error.message.includes('tool_choice')
+      ) {
+        console.log('Falling back to separate classification and response due to tool_choice error');
+        try {
+          // Manually classify the message
+          const analysis = await this.analyzeMessage(message);
+          
+          // Then generate a response without tool calling
+          const responseCommand = new InvokeModelCommand({
+            modelId: this.modelId,
+            contentType: "application/json",
+            accept: "application/json",
+            body: JSON.stringify({
+              anthropic_version: "bedrock-2023-05-31",
+              max_tokens: 3000,
+              temperature: temperature,
+              system: `${systemPrompt}\n\nThe message has been classified as intent: ${analysis.intent} (confidence: ${analysis.confidence}) and topic: ${analysis.topic || 'other'} (confidence: ${analysis.topicConfidence || 0}).`,
+              messages: [
+                { role: "user", content: message }
+              ]
+            })
+          });
+          
+          const responseResult = await this.client.send(responseCommand);
+          const responseText = new TextDecoder().decode(responseResult.body);
+          const parsedResponse = JSON.parse(responseText);
+          
+          if (!parsedResponse.content || !parsedResponse.content[0]) {
+            throw new Error("Unexpected response format from Bedrock in fallback");
+          }
+          
+          const responseContent = parsedResponse.content[0].text;
+          
+          return {
+            intent: analysis.intent,
+            intentConfidence: analysis.confidence,
+            topic: analysis.topic || 'other',
+            topicConfidence: analysis.topicConfidence || 0,
+            entities: analysis.entities,
+            response: responseContent
+          };
+        } catch (fallbackError) {
+          console.error("Error in fallback processing:", fallbackError);
+        }
+      }
+      
       // Return default values in case of error
       return {
         intent: "other",
