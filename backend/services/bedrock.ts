@@ -113,88 +113,6 @@ export class BedrockService {
       temperature: 0.4,  // Lower temperature for accuracy
       topP: 0.9,
       maxTokens: 3000,
-    },
-    
-    // Topic-specific configurations
-    admission: {
-      temperature: 0.4,  // Lower temperature for accurate information
-      topP: 0.9,
-      maxTokens: 3000,
-    },
-    tuition: {
-      temperature: 0.3,  // Very low temperature for financial accuracy
-      topP: 0.88,
-      maxTokens: 2500,
-    },
-    academic_programs: {
-      temperature: 0.4,  // Lower temperature for program details
-      topP: 0.9,
-      maxTokens: 3500,  // Longer responses for program descriptions
-    },
-    courses: {
-      temperature: 0.4,  // Lower temperature for course details
-      topP: 0.9,
-      maxTokens: 3000,
-    },
-    examinations: {
-      temperature: 0.3,  // Low temperature for exam policy precision
-      topP: 0.88,
-      maxTokens: 2500,
-    },
-    registration: {
-      temperature: 0.3,  // Low temperature for registration procedure accuracy
-      topP: 0.88,
-      maxTokens: 2500,
-    },
-    academic_calendar: {
-      temperature: 0.3,  // Low temperature for date accuracy
-      topP: 0.85,
-      maxTokens: 2000,
-    },
-    campus_facilities: {
-      temperature: 0.5,  // Moderate temperature for facility descriptions
-      topP: 0.9,
-      maxTokens: 2500,
-    },
-    student_services: {
-      temperature: 0.5,  // Moderate temperature for service descriptions
-      topP: 0.9,
-      maxTokens: 2500,
-    },
-    housing: {
-      temperature: 0.4,  // Lower temperature for housing details
-      topP: 0.9,
-      maxTokens: 2500,
-    },
-    technology: {
-      temperature: 0.3,  // Low temperature for technical accuracy
-      topP: 0.88,
-      maxTokens: 2500,
-    },
-    extracurricular: {
-      temperature: 0.6,  // Higher temperature for engaging activity descriptions
-      topP: 0.92,
-      maxTokens: 2500,
-    },
-    international: {
-      temperature: 0.4,  // Lower temperature for international student info
-      topP: 0.9,
-      maxTokens: 3000,
-    },
-    research: {
-      temperature: 0.5,  // Moderate temperature for research descriptions
-      topP: 0.92,
-      maxTokens: 3500,  // Longer responses for research details
-    },
-    faculty: {
-      temperature: 0.5,  // Moderate temperature for faculty information
-      topP: 0.9,
-      maxTokens: 2500,
-    },
-    graduation: {
-      temperature: 0.4,  // Lower temperature for graduation requirement accuracy
-      topP: 0.9,
-      maxTokens: 2500,
     }
   };
 
@@ -255,47 +173,10 @@ export class BedrockService {
       };
     }
     
-    // Check for intent and topic information in message metadata
+    // Check for intent information in message metadata
     if (lastMessage.metadata) {
       const primaryIntent = lastMessage.metadata.primaryIntent;
       const intentConfidence = lastMessage.metadata.intentConfidence;
-      const primaryTopic = lastMessage.metadata.primaryTopic;
-      const topicConfidence = lastMessage.metadata.topicConfidence;
-      
-      // Check if we have both intent and topic with good confidence
-      if (primaryIntent && primaryTopic && 
-          intentConfidence && topicConfidence && 
-          intentConfidence > 0.6 && topicConfidence > 0.6) {
-        
-        console.log(`Using combined intent (${primaryIntent}) and topic (${primaryTopic}) model config`);
-        
-        // Use the more specific configuration if available
-        const intentConfig = this.questionTypeConfigs[primaryIntent];
-        const topicConfig = this.questionTypeConfigs[primaryTopic];
-        
-        if (intentConfig && topicConfig) {
-          // Blend configurations, preferring the one with higher confidence
-          if (intentConfidence >= topicConfidence) {
-            // Prefer intent config with some topic adjustments
-            return {
-              ...this.defaultConfig,
-              ...topicConfig,  // Base with topic config
-              ...intentConfig,  // Override with intent config for most parameters
-              temperature: (intentConfig.temperature + topicConfig.temperature) / 2, // Blend temperature
-              maxTokens: Math.max(intentConfig.maxTokens, topicConfig.maxTokens) // Use larger token limit
-            };
-          } else {
-            // Prefer topic config with some intent adjustments
-            return {
-              ...this.defaultConfig,
-              ...intentConfig,  // Base with intent config
-              ...topicConfig,   // Override with topic config for most parameters
-              temperature: (intentConfig.temperature + topicConfig.temperature) / 2, // Blend temperature
-              maxTokens: Math.max(intentConfig.maxTokens, topicConfig.maxTokens) // Use larger token limit
-            };
-          }
-        }
-      }
       
       // Use intent-specific config when confidence is high enough
       if (primaryIntent && intentConfidence && intentConfidence > 0.6 && this.questionTypeConfigs[primaryIntent]) {
@@ -303,17 +184,6 @@ export class BedrockService {
         return {
           ...this.defaultConfig,
           ...this.questionTypeConfigs[primaryIntent]
-        };
-      }
-      
-      // Use topic-specific config when confidence is high and no strong intent match
-      if (primaryTopic && topicConfidence && topicConfidence > 0.6 && 
-          this.questionTypeConfigs[primaryTopic] && 
-          (!intentConfidence || intentConfidence < 0.6)) {
-        console.log(`Using topic-specific model config for: ${primaryTopic} (confidence: ${topicConfidence})`);
-        return {
-          ...this.defaultConfig,
-          ...this.questionTypeConfigs[primaryTopic]
         };
       }
       
@@ -326,7 +196,7 @@ export class BedrockService {
       }
     }
 
-    // Default to general config if no intent or topic is detected
+    // Default to general config if no intent is detected
     return {
       ...this.defaultConfig,
       ...this.questionTypeConfigs.factual // Use factual as the default

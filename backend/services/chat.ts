@@ -205,111 +205,40 @@ class ChatService {
   }
 
   /**
-   * Generate an optimized context query based on intent and topic classification
+   * Generate an optimized context query based on intent classification
    */
-  private getContextQueryByIntentAndTopic(
-    message: string, 
-    intentName: string, 
-    topicName: string,
-    intentConfidence: number,
-    topicConfidence: number,
-    entities?: {[key: string]: any}
-  ): string {
-    // For low confidence intents/topics or no recognized intent, use the original message
-    if ((intentConfidence < 0.5 && topicConfidence < 0.5) || 
-        (!intentName && !topicName) || 
-        (intentName === 'other' && topicName === 'other')) {
+  private getContextQueryByIntent(message: string, intentName: string, intentConfidence: number, entities?: {[key: string]: any}): string {
+    // For low confidence intents or no recognized intent, use the original message
+    if (intentConfidence < 0.5 || !intentName || intentName === 'other') {
       return message;
     }
     
     // Extract key entities for query enhancement
     const entityValues = entities ? Object.values(entities).join(' ') : '';
     
-    // Combine intent and topic for better query
-    // Use the higher confidence one as primary focus
-    const isPrimaryIntent = intentConfidence >= topicConfidence;
-    
-    // Build specialized queries based on intent-topic combinations
-    if (isPrimaryIntent) {
-      // Intent-focused queries with topic enrichment
-      switch (intentName) {
-        case 'course_inquiry':
-          return `${topicName} course information ${entityValues} ${message}`.trim();
-          
-        case 'enrollment_inquiry':
-          return `${topicName} enrollment registration process ${entityValues} ${message}`.trim();
-          
-        case 'schedule_inquiry':
-          return `${topicName} schedule timetable ${entityValues} ${message}`.trim();
-          
-        case 'facility_inquiry':
-          return `${topicName} campus facilities locations ${entityValues} ${message}`.trim();
-          
-        case 'academic_help':
-          return `${topicName} academic information ${entityValues} ${message}`.trim();
-          
-        case 'technical_help':
-          return `${topicName} technical support ${entityValues} ${message}`.trim();
-          
-        default:
-          // For other intents, combine with topic
-          return `${intentName} ${topicName} ${entityValues} ${message}`.trim();
-      }
-    } else {
-      // Topic-focused queries with intent enrichment
-      switch (topicName) {
-        case 'admission':
-          return `university admission ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'tuition':
-          return `tuition fees financial ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'academic_programs':
-          return `academic programs majors ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'courses':
-          return `course details ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'examinations':
-          return `exams assessment ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'registration':
-          return `course registration ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'academic_calendar':
-          return `academic calendar schedule ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'campus_facilities':
-          return `campus facilities ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'student_services':
-          return `student services ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'housing':
-          return `student housing dormitory ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'technology':
-          return `university technology systems ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'extracurricular':
-          return `student activities clubs ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'international':
-          return `international students exchange ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'research':
-          return `research opportunities ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'faculty':
-          return `university faculty professors ${intentName} ${entityValues} ${message}`.trim();
-          
-        case 'graduation':
-          return `graduation requirements ${intentName} ${entityValues} ${message}`.trim();
-          
-        default:
-          // For other topics, combine with intent
-          return `${topicName} ${intentName} ${entityValues} ${message}`.trim();
-      }
+    // Build intent-specific queries
+    switch (intentName) {
+      case 'course_inquiry':
+        return `course information ${entityValues} ${message}`.trim();
+        
+      case 'enrollment_inquiry':
+        return `enrollment registration process ${entityValues} ${message}`.trim();
+        
+      case 'schedule_inquiry':
+        return `class schedule timetable ${entityValues} ${message}`.trim();
+        
+      case 'facility_inquiry':
+        return `campus facilities locations ${entityValues} ${message}`.trim();
+        
+      case 'academic_help':
+        return `academic information ${entityValues} ${message}`.trim();
+        
+      case 'technical_help':
+        return `technical support ${entityValues} ${message}`.trim();
+        
+      default:
+        // For other intents, use the original message with entity enhancement
+        return entityValues ? `${message} ${entityValues}` : message;
     }
   }
 
@@ -319,8 +248,6 @@ class ChatService {
     imageBase64?: string,
     intentName?: string,
     intentConfidence?: number,
-    topicName?: string,
-    topicConfidence?: number,
     entities?: {[key: string]: any}
   ): Promise<string> {
     // Use intent name to select prompt template, defaulting to 'general' if not found
@@ -328,16 +255,9 @@ class ChatService {
       ? this.promptTemplates[intentName as keyof typeof this.promptTemplates]
       : this.promptTemplates['general'];
     
-    // Use intent and topic for query optimization
-    const optimizedQuery = (intentName && intentConfidence) || (topicName && topicConfidence)
-      ? this.getContextQueryByIntentAndTopic(
-          query, 
-          intentName || '', 
-          topicName || '', 
-          intentConfidence || 0, 
-          topicConfidence || 0, 
-          entities
-        )
+    // Use intent-based query optimization if intent information is available
+    const optimizedQuery = intentName && intentConfidence 
+      ? this.getContextQueryByIntent(query, intentName, intentConfidence, entities)
       : query;
       
     if (optimizedQuery !== query) {
@@ -451,10 +371,6 @@ class ChatService {
     }
   }
 
-  /**
-   * Generate response using tool calling to classify and respond in a single API call
-   * This reduces API calls and provides more consistent responses
-   */
   async *generateResponse(
     messages: ChatMessage[],
     query: string,
@@ -462,183 +378,259 @@ class ChatService {
     userId: string
   ): AsyncGenerator<string> {
     try {
-      console.log("Starting unified response generation with tool calling");
+      // console.log("Starting generateResponse with:", modelIdOrCollections);
       
       const lastMessage = messages[messages.length - 1];
+      let detectedIntent = 'general';
+      let intentConfidence = 0;
+      let intentEntities: {[key: string]: any} = {};
       
-      // ถ้าเป็นการสร้างภาพให้ใช้วิธีเดิมเพราะต้องใช้ image generation model
-      if (lastMessage.isImageGeneration || (lastMessage.content && lastMessage.content.toLowerCase().includes("create image") || lastMessage.content.toLowerCase().includes("generate image"))) {
-        console.log("Detected image generation request, using standard image generation");
-        lastMessage.isImageGeneration = true;
+      // Apply intent classification to the last message
+      try {
+        const processedMessage = await this.processMessage(lastMessage);
+        // Replace the last message with the processed one that includes intent information
+        messages[messages.length - 1] = processedMessage;
         
-        // Process the message to capture intent and metadata
-        try {
-          const processedMessage = await this.processMessage(lastMessage);
-          messages[messages.length - 1] = processedMessage;
-        } catch (error) {
-          console.error('Error in intent classification for image generation:', error);
-        }
-        
-        // Use the image generation specific logic
-        const systemPrompt = 'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.';
-        const systemMessages: ChatMessage[] = [
-          {
-            role: 'system',
-            content: systemPrompt
-          }
-        ];
-        
-        // If there are older messages, add their summary
-        if (messages.length > 1) {
-          const olderMessages = messages.slice(0, -1);
-          systemMessages.push({
-            role: 'system',
-            content: this.summarizeOldMessages(olderMessages)
-          });
-        }
-        
-        // Combine system messages with the latest user message
-        const augmentedMessages = [...systemMessages, lastMessage];
-        
-        // Update stats
-        await this.updateDailyStats(userId);
-        
-        // Generate image description using the specialized model
-        const selectedModel = bedrockService.models.titanImage;
-        
-        for await (const chunk of bedrockService.chat(augmentedMessages, selectedModel)) {
-          if (typeof chunk === 'string') {
-            yield chunk;
-          }
-        }
-        
-        // Update token usage
-        const totalTokens = bedrockService.getLastTokenUsage();
-        if (totalTokens > 0) {
-          const usage = await usageService.updateTokenUsage(userId, totalTokens);
-          console.log(`[Chat] Token usage updated for ${userId}:`, {
-            used: totalTokens,
-            daily: usage.dailyTokens,
-            remaining: usage.remainingTokens
-          });
-          
-          // Update token stats
-          const today = new Date();
-          today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
-          today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
-
-          await ChatStats.findOneAndUpdate(
-            { date: today },
-            { $inc: { totalTokens: totalTokens } },
-            { upsert: true }
+        // Extract intent information for specialized handling
+        if (processedMessage.sources && processedMessage.sources.length > 0) {
+          const intentSource = processedMessage.sources.find(source => 
+            source.modelId === 'intent-classifier' && source.metadata?.primaryIntent
           );
+          
+          if (intentSource) {
+            detectedIntent = intentSource.metadata.primaryIntent;
+            intentConfidence = intentSource.similarity || 0;
+            
+            // Extract entities if available
+            if (intentSource.metadata?.intents?.[0]?.entities) {
+              intentEntities = intentSource.metadata.intents[0].entities;
+            }
+            
+            console.log(`Intent information extracted: ${detectedIntent} (${intentConfidence})`);
+            console.log('Intent entities:', JSON.stringify(intentEntities, null, 2));
+          }
         }
         
-        return;
+        // If the message was classified as an image generation request with high confidence,
+        // update the isImageGeneration flag
+        if (processedMessage.isImageGeneration) {
+          lastMessage.isImageGeneration = true;
+        }
+      } catch (error) {
+        console.error('Error in intent classification:', error);
+        // Continue with original message if there's an error in intent classification
       }
+      
+      const isImageGeneration = lastMessage.isImageGeneration;
+      
+      // Dynamically determine message limit based on message length
+      const MAX_CHAR_THRESHOLD = 500; // Define threshold for "long" messages
+      const DEFAULT_MESSAGE_LIMIT = 6;
+      const LONG_MESSAGE_LIMIT = 2;
+      
+      // Calculate average message length
+      const avgMessageLength = messages.reduce((sum, msg) => 
+        sum + (msg.content?.length || 0), 0) / Math.max(1, messages.length);
+      
+      // Set message limit based on average length
+      const MESSAGE_LIMIT = avgMessageLength > MAX_CHAR_THRESHOLD 
+        ? LONG_MESSAGE_LIMIT 
+        : DEFAULT_MESSAGE_LIMIT;
+      
+      let recentMessages: ChatMessage[] = [];
+      let olderMessages: ChatMessage[] = [];
+      
+      if (messages.length > MESSAGE_LIMIT) {
+        // Split messages into older and recent messages
+        olderMessages = messages.slice(0, messages.length - MESSAGE_LIMIT);
+        recentMessages = messages.slice(messages.length - MESSAGE_LIMIT);
+      } else {
+        recentMessages = [...messages];
+      }
+      
+      // Skip context retrieval for image generation or when not needed based on intent
+      let context = '';
+      const skipContextIntents = ['greeting', 'farewell', 'gratitude', 'image_generation'];
+      const shouldSkipContext = isImageGeneration || 
+        (skipContextIntents.includes(detectedIntent) && intentConfidence > 0.7);
+      
+      if (!shouldSkipContext) {
+        const imageBase64 = lastMessage.images?.[0]?.data;
+        try {
+          // Ensure query doesn't exceed reasonable length
+          const MAX_QUERY_FOR_CONTEXT = 4000;
+          const trimmedQuery = query.length > MAX_QUERY_FOR_CONTEXT 
+            ? query.substring(0, MAX_QUERY_FOR_CONTEXT) 
+            : query;
+            
+          context = await this.retryOperation(
+            async () => this.getContext(trimmedQuery, modelIdOrCollections, imageBase64, detectedIntent, intentConfidence, intentEntities),
+            'Failed to get context'
+          );
+        } catch (error) {
+          console.error('Error getting context:', error);
+          // Continue without context if there's an error
+        }
+      } else {
+        console.log(`Skipping context retrieval for intent: ${detectedIntent}`);
+      }
+      
+      // Use intent information to determine model selection
+      let selectedModel = isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel;
+      
+      console.log('Using intent for response generation:', detectedIntent, 'with confidence:', intentConfidence);
 
       // ดึง system prompt จากฐานข้อมูล
-      const systemPrompt = await this.getSystemPrompt();
+      const dynamicSystemPrompt = await this.getSystemPrompt();
 
-      // ตรวจสอบว่ามีข้อความประวัติ (history) หรือไม่
-      let contextualSystemPrompt = systemPrompt;
+      // Customize system prompt based on intent when confidence is high
+      let systemPrompt = isImageGeneration ? 
+        'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
+        dynamicSystemPrompt;
         
-      // ถ้ามีข้อความประวัติหลายข้อความ สร้าง context เพิ่มเติม
-      if (messages.length > 1) {
-        // สร้างสรุปประวัติการสนทนา
-        const messageHistory = messages.slice(0, -1); // ทุกข้อความยกเว้นข้อความล่าสุด
-        const conversationSummary = this.summarizeOldMessages(messageHistory);
-        contextualSystemPrompt += `\n\n${conversationSummary}`;
-      }
+      // Enhance system prompt with intent information when confidence is high
+      if (intentConfidence > 0.7) {
+        systemPrompt += `\n\nI've detected that the user's message has the intent: ${detectedIntent}`;
         
-      // ใช้ tool calling เพื่อวิเคราะห์และสร้างคำตอบในคราวเดียว
-      const result = await this.retryOperation(
-        async () => intentClassifierService.classifyAndRespond(query, contextualSystemPrompt, 0.7),
-        'Failed to classify and respond with tool calling'
-      );
-      
-      // บันทึกข้อมูลการวิเคราะห์ลงใน metadata ของข้อความล่าสุด
-      lastMessage.metadata = lastMessage.metadata || {};
-      lastMessage.metadata.primaryIntent = result.intent;
-      lastMessage.metadata.intentConfidence = result.intentConfidence;
-      lastMessage.metadata.primaryTopic = result.topic;
-      lastMessage.metadata.topicConfidence = result.topicConfidence;
-      
-      // บันทึกข้อมูลการวิเคราะห์ลงใน sources ของข้อความล่าสุด
-      lastMessage.sources = lastMessage.sources || [];
-      lastMessage.sources.push({
-        modelId: 'intent-classifier',
-        collectionName: 'intents',
-        filename: 'tool-calling-analysis',
-        similarity: result.intentConfidence,
-        metadata: {
-          intent: result.intent,
-          intentConfidence: result.intentConfidence,
-          topic: result.topic,
-          topicConfidence: result.topicConfidence,
-          entities: result.entities
+        if (Object.keys(intentEntities).length > 0) {
+          systemPrompt += ` with these specific entities: ${JSON.stringify(intentEntities)}`;
         }
-      });
-      
-      if (result.entities) {
-        lastMessage.metadata.entities = result.entities;
+        
+        // Add specific instructions based on intent
+        switch (detectedIntent) {
+          case 'greeting':
+            systemPrompt += '\nRespond with a warm, friendly greeting appropriate for a university assistant.';
+            break;
+          case 'academic_help':
+            systemPrompt += '\nProvide clear, educational responses that help the student understand academic concepts.';
+            break;
+          case 'technical_help':
+            systemPrompt += '\nOffer precise technical guidance to resolve the user\'s issue.';
+            break;
+          case 'course_inquiry':
+            systemPrompt += '\nProvide detailed information about courses, requirements, and educational programs.';
+            break;
+          // Add more customizations for other intents
+        }
       }
+
+      const systemMessages: ChatMessage[] = [
+        {
+          role: 'system',
+          content: systemPrompt
+        }
+      ];
+
+      // Add summary of older messages if there are any
+      if (olderMessages.length > 0) {
+        systemMessages.push({
+          role: 'system',
+          content: this.summarizeOldMessages(olderMessages)
+        });
+      }
+
+      // Only add context if we have it and not in image generation mode
+      if (context && !shouldSkipContext) {
+        systemMessages.push({
+          role: 'system',
+          content: `Context from documents:\n${context}`
+        });
+      }
+
+      // Combine system messages with recent user messages only
+      const augmentedMessages = [...systemMessages, ...recentMessages];
+
+      // Ensure the last message has proper intent metadata set
+      if (augmentedMessages.length > 0) {
+        const lastAugmentedMessage = augmentedMessages[augmentedMessages.length - 1];
+        if (lastAugmentedMessage.role === 'user') {
+          lastAugmentedMessage.metadata = lastAugmentedMessage.metadata || {};
+          
+          // Set intent information for model configuration
+          if (detectedIntent && intentConfidence > 0) {
+            lastAugmentedMessage.metadata.primaryIntent = detectedIntent;
+            lastAugmentedMessage.metadata.intentConfidence = intentConfidence;
+            
+            if (Object.keys(intentEntities).length > 0) {
+              lastAugmentedMessage.metadata.entities = intentEntities;
+            }
+          }
+        }
+      }
+
+      // นับจำนวนข้อความทั้งหมดในการสนทนานี้
+      const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
       
       // อัพเดทสถิติพร้อมจำนวนข้อความ
       await this.updateDailyStats(userId);
       
-      // อัพเดท token usage ด้วยค่าประมาณ
-      // หมายเหตุ: เป็นการประมาณเนื่องจากเราไม่ได้รับค่า token usage จริงจาก Claude ผ่าน tool calling
-      const estimatedTokens = Math.ceil(query.length / 4) + Math.ceil(result.response.length / 4);
-      
-      try {
-        const usage = await usageService.updateTokenUsage(userId, estimatedTokens);
-        
-        console.log(`[Chat] Token usage updated for ${userId}:`, {
-          used: estimatedTokens,
-          daily: usage.dailyTokens,
-          remaining: usage.remainingTokens
-        });
-        
-        // อัปเดตข้อมูล token ในสถิติรายวัน
-        const today = new Date();
-        today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
-        today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
+      let attempt = 0;
+      while (attempt < this.retryConfig.maxRetries) {
+        try {
+          // ตรวจสอบว่ามีไฟล์หรือไม่
+          const hasFiles = lastMessage.files && lastMessage.files.length > 0;
+          
+          // ถ้ามีไฟล์ ให้สร้างข้อความพิเศษบอก AI ว่ามีไฟล์แนบมา
+          if (hasFiles && lastMessage.files) {
+            const fileInfo = lastMessage.files.map(file => {
+              let fileDetail = `- ${file.name} (${file.mediaType}, ${Math.round(file.size / 1024)} KB)`;
+              if (file.content) {
+                fileDetail += " - File content included";
+              }
+              return fileDetail;
+            }).join('\n');
+            
+            // เพิ่มข้อความเกี่ยวกับไฟล์แนบในคำถาม
+            query = `${query}\n\n[Attached files]\n${fileInfo}`;
+          }
 
-        await ChatStats.findOneAndUpdate(
-          { date: today },
-          { $inc: { totalTokens: estimatedTokens } },
-          { upsert: true }
-        );
-      } catch (error) {
-        console.error('Error updating token usage:', error);
-      }
-      
-      // ส่งคำตอบกลับทั้งหมดในครั้งเดียว หรือแบ่งเป็น chunks
-      // เพื่อความเข้ากันได้กับ UI ปัจจุบัน เราจะกระจายคำตอบเป็น chunks
-      const chunkSize = 10; // จำนวนตัวอักษรต่อ chunk
-      const text = result.response;
-      
-      // ทางเลือก 1: ส่งคำตอบทั้งหมดในครั้งเดียว (เร็วที่สุด)
-      // yield text;
-      
-      // ทางเลือก 2: ส่งคำตอบแบบแบ่ง chunks (เพื่อให้ UI แสดงผลเหมือนกำลังพิมพ์)
-      for (let i = 0; i < text.length; i += chunkSize) {
-        const chunk = text.slice(i, i + chunkSize);
-        yield chunk;
-        
-        // หน่วงเวลาเล็กน้อยเพื่อให้ดูเหมือนกำลังพิมพ์
-        if (i + chunkSize < text.length) {
-          await new Promise(resolve => setTimeout(resolve, 10));
+          // Generate response and send chunks
+          let totalTokens = 0;
+          for await (const chunk of bedrockService.chat(augmentedMessages, selectedModel)) {
+            if (typeof chunk === 'string') {
+              yield chunk;
+            }
+          }
+
+          // อัพเดท token usage หลังจากได้ response ทั้งหมด
+          totalTokens = bedrockService.getLastTokenUsage();
+          if (totalTokens > 0) {
+            const usage = await usageService.updateTokenUsage(userId, totalTokens);
+            console.log(`[Chat] Token usage updated for ${userId}:`, {
+              used: totalTokens,
+              daily: usage.dailyTokens,
+              remaining: usage.remainingTokens
+            });
+            
+            // อัปเดตข้อมูล token ในสถิติรายวัน
+            const today = new Date();
+            today.setHours(today.getHours() + 7); // แปลงเป็นเวลาไทย
+            today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็นต้นวัน
+
+            await ChatStats.findOneAndUpdate(
+              { date: today },
+              { $inc: { totalTokens: totalTokens } },
+              { upsert: true }
+            );
+          }
+          return;
+        } catch (error: unknown) {
+          attempt++;
+          if (error instanceof Error && error.name === 'InvalidSignatureException') {
+            console.error(`Error in chat generation (Attempt ${attempt}/${this.retryConfig.maxRetries}):`, error);
+            // รอสักครู่ก่อน retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+          throw error;
         }
       }
-      
     } catch (error) {
-      console.error('Error in unified response generation:', error);
-      yield "I apologize, but I encountered an error processing your message. Could you please try again?";
+      console.error('Error generating response:', error);
+      throw error;
     }
   }
-  
+
   private async retryOperation<T>(
     operation: () => Promise<T>,
     errorMessage: string
@@ -663,22 +655,6 @@ class ChatService {
     }
     
     throw new Error(`${errorMessage} after ${this.retryConfig.maxRetries} attempts: ${lastError?.message}`);
-  }
-
-  /**
-   * Generate response using tool calling to classify and respond in a single API call
-   * This reduces API calls and provides more consistent responses
-   */
-  async *generateResponseWithToolCalling(
-    messages: ChatMessage[],
-    query: string,
-    modelIdOrCollections: string | string[],
-    userId: string
-  ): AsyncGenerator<string> {
-    // Use the main implementation to avoid duplication
-    for await (const chunk of this.generateResponse(messages, query, modelIdOrCollections, userId)) {
-      yield chunk;
-    }
   }
 
   async getChats(userId: string, page: number = 1, limit: number = 5) {
@@ -900,57 +876,41 @@ class ChatService {
    */
   async processMessage(message: ChatMessage): Promise<ChatMessage> {
     try {
-      // Classify the intent and topic of the user message
-      const classification = await intentClassifierService.classifyMessageWithTopics(message.content);
-      const intents = classification.intents;
-      const topics = classification.topics;
+      // Classify the intent of the user message
+      const intents = await intentClassifierService.classifyIntent(message.content);
       
-      // Log the classification results
+      // Log the intent classification results
       console.log('Intent classification results:', JSON.stringify(intents, null, 2));
-      console.log('Topic classification results:', JSON.stringify(topics, null, 2));
       console.log('Primary intent:', intents[0].name, 'with confidence:', intents[0].confidence);
-      console.log('Primary topic:', topics[0].name, 'with confidence:', topics[0].confidence);
-      
       if (intents[0].entities) {
         console.log('Extracted entities:', JSON.stringify(intents[0].entities, null, 2));
       }
       
       // Initialize message metadata if not exists
       message.metadata = message.metadata || {};
-      
-      // Add intent information
       message.metadata.intents = intents;
       message.metadata.primaryIntent = intents[0].name;
       message.metadata.intentConfidence = intents[0].confidence;
       
-      // Add topic information
-      message.metadata.topics = topics;
-      message.metadata.primaryTopic = topics[0].name;
-      message.metadata.topicConfidence = topics[0].confidence;
-      
-      // Add the classification to the message sources
+      // Add the intent classification to the message metadata or sources
       message.sources = message.sources || [];
       message.sources.push({
         modelId: 'intent-classifier',
         collectionName: 'intents',
-        filename: 'intent-topic-analysis',
+        filename: 'intent-analysis',
         similarity: intents[0].confidence,
         metadata: {
           intents,
-          primaryIntent: intents[0].name,
-          topics,
-          primaryTopic: topics[0].name
+          primaryIntent: intents[0].name
         }
       });
       
       // Perform specialized handling based on the top intent
       const topIntent = intents[0];
-      const topTopic = topics[0];
-      const highIntentConfidence = topIntent.confidence > 0.7;
-      const highTopicConfidence = topTopic.confidence > 0.7;
+      const highConfidence = topIntent.confidence > 0.7;
       
       // Add intent-specific flags to message metadata
-      if (highIntentConfidence) {
+      if (highConfidence) {
         switch (topIntent.name) {
           case "image_generation":
             message.isImageGeneration = true;
@@ -1007,59 +967,6 @@ class ChatService {
         }
       }
       
-      // Add topic-specific metadata
-      if (highTopicConfidence) {
-        message.metadata.topicArea = topTopic.name;
-        
-        switch (topTopic.name) {
-          case "admission":
-            message.metadata.isAboutAdmission = true;
-            break;
-            
-          case "tuition":
-            message.metadata.isAboutTuition = true;
-            break;
-            
-          case "academic_programs":
-            message.metadata.isAboutPrograms = true;
-            break;
-            
-          case "courses":
-            message.metadata.isAboutCourses = true;
-            break;
-            
-          case "examinations":
-            message.metadata.isAboutExams = true;
-            break;
-            
-          case "registration":
-            message.metadata.isAboutRegistration = true;
-            break;
-            
-          case "academic_calendar":
-            message.metadata.isAboutCalendar = true;
-            break;
-            
-          case "campus_facilities":
-            message.metadata.isAboutFacilities = true;
-            break;
-            
-          case "student_services":
-            message.metadata.isAboutServices = true;
-            break;
-            
-          case "housing":
-            message.metadata.isAboutHousing = true;
-            break;
-            
-          case "technology":
-            message.metadata.isAboutTechnology = true;
-            break;
-        }
-        
-        console.log(`Topic area detected: ${topTopic.name} with confidence ${topTopic.confidence}`);
-      }
-      
       // Store intent entities if available
       if (topIntent.entities && Object.keys(topIntent.entities).length > 0) {
         message.metadata.entities = topIntent.entities;
@@ -1067,35 +974,7 @@ class ChatService {
       
       return message;
     } catch (error) {
-      console.error("Error processing message intent and topic:", error);
-      // Fallback to basic intent classification if combined classification fails
-      try {
-        const intents = await intentClassifierService.classifyIntent(message.content);
-        
-        message.metadata = message.metadata || {};
-        message.metadata.intents = intents;
-        message.metadata.primaryIntent = intents[0].name;
-        message.metadata.intentConfidence = intents[0].confidence;
-        
-        message.sources = message.sources || [];
-        message.sources.push({
-          modelId: 'intent-classifier',
-          collectionName: 'intents',
-          filename: 'intent-analysis',
-          similarity: intents[0].confidence,
-          metadata: {
-            intents,
-            primaryIntent: intents[0].name
-          }
-        });
-        
-        if (intents[0].name === "image_generation" && intents[0].confidence > 0.7) {
-          message.isImageGeneration = true;
-        }
-      } catch (fallbackError) {
-        console.error("Fallback intent classification also failed:", fallbackError);
-      }
-      
+      console.error("Error processing message intent:", error);
       return message;
     }
   }
