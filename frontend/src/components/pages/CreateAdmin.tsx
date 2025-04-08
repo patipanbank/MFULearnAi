@@ -1,46 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
 import Select from 'react-select';
 
-// const departments = [
-//   { value: 'Center for Information Technology Services', label: 'Center for Information Technology Services' },
-//   { value: 'Finance and Accounting Division', label: 'Finance and Accounting Division' },
-//   { value: 'Registrar Division', label: 'Registrar Division' },
-//   { value: 'Research Administration Division', label: 'Research Administration Division' },
-//   { value: 'Student Development Affairs Division', label: 'Student Development Affairs Division' },
-//   { value: 'MFU Sport Complex Centre', label: 'MFU Sport Complex Centre' },
-//   { value: 'Living and Learning Support Centre', label: 'Living and Learning Support Centre' },
-//   { value: 'Global Relations Division', label: 'Global Relations Division' },
-//   { value: 'Quality Assurance and Curriculum Development Division', label: 'Quality Assurance and Curriculum Development Division' },
-//   { value: 'Academic Extension and Development Office', label: 'Academic Extension and Development Office' },
-//   { value: 'Postgraduate Studies Office', label: 'Postgraduate Studies Office' },
-//   { value: 'Placement and Co-Operative Education Division', label: 'Placement and Co-Operative Education Division' },
-//   { value: 'Tea and Coffee Institute', label: 'Tea and Coffee Institute' },
-//   { value: 'Scientific and Technological Instruments Center', label: 'Scientific and Technological Instruments Center' },
-//   { value: 'Centre of Excellence in Fungal Research', label: 'Centre of Excellence in Fungal Research' },
-//   { value: 'computer engineering', label: 'Computer Engineering' }
-//   
-// ];
-
-const departments = [
-  { value: 'center for information technology services', label: 'center for information technology services' },
-  { value: 'finance and accounting division', label: 'finance and accounting division' },
-  { value: 'registrar division', label: 'registrar division' },
-  { value: 'research administration division', label: 'research administration division' },
-  { value: 'student development affairs division', label: 'student development affairs division' },
-  { value: 'mfu sport complex centre', label: 'mfu sport complex centre' },
-  { value: 'living and learning support centre', label: 'living and learning support centre' },
-  { value: 'global relations division', label: 'global relations division' },
-  { value: 'quality assurance and curriculum development division', label: 'quality assurance and curriculum development division' },
-  { value: 'academic extension and development office', label: 'academic extension and development office' },
-  { value: 'postgraduate studies office', label: 'postgraduate studies office' },
-  { value: 'placement and co-operative education division', label: 'placement and co-operative education division' },
-  { value: 'tea and coffee institute', label: 'tea and coffee institute' },
-  { value: 'scientific and technological instruments center', label: 'scientific and technological instruments center' },
-  { value: 'centre of excellence in fungal research', label: 'centre of excellence in fungal research' },
-  { value: 'computer engineering', label: 'computer engineering' }
-  
-];
+interface Department {
+  _id: string;
+  name: string;
+}
 
 const CreateAdmin: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -51,9 +16,39 @@ const CreateAdmin: React.FC = () => {
     email: '',
     department: ''
   });
+  const [departments, setDepartments] = useState<{value: string, label: string}[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${config.apiUrl}/api/departments`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch departments');
+        }
+
+        const data: Department[] = await response.json();
+        setDepartments(data.map(dept => ({
+          value: dept.name,
+          label: dept.name
+        })));
+      } catch (err) {
+        console.error('Error fetching departments:', err);
+        // Fallback to empty array if fetch fails
+        setDepartments([]);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +93,18 @@ const CreateAdmin: React.FC = () => {
       <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
         Create New Admin
       </h1>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
+          <span className="block sm:inline">Admin created successfully!</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -178,7 +185,7 @@ const CreateAdmin: React.FC = () => {
             value={departments.find(dept => dept.value === formData.department)}
             onChange={(selected) => setFormData({...formData, department: selected?.value || ''})}
             options={departments}
-            placeholder=" Select department"
+            placeholder="Select department"
             isClearable
             className="react-select-container"
             styles={{
@@ -201,16 +208,8 @@ const CreateAdmin: React.FC = () => {
                   }
                 }
               }),
-              input: (base) => ({
-                ...base,
-                color: 'rgb(17 24 39)',
-                '.dark &': {
-                  color: 'white'
-                }
-              }),
               menu: (base) => ({
                 ...base,
-                zIndex: 9999,
                 backgroundColor: 'white',
                 '.dark &': {
                   backgroundColor: 'rgb(55 65 81)',
@@ -219,19 +218,27 @@ const CreateAdmin: React.FC = () => {
               }),
               option: (base, state) => ({
                 ...base,
-                backgroundColor: state.isFocused ? 'rgb(59 130 246)' : 'transparent',
-                color: state.isFocused ? 'white' : 'inherit',
-                '&:hover': {
-                  backgroundColor: 'rgb(59 130 246)',
-                  color: 'white'
-                },
+                backgroundColor: state.isSelected 
+                  ? 'rgb(37 99 235)' 
+                  : state.isFocused 
+                    ? 'rgba(37, 99, 235, 0.1)' 
+                    : undefined,
+                color: state.isSelected 
+                  ? 'white' 
+                  : 'inherit',
                 '.dark &': {
-                  backgroundColor: state.isFocused ? 'rgb(59 130 246)' : 'transparent',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'rgb(59 130 246)',
-                    color: 'white'
-                  }
+                  backgroundColor: state.isSelected 
+                    ? 'rgb(37 99 235)' 
+                    : state.isFocused 
+                      ? 'rgba(37, 99, 235, 0.3)' 
+                      : undefined,
+                  color: state.isSelected ? 'white' : 'white'
+                },
+                ':active': {
+                  ...base[':active'],
+                  backgroundColor: state.isSelected 
+                    ? 'rgb(29 78 216)' 
+                    : 'rgba(29, 78, 216, 0.2)',
                 }
               }),
               singleValue: (base) => ({
@@ -241,83 +248,27 @@ const CreateAdmin: React.FC = () => {
                   color: 'white'
                 }
               }),
-              placeholder: (base) => ({
+              input: (base) => ({
                 ...base,
-                color: 'rgb(107 114 128)',
+                color: 'rgb(17 24 39)',
                 '.dark &': {
-                  color: 'rgb(156 163 175)'
-                }
-              }),
-              dropdownIndicator: (base) => ({
-                ...base,
-                color: 'rgb(107 114 128)',
-                '.dark &': {
-                  color: 'rgb(156 163 175)'
-                }
-              }),
-              clearIndicator: (base) => ({
-                ...base,
-                color: 'rgb(107 114 128)',
-                '.dark &': {
-                  color: 'rgb(156 163 175)'
-                }
-              }),
-              multiValue: (base) => ({
-                ...base,
-                backgroundColor: 'rgb(59 130 246)',
-                color: 'white',
-                '.dark &': {
-                  backgroundColor: 'rgb(59 130 246)',
-                  color: 'white'
-                }
-              }),
-              multiValueLabel: (base) => ({
-                ...base,
-                color: 'white'
-              }),
-              multiValueRemove: (base) => ({
-                ...base,
-                color: 'white',
-                ':hover': {
-                  backgroundColor: 'rgb(37 99 235)',
                   color: 'white'
                 }
               })
             }}
-            theme={(theme) => ({
-              ...theme,
-              colors: {
-                ...theme.colors,
-                primary: '#3B82F6',
-                primary75: '#60A5FA',
-                primary50: '#93C5FD',
-                primary25: '#BFDBFE',
-              },
-            })}
+            required
           />
         </div>
 
-        {error && (
-          <div className="p-4 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="p-4 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
-            Create Admin Success
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 
-            hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all duration-200
-            transform hover:scale-[1.02] shadow-md hover:shadow-lg disabled:opacity-50"
-        >
-          {isLoading ? 'Creating Admin...' : 'Create Admin'}
-        </button>
+        <div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+          >
+            {isLoading ? 'Creating...' : 'Create Admin'}
+          </button>
+        </div>
       </form>
     </div>
   );

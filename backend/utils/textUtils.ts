@@ -1,38 +1,83 @@
+import nlp from 'compromise';
 
 export function splitTextIntoChunks(text: string, chunkSize: number = 2000): string[] {
-  // ทำความสะอาดข้อความ
+  // Clean the text
   const cleanText = text
     .trim()
-    .replace(/\s+/g, ' ') // แทนที่ whitespace หลายตัวด้วยช่องว่างเดียว
-    .replace(/\n+/g, ' '); // แทนที่ newline ด้วยช่องว่าง
+    .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
+    .replace(/\n+/g, ' '); // Replace newlines with space
 
-  // ถ้าข้อความสั้นกว่าหรือเท่ากับ chunkSize ให้คืนค่าเป็น array เดียว
+  // If text is shorter than or equal to chunkSize, return as a single chunk
   if (cleanText.length <= chunkSize) {
-    // console.log(`Text length (${cleanText.length}) is less than chunk size (${chunkSize}), returning single chunk`);
     return [cleanText];
   }
 
-  // ถ้าข้อความยาวเกิน chunkSize จึงค่อยแบ่ง
-  // console.log(`Text length (${cleanText.length}) exceeds chunk size (${chunkSize}), splitting into chunks`);
+  // Use compromise for sentence tokenization
+  const doc = nlp(cleanText);
+  const sentences = doc.sentences().out('array');
+  
+  // Create chunks based on sentence boundaries
   const chunks: string[] = [];
   let currentChunk = '';
-  const words = cleanText.split(' ');
-  const overlap = 200; // ความยาวที่ให้ chunks ทับซ้อนกัน
+  const overlap = 100; // Number of characters to overlap between chunks
+  let lastSentences: string[] = [];
 
-  for (const word of words) {
-    if ((currentChunk + ' ' + word).length <= chunkSize) {
-      currentChunk += (currentChunk ? ' ' : '') + word;
+  for (const sentence of sentences) {
+    // If adding this sentence doesn't exceed the chunk size
+    if ((currentChunk + ' ' + sentence).length <= chunkSize) {
+      currentChunk += (currentChunk ? ' ' : '') + sentence;
     } else {
+      // Save the current chunk
       chunks.push(currentChunk.trim());
-      // เก็บคำสุดท้ายไว้เป็น overlap
-      currentChunk = currentChunk.split(' ').slice(-overlap).join(' ') + ' ' + word;
+      
+      // Keep track of the last few sentences for overlap
+      lastSentences.push(sentence);
+      if (lastSentences.length > 3) {
+        lastSentences.shift();
+      }
+      
+      // Start a new chunk with some overlap
+      const overlapText = lastSentences.join(' ');
+      currentChunk = overlapText.length > overlap ? overlapText : sentence;
     }
   }
 
+  // Add the final chunk if there's any content left
   if (currentChunk) {
     chunks.push(currentChunk.trim());
   }
 
-  // console.log(`Created ${chunks.length} chunks`);
-  return chunks;
+  // Handle edge cases where sentences are extremely long
+  return handleLongSentences(chunks, chunkSize);
+}
+
+// Handle cases where individual sentences exceed the chunk size
+function handleLongSentences(chunks: string[], chunkSize: number): string[] {
+  const result: string[] = [];
+  
+  for (const chunk of chunks) {
+    if (chunk.length <= chunkSize) {
+      result.push(chunk);
+    } else {
+      // Use compromise for more intelligent word tokenization
+      const doc = nlp(chunk);
+      const terms = doc.terms().out('array');
+      
+      let currentSubChunk = '';
+      for (const term of terms) {
+        if ((currentSubChunk + ' ' + term).length <= chunkSize) {
+          currentSubChunk += (currentSubChunk ? ' ' : '') + term;
+        } else {
+          result.push(currentSubChunk.trim());
+          currentSubChunk = term;
+        }
+      }
+      
+      if (currentSubChunk) {
+        result.push(currentSubChunk.trim());
+      }
+    }
+  }
+  
+  return result;
 } 

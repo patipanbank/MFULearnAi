@@ -13,6 +13,8 @@ import CreateAdmin from './components/pages/CreateAdmin';
 import Help from './components/pages/Help';
 import Statistics from './components/pages/Statistics';
 import SystemPrompt from './components/pages/SystemPrompt';
+import ManageDepartment from './components/pages/ManageDepartment';
+import ManageAdmin from './components/pages/ManageAdmin';
  
 
 const App = () => {
@@ -78,6 +80,30 @@ const App = () => {
               <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <CreateAdmin />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/admin/manage"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
+                <MainLayout>
+                  <ManageAdmin />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/departments/manage"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
+                <MainLayout>
+                  <ManageDepartment />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>
