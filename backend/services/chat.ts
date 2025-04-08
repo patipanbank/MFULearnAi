@@ -57,6 +57,14 @@ interface RetryConfig {
 }
 
 class ChatService {
+  private readonly questionTypes = {
+    FACTUAL: 'factual',
+    ANALYTICAL: 'analytical',
+    CONCEPTUAL: 'conceptual',
+    PROCEDURAL: 'procedural',
+    CLARIFICATION: 'clarification'
+  };
+
   private systemPrompt = `You are DinDin 🤖, a male AI assistant for Mae Fah Luang University.
 
   Response Style 🎯:
@@ -78,25 +86,17 @@ class ChatService {
   Remember: Keep responses friendly, use emojis, answer every question positively without refusing, and maintain a conversational tone.`;
 
   private readonly promptTemplates = {
-    'general': 'Provide a direct and accurate answer based on the following context:',
-    'educational': 'Explain the concept thoroughly using the following context:',
-    'academic_help': 'Provide a clear educational explanation using the following context:',
-    'technical_help': 'Provide technical assistance based on:',
-    'course_inquiry': 'Provide course information based on:',
-    'enrollment_inquiry': 'Provide enrollment information based on:',
-    'schedule_inquiry': 'Provide schedule information based on:',
-    'facility_inquiry': 'Provide facility information based on:',
-    'image_analysis': 'Analyze the image using the following context:',
-    'feedback': 'Address the feedback using the following information:',
-    'location': 'Provide location information based on:',
-    'schedule': 'Provide schedule details based on:',
-    'financial': 'Provide financial information based on:'
+    [this.questionTypes.FACTUAL]: 'Provide a direct and accurate answer based on the following context:',
+    [this.questionTypes.ANALYTICAL]: 'Analyze the following information and provide insights:',
+    [this.questionTypes.CONCEPTUAL]: 'Explain the concept using the following context:',
+    [this.questionTypes.PROCEDURAL]: 'Describe the process or steps based on:',
+    [this.questionTypes.CLARIFICATION]: 'To better answer your question, let me clarify based on:'
   };
 
   private chatModel = bedrockService.chatModel;
   private currentChatHistory?: HydratedDocument<IChatHistory>;
   private readonly BATCH_SIZE = 3; // Number of collections to query simultaneously
-  private readonly MIN_SIMILARITY_THRESHOLD = 0.1;
+  private readonly MIN_SIMILARITY_THRESHOLD = 0.1; // Lowered from 0.6 to match ChromaService
   private readonly retryConfig: RetryConfig = {
     maxRetries: 3,
     baseDelay: 1000,
@@ -204,65 +204,27 @@ class ChatService {
     );
   }
 
-  /**
-   * Generate an optimized context query based on intent classification
-   */
-  private getContextQueryByIntent(message: string, intentName: string, intentConfidence: number, entities?: {[key: string]: any}): string {
-    // For low confidence intents or no recognized intent, use the original message
-    if (intentConfidence < 0.5 || !intentName || intentName === 'other') {
-      return message;
+  private detectQuestionType(query: string): string {
+    const patterns = {
+      [this.questionTypes.FACTUAL]: /^(what|when|where|who|which|how many|how much)/i,
+      [this.questionTypes.ANALYTICAL]: /^(why|how|what if|what are the implications|analyze|compare|contrast)/i,
+      [this.questionTypes.CONCEPTUAL]: /^(explain|describe|define|what is|what are|how does)/i,
+      [this.questionTypes.PROCEDURAL]: /^(how to|how do|what steps|how can|show me how)/i,
+      [this.questionTypes.CLARIFICATION]: /^(can you clarify|what do you mean|please explain|could you elaborate)/i
+    };
+
+    for (const [type, pattern] of Object.entries(patterns)) {
+      if (pattern.test(query)) {
+        return type;
+      }
     }
-    
-    // Extract key entities for query enhancement
-    const entityValues = entities ? Object.values(entities).join(' ') : '';
-    
-    // Build intent-specific queries
-    switch (intentName) {
-      case 'course_inquiry':
-        return `course information ${entityValues} ${message}`.trim();
-        
-      case 'enrollment_inquiry':
-        return `enrollment registration process ${entityValues} ${message}`.trim();
-        
-      case 'schedule_inquiry':
-        return `class schedule timetable ${entityValues} ${message}`.trim();
-        
-      case 'facility_inquiry':
-        return `campus facilities locations ${entityValues} ${message}`.trim();
-        
-      case 'academic_help':
-        return `academic information ${entityValues} ${message}`.trim();
-        
-      case 'technical_help':
-        return `technical support ${entityValues} ${message}`.trim();
-        
-      default:
-        // For other intents, use the original message with entity enhancement
-        return entityValues ? `${message} ${entityValues}` : message;
-    }
+
+    return this.questionTypes.FACTUAL; // Default to factual if no pattern matches
   }
 
-  private async getContext(
-    query: string, 
-    modelIdOrCollections: string | string[], 
-    imageBase64?: string,
-    intentName?: string,
-    intentConfidence?: number,
-    entities?: {[key: string]: any}
-  ): Promise<string> {
-    // Use intent name to select prompt template, defaulting to 'general' if not found
-    const promptTemplate = intentName && this.promptTemplates[intentName as keyof typeof this.promptTemplates] 
-      ? this.promptTemplates[intentName as keyof typeof this.promptTemplates]
-      : this.promptTemplates['general'];
-    
-    // Use intent-based query optimization if intent information is available
-    const optimizedQuery = intentName && intentConfidence 
-      ? this.getContextQueryByIntent(query, intentName, intentConfidence, entities)
-      : query;
-      
-    if (optimizedQuery !== query) {
-      console.log(`Using optimized query for context retrieval: "${optimizedQuery}"`);
-    }
+  private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
+    const questionType = this.detectQuestionType(query);
+    const promptTemplate = this.promptTemplates[questionType];
     
     const collectionNames = await this.resolveCollections(modelIdOrCollections);
     let context = '';
@@ -273,7 +235,7 @@ class ChatService {
         this.sanitizeCollectionName(name)
       );
 
-      const truncatedQuery = optimizedQuery.slice(0, 512);
+      const truncatedQuery = query.slice(0, 512);
       let queryEmbedding = await chromaService.getQueryEmbedding(truncatedQuery);
       let imageEmbedding: number[] | undefined;
       
@@ -381,35 +343,12 @@ class ChatService {
       // console.log("Starting generateResponse with:", modelIdOrCollections);
       
       const lastMessage = messages[messages.length - 1];
-      let detectedIntent = 'general';
-      let intentConfidence = 0;
-      let intentEntities: {[key: string]: any} = {};
       
       // Apply intent classification to the last message
       try {
         const processedMessage = await this.processMessage(lastMessage);
         // Replace the last message with the processed one that includes intent information
         messages[messages.length - 1] = processedMessage;
-        
-        // Extract intent information for specialized handling
-        if (processedMessage.sources && processedMessage.sources.length > 0) {
-          const intentSource = processedMessage.sources.find(source => 
-            source.modelId === 'intent-classifier' && source.metadata?.primaryIntent
-          );
-          
-          if (intentSource) {
-            detectedIntent = intentSource.metadata.primaryIntent;
-            intentConfidence = intentSource.similarity || 0;
-            
-            // Extract entities if available
-            if (intentSource.metadata?.intents?.[0]?.entities) {
-              intentEntities = intentSource.metadata.intents[0].entities;
-            }
-            
-            console.log(`Intent information extracted: ${detectedIntent} (${intentConfidence})`);
-            console.log('Intent entities:', JSON.stringify(intentEntities, null, 2));
-          }
-        }
         
         // If the message was classified as an image generation request with high confidence,
         // update the isImageGeneration flag
@@ -448,13 +387,9 @@ class ChatService {
         recentMessages = [...messages];
       }
       
-      // Skip context retrieval for image generation or when not needed based on intent
+      // Skip context retrieval for image generation
       let context = '';
-      const skipContextIntents = ['greeting', 'farewell', 'gratitude', 'image_generation'];
-      const shouldSkipContext = isImageGeneration || 
-        (skipContextIntents.includes(detectedIntent) && intentConfidence > 0.7);
-      
-      if (!shouldSkipContext) {
+      if (!isImageGeneration) {
         const imageBase64 = lastMessage.images?.[0]?.data;
         try {
           // Ensure query doesn't exceed reasonable length
@@ -464,60 +399,29 @@ class ChatService {
             : query;
             
           context = await this.retryOperation(
-            async () => this.getContext(trimmedQuery, modelIdOrCollections, imageBase64, detectedIntent, intentConfidence, intentEntities),
+            async () => this.getContext(trimmedQuery, modelIdOrCollections, imageBase64),
             'Failed to get context'
           );
         } catch (error) {
           console.error('Error getting context:', error);
           // Continue without context if there's an error
         }
-      } else {
-        console.log(`Skipping context retrieval for intent: ${detectedIntent}`);
       }
       
-      // Use intent information to determine model selection
-      let selectedModel = isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel;
-      
-      console.log('Using intent for response generation:', detectedIntent, 'with confidence:', intentConfidence);
+      // console.log('Retrieved context length:', context.length);
+
+      const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
+      // console.log('Question type:', questionType);
 
       // ดึง system prompt จากฐานข้อมูล
       const dynamicSystemPrompt = await this.getSystemPrompt();
 
-      // Customize system prompt based on intent when confidence is high
-      let systemPrompt = isImageGeneration ? 
-        'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
-        dynamicSystemPrompt;
-        
-      // Enhance system prompt with intent information when confidence is high
-      if (intentConfidence > 0.7) {
-        systemPrompt += `\n\nI've detected that the user's message has the intent: ${detectedIntent}`;
-        
-        if (Object.keys(intentEntities).length > 0) {
-          systemPrompt += ` with these specific entities: ${JSON.stringify(intentEntities)}`;
-        }
-        
-        // Add specific instructions based on intent
-        switch (detectedIntent) {
-          case 'greeting':
-            systemPrompt += '\nRespond with a warm, friendly greeting appropriate for a university assistant.';
-            break;
-          case 'academic_help':
-            systemPrompt += '\nProvide clear, educational responses that help the student understand academic concepts.';
-            break;
-          case 'technical_help':
-            systemPrompt += '\nOffer precise technical guidance to resolve the user\'s issue.';
-            break;
-          case 'course_inquiry':
-            systemPrompt += '\nProvide detailed information about courses, requirements, and educational programs.';
-            break;
-          // Add more customizations for other intents
-        }
-      }
-
       const systemMessages: ChatMessage[] = [
         {
           role: 'system',
-          content: systemPrompt
+          content: isImageGeneration ? 
+            'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
+            dynamicSystemPrompt
         }
       ];
 
@@ -530,7 +434,7 @@ class ChatService {
       }
 
       // Only add context if we have it and not in image generation mode
-      if (context && !shouldSkipContext) {
+      if (context && !isImageGeneration) {
         systemMessages.push({
           role: 'system',
           content: `Context from documents:\n${context}`
@@ -539,24 +443,6 @@ class ChatService {
 
       // Combine system messages with recent user messages only
       const augmentedMessages = [...systemMessages, ...recentMessages];
-
-      // Ensure the last message has proper intent metadata set
-      if (augmentedMessages.length > 0) {
-        const lastAugmentedMessage = augmentedMessages[augmentedMessages.length - 1];
-        if (lastAugmentedMessage.role === 'user') {
-          lastAugmentedMessage.metadata = lastAugmentedMessage.metadata || {};
-          
-          // Set intent information for model configuration
-          if (detectedIntent && intentConfidence > 0) {
-            lastAugmentedMessage.metadata.primaryIntent = detectedIntent;
-            lastAugmentedMessage.metadata.intentConfidence = intentConfidence;
-            
-            if (Object.keys(intentEntities).length > 0) {
-              lastAugmentedMessage.metadata.entities = intentEntities;
-            }
-          }
-        }
-      }
 
       // นับจำนวนข้อความทั้งหมดในการสนทนานี้
       const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
@@ -586,7 +472,7 @@ class ChatService {
 
           // Generate response and send chunks
           let totalTokens = 0;
-          for await (const chunk of bedrockService.chat(augmentedMessages, selectedModel)) {
+          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
             if (typeof chunk === 'string') {
               yield chunk;
             }
@@ -886,12 +772,6 @@ class ChatService {
         console.log('Extracted entities:', JSON.stringify(intents[0].entities, null, 2));
       }
       
-      // Initialize message metadata if not exists
-      message.metadata = message.metadata || {};
-      message.metadata.intents = intents;
-      message.metadata.primaryIntent = intents[0].name;
-      message.metadata.intentConfidence = intents[0].confidence;
-      
       // Add the intent classification to the message metadata or sources
       message.sources = message.sources || [];
       message.sources.push({
@@ -907,70 +787,21 @@ class ChatService {
       
       // Perform specialized handling based on the top intent
       const topIntent = intents[0];
-      const highConfidence = topIntent.confidence > 0.7;
       
-      // Add intent-specific flags to message metadata
-      if (highConfidence) {
-        switch (topIntent.name) {
-          case "image_generation":
-            message.isImageGeneration = true;
-            message.metadata.requiresImageGeneration = true;
-            console.log('Image generation request detected with high confidence');
-            break;
-            
-          case "image_analysis":
-            message.metadata.requiresImageAnalysis = true;
-            console.log('Image analysis request detected with high confidence');
-            break;
-            
-          case "greeting":
-            message.metadata.isGreeting = true;
-            console.log('Greeting detected with high confidence');
-            break;
-            
-          case "farewell":
-            message.metadata.isFarewell = true;
-            console.log('Farewell detected with high confidence');
-            break;
-            
-          case "gratitude":
-            message.metadata.isGratitude = true;
-            console.log('Gratitude detected with high confidence');
-            break;
-            
-          case "academic_help":
-            message.metadata.isAcademicHelp = true;
-            console.log('Academic help request detected with high confidence');
-            break;
-            
-          case "technical_help":
-            message.metadata.isTechnicalHelp = true;
-            console.log('Technical help request detected with high confidence');
-            break;
-            
-          case "course_inquiry":
-          case "enrollment_inquiry":
-          case "schedule_inquiry":
-            message.metadata.isEducationalInquiry = true;
-            console.log('Educational inquiry detected with high confidence');
-            break;
-            
-          case "facility_inquiry":
-            message.metadata.isFacilityInquiry = true;
-            console.log('Facility inquiry detected with high confidence');
-            break;
-            
-          case "feedback":
-            message.metadata.isFeedback = true;
-            console.log('Feedback detected with high confidence');
-            break;
-        }
+      if (topIntent.name === "image_generation" && topIntent.confidence > 0.7) {
+        message.isImageGeneration = true;
+        console.log('Image generation request detected with high confidence');
       }
       
-      // Store intent entities if available
-      if (topIntent.entities && Object.keys(topIntent.entities).length > 0) {
-        message.metadata.entities = topIntent.entities;
+      // Handle image analysis intent - don't trigger image generation
+      if (topIntent.name === "image_analysis" && topIntent.confidence > 0.7) {
+        console.log('Image analysis request detected with high confidence');
+        // Add special flag for image analysis if needed
+        message.metadata = message.metadata || {};
+        message.metadata.requiresImageAnalysis = true;
       }
+      
+      // Add more specialized intent handling here as needed
       
       return message;
     } catch (error) {

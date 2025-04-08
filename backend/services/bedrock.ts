@@ -57,62 +57,6 @@ export class BedrockService {
       temperature: 0.8,  // Higher temperature for more creative image descriptions
       topP: 0.95,
       maxTokens: 3000
-    },
-    // Intent-specific configurations
-    greeting: {
-      temperature: 0.7,  // Friendly, conversational temperature
-      topP: 0.95,
-      maxTokens: 1000,  // Shorter responses for greetings
-    },
-    farewell: {
-      temperature: 0.7,  // Friendly, conversational temperature
-      topP: 0.95,
-      maxTokens: 1000,  // Shorter responses for farewells
-    },
-    gratitude: {
-      temperature: 0.7,  // Friendly, conversational temperature
-      topP: 0.95,
-      maxTokens: 1000,  // Shorter responses for thank you messages
-    },
-    academic_help: {
-      temperature: 0.5,  // Moderate temperature for educational responses
-      topP: 0.92,
-      maxTokens: 3500,  // Longer responses for academic help
-    },
-    course_inquiry: {
-      temperature: 0.4,  // Lower temperature for precise information
-      topP: 0.9,
-      maxTokens: 3000,
-    },
-    enrollment_inquiry: {
-      temperature: 0.4,  // Lower temperature for precise information
-      topP: 0.9,
-      maxTokens: 3000,
-    },
-    schedule_inquiry: {
-      temperature: 0.4,  // Lower temperature for precise information
-      topP: 0.9,
-      maxTokens: 3000,
-    },
-    facility_inquiry: {
-      temperature: 0.4,  // Lower temperature for precise information
-      topP: 0.9,
-      maxTokens: 3000,
-    },
-    technical_help: {
-      temperature: 0.3,  // Lower temperature for technical precision
-      topP: 0.9,
-      maxTokens: 3000,
-    },
-    feedback: {
-      temperature: 0.7,  // Higher temperature for more nuanced responses
-      topP: 0.95,
-      maxTokens: 2500,
-    },
-    image_analysis: {
-      temperature: 0.4,  // Lower temperature for accuracy
-      topP: 0.9,
-      maxTokens: 3000,
     }
   };
 
@@ -162,44 +106,36 @@ export class BedrockService {
     }
   }
 
+  private detectMessageType(messages: ChatMessage[]): string {
+    const lastMessage = messages[messages.length - 1];
+    const query = lastMessage.content.toLowerCase();
+    const hasImage = lastMessage.images && lastMessage.images.length > 0;
+    const hasFiles = lastMessage.files && lastMessage.files.length > 0;
+
+    if (hasFiles || hasImage) return 'visual';
+    if (/^(what|when|where|who|which|how many|how much)/i.test(query)) return 'factual';
+    if (/^(why|how|what if|analyze|compare|contrast)/i.test(query)) return 'analytical';
+    if (/^(explain|describe|define|what is|what are|how does)/i.test(query)) return 'conceptual';
+    if (/^(how to|how do|what steps|how can|show me how)/i.test(query)) return 'procedural';
+    if (/^(can you clarify|what do you mean|please explain|elaborate)/i.test(query)) return 'clarification';
+
+    return 'factual'; // Default
+  }
+
   private getModelConfig(messages: ChatMessage[]): ModelConfig {
     const lastMessage = messages[messages.length - 1];
     
-    // Check for image generation intent
     if (lastMessage.isImageGeneration) {
       return {
         ...this.defaultConfig,
         ...this.questionTypeConfigs.imageGeneration
       };
     }
-    
-    // Check for intent information in message metadata
-    if (lastMessage.metadata) {
-      const primaryIntent = lastMessage.metadata.primaryIntent;
-      const intentConfidence = lastMessage.metadata.intentConfidence;
-      
-      // Use intent-specific config when confidence is high enough
-      if (primaryIntent && intentConfidence && intentConfidence > 0.6 && this.questionTypeConfigs[primaryIntent]) {
-        console.log(`Using intent-specific model config for: ${primaryIntent} (confidence: ${intentConfidence})`);
-        return {
-          ...this.defaultConfig,
-          ...this.questionTypeConfigs[primaryIntent]
-        };
-      }
-      
-      // Check for specific intent flags for backward compatibility
-      if (lastMessage.metadata.requiresImageAnalysis) {
-        return {
-          ...this.defaultConfig,
-          ...this.questionTypeConfigs.image_analysis
-        };
-      }
-    }
 
-    // Default to general config if no intent is detected
+    const messageType = this.detectMessageType(messages);
     return {
       ...this.defaultConfig,
-      ...this.questionTypeConfigs.factual // Use factual as the default
+      ...this.questionTypeConfigs[messageType]
     };
   }
 
