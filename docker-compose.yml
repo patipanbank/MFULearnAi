@@ -30,10 +30,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
     depends_on:
-      chroma:
-        condition: service_healthy
-      db:
-        condition: service_started
+      -chroma
+      db
     networks:
       - mfulearnai
     restart: unless-stopped
@@ -83,12 +81,8 @@ services:
       - chroma:/chroma/chroma
     networks:
       - mfulearnai
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 10s
-      timeout: 600s
-      retries: 5
     restart: unless-stopped
+
 
 volumes:
   data:
