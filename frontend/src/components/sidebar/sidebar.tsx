@@ -211,7 +211,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
       
       // Redirect current tab to ADFS logout
-      window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
+      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
