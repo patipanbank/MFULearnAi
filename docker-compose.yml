@@ -84,9 +84,9 @@ services:
     networks:
       - mfulearnai
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/heartbeat"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
       interval: 10s
-      timeout: 5s
+      timeout: 600s
       retries: 5
     restart: unless-stopped
 
