@@ -207,15 +207,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       localStorage.clear();
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       
-      // Redirect to ADFS logout
-      window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
+      // Open login page in new tab
+      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
       
-      // After 2 seconds, check if we're on the ADFS logout page and go back
-      setTimeout(() => {
-        if (window.location.href.includes('https://authsso.mfu.ac.th/adfs/ls/')) {
-          window.location.href = 'https://mfulearnai.mfu.ac.th/mfuchatbot';
-        }
-      }, 2000);
+      // Redirect current tab to ADFS logout
+      window.location.href = 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0';
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
