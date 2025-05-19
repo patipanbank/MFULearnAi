@@ -208,10 +208,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       
       // Open login page in new tab
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
       
       // Redirect current tab to ADFS logout
-      window.location.href = 'https://mfulearnai.mfu.ac.th/login';
+      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
