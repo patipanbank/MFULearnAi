@@ -6,7 +6,8 @@ const Login: React.FC = () => {
   // const [showLogin, setShowLogin] = useState(false);
   // const [name, setName] = useState('');
   const handleMFUSSOLogin = () => {
-    window.location.href = `${config.apiUrl}/api/auth/login/saml`;
+    // Force re-authentication by adding forceAuthn parameter
+    window.location.href = `${config.apiUrl}/api/auth/login/saml?forceAuthn=true`;
   };
 
   const handleAdminLogin = () => {
