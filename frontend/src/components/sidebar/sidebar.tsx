@@ -212,8 +212,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       
       // After 2 seconds, check if we're on the ADFS logout page and go back
       setTimeout(() => {
-        if (window.location.href === 'https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0') {
-          window.history.back();
+        if (window.location.href.includes('https://authsso.mfu.ac.th/adfs/ls/')) {
+          window.location.href = 'https://mfulearnai.mfu.ac.th/mfuchatbot';
         }
       }, 2000);
     } catch (error) {
