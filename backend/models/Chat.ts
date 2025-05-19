@@ -4,7 +4,7 @@ import { Schema } from 'mongoose';
 interface ChatMessage {
   id: number | string;
   role: string;
-  content: string;
+  content: string;  
   timestamp?: Date;
   images?: Array<{
     data: string;
