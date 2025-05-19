@@ -205,8 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     try {
       localStorage.clear();
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      // เปลี่ยนจากการเรียก ADFS โดยตรง เป็นเรียกผ่าน API endpoint
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      window.location.href = 'https://mfulearnai.mfu.ac.th/login';
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
