@@ -208,9 +208,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       // เปลี่ยนจากการเรียก ADFS โดยตรง เป็นเรียกผ่าน API endpoint
       window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
       
-      // เพิ่ม setTimeout เพื่อกดปุ่มย้อนกลับหลังจาก 2 วินาที
+      // เพิ่ม setTimeout เพื่อ redirect กลับมาหน้า login หลังจาก 2 วินาที
       setTimeout(() => {
-        window.history.back();
+        window.location.href = '/login';
       }, 2000);
     } catch (error) {
       console.error('Logout error:', error);
