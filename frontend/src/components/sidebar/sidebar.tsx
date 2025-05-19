@@ -207,13 +207,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       localStorage.clear();
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       
-      // Redirect to SAML logout
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      // Open login page in new tab
+      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
       
-      // Set timeout to redirect to login page after 3 seconds
-      setTimeout(() => {
-        window.location.href = 'https://mfulearnai.mfu.ac.th/login';
-      }, 3000);
+      // Redirect current tab to ADFS logout
+      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
