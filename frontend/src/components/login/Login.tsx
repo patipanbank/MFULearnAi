@@ -1,13 +1,16 @@
 // import React,{useState} from 'react';
 // import { useNavigate } from 'react-router-dom';
 import { config } from '../../config/config';
+import { useEffect } from 'react';
 // import axios from 'axios';
 const Login: React.FC = () => {
   // const [showLogin, setShowLogin] = useState(false);
   // const [name, setName] = useState('');
-  const handleMFUSSOLogin = () => {
+
+  useEffect(() => {
+    // Automatically redirect to SSO login
     window.location.href = `${config.apiUrl}/api/auth/login/saml`;
-  };
+  }, []);
 
   const handleAdminLogin = () => {
     window.location.href = import.meta.env.VITE_ADMIN_LOGIN_URL;
@@ -61,12 +64,6 @@ const Login: React.FC = () => {
           </p>
         </div>
         <div className="mt-8">
-          <button
-            onClick={handleMFUSSOLogin}
-            className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            Login with MFU SSO
-          </button>
           <div className="mt-2 text-right">
             <button 
               onClick={handleAdminLogin}
