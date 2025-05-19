@@ -30,8 +30,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
     depends_on:
-      -chroma
-      db
+      - chroma
+      - db
     networks:
       - mfulearnai
     restart: unless-stopped
