@@ -217,13 +217,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   const handleAdminLogout = () => {
-    alert('isAdminRole: ' + isAdminRole() + '\ngroups: ' + JSON.stringify(userData.groups));
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
     document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    setTimeout(() => {
-      window.location.href = '/admin/login';
-    }, 2000); // รอ 2 วินาทีเพื่อดู alert
+    window.location.href = '/admin/login';
   };
 
   const handleDelete = async (chatId: string) => {
@@ -372,14 +369,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   if (process.env.NODE_ENV === 'development') {
     // console.log('Sorted chats:', sortedChats);
   }
-
-  // ฟังก์ชันตรวจสอบ role แบบ RoleGuard ที่ robust ขึ้น
-  const isAdminRole = () => {
-    // เช็คทั้ง userData.role และ userData.groups (case-insensitive)
-    const role = (userData.role || '').toLowerCase();
-    const groups = (userData.groups || []).map((g: string) => g.toLowerCase());
-    return role === 'admin' || role === 'superadmin' || groups.includes('admin') || groups.includes('superadmin');
-  };
 
   return (
     <aside className="flex flex-col h-full">
@@ -648,7 +637,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64 z-40">
         <div className="p-4">
           <button
-            onClick={isAdminRole() ? handleAdminLogout : handleLogout}
+            onClick={userData.groups?.includes('Admin') || userData.groups?.includes('SuperAdmin') ? handleAdminLogout : handleLogout}
             className="w-full flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700"
           >
             <FaSignOutAlt className="w-5 h-5 mr-3 flex-shrink-0" />
