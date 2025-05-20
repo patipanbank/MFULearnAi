@@ -373,14 +373,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // console.log('Sorted chats:', sortedChats);
   }
 
-  // ฟังก์ชันตรวจสอบ role แบบ RoleGuard
+  // ฟังก์ชันตรวจสอบ role แบบ RoleGuard ที่ robust ขึ้น
   const isAdminRole = () => {
-    const userGroups = (userData.groups || []).map((g: string) => g.toLowerCase());
-    console.log('userGroups:', userGroups);
-    const isAdmin = userGroups.includes('admin');
-    const isSuperAdmin = userGroups.includes('superadmin');
-    console.log('isAdmin:', isAdmin, 'isSuperAdmin:', isSuperAdmin);
-    return isAdmin || isSuperAdmin;
+    // เช็คทั้ง userData.role และ userData.groups (case-insensitive)
+    const role = (userData.role || '').toLowerCase();
+    const groups = (userData.groups || []).map((g: string) => g.toLowerCase());
+    return role === 'admin' || role === 'superadmin' || groups.includes('admin') || groups.includes('superadmin');
   };
 
   return (
