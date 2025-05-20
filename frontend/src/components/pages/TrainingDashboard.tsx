@@ -1201,6 +1201,24 @@ const TrainingDashboard: React.FC = () => {
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
                     {collection.name}
                   </h2>
+                  {collection.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                      {collection.description}
+                    </p>
+                  )}
+                  {collection.keywords && collection.keywords.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {collection.keywords.map((keyword, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs
+                            bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="mt-auto space-y-2">
                   <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">

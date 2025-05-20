@@ -299,7 +299,9 @@ export const useModelStore = create<ModelState>((set, get) => ({
         name: collection.name || '',
         createdBy: collection.createdBy || 'Unknown',
         created: collection.created || collection.createdAt || new Date().toISOString(),
-        permission: collection.permission || 'PUBLIC'
+        permission: collection.permission || 'PUBLIC',
+        description: collection.description || '',
+        keywords: collection.keywords || []
       }));
 
       setAvailableCollections(transformedCollections);
