@@ -207,11 +207,8 @@ router.get('/logout/saml', (req, res) => {
     // const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
     // const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    // เพิ่ม redirect URL กลับไปหน้า login หลัง logout
-    const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
-    const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
-    // สมมติ SSO รองรับ wreply (เช่น ADFS)
-    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}?wreply=${returnUrl}`;
+
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}`;    
     res.redirect(logoutUrl);
   });
 });
