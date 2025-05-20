@@ -202,11 +202,16 @@ router.get('/logout', (req, res) => {
 });
 
 router.get('/logout/saml', (req, res) => {
+  // ลบ session ฝั่งแอป (เช่น passport session, cookie ฯลฯ)
   req.logout(() => {
+    // ป้องกัน cache
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    // เตรียม URL สำหรับ redirect กลับหลัง logout SSO
     const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
     const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
+    // สร้าง SAML SLO endpoint พร้อม wreply
     const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
+    // redirect ไป SAML SLO endpoint
     res.redirect(logoutUrl);
   });
 });
