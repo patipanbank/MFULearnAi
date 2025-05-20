@@ -8,6 +8,7 @@ import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
+import { CollectionModel } from '../models/Collection';
 
 interface QueryResult {
   text: string;
@@ -221,14 +222,185 @@ class ChatService {
     return this.questionTypes.FACTUAL; // Default to factual if no pattern matches
   }
 
+  /**
+   * Selects relevant collections based on query similarity
+   */
+  private async selectRelevantCollections(query: string, modelId: string): Promise<string[]> {
+    try {
+      // Get all collections for the model
+      const model = await ModelModel.findById(modelId);
+      if (!model) {
+        console.error('Model not found:', modelId);
+        return [];
+      }
+
+      // Get collection details
+      const collections = await CollectionModel.find({
+        name: { $in: model.collections }
+      });
+
+      if (collections.length === 0) {
+        return [];
+      }
+
+      // Create text for similarity comparison
+      const collectionTexts = collections.map(collection => ({
+        name: collection.name,
+        text: [
+          collection.name,
+          collection.description || '',
+          (collection.keywords || []).join(' ')
+        ].join(' ')
+      }));
+
+      // Get query embedding
+      const queryEmbedding = await chromaService.getQueryEmbedding(query);
+
+      // Calculate similarity scores
+      const similarityScores = await Promise.all(
+        collectionTexts.map(async ({ name, text }) => {
+          const textEmbedding = await chromaService.getQueryEmbedding(text);
+          const similarity = this.calculateCosineSimilarity(queryEmbedding, textEmbedding);
+          return { name, similarity };
+        })
+      );
+
+      // Sort by similarity and select top collections
+      const MIN_SIMILARITY_THRESHOLD = 0.3;
+      const selectedCollections = similarityScores
+        .filter(({ similarity }) => similarity >= MIN_SIMILARITY_THRESHOLD)
+        .sort((a, b) => b.similarity - a.similarity)
+        .map(({ name }) => name);
+
+      // If no collections meet threshold, return top 2 most similar
+      if (selectedCollections.length === 0) {
+        return similarityScores
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, 2)
+          .map(({ name }) => name);
+      }
+
+      return selectedCollections;
+    } catch (error) {
+      console.error('Error selecting relevant collections:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Calculate cosine similarity between two vectors
+   */
+  private calculateCosineSimilarity(vec1: number[], vec2: number[]): number {
+    const dotProduct = vec1.reduce((sum, val, i) => sum + val * vec2[i], 0);
+    const magnitude1 = Math.sqrt(vec1.reduce((sum, val) => sum + val * val, 0));
+    const magnitude2 = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
+    return dotProduct / (magnitude1 * magnitude2);
+  }
+
+  /**
+   * Generates metadata (description and keywords) for a collection based on its content
+   */
+  private async generateCollectionMetadata(collectionName: string): Promise<{ description: string; keywords: string[] }> {
+    try {
+      // Get documents from the collection
+      const queryResult = await chromaService.queryDocumentsWithEmbedding(
+        this.sanitizeCollectionName(collectionName),
+        await chromaService.getQueryEmbedding("What is this collection about?"),
+        10 // Get top 10 most relevant documents
+      ) as ChromaQueryResult;
+
+      if (!queryResult?.documents || queryResult.documents.length === 0) {
+        return {
+          description: `Collection: ${collectionName}`,
+          keywords: [collectionName]
+        };
+      }
+
+      // Combine document content
+      const combinedContent = queryResult.documents.join('\n');
+
+      // Generate description using Bedrock
+      const descriptionPrompt = `Based on the following content, write a brief description (2-3 sentences) of what this collection is about:\n\n${combinedContent}`;
+      let description = '';
+      for await (const chunk of bedrockService.chat([{ role: 'user', content: descriptionPrompt }])) {
+        description += chunk;
+      }
+
+      // Generate keywords using Bedrock
+      const keywordsPrompt = `Based on the following content, extract 5-7 most important keywords or key phrases that best represent this collection. Return only the keywords separated by commas:\n\n${combinedContent}`;
+      let keywordsResponse = '';
+      for await (const chunk of bedrockService.chat([{ role: 'user', content: keywordsPrompt }])) {
+        keywordsResponse += chunk;
+      }
+
+      // Process keywords
+      const keywords = keywordsResponse
+        .split(',')
+        .map(k => k.trim())
+        .filter(k => k.length > 0)
+        .slice(0, 7); // Limit to 7 keywords
+
+      return {
+        description: description.trim(),
+        keywords: keywords
+      };
+    } catch (error) {
+      console.error('Error generating collection metadata:', error);
+      return {
+        description: `Collection: ${collectionName}`,
+        keywords: [collectionName]
+      };
+    }
+  }
+
+  /**
+   * Updates collection metadata if it's missing
+   */
+  private async ensureCollectionMetadata(collectionName: string): Promise<void> {
+    try {
+      const collection = await CollectionModel.findOne({ name: collectionName });
+      if (!collection) return;
+
+      // Check if metadata is missing or empty
+      if (!collection.description || !collection.keywords || collection.keywords.length === 0) {
+        const metadata = await this.generateCollectionMetadata(collectionName);
+        
+        await CollectionModel.updateOne(
+          { name: collectionName },
+          {
+            $set: {
+              description: metadata.description,
+              keywords: metadata.keywords
+            }
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error ensuring collection metadata:', error);
+    }
+  }
+
+  // Modify getContext to ensure metadata exists
   private async getContext(query: string, modelIdOrCollections: string | string[], imageBase64?: string): Promise<string> {
     const questionType = this.detectQuestionType(query);
     const promptTemplate = this.promptTemplates[questionType];
     
-    const collectionNames = await this.resolveCollections(modelIdOrCollections);
+    // Get model ID if collections array is provided
+    const modelId = Array.isArray(modelIdOrCollections) ? null : modelIdOrCollections;
+    
+    // Select relevant collections
+    const collectionNames = modelId 
+      ? await this.selectRelevantCollections(query, modelId)
+      : await this.resolveCollections(modelIdOrCollections);
+
+    // Ensure metadata exists for selected collections
+    await Promise.all(
+      collectionNames.map(name => this.ensureCollectionMetadata(name))
+    );
+
     let context = '';
 
-    // ดึงข้อมูลจาก collections ก่อน
+    // ดึงข้อมูลจาก collections ที่เลือก
     if (collectionNames.length > 0) {
       const sanitizedCollections = collectionNames.map(name => 
         this.sanitizeCollectionName(name)
