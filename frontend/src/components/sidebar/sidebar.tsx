@@ -207,10 +207,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       localStorage.clear();
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       
-      // First call SAML logout
+      // Redirect to SAML logout endpoint
       window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
       
-
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
