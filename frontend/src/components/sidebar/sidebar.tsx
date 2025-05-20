@@ -208,12 +208,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       
       // First call SAML logout
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      window.location.href = 'https://mfulearnai.mfu.ac.th/login';
       
       // After SAML logout completes, redirect to login page
-      setTimeout(() => {
-        window.location.href = 'https://mfulearnai.mfu.ac.th/login';
-      }, 1000);
+      // setTimeout(() => {
+      //   window.location.href = 'https://mfulearnai.mfu.ac.th/login';
+      // }, 1000);
 
     } catch (error) {
       console.error('Logout error:', error);
