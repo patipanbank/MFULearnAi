@@ -370,7 +370,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // console.log('Sorted chats:', sortedChats);
   }
 
-  console.log('Sidebar userData', userData);
+  //console.log('Sidebar userData', userData);
 
   return (
     <aside className="flex flex-col h-full">
