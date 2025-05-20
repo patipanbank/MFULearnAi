@@ -203,10 +203,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const handleLogout = async () => {
     try {
+      // เปิด SSO SLO ใน tab ใหม่
+      window.open(`${config.apiUrl}/api/auth/logout/saml`, '_blank');
+      // ลบ session/token ฝั่งแอป
       localStorage.clear();
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      // เปลี่ยนจากการเรียก ADFS โดยตรง เป็นเรียกผ่าน API endpoint
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      // redirect tab เดิมไป /login
+      window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
