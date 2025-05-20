@@ -217,11 +217,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   const handleAdminLogout = () => {
-    console.log('Admin logout called');
+    alert('isAdminRole: ' + isAdminRole() + '\ngroups: ' + JSON.stringify(userData.groups));
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
     document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = '/admin/login';
+    setTimeout(() => {
+      window.location.href = '/admin/login';
+    }, 2000); // รอ 2 วินาทีเพื่อดู alert
   };
 
   const handleDelete = async (chatId: string) => {
