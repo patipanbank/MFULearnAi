@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
-import { Collection, CollectionPermission } from '../../types/collection';
+import { Collection, CollectionPermission } from '../models/utils/types';
 
 // ----------------------
 // Type Definitions

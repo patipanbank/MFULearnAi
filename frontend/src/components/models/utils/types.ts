@@ -17,6 +17,12 @@ export interface Collection {
   permission: CollectionPermission | string[] | undefined;
   description?: string;
   keywords?: string[];
+  lastModified?: string;
+  modificationHistory?: {
+    timestamp: string;
+    action: string;
+    details: string;
+  }[];
 }
 
 export enum CollectionPermission {

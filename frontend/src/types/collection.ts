@@ -9,6 +9,8 @@ export interface Collection {
   createdBy: string;
   created: string;
   permission: CollectionPermission | string[] | undefined;
+  description?: string;
+  keywords?: string[];
   lastModified?: string;
   modificationHistory?: {
     timestamp: string;
