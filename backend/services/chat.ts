@@ -322,14 +322,14 @@ class ChatService {
       // Generate description using Bedrock
       const descriptionPrompt = `Based on the following content, write a brief description (2-3 sentences) of what this collection is about:\n\n${combinedContent}`;
       let description = '';
-      for await (const chunk of bedrockService.chat([{ role: 'user', content: descriptionPrompt }])) {
+      for await (const chunk of bedrockService.chat([{ role: 'user', content: descriptionPrompt }], bedrockService.chatModel)) {
         description += chunk;
       }
 
       // Generate keywords using Bedrock
       const keywordsPrompt = `Based on the following content, extract 5-7 most important keywords or key phrases that best represent this collection. Return only the keywords separated by commas:\n\n${combinedContent}`;
       let keywordsResponse = '';
-      for await (const chunk of bedrockService.chat([{ role: 'user', content: keywordsPrompt }])) {
+      for await (const chunk of bedrockService.chat([{ role: 'user', content: keywordsPrompt }], bedrockService.chatModel)) {
         keywordsResponse += chunk;
       }
 
