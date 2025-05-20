@@ -202,21 +202,13 @@ router.get('/logout', (req, res) => {
 });
 
 router.get('/logout/saml', (req, res) => {
-  // ตรวจสอบว่ามี session SSO หรือไม่ (เช่น req.isAuthenticated() หรือ session passport)
-  // ถ้าใช้ JWT จริง ๆ อาจต้องเช็ค cookie หรือ header อื่น ๆ ที่เกี่ยวข้องกับ SSO
-  // ตัวอย่างนี้ใช้ req.isAuthenticated() ถ้ามี session passport
-  const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    req.logout(() => {
-      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
-      const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
-      res.redirect(logoutUrl);
-    });
-  } else {
-    // ไม่มี session SSO แล้ว (หรือ logout ไปแล้ว) ให้ redirect กลับ /login ทันที
-    res.redirect(`${frontendUrl}/login`);
-  }
+  req.logout(() => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    const frontendUrl = process.env.FRONTEND_URL || 'https://mfulearnai.mfu.ac.th';
+    const returnUrl = encodeURIComponent(`${frontendUrl}/login`);
+    const logoutUrl = `${process.env.SAML_IDP_SLO_URL}&wreply=${returnUrl}`;
+    res.redirect(logoutUrl);
+  });
 });
 
 router.get('/metadata', (req, res) => {
