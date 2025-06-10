@@ -586,6 +586,7 @@ class ChatService {
         ...msg,
         timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
         images: msg.images || [],
+        files: msg.files || [],
         sources: msg.sources || [],
         isImageGeneration: msg.isImageGeneration || false,
         isComplete: msg.isComplete || false
@@ -622,6 +623,7 @@ class ChatService {
               ...msg,
               timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
               images: msg.images || [],
+              files: msg.files || [],
               sources: msg.sources || [],
               isImageGeneration: msg.isImageGeneration || false,
               isComplete: msg.isComplete || false
