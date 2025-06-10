@@ -530,7 +530,8 @@ class ChatService {
     const chats = await Chat.find({ userId })
       .sort({ updatedAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .select('+messages.files.data');
     
     const total = await Chat.countDocuments({ userId });
     const totalPages = Math.ceil(total / limit);
@@ -550,7 +551,8 @@ class ChatService {
         throw new Error('Invalid chat ID format');
       }
 
-      const chat = await Chat.findOne({ _id: chatId, userId });
+      const chat = await Chat.findOne({ _id: chatId, userId })
+        .select('+messages.files.data');
       if (!chat) {
         throw new Error('Chat not found');
       }
