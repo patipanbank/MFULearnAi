@@ -1,11 +1,10 @@
 import React, { useState, useEffect, memo } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Message, MessageFile } from '../utils/types';
+import { Message } from '../utils/types';
 import FileIcon from './FileIcon';
 import { formatFileSize } from '../utils/formatters';
 import { MdEdit } from 'react-icons/md';
-import FileViewerModal from './FileViewerModal';
 
 interface MessageContentProps {
   message: Message;
@@ -14,8 +13,6 @@ interface MessageContentProps {
 const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [contentKey, setContentKey] = useState<number>(0);
-  const [selectedFile, setSelectedFile] = useState<MessageFile | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Force component to re-render when message.content changes
   useEffect(() => {
@@ -29,15 +26,18 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  // Handle file open in modal
-  const handleFileOpen = (file: MessageFile) => {
-    setSelectedFile(file);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedFile(null);
+  // Handle file open in new tab
+  const handleFileOpen = (file: any) => {
+    if (!file || !file.data || !file.mediaType) {
+      alert("File data is missing or corrupted");
+      return;
+    }
+    
+    try {
+      window.open(`data:${file.mediaType};base64,${file.data}`, '_blank');
+    } catch (error) {
+      alert("Unable to open file. The file might be corrupted.");
+    }
   };
 
   const renderContent = (content: string) => {
@@ -112,7 +112,7 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
                 className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-600 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors"
                 onClick={() => handleFileOpen(file)}
               >
-                <FileIcon fileName={file.name} type={file.mediaType} />
+                <FileIcon type={file.mediaType} />
                 <div className="flex flex-col">
                   <span className="text-sm font-medium truncate">{file.name}</span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</span>
@@ -132,13 +132,6 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
           />
         </div>
       )}
-
-      {/* File Viewer Modal */}
-      <FileViewerModal
-        file={selectedFile}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-      />
     </div>
   );
 });
