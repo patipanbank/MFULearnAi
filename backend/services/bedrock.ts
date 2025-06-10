@@ -19,7 +19,7 @@ export class BedrockService {
     temperature: 0.7,
     topP: 0.99,
     maxTokens: 3000
-  };
+  }; 
 
   private readonly questionTypeConfigs: { [key: string]: ModelConfig } = {
     factual: {
