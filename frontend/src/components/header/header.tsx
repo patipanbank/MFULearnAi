@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 const Header = () => {
   // ดึงข้อมูลผู้ใช้จาก localStorage
@@ -31,7 +30,6 @@ const Header = () => {
               backgroundClip: 'text'
             }}> AI</span>
           </h2>
-          <DarkModeToggle />
         </div>
 
         {/* User Info */}
