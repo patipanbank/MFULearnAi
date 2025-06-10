@@ -22,14 +22,18 @@ const DarkModeToggle = () => {
 
   return (
     <div className="flex items-center gap-3">
-      {/* Icon display only */}
-      <div className="p-2">
+      {/* Clickable Icon */}
+      <button 
+        onClick={toggleDarkMode}
+        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        aria-label="Toggle dark mode"
+      >
         {isDarkMode ? (
           <FaSun className="w-5 h-5 text-yellow-500" />
         ) : (
           <FaMoon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
         )}
-      </div>
+      </button>
       
       {/* Clickable text */}
       <button
