@@ -11,7 +11,7 @@ interface ModelConfig {
 export class BedrockService {
   private client: BedrockRuntimeClient;
   public models = {
-    claude35: "anthropic.claude-sonnet-4-20250514-v1:0",
+    claude4: "anthropic.claude-sonnet-4-20250514-v1:0",
     titanImage: "amazon.titan-image-generator-v1"  // Updated to image generator model
   };
 
@@ -60,7 +60,7 @@ export class BedrockService {
     }
   };
 
-  public chatModel = this.models.claude35;
+  public chatModel = this.models.claude4;
 
   private lastTokenUsage = 0;
 
@@ -208,7 +208,7 @@ export class BedrockService {
       }
 
       const command = new InvokeModelWithResponseStreamCommand({
-        modelId: this.models.claude35,
+        modelId: this.models.claude4,
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify({
