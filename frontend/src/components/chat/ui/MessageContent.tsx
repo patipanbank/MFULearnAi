@@ -5,6 +5,7 @@ import { Message } from '../utils/types';
 import FileIcon from './FileIcon';
 import { formatFileSize } from '../utils/formatters';
 import { MdEdit } from 'react-icons/md';
+import { BaseModal } from '../../models/ui/BaseModal';
 
 interface MessageContentProps {
   message: Message;
@@ -13,6 +14,7 @@ interface MessageContentProps {
 const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [contentKey, setContentKey] = useState<number>(0);
+  const [openFileModal, setOpenFileModal] = useState<{ file: any; type: 'image' | 'file' } | null>(null);
   
   // Force component to re-render when message.content changes
   useEffect(() => {
@@ -26,17 +28,17 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  // Handle file open in new tab
+  // Handle file open in modal
   const handleFileOpen = (file: any) => {
     if (!file || !file.data || !file.mediaType) {
       alert("File data is missing or corrupted");
       return;
     }
-    
-    try {
-      window.open(`data:${file.mediaType};base64,${file.data}`, '_blank');
-    } catch (error) {
-      alert("Unable to open file. The file might be corrupted.");
+    // Check if image
+    if (file.mediaType.startsWith('image/')) {
+      setOpenFileModal({ file, type: 'image' });
+    } else {
+      setOpenFileModal({ file, type: 'file' });
     }
   };
 
@@ -96,7 +98,7 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
                 src={`data:${image.mediaType};base64,${image.data}`}
                 alt={`Attached image ${idx + 1}`}
                 className="max-h-60 rounded-lg cursor-pointer"
-                onClick={() => window.open(`data:${image.mediaType};base64,${image.data}`, '_blank')}
+                onClick={() => setOpenFileModal({ file: image, type: 'image' })}
               />
             ) : null
           ))}
@@ -131,6 +133,31 @@ const MessageContent: React.FC<MessageContentProps> = memo(({ message }) => {
             className="max-h-96 mx-auto rounded-lg"
           />
         </div>
+      )}
+      {openFileModal && (
+        <BaseModal onClose={() => setOpenFileModal(null)} containerClasses="max-w-2xl w-full">
+          <div className="flex flex-col items-center justify-center">
+            {openFileModal.type === 'image' ? (
+              <img
+                src={`data:${openFileModal.file.mediaType};base64,${openFileModal.file.data}`}
+                alt={openFileModal.file.name || 'Preview'}
+                className="max-h-[70vh] max-w-full rounded-lg"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <FileIcon type={openFileModal.file.mediaType} fileName={openFileModal.file.name} />
+                <div className="text-lg font-semibold">{openFileModal.file.name}</div>
+                <a
+                  href={`data:${openFileModal.file.mediaType};base64,${openFileModal.file.data}`}
+                  download={openFileModal.file.name}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                >
+                  Download File
+                </a>
+              </div>
+            )}
+          </div>
+        </BaseModal>
       )}
     </div>
   );
