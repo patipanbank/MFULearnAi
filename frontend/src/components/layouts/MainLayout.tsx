@@ -27,7 +27,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <div className="fixed top-0 right-0 left-0 lg:left-64 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center px-4 h-16">
             <button
-              className="p-2"
+              className="p-2 lg:hidden"
               onClick={() => setIsSidebarOpen(true)}
             >
               <FaBars className="h-6 w-6 dark:text-gray-200" />
@@ -38,7 +38,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
         {isSidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-45"
+            className="fixed inset-0 bg-black bg-opacity-50 z-45 lg:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
