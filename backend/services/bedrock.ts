@@ -11,7 +11,7 @@ interface ModelConfig {
 export class BedrockService {
   private client: BedrockRuntimeClient;
   public models = {
-    claude35: "anthropic.claude-sonnet-4-20250514-v1:0",
+    claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
     titanImage: "amazon.titan-image-generator-v1"  // Updated to image generator model
   };
 
