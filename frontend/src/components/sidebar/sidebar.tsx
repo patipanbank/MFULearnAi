@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding } from 'react-icons/fa';
 import { config } from '../../config/config';
-import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -369,16 +368,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   return (
     <aside className="flex flex-col h-full">
       <div className="flex-none p-4 border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <DarkModeToggle />
-            <button
-              onClick={onClose}
-              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
-            >
-              <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-            </button>
-          </div>
+        <div className="flex items-center justify-end">
+          <button
+            onClick={onClose}
+            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+          >
+            <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+          </button>
         </div>
       </div>
 

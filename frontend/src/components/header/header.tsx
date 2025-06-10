@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DarkModeToggle from '../darkmode/DarkModeToggle';
 
 const Header = () => {
   // ดึงข้อมูลผู้ใช้จาก localStorage
@@ -14,7 +15,7 @@ const Header = () => {
     <header className="w-full">
       <nav className="flex items-center justify-between px-6 py-4 w-full">
         {/* DINDIN AI Logo */}
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white">
             <span style={{
               background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
@@ -30,6 +31,7 @@ const Header = () => {
               backgroundClip: 'text'
             }}> AI</span>
           </h2>
+          <DarkModeToggle />
         </div>
 
         {/* User Info */}
