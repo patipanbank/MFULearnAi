@@ -570,7 +570,7 @@ class ChatService {
     }
   }
 
-  async saveChat(userId: string, modelId: string, messages: any[]) {
+  async saveChat(userId: string, modelId: string, messages: ChatMessage[]) {
     try {
       // บันทึกสถิติก่อนที่จะบันทึกแชท
       await this.updateDailyStats(userId);
@@ -582,11 +582,11 @@ class ChatService {
       const lastMessage = messages[messages.length - 1];
       const name = lastMessage.content.substring(0, 50);
 
-      const processedMessages = messages.map(msg => ({
+      const processedMessages = messages.map((msg: ChatMessage) => ({
         ...msg,
         timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
         images: msg.images || [],
-        files: msg.files ? msg.files.map(file => ({ ...file, data: file.data })) : [],
+        files: msg.files ? msg.files.map((file: any) => ({ ...file, data: file.data })) : [],
         sources: msg.sources || [],
         isImageGeneration: msg.isImageGeneration || false,
         isComplete: msg.isComplete || false
@@ -608,7 +608,7 @@ class ChatService {
     }
   }
 
-  async updateChat(chatId: string, userId: string, messages: any[]) {
+  async updateChat(chatId: string, userId: string, messages: ChatMessage[]) {
     try {
       if (!this.isValidObjectId(chatId)) {
         throw new Error('Invalid chat ID format');
@@ -619,11 +619,11 @@ class ChatService {
         {
           $set: {
             name: messages[messages.length - 1].content.substring(0, 50),
-            messages: messages.map(msg => ({
+            messages: messages.map((msg: ChatMessage) => ({
               ...msg,
               timestamp: msg.timestamp?.$date ? new Date(msg.timestamp.$date) : new Date(),
               images: msg.images || [],
-              files: msg.files ? msg.files.map(file => ({ ...file, data: file.data })) : [],
+              files: msg.files ? msg.files.map((file: any) => ({ ...file, data: file.data })) : [],
               sources: msg.sources || [],
               isImageGeneration: msg.isImageGeneration || false,
               isComplete: msg.isComplete || false
