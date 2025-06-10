@@ -205,11 +205,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     try {
       localStorage.clear();
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      // เปลี่ยนจากการเรียก ADFS โดยตรง เป็นเรียกผ่าน API endpoint
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      // เปิดหน้า login ในแท็บใหม่
+      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
+      // ปิดแท็บปัจจุบัน (อาจไม่ทำงานในบางเบราว์เซอร์)
+      window.close();
     } catch (error) {
       console.error('Logout error:', error);
-      window.location.href = '/login';
+      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
     }
   };
 
