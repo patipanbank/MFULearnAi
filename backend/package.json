@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.ts",
-  "type": "commonjs",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
     "start": "node dist/server.js",
@@ -67,8 +66,6 @@
     "tesseract.js": "^5.0.0",
     "uuid": "^11.1.0",
     "ws": "^8.18.0",
-    "xlsx": "^0.18.5",
-    "entities": "^4.5.0",
-    "parse5": "^7.1.2"
+    "xlsx": "^0.18.5"
   }
 }
