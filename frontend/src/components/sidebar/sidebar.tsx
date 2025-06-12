@@ -539,7 +539,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               {/* Latest chat label */}
               {sortedChats.length > 0 && (
                 <div className="px-3 pb-1">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Latest chat</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">--- Latest chat ---</span>
                 </div>
               )}
               {sortedChats.length > 10 && (
