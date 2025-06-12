@@ -645,6 +645,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </nav>
       </div>
 
+      {/* Settings icon at bottom */}
+      <div className={`fixed bottom-0 left-0 ${shouldShowContent ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
+        <div className="p-2">
+          <button
+            className={`w-full flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700`}
+            title="Settings"
+          >
+            <FaCog className="w-5 h-5 flex-shrink-0" />
+          </button>
+        </div>
+      </div>
 
     </aside>
   );
