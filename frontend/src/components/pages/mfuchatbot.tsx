@@ -152,7 +152,9 @@ const MFUChatbot: React.FC = () => {
   return (
     <div className="flex flex-col h-full relative">
       <div 
-        className="flex-1 overflow-y-auto overflow-x-hidden py-4 pr-4 space-y-6 pb-32 overscroll-contain scroll-smooth"
+        className={`flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-6 pb-32 overscroll-contain scroll-smooth ${
+          isSidebarHovered ? 'pl-4 pr-4' : 'pl-2 pr-4'
+        }`}
         ref={chatContainerRef}
         id="chat-messages"
         data-testid="chat-messages-container"
@@ -206,7 +208,7 @@ const MFUChatbot: React.FC = () => {
       }`}>
         {/* Show scroll to bottom button when there are messages and user is not at the bottom */}
         {messages.length > 0 && (
-          <div className="relative w-full max-w-[95%] lg:max-w-[85%] mx-auto h-0">
+          <div className="relative w-full max-w-[98%] lg:max-w-[90%] mx-auto h-0">
             <ScrollToBottomButton 
               isNearBottom={isNearBottom}
               onClick={handleScrollToBottom}
