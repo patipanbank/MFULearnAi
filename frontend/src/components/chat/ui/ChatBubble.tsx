@@ -9,6 +9,7 @@ import { formatMessageTime } from '../utils/formatters';
 import FileIcon from './FileIcon';
 import { useChatInputStore } from '../store/chatInputStore';
 import { useChatStore } from '../store/chatStore';
+import { useUIStore } from '../store/uiStore';
 import { prepareMessageFiles, compressImage } from '../utils/fileProcessing';
 
 interface ChatBubbleProps {
@@ -52,6 +53,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     inputMessage, setInputMessage,
     handleCancelEdit,
   } = useChatInputStore();
+
+  // Get sidebar state
+  const { isSidebarHovered } = useUIStore();
 
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(message.content);
@@ -358,7 +362,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   };
 
   return (
-    <div className="message relative">
+    <div className={`message relative transition-all duration-300 ${
+      message.role === 'assistant' 
+        ? (isSidebarHovered ? 'lg:ml-64' : 'lg:ml-16') 
+        : ''
+    }`}>
       {isEditing && message.id === useChatInputStore.getState().editingMessage?.id && renderEditCanvas()}
 
       <div className={`flex items-start ${
