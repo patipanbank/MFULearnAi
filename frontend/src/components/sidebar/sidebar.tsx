@@ -601,11 +601,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex flex-col min-w-0 w-full pr-10 overflow-hidden">
-                              <div className="font-medium truncate overflow-hidden whitespace-nowrap text-ellipsis">
+                            <div className="flex flex-col min-w-0 w-full pr-10">
+                              <div className="font-medium truncate">
                                 {chat.chatname || 'Untitled Chat'}
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate overflow-hidden whitespace-nowrap text-ellipsis">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                 {chat.name}
                               </div>
                             </div>
