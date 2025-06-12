@@ -639,33 +639,33 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
           {/* Settings popup */}
           {showSettingsPopup && (
-            <div className="absolute bottom-full left-2 mb-2 min-w-max max-w-xs bg-white dark:bg-gray-700 rounded-lg shadow-lg p-3 sm:p-4 z-50 border border-gray-200 dark:border-gray-600">
-              <div className="space-y-2 text-left">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600 pb-2">Settings</h3>
+            <div className="absolute bottom-full left-2 mb-2 w-56 bg-white dark:bg-gray-700 rounded-lg shadow-lg p-4 sm:p-5 z-50 border border-gray-200 dark:border-gray-600">
+              <div className="space-y-3 text-left">
+                <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600 pb-3">Settings</h3>
                 
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Link
                     to="/modelCreation"
                     onClick={() => setShowSettingsPopup(false)}
-                    className="w-full flex items-center px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors"
+                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
-                    <FaAndroid className="w-4 h-4 mr-2" />
+                    <FaAndroid className="w-5 h-5 mr-3" />
                     Build Model
                   </Link>
                   <Link
                     to="/training"
                     onClick={() => setShowSettingsPopup(false)}
-                    className="w-full flex items-center px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors"
+                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
-                    <FaBookOpen className="w-4 h-4 mr-2" />
+                    <FaBookOpen className="w-5 h-5 mr-3" />
                     Knowledge Base
                   </Link>
                   <Link
                     to="/help"
                     onClick={() => setShowSettingsPopup(false)}
-                    className="w-full flex items-center px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors"
+                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
-                    <FaQuestionCircle className="w-4 h-4 mr-2" />
+                    <FaQuestionCircle className="w-5 h-5 mr-3" />
                     Help
                   </Link>
                 </div>
