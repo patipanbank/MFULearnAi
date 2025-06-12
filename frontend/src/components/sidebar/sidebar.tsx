@@ -72,6 +72,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   // Determine if sidebar should show expanded content
   const shouldShowContent = isHovered || isSidebarPinned;
 
+  // Add effect to maintain hover state when sidebar is pinned
+  useEffect(() => {
+    if (isSidebarPinned) {
+      setIsHovered(true);
+    }
+  }, [isSidebarPinned]);
+
+  // Add effect to handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) { // lg breakpoint
+        setIsHovered(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleTokenExpired = () => {
     localStorage.clear();
     navigate('/login');
