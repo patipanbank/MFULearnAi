@@ -650,9 +650,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         <div className="p-2">
           <button
             className={`w-full flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700`}
-            title="Settings"
+            title={!shouldShowContent ? "Settings" : ""}
           >
             <FaCog className="w-5 h-5 flex-shrink-0" />
+            {shouldShowContent && <span className="font-medium truncate ml-2">Settings</span>}
           </button>
         </div>
       </div>
