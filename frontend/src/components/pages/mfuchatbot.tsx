@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import WelcomeMessage from '../chat/ui/WelcomeMessage';
 import ChatBubble from '../chat/ui/ChatBubble';
@@ -9,12 +9,10 @@ import { useModelStore } from '../chat/store/modelStore';
 import { useUIStore } from '../chat/store/uiStore';
 import { isValidObjectId } from '../chat/utils/formatters';
 import useScrollManager from '../../hooks/useScrollManager';
-import { useSidebar } from '../layouts/MainLayout';
 
 const MFUChatbot: React.FC = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const { isSidebarHovered } = useSidebar();
+  const location = useLocation();
   
   // Using useScrollManager hook for scroll management
   const {
@@ -202,9 +200,7 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 z-10 transition-all duration-300 ${
-        isSidebarHovered ? 'lg:left-64' : 'lg:left-16'
-      }`}>
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 z-10">
         {/* Show scroll to bottom button when there are messages and user is not at the bottom */}
         {messages.length > 0 && (
           <div className="relative w-full max-w-[95%] lg:max-w-[85%] mx-auto h-0">
