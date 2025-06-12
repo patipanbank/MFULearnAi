@@ -56,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const currentChatId = searchParams.get('chat');
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isHovered, setIsHovered] = useState(false);
   const [renameState, setRenameState] = useState<RenameState>({
     isEditing: false,
     chatId: null,
@@ -363,44 +364,55 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   }
 
   return (
-    <aside className="flex flex-col h-full">
+    <aside 
+      className={`flex flex-col h-full transition-all duration-300 ease-in-out ${
+        isHovered ? 'w-64' : 'w-16'
+      }`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <div className="flex-none p-4 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <DarkModeToggle />
-            <button
-              onClick={onClose}
-              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
-            >
-              <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-            </button>
+            {isHovered && (
+              <button
+                onClick={onClose}
+                className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+              >
+                <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 px-2 pb-[calc(72px+env(safe-area-inset-bottom))]">
+      <div className={`flex-1 overflow-y-auto py-4 px-2 pb-[calc(72px+env(safe-area-inset-bottom))] ${
+        isHovered ? '' : 'overflow-x-hidden'
+      }`}>
         <nav className="space-y-4">
           <div className="space-y-1">
             {/* New Chat with dropdown indicator */}
             <div className="relative">
               <Link
                 to="/mfuchatbot"
-                className={`flex items-center justify-between px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${isHovered ? 'justify-between px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                title={!isHovered ? "New Chat" : ""}
               >
-                <div className="flex items-center min-w-0 flex-1">
-                  <FaComments className="w-5 h-5 mr-3 flex-shrink-0" />
-                  <span className="font-medium truncate">New Chat</span>
+                <div className={`flex items-center ${isHovered ? 'min-w-0 flex-1' : ''}`}>
+                  <FaComments className="w-5 h-5 flex-shrink-0" />
+                  {isHovered && <span className="font-medium truncate ml-3">New Chat</span>}
                 </div>
-                {sortedChats.length > 0 && (
+                {isHovered && sortedChats.length > 0 && (
                   <svg className="w-4 h-4 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 )}
               </Link>
 
-              {/* Search Bar - only shown when more than 10 chats */}
-              {sortedChats.length > 10 && (
+              {/* Search Bar - only shown when hovered and more than 10 chats */}
+              {isHovered && sortedChats.length > 10 && (
                 <div className="px-4 py-2">
                   <div className="relative">
                     <input
@@ -415,8 +427,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 </div>
               )}
 
-              {/* Chat History List */}
-              {sortedChats.length > 0 && (
+              {/* Chat History List - only show when hovered */}
+              {isHovered && sortedChats.length > 0 && (
                 <div className="mt-1 space-y-0.5">
                   {sortedChats.map((chat) => (
                     <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
@@ -525,21 +537,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <>
               <Link
                 to="/modelCreation"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/modelCreation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
+                title={!isHovered ? "Build Model" : ""}
               >
-                <FaAndroid className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Build Model</span>
+                <FaAndroid className="w-5 h-5 flex-shrink-0" />
+                {isHovered && <span className="font-medium truncate ml-3">Build Model</span>}
               </Link>
 
               <Link
                 to="/training"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/training' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                title={!isHovered ? "Knowledge Base" : ""}
               >
-                <FaBookOpen className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Knowledge Base</span>
+                <FaBookOpen className="w-5 h-5 flex-shrink-0" />
+                {isHovered && <span className="font-medium truncate ml-3">Knowledge Base</span>}
               </Link>
             </>
           )}
@@ -548,52 +562,57 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <>
               <Link
                 to="/admin/create"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
+                title={!isHovered ? "Create Admin" : ""}
               >
-                <FaUserPlus className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Create Admin</span>
+                <FaUserPlus className="w-5 h-5 flex-shrink-0" />
+                {isHovered && <span className="font-medium truncate ml-3">Create Admin</span>}
               </Link>
               
               <Link
                 to="/admin/manage"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/admin/manage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
+                title={!isHovered ? "Manage Admins" : ""}
               >
-                <FaUsers className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Manage Admins</span>
+                <FaUsers className="w-5 h-5 flex-shrink-0" />
+                {isHovered && <span className="font-medium truncate ml-3">Manage Admins</span>}
               </Link>
               
               <Link
                 to="/departments/manage"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/departments/manage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
+                title={!isHovered ? "Manage Departments" : ""}
               >
-                <FaBuilding className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Manage Departments</span>
+                <FaBuilding className="w-5 h-5 flex-shrink-0" />
+                {isHovered && <span className="font-medium truncate ml-3">Manage Departments</span>}
               </Link>
               
               <Link
                 to="/statistics"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/statistics' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
+                title={!isHovered ? "Statistics" : ""}
               >
-                <FaChartBar className="w-5 h-5 mr-3" />
-                <span className="font-medium">Statistics</span>
+                <FaChartBar className="w-5 h-5" />
+                {isHovered && <span className="font-medium ml-3">Statistics</span>}
               </Link>
               
               <Link
                 to="/system-prompt"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/system-prompt' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
+                title={!isHovered ? "Edit System Prompt" : ""}
               >
-                <FaCog className="w-5 h-5 mr-3" />
-                <span className="font-medium">Edit System Prompt</span>
+                <FaCog className="w-5 h-5" />
+                {isHovered && <span className="font-medium ml-3">Edit System Prompt</span>}
               </Link>
             </>
           )}
@@ -601,24 +620,26 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {/* Help link */}
           <Link
             to="/help"
-            className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+            className={`flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
               ${location.pathname === '/help' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
             onClick={onClose}
+            title={!isHovered ? "Help" : ""}
           >
-            <FaQuestionCircle className="w-5 h-5 mr-3" />
-            <span className="font-medium">Help</span>
+            <FaQuestionCircle className="w-5 h-5" />
+            {isHovered && <span className="font-medium ml-3">Help</span>}
           </Link>
         </nav>
       </div>
 
-      <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64 z-40">
+      <div className={`fixed bottom-0 left-0 ${isHovered ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
         <div className="p-4">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+            className={`w-full flex items-center ${isHovered ? 'px-4' : 'justify-center px-2'} py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700`}
+            title={!isHovered ? "Logout" : ""}
           >
-            <FaSignOutAlt className="w-5 h-5 mr-3 flex-shrink-0" />
-            <span className="font-medium truncate">Logout</span>
+            <FaSignOutAlt className="w-5 h-5 flex-shrink-0" />
+            {isHovered && <span className="font-medium truncate ml-3">Logout</span>}
           </button>
         </div>
       </div>
