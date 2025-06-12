@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { FaSignOutAlt } from 'react-icons/fa';
+import { config } from '../../config/config';
 // import { useNavigate } from 'react-router-dom'; // ลบออกเพราะไม่ได้ใช้
 
 const Header = () => {
@@ -11,6 +13,20 @@ const Header = () => {
   const [showPopup, setShowPopup] = useState(false);
 
   // console.log('User data from localStorage:', userData); // เพิ่ม log เพื่อตรวจสอบข้อมูล
+
+  const handleLogout = async () => {
+    try {
+      localStorage.clear();
+      document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      // Open login page in new tab
+      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
+      // Then redirect current tab to SAML logout
+      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+    } catch (error) {
+      console.error('Logout error:', error);
+      window.location.href = '/login';
+    }
+  };
 
   return (
     <header className="w-full">
@@ -57,6 +73,17 @@ const Header = () => {
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Email:</span> {userData.email}</p>
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Department:</span> {userData.department}</p>
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Group:</span> {userData.groups?.join(', ')}</p>
+                    
+                    {/* Logout button */}
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-center px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors text-xs sm:text-sm"
+                      >
+                        <FaSignOutAlt className="w-4 h-4 mr-2" />
+                        Logout
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

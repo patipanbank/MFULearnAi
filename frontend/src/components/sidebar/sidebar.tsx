@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding } from 'react-icons/fa';
+import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 import { useUIStore } from '../chat/store/uiStore';
@@ -208,19 +208,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   //   }
   // };
 
-  const handleLogout = async () => {
-    try {
-      localStorage.clear();
-      document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      // Open login page in new tab
-      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
-      // Then redirect current tab to SAML logout
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
-    } catch (error) {
-      console.error('Logout error:', error);
-      window.location.href = '/login';
-    }
-  };
+
 
   const handleDelete = async (chatId: string) => {
     if (!confirm('Are you sure you want to delete this chat?')) return;
@@ -659,18 +647,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </nav>
       </div>
 
-      <div className={`fixed bottom-0 left-0 ${shouldShowContent ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
-        <div className="p-2">
-          <button
-            onClick={handleLogout}
-            className={`w-full flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700`}
-            title={!shouldShowContent ? "Logout" : ""}
-          >
-            <FaSignOutAlt className="w-5 h-5 flex-shrink-0" />
-            {shouldShowContent && <span className="font-medium truncate ml-2">Logout</span>}
-          </button>
-        </div>
-      </div>
+
     </aside>
   );
 };
