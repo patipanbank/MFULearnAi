@@ -218,7 +218,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       window.location.href = '/login';
     }
   };
-  };
+
 
   const handleDelete = async (chatId: string) => {
     if (!confirm('Are you sure you want to delete this chat?')) return;
