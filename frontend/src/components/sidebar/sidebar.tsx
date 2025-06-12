@@ -428,11 +428,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   <FaComments className="w-5 h-5 flex-shrink-0" />
                   {shouldShowContent && <span className="font-medium truncate ml-2">New Chat</span>}
                 </div>
-                {shouldShowContent && sortedChats.length > 0 && (
-                  <svg className="w-4 h-4 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                )}
               </Link>
             </div>
           </div>
