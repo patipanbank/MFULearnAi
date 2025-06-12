@@ -598,14 +598,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
                           <Link
                             to={`/mfuchatbot?chat=${chat._id}`}
-                            className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
+                            className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm min-w-0 overflow-hidden
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex flex-col min-w-0 w-full pr-10">
-                              <div className="font-medium truncate">
+                            <div className="flex flex-col min-w-0 flex-1 pr-10 overflow-hidden">
+                              <div className="font-medium text-ellipsis overflow-hidden whitespace-nowrap">
                                 {chat.chatname || 'Untitled Chat'}
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 text-ellipsis overflow-hidden whitespace-nowrap">
                                 {chat.name}
                               </div>
                             </div>
