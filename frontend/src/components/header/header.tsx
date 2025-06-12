@@ -15,7 +15,7 @@ const Header = () => {
       <nav className="flex items-center justify-between px-6 py-4 w-full">
         {/* DINDIN AI branding on the left */}
         <div className="flex items-center">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+          <h2 className="text-3xl font-bold text-gray-800 dark:text-white">
             <span style={{
               background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
               WebkitBackgroundClip: 'text',
