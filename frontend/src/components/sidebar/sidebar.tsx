@@ -634,7 +634,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             title={!shouldShowContent ? "Settings" : ""}
           >
             <FaCog className="w-5 h-5 flex-shrink-0" />
-            {shouldShowContent && <span className="font-medium truncate ml-2">Settings</span>}
+            {shouldShowContent && <span className="font-medium truncate ml-2">Settings and Help</span>}
           </button>
 
           {/* Settings popup */}
