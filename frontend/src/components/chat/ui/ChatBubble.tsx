@@ -403,7 +403,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       </div>
 
       {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-        <div className="ml-8 mt-1">
+        <div className="ml-11 mt-1">
           <button
             onClick={() => {
               const sourceInfo = message.sources?.map(source =>
@@ -427,7 +427,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* Action buttons for assistant messages */}
       {message.role === 'assistant' && message.isComplete && (
-        <div className="ml-8 mt-2 flex flex-wrap gap-2">
+        <div className="ml-11 mt-2 flex flex-wrap gap-2">
           {/* Continue button - shown for the latest assistant message */}
           {isLastAssistantMessage && (
             <button
