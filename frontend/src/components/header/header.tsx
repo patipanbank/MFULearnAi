@@ -10,11 +10,6 @@ const Header = () => {
   // เพิ่ม state สำหรับควบคุมการแสดง/ซ่อนป็อปอัพ
   const [showPopup, setShowPopup] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
-  };
-
   // console.log('User data from localStorage:', userData); // เพิ่ม log เพื่อตรวจสอบข้อมูล
 
   return (
@@ -62,14 +57,6 @@ const Header = () => {
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Email:</span> {userData.email}</p>
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Department:</span> {userData.department}</p>
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Group:</span> {userData.groups?.join(', ')}</p>
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left text-xs sm:text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
-                      >
-                        Logout
-                      </button>
-                    </div>
                   </div>
                 </div>
               )}
