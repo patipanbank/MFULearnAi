@@ -361,8 +361,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     <div className="message relative">
       {isEditing && message.id === useChatInputStore.getState().editingMessage?.id && renderEditCanvas()}
 
-      <div className={`flex items-start gap-3 ${
-        message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+      <div className={`flex items-start ${
+        message.role === 'user' ? 'flex-row-reverse gap-3' : 'flex-row'
       }`}>
         <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
           message.role === 'user'
@@ -403,7 +403,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       </div>
 
       {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-        <div className="ml-11 mt-1">
+        <div className="ml-8 mt-1">
           <button
             onClick={() => {
               const sourceInfo = message.sources?.map(source =>
@@ -427,7 +427,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* Action buttons for assistant messages */}
       {message.role === 'assistant' && message.isComplete && (
-        <div className="ml-11 mt-2 flex flex-wrap gap-2">
+        <div className="ml-8 mt-2 flex flex-wrap gap-2">
           {/* Continue button - shown for the latest assistant message */}
           {isLastAssistantMessage && (
             <button
