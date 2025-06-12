@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom'; // ลบออกเพราะไม่ได้ใช้
 
 const Header = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // ลบออกเพราะไม่ได้ใช้
   // ดึงข้อมูลผู้ใช้จาก localStorage
   const userDataString = localStorage.getItem('user_data');
   const userData = userDataString ? JSON.parse(userDataString) : null;
