@@ -648,7 +648,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </div>
 
       {/* Settings icon at bottom */}
-      <div className="flex-none p-2 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex-none p-2">
         <button
           className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 w-full`}
           title={!shouldShowContent ? "Settings" : ""}
