@@ -57,7 +57,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const currentChatId = searchParams.get('chat');
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isHovered, setIsHovered] = useState(false);
   const [renameState, setRenameState] = useState<RenameState>({
     isEditing: false,
     chatId: null,
@@ -67,10 +66,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   });
 
   // Get UI store states
-  const { isSidebarPinned, toggleSidebarPin } = useUIStore();
+  const { isSidebarPinned, toggleSidebarPin, isSidebarHovered, setIsSidebarHovered } = useUIStore();
   
   // Determine if sidebar should show expanded content
-  const shouldShowContent = isHovered || isSidebarPinned;
+  const shouldShowContent = isSidebarHovered || isSidebarPinned;
 
   const handleTokenExpired = () => {
     localStorage.clear();
@@ -375,8 +374,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       className={`flex flex-col h-full transition-all duration-300 ease-in-out ${
         shouldShowContent ? 'w-64' : 'w-16'
       }`}
-      onMouseEnter={() => !isSidebarPinned && setIsHovered(true)}
-      onMouseLeave={() => !isSidebarPinned && setIsHovered(false)}
+      onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
+      onMouseLeave={() => !isSidebarPinned && setIsSidebarHovered(false)}
     >
       <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
