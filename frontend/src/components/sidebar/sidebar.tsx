@@ -393,7 +393,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 }`}
                 title={isSidebarPinned ? "Unpin sidebar" : "Pin sidebar"}
               >
-                <FaThumbtack className={`w-4 h-4 transition-transform duration-200 ${
+                <FaBars className={`w-4 h-4 transition-transform duration-200 ${
                   isSidebarPinned ? 'transform rotate-45' : ''
                 }`} />
               </button>
