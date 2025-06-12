@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding } from 'react-icons/fa';
+import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaThumbtack } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
+import { useUIStore } from '../chat/store/uiStore';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -64,6 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     isLoading: false,
     error: null
   });
+
+  // Get UI store states
+  const { isSidebarPinned, toggleSidebarPin } = useUIStore();
+  
+  // Determine if sidebar should show expanded content
+  const shouldShowContent = isHovered || isSidebarPinned;
 
   const handleTokenExpired = () => {
     localStorage.clear();
@@ -366,16 +373,33 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   return (
     <aside 
       className={`flex flex-col h-full transition-all duration-300 ease-in-out ${
-        isHovered ? 'w-64' : 'w-16'
+        shouldShowContent ? 'w-64' : 'w-16'
       }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => !isSidebarPinned && setIsHovered(true)}
+      onMouseLeave={() => !isSidebarPinned && setIsHovered(false)}
     >
       <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <DarkModeToggle />
-            {isHovered && (
+            {/* Pin button - always visible when hovered or pinned */}
+            {shouldShowContent && (
+              <button
+                onClick={toggleSidebarPin}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  isSidebarPinned 
+                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}
+                title={isSidebarPinned ? "Unpin sidebar" : "Pin sidebar"}
+              >
+                <FaThumbtack className={`w-4 h-4 transition-transform duration-200 ${
+                  isSidebarPinned ? 'transform rotate-45' : ''
+                }`} />
+              </button>
+            )}
+            {/* Mobile close button */}
+            {shouldShowContent && (
               <button
                 onClick={onClose}
                 className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
@@ -388,7 +412,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </div>
 
       <div className={`flex-1 overflow-y-auto py-2 px-1 pb-[calc(72px+env(safe-area-inset-bottom))] ${
-        isHovered ? '' : 'overflow-x-hidden'
+        shouldShowContent ? '' : 'overflow-x-hidden'
       }`}>
         <nav className="space-y-2">
           <div className="space-y-1">
@@ -396,15 +420,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <div className="relative">
               <Link
                 to="/mfuchatbot"
-                className={`flex items-center ${isHovered ? 'justify-between px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'justify-between px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                title={!isHovered ? "New Chat" : ""}
+                title={!shouldShowContent ? "New Chat" : ""}
               >
-                <div className={`flex items-center ${isHovered ? 'min-w-0 flex-1' : ''}`}>
+                <div className={`flex items-center ${shouldShowContent ? 'min-w-0 flex-1' : ''}`}>
                   <FaComments className="w-5 h-5 flex-shrink-0" />
-                  {isHovered && <span className="font-medium truncate ml-2">New Chat</span>}
+                  {shouldShowContent && <span className="font-medium truncate ml-2">New Chat</span>}
                 </div>
-                {isHovered && sortedChats.length > 0 && (
+                {shouldShowContent && sortedChats.length > 0 && (
                   <svg className="w-4 h-4 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -412,7 +436,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               </Link>
 
               {/* Search Bar - only shown when hovered and more than 10 chats */}
-              {isHovered && sortedChats.length > 10 && (
+              {shouldShowContent && sortedChats.length > 10 && (
                 <div className="px-2 py-2">
                   <div className="relative">
                     <input
@@ -428,7 +452,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               )}
 
               {/* Chat History List - only show when hovered */}
-              {isHovered && sortedChats.length > 0 && (
+              {shouldShowContent && sortedChats.length > 0 && (
                 <div className="mt-1 space-y-0.5">
                   {sortedChats.map((chat) => (
                     <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
@@ -537,23 +561,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <>
               <Link
                 to="/modelCreation"
-                className={`flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/modelCreation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
-                title={!isHovered ? "Build Model" : ""}
+                title={!shouldShowContent ? "Build Model" : ""}
               >
                 <FaAndroid className="w-5 h-5 flex-shrink-0" />
-                {isHovered && <span className="font-medium truncate ml-2">Build Model</span>}
+                {shouldShowContent && <span className="font-medium truncate ml-2">Build Model</span>}
               </Link>
 
               <Link
                 to="/training"
-                className={`flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/training' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                title={!isHovered ? "Knowledge Base" : ""}
+                title={!shouldShowContent ? "Knowledge Base" : ""}
               >
                 <FaBookOpen className="w-5 h-5 flex-shrink-0" />
-                {isHovered && <span className="font-medium truncate ml-2">Knowledge Base</span>}
+                {shouldShowContent && <span className="font-medium truncate ml-2">Knowledge Base</span>}
               </Link>
             </>
           )}
@@ -562,57 +586,57 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <>
               <Link
                 to="/admin/create"
-                className={`flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
-                title={!isHovered ? "Create Admin" : ""}
+                title={!shouldShowContent ? "Create Admin" : ""}
               >
                 <FaUserPlus className="w-5 h-5 flex-shrink-0" />
-                {isHovered && <span className="font-medium truncate ml-2">Create Admin</span>}
+                {shouldShowContent && <span className="font-medium truncate ml-2">Create Admin</span>}
               </Link>
               
               <Link
                 to="/admin/manage"
-                className={`flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/admin/manage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
-                title={!isHovered ? "Manage Admins" : ""}
+                title={!shouldShowContent ? "Manage Admins" : ""}
               >
                 <FaUsers className="w-5 h-5 flex-shrink-0" />
-                {isHovered && <span className="font-medium truncate ml-2">Manage Admins</span>}
+                {shouldShowContent && <span className="font-medium truncate ml-2">Manage Admins</span>}
               </Link>
               
               <Link
                 to="/departments/manage"
-                className={`flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/departments/manage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
-                title={!isHovered ? "Manage Departments" : ""}
+                title={!shouldShowContent ? "Manage Departments" : ""}
               >
                 <FaBuilding className="w-5 h-5 flex-shrink-0" />
-                {isHovered && <span className="font-medium truncate ml-2">Manage Departments</span>}
+                {shouldShowContent && <span className="font-medium truncate ml-2">Manage Departments</span>}
               </Link>
               
               <Link
                 to="/statistics"
-                className={`flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/statistics' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
-                title={!isHovered ? "Statistics" : ""}
+                title={!shouldShowContent ? "Statistics" : ""}
               >
                 <FaChartBar className="w-5 h-5" />
-                {isHovered && <span className="font-medium ml-2">Statistics</span>}
+                {shouldShowContent && <span className="font-medium ml-2">Statistics</span>}
               </Link>
               
               <Link
                 to="/system-prompt"
-                className={`flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/system-prompt' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                 onClick={onClose}
-                title={!isHovered ? "Edit System Prompt" : ""}
+                title={!shouldShowContent ? "Edit System Prompt" : ""}
               >
                 <FaCog className="w-5 h-5" />
-                {isHovered && <span className="font-medium ml-2">Edit System Prompt</span>}
+                {shouldShowContent && <span className="font-medium ml-2">Edit System Prompt</span>}
               </Link>
             </>
           )}
@@ -620,26 +644,26 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {/* Help link */}
           <Link
             to="/help"
-            className={`flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+            className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
               ${location.pathname === '/help' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
             onClick={onClose}
-            title={!isHovered ? "Help" : ""}
+            title={!shouldShowContent ? "Help" : ""}
           >
             <FaQuestionCircle className="w-5 h-5" />
-            {isHovered && <span className="font-medium ml-2">Help</span>}
+            {shouldShowContent && <span className="font-medium ml-2">Help</span>}
           </Link>
         </nav>
       </div>
 
-      <div className={`fixed bottom-0 left-0 ${isHovered ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
+      <div className={`fixed bottom-0 left-0 ${shouldShowContent ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
         <div className="p-2">
           <button
             onClick={handleLogout}
-            className={`w-full flex items-center ${isHovered ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700`}
-            title={!isHovered ? "Logout" : ""}
+            className={`w-full flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700`}
+            title={!shouldShowContent ? "Logout" : ""}
           >
             <FaSignOutAlt className="w-5 h-5 flex-shrink-0" />
-            {isHovered && <span className="font-medium truncate ml-2">Logout</span>}
+            {shouldShowContent && <span className="font-medium truncate ml-2">Logout</span>}
           </button>
         </div>
       </div>

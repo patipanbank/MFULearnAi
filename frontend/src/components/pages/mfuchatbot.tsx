@@ -56,6 +56,7 @@ const MFUChatbot: React.FC = () => {
     setInputMessage,
     setIsImageGenerationMode,
     isSidebarHovered,
+    isSidebarPinned,
   } = useUIStore();
   
   // Model state from Zustand
@@ -67,6 +68,9 @@ const MFUChatbot: React.FC = () => {
     fetchUsage,
     fetchModels
   } = useModelStore();
+  
+  // Determine if sidebar is expanded (either hovered or pinned)
+  const isSidebarExpanded = isSidebarHovered || isSidebarPinned;
   
   // Update message count when messages change
   useEffect(() => {
@@ -153,7 +157,7 @@ const MFUChatbot: React.FC = () => {
     <div className="flex flex-col h-full relative">
       <div 
         className={`flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-6 pb-32 overscroll-contain scroll-smooth ${
-          isSidebarHovered ? 'pl-4 pr-4' : 'pl-2 pr-4'
+          isSidebarExpanded ? 'pl-4 pr-4' : 'pl-2 pr-4'
         }`}
         ref={chatContainerRef}
         id="chat-messages"
@@ -204,7 +208,7 @@ const MFUChatbot: React.FC = () => {
       </div>
 
       <div className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 z-10 transition-all duration-300 ${
-        isSidebarHovered ? 'lg:ml-64' : 'lg:ml-16'
+        isSidebarExpanded ? 'lg:ml-64' : 'lg:ml-16'
       }`}>
         {/* Show scroll to bottom button when there are messages and user is not at the bottom */}
         {messages.length > 0 && (
