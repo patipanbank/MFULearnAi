@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaThumbtack } from 'react-icons/fa';
 import { config } from '../../config/config';
@@ -350,7 +350,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  const filteredChats = chatHistories.filter(chat =>
+  const filteredChats = chatHistories.filter((chat: ChatHistory) =>
     (chat.chatname || chat.name || 'Untitled Chat').toLowerCase().includes(searchQuery.toLowerCase())
   );
   // Only log in development
@@ -358,7 +358,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // console.log('Filtered chats:', filteredChats);
   }
 
-  const sortedChats = [...filteredChats].sort((a, b) => {
+  const sortedChats = [...filteredChats].sort((a: ChatHistory, b: ChatHistory) => {
     // First sort by pinned status
     if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
 
@@ -519,7 +519,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               <div className="font-medium truncate max-w-full">
                                 {chat.chatname || 'Untitled Chat'}
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-full">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-full line-clamp-1" style={{display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis'}}>
                                 {chat.name}
                               </div>
                             </div>
