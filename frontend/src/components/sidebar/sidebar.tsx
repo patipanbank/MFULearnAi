@@ -203,13 +203,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const handleLogout = async () => {
     try {
+      // Clear local storage and cookies
       localStorage.clear();
-      // เปลี่ยนจากการเรียก ADFS โดยตรง เป็นเรียกผ่าน API endpoint
+      document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+      // Open login page in new tab
+      window.open('https://dindinai.mfu.ac.th/login');
+
+      // Redirect current tab to ADFS logout
       window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+
     } catch (error) {
       console.error('Logout error:', error);
       window.location.href = '/login';
     }
+  };
   };
 
   const handleDelete = async (chatId: string) => {
