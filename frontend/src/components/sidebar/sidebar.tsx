@@ -391,11 +391,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                     ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}
-                title={isSidebarPinned ? "Unpin sidebar" : "Pin sidebar"}
+                title="Expand and hold the menu"
               >
-                <FaBars className={`w-4 h-4 transition-transform duration-200 ${
-                  isSidebarPinned ? 'transform rotate-45' : ''
-                }`} />
+                <FaBars className="w-4 h-4 transition-transform duration-200" />
               </button>
             )}
             {/* Mobile close button */}
