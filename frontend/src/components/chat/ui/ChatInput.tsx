@@ -84,7 +84,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   return (
 
-      <form onSubmit={handleSubmit} className="p-2 md:p-4 w-full">
+      <form onSubmit={handleSubmit} className="py-2 pr-2 md:py-4 md:pr-4 w-full">
         <div className="flex flex-col gap-2 w-full max-w-[95%] lg:max-w-[80%] mx-auto">
           {/* Edit mode indicator */}
           {editingMessage && (
