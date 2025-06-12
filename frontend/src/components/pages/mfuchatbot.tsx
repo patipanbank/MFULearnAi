@@ -55,6 +55,7 @@ const MFUChatbot: React.FC = () => {
     inputMessage,
     setInputMessage,
     setIsImageGenerationMode,
+    isSidebarHovered,
   } = useUIStore();
   
   // Model state from Zustand
@@ -200,7 +201,9 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 z-10">
+      <div className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 z-10 transition-all duration-300 ${
+        isSidebarHovered ? 'lg:ml-64' : 'lg:ml-16'
+      }`}>
         {/* Show scroll to bottom button when there are messages and user is not at the bottom */}
         {messages.length > 0 && (
           <div className="relative w-full max-w-[95%] lg:max-w-[85%] mx-auto h-0">

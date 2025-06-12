@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Header from '../header/header';
 import Sidebar from '../sidebar/sidebar';
 import { FaBars } from 'react-icons/fa';
+import { useUIStore } from '../chat/store/uiStore';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -9,7 +10,7 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const { isSidebarHovered, setIsSidebarHovered } = useUIStore();
 
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-900">
@@ -49,7 +50,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           />
         )}
 
-        <main className="flex-1 overflow-auto mt-16 bg-white dark:bg-gray-800 scrollbar scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700 pb-4">
+        <main className={`flex-1 overflow-auto mt-16 bg-white dark:bg-gray-800 scrollbar scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700 pb-4 transition-all duration-300 ${
+          isSidebarHovered ? 'lg:ml-64' : 'lg:ml-16'
+        }`}>
           {children}
         </main>
       </div>
