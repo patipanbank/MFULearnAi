@@ -364,7 +364,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   return (
     <div className={`message relative transition-all duration-300 ${
       message.role === 'assistant' 
-        ? (isSidebarHovered ? 'lg:ml-64' : 'lg:ml-16') 
+        ? (isSidebarHovered ? 'lg:ml-20' : 'lg:ml-6') 
         : ''
     }`}>
       {isEditing && message.id === useChatInputStore.getState().editingMessage?.id && renderEditCanvas()}
