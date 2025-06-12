@@ -434,126 +434,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   </svg>
                 )}
               </Link>
-
-              {/* Search Bar - only shown when hovered and more than 10 chats */}
-              {shouldShowContent && sortedChats.length > 10 && (
-                <div className="px-2 py-2">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search chats..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-3 py-1.5 pl-8 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
-                    />
-                    <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
-                  </div>
-                </div>
-              )}
-
-              {/* Chat History List - only show when hovered */}
-              {shouldShowContent && sortedChats.length > 0 && (
-                <div className="mt-1 space-y-0.5">
-                  {sortedChats.map((chat) => (
-                    <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
-                      {editingChatId === chat._id ? (
-                        <div className="flex-1 flex items-center p-1 md:p-2">
-                          <div className="relative flex-1">
-                            <input
-                              type="text"
-                              value={renameState.newName}
-                              onChange={(e) => setRenameState(prev => ({ ...prev, newName: e.target.value, error: null }))}
-                              onKeyDown={handleRenameKeyDown}
-                              className={`w-full px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border 
-                                ${renameState.error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} 
-                                rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm`}
-                              autoFocus
-                              disabled={renameState.isLoading}
-                              placeholder="Enter new name..."
-                              maxLength={100}
-                            />
-                            {renameState.error && (
-                              <div className="absolute -bottom-6 left-0 text-xs text-red-500">
-                                {renameState.error}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 ml-2">
-                            <button
-                              onClick={() => handleSaveEdit(chat._id)}
-                              disabled={renameState.isLoading}
-                              className={`p-1.5 rounded-lg transition-colors
-                                ${renameState.isLoading
-                                  ? 'bg-gray-300 cursor-not-allowed'
-                                  : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30'}`}
-                              title="Save"
-                            >
-                              {renameState.isLoading ? (
-                                <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </button>
-                            <button
-                              onClick={cancelEdit}
-                              disabled={renameState.isLoading}
-                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                              title="Cancel"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
-                          <Link
-                            to={`/mfuchatbot?chat=${chat._id}`}
-                            className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
-                              ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                          >
-                            <div className="flex flex-col min-w-0 w-full pr-10">
-                              <div className="font-medium truncate max-w-full">
-                                {chat.chatname || 'Untitled Chat'}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[235px]">
-                                {chat.name}
-                              </div>
-                            </div>
-                          </Link>
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleEdit(chat._id, chat.chatname);
-                              }}
-                              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-                              title="Edit chat name"
-                            >
-                              <FaEdit className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDelete(chat._id);
-                              }}
-                              className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-                              title="Delete chat"
-                            >
-                              <FaTrash className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
@@ -652,6 +532,128 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <FaQuestionCircle className="w-5 h-5" />
             {shouldShowContent && <span className="font-medium ml-2">Help</span>}
           </Link>
+
+          {/* Chat History List - moved below Help link */}
+          {shouldShowContent && (
+            <div className="mt-2">
+              {sortedChats.length > 10 && (
+                <div className="px-2 py-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search chats..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-3 py-1.5 pl-8 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
+                    />
+                    <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                  </div>
+                </div>
+              )}
+              {sortedChats.length > 0 && (
+                <div className="mt-1 space-y-0.5">
+                  {sortedChats.map((chat) => (
+                    <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
+                      {editingChatId === chat._id ? (
+                        <div className="flex-1 flex items-center p-1 md:p-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              value={renameState.newName}
+                              onChange={(e) => setRenameState(prev => ({ ...prev, newName: e.target.value, error: null }))}
+                              onKeyDown={handleRenameKeyDown}
+                              className={`w-full px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border \
+                                ${renameState.error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} \
+                                rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm`}
+                              autoFocus
+                              disabled={renameState.isLoading}
+                              placeholder="Enter new name..."
+                              maxLength={100}
+                            />
+                            {renameState.error && (
+                              <div className="absolute -bottom-6 left-0 text-xs text-red-500">
+                                {renameState.error}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 ml-2">
+                            <button
+                              onClick={() => handleSaveEdit(chat._id)}
+                              disabled={renameState.isLoading}
+                              className={`p-1.5 rounded-lg transition-colors
+                                ${renameState.isLoading
+                                  ? 'bg-gray-300 cursor-not-allowed'
+                                  : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30'}`}
+                              title="Save"
+                            >
+                              {renameState.isLoading ? (
+                                <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              disabled={renameState.isLoading}
+                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                              title="Cancel"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
+                          <Link
+                            to={`/mfuchatbot?chat=${chat._id}`}
+                            className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
+                              ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                          >
+                            <div className="flex flex-col min-w-0 w-full pr-10">
+                              <div className="font-medium truncate max-w-full">
+                                {chat.chatname || 'Untitled Chat'}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[235px]">
+                                {chat.name}
+                              </div>
+                            </div>
+                          </Link>
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleEdit(chat._id, chat.chatname);
+                              }}
+                              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                              title="Edit chat name"
+                            >
+                              <FaEdit className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDelete(chat._id);
+                              }}
+                              className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                              title="Delete chat"
+                            >
+                              <FaTrash className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
       </div>
 
