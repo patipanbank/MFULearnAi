@@ -359,7 +359,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   return (
     <aside 
-      className={`flex flex-col h-full transition-all duration-300 ease-in-out ${
+      className={`flex flex-col h-full transition-all duration-300 ease-in-out overflow-x-hidden ${
         shouldShowContent ? 'w-64' : 'w-16'
       }`}
       onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
