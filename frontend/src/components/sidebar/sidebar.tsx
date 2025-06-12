@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaThumbtack } from 'react-icons/fa';
+import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding } from 'react-icons/fa';
 import { config } from '../../config/config';
 import DarkModeToggle from '../darkmode/DarkModeToggle';
 import { useUIStore } from '../chat/store/uiStore';
@@ -393,7 +393,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 }`}
                 title={isSidebarPinned ? "Unpin sidebar" : "Pin sidebar"}
               >
-                <FaThumbtack className={`w-4 h-4 transition-transform duration-200 ${
+                <FaBars className={`w-4 h-4 transition-transform duration-200 ${
                   isSidebarPinned ? 'transform rotate-45' : ''
                 }`} />
               </button>
