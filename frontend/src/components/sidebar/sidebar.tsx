@@ -536,6 +536,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {/* Chat History List - moved below Help link */}
           {shouldShowContent && (
             <div className="mt-2">
+              {/* Latest chat label */}
+              {sortedChats.length > 0 && (
+                <div className="px-3 pb-1">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Latest chat</span>
+                </div>
+              )}
               {sortedChats.length > 10 && (
                 <div className="px-2 py-2">
                   <div className="relative">
