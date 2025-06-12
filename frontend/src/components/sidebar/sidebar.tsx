@@ -57,6 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const currentChatId = searchParams.get('chat');
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [renameState, setRenameState] = useState<RenameState>({
     isEditing: false,
     chatId: null,
@@ -145,6 +146,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       setChatHistories([]);
     }
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSettingsPopup) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('[data-settings-popup]')) {
+          setShowSettingsPopup(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSettingsPopup]);
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -647,14 +662,43 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
       {/* Settings icon at bottom */}
       <div className={`fixed bottom-0 left-0 ${shouldShowContent ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
-        <div className="p-2">
+        <div className="p-2 relative" data-settings-popup>
           <button
-            className={`w-full flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700`}
+            onClick={() => setShowSettingsPopup(!showSettingsPopup)}
+            className={`w-full flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700
+              ${showSettingsPopup ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
             title={!shouldShowContent ? "Settings" : ""}
           >
             <FaCog className="w-5 h-5 flex-shrink-0" />
             {shouldShowContent && <span className="font-medium truncate ml-2">Settings</span>}
           </button>
+
+          {/* Settings popup */}
+          {showSettingsPopup && (
+            <div className="absolute bottom-full left-2 mb-2 min-w-max max-w-xs bg-white dark:bg-gray-700 rounded-lg shadow-lg p-3 sm:p-4 z-50 border border-gray-200 dark:border-gray-600">
+              <div className="space-y-2 text-left">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600 pb-2">Settings</h3>
+                
+                <div className="space-y-1">
+                  <button className="w-full text-left px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
+                    Theme Settings
+                  </button>
+                  <button className="w-full text-left px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
+                    Language
+                  </button>
+                  <button className="w-full text-left px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
+                    Notifications
+                  </button>
+                  <button className="w-full text-left px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
+                    Privacy
+                  </button>
+                  <button className="w-full text-left px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
+                    About
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
