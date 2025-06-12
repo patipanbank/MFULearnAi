@@ -15,7 +15,7 @@ const WelcomeMessage: React.FC = () => {
         />
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-0">
-            Welcome {userName}
+            Welcome
           </h1>
           <div className="text-2xl font-bold -mt-1 mb-0">
             <span style={{
@@ -24,16 +24,7 @@ const WelcomeMessage: React.FC = () => {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>
-              DIN
-            </span>{''}
-            <span className="text-gray-800 dark:text-white">DIN{' '}</span>
-            <span style={{
-              background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              AI
+              {userName}
             </span>
           </div>
         </div>
