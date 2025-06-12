@@ -1,6 +1,10 @@
 import React from 'react';
 
 const WelcomeMessage: React.FC = () => {
+  // Get user data from localStorage
+  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const userName = userData.firstName || userData.username || 'User';
+
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <div className="flex flex-col items-center justify-center mb-1">
@@ -11,7 +15,7 @@ const WelcomeMessage: React.FC = () => {
         />
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-0">
-            Welcome to
+            Welcome {userName}
           </h1>
           <div className="text-2xl font-bold -mt-1 mb-0">
             <span style={{
