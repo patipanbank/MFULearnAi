@@ -11,9 +11,29 @@ const Header = () => {
   // console.log('User data from localStorage:', userData); // เพิ่ม log เพื่อตรวจสอบข้อมูล
 
   return (
-    <header className="w-full text-right">
-      <nav className="flex items-center justify-between px-6 py-4 w-full text-right">
-        <div className="ml-auto text-gray-600 dark:text-gray-300 relative">
+    <header className="w-full">
+      <nav className="flex items-center justify-between px-6 py-4 w-full">
+        {/* DINDIN AI branding on the left */}
+        <div className="flex items-center">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+            <span style={{
+              background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>DIN</span>{''}
+            <span>DIN</span>
+            <span style={{
+              background: 'linear-gradient(to right, #00FFFF, #0099FF)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}> AI</span>
+          </h2>
+        </div>
+
+        {/* User info on the right */}
+        <div className="text-gray-600 dark:text-gray-300 relative">
           {userData && (
             <>
               <div 

@@ -366,21 +366,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     <aside className="flex flex-col h-full">
       <div className="flex-none p-4 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-            <span style={{
-              background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>DIN</span>{''}
-            <span>DIN</span>
-            <span style={{
-              background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}> AI</span>
-          </h2>
           <div className="flex items-center gap-2">
             <DarkModeToggle />
             <button
