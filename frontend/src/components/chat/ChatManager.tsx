@@ -205,7 +205,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
           </button>
         </div>
         
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="flex gap-2 flex-wrap pb-2">
           {folders.map(folder => (
             <button
               key={folder}
