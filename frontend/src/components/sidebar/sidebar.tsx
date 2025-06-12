@@ -400,9 +400,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </div>
       </div>
 
-      <div className={`flex-1 overflow-y-auto py-2 px-1 pb-[calc(72px+env(safe-area-inset-bottom))] ${
-        shouldShowContent ? '' : 'overflow-x-hidden'
-      }`}>
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden py-2 px-1 pb-[calc(72px+env(safe-area-inset-bottom))]`}>
         <nav className="space-y-2">
           <div className="space-y-1">
             {/* New Chat with dropdown indicator */}
@@ -603,11 +601,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex flex-col min-w-0 w-full pr-10">
-                              <div className="font-medium truncate max-w-full">
+                            <div className="flex flex-col min-w-0 w-full pr-10 overflow-hidden">
+                              <div className="font-medium truncate overflow-hidden whitespace-nowrap text-ellipsis">
                                 {chat.chatname || 'Untitled Chat'}
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[235px]">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate overflow-hidden whitespace-nowrap text-ellipsis">
                                 {chat.name}
                               </div>
                             </div>
