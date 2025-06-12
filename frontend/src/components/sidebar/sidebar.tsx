@@ -434,30 +434,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {isStaff && (
-            <>
-              <Link
-                to="/modelCreation"
-                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/modelCreation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-                title={!shouldShowContent ? "Build Model" : ""}
-              >
-                <FaAndroid className="w-5 h-5 flex-shrink-0" />
-                {shouldShowContent && <span className="font-medium truncate ml-2">Build Model</span>}
-              </Link>
 
-              <Link
-                to="/training"
-                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/training' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                title={!shouldShowContent ? "Knowledge Base" : ""}
-              >
-                <FaBookOpen className="w-5 h-5 flex-shrink-0" />
-                {shouldShowContent && <span className="font-medium truncate ml-2">Knowledge Base</span>}
-              </Link>
-            </>
-          )}
 
           {isSuperAdmin && (
             <>
@@ -518,17 +495,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             </>
           )}
 
-          {/* Help link */}
-          <Link
-            to="/help"
-            className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-              ${location.pathname === '/help' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-            onClick={onClose}
-            title={!shouldShowContent ? "Help" : ""}
-          >
-            <FaQuestionCircle className="w-5 h-5" />
-            {shouldShowContent && <span className="font-medium ml-2">Help</span>}
-          </Link>
+
 
           {/* Chat History List - moved below Help link */}
           {shouldShowContent && (
