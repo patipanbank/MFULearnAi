@@ -200,7 +200,7 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-gray-800 z-10">
+      <div className="fixed bottom-0 left-0 right-0 lg:left-56 bg-white dark:bg-gray-800 z-10">
         {/* Show scroll to bottom button when there are messages and user is not at the bottom */}
         {messages.length > 0 && (
           <div className="relative w-full max-w-[95%] lg:max-w-[85%] mx-auto h-0">
