@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { config } from '../../config/config';
-import { FaSignOutAlt } from 'react-icons/fa';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -12,16 +10,9 @@ const Header = () => {
   // เพิ่ม state สำหรับควบคุมการแสดง/ซ่อนป็อปอัพ
   const [showPopup, setShowPopup] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      localStorage.clear();
-      document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
-    } catch (error) {
-      console.error('Logout error:', error);
-      window.location.href = '/login';
-    }
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/login');
   };
 
   // console.log('User data from localStorage:', userData); // เพิ่ม log เพื่อตรวจสอบข้อมูล
@@ -74,11 +65,9 @@ const Header = () => {
                     <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center px-2 py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700 mt-2"
-                        title="Logout"
+                        className="w-full text-left text-xs sm:text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
                       >
-                        <FaSignOutAlt className="w-5 h-5 flex-shrink-0" />
-                        <span className="font-medium truncate ml-2">Logout</span>
+                        Logout
                       </button>
                     </div>
                   </div>
