@@ -601,7 +601,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                             className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm min-w-0 overflow-hidden
                               ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
                           >
-                            <div className="flex flex-col min-w-0 flex-1 pr-10 overflow-hidden">
+                            <div className="flex flex-col min-w-0 flex-1 pr-6 overflow-hidden">
                               <div className="font-medium text-ellipsis overflow-hidden whitespace-nowrap">
                                 {chat.chatname || 'Untitled Chat'}
                               </div>
@@ -610,17 +610,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               </div>
                             </div>
                           </Link>
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
+                          <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-md px-1 py-0.5 shadow-sm">
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleEdit(chat._id, chat.chatname);
                               }}
-                              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
                               title="Edit chat name"
                             >
-                              <FaEdit className="w-3 h-3" />
+                              <FaEdit className="w-2.5 h-2.5" />
                             </button>
                             <button
                               onClick={(e) => {
@@ -628,10 +628,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                 e.stopPropagation();
                                 handleDelete(chat._id);
                               }}
-                              className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                              className="p-1 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
                               title="Delete chat"
                             >
-                              <FaTrash className="w-3 h-3" />
+                              <FaTrash className="w-2.5 h-2.5" />
                             </button>
                           </div>
                         </div>
