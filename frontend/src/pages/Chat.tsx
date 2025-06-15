@@ -23,7 +23,6 @@ import {
   CopyOutlined
 } from '@ant-design/icons'
 
-import { useAuth } from '../contexts/AuthContext'
 import { chatApi, modelsApi, createWebSocketConnection } from '../utils/api'
 import toast from 'react-hot-toast'
 import type { MenuProps } from 'antd'
