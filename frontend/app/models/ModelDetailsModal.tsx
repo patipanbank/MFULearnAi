@@ -1,4 +1,3 @@
-import React from 'react';
 import { Model } from '@/types/model';
 import { Collection } from '@/types/collection';
 

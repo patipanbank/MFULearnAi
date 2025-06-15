@@ -18,7 +18,6 @@ export default function StatisticsPage() {
   const [stats, setStats] = useState<Stat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
@@ -49,9 +48,6 @@ export default function StatisticsPage() {
     <RoleGuard allowed={['Admin', 'SuperAdmin']}>
       <div className="max-w-3xl mx-auto py-10">
         <h1 className="text-2xl font-bold mb-6">Statistics</h1>
-        {toast && (
-          <div className="mb-4 text-green-600 bg-green-100 px-4 py-2 rounded">{toast}</div>
-        )}
         {error && (
           <div className="mb-4 text-red-600 bg-red-100 px-4 py-2 rounded">{error}</div>
         )}

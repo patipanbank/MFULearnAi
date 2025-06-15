@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function HelpPage() {
   return (
     <div className="max-w-2xl mx-auto py-10">

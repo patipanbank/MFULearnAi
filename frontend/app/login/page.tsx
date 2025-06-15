@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const { user, login, loading } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
     if (!loading && user) {
-      router.replace('/');
+      navigate('/');
     }
-  }, [user, loading, router]);
+  }, [user, loading, navigate]);
 
   const handleSamlLogin = () => {
     window.location.href = '/api/auth/login/saml'; // backend endpoint
@@ -24,7 +24,7 @@ export default function LoginPage() {
       if (!res.ok) throw new Error('Guest login failed');
       const data = await res.json();
       login(data.token, { ...data.user, role: 'Guest' });
-      router.replace('/');
+      navigate('/');
     } catch (err) {
       alert('Guest login failed');
     } finally {

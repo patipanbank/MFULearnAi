@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 export default function AuthCallbackPage() {
   const { login } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -18,11 +18,11 @@ export default function AuthCallbackPage() {
       }
       const user = JSON.parse(atob(userDataEncoded));
       login(token, user);
-      router.replace('/');
+      navigate('/', { replace: true });
     } catch (err) {
       setError('Authentication failed');
     }
-  }, [login, router]);
+  }, [login, navigate]);
 
   if (error) {
     return (

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import RoleGuard from '@/components/guards/RoleGuard';
 import { useAuth } from '@/context/AuthContext';
 import { Collection, CollectionPermission } from '@/types/collection';
@@ -12,7 +12,7 @@ interface EditState {
 
 export default function CollectionsPage() {
   const { token } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +222,7 @@ export default function CollectionsPage() {
                     </button>
                     <button
                       className="bg-gray-500 text-white px-3 py-1 rounded text-xs"
-                      onClick={() => router.push(`/collections/${col.id}`)}
+                      onClick={() => navigate(`/collections/${col.id}`)}
                     >
                       Details
                     </button>

@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import RoleGuard from '@/components/guards/RoleGuard';
 import { useAuth } from '@/context/AuthContext';
 import { Collection } from '@/types/collection';
-import toast from 'react-hot-toast';
 
 interface DocumentInfo {
   filename: string;
@@ -21,7 +20,7 @@ const PAGE_SIZE = 10;
 
 export default function CollectionDetailPage() {
   const { token } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const params = useParams();
   const id = params?.id as string;
   const [collection, setCollection] = useState<Collection | null>(null);
@@ -185,7 +184,7 @@ export default function CollectionDetailPage() {
   return (
     <RoleGuard allowed={['Students', 'Staffs', 'Admin', 'SuperAdmin']}>
       <div className="max-w-3xl mx-auto py-10">
-        <button className="mb-4 text-blue-600" onClick={() => router.back()}>&larr; Back</button>
+        <button className="mb-4 text-blue-600" onClick={() => navigate(-1)}>&larr; Back</button>
         {loading && <div>Loading...</div>}
         {error && <div className="text-red-600">{error}</div>}
         {collection && !loading && !error && (
