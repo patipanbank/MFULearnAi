@@ -408,7 +408,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 >
                   <FaBars className="w-4 h-4 transition-transform duration-200" />
                 </button>
-                <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-0">
+                <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 opacity-100 transition-opacity duration-0">
                   Expand and hold the menu
                 </div>
               </div>
