@@ -529,7 +529,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="ค้นหาแชท"
+                    placeholder="Search Chat..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full px-3 py-1.5 pl-8 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-xs"
