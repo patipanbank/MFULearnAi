@@ -5,7 +5,10 @@ export default function Header() {
   const isLoggedIn = !!user;
   const avatar = user?.username ? user.username[0].toUpperCase() : 'U';
   return (
-    <header className="w-full h-16 flex items-center justify-between px-6 bg-white border-b shadow-sm">
+    <header className="w-full h-16 flex items-center justify-between px-4 sm:px-6 bg-white border-b shadow-sm">
+      <button className="sm:hidden p-2 mr-2" title="Open sidebar">
+        <span role="img" aria-label="menu">☰</span>
+      </button>
       <div className="text-xl font-bold">MFULearnAi</div>
       <div className="flex items-center gap-4">
         {/* Placeholder for theme toggle */}
