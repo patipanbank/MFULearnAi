@@ -51,6 +51,7 @@ api.interceptors.response.use(
 export const authApi = {
   loginSaml: () => api.get('/api/auth/login/saml'),
   logout: () => api.post('/api/auth/logout'),
+  refreshToken: (token: string) => api.post('/api/auth/refresh-token', { token }),
   guestLogin: (credentials: { username: string; password: string }) =>
     api.post('/api/auth/guest-login', credentials),
 }

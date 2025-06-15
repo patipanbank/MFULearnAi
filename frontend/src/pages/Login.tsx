@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button, Card, Form, Input, Divider, Alert } from 'antd'
-import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
-import { useSearchParams } from 'react-router-dom'
+import { UserOutlined, LockOutlined, LoginOutlined, SafetyOutlined } from '@ant-design/icons'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { authApi } from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -9,13 +10,26 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [guestLoading, setGuestLoading] = useState(false)
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const error = searchParams.get('error')
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated()) {
+      navigate('/', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
 
   const handleSamlLogin = async () => {
     setLoading(true)
     try {
+      // Store the current URL to redirect back after login
+      sessionStorage.setItem('redirectAfterLogin', window.location.pathname)
+      
       // Redirect to SAML login endpoint
-      window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/login/saml`
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      window.location.href = `${apiUrl}/api/auth/login/saml`
     } catch (error) {
       console.error('SAML login error:', error)
       toast.error('Failed to initiate SAML login')
@@ -26,17 +40,56 @@ const Login: React.FC = () => {
   const handleGuestLogin = async (values: { username: string; password: string }) => {
     setGuestLoading(true)
     try {
+      // Validate inputs
+      if (!values.username.trim()) {
+        throw new Error('Username is required')
+      }
+      if (!values.password.trim()) {
+        throw new Error('Password is required')
+      }
+
       const response = await authApi.guestLogin(values)
+      
       if (response.data.success) {
         toast.success('Guest login successful')
-        // Handle guest login success if needed
+        // Redirect will be handled by auth context
+        const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/'
+        sessionStorage.removeItem('redirectAfterLogin')
+        navigate(redirectPath, { replace: true })
+      } else {
+        throw new Error(response.data.message || 'Login failed')
       }
     } catch (error: any) {
       console.error('Guest login error:', error)
-      toast.error(error.response?.data?.message || 'Login failed')
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          'Login failed. Please check your credentials.'
+      toast.error(errorMessage)
     } finally {
       setGuestLoading(false)
     }
+  }
+
+  const getErrorMessage = (errorCode: string): string => {
+    const errorMessages: { [key: string]: string } = {
+      'auth_failed': 'Authentication failed. Please try again.',
+      'auth_callback_failed': 'Authentication callback failed. Please try again.',
+      'no_token': 'No authentication token received.',
+      'invalid_token': 'Invalid authentication token.',
+      'access_denied': 'Access denied. You may not have permission to access this system.',
+      'session_expired': 'Your session has expired. Please log in again.',
+      'server_error': 'Server error occurred. Please try again later.',
+      'network_error': 'Network error. Please check your connection.',
+    }
+    
+    return errorMessages[errorCode] || 'An error occurred during authentication.'
+  }
+
+  const handleRetryLogin = () => {
+    // Clear error from URL
+    const newSearchParams = new URLSearchParams(searchParams)
+    newSearchParams.delete('error')
+    navigate(`${window.location.pathname}?${newSearchParams.toString()}`, { replace: true })
   }
 
   return (
@@ -56,12 +109,20 @@ const Login: React.FC = () => {
 
         <Card className="shadow-lg border-0">
           <div className="space-y-6">
-            {error === 'auth_failed' && (
+            {error && (
               <Alert
-                message="Authentication Failed"
-                description="There was an error during the authentication process. Please try again."
+                message="Authentication Error"
+                description={
+                  <div>
+                    <p className="mb-2">{getErrorMessage(error)}</p>
+                    <Button size="small" type="link" onClick={handleRetryLogin} className="p-0">
+                      Try again
+                    </Button>
+                  </div>
+                }
                 type="error"
                 showIcon
+                closable
                 className="mb-4"
               />
             )}
@@ -75,14 +136,12 @@ const Login: React.FC = () => {
                 loading={loading}
                 onClick={handleSamlLogin}
                 className="h-12 text-base font-medium"
+                icon={<SafetyOutlined />}
               >
-                <div className="flex items-center justify-center space-x-2">
-                  <UserOutlined />
-                  <span>Sign in with MFU Account</span>
-                </div>
+                Sign in with MFU Account
               </Button>
               <p className="text-sm text-gray-500 text-center mt-2">
-                Use your MFU credentials to sign in
+                Use your MFU credentials to sign in securely
               </p>
             </div>
 
@@ -92,42 +151,43 @@ const Login: React.FC = () => {
 
             {/* Guest Login Form */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Guest Access
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Guest Login
               </h3>
               <Form
-                name="guest-login"
-                onFinish={handleGuestLogin}
                 layout="vertical"
-                className="space-y-4"
+                onFinish={handleGuestLogin}
+                autoComplete="off"
               >
                 <Form.Item
                   name="username"
-                  label={<span className="text-gray-700 font-medium">Username</span>}
+                  label="Username"
                   rules={[
-                    { required: true, message: 'Please input your username!' }
+                    { required: true, message: 'Please enter your username' },
+                    { min: 3, message: 'Username must be at least 3 characters' }
                   ]}
                 >
                   <Input
-                    size="large"
-                    prefix={<UserOutlined className="text-gray-400" />}
+                    prefix={<UserOutlined />}
                     placeholder="Enter username"
-                    className="rounded-lg"
+                    size="large"
+                    autoComplete="username"
                   />
                 </Form.Item>
 
                 <Form.Item
                   name="password"
-                  label={<span className="text-gray-700 font-medium">Password</span>}
+                  label="Password"
                   rules={[
-                    { required: true, message: 'Please input your password!' }
+                    { required: true, message: 'Please enter your password' },
+                    { min: 6, message: 'Password must be at least 6 characters' }
                   ]}
                 >
                   <Input.Password
-                    size="large"
-                    prefix={<LockOutlined className="text-gray-400" />}
+                    prefix={<LockOutlined />}
                     placeholder="Enter password"
-                    className="rounded-lg"
+                    size="large"
+                    autoComplete="current-password"
                   />
                 </Form.Item>
 
@@ -138,19 +198,41 @@ const Login: React.FC = () => {
                     size="large"
                     block
                     loading={guestLoading}
-                    className="h-12 text-base font-medium border-gray-300 hover:border-blue-500 hover:text-blue-500"
+                    className="h-12 text-base font-medium"
                   >
                     Sign in as Guest
                   </Button>
                 </Form.Item>
               </Form>
+              
+              <p className="text-sm text-gray-500 text-center mt-3">
+                Guest access with limited features
+              </p>
             </div>
+          </div>
+
+          <Divider />
+
+          {/* Security Notice */}
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              By signing in, you agree to our Terms of Service and Privacy Policy.
+              <br />
+              Your data is protected with enterprise-grade security.
+            </p>
           </div>
         </Card>
 
-        <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
-            © 2024 Mae Fah Luang University. All rights reserved.
+        {/* Additional Help */}
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
+            Need help? Contact{' '}
+            <a
+              href="mailto:support@mfu.ac.th"
+              className="text-blue-600 hover:text-blue-700 underline"
+            >
+              IT Support
+            </a>
           </p>
         </div>
       </div>
