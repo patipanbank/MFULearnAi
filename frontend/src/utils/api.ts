@@ -338,6 +338,10 @@ export class WebSocketManager {
     this.onCloseCallback = callback
   }
 
+  getChatId(): string | null {
+    return this.chatId
+  }
+
   getReadyState(): number {
     return this.ws?.readyState ?? WebSocket.CLOSED
   }

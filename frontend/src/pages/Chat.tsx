@@ -170,14 +170,24 @@ const Chat: React.FC = () => {
   const connectWebSocket = async (chatId: string) => {
     if (!wsManagerRef.current) return
 
-    try {
-      setWsReconnecting(true)
-      await wsManagerRef.current.connect(chatId)
-      setWsReconnecting(false)
-    } catch (error) {
-      console.error('Failed to connect WebSocket:', error)
-      setWsReconnecting(false)
-      toast.error('Failed to establish real-time connection')
+    const manager = wsManagerRef.current
+    const isConnected = manager.getReadyState() === WebSocket.OPEN
+    const connectedChatId = manager.getChatId()
+
+    if (!isConnected || (isConnected && connectedChatId !== chatId)) {
+      if (isConnected) {
+        console.log(`Switching WebSocket chat from ${connectedChatId} to ${chatId}`)
+        manager.close()
+      }
+      try {
+        console.log(`Connecting WebSocket for chat ${chatId}...`)
+        await manager.connect(chatId)
+      } catch (error) {
+        console.error('Failed to connect WebSocket:', error)
+        if (error instanceof Error && !error.message.includes('timeout')) {
+          toast.error('Failed to establish real-time connection.')
+        }
+      }
     }
   }
 
@@ -832,4 +842,4 @@ const Chat: React.FC = () => {
   )
 }
 
-export default Chat 
+export default Chat
