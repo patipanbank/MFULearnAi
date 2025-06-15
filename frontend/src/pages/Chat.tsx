@@ -8,9 +8,7 @@ import {
   Drawer,
   Upload,
   Dropdown,
-  Empty,
-  Tooltip,
-  Modal
+  Empty
 } from 'antd'
 import { 
   SendOutlined, 
@@ -24,8 +22,7 @@ import {
   StopOutlined,
   CopyOutlined
 } from '@ant-design/icons'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
 import { useAuth } from '../contexts/AuthContext'
 import { chatApi, modelsApi, createWebSocketConnection } from '../utils/api'
 import toast from 'react-hot-toast'
@@ -57,7 +54,6 @@ interface Model {
 }
 
 const Chat: React.FC = () => {
-  const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [currentMessage, setCurrentMessage] = useState('')
   const [selectedModel, setSelectedModel] = useState<string>('')
@@ -65,7 +61,6 @@ const Chat: React.FC = () => {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [currentChatId, setCurrentChatId] = useState<string>('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState<string>('')
   const [editingContent, setEditingContent] = useState('')

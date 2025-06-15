@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface RoleGuardProps {
@@ -12,7 +12,7 @@ export default function RoleGuard({ allowed, children }: RoleGuardProps) {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    if (!loading && (!user || !allowed.includes(user.role))) {
+    if (!loading && (!user || !user.role || !allowed.includes(user.role))) {
       navigate('/login', { replace: true });
     }
   }, [user, loading, allowed, navigate]);
@@ -25,7 +25,7 @@ export default function RoleGuard({ allowed, children }: RoleGuardProps) {
     );
   }
 
-  if (!allowed.includes(user.role)) {
+  if (!user.role || !allowed.includes(user.role)) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20">
         <h1 className="text-2xl font-bold mb-4">Access Denied</h1>

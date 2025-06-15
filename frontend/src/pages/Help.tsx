@@ -2,7 +2,7 @@ import React from 'react'
 import { Card, Collapse, Typography } from 'antd'
 import { QuestionCircleOutlined } from '@ant-design/icons'
 
-const { Panel } = Collapse
+
 const { Title, Paragraph } = Typography
 
 const Help: React.FC = () => {

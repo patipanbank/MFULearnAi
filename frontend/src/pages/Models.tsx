@@ -28,7 +28,6 @@ import { modelsApi, departmentsApi } from '../utils/api'
 import toast from 'react-hot-toast'
 
 const { Option } = Select
-const { TextArea } = Input
 
 interface Model {
   _id: string
