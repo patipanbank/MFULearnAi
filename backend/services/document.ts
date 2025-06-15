@@ -34,8 +34,13 @@ export class DocumentService {
     return new Promise((resolve, reject) => {
       let buffer = Buffer.from([]);
       
-      fileStream.on('data', (chunk: Buffer) => {
-        buffer = Buffer.concat([buffer, chunk]);
+      fileStream.on('data', (chunk: string | Buffer) => {
+        if (typeof chunk === 'string') {
+          // If chunk is a string, convert to Buffer using utf-8 encoding
+          buffer = Buffer.concat([buffer, Buffer.from(chunk, 'utf-8')]);
+        } else {
+          buffer = Buffer.concat([buffer, chunk]);
+        }
       });
       
       fileStream.on('end', async () => {
