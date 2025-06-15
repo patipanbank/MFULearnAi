@@ -419,17 +419,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             )}
           </div>
           
-          {/* Search button - only show when sidebar is expanded */}
-          {shouldShowContent && (
-            <div className="flex items-center">
-              <button
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200 text-gray-600 dark:text-gray-400"
-                title="Search"
-              >
-                <FaSearch className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+
         </div>
       </div>
 
@@ -524,20 +514,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   <span className="text-xs text-gray-500 dark:text-gray-400">--- Latest chat ---</span>
                 </div>
               )}
-              {sortedChats.length > 10 && (
-                <div className="px-2 py-2">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search chats..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-3 py-1.5 pl-8 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
-                    />
-                    <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
-                  </div>
+              
+              {/* Search bar - always show when sidebar is expanded */}
+              <div className="px-2 py-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="ค้นหาแชท"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2.5 pl-10 bg-gray-800 dark:bg-gray-700 border border-gray-600 dark:border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400 text-sm"
+                  />
+                  <FaSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 </div>
-              )}
+              </div>
               {sortedChats.length > 0 && (
                 <div className="mt-1 space-y-0.5">
                   {sortedChats.map((chat) => (
