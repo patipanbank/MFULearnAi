@@ -525,16 +525,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               )}
               
               {/* Search bar - always show when sidebar is expanded */}
-              <div className="px-2 py-2">
+              <div className="px-2 py-1">
                 <div className="relative">
                   <input
                     type="text"
                     placeholder="ค้นหาแชท"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2.5 pl-10 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm"
+                    className="w-full px-3 py-1.5 pl-8 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-xs"
                   />
-                  <FaSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 w-4 h-4" />
+                  <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 w-3 h-3" />
                 </div>
               </div>
               {sortedChats.length > 0 && (
