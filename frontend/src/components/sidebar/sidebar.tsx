@@ -58,6 +58,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode === 'true';
   });
+
+  // Apply dark mode class on component mount and when isDarkMode changes
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
   const [renameState, setRenameState] = useState<RenameState>({
     isEditing: false,
     chatId: null,
