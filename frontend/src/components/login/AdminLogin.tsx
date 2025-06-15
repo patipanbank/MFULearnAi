@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { config } from '../../config/config';
+
+const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 const AdminLogin: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -12,7 +13,7 @@ const AdminLogin: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.post(`${config.apiUrl}/api/auth/admin/login`, {
+      const response = await axios.post(`${API_URL}/api/auth/admin/login`, {
         username,
         password
       });

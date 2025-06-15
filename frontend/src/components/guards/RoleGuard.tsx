@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 
 interface RoleGuardProps {
   allowed: string[];
@@ -9,13 +9,13 @@ interface RoleGuardProps {
 
 export default function RoleGuard({ allowed, children }: RoleGuardProps) {
   const { user, loading } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     if (!loading && (!user || !allowed.includes(user.role))) {
-      router.replace('/login');
+      navigate('/login', { replace: true });
     }
-  }, [user, loading, allowed, router]);
+  }, [user, loading, allowed, navigate]);
 
   if (loading || !user) {
     return (

@@ -1,12 +1,11 @@
 // import React,{useState} from 'react';
 // import { useNavigate } from 'react-router-dom';
-import { config } from '../../config/config';
-// import axios from 'axios';
+const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
 const Login: React.FC = () => {
   // const [showLogin, setShowLogin] = useState(false);
   // const [name, setName] = useState('');
   const handleMFUSSOLogin = () => {
-    window.location.href = `${config.apiUrl}/api/auth/login/saml`;
+    window.location.href = `${API_URL}/api/auth/login/saml`;
   };
 
   const handleAdminLogin = () => {

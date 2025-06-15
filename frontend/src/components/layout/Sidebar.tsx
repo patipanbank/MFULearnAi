@@ -1,6 +1,4 @@
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 
 const navItems = [
   { href: '/', label: 'Dashboard', emoji: '🏠' },
@@ -16,7 +14,8 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const location = useLocation();
+  const pathname = location.pathname;
   return (
     <aside className="w-60 h-screen bg-white border-r flex flex-col py-6 px-4 shadow-sm">
       <div className="mb-8 text-2xl font-bold text-center">MFULearnAi</div>
@@ -24,7 +23,7 @@ export default function Sidebar() {
         {navItems.map((item) => (
           <Link
             key={item.href}
-            href={item.href}
+            to={item.href}
             className={`flex items-center gap-2 px-3 py-2 rounded transition-colors font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600 ${
               pathname === item.href ? 'bg-blue-100 text-blue-700' : ''
             }`}
