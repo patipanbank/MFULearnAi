@@ -392,7 +392,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
       onMouseLeave={() => !isSidebarPinned && setIsSidebarHovered(false)}
     >
-      <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
+            <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Pin button - always visible */}
@@ -418,6 +418,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               </button>
             )}
           </div>
+          
+          {/* Search button - only show when sidebar is expanded */}
+          {shouldShowContent && (
+            <div className="flex items-center">
+              <button
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200 text-gray-600 dark:text-gray-400"
+                title="Search"
+              >
+                <FaSearch className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
