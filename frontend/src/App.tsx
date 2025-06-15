@@ -1,54 +1,132 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Sidebar from './components/layout/Sidebar';
-import Header from './components/layout/Header';
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { ConfigProvider } from 'antd'
+import { AuthProvider } from './contexts/AuthContext'
+import { useAuth } from './contexts/AuthContext'
+import Layout from './components/layout/Layout'
+import Login from './pages/Login'
+import AuthCallback from './pages/AuthCallback'
+import Chat from './pages/Chat'
+import Models from './pages/Models'
+import Training from './pages/Training'
+import Admin from './pages/Admin'
+import Statistics from './pages/Statistics'
+import Departments from './pages/Departments'
+import Help from './pages/Help'
+import NotFound from './pages/NotFound'
 
-// Import pages from app directory
-import ChatPage from '../app/chat/page';
-import ModelsPage from '../app/models/page';
-import CollectionsPage from '../app/collections/page';
-import CollectionDetailPage from '../app/collections/[id]/page';
-import DepartmentsPage from '../app/departments/page';
-import AdminsPage from '../app/admins/page';
-import SystemPromptPage from '../app/system-prompt/page';
-import StatisticsPage from '../app/statistics/page';
-import HelpPage from '../app/help/page';
-import LoginPage from '../app/login/page';
-import AuthCallbackPage from '../app/auth-callback/page';
-
-function NotFound() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-20">
-      <h1 className="text-2xl font-bold mb-4">404 - Not Found</h1>
-      <p className="text-gray-600">The page you are looking for does not exist.</p>
-      <a href="/" className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">กลับหน้าหลัก</a>
-    </div>
-  );
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth()
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+  
+  return <>{children}</>
 }
 
-export default function App() {
+const AppRoutes: React.FC = () => {
+  const { user } = useAuth()
+  
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          <Routes>
-            <Route path="/" element={<Navigate to="/chat" replace />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/models" element={<ModelsPage />} />
-            <Route path="/collections" element={<CollectionsPage />} />
-            <Route path="/collections/:id" element={<CollectionDetailPage />} />
-            <Route path="/departments" element={<DepartmentsPage />} />
-            <Route path="/admins" element={<AdminsPage />} />
-            <Route path="/system-prompt" element={<SystemPromptPage />} />
-            <Route path="/statistics" element={<StatisticsPage />} />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/auth-callback" element={<AuthCallbackPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
-  );
-} 
+    <Routes>
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/auth-callback" element={<AuthCallback />} />
+      
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Layout>
+            <Navigate to="/chat" replace />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/chat" element={
+        <ProtectedRoute>
+          <Layout>
+            <Chat />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/models" element={
+        <ProtectedRoute>
+          <Layout>
+            <Models />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/training" element={
+        <ProtectedRoute>
+          <Layout>
+            <Training />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin" element={
+        <ProtectedRoute>
+          <Layout>
+            <Admin />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/statistics" element={
+        <ProtectedRoute>
+          <Layout>
+            <Statistics />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/departments" element={
+        <ProtectedRoute>
+          <Layout>
+            <Departments />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/help" element={
+        <ProtectedRoute>
+          <Layout>
+            <Help />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
+}
+
+const App: React.FC = () => {
+  return (
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#2563eb',
+          borderRadius: 8,
+        },
+      }}
+    >
+      <AuthProvider>
+        <div className="App">
+          <AppRoutes />
+        </div>
+      </AuthProvider>
+    </ConfigProvider>
+  )
+}
+
+export default App 

@@ -1,21 +1,24 @@
-import './globals.css';
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { Toaster } from 'react-hot-toast';
-import { ErrorBoundary } from './components/common/ErrorBoundary';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import App from './App.tsx'
+import './index.css'
+import { Toaster } from 'react-hot-toast'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <AuthProvider>
-        <BrowserRouter>
-          <App />
-          <Toaster position="top-right" />
-        </BrowserRouter>
-      </AuthProvider>
-    </ErrorBoundary>
-  </React.StrictMode>
-); 
+    <BrowserRouter>
+      <App />
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        }}
+      />
+    </BrowserRouter>
+  </React.StrictMode>,
+) 
