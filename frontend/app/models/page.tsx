@@ -58,7 +58,8 @@ export default function ModelsPage() {
     setEditLoading(true);
     setEditError(null);
     try {
-      const response = await fetch('/api/models/' + model._id, {
+      if (!editModel) throw new Error('No model selected');
+      const response = await fetch('/api/models/' + editModel._id, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

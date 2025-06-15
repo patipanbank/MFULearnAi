@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import RoleGuard from '@/components/guards/RoleGuard';
 import { useAuth } from '@/context/AuthContext';
 import { Collection } from '@/types/collection';
+import { toast } from 'react-hot-toast';
 
 interface DocumentInfo {
   filename: string;
