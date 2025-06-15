@@ -146,7 +146,208 @@ export const departmentsApi = {
     api.delete(`/api/departments/${departmentId}`),
 }
 
-// WebSocket connection
+// WebSocket connection with enhanced features
+export class WebSocketManager {
+  private ws: WebSocket | null = null
+  private reconnectAttempts = 0
+  private maxReconnectAttempts = 5
+  private reconnectDelay = 1000
+  private heartbeatInterval: NodeJS.Timeout | null = null
+  private isReconnecting = false
+  private chatId: string | null = null
+  private onMessageCallback: ((data: any) => void) | null = null
+  private onErrorCallback: ((error: any) => void) | null = null
+  private onOpenCallback: (() => void) | null = null
+  private onCloseCallback: (() => void) | null = null
+
+  constructor() {
+    this.setupHeartbeat()
+  }
+
+  connect(chatId?: string): Promise<WebSocket> {
+    return new Promise((resolve, reject) => {
+      try {
+        this.chatId = chatId || null
+        const token = localStorage.getItem('authToken')
+        
+        if (!token) {
+          reject(new Error('No authentication token found'))
+          return
+        }
+
+        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:5001'
+        let url = `${wsUrl}/ws?token=${encodeURIComponent(token)}`
+        
+        if (chatId) {
+          url += `&chat=${encodeURIComponent(chatId)}`
+        }
+
+        console.log('Connecting to WebSocket:', url.replace(token, '[TOKEN]'))
+        
+        this.ws = new WebSocket(url)
+        
+        this.ws.onopen = () => {
+          console.log('WebSocket connected successfully')
+          this.reconnectAttempts = 0
+          this.isReconnecting = false
+          this.startHeartbeat()
+          
+          if (this.onOpenCallback) {
+            this.onOpenCallback()
+          }
+          
+          resolve(this.ws!)
+        }
+
+        this.ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            
+            // Handle heartbeat pong
+            if (data.type === 'pong') {
+              return
+            }
+            
+            if (this.onMessageCallback) {
+              this.onMessageCallback(data)
+            }
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error)
+            if (this.onErrorCallback) {
+              this.onErrorCallback(error)
+            }
+          }
+        }
+
+        this.ws.onerror = (error) => {
+          console.error('WebSocket error:', error)
+          if (this.onErrorCallback) {
+            this.onErrorCallback(error)
+          }
+        }
+
+        this.ws.onclose = (event) => {
+          console.log('WebSocket closed:', event.code, event.reason)
+          this.stopHeartbeat()
+          
+          if (this.onCloseCallback) {
+            this.onCloseCallback()
+          }
+
+          // Auto-reconnect if not intentionally closed
+          if (event.code !== 1000 && !this.isReconnecting && this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnect()
+          }
+        }
+
+        // Connection timeout
+        setTimeout(() => {
+          if (this.ws?.readyState === WebSocket.CONNECTING) {
+            this.ws.close()
+            reject(new Error('WebSocket connection timeout'))
+          }
+        }, 10000)
+
+      } catch (error) {
+        console.error('Error creating WebSocket connection:', error)
+        reject(error)
+      }
+    })
+  }
+
+  private reconnect() {
+    if (this.isReconnecting) return
+    
+    this.isReconnecting = true
+    this.reconnectAttempts++
+    
+    console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+    
+    setTimeout(() => {
+      this.connect(this.chatId || undefined)
+        .catch((error) => {
+          console.error('Reconnection failed:', error)
+          if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error('Max reconnection attempts reached')
+            if (this.onErrorCallback) {
+              this.onErrorCallback(new Error('Connection lost and unable to reconnect'))
+            }
+          }
+        })
+    }, this.reconnectDelay * this.reconnectAttempts)
+  }
+
+  private setupHeartbeat() {
+    // Send ping every 25 seconds (server expects pong within 30 seconds)
+    this.heartbeatInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.send({ type: 'ping' })
+      }
+    }, 25000)
+  }
+
+  private startHeartbeat() {
+    this.stopHeartbeat()
+    this.setupHeartbeat()
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval)
+      this.heartbeatInterval = null
+    }
+  }
+
+  send(data: any): boolean {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify(data))
+        return true
+      } catch (error) {
+        console.error('Error sending WebSocket message:', error)
+        return false
+      }
+    }
+    console.warn('WebSocket is not open, cannot send message')
+    return false
+  }
+
+  close() {
+    this.isReconnecting = false
+    this.stopHeartbeat()
+    
+    if (this.ws) {
+      this.ws.close(1000, 'Client closing connection')
+      this.ws = null
+    }
+  }
+
+  onMessage(callback: (data: any) => void) {
+    this.onMessageCallback = callback
+  }
+
+  onError(callback: (error: any) => void) {
+    this.onErrorCallback = callback
+  }
+
+  onOpen(callback: () => void) {
+    this.onOpenCallback = callback
+  }
+
+  onClose(callback: () => void) {
+    this.onCloseCallback = callback
+  }
+
+  getReadyState(): number {
+    return this.ws?.readyState ?? WebSocket.CLOSED
+  }
+
+  isConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN
+  }
+}
+
+// Legacy function for backward compatibility
 export const createWebSocketConnection = (chatId?: string): WebSocket => {
   const token = localStorage.getItem('authToken')
   const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:5001'

@@ -170,6 +170,12 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       const data = JSON.parse(message.toString());
       const userId = extWs.userId;
 
+      // Handle ping request
+      if (data.type === 'ping') {
+        extWs.send(JSON.stringify({ type: 'pong' }));
+        return;
+      }
+
       // Handle message_edited request specifically
       if (data.type === 'message_edited') {
         console.log(`User ${userId} edited message in chat ${data.chatId}`);

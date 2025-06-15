@@ -10,7 +10,9 @@ import {
   Dropdown,
   Empty,
   Spin,
-  Alert
+  Alert,
+  Badge,
+  Tooltip
 } from 'antd'
 import { 
   SendOutlined, 
@@ -22,10 +24,13 @@ import {
   EditOutlined,
   MenuOutlined,
   StopOutlined,
-  CopyOutlined
+  CopyOutlined,
+  WifiOutlined,
+  DisconnectOutlined,
+  ReloadOutlined
 } from '@ant-design/icons'
 
-import { chatApi, modelsApi, createWebSocketConnection } from '../utils/api'
+import { chatApi, modelsApi, WebSocketManager } from '../utils/api'
 import toast from 'react-hot-toast'
 import type { MenuProps } from 'antd'
 
@@ -72,8 +77,12 @@ const Chat: React.FC = () => {
   const [modelsLoading, setModelsLoading] = useState(false)
   const [chatsLoading, setChatsLoading] = useState(false)
   
+  // WebSocket connection states
+  const [wsConnected, setWsConnected] = useState(false)
+  const [wsReconnecting, setWsReconnecting] = useState(false)
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const wsRef = useRef<WebSocket | null>(null)
+  const wsManagerRef = useRef<WebSocketManager | null>(null)
   const textAreaRef = useRef<any>(null)
 
   // Scroll to bottom of messages
@@ -88,6 +97,47 @@ const Chat: React.FC = () => {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Initialize WebSocket Manager
+  useEffect(() => {
+    wsManagerRef.current = new WebSocketManager()
+    
+    // Setup WebSocket event handlers
+    wsManagerRef.current.onOpen(() => {
+      setWsConnected(true)
+      setWsReconnecting(false)
+      console.log('WebSocket connected')
+    })
+
+    wsManagerRef.current.onClose(() => {
+      setWsConnected(false)
+      setIsGenerating(false)
+      console.log('WebSocket disconnected')
+    })
+
+    wsManagerRef.current.onError((error) => {
+      console.error('WebSocket error:', error)
+      setWsConnected(false)
+      setIsGenerating(false)
+      
+      if (error.message?.includes('reconnect')) {
+        setWsReconnecting(true)
+        toast.error('Connection lost. Attempting to reconnect...')
+      } else {
+        toast.error('Connection error')
+      }
+    })
+
+    wsManagerRef.current.onMessage((data) => {
+      handleWebSocketMessage(data)
+    })
+
+    return () => {
+      if (wsManagerRef.current) {
+        wsManagerRef.current.close()
+      }
+    }
+  }, [])
 
   // Load models and chat sessions on mount
   useEffect(() => {
@@ -110,17 +160,70 @@ const Chat: React.FC = () => {
     initializeChat()
   }, [])
 
-  // Setup WebSocket connection
+  // Setup WebSocket connection when chat changes
   useEffect(() => {
-    if (currentChatId) {
-      setupWebSocket(currentChatId)
-    }
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
+    if (currentChatId && wsManagerRef.current) {
+      connectWebSocket(currentChatId)
     }
   }, [currentChatId])
+
+  const connectWebSocket = async (chatId: string) => {
+    if (!wsManagerRef.current) return
+
+    try {
+      setWsReconnecting(true)
+      await wsManagerRef.current.connect(chatId)
+      setWsReconnecting(false)
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error)
+      setWsReconnecting(false)
+      toast.error('Failed to establish real-time connection')
+    }
+  }
+
+  const handleWebSocketMessage = (data: any) => {
+    try {
+      if (data.type === 'chunk') {
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1]
+          if (lastMessage && lastMessage.role === 'assistant' && lastMessage.id === data.messageId) {
+            return prev.map(msg => 
+              msg.id === data.messageId 
+                ? { ...msg, content: msg.content + data.content }
+                : msg
+            )
+          } else {
+            return [...prev, {
+              id: data.messageId,
+              role: 'assistant',
+              content: data.content,
+              timestamp: new Date(),
+              model: selectedModel
+            }]
+          }
+        })
+      } else if (data.type === 'complete') {
+        setIsGenerating(false)
+        toast.success('Response completed')
+      } else if (data.type === 'error') {
+        toast.error(data.error || data.message || 'An error occurred')
+        setIsGenerating(false)
+      } else if (data.type === 'message_edited') {
+        // Handle message edit broadcast from other clients
+        setMessages(prev => prev.map(msg => 
+          msg.id === data.messageId 
+            ? { ...msg, content: data.content }
+            : msg
+        ))
+        toast.success('Message updated from another session')
+      } else if (data.type === 'chat_updated') {
+        // Reload chat sessions when updated from another client
+        loadChatSessions()
+      }
+    } catch (error) {
+      console.error('Error handling WebSocket message:', error)
+    }
+  }
 
   const loadModels = async () => {
     try {
@@ -215,68 +318,6 @@ const Chat: React.FC = () => {
     }
   }
 
-  const setupWebSocket = (chatId: string) => {
-    if (wsRef.current) {
-      wsRef.current.close()
-    }
-
-    try {
-      wsRef.current = createWebSocketConnection(chatId)
-      
-      wsRef.current.onopen = () => {
-        console.log('WebSocket connected')
-      }
-
-      wsRef.current.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          
-          if (data.type === 'chunk') {
-            setMessages(prev => {
-              const lastMessage = prev[prev.length - 1]
-              if (lastMessage && lastMessage.role === 'assistant' && lastMessage.id === data.messageId) {
-                return prev.map(msg => 
-                  msg.id === data.messageId 
-                    ? { ...msg, content: msg.content + data.content }
-                    : msg
-                )
-              } else {
-                return [...prev, {
-                  id: data.messageId,
-                  role: 'assistant',
-                  content: data.content,
-                  timestamp: new Date(),
-                  model: selectedModel
-                }]
-              }
-            })
-          } else if (data.type === 'complete') {
-            setIsGenerating(false)
-          } else if (data.type === 'error') {
-            toast.error(data.message || 'An error occurred')
-            setIsGenerating(false)
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error)
-        }
-      }
-
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        toast.error('Connection error')
-        setIsGenerating(false)
-      }
-
-      wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected')
-        setIsGenerating(false)
-      }
-    } catch (error) {
-      console.error('Error setting up WebSocket:', error)
-      toast.error('Failed to establish connection')
-    }
-  }
-
   const createNewChat = async () => {
     try {
       // Mock implementation
@@ -355,20 +396,24 @@ const Chat: React.FC = () => {
     setIsGenerating(true)
 
     try {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
+      if (wsManagerRef.current?.isConnected()) {
+        const success = wsManagerRef.current.send({
           type: 'message',
           chatId: currentChatId,
-          message: messageToSend,
+          messages: [...messages, userMessage],
           modelId: selectedModel
-        }))
+        })
+
+        if (!success) {
+          throw new Error('Failed to send message via WebSocket')
+        }
       } else {
-        // Fallback: Mock response since API might not be available
+        // Fallback: Mock response since WebSocket is not available
         setTimeout(() => {
           const mockResponse: Message = {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
-            content: `This is a mock response to: "${messageToSend}". The chat API is not currently available.`,
+            content: `This is a mock response to: "${messageToSend}". The WebSocket connection is not available.`,
             timestamp: new Date(),
             model: selectedModel
           }
@@ -384,11 +429,11 @@ const Chat: React.FC = () => {
   }
 
   const stopGeneration = () => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
+    if (wsManagerRef.current?.isConnected()) {
+      wsManagerRef.current.send({
         type: 'cancel',
         chatId: currentChatId
-      }))
+      })
     }
     setIsGenerating(false)
   }
@@ -408,6 +453,16 @@ const Chat: React.FC = () => {
       setEditingMessageId('')
       setEditingContent('')
       toast.success('Message updated')
+      
+      // Broadcast edit to other clients via WebSocket
+      if (wsManagerRef.current?.isConnected()) {
+        wsManagerRef.current.send({
+          type: 'message_edited',
+          chatId: currentChatId,
+          messageId: messageId,
+          content: editingContent
+        })
+      }
       
       // Try API call
       try {
@@ -452,6 +507,12 @@ const Chat: React.FC = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage()
+    }
+  }
+
+  const reconnectWebSocket = () => {
+    if (currentChatId && wsManagerRef.current) {
+      connectWebSocket(currentChatId)
     }
   }
 
@@ -632,28 +693,57 @@ const Chat: React.FC = () => {
               onClick={() => setSidebarOpen(true)}
             />
             <div>
-              <h2 className="text-lg font-semibold text-gray-800">
-                {chatSessions.find(c => c.id === currentChatId)?.title || 'Chat'}
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center space-x-2">
+                <span>{chatSessions.find(c => c.id === currentChatId)?.title || 'Chat'}</span>
+                {/* WebSocket Status Indicator */}
+                <Tooltip title={wsConnected ? 'Connected' : wsReconnecting ? 'Reconnecting...' : 'Disconnected'}>
+                  <Badge 
+                    status={wsConnected ? 'success' : wsReconnecting ? 'processing' : 'error'} 
+                    dot 
+                  />
+                </Tooltip>
               </h2>
-              <p className="text-sm text-gray-500">
-                Model: {models.find(m => m._id === selectedModel)?.name || 'Select Model'}
+              <p className="text-sm text-gray-500 flex items-center space-x-2">
+                <span>Model: {models.find(m => m._id === selectedModel)?.name || 'Select Model'}</span>
+                {!wsConnected && !wsReconnecting && (
+                  <Button 
+                    type="link" 
+                    size="small" 
+                    icon={<ReloadOutlined />}
+                    onClick={reconnectWebSocket}
+                    className="p-0 h-auto"
+                  >
+                    Reconnect
+                  </Button>
+                )}
               </p>
             </div>
           </div>
           
-          <Select
-            value={selectedModel}
-            onChange={setSelectedModel}
-            placeholder="Select Model"
-            style={{ width: 200 }}
-            loading={modelsLoading}
-          >
-            {models.map(model => (
-              <Option key={model._id} value={model._id}>
-                {model.name} ({model.modelType})
-              </Option>
-            ))}
-          </Select>
+          <div className="flex items-center space-x-3">
+            {/* Connection Status */}
+            <Tooltip title={wsConnected ? 'Real-time connection active' : 'Real-time connection inactive'}>
+              {wsConnected ? (
+                <WifiOutlined className="text-green-500" />
+              ) : (
+                <DisconnectOutlined className="text-red-500" />
+              )}
+            </Tooltip>
+            
+            <Select
+              value={selectedModel}
+              onChange={setSelectedModel}
+              placeholder="Select Model"
+              style={{ width: 200 }}
+              loading={modelsLoading}
+            >
+              {models.map(model => (
+                <Option key={model._id} value={model._id}>
+                  {model.name} ({model.modelType})
+                </Option>
+              ))}
+            </Select>
+          </div>
         </div>
 
         {/* Messages Area */}
@@ -698,6 +788,7 @@ const Chat: React.FC = () => {
                 placeholder="Type your message..."
                 autoSize={{ minRows: 1, maxRows: 6 }}
                 className="resize-none"
+                disabled={isGenerating}
               />
             </div>
             
@@ -710,6 +801,7 @@ const Chat: React.FC = () => {
                   icon={<PaperClipOutlined />}
                   type="text"
                   className="text-gray-500 hover:text-gray-700"
+                  disabled={isGenerating}
                 />
               </Upload>
               
