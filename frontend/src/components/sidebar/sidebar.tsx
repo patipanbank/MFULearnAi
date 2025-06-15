@@ -660,17 +660,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600 pb-3">Settings</h3>
                 
                 <div className="space-y-2">
-                  <button
-                    onClick={toggleTheme}
-                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                  >
-                    {isDarkMode ? (
-                      <FaSun className="w-5 h-5 mr-3 text-yellow-500" />
-                    ) : (
-                      <FaMoon className="w-5 h-5 mr-3" />
-                    )}
-                    Change Theme
-                  </button>
                   <Link
                     to="/modelCreation"
                     onClick={() => setShowSettingsPopup(false)}
@@ -695,6 +684,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                     <FaQuestionCircle className="w-5 h-5 mr-3" />
                     Help
                   </Link>
+                  <button
+                    onClick={toggleTheme}
+                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    {isDarkMode ? (
+                      <FaSun className="w-5 h-5 mr-3 text-yellow-500" />
+                    ) : (
+                      <FaMoon className="w-5 h-5 mr-3" />
+                    )}
+                    Change Theme
+                  </button>
                 </div>
               </div>
             </div>
