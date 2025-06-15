@@ -399,17 +399,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <div className="group relative">
               <button
                 onClick={toggleSidebarPin}
-                className={`flex items-center ${shouldShowContent ? 'justify-between px-2' : 'justify-center px-2'} py-2 rounded-xl transition-all duration-200 ${
+                className={`${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 rounded-lg transition-all duration-200 ${
                   isSidebarPinned 
                     ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}
-                title={!shouldShowContent ? "Pin sidebar" : ""}
               >
-                <div className={`flex items-center ${shouldShowContent ? 'min-w-0 flex-1' : ''}`}>
-                  <FaBars className="w-5 h-5 flex-shrink-0" />
-                  {shouldShowContent && <span className="font-medium truncate ml-2">Pin Sidebar</span>}
-                </div>
+                <FaBars className="w-4 h-4 transition-transform duration-200" />
               </button>
               {shouldShowContent && (
                 <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-0">
