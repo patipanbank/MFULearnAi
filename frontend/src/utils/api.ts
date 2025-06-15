@@ -175,7 +175,7 @@ export class WebSocketManager {
           return
         }
 
-        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:5001'
+        const wsUrl = (import.meta.env.VITE_WS_URL || 'ws://localhost:5001').replace(/\/ws$/, '').replace(/\/$/, '')
         let url = `${wsUrl}/ws?token=${encodeURIComponent(token)}`
         
         if (chatId) {
@@ -354,7 +354,7 @@ export class WebSocketManager {
 // Legacy function for backward compatibility
 export const createWebSocketConnection = (chatId?: string): WebSocket => {
   const token = localStorage.getItem('authToken')
-  const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:5001'
+  const wsUrl = (import.meta.env.VITE_WS_URL || 'ws://localhost:5001').replace(/\/ws$/, '').replace(/\/$/, '')
   
   let url = `${wsUrl}/ws?token=${encodeURIComponent(token || '')}`
   if (chatId) {
