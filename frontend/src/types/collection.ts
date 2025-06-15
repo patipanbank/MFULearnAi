@@ -1,18 +1,9 @@
-export enum CollectionPermission {
-  PUBLIC = 'PUBLIC',
-  PRIVATE = 'PRIVATE'
-}
+export type CollectionPermission = 'PUBLIC' | 'PRIVATE';
 
 export interface Collection {
   id: string;
   name: string;
+  permission: CollectionPermission;
   createdBy: string;
-  created: string;
-  permission: CollectionPermission | string[] | undefined;
-  lastModified?: string;
-  modificationHistory?: {
-    timestamp: string;
-    action: string;
-    details: string;
-  }[];
+  createdAt?: string;
 } 

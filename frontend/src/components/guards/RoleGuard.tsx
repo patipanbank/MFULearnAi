@@ -1,37 +1,38 @@
-import { Navigate } from 'react-router-dom';
+import React from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface RoleGuardProps {
+  allowed: string[];
   children: React.ReactNode;
-  allowedGroups: string[];
 }
 
-const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedGroups }) => {
-  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const userGroups = userData.groups || [];
+export default function RoleGuard({ allowed, children }: RoleGuardProps) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-  // console.log('RoleGuard Debug:', {
-  //   userData,
-  //   userGroups,
-  //   allowedGroups
-  // });
+  React.useEffect(() => {
+    if (!loading && (!user || !allowed.includes(user.role))) {
+      router.replace('/login');
+    }
+  }, [user, loading, allowed, router]);
 
-  // Case-insensitive comparison
-  const hasAllowedGroup = userGroups.some((userGroup: string) => 
-    allowedGroups.some(allowedGroup => {
-      const match = allowedGroup.toLowerCase() === userGroup.toLowerCase();
-      // console.log(`Comparing: ${userGroup} with ${allowedGroup}, match: ${match}`);
-      return match;
-    })
-  );
+  if (loading || !user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20">
+        <h1 className="text-2xl font-bold mb-4">Checking permissions...</h1>
+      </div>
+    );
+  }
 
-  // console.log('Has allowed group:', hasAllowedGroup);
-
-  if (!hasAllowedGroup) {
-    // console.log('Access denied, redirecting to /mfuchatbot');
-    return <Navigate to="/mfuchatbot" replace />;
+  if (!allowed.includes(user.role)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20">
+        <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+        <p className="text-red-600">You do not have permission to view this page.</p>
+      </div>
+    );
   }
 
   return <>{children}</>;
-};
-
-export default RoleGuard; 
+} 

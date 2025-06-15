@@ -1,3 +1,22 @@
+# MFULearnAi Frontend
+
+This project uses **Next.js 14+ App Router** (with `app/` directory as the main entry point), TypeScript, Tailwind CSS, and shadcn/ui.
+
+## Structure
+- `app/` — Main routing and pages (App Router)
+- `src/components/` — Reusable UI components
+- `public/` — Static assets
+
+## Getting Started
+1. `cd frontend`
+2. `npm install`
+3. `npm run dev`
+
+---
+
+> **Note:**
+> The `app/` directory will be created and used for all main routes and layouts.
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
