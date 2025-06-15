@@ -12,7 +12,6 @@ import {
   BarChartOutlined,
   TeamOutlined,
   QuestionCircleOutlined,
-  DatabaseOutlined,
   SafetyOutlined,
   ClockCircleOutlined,
   BellOutlined
