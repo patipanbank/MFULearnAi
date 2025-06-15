@@ -395,24 +395,24 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {/* Pin button - always visible when hovered or pinned */}
-            {shouldShowContent && (
-              <div className="group relative">
-                <button
-                  onClick={toggleSidebarPin}
-                  className={`p-2 rounded-lg transition-all duration-200 ${
-                    isSidebarPinned 
-                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  <FaBars className="w-4 h-4 transition-transform duration-200" />
-                </button>
+            {/* Pin button - always visible */}
+            <div className="group relative">
+              <button
+                onClick={toggleSidebarPin}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  isSidebarPinned 
+                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <FaBars className="w-4 h-4 transition-transform duration-200" />
+              </button>
+              {shouldShowContent && (
                 <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-0">
                   Expand and hold the menu
                 </div>
-              </div>
-            )}
+              )}
+            </div>
             {/* Mobile close button */}
             {shouldShowContent && (
               <button
