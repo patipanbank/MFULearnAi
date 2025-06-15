@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaMoon, FaSun } from 'react-icons/fa';
 import { config } from '../../config/config';
-import DarkModeToggle from '../darkmode/DarkModeToggle';
 import { useUIStore } from '../chat/store/uiStore';
 
 interface SidebarProps {
@@ -396,7 +395,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <DarkModeToggle />
             {/* Pin button - always visible when hovered or pinned */}
             {shouldShowContent && (
               <div className="group relative">
