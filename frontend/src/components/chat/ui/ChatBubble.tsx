@@ -363,7 +363,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       <div className={`flex items-start gap-3 ${
         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-      } w-full max-w-[98%] lg:max-w-[90%] mx-auto`}>
+      } w-full max-w-[98%] md:max-w-[80%] lg:max-w-[50%] mx-auto`}>
         <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
           message.role === 'user'
             ? 'bg-gradient-to-r from-red-600 to-yellow-400'
