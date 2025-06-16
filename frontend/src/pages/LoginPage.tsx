@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../services/api";
 // import { config } from "../config/config"; // Assuming config is not needed for now
 
 const LoginPage = () => {
@@ -6,8 +7,7 @@ const LoginPage = () => {
 
   const handleSamlLogin = () => {
     // This will redirect to the backend endpoint that initiates SAML flow
-    // Using a relative path which api.ts will prepend with the base URL
-    window.location.href = 'http://localhost:8000/api/auth/login/saml'; // Kept the full URL as per sample
+    window.location.href = `${API_URL}/auth/login/saml`;
   };
 
   const handleAdminLogin = () => {
