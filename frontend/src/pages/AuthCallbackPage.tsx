@@ -1,40 +1,44 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { Spin, Alert } from 'antd';
 
 const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const userStr = searchParams.get('user');
+    const userDataStr = searchParams.get('user_data');
 
-    if (window.opener) {
-      if (token && userStr) {
-        try {
-          const user = JSON.parse(userStr);
-          const data = { success: true, token, user };
-          // IMPORTANT: In a real app, you should specify the target origin
-          // for security reasons, not '*'.
-          const targetOrigin = window.opener.location.origin;
-          window.opener.postMessage(data, targetOrigin);
-        } catch (error) {
-          console.error("Failed to parse user data from URL.", error);
-          window.opener.postMessage({ success: false, error: 'Invalid user data' }, window.opener.location.origin);
-        }
-      } else {
-        console.error("Auth callback is missing token or user data in URL params.");
-        window.opener.postMessage({ success: false, error: 'Missing token or user data' }, window.opener.location.origin);
+    if (token && userDataStr) {
+      try {
+        const user = JSON.parse(userDataStr);
+        // Assuming the user object and token are what the login function expects
+        login(user, token);
+        
+        // Redirect to the originally intended page, or home
+        const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/';
+        sessionStorage.removeItem('redirectAfterLogin');
+        navigate(redirectPath, { replace: true });
+
+      } catch (error) {
+        console.error("Failed to parse user data from URL.", error);
+        // Navigate to login with an error message
+        navigate('/login?error=invalid_token', { replace: true });
       }
-      // Close the popup window once the message has been sent
-      window.close();
     } else {
-        console.error("No opener window detected. This page should be opened as a popup.");
+      console.error("Auth callback is missing token or user data in URL params.");
+      // Navigate to login with an error message
+      navigate('/login?error=no_token', { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, login, navigate]);
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
-      <p>Authenticating, please wait... You can close this window if it doesn't close automatically.</p>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
+      <Spin size="large" />
+      <p style={{ marginTop: '20px' }}>Authenticating, please wait...</p>
     </div>
   );
 };
