@@ -1,5 +1,5 @@
 export interface ChatMessage {
-  role: string;
+  role: 'user' | 'assistant';
   content: string;
   timestamp?: any;
   images?: Array<{

@@ -6,6 +6,9 @@ export interface ModelDocument extends Document {
   createdBy: string;
   modelType: 'official' | 'personal' | 'department';
   department?: string;
+  isAgent: boolean;
+  prompt: string;
+  displayRetrievedChunks: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +19,9 @@ const modelSchema = new Schema<ModelDocument>({
   createdBy: { type: String, required: true },
   modelType: { type: String, enum: ['official', 'personal', 'department'], required: true },
   department: { type: String },
+  isAgent: { type: Boolean, default: false },
+  prompt: { type: String, default: '' },
+  displayRetrievedChunks: { type: Boolean, default: true },
 }, { timestamps: true });
 
 export const ModelModel = model<ModelDocument>('Model', modelSchema);

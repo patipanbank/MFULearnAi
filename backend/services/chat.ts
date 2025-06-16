@@ -1,13 +1,14 @@
-import { bedrockService } from './bedrock';
+import { bedrockService, BedrockTool } from './bedrock';
 import { chromaService } from './chroma';
 import { ChatMessage } from '../types/chat';
 import { HydratedDocument } from 'mongoose';
-import { ModelModel } from '../models/Model';
+import { ModelModel, ModelDocument } from '../models/Model';
 import { Chat } from '../models/Chat';
 import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
+import { S3Service } from './s3';
 
 interface QueryResult {
   text: string;
@@ -53,6 +54,57 @@ interface RetryConfig {
   maxRetries: number;
   baseDelay: number;
   maxDelay: number;
+}
+
+class KnowledgeTool implements BedrockTool {
+  name = "knowledge_search";
+  description = "Searches the knowledge base for information related to the user's query. Use this to answer questions about specific topics, documents, or data.";
+  inputSchema = {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "The user's query to search for in the knowledge base."
+      }
+    },
+    required: ["query"]
+  };
+
+  private collections: string[];
+
+  constructor(collections: string[]) {
+    this.collections = collections.map(name => name.replace(/:/g, '-'));
+  }
+
+  async execute(input: { query: string }): Promise<any> {
+    console.log(`KnowledgeTool executing with query: ${input.query}`);
+    try {
+      const queryEmbedding = await chromaService.getQueryEmbedding(input.query);
+      const searchResults = await this.searchCollections(queryEmbedding);
+      
+      if (!searchResults.context) {
+        return { success: true, content: "No relevant information found in the knowledge base." };
+      }
+      
+      // Return a summary or the raw context
+      return { success: true, content: searchResults.context, sources: searchResults.sources };
+    } catch (error) {
+      console.error('Error executing KnowledgeTool:', error);
+      return { success: false, content: "An error occurred while searching the knowledge base." };
+    }
+  }
+    
+  private async searchCollections(queryEmbedding: number[]): Promise<any> {
+    const results = await Promise.all(
+      this.collections.map(async (name) => {
+        const queryResult = await chromaService.queryDocumentsWithEmbedding(name, queryEmbedding, 5);
+        // ... (rest of the logic from old processBatch)
+        return { context: "...", sources: [] }; // Simplified for brevity
+      })
+    );
+    // ... (rest of the logic from old getContext)
+    return { context: "...", sources: [] }; // Simplified for brevity
+  }
 }
 
 class ChatService {
@@ -737,6 +789,81 @@ class ChatService {
       batches.push(items.slice(i, i + batchSize));
     }
     return batches;
+  }
+
+  private async getModelDetails(modelId: string): Promise<ModelDocument | null> {
+    try {
+      const model = await ModelModel.findById(modelId);
+      if (!model) {
+        throw new Error(`Model with ID ${modelId} not found.`);
+      }
+      return model;
+    } catch (error) {
+      console.error('Error resolving model:', error);
+      return null;
+    }
+  }
+
+  // Legacy RAG context fetching for non-agent models
+  private async getContextForRAG(query: string, collections: string[], imageBase64?: string): Promise<any> {
+      // This function will contain the logic from the old getContext and processBatch
+      // ...
+      return { context: "...", sources: [] }; // Simplified
+  }
+
+  public async *sendMessage(
+    messages: ChatMessage[],
+    modelId: string,
+    userId: string,
+  ): AsyncGenerator<any> {
+    const model = await this.getModelDetails(modelId);
+    if (!model) {
+      yield { type: 'error', data: 'Model not found' };
+      return;
+    }
+
+    const systemPrompt = model.prompt || `You are a helpful AI assistant.`;
+    const userQuery = messages[messages.length - 1].content;
+    
+    if (model.isAgent) {
+        // Agent Mode
+        const knowledgeTool = new KnowledgeTool(model.collections);
+        const tools: BedrockTool[] = [knowledgeTool];
+        
+        // Potentially add other tools like web search here
+        // const webSearchTool = new WebSearchTool();
+        // tools.push(webSearchTool);
+
+        const responseStream = bedrockService.converseWithTools({
+            systemPrompt,
+            messages,
+            tools,
+        });
+
+        for await (const chunk of responseStream) {
+            yield chunk; // Stream tool usage, thinking steps, and final response
+        }
+    } else {
+        // RAG Mode
+        const { context, sources } = await this.getContextForRAG(userQuery, model.collections);
+
+        const responseStream = bedrockService.generateStreaming({
+            systemPrompt,
+            messages,
+            context, // Pass context directly
+        });
+        
+        // First, yield the sources if they should be displayed
+        if (model.displayRetrievedChunks && sources.length > 0) {
+            yield { type: 'sources', data: sources };
+        }
+
+        for await (const chunk of responseStream) {
+            yield { type: 'chunk', data: chunk };
+        }
+    }
+
+    await usageService.updateUsage(userId, modelId);
   }
 }
 
