@@ -1,36 +1,14 @@
-import { useState, useEffect } from 'react';
-import { FaMoon, FaSun } from 'react-icons/fa';
+import useUIStore from '../../store/uiStore';
 
 const DarkModeToggle = () => {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const savedMode = localStorage.getItem('darkMode');
-    return savedMode === 'true';
-  });
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('darkMode', isDarkMode.toString());
-  }, [isDarkMode]);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
+  const { isDarkMode, toggleDarkMode } = useUIStore();
 
   return (
     <button
       onClick={toggleDarkMode}
-      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-      aria-label="Toggle dark mode"
+      className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
     >
-      {isDarkMode ? (
-        <FaSun className="w-5 h-5 text-yellow-500" />
-      ) : (
-        <FaMoon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-      )}
+      {isDarkMode ? 'Light' : 'Dark'}
     </button>
   );
 };
