@@ -640,7 +640,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         </div>
                         <div>
                           <div className="font-medium">Create Admin</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Add new administrator</div>
+                         
                         </div>
                       </Link>
                       <Link to="/admin/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
@@ -649,7 +649,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         </div>
                         <div>
                           <div className="font-medium">Manage Admins</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Admin user management</div>
+                         
                         </div>
                       </Link>
                       <Link to="/departments/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 dark:hover:from-violet-900/20 dark:hover:to-purple-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
@@ -658,7 +658,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         </div>
                         <div>
                           <div className="font-medium">Departments</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Manage departments</div>
+                          
                         </div>
                       </Link>
                       <Link to="/statistics" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 dark:hover:from-orange-900/20 dark:hover:to-amber-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
@@ -667,7 +667,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         </div>
                         <div>
                           <div className="font-medium">Statistics</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">View system stats</div>
+                          
                         </div>
                       </Link>
                       <Link to="/system-prompt" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-rose-50 hover:to-pink-50 dark:hover:from-rose-900/20 dark:hover:to-pink-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
@@ -676,7 +676,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         </div>
                         <div>
                           <div className="font-medium">System Prompt</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Edit system prompts</div>
+                          
                         </div>
                       </Link>
                     </div>
