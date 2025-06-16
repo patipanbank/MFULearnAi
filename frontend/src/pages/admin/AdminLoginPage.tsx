@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import React, { useState } from "react";
 import { authService } from "../../services/authService";
@@ -18,74 +18,69 @@ const AdminLoginPage = () => {
     setError('');
     setIsLoading(true);
     try {
-      // We'll use the same authService.login, assuming the backend can handle it
-      // Or you could create a specific authService.adminLogin if needed
       const { user, token } = await authService.login({ username, password });
       login(user, token);
       navigate("/", { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to login. Please check your credentials.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="p-8 bg-white dark:bg-gray-800 shadow-2xl rounded-lg w-full max-w-md">
-        <div className="text-center mb-8">
-          <FaUserShield className="mx-auto text-5xl text-blue-600 dark:text-blue-500" />
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mt-4">Administrator Login</h1>
-          <p className="text-gray-600 dark:text-gray-400">Enter your admin credentials</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+        <div className="text-center">
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
+            Admin Login
+          </h2>
         </div>
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div className="relative">
-            <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              className="shadow-sm appearance-none border rounded w-full py-3 pl-10 pr-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" 
-              id="username" 
-              type="text" 
-              placeholder="Username" 
+        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+          {error && (
+            <div className="text-red-500 text-center p-2 bg-red-100 dark:bg-red-900/50 rounded-md">{error}</div>
+          )}
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Username
+            </label>
+            <input
+              id="username"
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              required
               disabled={isLoading}
             />
           </div>
-          <div className="relative">
-            <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              className="shadow-sm appearance-none border rounded w-full py-3 pl-10 pr-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" 
-              id="password" 
-              type="password" 
-              placeholder="Password" 
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              required
               disabled={isLoading}
             />
           </div>
-          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           <div>
-            <button 
-              className="w-full flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-colors disabled:bg-blue-400" 
+            <button
               type="submit"
               disabled={isLoading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
             >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>Signing In...</span>
-                </>
-              ) : (
-                <>
-                  <FiLogIn />
-                  <span>Sign In</span>
-                </>
-              )}
+              {isLoading ? 'Logging in...' : 'Login'}
             </button>
+          </div>
+          <div className="text-sm text-center">
+            <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+              &larr; Back to login options
+            </Link>
           </div>
         </form>
       </div>

@@ -2,8 +2,9 @@ import api from './api';
 
 // This is a mock implementation. Replace with actual API calls.
 export const authService = {
+  // This is for Admin Login
   login: async (credentials: any) => {
-    const response = await api.post('/auth/login', credentials);
+    const response = await api.post('/auth/admin/login', credentials);
     return response.data;
   },
 
