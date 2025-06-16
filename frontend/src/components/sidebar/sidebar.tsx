@@ -590,7 +590,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   </div>
                 ) : (
                   <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-4 select-none">
-                    ไม่พบประวัติแชท
+                    No chat history
                   </div>
                 )
               )}
