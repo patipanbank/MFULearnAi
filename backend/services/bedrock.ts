@@ -121,6 +121,30 @@ export class BedrockService {
     }
   }
 
+  async invokeModelJSON(prompt: string, modelId: string = this.models.claude35): Promise<any> {
+    try {
+      const command = new InvokeModelCommand({
+        modelId,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: 4096,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      const jsonContent = JSON.parse(responseBody.content[0].text);
+      
+      return jsonContent;
+    } catch (error) {
+      console.error(`Error invoking model ${modelId} for JSON output:`, error);
+      throw new Error(`Failed to get a valid JSON response from the model. Error: ${error}`);
+    }
+  }
+
   // This method is now legacy, for non-agent models
   async *generateStreaming(params: {
     systemPrompt: string,
@@ -154,7 +178,34 @@ export class BedrockService {
       }),
     });
     
-    // ... (stream handling logic remains similar)
+    try {
+      const response = await this.client.send(command);
+      
+      if (!response.body) {
+        throw new Error("Empty response body");
+      }
+
+      let totalTokens = 0;
+      
+      for await (const chunk of response.body) {
+        if (chunk.chunk?.bytes) {
+          const chunkData = JSON.parse(new TextDecoder().decode(chunk.chunk.bytes));
+          
+          if (chunkData.type === 'content_block_delta' && chunkData.delta?.text) {
+            yield chunkData.delta.text;
+          }
+          
+          if (chunkData.type === 'message_delta' && chunkData.usage) {
+            totalTokens += chunkData.usage.output_tokens || 0;
+          }
+        }
+      }
+      
+      this.lastTokenUsage = totalTokens;
+    } catch (error) {
+      console.error("Error in streaming generation:", error);
+      throw error;
+    }
   }
 
   // New method for Agentic chat using Converse API

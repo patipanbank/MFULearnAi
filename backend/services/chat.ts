@@ -8,7 +8,6 @@ import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
-import { S3Service } from './s3';
 
 interface QueryResult {
   text: string;
@@ -167,29 +166,31 @@ class ChatService {
     return name.replace(/:/g, '-');
   }
 
-  /**
-   * Gets collection names for a model ID or returns the collection names if directly provided
-   */
-  private async resolveCollections(modelIdOrCollections: string | string[]): Promise<string[]> {
+  private async selectRelevantCollections(query: string, availableCollections: { name: string; description: string }[]): Promise<string[]> {
+    if (availableCollections.length <= 3) {
+      return availableCollections.map(c => c.name);
+    }
+    const collectionsString = availableCollections.map(c => `  - ${c.name}: ${c.description}`).join('\\n');
+    const prompt = `You are an expert AI routing agent. Your task is to select the most relevant data collections to answer a user's query. Based on the user's query and the available collections listed below, please identify which collections are most likely to contain the information needed. User Query: "${query}". Available Collections:\n${collectionsString}\n\nPlease respond with a JSON object containing a single key "collections" which is an array of strings with the names of the most relevant collections. For example: { "collections": ["collection_name_1", "collection_name_2"] } If no collections seem relevant, return an empty array.`;
+    
     try {
-      if (Array.isArray(modelIdOrCollections)) {
-        // console.log('Collections provided directly:', modelIdOrCollections);
-        return modelIdOrCollections;
+      const response = await bedrockService.invokeModelJSON(prompt, bedrockService.models.claude35);
+      if (response && Array.isArray(response.collections)) {
+        console.log('Router selected collections:', response.collections);
+        return response.collections;
       }
+      console.warn('Router did not return a valid collection array. Defaulting to all.', response);
+      return availableCollections.map(c => c.name);
+    } catch (error) {
+      console.error('Error selecting relevant collections:', error);
+      return availableCollections.map(c => c.name);
+    }
+  }
 
-      // console.log('Looking up model by ID:', modelIdOrCollections);
-      const model = await ModelModel.findById(modelIdOrCollections);
-      if (!model) {
-        console.error('Model not found:', modelIdOrCollections);
-        return [];
-      }
-
-      // console.log('Found model:', {
-      //   id: model._id,
-      //   name: model.name,
-      //   collections: model.collections
-      // });
-      return model.collections;
+  private async resolveCollections(modelId: string): Promise<{ name: string; description: string }[]> {
+    try {
+      const model = await ModelModel.findById(modelId);
+      return model ? model.collections : [];
     } catch (error) {
       console.error('Error resolving collections:', error);
       return [];
@@ -277,13 +278,21 @@ class ChatService {
     const questionType = this.detectQuestionType(query);
     const promptTemplate = this.promptTemplates[questionType];
     
-    const collectionNames = await this.resolveCollections(modelIdOrCollections);
+    // Handle both string (modelId) and string[] (collection names) cases
+    let collectionNames: { name: string; description: string }[] = [];
+    if (typeof modelIdOrCollections === 'string') {
+      collectionNames = await this.resolveCollections(modelIdOrCollections);
+    } else {
+      // If it's an array of collection names, convert to the expected format
+      collectionNames = modelIdOrCollections.map(name => ({ name, description: '' }));
+    }
+    
     let context = '';
 
     // ดึงข้อมูลจาก collections ก่อน
     if (collectionNames.length > 0) {
-      const sanitizedCollections = collectionNames.map(name => 
-        this.sanitizeCollectionName(name)
+      const sanitizedCollections = collectionNames.map(collection => 
+        this.sanitizeCollectionName(collection.name)
       );
 
       const truncatedQuery = query.slice(0, 512);
@@ -450,33 +459,21 @@ class ChatService {
       // ดึง system prompt จากฐานข้อมูล
       const dynamicSystemPrompt = await this.getSystemPrompt();
 
-      const systemMessages: ChatMessage[] = [
-        {
-          role: 'system',
-          content: isImageGeneration ? 
-            'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
-            dynamicSystemPrompt
-        }
-      ];
+      // Create system prompt content but don't add it as a message with 'system' role
+      const systemPromptContent = isImageGeneration ? 
+        'You are an expert at generating detailed image descriptions. Create vivid, detailed descriptions that can be used to generate images.' :
+        dynamicSystemPrompt;
 
       // Add summary of older messages if there are any
+      let contextualPrompt = systemPromptContent;
       if (olderMessages.length > 0) {
-        systemMessages.push({
-          role: 'system',
-          content: this.summarizeOldMessages(olderMessages)
-        });
+        contextualPrompt += '\n\n' + this.summarizeOldMessages(olderMessages);
       }
 
       // Only add context if we have it and not in image generation mode
       if (context && !isImageGeneration) {
-        systemMessages.push({
-          role: 'system',
-          content: `Context from documents:\n${context}`
-        });
+        contextualPrompt += '\n\nContext from documents:\n' + context;
       }
-
-      // Combine system messages with recent user messages only
-      const augmentedMessages = [...systemMessages, ...recentMessages];
 
       // นับจำนวนข้อความทั้งหมดในการสนทนานี้
       const messageCount = messages.length + 1; // รวมข้อความใหม่ด้วย
@@ -504,9 +501,16 @@ class ChatService {
             query = `${query}\n\n[Attached files]\n${fileInfo}`;
           }
 
-          // Generate response and send chunks
+          // Generate response using the correct method
+          const modelId = isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel;
+          
+          // Use generateStreaming method with proper parameters
           let totalTokens = 0;
-          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
+          for await (const chunk of bedrockService.generateStreaming({
+            systemPrompt: contextualPrompt,
+            messages: recentMessages,
+            context: context
+          })) {
             if (typeof chunk === 'string') {
               yield chunk;
             }
@@ -804,66 +808,83 @@ class ChatService {
     }
   }
 
-  // Legacy RAG context fetching for non-agent models
-  private async getContextForRAG(query: string, collections: string[], imageBase64?: string): Promise<any> {
-      // This function will contain the logic from the old getContext and processBatch
-      // ...
-      return { context: "...", sources: [] }; // Simplified
+  private async getContextForRAG(query: string, collections: { name: string; description: string }[], imageBase64?: string): Promise<any> {
+    const relevantCollectionNames = await this.selectRelevantCollections(query, collections);
+    
+    if (relevantCollectionNames.length === 0) {
+      console.log('Router found no relevant collections. Skipping RAG.');
+      return { context: '', sources: [] };
+    }
+
+    let embedding: number[] | undefined;
+    if (imageBase64) {
+      embedding = await this.retryOperation(() => bedrockService.embedImage(imageBase64, query), 'Failed to get image embedding');
+    } else if (query) {
+      embedding = await this.retryOperation(() => chromaService.getQueryEmbedding(query), 'Failed to get query embedding');
+    }
+    
+    if (!embedding) {
+      return { context: '', sources: [] }; // Can't search without an embedding
+    }
+
+    const batches = this.createBatches(relevantCollectionNames, this.BATCH_SIZE);
+    let allResults: CollectionQueryResult[] = [];
+
+    for (const batch of batches) {
+      // Pass the same embedding for both params when it's an image, as it contains both modalities
+      const batchResults = await this.processBatch(batch, embedding, imageBase64 ? embedding : undefined);
+      allResults = allResults.concat(batchResults);
+    }
+
+    const context = this.processResults(allResults);
+    const sources = allResults.flatMap(r => r.sources);
+
+    return { context, sources };
   }
 
-  public async *sendMessage(
-    messages: ChatMessage[],
-    modelId: string,
-    userId: string,
-  ): AsyncGenerator<any> {
+  public async *sendMessage(messages: ChatMessage[], modelId: string, userId: string): AsyncGenerator<any> {
     const model = await this.getModelDetails(modelId);
     if (!model) {
-      yield { type: 'error', data: 'Model not found' };
-      return;
+        yield { type: 'error', data: 'Model not found' };
+        return;
     }
-
-    const systemPrompt = model.prompt || `You are a helpful AI assistant.`;
-    const userQuery = messages[messages.length - 1].content;
     
-    if (model.isAgent) {
-        // Agent Mode
-        const knowledgeTool = new KnowledgeTool(model.collections);
-        const tools: BedrockTool[] = [knowledgeTool];
-        
-        // Potentially add other tools like web search here
-        // const webSearchTool = new WebSearchTool();
-        // tools.push(webSearchTool);
+    const userQuery = messages[messages.length - 1].content;
+    // System prompt is now handled separately and not part of the message list
+    const systemPrompt = model.system_prompt || this.systemPrompt;
 
-        const responseStream = bedrockService.converseWithTools({
+    if (model.isAgent) {
+        // Agent Mode uses converseWithTools
+        const tools: BedrockTool[] = [new KnowledgeTool(model.collections.map(c => c.name))];
+        yield* bedrockService.converseWithTools({
             systemPrompt,
-            messages,
+            messages, // Already `ChatMessage[]` with correct roles
             tools,
         });
-
-        for await (const chunk of responseStream) {
-            yield chunk; // Stream tool usage, thinking steps, and final response
-        }
     } else {
-        // RAG Mode
-        const { context, sources } = await this.getContextForRAG(userQuery, model.collections);
-
+        // RAG Mode uses the new optimized pipeline
+        const collections = await this.resolveCollections(modelId);
+        const imageBase64 = messages[messages.length - 1].images?.[0]?.data;
+        const { context, sources } = await this.getContextForRAG(userQuery, collections, imageBase64);
+        
         const responseStream = bedrockService.generateStreaming({
             systemPrompt,
-            messages,
-            context, // Pass context directly
+            messages, // Already `ChatMessage[]` with correct roles
+            context,
         });
-        
-        // First, yield the sources if they should be displayed
-        if (model.displayRetrievedChunks && sources.length > 0) {
-            yield { type: 'sources', data: sources };
-        }
 
+        let responseText = '';
         for await (const chunk of responseStream) {
+            responseText += chunk;
             yield { type: 'chunk', data: chunk };
         }
+        
+        // Update usage stats at the end
+        const tokensUsed = responseText.length; // Simplified token count
+        await usageService.updateTokenUsage(userId, tokensUsed);
+        
+        yield { type: 'complete', sources };
     }
-
-    await usageService.updateUsage(userId, modelId);
   }
 }
 
