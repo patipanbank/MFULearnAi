@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FaSignOutAlt, FaUser, FaIdBadge, FaEnvelope, FaBuilding, FaUsers, FaChevronDown } from 'react-icons/fa';
+import { FaSignOutAlt, FaEnvelope, FaBuilding, FaUsers, FaChevronDown } from 'react-icons/fa';
 import { config } from '../../config/config';
 import { Link } from 'react-router-dom';
 // import { useNavigate } from 'react-router-dom'; // ลบออกเพราะไม่ได้ใช้
