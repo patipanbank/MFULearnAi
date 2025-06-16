@@ -96,10 +96,7 @@ const Header = () => {
                   {/* Header section */}
                                      <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
                      <div className="flex items-center gap-4">
-                       <div 
-                         className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold"
-                         style={getAvatarStyle()}
-                       >
+                       <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold bg-white/20 backdrop-blur-sm">
                          {getUserInitials(userData.firstName, userData.lastName)}
                        </div>
                       <div>
