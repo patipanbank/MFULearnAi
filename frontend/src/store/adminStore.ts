@@ -1,6 +1,6 @@
 import {create} from 'zustand';
 
-interface AdminUser {
+export interface AdminUser {
   id: string;
   username: string;
   email: string;

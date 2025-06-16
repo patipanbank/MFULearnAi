@@ -1,10 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { FaHome, FaComments, FaUserShield } from "react-icons/fa";
+import { FaComments, FaUserShield } from "react-icons/fa";
 
 const Sidebar = () => {
   const navLinks = [
-    { to: "/", icon: <FaHome />, text: "Home" },
-    { to: "/chat", icon: <FaComments />, text: "Chat" },
+    { to: "/", icon: <FaComments />, text: "Chat" },
     { to: "/admin", icon: <FaUserShield />, text: "Admin" },
   ];
 
@@ -16,7 +15,7 @@ const Sidebar = () => {
       <nav className="mt-5 flex-1">
         {navLinks.map((link) => (
           <NavLink
-            key={link.to}
+            key={link.text}
             to={link.to}
             end={link.to === "/"}
             className={({ isActive }) =>

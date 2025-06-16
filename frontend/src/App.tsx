@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
-import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ChatPage from './pages/ChatPage';
 import AuthGuard from './components/guards/AuthGuard';
@@ -23,8 +22,7 @@ function App() {
             </AuthGuard>
           }
         >
-          <Route index element={<HomePage />} />
-          <Route path="chat" element={<ChatPage />} />
+          <Route index element={<ChatPage />} />
           <Route 
             path="admin" 
             element={
@@ -36,7 +34,6 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="manage-admins" element={<ManageAdminsPage />} />
           </Route>
-          {/* Add other routes here */}
         </Route>
       </Routes>
     </Router>
