@@ -723,7 +723,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         <FaQuestionCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                       </div>
                       <div>
-                        <div className="font-medium">Help & Support</div>
+                        <div className="font-medium">Help</div>
                         
                       </div>
                     </Link>
