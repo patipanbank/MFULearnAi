@@ -31,7 +31,7 @@ const Header = () => {
 
   return (
     <header className="w-full">
-      <nav className="flex items-center justify-between px-6 py-4 w-full">
+      <nav className="flex items-center justify-between px-2 sm:px-6 py-4 w-full relative">
         {/* DINDIN AI branding on the left */}
         <div className="flex items-center">
           <Link to="/mfuchatbot">
@@ -54,7 +54,7 @@ const Header = () => {
         </div>
 
         {/* User info on the right */}
-        <div className="text-gray-600 dark:text-gray-300 relative">
+        <div className="text-gray-600 dark:text-gray-300 absolute right-0 top-0 sm:static sm:right-auto sm:top-auto">
           {userData && (
             <>
               <div 
