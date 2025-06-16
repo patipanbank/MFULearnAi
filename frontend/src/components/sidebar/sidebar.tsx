@@ -580,7 +580,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                               </button>
                               {/* Popup menu */}
                               {openMenuChatId === chat._id && (
-                                <div className="absolute right-0 top-7 z-50 min-w-[100px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1 flex flex-col" onClick={e => e.stopPropagation()}>
+                                <div className="absolute right-0 top-7 z-[9999] min-w-[100px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1 flex flex-col" onClick={e => e.stopPropagation()}>
                                   <button
                                     onClick={() => {
                                       setOpenMenuChatId(null);
