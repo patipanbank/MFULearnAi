@@ -621,10 +621,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <div className="absolute bottom-full left-2 mb-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-scale-in" data-settings-popup>
               {/* Header with gradient */}
               <div className="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 p-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <FaCog className="w-5 h-5 animate-spin-slow" />
-                  Settings & Tools
-                </h3>
               </div>
 
               <div className="p-1">
@@ -685,11 +681,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   </div>
                 )}
 
-                {/* General tools section */}
-                <div className="mb-1">
-                  <div className="px-3 py-2">
-                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tools & Resources</h4>
-                  </div>
+                                 {/* General tools section */}
+                 <div className="mb-1">
+                   <div className="px-3 py-2">
+                     <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                       <FaCog className="w-4 h-4 animate-spin-slow" />
+                       Tools & Resources
+                     </h4>
+                   </div>
                   <div className="space-y-1">
                     <Link
                       to="/modelCreation"
