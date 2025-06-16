@@ -462,67 +462,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
 
 
-          {isSuperAdmin && (
-            <>
-              <Link
-                to="/admin/create"
-                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-                title={!shouldShowContent ? "Create Admin" : ""}
-              >
-                <FaUserPlus className="w-5 h-5 flex-shrink-0" />
-                {shouldShowContent && <span className="font-medium truncate ml-2">Create Admin</span>}
-              </Link>
-              
-              <Link
-                to="/admin/manage"
-                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/admin/manage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-                title={!shouldShowContent ? "Manage Admins" : ""}
-              >
-                <FaUsers className="w-5 h-5 flex-shrink-0" />
-                {shouldShowContent && <span className="font-medium truncate ml-2">Manage Admins</span>}
-              </Link>
-              
-              <Link
-                to="/departments/manage"
-                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/departments/manage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-                title={!shouldShowContent ? "Manage Departments" : ""}
-              >
-                <FaBuilding className="w-5 h-5 flex-shrink-0" />
-                {shouldShowContent && <span className="font-medium truncate ml-2">Manage Departments</span>}
-              </Link>
-              
-              <Link
-                to="/statistics"
-                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/statistics' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-                title={!shouldShowContent ? "Statistics" : ""}
-              >
-                <FaChartBar className="w-5 h-5" />
-                {shouldShowContent && <span className="font-medium ml-2">Statistics</span>}
-              </Link>
-              
-              <Link
-                to="/system-prompt"
-                className={`flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/system-prompt' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-                title={!shouldShowContent ? "Edit System Prompt" : ""}
-              >
-                <FaCog className="w-5 h-5" />
-                {shouldShowContent && <span className="font-medium ml-2">Edit System Prompt</span>}
-              </Link>
-            </>
-          )}
-
-
-
           {/* Chat History List - moved below Help link */}
           {shouldShowContent && (
             <div className="mt-2">
@@ -671,7 +610,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <div className="absolute bottom-full left-2 mb-2 w-56 bg-white dark:bg-gray-700 rounded-lg shadow-lg p-4 sm:p-5 z-50 border border-gray-200 dark:border-gray-600" data-settings-popup>
               <div className="space-y-3 text-left">
                 <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600 pb-3">Settings</h3>
-                
+                {/* SuperAdmin menu in popup */}
+                {isSuperAdmin && (
+                  <div className="space-y-2 border-b border-gray-200 dark:border-gray-600 pb-3 mb-3">
+                    <Link to="/admin/create" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaUserPlus className="w-5 h-5 mr-3" />Create Admin</Link>
+                    <Link to="/admin/manage" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaUsers className="w-5 h-5 mr-3" />Manage Admins</Link>
+                    <Link to="/departments/manage" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaBuilding className="w-5 h-5 mr-3" />Manage Departments</Link>
+                    <Link to="/statistics" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaChartBar className="w-5 h-5 mr-3" />Statistics</Link>
+                    <Link to="/system-prompt" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaCog className="w-5 h-5 mr-3" />Edit System Prompt</Link>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Link
                     to="/modelCreation"
