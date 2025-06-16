@@ -402,12 +402,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // console.log('Sorted chats:', sortedChats);
   }
 
-  // ฟังก์ชันช่วยสำหรับ mobile: เปลี่ยนแชทและปิด sidebar
-  const handleMobileNavigate = (to: string) => {
-    navigate(to);
-    if (onClose) onClose();
-  };
-
   return (
     <aside 
       className={`flex flex-col h-full transition-all duration-300 ease-in-out ${
@@ -454,31 +448,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           <div className="space-y-1">
             {/* New Chat with dropdown indicator */}
             <div className="relative">
-              {isMobile ? (
-                <button
-                  className={`flex items-center ${shouldShowContent ? 'justify-between px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                    ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                  title={!shouldShowContent ? "New Chat" : ""}
-                  onClick={() => handleMobileNavigate('/mfuchatbot')}
-                >
-                  <div className={`flex items-center ${shouldShowContent ? 'min-w-0 flex-1' : ''}`}>
-                    <FaComments className="w-5 h-5 flex-shrink-0" />
-                    {shouldShowContent && <span className="font-medium truncate ml-2">New Chat</span>}
-                  </div>
-                </button>
-              ) : (
-                <Link
-                  to="/mfuchatbot"
-                  className={`flex items-center ${shouldShowContent ? 'justify-between px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                    ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                  title={!shouldShowContent ? "New Chat" : ""}
-                >
-                  <div className={`flex items-center ${shouldShowContent ? 'min-w-0 flex-1' : ''}`}>
-                    <FaComments className="w-5 h-5 flex-shrink-0" />
-                    {shouldShowContent && <span className="font-medium truncate ml-2">New Chat</span>}
-                  </div>
-                </Link>
-              )}
+              <Link
+                to="/mfuchatbot"
+                className={`flex items-center ${shouldShowContent ? 'justify-between px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                  ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                title={!shouldShowContent ? "New Chat" : ""}
+                onClick={() => { if (isMobile && onClose) onClose(); }}
+              >
+                <div className={`flex items-center ${shouldShowContent ? 'min-w-0 flex-1' : ''}`}>
+                  <FaComments className="w-5 h-5 flex-shrink-0" />
+                  {shouldShowContent && <span className="font-medium truncate ml-2">New Chat</span>}
+                </div>
+              </Link>
             </div>
           </div>
 
@@ -567,37 +548,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                         ) : (
                           <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
-                            {isMobile ? (
-                              <button
-                                className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm min-w-0 overflow-hidden
-                                  ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                                onClick={() => handleMobileNavigate(`/mfuchatbot?chat=${chat._id}`)}
-                              >
-                                <div className="flex flex-col min-w-0 flex-1 pr-4 overflow-hidden">
-                                  <div className="font-medium text-ellipsis overflow-hidden whitespace-nowrap">
-                                    {chat.chatname || 'Untitled Chat'}
-                                  </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 text-ellipsis overflow-hidden whitespace-nowrap">
-                                    {chat.name}
-                                  </div>
+                            <Link
+                              to={`/mfuchatbot?chat=${chat._id}`}
+                              className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm min-w-0 overflow-hidden
+                                ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                              onClick={() => { if (isMobile && onClose) onClose(); }}
+                            >
+                              <div className="flex flex-col min-w-0 flex-1 pr-4 overflow-hidden">
+                                <div className="font-medium text-ellipsis overflow-hidden whitespace-nowrap">
+                                  {chat.chatname || 'Untitled Chat'}
                                 </div>
-                              </button>
-                            ) : (
-                              <Link
-                                to={`/mfuchatbot?chat=${chat._id}`}
-                                className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm min-w-0 overflow-hidden
-                                  ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                              >
-                                <div className="flex flex-col min-w-0 flex-1 pr-4 overflow-hidden">
-                                  <div className="font-medium text-ellipsis overflow-hidden whitespace-nowrap">
-                                    {chat.chatname || 'Untitled Chat'}
-                                  </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 text-ellipsis overflow-hidden whitespace-nowrap">
-                                    {chat.name}
-                                  </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 text-ellipsis overflow-hidden whitespace-nowrap">
+                                  {chat.name}
                                 </div>
-                              </Link>
-                            )}
+                              </div>
+                            </Link>
                             <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-md px-1 py-0.5 shadow-sm">
                               <button
                                 onClick={(e) => {
