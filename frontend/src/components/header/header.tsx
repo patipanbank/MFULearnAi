@@ -1,5 +1,6 @@
 import { useAuth } from "../../hooks/useAuth";
 import DarkModeToggle from "../darkmode/DarkModeToggle";
+import { FiLogOut } from "react-icons/fi";
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -7,18 +8,20 @@ const Header = () => {
   return (
     <header className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 shadow-md">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-          {user ? `Welcome, ${user.username}` : 'Welcome'}
-        </h1>
+        {/* We can add breadcrumbs or page titles dynamically here later */}
       </div>
       <div className="flex items-center gap-4">
+        <span className="text-gray-700 dark:text-gray-300">
+          Welcome, <span className="font-semibold">{user?.username}</span>
+        </span>
         <DarkModeToggle />
         {user && (
           <button 
             onClick={logout}
-            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
           >
-            Logout
+            <FiLogOut />
+            <span>Logout</span>
           </button>
         )}
       </div>

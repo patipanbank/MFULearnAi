@@ -6,6 +6,8 @@ import ChatPage from './pages/ChatPage';
 import AuthGuard from './components/guards/AuthGuard';
 import AdminPage from './pages/AdminPage';
 import RoleGuard from './components/guards/RoleGuard';
+import ManageAdminsPage from './pages/admin/ManageAdminsPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 
 function App() {
@@ -30,7 +32,10 @@ function App() {
                 <AdminPage />
               </RoleGuard>
             } 
-          />
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="manage-admins" element={<ManageAdminsPage />} />
+          </Route>
           {/* Add other routes here */}
         </Route>
       </Routes>
