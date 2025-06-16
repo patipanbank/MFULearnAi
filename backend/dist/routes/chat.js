@@ -226,10 +226,9 @@ wss.on('connection', (ws, req) => {
         catch (error) {
             console.error('WebSocket message processing error:', error);
             if (extWs.readyState === ws_1.WebSocket.OPEN) {
-                const errorMessage = error instanceof Error ? error.message : 'An internal error occurred.';
                 extWs.send(JSON.stringify({
                     type: 'error',
-                    error: errorMessage
+                    error: error.message || 'An internal error occurred.'
                 }));
             }
         }

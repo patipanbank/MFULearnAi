@@ -64,54 +64,6 @@ class ChatService {
     sanitizeCollectionName(name) {
         return name.replace(/:/g, '-');
     }
-    cleanInputSchema(schema) {
-        if (!schema || typeof schema !== 'object') {
-            return {
-                type: 'object',
-                properties: {},
-                required: []
-            };
-        }
-        const cleanSchema = {
-            type: schema.type || 'object'
-        };
-        // Clean properties
-        if (schema.properties && typeof schema.properties === 'object') {
-            cleanSchema.properties = {};
-            for (const [key, value] of Object.entries(schema.properties)) {
-                if (value && typeof value === 'object') {
-                    cleanSchema.properties[key] = this.cleanPropertySchema(value);
-                }
-            }
-        }
-        else {
-            cleanSchema.properties = {};
-        }
-        // Clean required array
-        if (Array.isArray(schema.required)) {
-            cleanSchema.required = schema.required.filter((item) => item !== null && item !== undefined && typeof item === 'string');
-        }
-        else {
-            cleanSchema.required = [];
-        }
-        return cleanSchema;
-    }
-    cleanPropertySchema(property) {
-        if (!property || typeof property !== 'object') {
-            return { type: 'string' };
-        }
-        const cleanProperty = {
-            type: property.type || 'string'
-        };
-        if (property.description && typeof property.description === 'string') {
-            cleanProperty.description = property.description;
-        }
-        // Handle other property attributes if needed
-        if (property.enum && Array.isArray(property.enum)) {
-            cleanProperty.enum = property.enum.filter((item) => item !== null && item !== undefined);
-        }
-        return cleanProperty;
-    }
     async *sendMessage(messages, modelId, userId) {
         try {
             // Get the model and its collections
@@ -136,62 +88,30 @@ class ChatService {
         }
         catch (error) {
             console.error('Error in sendMessage:', error);
-            const errorMessage = error instanceof Error ? error.message : 'An error occurred while processing your message.';
-            yield { type: 'error', data: errorMessage };
+            yield { type: 'error', data: 'An error occurred while processing your message.' };
         }
     }
     async createToolsForModel(model) {
         const tools = [];
-        try {
-            // Add KnowledgeTool if model has collections
-            if (model && model.collections && Array.isArray(model.collections) && model.collections.length > 0) {
-                const collectionNames = model.collections
-                    .filter(c => c && c.name && typeof c.name === 'string')
-                    .map(c => c.name);
-                if (collectionNames.length > 0) {
-                    const knowledgeTool = new KnowledgeToolForModel(collectionNames);
-                    tools.push(knowledgeTool);
-                }
-            }
-            // Always add WebSearchTool
-            tools.push(new tools_1.WebSearchTool());
-            console.log(`Created ${tools.length} tools for model ${model?._id}: ${tools.map(t => t.name).join(', ')}`);
-            // Debug: Log tool schemas
-            tools.forEach(tool => {
-                console.log(`Tool ${tool.name} schema:`, JSON.stringify(tool.inputSchema, null, 2));
-            });
-            return tools;
+        // Add KnowledgeTool if model has collections
+        if (model.collections && model.collections.length > 0) {
+            const knowledgeTool = new KnowledgeToolForModel(model.collections.map(c => c.name));
+            tools.push(knowledgeTool);
         }
-        catch (error) {
-            console.error('Error creating tools for model:', error);
-            // Return at least WebSearchTool as fallback
-            return [new tools_1.WebSearchTool()];
-        }
+        // Always add WebSearchTool
+        tools.push(new tools_1.WebSearchTool());
+        return tools;
     }
     async *agentLoop(messages, systemPrompt, tools, userId) {
-        // Validate and clean tool configuration
-        const validTools = tools.filter(tool => tool &&
-            tool.name &&
-            tool.description &&
-            tool.inputSchema &&
-            typeof tool.name === 'string' &&
-            typeof tool.description === 'string' &&
-            typeof tool.inputSchema === 'object');
-        const toolConfig = validTools.length > 0 ? {
-            tools: validTools.map(tool => {
-                // Deep clean inputSchema to remove any undefined values
-                const cleanInputSchema = this.cleanInputSchema(tool.inputSchema);
-                console.log(`Cleaned schema for ${tool.name}:`, JSON.stringify(cleanInputSchema, null, 2));
-                return {
-                    toolSpec: {
-                        name: tool.name,
-                        description: tool.description,
-                        inputSchema: cleanInputSchema
-                    }
-                };
-            })
+        const toolConfig = tools.length > 0 ? {
+            tools: tools.map(tool => ({
+                toolSpec: {
+                    name: tool.name,
+                    description: tool.description,
+                    inputSchema: tool.inputSchema
+                }
+            }))
         } : undefined;
-        console.log(`Agent Loop: Using ${validTools.length} valid tools:`, validTools.map(t => t.name));
         let conversationMessages = [...messages];
         let iterationCount = 0;
         const maxIterations = 10;
@@ -202,16 +122,13 @@ class ChatService {
                     modelId: bedrock_1.bedrockService.chatModel,
                     messages: conversationMessages,
                     system: [{ text: systemPrompt }],
+                    toolConfig,
                     inferenceConfig: {
                         maxTokens: 4096,
                         temperature: 0.7,
                         topP: 0.9
                     }
                 };
-                // Add toolConfig only if we have valid tools
-                if (toolConfig) {
-                    converseInput.toolConfig = toolConfig;
-                }
                 // Stream the response
                 const responseStream = bedrock_1.bedrockService.converseStream(converseInput);
                 let currentContent = '';
@@ -250,37 +167,13 @@ class ChatService {
                 // Execute tools and add results
                 const toolResults = [];
                 for (const toolUse of toolUseBlocks) {
-                    const tool = validTools.find(t => t.name === toolUse.name);
+                    const tool = tools.find(t => t.name === toolUse.name);
                     if (tool) {
-                        try {
-                            yield { type: 'tool_use', data: `Using ${tool.name}...` };
-                            const result = await tool.execute(toolUse.input);
-                            // Ensure result is not undefined and has proper structure
-                            const safeResult = result || { success: false, content: 'Tool returned no result' };
-                            toolResults.push({
-                                toolUseId: toolUse.toolUseId,
-                                content: [{ text: JSON.stringify(safeResult) }]
-                            });
-                        }
-                        catch (toolError) {
-                            console.error(`Error executing tool ${tool.name}:`, toolError);
-                            toolResults.push({
-                                toolUseId: toolUse.toolUseId,
-                                content: [{ text: JSON.stringify({
-                                            success: false,
-                                            content: `Error executing ${tool.name}: ${toolError instanceof Error ? toolError.message : 'Unknown error'}`
-                                        }) }]
-                            });
-                        }
-                    }
-                    else {
-                        console.error(`Tool not found: ${toolUse.name}`);
+                        yield { type: 'tool_use', data: `Using ${tool.name}...` };
+                        const result = await tool.execute(toolUse.input);
                         toolResults.push({
                             toolUseId: toolUse.toolUseId,
-                            content: [{ text: JSON.stringify({
-                                        success: false,
-                                        content: `Tool ${toolUse.name} not found`
-                                    }) }]
+                            content: [{ text: JSON.stringify(result) }]
                         });
                     }
                 }
@@ -292,8 +185,7 @@ class ChatService {
             }
             catch (error) {
                 console.error('Error in agent loop iteration:', error);
-                const errorMessage = error instanceof Error ? error.message : 'An error occurred during processing.';
-                yield { type: 'error', data: errorMessage };
+                yield { type: 'error', data: 'An error occurred during processing.' };
                 break;
             }
         }
@@ -502,51 +394,32 @@ class KnowledgeToolForModel extends tools_1.KnowledgeTool {
         this.allowedCollections = allowedCollections;
     }
     async selectRelevantCollections(query) {
+        // Override to only search in allowed collections
+        const allCollections = await Collection_1.CollectionModel.find({
+            name: { $in: this.allowedCollections },
+            $and: [
+                { summary: { $ne: null } },
+                { summary: { $ne: '' } }
+            ]
+        }).lean();
+        if (allCollections.length <= 3) {
+            return allCollections;
+        }
+        const collectionsString = allCollections
+            .map(c => `  - ${c.name} (ID: ${c._id}): ${c.summary}`)
+            .join('\\n');
+        const prompt = `You are an AI routing agent. Select the most relevant data collections for the user's query. User Query: "${query}". Available Collections:\\n${collectionsString}\\n\\nRespond with a JSON object containing a list of collection names, like this: { "collections": ["collection_name_1", "collection_name_2"] }`;
         try {
-            // Validate input
-            if (!query || typeof query !== 'string') {
-                console.error('Invalid query provided to selectRelevantCollections');
-                return [];
+            const response = await bedrock_1.bedrockService.invokeModelJSON(prompt);
+            if (response && Array.isArray(response.collections)) {
+                console.log('L2 Router selected collections:', response.collections);
+                return allCollections.filter(c => response.collections.includes(c.name));
             }
-            if (!this.allowedCollections || !Array.isArray(this.allowedCollections) || this.allowedCollections.length === 0) {
-                console.error('No allowed collections configured for this model');
-                return [];
-            }
-            // Override to only search in allowed collections
-            const allCollections = await Collection_1.CollectionModel.find({
-                name: { $in: this.allowedCollections },
-                $and: [
-                    { summary: { $ne: null } },
-                    { summary: { $ne: '' } }
-                ]
-            }).lean();
-            if (!allCollections || allCollections.length === 0) {
-                console.log('No collections found with summaries for allowed collections:', this.allowedCollections);
-                return [];
-            }
-            if (allCollections.length <= 3) {
-                return allCollections;
-            }
-            const collectionsString = allCollections
-                .map(c => `  - ${c.name} (ID: ${c._id}): ${c.summary}`)
-                .join('\\n');
-            const prompt = `You are an AI routing agent. Select the most relevant data collections for the user's query. User Query: "${query}". Available Collections:\\n${collectionsString}\\n\\nRespond with a JSON object containing a list of collection names, like this: { "collections": ["collection_name_1", "collection_name_2"] }`;
-            try {
-                const response = await bedrock_1.bedrockService.invokeModelJSON(prompt);
-                if (response && Array.isArray(response.collections)) {
-                    console.log('L2 Router selected collections:', response.collections);
-                    return allCollections.filter(c => response.collections.includes(c.name));
-                }
-                return allCollections;
-            }
-            catch (error) {
-                console.error('Error in L2 collection selection:', error);
-                return allCollections;
-            }
+            return allCollections;
         }
         catch (error) {
-            console.error('Error in selectRelevantCollections:', error);
-            return [];
+            console.error('Error in L2 collection selection:', error);
+            return allCollections;
         }
     }
 }

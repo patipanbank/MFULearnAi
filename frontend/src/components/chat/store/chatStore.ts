@@ -235,13 +235,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   // Helper methods for WebSocket responses
   updateMessageContent: (content) => {
-    // Guard against undefined content to prevent "undefined" string concatenation
-    const safeContent = content ?? '';
-    
     get().setMessages((prev) => prev.map((msg, index) => 
       index === prev.length - 1 && msg.role === 'assistant' ? {
         ...msg,
-        content: msg.content + safeContent
+        content: msg.content + content
       } : msg
     ));
     

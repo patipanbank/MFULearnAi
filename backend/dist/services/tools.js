@@ -24,56 +24,37 @@ class KnowledgeTool {
     async execute(input) {
         console.log(`KnowledgeTool executing with query: ${input.query}`);
         try {
-            // Validate input
-            if (!input || !input.query || typeof input.query !== 'string') {
-                return { success: false, content: 'Invalid query provided to knowledge search.' };
-            }
             const contextData = await this.hierarchicalSearch(input.query);
             if (!contextData || !contextData.context) {
                 return { success: true, content: 'No relevant information found in the knowledge base.' };
             }
-            return { success: true, content: contextData.context, sources: contextData.sources || [] };
+            return { success: true, content: contextData.context, sources: contextData.sources };
         }
         catch (error) {
             console.error('Error executing KnowledgeTool:', error);
-            const errorMessage = error instanceof Error ? error.message : 'An error occurred while searching the knowledge base.';
-            return { success: false, content: errorMessage };
+            return { success: false, content: 'An error occurred while searching the knowledge base.' };
         }
     }
     async hierarchicalSearch(query) {
-        try {
-            // L2 Search: Find the most relevant collections
-            const relevantCollections = await this.selectRelevantCollections(query);
-            if (!relevantCollections || relevantCollections.length === 0) {
-                console.log('L2 Search: No relevant collections found.');
-                return { context: '', sources: [] };
-            }
-            // L1 Search: For each relevant collection, find the most relevant documents
-            let relevantDocuments = [];
-            for (const collection of relevantCollections) {
-                try {
-                    const docs = await this.selectRelevantDocuments(query, collection._id.toString());
-                    if (docs && Array.isArray(docs)) {
-                        relevantDocuments.push(...docs);
-                    }
-                }
-                catch (docError) {
-                    console.error(`Error selecting documents for collection ${collection._id}:`, docError);
-                    continue;
-                }
-            }
-            if (relevantDocuments.length === 0) {
-                console.log('L1 Search: No relevant documents found in selected collections.');
-                return { context: '', sources: [] };
-            }
-            // L0 Retrieval: Get the final chunks from the most relevant documents
-            const finalContext = await this.retrieveFinalContext(query, relevantDocuments);
-            return finalContext || { context: '', sources: [] };
-        }
-        catch (error) {
-            console.error('Error in hierarchicalSearch:', error);
+        // L2 Search: Find the most relevant collections
+        const relevantCollections = await this.selectRelevantCollections(query);
+        if (relevantCollections.length === 0) {
+            console.log('L2 Search: No relevant collections found.');
             return { context: '', sources: [] };
         }
+        // L1 Search: For each relevant collection, find the most relevant documents
+        let relevantDocuments = [];
+        for (const collection of relevantCollections) {
+            const docs = await this.selectRelevantDocuments(query, collection._id.toString());
+            relevantDocuments.push(...docs);
+        }
+        if (relevantDocuments.length === 0) {
+            console.log('L1 Search: No relevant documents found in selected collections.');
+            return { context: '', sources: [] };
+        }
+        // L0 Retrieval: Get the final chunks from the most relevant documents
+        const finalContext = await this.retrieveFinalContext(query, relevantDocuments);
+        return finalContext;
     }
     async selectRelevantCollections(query) {
         const allCollections = await Collection_1.CollectionModel.find({
@@ -134,49 +115,35 @@ class KnowledgeTool {
     async retrieveFinalContext(query, documents) {
         let allChunksText = [];
         let allSources = [];
-        try {
-            for (const doc of documents) {
-                try {
-                    // Get collection name from collectionId
-                    const collection = await Collection_1.CollectionModel.findById(doc.collectionId);
-                    if (!collection) {
-                        console.error(`Collection not found for document ${doc._id}`);
-                        continue;
-                    }
-                    const hybridResult = await chroma_1.chromaService.hybridSearchWithReRanking(collection.name, // Use collection name instead of ID
-                    query, 5, { documentId: doc._id.toString() });
-                    if (hybridResult?.documents && Array.isArray(hybridResult.documents) && hybridResult.documents.length > 0) {
-                        allChunksText.push(...hybridResult.documents);
-                        if (hybridResult.metadatas && Array.isArray(hybridResult.metadatas)) {
-                            const sources = hybridResult.metadatas.map((metadata, index) => ({
-                                modelId: metadata?.modelId || 'unknown',
-                                collectionName: metadata?.collectionName || collection.name,
-                                filename: metadata?.filename || 'unknown',
-                                similarity: (hybridResult.scores && hybridResult.scores[index]) || 0,
-                            }));
-                            allSources.push(...sources);
-                        }
-                    }
-                }
-                catch (docError) {
-                    console.error(`Error processing document ${doc._id}:`, docError);
-                    continue;
-                }
+        for (const doc of documents) {
+            // Get collection name from collectionId
+            const collection = await Collection_1.CollectionModel.findById(doc.collectionId);
+            if (!collection) {
+                console.error(`Collection not found for document ${doc._id}`);
+                continue;
             }
-            if (allChunksText.length === 0) {
-                return { context: '', sources: [] };
+            const hybridResult = await chroma_1.chromaService.hybridSearchWithReRanking(collection.name, // Use collection name instead of ID
+            query, 5, { documentId: doc._id.toString() });
+            if (hybridResult?.documents && hybridResult.documents.length > 0) {
+                allChunksText.push(...hybridResult.documents);
+                const sources = hybridResult.metadatas.map((metadata, index) => ({
+                    modelId: metadata.modelId,
+                    collectionName: metadata.collectionName,
+                    filename: metadata.filename,
+                    similarity: hybridResult.scores[index] || 0,
+                }));
+                allSources.push(...sources);
             }
-            const compressionResult = await chroma_1.chromaService.selectAndCompressContext(query, allChunksText, [], [], 4000);
-            return {
-                context: compressionResult?.compressedContext || '',
-                sources: allSources,
-                compressionStats: compressionResult?.compressionStats
-            };
         }
-        catch (error) {
-            console.error('Error in retrieveFinalContext:', error);
+        if (allChunksText.length === 0) {
             return { context: '', sources: [] };
         }
+        const compressionResult = await chroma_1.chromaService.selectAndCompressContext(query, allChunksText, [], [], 4000);
+        return {
+            context: compressionResult.compressedContext,
+            sources: allSources,
+            compressionStats: compressionResult.compressionStats
+        };
     }
 }
 exports.KnowledgeTool = KnowledgeTool;
@@ -195,20 +162,15 @@ class WebSearchTool {
     async execute(input) {
         console.log(`WebSearchTool executing with query: ${input.query}`);
         try {
-            // Validate input
-            if (!input || !input.query || typeof input.query !== 'string') {
-                return { success: false, content: 'Invalid query provided to web search.' };
-            }
             const searchResultText = await webSearch_1.webSearchService.searchWeb(input.query);
-            if (!searchResultText || searchResultText.trim() === '') {
+            if (!searchResultText) {
                 return { success: true, content: 'No results found on the web.' };
             }
             return { success: true, content: searchResultText };
         }
         catch (error) {
             console.error('Error executing WebSearchTool:', error);
-            const errorMessage = error instanceof Error ? error.message : 'An error occurred while searching the web.';
-            return { success: false, content: errorMessage };
+            return { success: false, content: 'An error occurred while searching the web.' };
         }
     }
 }
