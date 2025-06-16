@@ -627,8 +627,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 {isSuperAdmin && (
                   <div className="mb-1">
                     <div className="px-3 py-2">
-                    <FaCog className="w-4 h-4 animate-spin-slow" />
-                      <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Admin Tools</h4>
+                      
+                      <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <FaCog className="w-4 h-4 animate-spin-slow" />
+                        Admin Tools
+                      </h4>
                     </div>
                     <div className="space-y-1">
                       <Link to="/admin/create" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-green-50 dark:hover:from-emerald-900/20 dark:hover:to-green-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
