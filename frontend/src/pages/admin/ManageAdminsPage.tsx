@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import useAdminStore from "../../store/adminStore";
 import { adminService } from "../../services/adminService";
 import AddNewAdminModal from "../../components/modals/AddNewAdminModal";
-import { FiArrowLeft, FiPlus, FiEdit, FiTrash2, FiUsers } from "react-icons/fi";
+import { FiPlus, FiEdit, FiTrash2, FiUsers } from "react-icons/fi";
 
 const ManageAdminsPage = () => {
   const { admins, isLoading, error, setAdmins, setLoading, setError } = useAdminStore();
