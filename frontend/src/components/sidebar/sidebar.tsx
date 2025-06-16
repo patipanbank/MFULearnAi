@@ -666,7 +666,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 <div className="space-y-2">
                   <Link
                     to="/modelCreation"
-                    onClick={() => setShowSettingsPopup(false)}
                     className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
                     <FaAndroid className="w-5 h-5 mr-3" />
@@ -674,7 +673,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   </Link>
                   <Link
                     to="/training"
-                    onClick={() => setShowSettingsPopup(false)}
                     className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
                     <FaBookOpen className="w-5 h-5 mr-3" />
@@ -682,7 +680,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   </Link>
                   <Link
                     to="/help"
-                    onClick={() => setShowSettingsPopup(false)}
                     className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
                   >
                     <FaQuestionCircle className="w-5 h-5 mr-3" />
