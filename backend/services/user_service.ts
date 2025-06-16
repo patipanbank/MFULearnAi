@@ -8,6 +8,7 @@ interface CreateUserParams {
     lastName?: string;
     role: UserRole;
     groups?: string[];
+    subroles?: string[];
 }
 
 // Create a new user
@@ -20,7 +21,8 @@ export const createUser = async (params: CreateUserParams) => {
             firstName: params.firstName || 'Guest',
             lastName: params.lastName || 'User',
             role: params.role,
-            groups: params.groups || []
+            groups: params.groups || [],
+            subroles: params.subroles || []
         });
         return await user.save();
     } catch (error) {
@@ -76,6 +78,7 @@ export const updateUserBynameID = async (nameID: string, updateData: Partial<Cre
         if (updateData.lastName) user.lastName = updateData.lastName;
         if (updateData.groups) user.groups = updateData.groups;
         if (updateData.role) user.role = updateData.role;
+        if (updateData.subroles) user.subroles = updateData.subroles;
         user.updated = new Date();
         await user.save();
         return user;

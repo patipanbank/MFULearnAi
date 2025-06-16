@@ -13,6 +13,7 @@ interface IUser extends mongoose.Document {
   role: UserRole;
   department: string;
   groups: string[];
+  subroles: string[];
   created: Date;
   updated: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -32,6 +33,7 @@ const userSchema = new mongoose.Schema({
     default: 'Students'
   },
   groups: [String],
+  subroles: { type: [String], default: [] },
   created: { type: Date, default: Date.now },
   updated: { type: Date, default: Date.now }
 });

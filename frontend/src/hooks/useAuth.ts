@@ -7,6 +7,7 @@ interface User {
   nameID: string;
   firstName: string;
   department?: string;
+  subroles?: string[];
 }
 
 interface AuthState {
@@ -38,7 +39,8 @@ export const useAuth = (): AuthState => {
           nameID: tokenPayload.nameID,
           firstName: tokenPayload.firstName,
           department: tokenPayload.department,
-          role: userGroups.includes('Admin') ? 'Admin' : userGroups.includes('Staffs') ? 'Staffs' : 'Students'
+          role: userGroups.includes('Admin') ? 'Admin' : userGroups.includes('Staffs') ? 'Staffs' : 'Students',
+          subroles: tokenPayload.subroles || []
         };
         setState({
           user,

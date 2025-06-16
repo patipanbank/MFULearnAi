@@ -114,7 +114,7 @@ const samlStrategy = new SamlStrategy(
         groups: user.groups
       };
 
-      return done(null, { token, userData });
+      return done(null, { token, userData: { ...userData, subroles: user.subroles } });
 
     } catch (error) {
       console.error('SAML Strategy Error:', error);
@@ -169,13 +169,14 @@ router.post('/saml/callback',
           firstName: userData.firstName,
           lastName: userData.lastName,
           department: userData.department,
-          groups: userData.groups
+          groups: userData.groups,
+          subroles: req.user.userData.subroles
         },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '7d' }
       );
 
-      const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
+      const encodedUserData = Buffer.from(JSON.stringify({ ...userData, subroles: req.user.userData.subroles })).toString('base64');
       
       const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth-callback`);
       redirectUrl.searchParams.append('token', token);
@@ -265,7 +266,8 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
         email: user.email,
         department: user.department,
         role: user.role,
-        groups: user.groups
+        groups: user.groups,
+        subroles: user.subroles
       },
       JWT_SECRET,
       { expiresIn: '24h' }
@@ -281,7 +283,8 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
         email: user.email,
         department: user.department,
         role: user.role,
-        groups: user.groups
+        groups: user.groups,
+        subroles: user.subroles
       }
     });
   } catch (error) {

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { config } from '../../config/config';
 import { FiEdit, FiTrash2, FiPlus, FiX, FiCheck, FiLoader, FiEye, FiEyeOff } from 'react-icons/fi';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
+import { useAuth } from '../../hooks/useAuth';
 
 interface Admin {
   _id: string;
@@ -11,6 +13,7 @@ interface Admin {
   lastName: string;
   email: string;
   department: string;
+  subroles: string[];
   created: string;
   updated: string;
 }
@@ -22,6 +25,7 @@ interface Department {
 
 const ManageAdmin: React.FC = () => {
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [departments, setDepartments] = useState<{value: string, label: string}[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +38,8 @@ const ManageAdmin: React.FC = () => {
     firstName: '',
     lastName: '',
     email: '',
-    department: ''
+    department: '',
+    subroles: [] as string[]
   });
 
   const fetchAdmins = async () => {
@@ -96,7 +101,8 @@ const ManageAdmin: React.FC = () => {
       firstName: '',
       lastName: '',
       email: '',
-      department: ''
+      department: '',
+      subroles: []
     });
     setEditingAdmin(null);
     setShowPassword(false);
@@ -109,6 +115,10 @@ const ManageAdmin: React.FC = () => {
 
   const handleDepartmentChange = (selected: any) => {
     setFormData(prev => ({ ...prev, department: selected ? selected.value : '' }));
+  };
+
+  const handleSubroleChange = (newValue: any) => {
+    setFormData(prev => ({ ...prev, subroles: newValue ? newValue.map((item: any) => item.value) : [] }));
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -186,7 +196,8 @@ const ManageAdmin: React.FC = () => {
       firstName: admin.firstName,
       lastName: admin.lastName,
       email: admin.email,
-      department: admin.department
+      department: admin.department,
+      subroles: admin.subroles || []
     });
   };
 
@@ -394,6 +405,96 @@ const ManageAdmin: React.FC = () => {
                   required
                 />
               </div>
+              {isSuperAdmin && (
+                <div className="mb-4 mt-4">
+                  <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                    Sub-roles
+                  </label>
+                  <CreatableSelect
+                    isMulti
+                    value={formData.subroles.map(subrole => ({ value: subrole, label: subrole }))}
+                    onChange={handleSubroleChange}
+                    options={[]}
+                    placeholder="Type to create and add sub-roles"
+                    className="react-select-container"
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        minHeight: '42px',
+                        borderRadius: '0.5rem',
+                        borderColor: 'rgb(209 213 219)',
+                        backgroundColor: 'white',
+                        color: 'rgb(17 24 39)',
+                        '&:hover': {
+                          borderColor: 'rgb(156 163 175)'
+                        },
+                        '.dark &': {
+                          backgroundColor: 'rgb(55 65 81)',
+                          borderColor: 'rgb(75 85 99)',
+                          color: 'white',
+                          '&:hover': {
+                            borderColor: 'rgb(107 114 128)'
+                          }
+                        }
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        backgroundColor: 'white',
+                        '.dark &': {
+                          backgroundColor: 'rgb(55 65 81)',
+                          color: 'white'
+                        }
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isSelected 
+                          ? 'rgb(37 99 235)' 
+                          : state.isFocused 
+                            ? 'rgba(37, 99, 235, 0.1)' 
+                            : undefined,
+                        color: state.isSelected 
+                          ? 'white' 
+                          : 'inherit',
+                        '.dark &': {
+                          backgroundColor: state.isSelected 
+                            ? 'rgb(37 99 235)' 
+                            : state.isFocused 
+                              ? 'rgba(37, 99, 235, 0.3)' 
+                              : undefined,
+                          color: state.isSelected ? 'white' : 'white'
+                        },
+                        ':active': {
+                          ...base[':active'],
+                          backgroundColor: state.isSelected 
+                            ? 'rgb(29 78 216)' 
+                            : 'rgba(29, 78, 216, 0.2)',
+                        }
+                      }),
+                      multiValue: (base) => ({
+                          ...base,
+                          backgroundColor: 'rgb(229 231 235)',
+                          '.dark &': {
+                            backgroundColor: 'rgb(75 85 99)'
+                          }
+                      }),
+                      multiValueLabel: (base) => ({
+                          ...base,
+                          color: 'rgb(17 24 39)',
+                          '.dark &': {
+                              color: 'white'
+                          }
+                      }),
+                      input: (base) => ({
+                        ...base,
+                        color: 'rgb(17 24 39)',
+                        '.dark &': {
+                          color: 'white'
+                        }
+                      })
+                    }}
+                  />
+                </div>
+              )}
             </div>
             <div className="flex justify-end space-x-3 mt-4">
               <button
@@ -438,6 +539,9 @@ const ManageAdmin: React.FC = () => {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Department
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Sub-roles
+                </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
@@ -464,6 +568,9 @@ const ManageAdmin: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
                       {admin.department}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                      {admin.subroles?.join(', ')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button

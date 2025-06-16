@@ -28,7 +28,8 @@ const guest_login = async (req: Request, res: Response): Promise<void> => {
             firstName: user.firstName || 'Guest',
             lastName: user.lastName || 'User',
             role: user.role,
-            groups: [user.role]
+            groups: [user.role],
+            subroles: user.subroles || []
         };
 
         const token = jwt.sign(
@@ -39,7 +40,8 @@ const guest_login = async (req: Request, res: Response): Promise<void> => {
                 firstName: userData.firstName,
                 lastName: userData.lastName,
                 role: userData.role,
-                groups: userData.groups
+                groups: userData.groups,
+                subroles: userData.subroles
             },
             JWT_SECRET,
             { expiresIn: '1h' }

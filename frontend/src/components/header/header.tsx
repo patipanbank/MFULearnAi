@@ -35,6 +35,9 @@ const Header = () => {
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Email:</span> {userData.email}</p>
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Department:</span> {userData.department}</p>
                     <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Group:</span> {userData.groups?.join(', ')}</p>
+                    {userData.subroles && userData.subroles.length > 0 && (
+                      <p className="text-xs sm:text-sm whitespace-nowrap"><span className="font-semibold">Sub-role:</span> {userData.subroles.join(', ')}</p>
+                    )}
                   </div>
                 </div>
               )}
