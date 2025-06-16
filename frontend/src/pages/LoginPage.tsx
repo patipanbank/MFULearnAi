@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { Button, Card, Form, Input, Divider, Alert } from 'antd'
 import { UserOutlined, LockOutlined, LoginOutlined, SafetyOutlined } from '@ant-design/icons'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
-import { authService } from '../../services/authService'
+import { useAuth } from '../hooks/useAuth'
+import { authService } from '../services/authService'
 import toast from 'react-hot-toast'
 
 const LoginPage: React.FC = () => {
