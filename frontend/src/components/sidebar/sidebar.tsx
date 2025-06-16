@@ -53,7 +53,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const currentChatId = searchParams.get('chat');
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+  const [showSettingsPopup, setShowSettingsPopup] = useState(() => {
+    const savedState = localStorage.getItem('showSettingsPopup');
+    return savedState === 'true';
+  });
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode === 'true';
@@ -86,6 +89,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     navigate('/login');
   };
 
+  const toggleSettingsPopup = () => {
+    const newState = !showSettingsPopup;
+    setShowSettingsPopup(newState);
+    localStorage.setItem('showSettingsPopup', newState.toString());
+  };
+
   const toggleTheme = () => {
     const newDarkMode = !isDarkMode;
     setIsDarkMode(newDarkMode);
@@ -95,7 +104,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       document.documentElement.classList.remove('dark');
     }
     localStorage.setItem('darkMode', newDarkMode.toString());
-    setShowSettingsPopup(false);
   };
 
   const fetchChatHistories = async () => {
@@ -174,6 +182,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         const target = event.target as HTMLElement;
         if (!target.closest('[data-settings-popup]')) {
           setShowSettingsPopup(false);
+          localStorage.setItem('showSettingsPopup', 'false');
         }
       }
     };
@@ -648,7 +657,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       <div className={`fixed bottom-0 left-0 ${shouldShowContent ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
         <div className="p-2 relative" data-settings-popup>
           <button
-            onClick={() => setShowSettingsPopup(!showSettingsPopup)}
+            onClick={toggleSettingsPopup}
             className={`w-full flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700
               ${showSettingsPopup ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
             title={!shouldShowContent ? "Settings" : ""}
