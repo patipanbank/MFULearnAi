@@ -487,7 +487,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* Action buttons for user messages */}
       {message.role === 'user' && (
-        <div className="mt-2 mr-2 flex justify-end">
+        <div className="mt-2 flex flex-wrap gap-2 justify-start w-full">
           {/* Copy button */}
           <button
             type="button"
@@ -497,7 +497,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           >
             <MdContentCopy className="h-5 w-5" />
           </button>
-          
           {/* Edit button - for all user messages */}
           {onEditClick && (
             <button
