@@ -402,7 +402,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
           {/* Action buttons for assistant messages (moved inside bubble container) */}
           {message.role === 'assistant' && message.isComplete && (
-            <div className="mt-2 flex flex-wrap gap-2 justify-start w-full">
+            <div className="mt-2 flex flex-wrap gap-1 justify-start w-full">
               {/* Continue button - shown for the latest assistant message */}
               {isLastAssistantMessage && (
                 <button
@@ -462,7 +462,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
           {/* Action buttons for user messages (move inside bubble container) */}
           {message.role === 'user' && (
-            <div className="mt-2 flex flex-wrap gap-2 justify-end w-full">
+            <div className="mt-2 flex flex-wrap gap-1 justify-end w-full">
               {/* Copy button */}
               <button
                 type="button"
