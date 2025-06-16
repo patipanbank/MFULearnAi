@@ -362,7 +362,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       {isEditing && message.id === useChatInputStore.getState().editingMessage?.id && renderEditCanvas()}
 
       <div className={`flex items-start gap-3 ${
-        message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+        message.role === 'user' ? 'flex-row-reverse' : 'flex-row ml-4'
       }`}>
         <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
           message.role === 'user'
