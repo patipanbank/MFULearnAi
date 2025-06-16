@@ -40,41 +40,59 @@ export class KnowledgeTool implements BedrockTool {
   public async execute(input: { query: string }): Promise<any> {
     console.log(`KnowledgeTool executing with query: ${input.query}`);
     try {
+      // Validate input
+      if (!input || !input.query || typeof input.query !== 'string') {
+        return { success: false, content: 'Invalid query provided to knowledge search.' };
+      }
+
       const contextData = await this.hierarchicalSearch(input.query);
       if (!contextData || !contextData.context) {
         return { success: true, content: 'No relevant information found in the knowledge base.' };
       }
-      return { success: true, content: contextData.context, sources: contextData.sources };
+      return { success: true, content: contextData.context, sources: contextData.sources || [] };
     } catch (error) {
       console.error('Error executing KnowledgeTool:', error);
-      return { success: false, content: 'An error occurred while searching the knowledge base.' };
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while searching the knowledge base.';
+      return { success: false, content: errorMessage };
     }
   }
 
   private async hierarchicalSearch(query: string): Promise<CollectionQueryResult> {
-    // L2 Search: Find the most relevant collections
-    const relevantCollections = await this.selectRelevantCollections(query);
-    if (relevantCollections.length === 0) {
-      console.log('L2 Search: No relevant collections found.');
-      return { context: '', sources: [] };
-    }
+    try {
+      // L2 Search: Find the most relevant collections
+      const relevantCollections = await this.selectRelevantCollections(query);
+      if (!relevantCollections || relevantCollections.length === 0) {
+        console.log('L2 Search: No relevant collections found.');
+        return { context: '', sources: [] };
+      }
 
-    // L1 Search: For each relevant collection, find the most relevant documents
-    let relevantDocuments: any[] = [];
-    for (const collection of relevantCollections) {
-      const docs = await this.selectRelevantDocuments(query, (collection as any)._id.toString());
-      relevantDocuments.push(...docs);
-    }
-    
-    if (relevantDocuments.length === 0) {
-      console.log('L1 Search: No relevant documents found in selected collections.');
+      // L1 Search: For each relevant collection, find the most relevant documents
+      let relevantDocuments: any[] = [];
+      for (const collection of relevantCollections) {
+        try {
+          const docs = await this.selectRelevantDocuments(query, (collection as any)._id.toString());
+          if (docs && Array.isArray(docs)) {
+            relevantDocuments.push(...docs);
+          }
+        } catch (docError) {
+          console.error(`Error selecting documents for collection ${(collection as any)._id}:`, docError);
+          continue;
+        }
+      }
+      
+      if (relevantDocuments.length === 0) {
+        console.log('L1 Search: No relevant documents found in selected collections.');
+        return { context: '', sources: [] };
+      }
+      
+      // L0 Retrieval: Get the final chunks from the most relevant documents
+      const finalContext = await this.retrieveFinalContext(query, relevantDocuments);
+      
+      return finalContext || { context: '', sources: [] };
+    } catch (error) {
+      console.error('Error in hierarchicalSearch:', error);
       return { context: '', sources: [] };
     }
-    
-    // L0 Retrieval: Get the final chunks from the most relevant documents
-    const finalContext = await this.retrieveFinalContext(query, relevantDocuments);
-    
-    return finalContext;
   }
 
   protected async selectRelevantCollections(query: string): Promise<any[]> {
@@ -144,50 +162,63 @@ export class KnowledgeTool implements BedrockTool {
     let allChunksText: string[] = [];
     let allSources: any[] = [];
 
-    for (const doc of documents) {
-      // Get collection name from collectionId
-      const collection = await CollectionModel.findById((doc as any).collectionId);
-      if (!collection) {
-        console.error(`Collection not found for document ${(doc as any)._id}`);
-        continue;
+    try {
+      for (const doc of documents) {
+        try {
+          // Get collection name from collectionId
+          const collection = await CollectionModel.findById((doc as any).collectionId);
+          if (!collection) {
+            console.error(`Collection not found for document ${(doc as any)._id}`);
+            continue;
+          }
+
+          const hybridResult = await chromaService.hybridSearchWithReRanking(
+            collection.name, // Use collection name instead of ID
+            query, 
+            5,
+            { documentId: (doc as any)._id.toString() }
+          );
+
+          if (hybridResult?.documents && Array.isArray(hybridResult.documents) && hybridResult.documents.length > 0) {
+            allChunksText.push(...hybridResult.documents);
+            
+            if (hybridResult.metadatas && Array.isArray(hybridResult.metadatas)) {
+              const sources = hybridResult.metadatas.map((metadata, index) => ({
+                  modelId: metadata?.modelId || 'unknown',
+                  collectionName: metadata?.collectionName || collection.name,
+                  filename: metadata?.filename || 'unknown',
+                  similarity: (hybridResult.scores && hybridResult.scores[index]) || 0,
+              }));
+              allSources.push(...sources);
+            }
+          }
+        } catch (docError) {
+          console.error(`Error processing document ${(doc as any)._id}:`, docError);
+          continue;
+        }
       }
 
-      const hybridResult = await chromaService.hybridSearchWithReRanking(
-        collection.name, // Use collection name instead of ID
-        query, 
-        5,
-        { documentId: (doc as any)._id.toString() }
+      if (allChunksText.length === 0) {
+        return { context: '', sources: [] };
+      }
+
+      const compressionResult = await chromaService.selectAndCompressContext(
+        query,
+        allChunksText,
+        [],
+        [],
+        4000
       );
-
-      if (hybridResult?.documents && hybridResult.documents.length > 0) {
-        allChunksText.push(...hybridResult.documents);
-        const sources = hybridResult.metadatas.map((metadata, index) => ({
-            modelId: metadata.modelId,
-            collectionName: metadata.collectionName,
-            filename: metadata.filename,
-            similarity: hybridResult.scores[index] || 0,
-        }));
-        allSources.push(...sources);
-      }
-    }
-
-    if (allChunksText.length === 0) {
+      
+      return {
+        context: compressionResult?.compressedContext || '',
+        sources: allSources,
+        compressionStats: compressionResult?.compressionStats
+      };
+    } catch (error) {
+      console.error('Error in retrieveFinalContext:', error);
       return { context: '', sources: [] };
     }
-
-    const compressionResult = await chromaService.selectAndCompressContext(
-      query,
-      allChunksText,
-      [],
-      [],
-      4000
-    );
-    
-    return {
-      context: compressionResult.compressedContext,
-      sources: allSources,
-      compressionStats: compressionResult.compressionStats
-    };
   }
 }
 
@@ -205,14 +236,20 @@ export class WebSearchTool implements BedrockTool {
   async execute(input: { query: string }): Promise<any> {
     console.log(`WebSearchTool executing with query: ${input.query}`);
     try {
+      // Validate input
+      if (!input || !input.query || typeof input.query !== 'string') {
+        return { success: false, content: 'Invalid query provided to web search.' };
+      }
+
       const searchResultText = await webSearchService.searchWeb(input.query);
-      if (!searchResultText) {
+      if (!searchResultText || searchResultText.trim() === '') {
         return { success: true, content: 'No results found on the web.' };
       }
       return { success: true, content: searchResultText };
     } catch (error) {
       console.error('Error executing WebSearchTool:', error);
-      return { success: false, content: 'An error occurred while searching the web.' };
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while searching the web.';
+      return { success: false, content: errorMessage };
     }
   }
 } 
