@@ -2,9 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chatService = void 0;
 const bedrock_1 = require("./bedrock");
+const Model_1 = require("../models/Model");
 const Chat_1 = require("../models/Chat");
+const usageService_1 = require("./usageService");
 const ChatStats_1 = require("../models/ChatStats");
 const SystemPrompt_1 = require("../models/SystemPrompt");
+const tools_1 = require("./tools");
+const Collection_1 = require("../models/Collection");
 class ChatService {
     constructor() {
         this.questionTypes = {
@@ -60,11 +64,134 @@ class ChatService {
     sanitizeCollectionName(name) {
         return name.replace(/:/g, '-');
     }
-    // NOTE: The following methods are intentionally left in a broken state
-    // and will be replaced in the next step.
     async *sendMessage(messages, modelId, userId) {
-        // This function is now broken and will be replaced.
-        yield { type: 'error', data: 'This function is deprecated.' };
+        try {
+            // Get the model and its collections
+            const model = await Model_1.ModelModel.findById(modelId);
+            if (!model) {
+                yield { type: 'error', data: 'Model not found' };
+                return;
+            }
+            // Get system prompt
+            const systemPrompt = await this.getSystemPrompt();
+            // Update daily stats
+            await this.updateDailyStats(userId);
+            // Create tools array
+            const tools = await this.createToolsForModel(model);
+            // Prepare messages for Bedrock
+            const conversationMessages = messages.map(msg => ({
+                role: msg.role,
+                content: [{ text: msg.content }]
+            }));
+            // Start the Agent Loop
+            yield* this.agentLoop(conversationMessages, systemPrompt, tools, userId);
+        }
+        catch (error) {
+            console.error('Error in sendMessage:', error);
+            yield { type: 'error', data: 'An error occurred while processing your message.' };
+        }
+    }
+    async createToolsForModel(model) {
+        const tools = [];
+        // Add KnowledgeTool if model has collections
+        if (model.collections && model.collections.length > 0) {
+            const knowledgeTool = new KnowledgeToolForModel(model.collections.map(c => c.name));
+            tools.push(knowledgeTool);
+        }
+        // Always add WebSearchTool
+        tools.push(new tools_1.WebSearchTool());
+        return tools;
+    }
+    async *agentLoop(messages, systemPrompt, tools, userId) {
+        const toolConfig = tools.length > 0 ? {
+            tools: tools.map(tool => ({
+                toolSpec: {
+                    name: tool.name,
+                    description: tool.description,
+                    inputSchema: tool.inputSchema
+                }
+            }))
+        } : undefined;
+        let conversationMessages = [...messages];
+        let iterationCount = 0;
+        const maxIterations = 10;
+        while (iterationCount < maxIterations) {
+            iterationCount++;
+            try {
+                const converseInput = {
+                    modelId: bedrock_1.bedrockService.chatModel,
+                    messages: conversationMessages,
+                    system: [{ text: systemPrompt }],
+                    toolConfig,
+                    inferenceConfig: {
+                        maxTokens: 4096,
+                        temperature: 0.7,
+                        topP: 0.9
+                    }
+                };
+                // Stream the response
+                const responseStream = bedrock_1.bedrockService.converseStream(converseInput);
+                let currentContent = '';
+                let toolUseBlocks = [];
+                for await (const chunk of responseStream) {
+                    if (chunk.contentBlockDelta?.delta?.text) {
+                        const textDelta = chunk.contentBlockDelta.delta.text;
+                        currentContent += textDelta;
+                        yield { type: 'content', data: textDelta };
+                    }
+                    else if (chunk.contentBlockStart?.start?.toolUse) {
+                        toolUseBlocks.push(chunk.contentBlockStart.start.toolUse);
+                    }
+                    else if (chunk.contentBlockDelta?.delta?.toolUse) {
+                        const lastToolUse = toolUseBlocks[toolUseBlocks.length - 1];
+                        if (lastToolUse) {
+                            lastToolUse.input = { ...lastToolUse.input, ...chunk.contentBlockDelta.delta.toolUse.input };
+                        }
+                    }
+                }
+                // Add assistant's response to conversation
+                const assistantMessage = { role: 'assistant', content: [] };
+                if (currentContent) {
+                    assistantMessage.content.push({ text: currentContent });
+                }
+                if (toolUseBlocks.length > 0) {
+                    assistantMessage.content.push(...toolUseBlocks.map(toolUse => ({ toolUse })));
+                }
+                conversationMessages.push(assistantMessage);
+                // If no tool use, we're done
+                if (toolUseBlocks.length === 0) {
+                    // Update usage tracking
+                    await usageService_1.usageService.updateTokenUsage(userId, currentContent.length);
+                    break;
+                }
+                // Execute tools and add results
+                const toolResults = [];
+                for (const toolUse of toolUseBlocks) {
+                    const tool = tools.find(t => t.name === toolUse.name);
+                    if (tool) {
+                        yield { type: 'tool_use', data: `Using ${tool.name}...` };
+                        const result = await tool.execute(toolUse.input);
+                        toolResults.push({
+                            toolUseId: toolUse.toolUseId,
+                            content: [{ text: JSON.stringify(result) }]
+                        });
+                    }
+                }
+                // Add tool results to conversation
+                conversationMessages.push({
+                    role: 'user',
+                    content: toolResults.map(result => ({ toolResult: result }))
+                });
+            }
+            catch (error) {
+                console.error('Error in agent loop iteration:', error);
+                yield { type: 'error', data: 'An error occurred during processing.' };
+                break;
+            }
+        }
+        if (iterationCount >= maxIterations) {
+            yield { type: 'error', data: 'Maximum iterations reached.' };
+        }
     }
     async getSystemPrompt() {
         const prompt = await SystemPrompt_1.SystemPrompt.findOne();
@@ -258,6 +385,42 @@ class ChatService {
         chat.isPinned = !chat.isPinned;
         await chat.save();
         return chat;
+    }
+}
+// Create a specialized KnowledgeTool that only searches specific collections
+class KnowledgeToolForModel extends tools_1.KnowledgeTool {
+    constructor(allowedCollections) {
+        super();
+        this.allowedCollections = allowedCollections;
+    }
+    async selectRelevantCollections(query) {
+        // Override to only search in allowed collections
+        const allCollections = await Collection_1.CollectionModel.find({
+            name: { $in: this.allowedCollections },
+            $and: [
+                { summary: { $ne: null } },
+                { summary: { $ne: '' } }
+            ]
+        }).lean();
+        if (allCollections.length <= 3) {
+            return allCollections;
+        }
+        const collectionsString = allCollections
+            .map(c => `  - ${c.name} (ID: ${c._id}): ${c.summary}`)
+            .join('\\n');
+        const prompt = `You are an AI routing agent. Select the most relevant data collections for the user's query. User Query: "${query}". Available Collections:\\n${collectionsString}\\n\\nRespond with a JSON object containing a list of collection names, like this: { "collections": ["collection_name_1", "collection_name_2"] }`;
+        try {
+            const response = await bedrock_1.bedrockService.invokeModelJSON(prompt);
+            if (response && Array.isArray(response.collections)) {
+                console.log('L2 Router selected collections:', response.collections);
+                return allCollections.filter(c => response.collections.includes(c.name));
+            }
+            return allCollections;
+        }
+        catch (error) {
+            console.error('Error in L2 collection selection:', error);
+            return allCollections;
+        }
     }
 }
 exports.chatService = new ChatService();

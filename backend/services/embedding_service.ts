@@ -17,7 +17,14 @@ class HierarchicalEmbeddingService {
    * @param user The user who uploaded the file.
    */
   public async processAndEmbedFile(file: Express.Multer.File, collectionId: string, user: any): Promise<void> {
-    // 1. Create a document record in MongoDB
+    // 1. Get collection name from MongoDB
+    const collection = await CollectionModel.findById(collectionId);
+    if (!collection) {
+      throw new Error(`Collection with ID ${collectionId} not found`);
+    }
+    const collectionName = collection.name;
+
+    // 2. Create a document record in MongoDB
     const documentRecord = await DocumentModel.create({
       name: file.originalname,
       collectionId: collectionId,
@@ -27,11 +34,11 @@ class HierarchicalEmbeddingService {
     const documentId = (documentRecord as any)._id.toString();
 
     try {
-      // 2. Extract text and create L0 chunks
+      // 3. Extract text and create L0 chunks
       const fullText = await documentService.processFile(file);
       const chunks = splitTextIntoChunks(fullText);
 
-      // 3. Embed and store L0 chunks in ChromaDB
+      // 4. Embed and store L0 chunks in ChromaDB
       const documentsToStore = await Promise.all(chunks.map(async (chunk, index) => {
         const embedding = await titanEmbedService.embedText(chunk);
         return {
@@ -39,14 +46,17 @@ class HierarchicalEmbeddingService {
           metadata: {
             documentId: documentId,
             collectionId: collectionId,
+            collectionName: collectionName,
             chunkNumber: index,
             filename: file.originalname,
+            uploadedBy: user.username || user.nameID,
+            timestamp: new Date().toISOString(),
           },
           embedding: embedding,
         };
       }));
 
-      await chromaService.addDocuments(collectionId, documentsToStore);
+      await chromaService.addDocuments(collectionName, documentsToStore);
 
       // 4. Generate L1 Document Summary
       const l1Summary = await this.generateDocumentSummary(fullText);

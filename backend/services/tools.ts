@@ -77,7 +77,7 @@ export class KnowledgeTool implements BedrockTool {
     return finalContext;
   }
 
-  private async selectRelevantCollections(query: string): Promise<any[]> {
+  protected async selectRelevantCollections(query: string): Promise<any[]> {
     const allCollections = await CollectionModel.find({ 
       $and: [
         { summary: { $ne: null } },
@@ -145,8 +145,15 @@ export class KnowledgeTool implements BedrockTool {
     let allSources: any[] = [];
 
     for (const doc of documents) {
+      // Get collection name from collectionId
+      const collection = await CollectionModel.findById((doc as any).collectionId);
+      if (!collection) {
+        console.error(`Collection not found for document ${(doc as any)._id}`);
+        continue;
+      }
+
       const hybridResult = await chromaService.hybridSearchWithReRanking(
-        (doc as any).collectionId.toString(), 
+        collection.name, // Use collection name instead of ID
         query, 
         5,
         { documentId: (doc as any)._id.toString() }

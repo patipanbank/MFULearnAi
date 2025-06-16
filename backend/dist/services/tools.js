@@ -116,7 +116,14 @@ class KnowledgeTool {
         let allChunksText = [];
         let allSources = [];
         for (const doc of documents) {
-            const hybridResult = await chroma_1.chromaService.hybridSearchWithReRanking(doc.collectionId.toString(), query, 5, { documentId: doc._id.toString() });
+            // Get collection name from collectionId
+            const collection = await Collection_1.CollectionModel.findById(doc.collectionId);
+            if (!collection) {
+                console.error(`Collection not found for document ${doc._id}`);
+                continue;
+            }
+            const hybridResult = await chroma_1.chromaService.hybridSearchWithReRanking(collection.name, // Use collection name instead of ID
+            query, 5, { documentId: doc._id.toString() });
             if (hybridResult?.documents && hybridResult.documents.length > 0) {
                 allChunksText.push(...hybridResult.documents);
                 const sources = hybridResult.metadatas.map((metadata, index) => ({

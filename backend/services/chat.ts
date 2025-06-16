@@ -8,6 +8,8 @@ import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
+import { KnowledgeTool, WebSearchTool } from './tools';
+import { CollectionModel } from '../models/Collection';
 
 interface QueryResult {
   text: string;
@@ -123,15 +125,164 @@ class ChatService {
     return name.replace(/:/g, '-');
   }
 
-  // NOTE: The following methods are intentionally left in a broken state
-  // and will be replaced in the next step.
   public async *sendMessage(
     messages: ChatMessage[],
     modelId: string,
     userId: string
   ): AsyncGenerator<any> {
-    // This function is now broken and will be replaced.
-    yield { type: 'error', data: 'This function is deprecated.' };
+    try {
+      // Get the model and its collections
+      const model = await ModelModel.findById(modelId);
+      if (!model) {
+        yield { type: 'error', data: 'Model not found' };
+        return;
+      }
+
+      // Get system prompt
+      const systemPrompt = await this.getSystemPrompt();
+      
+      // Update daily stats
+      await this.updateDailyStats(userId);
+
+      // Create tools array
+      const tools = await this.createToolsForModel(model);
+
+      // Prepare messages for Bedrock
+      const conversationMessages = messages.map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: [{ text: msg.content }]
+      }));
+
+      // Start the Agent Loop
+      yield* this.agentLoop(conversationMessages, systemPrompt, tools, userId);
+
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      yield { type: 'error', data: 'An error occurred while processing your message.' };
+    }
+  }
+
+  private async createToolsForModel(model: ModelDocument): Promise<BedrockTool[]> {
+    const tools: BedrockTool[] = [];
+
+    // Add KnowledgeTool if model has collections
+    if (model.collections && model.collections.length > 0) {
+      const knowledgeTool = new KnowledgeToolForModel(model.collections.map(c => c.name));
+      tools.push(knowledgeTool);
+    }
+
+    // Always add WebSearchTool
+    tools.push(new WebSearchTool());
+
+    return tools;
+  }
+
+  private async *agentLoop(
+    messages: any[],
+    systemPrompt: string,
+    tools: BedrockTool[],
+    userId: string
+  ): AsyncGenerator<any> {
+    const toolConfig = tools.length > 0 ? {
+      tools: tools.map(tool => ({
+        toolSpec: {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema
+        }
+      }))
+    } : undefined;
+
+    let conversationMessages = [...messages];
+    let iterationCount = 0;
+    const maxIterations = 10;
+
+    while (iterationCount < maxIterations) {
+      iterationCount++;
+
+      try {
+        const converseInput = {
+          modelId: bedrockService.chatModel,
+          messages: conversationMessages,
+          system: [{ text: systemPrompt }],
+          toolConfig,
+          inferenceConfig: {
+            maxTokens: 4096,
+            temperature: 0.7,
+            topP: 0.9
+          }
+        };
+
+        // Stream the response
+        const responseStream = bedrockService.converseStream(converseInput);
+        let currentContent = '';
+        let toolUseBlocks: any[] = [];
+
+        for await (const chunk of responseStream) {
+          if (chunk.contentBlockDelta?.delta?.text) {
+            const textDelta = chunk.contentBlockDelta.delta.text;
+            currentContent += textDelta;
+            yield { type: 'content', data: textDelta };
+          } else if (chunk.contentBlockStart?.start?.toolUse) {
+            toolUseBlocks.push(chunk.contentBlockStart.start.toolUse);
+          } else if (chunk.contentBlockDelta?.delta?.toolUse) {
+            const lastToolUse = toolUseBlocks[toolUseBlocks.length - 1];
+            if (lastToolUse) {
+              lastToolUse.input = { ...lastToolUse.input, ...chunk.contentBlockDelta.delta.toolUse.input };
+            }
+          }
+        }
+
+        // Add assistant's response to conversation
+        const assistantMessage: any = { role: 'assistant', content: [] };
+        
+        if (currentContent) {
+          assistantMessage.content.push({ text: currentContent });
+        }
+
+        if (toolUseBlocks.length > 0) {
+          assistantMessage.content.push(...toolUseBlocks.map(toolUse => ({ toolUse })));
+        }
+
+        conversationMessages.push(assistantMessage);
+
+        // If no tool use, we're done
+        if (toolUseBlocks.length === 0) {
+          // Update usage tracking
+          await usageService.updateTokenUsage(userId, currentContent.length);
+          break;
+        }
+
+        // Execute tools and add results
+        const toolResults = [];
+        for (const toolUse of toolUseBlocks) {
+          const tool = tools.find(t => t.name === toolUse.name);
+          if (tool) {
+            yield { type: 'tool_use', data: `Using ${tool.name}...` };
+            const result = await tool.execute(toolUse.input);
+            toolResults.push({
+              toolUseId: toolUse.toolUseId,
+              content: [{ text: JSON.stringify(result) }]
+            });
+          }
+        }
+
+        // Add tool results to conversation
+        conversationMessages.push({
+          role: 'user',
+          content: toolResults.map(result => ({ toolResult: result }))
+        });
+
+      } catch (error) {
+        console.error('Error in agent loop iteration:', error);
+        yield { type: 'error', data: 'An error occurred during processing.' };
+        break;
+      }
+    }
+
+    if (iterationCount >= maxIterations) {
+      yield { type: 'error', data: 'Maximum iterations reached.' };
+    }
   }
 
   private async getSystemPrompt(): Promise<string> {
@@ -351,6 +502,49 @@ class ChatService {
     chat.isPinned = !chat.isPinned;
     await chat.save();
     return chat;
+  }
+}
+
+// Create a specialized KnowledgeTool that only searches specific collections
+class KnowledgeToolForModel extends KnowledgeTool {
+  private allowedCollections: string[];
+
+  constructor(allowedCollections: string[]) {
+    super();
+    this.allowedCollections = allowedCollections;
+  }
+
+  protected async selectRelevantCollections(query: string): Promise<any[]> {
+    // Override to only search in allowed collections
+    const allCollections = await CollectionModel.find({ 
+      name: { $in: this.allowedCollections },
+      $and: [
+        { summary: { $ne: null } },
+        { summary: { $ne: '' } }
+      ]
+    }).lean();
+
+    if (allCollections.length <= 3) {
+      return allCollections;
+    }
+
+    const collectionsString = allCollections
+      .map(c => `  - ${c.name} (ID: ${(c as any)._id}): ${c.summary}`)
+      .join('\\n');
+    
+    const prompt = `You are an AI routing agent. Select the most relevant data collections for the user's query. User Query: "${query}". Available Collections:\\n${collectionsString}\\n\\nRespond with a JSON object containing a list of collection names, like this: { "collections": ["collection_name_1", "collection_name_2"] }`;
+
+    try {
+      const response = await bedrockService.invokeModelJSON(prompt);
+      if (response && Array.isArray(response.collections)) {
+        console.log('L2 Router selected collections:', response.collections);
+        return allCollections.filter(c => response.collections.includes(c.name));
+      }
+      return allCollections;
+    } catch (error) {
+      console.error('Error in L2 collection selection:', error);
+      return allCollections;
+    }
   }
 }
 
