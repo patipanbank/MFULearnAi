@@ -34,14 +34,11 @@ const Header = () => {
     return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
   };
 
-  // Function to generate avatar background color based on name
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 
-      'bg-indigo-500', 'bg-teal-500', 'bg-orange-500', 'bg-cyan-500'
-    ];
-    const index = name.charCodeAt(0) % colors.length;
-    return colors[index];
+  // Function to generate avatar background style with gradient
+  const getAvatarStyle = () => {
+    return {
+      background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))'
+    };
   };
 
   return (
@@ -77,7 +74,10 @@ const Header = () => {
                 className="cursor-pointer flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
               >
                 {/* Avatar */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ${getAvatarColor(userData.firstName || 'User')}`}>
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold"
+                  style={getAvatarStyle()}
+                >
                   {getUserInitials(userData.firstName, userData.lastName)}
                 </div>
                 
@@ -94,11 +94,14 @@ const Header = () => {
               {showPopup && (
                 <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
                   {/* Header section */}
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold bg-white/20 backdrop-blur-sm`}>
-                        {getUserInitials(userData.firstName, userData.lastName)}
-                      </div>
+                                     <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
+                     <div className="flex items-center gap-4">
+                       <div 
+                         className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold"
+                         style={getAvatarStyle()}
+                       >
+                         {getUserInitials(userData.firstName, userData.lastName)}
+                       </div>
                       <div>
                         <h3 className="text-lg font-semibold">{userData.firstName} {userData.lastName}</h3>
                         <p className="text-blue-100 text-sm">{userData.username}</p>
