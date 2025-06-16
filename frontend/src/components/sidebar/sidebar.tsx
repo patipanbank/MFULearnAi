@@ -456,7 +456,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 onClick={() => { if (isMobile && onClose) onClose(); }}
               >
                 <div className={`flex items-center ${shouldShowContent ? 'min-w-0 flex-1' : ''}`}>
-                  <FaComments className="w-5 h-5 flex-shrink-0" />
+                  <FaComments className="w-5 h-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
                   {shouldShowContent && <span className="font-medium truncate ml-2">New Chat</span>}
                 </div>
               </Link>
