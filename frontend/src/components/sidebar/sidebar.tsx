@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaMoon, FaSun, FaEllipsisV } from 'react-icons/fa';
+import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaMoon, FaSun } from 'react-icons/fa';
 import { config } from '../../config/config';
 import { useUIStore } from '../chat/store/uiStore';
 
@@ -402,9 +402,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // console.log('Sorted chats:', sortedChats);
   }
 
-  // State for which chat's menu is open
-  const [openMenuChatId, setOpenMenuChatId] = useState<string | null>(null);
-
   return (
     <aside 
       className={`flex flex-col h-full transition-all duration-300 ease-in-out ${
@@ -571,36 +568,24 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  setOpenMenuChatId(openMenuChatId === chat._id ? null : chat._id);
+                                  handleEdit(chat._id, chat.chatname);
                                 }}
                                 className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-                                title="More options"
+                                title="Edit chat name"
                               >
-                                <FaEllipsisV className="w-3.5 h-3.5" />
+                                <FaEdit className="w-2.5 h-2.5" />
                               </button>
-                              {/* Popup menu */}
-                              {openMenuChatId === chat._id && (
-                                <div className="absolute right-0 top-7 z-50 min-w-[100px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1 flex flex-col" onClick={e => e.stopPropagation()}>
-                                  <button
-                                    onClick={() => {
-                                      setOpenMenuChatId(null);
-                                      handleEdit(chat._id, chat.chatname);
-                                    }}
-                                    className="px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
-                                  >
-                                    <FaEdit className="inline mr-2 w-3 h-3" /> แก้ไข
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setOpenMenuChatId(null);
-                                      handleDelete(chat._id);
-                                    }}
-                                    className="px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm"
-                                  >
-                                    <FaTrash className="inline mr-2 w-3 h-3" /> ลบ
-                                  </button>
-                                </div>
-                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDelete(chat._id);
+                                }}
+                                className="p-1 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                                title="Delete chat"
+                              >
+                                <FaTrash className="w-2.5 h-2.5" />
+                              </button>
                             </div>
                           </div>
                         )}
