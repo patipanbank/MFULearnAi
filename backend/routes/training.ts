@@ -12,6 +12,7 @@ import iconv from 'iconv-lite';
 import { CollectionPermission } from '../models/Collection';
 import { UserRole } from '../models/User';
 import { TrainingHistory } from '../models/TrainingHistory';
+import { hierarchicalEmbeddingService } from '../services/embedding_service';
 
 const router = Router();
 
@@ -52,41 +53,7 @@ async function checkCollectionAccess(user: any, collection: any): Promise<boolea
          collection.createdBy === (user.nameID || user.username);
 }
 
-/**
- * Processes a file upload:
- * 1. Decodes the filename.
- * 2. Extracts text from the file.
- * 3. Splits the text into chunks.
- * 4. Embeds each chunk.
- * 5. Returns the array of document objects.
- */
-async function processFileDocuments(file: Express.Multer.File, user: any, modelId: string, collectionName: string): Promise<{ text: string; metadata: any; embedding: number[] }[]> {
-  // Decode filename to UTF-8
-  const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
-  // console.log(`Processing file: ${filename}`);
-  const text = await documentService.processFile(file);
-  // console.log(`Text length (${text.length}) exceeds chunk size; splitting into chunks`);
-  const chunks = splitTextIntoChunks(text);
-  // console.log(`Created ${chunks.length} chunks`);
-
-  const documents = await Promise.all(
-    chunks.map(async (chunk) => {
-      const embedResult = await titanEmbedService.embedText(chunk);
-      return {
-        text: chunk,
-        metadata: {
-          filename,
-          uploadedBy: user.username,
-          timestamp: new Date().toISOString(),
-          modelId,
-          collectionName
-        },
-        embedding: embedResult
-      };
-    })
-  );
-  return documents;
-}
+// OLD processFileDocuments is now handled by HierarchicalEmbeddingService
 
 // -------------------------------------------------
 // File Upload Endpoints
@@ -94,7 +61,8 @@ async function processFileDocuments(file: Express.Multer.File, user: any, modelI
 
 /**
  * POST /upload
- * Staff-only endpoint that processes a file upload and stores document chunks with embeddings.
+ * Processes a file upload, creates hierarchical embeddings, and stores it.
+ * Expects collectionName in the body. If the collection does not exist, it creates one.
  */
 router.post('/upload', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
@@ -103,17 +71,27 @@ router.post('/upload', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] a
       res.status(400).json({ error: 'No file uploaded' });
       return;
     }
-    const { modelId, collectionName } = req.body;
-    const user = (req as any).user;
-
-    const documents = await processFileDocuments(file, user, modelId, collectionName);
-    // console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents);
-    
-    const userId = user.nameID || user.username;
-    if (!userId) {
-      throw new Error('User identifier not found');
+    const { collectionName } = req.body;
+    if (!collectionName) {
+      res.status(400).json({ error: 'collectionName is required' });
+      return;
     }
+    const user = (req as any).user;
+    const userId = user.username || user.nameID;
+
+    // Find or create the collection
+    let collection = await CollectionModel.findOne({ name: collectionName, createdBy: userId });
+    if (!collection) {
+      collection = await CollectionModel.create({
+        name: collectionName,
+        permission: CollectionPermission.PRIVATE, // Default to private
+        createdBy: userId,
+      });
+    }
+    const collectionId = (collection as any)._id.toString();
+
+    // Use the new hierarchical embedding service
+    await hierarchicalEmbeddingService.processAndEmbedFile(file, collectionId, user);
     
     // Track the upload in history
     await TrainingHistory.create({
@@ -123,14 +101,14 @@ router.post('/upload', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] a
       documentName: file.originalname,
       action: 'upload',
       details: {
-        modelId,
-        chunks: documents.length
+        collectionId: collectionId,
       }
     });
     
     res.json({ 
-      message: 'File processed successfully with vector embeddings',
-      chunks: documents.length
+      message: 'File processing started successfully. Summaries are being generated in the background.',
+      collectionId: collectionId,
+      collectionName: collection.name
     });
   } catch (error) {
     console.error('Upload error:', error);
@@ -138,38 +116,8 @@ router.post('/upload', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] a
   }
 });
 
-/**
- * POST /documents
- * Endpoint for Students and Staffs to upload a file.
- * Also ensures collection exists before processing.
- */
-router.post('/documents', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { modelId, collectionName } = req.body;
-    const user = (req as any).user;
-
-    // Ensure the collection exists (creates if needed)
-    await chromaService.ensureCollectionExists(collectionName, user);
-
-    const file = req.file;
-    if (!file) {
-      res.status(400).json({ error: 'No file uploaded' });
-      return;
-    }
-
-    const documents = await processFileDocuments(file, user, modelId, collectionName);
-    // console.log(`Adding documents with embeddings to collection ${collectionName}`);
-    await chromaService.addDocuments(collectionName, documents);
-    
-    res.json({ 
-      message: 'File processed successfully with embeddings',
-      chunks: documents.length
-    });
-  } catch (error) {
-    console.error('Error processing document:', error);
-    res.status(500).json({ error: 'Error processing document' });
-  }
-});
+// The old /documents endpoint is deprecated and has been removed 
+// in favor of the new /upload endpoint logic.
 
 // -------------------------------------------------
 // Collection Endpoints (Using Collection ID consistently)

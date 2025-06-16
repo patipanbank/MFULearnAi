@@ -1,8 +1,8 @@
-import { ChromaClient } from 'chromadb';
+import { ChromaClient, Collection, OpenAIEmbeddingFunction } from 'chromadb';
 import { ICollection, CollectionModel, CollectionDocument } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
 import { TitanEmbedService } from '../services/titan';
-import { BedrockService } from '../services/bedrock';
+import { bedrockService } from '../services/bedrock';
 import { HydratedDocument } from 'mongoose';
 
 interface DocumentMetadata {
@@ -18,14 +18,12 @@ class ChromaService {
   private collections: Map<string, any> = new Map();
   private processingFiles = new Set<string>();
   private titanEmbedService: TitanEmbedService;
-  private bedrockService: BedrockService;
 
   constructor() {
     this.client = new ChromaClient({
       path: process.env.CHROMA_URL || 'http://chroma:8000'
     });
     this.titanEmbedService = new TitanEmbedService();
-    this.bedrockService = new BedrockService();
   }
 
   async initCollection(collectionName: string): Promise<void> {
@@ -538,7 +536,7 @@ class ChromaService {
   /**
    * Performs hybrid search combining semantic and keyword search
    */
-  async hybridSearch(collectionName: string, query: string, n_results: number = 5): Promise<{
+  async hybridSearch(collectionName: string, query: string, n_results: number = 5, filter?: Record<string, any>): Promise<{
     documents: string[];
     metadatas: Array<{
       modelId: string;
@@ -550,17 +548,20 @@ class ChromaService {
   }> {
     try {
       await this.initCollection(collectionName);
-      
-      // 1. Semantic Search
-      const queryEmbedding = await this.getQueryEmbedding(query);
-      const semanticResults = await this.queryDocumentsWithEmbedding(
-        collectionName, 
-        queryEmbedding, 
-        n_results * 2 // Get more results for better fusion
-      );
+      const collection = this.collections.get(collectionName);
+      if (!collection) {
+        throw new Error(`ChromaService: Collection '${collectionName}' not found.`);
+      }
 
-      // 2. Keyword Search (using ChromaDB's text search)
-      const keywordResults = await this.keywordSearch(collectionName, query, n_results * 2);
+      const queryEmbedding = await this.getQueryEmbedding(query);
+      const semanticResults = await collection.query({
+        queryEmbeddings: [queryEmbedding],
+        n_results: n_results,
+        include: ["documents", "metadatas", "distances"],
+        where: filter // Apply the filter here
+      });
+
+      const keywordResults = await this.keywordSearch(collectionName, query, n_results);
 
       // 3. Fusion of results using Reciprocal Rank Fusion (RRF)
       const fusedResults = this.fuseSearchResults(
@@ -784,7 +785,7 @@ class ChromaService {
       const reRankPrompt = this.createReRankPrompt(query, truncatedDocs);
 
       // Call LLM for re-ranking
-      const reRankResponse = await this.bedrockService.invokeModelJSON(
+      const reRankResponse = await bedrockService.invokeModelJSON(
         reRankPrompt,
         'anthropic.claude-3-haiku-20240307-v1:0'
       );
@@ -880,7 +881,8 @@ Your ranking (JSON array only):`;
   async hybridSearchWithReRanking(
     collectionName: string, 
     query: string, 
-    n_results: number = 5
+    n_results: number = 5,
+    filter?: Record<string, any>
   ): Promise<{
     documents: string[];
     metadatas: Array<{
@@ -892,35 +894,27 @@ Your ranking (JSON array only):`;
     searchType: string[];
     reranked: boolean;
   }> {
-    try {
-      // Step 1: Hybrid search to get initial results
-      const hybridResults = await this.hybridSearch(collectionName, query, n_results * 3); // Get more for re-ranking
-
-      // Step 2: LLM re-ranking
-      const reRankedResults = await this.reRankResults(
-        query,
-        hybridResults.documents,
-        hybridResults.metadatas,
-        hybridResults.scores,
-        n_results
-      );
-
-      return {
-        documents: reRankedResults.documents,
-        metadatas: reRankedResults.metadatas,
-        scores: reRankedResults.scores,
-        searchType: hybridResults.searchType.slice(0, reRankedResults.documents.length),
-        reranked: reRankedResults.reranked
-      };
-
-    } catch (error) {
-      console.error(`ChromaService: Error in hybrid search with re-ranking:`, error);
-      // Fallback to regular hybrid search
-      return {
-        ...(await this.hybridSearch(collectionName, query, n_results)),
-        reranked: false
-      };
+    const results = await this.hybridSearch(collectionName, query, n_results * 3, filter);
+    
+    if (!results.documents || results.documents.length === 0) {
+      return { documents: [], metadatas: [], scores: [], searchType: [], reranked: false };
     }
+    
+    const reRankedResults = await this.reRankResults(
+      query,
+      results.documents,
+      results.metadatas,
+      results.scores,
+      n_results // This is the correct n_results
+    );
+
+    return {
+      documents: reRankedResults.documents,
+      metadatas: reRankedResults.metadatas,
+      scores: reRankedResults.scores,
+      searchType: results.searchType.slice(0, reRankedResults.documents.length),
+      reranked: reRankedResults.reranked
+    };
   }
 
   /**
@@ -952,7 +946,7 @@ Your ranking (JSON array only):`;
       const compressionPrompt = this.createCompressionPrompt(query, documents, maxLength);
 
       // Call LLM for compression
-      const compressedResponse = await this.bedrockService.invokeModelJSON(
+      const compressedResponse = await bedrockService.invokeModelJSON(
         compressionPrompt,
         'anthropic.claude-3-haiku-20240307-v1:0'
       );

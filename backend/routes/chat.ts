@@ -166,6 +166,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
   });
 
   extWs.on('message', async (message: string) => {
+    const extWs = (ws as ExtendedWebSocket);
     try {
       const data = JSON.parse(message.toString());
       const userId = extWs.userId;
@@ -197,7 +198,6 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         return;
       }
 
-      // Check user limits before processing
       const hasRemaining = await usageService.checkUserLimit(userId!);
       if (!hasRemaining) {
         extWs.send(JSON.stringify({
@@ -207,238 +207,57 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         return;
       }
       
-      const { messages, modelId, isImageGeneration, path, chatId, type } = data;
+      const { messages, modelId, chatId, type } = data;
 
-      if (!messages || !Array.isArray(messages)) {
-        throw new Error('Invalid messages format');
+      if (!messages || !Array.isArray(messages) || !modelId) {
+        throw new Error('Invalid payload: messages array and modelId are required.');
       }
 
-      if (!modelId) {
-        throw new Error('ModelId is required');
-      }
-
-      // Check if this is a regenerate request
-      const isRegenerate = type === 'regenerate';
-      
-      // Handle chat updates and message processing
-      let savedChat;
       let currentChatId: string;
-      try {
-        // Check if any files were sent with the message
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.files && lastMessage.files.length > 0) {
-          console.log(`User ${userId} sent ${lastMessage.files.length} files with their message`);
-          
-          // ตรวจสอบข้อมูลของไฟล์
-          lastMessage.files.forEach((file: any, index: number) => {
-            console.log(`File ${index + 1}:`, {
-              name: file.name,
-              type: file.mediaType,
-              size: file.size,
-              hasData: !!file.data
-            });
-          });
-        }
-        
-        if (!chatId) {
-          savedChat = await chatService.saveChat(extWs.userId!, modelId, messages);
-          currentChatId = savedChat._id.toString();
-          
-          // Send chatId immediately after creation
-          if (extWs.readyState === WebSocket.OPEN) {
-            extWs.send(JSON.stringify({ 
-              type: 'chat_created',
-              chatId: currentChatId
-            }));
-          }
-        } else {
-          savedChat = await chatService.updateChat(chatId, extWs.userId!, messages);
-          currentChatId = chatId;
-        }
+      if (chatId) {
+        currentChatId = chatId;
+        await chatService.updateChat(currentChatId, userId!, messages);
+      } else {
+        const savedChat = await chatService.saveChat(userId!, modelId, messages);
+        currentChatId = savedChat._id.toString();
+        extWs.send(JSON.stringify({ type: 'chat_created', chatId: currentChatId }));
+      }
 
-        // Get query from last message
-        const query = isImageGeneration
-          ? messages[messages.length - 1].content
-          : messages.map(msg => msg.content).join('\n');
-
-        // Generate response and send chunks
-        let assistantResponse = '';
-        let isCancelled = false;
-        
-        // Setup a listener for cancel messages while we're generating
-        const cancelListener = (cancelMsg: string) => {
-          try {
-            const cancelData = JSON.parse(cancelMsg.toString());
-            if (cancelData.type === 'cancel' && cancelData.chatId === currentChatId) {
-              console.log(`Cancellation received during generation for chat ${currentChatId}`);
-              isCancelled = true;
-            }
-          } catch (error) {
-            console.error('Error parsing cancel message:', error);
-          }
-        };
-        
-        // Add temporary listener for this generation
-        extWs.on('message', cancelListener);
-        
-        // Generate the response
+      let isCancelled = false;
+      const cancelListener = (cancelMsg: string) => {
         try {
-          for await (const content of chatService.generateResponse(messages, query, modelId, extWs.userId!)) {
-            // Check if the generation has been cancelled
-            if (isCancelled) {
-              console.log(`Breaking out of generation loop due to cancellation for chat ${currentChatId}`);
-              break;
-            }
-            
-            assistantResponse += content;
-            if (extWs.readyState === WebSocket.OPEN) {
-              extWs.send(JSON.stringify({ 
-                type: 'content',
-                content
-              }));
-            } else {
-              break;
-            }
+          const cancelData = JSON.parse(cancelMsg);
+          if (cancelData.type === 'cancel' && cancelData.chatId === currentChatId) {
+            isCancelled = true;
           }
-        } finally {
-          // Always remove the listener when done
-          extWs.removeListener('message', cancelListener);
-        }
+        } catch (e) { /* Ignore */ }
+      };
+      extWs.on('message', cancelListener);
 
-        // If generation was cancelled, we don't need to send completion
-        if (isCancelled) {
-          console.log(`Generation was cancelled for chat ${currentChatId}, not sending completion`);
-          return;
-        }
-
-        // Send completion signal
-        if (extWs.readyState === WebSocket.OPEN) {
-          const allMessages = [...messages];
-          allMessages.push({
-            id: messages.length + 1,
-            role: 'assistant',
-            content: assistantResponse,
-            timestamp: new Date(),
-            sources: [],
-            isImageGeneration: isImageGeneration || false,
-            isComplete: true
-          });
-
-          // Update chat with final messages
-          try {
-            const finalChat = await chatService.updateChat(
-              currentChatId,
-              extWs.userId!,
-              allMessages
-            );
-
-            extWs.send(JSON.stringify({ 
-              type: 'complete',
-              chatId: currentChatId,
-              shouldUpdateList: true,
-              timestamp: new Date().toISOString()
-            }));
-
-            // Broadcast to other clients of same user
-            wss.clients.forEach((client: WebSocket) => {
-              const extClient = client as ExtendedWebSocket;
-              if (extClient.userId === extWs.userId && extClient !== extWs) {
-                extClient.send(JSON.stringify({
-                  type: 'chat_updated',
-                  shouldUpdateList: true,
-                  timestamp: new Date().toISOString()
-                }));
-              }
-            });
-          } catch (error) {
-            console.error('Error saving final chat:', error);
-            extWs.send(JSON.stringify({ 
-              type: 'error',
-              error: 'Failed to save chat history' 
-            }));
+      try {
+        for await (const content of chatService.sendMessage(messages, modelId, userId!)) {
+          if (isCancelled) break;
+          if (extWs.readyState === WebSocket.OPEN) {
+            extWs.send(JSON.stringify(content));
           }
         }
-      } catch (error) {
-        console.error(`Error generating response:`, error);
-        if (extWs.readyState === WebSocket.OPEN) {
-          extWs.send(JSON.stringify({ 
-            type: 'error',
-            error: 'Error generating response' 
-          }));
+      } finally {
+        extWs.removeListener('message', cancelListener);
+        if (extWs.readyState === WebSocket.OPEN && !isCancelled) {
+            extWs.send(JSON.stringify({ type: 'complete', chatId: currentChatId }));
         }
       }
+
     } catch (error) {
-      console.error(`Error processing message:`, error);
+      console.error('WebSocket message processing error:', error);
       if (extWs.readyState === WebSocket.OPEN) {
-        extWs.send(JSON.stringify({ 
+        extWs.send(JSON.stringify({
           type: 'error',
-          error: error instanceof Error ? error.message : 'Invalid message format' 
+          error: (error as Error).message || 'An internal error occurred.'
         }));
       }
     }
   });
-});
-
-router.post('/', async (req: Request, res: Response) => {
-  // console.log('Received chat request');
-
-  // 1. ส่ง headers ทันทีก่อนทำอย่างอื่น
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache, no-transform');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-
-  // 2. ส่ง initial response เพื่อเริ่ม stream
-  res.write(':\n\n');  // Keep-alive ping
-  // console.log('Sent initial response');
-
-  try {
-    const { messages, modelId, collectionName } = req.body;
-    const lastMessage = messages[messages.length - 1];
-    const query = lastMessage.content;
-
-    // 3. ฟังก์ชันสำหรับส่งข้อมูล
-    const sendChunk = (content: string) => {
-      const data = JSON.stringify({ content });
-      res.write(`data: ${data}\n\n`);
-    };
-
-    // 4. ส่ง empty chunk เพื่อให้ frontend เริ่มอ่าน stream
-    sendChunk('');
-    
-    // console.log('Starting response generation');
-    // console.log('Starting generateResponse:', {
-    //   modelId,
-    //   collectionName,
-    //   messagesCount: messages.length,
-    //   query
-    // });
-    try {
-      for await (const content of chatService.generateResponse(messages, query, modelId, collectionName)) {
-        // console.log('Sending chunk:', content);
-        sendChunk(content);
-      }
-    } catch (error) {
-      console.error('Error in stream generation:', error);
-      sendChunk('\nSorry, an error occurred. Please try again.');
-    }
-
-    // console.log('Chat response completed');
-    res.end();
-  } catch (error) {
-    console.error('Chat error details:', error);
-    
-    // ถ้ายังไม่ได้ส่ง headers
-    if (!res.headersSent) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-    }
-    
-    const errorData = JSON.stringify({ content: 'Sorry, an error occurred. Please try again.' });
-    res.write(`data: ${errorData}\n\n`);
-    res.end();
-  }
 });
 
 router.post('/history', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
