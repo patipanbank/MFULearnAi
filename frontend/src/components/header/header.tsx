@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FaSignOutAlt } from 'react-icons/fa';
 import { config } from '../../config/config';
+import { Link } from 'react-router-dom';
 // import { useNavigate } from 'react-router-dom'; // ลบออกเพราะไม่ได้ใช้
 
 const Header = () => {
@@ -33,21 +34,23 @@ const Header = () => {
       <nav className="flex items-center justify-between px-6 py-4 w-full">
         {/* DINDIN AI branding on the left */}
         <div className="flex items-center">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-            <span style={{
-              background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>DIN</span>{''}
-            <span>DIN</span>
-            <span style={{
-              background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}> AI</span>
-          </h2>
+          <Link to="/mfuchatbot">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white cursor-pointer">
+              <span style={{
+                background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>DIN</span>{''}
+              <span>DIN</span>
+              <span style={{
+                background: 'linear-gradient(to right, #00FFFF, #0099FF)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}> AI</span>
+            </h2>
+          </Link>
         </div>
 
         {/* User info on the right */}
