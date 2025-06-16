@@ -429,7 +429,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               </div>
             )}
             {/* Mobile close button */}
-            {shouldShowContent && (
+            {shouldShowContent && !isMobile && (
               <button
                 onClick={onClose}
                 className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
