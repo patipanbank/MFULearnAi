@@ -472,8 +472,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 </div>
               )}
               
-              {/* Search bar - only show when there is at least one chat */}
-              {sortedChats.length > 0 && (
+              {/* Search bar - show if there is at least one chat history */}
+              {chatHistories.length > 0 && (
                 <div className="px-2 py-1">
                   <div className="relative">
                     <input
