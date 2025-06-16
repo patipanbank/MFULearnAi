@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Spin, Alert } from 'antd';
+import { Spin } from 'antd';
 
 const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
