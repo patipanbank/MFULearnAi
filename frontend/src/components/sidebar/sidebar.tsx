@@ -82,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const { isSidebarPinned, toggleSidebarPin, isSidebarHovered, setIsSidebarHovered, isMobile } = useUIStore();
   
   // Determine if sidebar should show expanded content
-  const shouldShowContent = isSidebarHovered || isSidebarPinned;
+  const shouldShowContent = isMobile ? true : (isSidebarHovered || isSidebarPinned);
 
   const handleTokenExpired = () => {
     localStorage.clear();
