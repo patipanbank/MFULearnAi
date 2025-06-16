@@ -487,7 +487,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       
       {/* Action buttons for user messages */}
       {message.role === 'user' && (
-        <div className="mt-2 mr-22 flex justify-end">
+        <div className="mt-2 mr-2 flex justify-end">
           {/* Copy button */}
           <button
             type="button"
