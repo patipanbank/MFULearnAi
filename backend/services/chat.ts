@@ -36,7 +36,15 @@ interface CollectionQueryResult {
     collectionName: string;
     filename: string;
     similarity: number;
+    searchType?: string;
+    reranked?: boolean;
   }>;
+  compressionStats?: {
+    originalLength: number;
+    compressedLength: number;
+    compressionRatio: number;
+    documentsUsed: number;
+  };
 }
 
 interface IChatHistory {
@@ -199,58 +207,90 @@ class ChatService {
 
   private async processBatch(
     batch: string[],
+    query: string,
     queryEmbedding: number[],
     imageEmbedding?: number[]
   ): Promise<CollectionQueryResult[]> {
     return Promise.all(
       batch.map(async (name): Promise<CollectionQueryResult> => {
         try {
-          const queryResult = await chromaService.queryDocumentsWithEmbedding(
+          // Phase 2: Use hybrid search with re-ranking
+          const hybridResult = await chromaService.hybridSearchWithReRanking(
             name,
-            imageEmbedding || queryEmbedding,
-            4
-          ) as ChromaQueryResult;
+            query,
+            6 // Get more results for better context
+          );
 
-          if (!queryResult?.documents || !queryResult?.metadatas) {
+          if (!hybridResult?.documents || hybridResult.documents.length === 0) {
             return { context: '', sources: [] };
           }
 
-          const results = queryResult.documents
-            .map((doc: string, index: number): QueryResult => ({
-              text: doc,
-              metadata: queryResult.metadatas[index],
-              similarity: 1 - (queryResult.distances?.[index] || 0)
-            }));
-
-          // กำหนดค่า threshold ที่สามารถปรับได้ตามความเหมาะสม
-          // ค่าสูงขึ้นหมายถึงกรองเฉพาะข้อมูลที่เกี่ยวข้องมากขึ้น
-          const MIN_SIMILARITY_THRESHOLD = 0.1; // เพิ่มจาก 0.1 เป็น 0.3
-
-          const filteredResults = results
-            .filter(result => result.similarity >= MIN_SIMILARITY_THRESHOLD)
-            .sort((a, b) => b.similarity - a.similarity);
-
-          const sources = filteredResults.map(result => ({
-            modelId: result.metadata.modelId,
+          const sources = hybridResult.metadatas.map((metadata, index) => ({
+            modelId: metadata.modelId,
             collectionName: name,
-            filename: result.metadata.filename,
-            similarity: result.similarity
+            filename: metadata.filename,
+            similarity: hybridResult.scores[index] || 0,
+            searchType: hybridResult.searchType[index] || 'semantic',
+            reranked: hybridResult.reranked
           }));
 
-          // เพิ่ม logging เพื่อตรวจสอบ
-          // console.log('Filtered results:', {
-          //   name,
-          //   resultCount: filteredResults.length,
-          //   context: filteredResults.map(r => r.text).join("\n\n")
-          // });
+          // Phase 2: Apply context compression
+          const compressionResult = await chromaService.selectAndCompressContext(
+            query,
+            hybridResult.documents,
+            hybridResult.metadatas,
+            hybridResult.scores,
+            3000 // Max context length per collection
+          );
 
           return {
-            context: filteredResults.map(r => r.text).join("\n\n"),
-            sources
+            context: compressionResult.compressedContext,
+            sources,
+            compressionStats: compressionResult.compressionStats
           };
         } catch (error) {
-          console.error(`Error querying collection ${name}:`, error);
-          return { context: '', sources: [] };
+          console.error(`Error in enhanced processing for collection ${name}:`, error);
+          // Fallback to original method
+          try {
+            const queryResult = await chromaService.queryDocumentsWithEmbedding(
+              name,
+              imageEmbedding || queryEmbedding,
+              4
+            ) as ChromaQueryResult;
+
+            if (!queryResult?.documents || !queryResult?.metadatas) {
+              return { context: '', sources: [] };
+            }
+
+            const results = queryResult.documents
+              .map((doc: string, index: number): QueryResult => ({
+                text: doc,
+                metadata: queryResult.metadatas[index],
+                similarity: 1 - (queryResult.distances?.[index] || 0)
+              }));
+
+            const MIN_SIMILARITY_THRESHOLD = 0.1;
+            const filteredResults = results
+              .filter(result => result.similarity >= MIN_SIMILARITY_THRESHOLD)
+              .sort((a, b) => b.similarity - a.similarity);
+
+            const sources = filteredResults.map(result => ({
+              modelId: result.metadata.modelId,
+              collectionName: name,
+              filename: result.metadata.filename,
+              similarity: result.similarity,
+              searchType: 'semantic',
+              reranked: false
+            }));
+
+            return {
+              context: filteredResults.map(r => r.text).join("\n\n"),
+              sources
+            };
+          } catch (fallbackError) {
+            console.error(`Fallback also failed for collection ${name}:`, fallbackError);
+            return { context: '', sources: [] };
+          }
         }
       })
     );
@@ -311,7 +351,7 @@ class ChatService {
       let allResults: CollectionQueryResult[] = [];
       
       for (const batch of batches) {
-        const batchResults = await this.processBatch(batch, queryEmbedding, imageEmbedding);
+        const batchResults = await this.processBatch(batch, truncatedQuery, queryEmbedding, imageEmbedding);
         allResults = allResults.concat(batchResults);
       }
 
@@ -831,8 +871,8 @@ class ChatService {
     let allResults: CollectionQueryResult[] = [];
 
     for (const batch of batches) {
-      // Pass the same embedding for both params when it's an image, as it contains both modalities
-      const batchResults = await this.processBatch(batch, embedding, imageBase64 ? embedding : undefined);
+      // Pass the query and embeddings correctly
+      const batchResults = await this.processBatch(batch, query, embedding, imageBase64 ? embedding : undefined);
       allResults = allResults.concat(batchResults);
     }
 

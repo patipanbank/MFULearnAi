@@ -135,10 +135,31 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperA
       return;
     }
 
-    // อัพเดท collections
+    // Generate descriptions for collections automatically
+    const collectionsWithDescriptions = await Promise.all(
+      collections.map(async (collectionName: string) => {
+        try {
+          // Generate description using LLM
+          const description = await generateCollectionDescription(collectionName);
+          return {
+            name: collectionName,
+            description: description
+          };
+        } catch (error) {
+          console.error(`Error generating description for collection ${collectionName}:`, error);
+          // Fallback to a simple description
+          return {
+            name: collectionName,
+            description: `Knowledge base collection: ${collectionName}`
+          };
+        }
+      })
+    );
+
+    // อัพเดท collections with descriptions
     const updatedModel = await ModelModel.findByIdAndUpdate(
       id,
-      { collections },
+      { collections: collectionsWithDescriptions },
       { new: true, runValidators: true }
     );
 
@@ -175,6 +196,142 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperA
     res.status(500).json({ error: 'Error updating model collections' });
   }
 });
+
+/**
+ * POST /api/models/migrate-descriptions
+ * Migrates existing models to add collection descriptions
+ */
+router.post('/migrate-descriptions', roleGuard(['Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('Starting collection descriptions migration...');
+    
+    // Find all models that have collections without descriptions
+    const models = await ModelModel.find({});
+    let updatedCount = 0;
+    let errorCount = 0;
+
+    for (const model of models) {
+      try {
+        // Check if any collection lacks description or has empty description
+        const needsUpdate = model.collections.some(collection => 
+          !collection.description || 
+          collection.description.trim() === '' ||
+          typeof collection === 'string' // Old format
+        );
+
+        if (needsUpdate) {
+          console.log(`Updating model: ${model.name} (${model._id})`);
+          
+          // Convert collections to new format with descriptions
+          const collectionsWithDescriptions = await Promise.all(
+            model.collections.map(async (collection: any) => {
+              // Handle both old format (string) and new format (object)
+              const collectionName = typeof collection === 'string' ? collection : collection.name;
+              
+              // Skip if already has a good description
+              if (typeof collection === 'object' && collection.description && collection.description.trim() !== '') {
+                return collection;
+              }
+
+              try {
+                const description = await generateCollectionDescription(collectionName);
+                return {
+                  name: collectionName,
+                  description: description
+                };
+              } catch (error) {
+                console.error(`Error generating description for ${collectionName}:`, error);
+                return {
+                  name: collectionName,
+                  description: `Knowledge base collection: ${collectionName}`
+                };
+              }
+            })
+          );
+
+          // Update the model
+          await ModelModel.findByIdAndUpdate(
+            model._id,
+            { collections: collectionsWithDescriptions },
+            { new: true }
+          );
+
+          updatedCount++;
+          console.log(`✅ Updated model: ${model.name}`);
+          
+          // Add small delay to avoid overwhelming the LLM service
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        console.error(`Error updating model ${model.name}:`, error);
+        errorCount++;
+      }
+    }
+
+    console.log(`Migration completed. Updated: ${updatedCount}, Errors: ${errorCount}`);
+    res.json({
+      message: 'Collection descriptions migration completed',
+      updated: updatedCount,
+      errors: errorCount,
+      total: models.length
+    });
+  } catch (error) {
+    console.error('Error during migration:', error);
+    res.status(500).json({ error: 'Migration failed' });
+  }
+});
+
+/**
+ * Generates a description for a collection using LLM
+ */
+async function generateCollectionDescription(collectionName: string): Promise<string> {
+  try {
+    // Import BedrockService
+    const { BedrockService } = await import('../services/bedrock.js');
+    const bedrockService = new BedrockService();
+
+    // Create a prompt to generate collection description
+    const prompt = `You are an expert at analyzing knowledge base collections. Based on the collection name "${collectionName}", generate a concise, informative description that explains what kind of information this collection likely contains.
+
+Guidelines:
+1. Keep the description under 100 characters
+2. Be specific and informative
+3. Use professional language
+4. Focus on the type of content/knowledge domain
+5. Return only the description text, no additional formatting
+
+Collection name: ${collectionName}
+
+Description:`;
+
+    // Call LLM to generate description
+    const response = await bedrockService.invokeModelJSON(
+      prompt,
+      'anthropic.claude-3-haiku-20240307-v1:0'
+    );
+
+    // Extract description from response
+    let description = '';
+    if (typeof response === 'string') {
+      description = response.trim();
+    } else if (typeof response === 'object' && response.description) {
+      description = response.description.trim();
+    } else {
+      description = String(response).trim();
+    }
+
+    // Fallback if description is too long or empty
+    if (!description || description.length > 150) {
+      description = `Knowledge collection containing information about ${collectionName.toLowerCase().replace(/[_-]/g, ' ')}`;
+    }
+
+    return description;
+  } catch (error) {
+    console.error('Error generating collection description:', error);
+    // Fallback description
+    return `Knowledge base collection: ${collectionName.replace(/[_-]/g, ' ')}`;
+  }
+}
 
 /**
  * DELETE /api/models/:id

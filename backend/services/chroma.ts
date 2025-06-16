@@ -1,8 +1,8 @@
-
 import { ChromaClient } from 'chromadb';
 import { ICollection, CollectionModel, CollectionDocument } from '../models/Collection';
 import { CollectionPermission } from '../models/Collection';
 import { TitanEmbedService } from '../services/titan';
+import { BedrockService } from '../services/bedrock';
 import { HydratedDocument } from 'mongoose';
 
 interface DocumentMetadata {
@@ -18,12 +18,14 @@ class ChromaService {
   private collections: Map<string, any> = new Map();
   private processingFiles = new Set<string>();
   private titanEmbedService: TitanEmbedService;
+  private bedrockService: BedrockService;
 
   constructor() {
     this.client = new ChromaClient({
       path: process.env.CHROMA_URL || 'http://chroma:8000'
     });
     this.titanEmbedService = new TitanEmbedService();
+    this.bedrockService = new BedrockService();
   }
 
   async initCollection(collectionName: string): Promise<void> {
@@ -531,6 +533,622 @@ class ChromaService {
       console.error('Error ensuring collection exists:', error);
       throw error;
     }
+  }
+
+  /**
+   * Performs hybrid search combining semantic and keyword search
+   */
+  async hybridSearch(collectionName: string, query: string, n_results: number = 5): Promise<{
+    documents: string[];
+    metadatas: Array<{
+      modelId: string;
+      filename: string;
+      [key: string]: any;
+    }>;
+    scores: number[];
+    searchType: string[];
+  }> {
+    try {
+      await this.initCollection(collectionName);
+      
+      // 1. Semantic Search
+      const queryEmbedding = await this.getQueryEmbedding(query);
+      const semanticResults = await this.queryDocumentsWithEmbedding(
+        collectionName, 
+        queryEmbedding, 
+        n_results * 2 // Get more results for better fusion
+      );
+
+      // 2. Keyword Search (using ChromaDB's text search)
+      const keywordResults = await this.keywordSearch(collectionName, query, n_results * 2);
+
+      // 3. Fusion of results using Reciprocal Rank Fusion (RRF)
+      const fusedResults = this.fuseSearchResults(
+        semanticResults,
+        keywordResults,
+        n_results
+      );
+
+      return fusedResults;
+    } catch (error) {
+      console.error(`ChromaService: Error in hybrid search for '${collectionName}':`, error);
+      // Fallback to semantic search only
+      const queryEmbedding = await this.getQueryEmbedding(query);
+      const fallbackResults = await this.queryDocumentsWithEmbedding(collectionName, queryEmbedding, n_results);
+      return {
+        documents: fallbackResults.documents,
+        metadatas: fallbackResults.metadatas,
+        scores: fallbackResults.distances?.map(d => 1 - d) || [],
+        searchType: Array(fallbackResults.documents.length).fill('semantic')
+      };
+    }
+  }
+
+  /**
+   * Performs keyword-based search using text matching
+   */
+  private async keywordSearch(collectionName: string, query: string, n_results: number): Promise<{
+    documents: string[];
+    metadatas: Array<{
+      modelId: string;
+      filename: string;
+      [key: string]: any;
+    }>;
+    scores: number[];
+  }> {
+    try {
+      const collection = this.collections.get(collectionName);
+      if (!collection) {
+        throw new Error(`Collection '${collectionName}' not found.`);
+      }
+
+      // Get all documents from collection
+      const allDocs = await collection.get({
+        where: { processed: true },
+        include: ["documents", "metadatas"]
+      });
+
+      if (!allDocs.documents || allDocs.documents.length === 0) {
+        return { documents: [], metadatas: [], scores: [] };
+      }
+
+      // Simple keyword matching with TF-IDF-like scoring
+      const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+      const scoredResults: Array<{
+        document: string;
+        metadata: any;
+        score: number;
+        index: number;
+      }> = [];
+
+      allDocs.documents.forEach((doc: string, index: number) => {
+        const docText = doc.toLowerCase();
+        let score = 0;
+        let matchedTerms = 0;
+
+        queryTerms.forEach(term => {
+          const termCount = (docText.match(new RegExp(term, 'g')) || []).length;
+          if (termCount > 0) {
+            matchedTerms++;
+            // TF-IDF-like scoring: term frequency * inverse document frequency approximation
+            const tf = termCount / docText.split(/\s+/).length;
+            const idf = Math.log(allDocs.documents.length / (termCount + 1));
+            score += tf * idf;
+          }
+        });
+
+        // Boost score for exact phrase matches
+        if (docText.includes(query.toLowerCase())) {
+          score *= 2;
+        }
+
+        // Only include documents that match at least one term
+        if (matchedTerms > 0) {
+          scoredResults.push({
+            document: doc,
+            metadata: allDocs.metadatas?.[index] || {},
+            score,
+            index
+          });
+        }
+      });
+
+      // Sort by score and take top results
+      const topResults = scoredResults
+        .sort((a, b) => b.score - a.score)
+        .slice(0, n_results);
+
+      return {
+        documents: topResults.map(r => r.document),
+        metadatas: topResults.map(r => r.metadata),
+        scores: topResults.map(r => r.score)
+      };
+    } catch (error) {
+      console.error(`ChromaService: Error in keyword search:`, error);
+      return { documents: [], metadatas: [], scores: [] };
+    }
+  }
+
+  /**
+   * Fuses semantic and keyword search results using Reciprocal Rank Fusion
+   */
+  private fuseSearchResults(
+    semanticResults: { documents: string[]; metadatas: any[]; distances?: number[] },
+    keywordResults: { documents: string[]; metadatas: any[]; scores: number[] },
+    n_results: number
+  ): {
+    documents: string[];
+    metadatas: Array<{
+      modelId: string;
+      filename: string;
+      [key: string]: any;
+    }>;
+    scores: number[];
+    searchType: string[];
+  } {
+    const k = 60; // RRF parameter
+    const fusedScores = new Map<string, {
+      document: string;
+      metadata: any;
+      score: number;
+      searchTypes: Set<string>;
+    }>();
+
+    // Process semantic results
+    semanticResults.documents.forEach((doc, index) => {
+      const docKey = doc.substring(0, 100); // Use first 100 chars as key
+      const rank = index + 1;
+      const rrf_score = 1 / (k + rank);
+      const similarity = semanticResults.distances ? 1 - semanticResults.distances[index] : 0.5;
+      const combined_score = rrf_score * (1 + similarity); // Boost by similarity
+
+      fusedScores.set(docKey, {
+        document: doc,
+        metadata: semanticResults.metadatas[index],
+        score: combined_score,
+        searchTypes: new Set(['semantic'])
+      });
+    });
+
+    // Process keyword results and merge
+    keywordResults.documents.forEach((doc, index) => {
+      const docKey = doc.substring(0, 100);
+      const rank = index + 1;
+      const rrf_score = 1 / (k + rank);
+      const keyword_score = keywordResults.scores[index] || 0;
+      const combined_score = rrf_score * (1 + keyword_score);
+
+      if (fusedScores.has(docKey)) {
+        // Document found in both searches - boost score
+        const existing = fusedScores.get(docKey)!;
+        existing.score += combined_score * 1.5; // Boost for appearing in both
+        existing.searchTypes.add('keyword');
+      } else {
+        // Document only in keyword search
+        fusedScores.set(docKey, {
+          document: doc,
+          metadata: keywordResults.metadatas[index],
+          score: combined_score,
+          searchTypes: new Set(['keyword'])
+        });
+      }
+    });
+
+    // Sort by fused score and return top results
+    const sortedResults = Array.from(fusedScores.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, n_results);
+
+    return {
+      documents: sortedResults.map(r => r.document),
+      metadatas: sortedResults.map(r => r.metadata),
+      scores: sortedResults.map(r => r.score),
+      searchType: sortedResults.map(r => Array.from(r.searchTypes).join('+'))
+    };
+  }
+
+  /**
+   * Re-ranks search results using LLM to improve relevance
+   */
+  async reRankResults(
+    query: string,
+    documents: string[],
+    metadatas: any[],
+    scores: number[],
+    maxResults: number = 5
+  ): Promise<{
+    documents: string[];
+    metadatas: any[];
+    scores: number[];
+    reranked: boolean;
+  }> {
+    try {
+      if (documents.length <= maxResults) {
+        // No need to re-rank if we already have few results
+        return {
+          documents,
+          metadatas,
+          scores,
+          reranked: false
+        };
+      }
+
+      // Prepare documents for re-ranking (truncate long documents)
+      const truncatedDocs = documents.map((doc, index) => ({
+        index,
+        content: doc.length > 1000 ? doc.substring(0, 1000) + '...' : doc,
+        originalScore: scores[index] || 0
+      }));
+
+      // Create re-ranking prompt
+      const reRankPrompt = this.createReRankPrompt(query, truncatedDocs);
+
+      // Call LLM for re-ranking
+      const reRankResponse = await this.bedrockService.invokeModelJSON(
+        reRankPrompt,
+        'anthropic.claude-3-haiku-20240307-v1:0'
+      );
+
+      // Parse re-ranking results
+      const rankedIndices = this.parseReRankResponse(reRankResponse, documents.length);
+
+      // Apply re-ranking
+      const reRankedResults = rankedIndices
+        .slice(0, maxResults)
+        .map(index => ({
+          document: documents[index],
+          metadata: metadatas[index],
+          score: scores[index] || 0
+        }));
+
+      return {
+        documents: reRankedResults.map(r => r.document),
+        metadatas: reRankedResults.map(r => r.metadata),
+        scores: reRankedResults.map(r => r.score),
+        reranked: true
+      };
+
+    } catch (error) {
+      console.error('ChromaService: Error in LLM re-ranking:', error);
+      // Fallback to original ranking
+      return {
+        documents: documents.slice(0, maxResults),
+        metadatas: metadatas.slice(0, maxResults),
+        scores: scores.slice(0, maxResults),
+        reranked: false
+      };
+    }
+  }
+
+  /**
+   * Creates a prompt for LLM re-ranking
+   */
+  private createReRankPrompt(query: string, documents: Array<{index: number, content: string, originalScore: number}>): string {
+    const docList = documents.map((doc, i) => 
+      `Document ${doc.index}: ${doc.content}`
+    ).join('\n\n');
+
+    return `You are a search relevance expert. Your task is to re-rank the following documents based on their relevance to the user query.
+
+User Query: "${query}"
+
+Documents to rank:
+${docList}
+
+Instructions:
+1. Analyze each document's relevance to the query
+2. Consider semantic meaning, not just keyword matching
+3. Rank documents from most relevant (1) to least relevant (${documents.length})
+4. Return ONLY a JSON array of document indices in order of relevance
+
+Example response format: [2, 0, 4, 1, 3]
+
+Your ranking (JSON array only):`;
+  }
+
+  /**
+   * Parses LLM re-ranking response
+   */
+  private parseReRankResponse(response: string, totalDocs: number): number[] {
+    try {
+      // Extract JSON array from response
+      const jsonMatch = response.match(/\[[\d,\s]+\]/);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON array found in response');
+      }
+
+      const rankedIndices = JSON.parse(jsonMatch[0]);
+      
+      // Validate indices
+      if (!Array.isArray(rankedIndices) || 
+          rankedIndices.length !== totalDocs ||
+          !rankedIndices.every(idx => typeof idx === 'number' && idx >= 0 && idx < totalDocs)) {
+        throw new Error('Invalid ranking indices');
+      }
+
+      return rankedIndices;
+    } catch (error) {
+      console.error('ChromaService: Error parsing re-rank response:', error);
+      // Fallback to original order
+      return Array.from({ length: totalDocs }, (_, i) => i);
+    }
+  }
+
+  /**
+   * Enhanced hybrid search with LLM re-ranking
+   */
+  async hybridSearchWithReRanking(
+    collectionName: string, 
+    query: string, 
+    n_results: number = 5
+  ): Promise<{
+    documents: string[];
+    metadatas: Array<{
+      modelId: string;
+      filename: string;
+      [key: string]: any;
+    }>;
+    scores: number[];
+    searchType: string[];
+    reranked: boolean;
+  }> {
+    try {
+      // Step 1: Hybrid search to get initial results
+      const hybridResults = await this.hybridSearch(collectionName, query, n_results * 3); // Get more for re-ranking
+
+      // Step 2: LLM re-ranking
+      const reRankedResults = await this.reRankResults(
+        query,
+        hybridResults.documents,
+        hybridResults.metadatas,
+        hybridResults.scores,
+        n_results
+      );
+
+      return {
+        documents: reRankedResults.documents,
+        metadatas: reRankedResults.metadatas,
+        scores: reRankedResults.scores,
+        searchType: hybridResults.searchType.slice(0, reRankedResults.documents.length),
+        reranked: reRankedResults.reranked
+      };
+
+    } catch (error) {
+      console.error(`ChromaService: Error in hybrid search with re-ranking:`, error);
+      // Fallback to regular hybrid search
+      return {
+        ...(await this.hybridSearch(collectionName, query, n_results)),
+        reranked: false
+      };
+    }
+  }
+
+  /**
+   * Compresses context using LLM to extract only relevant information
+   */
+  async compressContext(
+    query: string,
+    documents: string[],
+    maxLength: number = 4000
+  ): Promise<{
+    compressedContext: string;
+    compressionRatio: number;
+    originalLength: number;
+  }> {
+    try {
+      const originalContext = documents.join('\n\n---\n\n');
+      const originalLength = originalContext.length;
+
+      // If context is already short enough, return as-is
+      if (originalLength <= maxLength) {
+        return {
+          compressedContext: originalContext,
+          compressionRatio: 1.0,
+          originalLength
+        };
+      }
+
+      // Create compression prompt
+      const compressionPrompt = this.createCompressionPrompt(query, documents, maxLength);
+
+      // Call LLM for compression
+      const compressedResponse = await this.bedrockService.invokeModelJSON(
+        compressionPrompt,
+        'anthropic.claude-3-haiku-20240307-v1:0'
+      );
+
+      const compressedContext = this.parseCompressionResponse(compressedResponse);
+      const compressionRatio = compressedContext.length / originalLength;
+
+      return {
+        compressedContext,
+        compressionRatio,
+        originalLength
+      };
+
+    } catch (error) {
+      console.error('ChromaService: Error in context compression:', error);
+      // Fallback to truncation
+      const originalContext = documents.join('\n\n---\n\n');
+      const truncatedContext = originalContext.length > maxLength 
+        ? originalContext.substring(0, maxLength) + '...'
+        : originalContext;
+
+      return {
+        compressedContext: truncatedContext,
+        compressionRatio: truncatedContext.length / originalContext.length,
+        originalLength: originalContext.length
+      };
+    }
+  }
+
+  /**
+   * Creates a prompt for context compression
+   */
+  private createCompressionPrompt(query: string, documents: string[], maxLength: number): string {
+    const contextText = documents.map((doc, i) => 
+      `Document ${i + 1}:\n${doc}`
+    ).join('\n\n---\n\n');
+
+    return `You are an expert at extracting and summarizing relevant information. Your task is to compress the following context while preserving all information relevant to answering the user's query.
+
+User Query: "${query}"
+
+Context to compress:
+${contextText}
+
+Instructions:
+1. Extract ONLY information that is directly relevant to answering the query
+2. Preserve key facts, numbers, dates, and specific details
+3. Remove redundant or irrelevant information
+4. Maintain the logical flow and relationships between concepts
+5. Keep the compressed version under ${maxLength} characters
+6. Return the result in JSON format with a "compressed_context" field
+
+Example response format:
+{
+  "compressed_context": "Your compressed context here..."
+}
+
+Your compressed context:`;
+  }
+
+  /**
+   * Parses compression response from LLM
+   */
+  private parseCompressionResponse(response: any): string {
+    try {
+      if (typeof response === 'object' && response.compressed_context) {
+        return response.compressed_context;
+      }
+      
+      if (typeof response === 'string') {
+        // Try to extract JSON from string response
+        const jsonMatch = response.match(/\{[\s\S]*"compressed_context"[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return parsed.compressed_context || response;
+        }
+        return response;
+      }
+
+      return String(response);
+    } catch (error) {
+      console.error('ChromaService: Error parsing compression response:', error);
+      return String(response);
+    }
+  }
+
+  /**
+   * Intelligent context selection and compression
+   */
+  async selectAndCompressContext(
+    query: string,
+    documents: string[],
+    metadatas: any[],
+    scores: number[],
+    maxContextLength: number = 4000
+  ): Promise<{
+    selectedDocuments: string[];
+    compressedContext: string;
+    compressionStats: {
+      originalLength: number;
+      compressedLength: number;
+      compressionRatio: number;
+      documentsUsed: number;
+    };
+  }> {
+    try {
+      // Step 1: Select most relevant documents based on scores and diversity
+      const selectedIndices = this.selectDiverseDocuments(documents, scores, maxContextLength);
+      const selectedDocs = selectedIndices.map(i => documents[i]);
+
+      // Step 2: Compress the selected context
+      const compressionResult = await this.compressContext(query, selectedDocs, maxContextLength);
+
+      return {
+        selectedDocuments: selectedDocs,
+        compressedContext: compressionResult.compressedContext,
+        compressionStats: {
+          originalLength: compressionResult.originalLength,
+          compressedLength: compressionResult.compressedContext.length,
+          compressionRatio: compressionResult.compressionRatio,
+          documentsUsed: selectedDocs.length
+        }
+      };
+
+    } catch (error) {
+      console.error('ChromaService: Error in context selection and compression:', error);
+      // Fallback to simple truncation
+      const fallbackContext = documents.slice(0, 3).join('\n\n---\n\n');
+      const truncatedContext = fallbackContext.length > maxContextLength
+        ? fallbackContext.substring(0, maxContextLength) + '...'
+        : fallbackContext;
+
+      return {
+        selectedDocuments: documents.slice(0, 3),
+        compressedContext: truncatedContext,
+        compressionStats: {
+          originalLength: fallbackContext.length,
+          compressedLength: truncatedContext.length,
+          compressionRatio: truncatedContext.length / fallbackContext.length,
+          documentsUsed: Math.min(3, documents.length)
+        }
+      };
+    }
+  }
+
+  /**
+   * Selects diverse documents to avoid redundancy
+   */
+  private selectDiverseDocuments(documents: string[], scores: number[], maxLength: number): number[] {
+    const selected: number[] = [];
+    const usedKeywords = new Set<string>();
+    let currentLength = 0;
+
+    // Sort by score (highest first)
+    const sortedIndices = documents
+      .map((_, index) => ({ index, score: scores[index] || 0 }))
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.index);
+
+    for (const index of sortedIndices) {
+      const doc = documents[index];
+      
+      // Check if adding this document would exceed length limit
+      if (currentLength + doc.length > maxLength && selected.length > 0) {
+        break;
+      }
+
+      // Extract keywords from document for diversity check
+      const docKeywords = this.extractKeywords(doc);
+      const newKeywords = docKeywords.filter(kw => !usedKeywords.has(kw));
+
+      // Select document if it adds new information or is highly relevant
+      if (newKeywords.length > docKeywords.length * 0.3 || selected.length === 0) {
+        selected.push(index);
+        currentLength += doc.length;
+        docKeywords.forEach(kw => usedKeywords.add(kw));
+      }
+
+      // Ensure we have at least one document
+      if (selected.length >= 5) break; // Limit to top 5 diverse documents
+    }
+
+    return selected;
+  }
+
+  /**
+   * Extracts keywords from text for diversity analysis
+   */
+  private extractKeywords(text: string): string[] {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 3)
+      .filter(word => !['this', 'that', 'with', 'from', 'they', 'have', 'been', 'were', 'said', 'each', 'which', 'their', 'time', 'will', 'about', 'would', 'there', 'could', 'other', 'more', 'very', 'what', 'know', 'just', 'first', 'into', 'over', 'think', 'also', 'your', 'work', 'life', 'only', 'can', 'still', 'should', 'after', 'being', 'now', 'made', 'before', 'here', 'through', 'when', 'where', 'much', 'some', 'these', 'many', 'then', 'them', 'well', 'were'].includes(word))
+      .slice(0, 20); // Top 20 keywords
   }
 }
 
