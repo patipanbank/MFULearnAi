@@ -4,14 +4,14 @@ exports.ModelModel = void 0;
 const mongoose_1 = require("mongoose");
 const modelSchema = new mongoose_1.Schema({
     name: { type: String, required: true },
-    description: { type: String, required: true },
+    description: { type: String, default: '' },
     collections: [{
             name: { type: String, required: true },
-            description: { type: String, required: true }
+            description: { type: String, default: '' }
         }],
     createdBy: { type: String, required: true },
     modelType: { type: String, enum: ['official', 'personal', 'department'], required: true },
-    department: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Department' },
+    department: { type: String },
     isAgent: { type: Boolean, default: false },
     prompt: { type: String, default: '' },
     displayRetrievedChunks: { type: Boolean, default: true },

@@ -1,7 +1,8 @@
 export interface Model {
   id: string;
   name: string;
-  collections: string[]; // list of collection names selected in the model
+  description?: string;
+  collections: Array<{ name: string; description?: string }> | string[]; // Support both formats for backward compatibility
   modelType: 'official' | 'personal' | 'department';
   department?: string;
   createdAt: string;

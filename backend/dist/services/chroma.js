@@ -631,7 +631,7 @@ class ChromaService {
             // Create re-ranking prompt
             const reRankPrompt = this.createReRankPrompt(query, truncatedDocs);
             // Call LLM for re-ranking
-            const reRankResponse = await bedrock_1.bedrockService.invokeModelJSON(reRankPrompt, 'anthropic.claude-3-haiku-20240307-v1:0');
+            const reRankResponse = await bedrock_1.bedrockService.invokeModelJSON(reRankPrompt, bedrock_1.bedrockService.models.claude35);
             // Parse re-ranking results
             const rankedIndices = this.parseReRankResponse(reRankResponse, documents.length);
             // Apply re-ranking
@@ -743,7 +743,7 @@ Your ranking (JSON array only):`;
             // Create compression prompt
             const compressionPrompt = this.createCompressionPrompt(query, documents, maxLength);
             // Call LLM for compression
-            const compressedResponse = await bedrock_1.bedrockService.invokeModelJSON(compressionPrompt, 'anthropic.claude-3-haiku-20240307-v1:0');
+            const compressedResponse = await bedrock_1.bedrockService.invokeModelJSON(compressionPrompt, bedrock_1.bedrockService.models.claude35);
             const compressedContext = this.parseCompressionResponse(compressedResponse);
             const compressionRatio = compressedContext.length / originalLength;
             return {

@@ -69,6 +69,7 @@ router.post('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as User
 
     const model = await ModelModel.create({
       name,
+      description: `${modelType} model: ${name}`, // Add default description
       createdBy,
       modelType,
       department: modelType === 'department' ? department : undefined,
@@ -107,7 +108,10 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperA
       return;
     }
 
-    const updatedCollections = collections.map((collectionName: string) => ({ name: collectionName }));
+    const updatedCollections = collections.map((collectionName: string) => ({ 
+      name: collectionName,
+      description: `Collection: ${collectionName}` // Add default description
+    }));
 
     const updatedModel = await ModelModel.findByIdAndUpdate(
       id,

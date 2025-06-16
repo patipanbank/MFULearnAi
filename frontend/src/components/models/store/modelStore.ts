@@ -275,7 +275,16 @@ export const useModelStore = create<ModelState>((set, get) => ({
     if (!editingModel) return;
     
     setIsCollectionsLoading(true);
-    setSelectedCollections(editingModel.collections || []);
+    
+    // Handle both old format (string[]) and new format (object[])
+    const currentCollections = editingModel.collections || [];
+    const collectionNames = Array.isArray(currentCollections) && currentCollections.length > 0
+      ? typeof currentCollections[0] === 'string' 
+        ? currentCollections as string[]
+        : (currentCollections as Array<{ name: string; description?: string }>).map(c => c.name)
+      : [];
+    
+    setSelectedCollections(collectionNames);
     
     try {
       const token = localStorage.getItem('auth_token');

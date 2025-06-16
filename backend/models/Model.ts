@@ -2,32 +2,32 @@ import { Schema, model, Document } from 'mongoose';
 
 export interface ModelDocument extends Document {
   name: string;
-  description: string;
-  collections: { name: string; description: string }[];
+  description?: string;
+  collections: { name: string; description?: string }[];
   createdBy: string;
   modelType: 'official' | 'personal' | 'department';
-  department?: Schema.Types.ObjectId;
+  department?: string;
   isAgent: boolean;
   prompt: string;
   displayRetrievedChunks: boolean;
   createdAt: Date;
   updatedAt: Date;
   is_public: boolean;
-  user: Schema.Types.ObjectId;
+  user?: Schema.Types.ObjectId;
   system_prompt: string | null;
   is_active: boolean;
 }
 
 const modelSchema = new Schema<ModelDocument>({
   name: { type: String, required: true },
-  description: { type: String, required: true },
+  description: { type: String, default: '' },
   collections: [{
     name: { type: String, required: true },
-    description: { type: String, required: true }
+    description: { type: String, default: '' }
   }],
   createdBy: { type: String, required: true },
   modelType: { type: String, enum: ['official', 'personal', 'department'], required: true },
-  department: { type: Schema.Types.ObjectId, ref: 'Department' },
+  department: { type: String },
   isAgent: { type: Boolean, default: false },
   prompt: { type: String, default: '' },
   displayRetrievedChunks: { type: Boolean, default: true },

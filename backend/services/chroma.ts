@@ -787,7 +787,7 @@ class ChromaService {
       // Call LLM for re-ranking
       const reRankResponse = await bedrockService.invokeModelJSON(
         reRankPrompt,
-        'anthropic.claude-3-haiku-20240307-v1:0'
+        bedrockService.models.claude35
       );
 
       // Parse re-ranking results
@@ -948,7 +948,7 @@ Your ranking (JSON array only):`;
       // Call LLM for compression
       const compressedResponse = await bedrockService.invokeModelJSON(
         compressionPrompt,
-        'anthropic.claude-3-haiku-20240307-v1:0'
+        bedrockService.models.claude35
       );
 
       const compressedContext = this.parseCompressionResponse(compressedResponse);

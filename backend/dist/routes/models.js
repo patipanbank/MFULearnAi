@@ -61,6 +61,7 @@ router.post('/', (0, roleGuard_1.roleGuard)(['Students', 'Staffs', 'Admin', 'Sup
         }
         const model = await Model_1.ModelModel.create({
             name,
+            description: `${modelType} model: ${name}`, // Add default description
             createdBy,
             modelType,
             department: modelType === 'department' ? department : undefined,
@@ -94,7 +95,10 @@ router.put('/:id/collections', (0, roleGuard_1.roleGuard)(['Staffs', 'Admin', 'S
             res.status(403).json({ error: 'Permission denied' });
             return;
         }
-        const updatedCollections = collections.map((collectionName) => ({ name: collectionName }));
+        const updatedCollections = collections.map((collectionName) => ({
+            name: collectionName,
+            description: `Collection: ${collectionName}` // Add default description
+        }));
         const updatedModel = await Model_1.ModelModel.findByIdAndUpdate(id, { collections: updatedCollections }, { new: true, runValidators: true });
         if (!updatedModel) {
             res.status(404).json({ error: 'Model not found' });
