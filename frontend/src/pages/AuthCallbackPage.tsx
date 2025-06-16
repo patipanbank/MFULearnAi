@@ -14,9 +14,15 @@ const AuthCallbackPage = () => {
 
     if (token && userDataStr) {
       try {
-        const user = JSON.parse(userDataStr);
-        // Assuming the user object and token are what the login function expects
-        login(user, token);
+        const samlUser = JSON.parse(userDataStr);
+        
+        // Create a user object that matches the application's User interface
+        const appUser = {
+          ...samlUser,
+          role: 'user', // Assign role for SAML users
+        };
+
+        login(appUser, token);
         
         // Redirect to the originally intended page, or home
         const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/';

@@ -2,8 +2,13 @@ import {create} from 'zustand';
 
 interface User {
   username: string;
-  role: 'admin' | 'user';
-  // Add other user properties as needed
+  role: 'admin' | 'user' | 'guest';
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  department?: string;
+  groups?: string[];
+  nameID?: string;
 }
 
 interface AuthState {
