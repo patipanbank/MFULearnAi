@@ -1285,20 +1285,20 @@ const MFUChatbot: React.FC = () => {
                 <div className={`flex items-start gap-3 ${
                   message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}>
-                  <div className={`flex-shrink-0 w-6 h-6 rounded-full overflow-hidden ${
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
                     message.role === 'user'
                       ? 'bg-gradient-to-r from-red-600 to-yellow-400'
                       : 'bg-transparent'
                   } flex items-center justify-center`}>
                     {message.role === 'user' ? (
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                       </svg>
                     ) : (
                       <img
                         src="/dindin.PNG"
                         alt="AI Assistant"
-                        className="w-4 h-4 object-cover"
+                        className="w-full h-full object-cover"
                       />
                     )}
                   </div>
