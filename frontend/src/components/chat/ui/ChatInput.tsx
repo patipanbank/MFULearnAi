@@ -66,8 +66,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      const lineHeight = 24;
-      const maxLines = 5;
+      const lineHeight = 20;
+      const maxLines = 2;
       const maxHeight = lineHeight * maxLines;
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
@@ -102,7 +102,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              className="flex-1 min-w-0 p-2 text-sm md:text-base rounded-2xl border border-gray-300 dark:border-gray-600 
+              className="flex-1 min-w-0 p-1.5 text-sm rounded-2xl border border-gray-300 dark:border-gray-600 
                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
                 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none
                 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 
@@ -111,8 +111,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
               style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: 'rgb(209 213 219) transparent',
-                minHeight: '44px',
-                maxHeight: '150px'
+                minHeight: '32px',
+                maxHeight: '40px'
               }}
               placeholder={
                 selectedImages.length > 0 
