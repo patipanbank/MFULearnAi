@@ -132,15 +132,22 @@ export const ModelCard: React.FC<ModelCardProps> = ({
             
             {model.collections.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {model.collections.map((collection, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs 
-                      font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-                  >
-                    {collection}
-                  </span>
-                ))}
+                {model.collections.map((collection, index) => {
+                  // Handle both string and object formats
+                  const collectionName = typeof collection === 'string' 
+                    ? collection 
+                    : collection.name;
+                  
+                  return (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs 
+                        font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                    >
+                      {collectionName}
+                    </span>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-500 dark:text-gray-400 italic">
