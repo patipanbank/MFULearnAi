@@ -8,6 +8,11 @@ export const authService = {
     return response.data;
   },
 
+  guestLogin: async (credentials: { username: string; password: string }) => {
+    const response = await api.post('/auth/guest-login', credentials);
+    return response.data;
+  },
+
   logout: async () => {
     // Logout is mostly a client-side state clearing operation
     return Promise.resolve();

@@ -1,116 +1,244 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button, Card, Col, Row, Typography } from "antd";
-import { LockOutlined } from '@ant-design/icons';
-import { API_URL } from "../services/api";
-import { useAuth } from "../hooks/useAuth";
-// import { config } from "../config/config"; // Assuming config is not needed for now
+import React, { useState, useEffect } from 'react'
+import { Button, Card, Form, Input, Divider, Alert } from 'antd'
+import { UserOutlined, LockOutlined, LoginOutlined, SafetyOutlined } from '@ant-design/icons'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
+import { authService } from '../../services/authService'
+import toast from 'react-hot-toast'
 
-const { Title, Text, Link } = Typography;
+const LoginPage: React.FC = () => {
+  const [loading, setLoading] = useState(false)
+  const [guestLoading, setGuestLoading] = useState(false)
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { isAuthenticated, login } = useAuth()
+  const error = searchParams.get('error')
 
-const LoginPage = () => {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-
+  // Redirect if already authenticated
   useEffect(() => {
-    const handleAuthMessage = (event: MessageEvent) => {
-      // IMPORTANT: Check the origin of the message for security
-      // In a real app, you should replace '*' with your backend's origin
-      const backendOrigin = new URL(API_URL).origin;
-      if (event.origin !== backendOrigin) {
-        console.warn(`Message received from unexpected origin: ${event.origin}. Expected: ${backendOrigin}`);
-        return;
+    if (isAuthenticated) {
+      navigate('/', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
+
+  const handleSamlLogin = async () => {
+    setLoading(true)
+    try {
+      // Store the current URL to redirect back after login
+      sessionStorage.setItem('redirectAfterLogin', window.location.pathname)
+      
+      // Redirect to SAML login endpoint
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      window.location.href = `${apiUrl}/api/auth/login/saml`
+    } catch (error) {
+      console.error('SAML login error:', error)
+      toast.error('Failed to initiate SAML login')
+      setLoading(false)
+    }
+  }
+
+  const handleGuestLogin = async (values: { username: string; password: string }) => {
+    setGuestLoading(true)
+    try {
+      // Validate inputs
+      if (!values.username.trim()) {
+        throw new Error('Username is required')
+      }
+      if (!values.password.trim()) {
+        throw new Error('Password is required')
       }
 
-      // Assuming the backend sends data in the format { success: true, user: {...}, token: '...' }
-      const { success, user, token } = event.data;
-
-      if (success && user && token) {
-        console.log("SAML Login successful, received data:", event.data);
-        login(user, token); // Update auth store
-        navigate("/chat"); // Navigate to chat page
+      const response = await authService.guestLogin(values)
+      
+      if (response.user && response.token) {
+        login(response.user, response.token);
+        toast.success('Guest login successful')
+        // Redirect will be handled by auth context
+        const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/'
+        sessionStorage.removeItem('redirectAfterLogin')
+        navigate(redirectPath, { replace: true })
       } else {
-        console.error("SAML Login failed or data is missing.", event.data);
-        // Here you could show an error message to the user
+        throw new Error(response.message || 'Login failed')
       }
-    };
+    } catch (error: any) {
+      console.error('Guest login error:', error)
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          'Login failed. Please check your credentials.'
+      toast.error(errorMessage)
+    } finally {
+      setGuestLoading(false)
+    }
+  }
 
-    window.addEventListener("message", handleAuthMessage);
-
-    // Clean up the event listener when the component unmounts
-    return () => {
-      window.removeEventListener("message", handleAuthMessage);
-    };
-  }, [navigate, login]);
-
-  const handleSamlLogin = () => {
-    const samlLoginUrl = `${API_URL}/auth/login/saml`;
-    const width = 600, height = 700;
-    const left = (window.screen.width / 2) - (width / 2);
-    const top = (window.screen.height / 2) - (height / 2);
+  const getErrorMessage = (errorCode: string): string => {
+    const errorMessages: { [key: string]: string } = {
+      'auth_failed': 'Authentication failed. Please try again.',
+      'auth_callback_failed': 'Authentication callback failed. Please try again.',
+      'no_token': 'No authentication token received.',
+      'invalid_token': 'Invalid authentication token.',
+      'access_denied': 'Access denied. You may not have permission to access this system.',
+      'session_expired': 'Your session has expired. Please log in again.',
+      'server_error': 'Server error occurred. Please try again later.',
+      'network_error': 'Network error. Please check your connection.',
+    }
     
-    // Open a popup window pointing to the SAML login endpoint
-    window.open(
-      samlLoginUrl, 
-      "SAML Login", 
-      `width=${width},height=${height},top=${top},left=${left}`
-    );
-  };
+    return errorMessages[errorCode] || 'An error occurred during authentication.'
+  }
 
-  const handleAdminLogin = () => {
-    navigate('/admin/login');
-  };
+  const handleRetryLogin = () => {
+    // Clear error from URL
+    const newSearchParams = new URLSearchParams(searchParams)
+    newSearchParams.delete('error')
+    navigate(`${window.location.pathname}?${newSearchParams.toString()}`, { replace: true })
+  }
 
   return (
-    <Row 
-      justify="center" 
-      align="middle" 
-      className="min-h-screen bg-cover bg-center relative"
-      style={{ backgroundImage: "url('/mfu_background_login.jpg')" }}
-    >
-      <div className="absolute inset-0 bg-white/50 dark:bg-black/30"></div>
-      <Col xs={22} sm={16} md={12} lg={8} xl={7} className="relative z-10">
-        <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-lg">
-            <div className="text-center p-4">
-              <img src="/mfu_logo_chatbot.PNG" alt="MFU Logo" className="mx-auto h-24 w-auto mb-4" />
-              <Title level={2} className="text-gray-900 dark:text-white">
-                Login to <span style={{ 
-                  background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text'
-                }}>DIN</span>DIN <span style={{
-                  background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text'
-                }}>AI</span>
-              </Title>
-              <Text className="text-gray-600 dark:text-gray-300">
-                Your 24/7 AI Assistant for Mae Fah Luang University
-              </Text>
-            </div>
-            <div className="p-4">
-              <Button 
-                type="primary" 
-                size="large"
-                icon={<LockOutlined />} 
-                onClick={handleSamlLogin}
-                className="w-full"
-                style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
-              >
-                Login with MFU SSO
-              </Button>
-              <div className="mt-4 text-center">
-                <Link onClick={handleAdminLogin} className="text-sm">
-                  Admin Login
-                </Link>
-              </div>
-            </div>
-        </Card>
-      </Col>
-    </Row>
-  );
-};
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full mb-4">
+            <LoginOutlined className="text-2xl" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            MFU Learn AI
+          </h1>
+          <p className="text-gray-600">
+            Sign in to access your AI learning platform
+          </p>
+        </div>
 
-export default LoginPage; 
+        <Card className="shadow-lg border-0">
+          <div className="space-y-6">
+            {error && (
+              <Alert
+                message="Authentication Error"
+                description={
+                  <div>
+                    <p className="mb-2">{getErrorMessage(error)}</p>
+                    <Button size="small" type="link" onClick={handleRetryLogin} className="p-0">
+                      Try again
+                    </Button>
+                  </div>
+                }
+                type="error"
+                showIcon
+                closable
+                className="mb-4"
+              />
+            )}
+
+            {/* SAML Login */}
+            <div>
+              <Button
+                type="primary"
+                size="large"
+                block
+                loading={loading}
+                onClick={handleSamlLogin}
+                className="h-12 text-base font-medium"
+                icon={<SafetyOutlined />}
+              >
+                Sign in with MFU Account
+              </Button>
+              <p className="text-sm text-gray-500 text-center mt-2">
+                Use your MFU credentials to sign in securely
+              </p>
+            </div>
+
+            <Divider className="my-6">
+              <span className="text-gray-400 text-sm">Or</span>
+            </Divider>
+
+            {/* Guest Login Form */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Guest Login
+              </h3>
+              <Form
+                layout="vertical"
+                onFinish={handleGuestLogin}
+                autoComplete="off"
+              >
+                <Form.Item
+                  name="username"
+                  label="Username"
+                  rules={[
+                    { required: true, message: 'Please enter your username' },
+                    { min: 3, message: 'Username must be at least 3 characters' }
+                  ]}
+                >
+                  <Input
+                    prefix={<UserOutlined />}
+                    placeholder="Enter username"
+                    size="large"
+                    autoComplete="username"
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="password"
+                  label="Password"
+                  rules={[
+                    { required: true, message: 'Please enter your password' },
+                    { min: 6, message: 'Password must be at least 6 characters' }
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined />}
+                    placeholder="Enter password"
+                    size="large"
+                    autoComplete="current-password"
+                  />
+                </Form.Item>
+
+                <Form.Item className="mb-0">
+                  <Button
+                    type="default"
+                    htmlType="submit"
+                    size="large"
+                    block
+                    loading={guestLoading}
+                    className="h-12 text-base font-medium"
+                  >
+                    Sign in as Guest
+                  </Button>
+                </Form.Item>
+              </Form>
+              
+              <p className="text-sm text-gray-500 text-center mt-3">
+                Guest access with limited features
+              </p>
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* Security Notice */}
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              By signing in, you agree to our Terms of Service and Privacy Policy.
+              <br />
+              Your data is protected with enterprise-grade security.
+            </p>
+          </div>
+        </Card>
+
+        {/* Additional Help */}
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
+            Need help? Contact{' '}
+            <a
+              href="mailto:support@mfu.ac.th"
+              className="text-blue-600 hover:text-blue-700 underline"
+            >
+              IT Support
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default LoginPage 
