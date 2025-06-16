@@ -381,7 +381,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             />
           )}
         </div>
-
+ 
         <div className={`flex flex-col space-y-2 max-w-[80%] ${
           message.role === 'user' ? 'items-end' : 'items-start'
         }`}>
