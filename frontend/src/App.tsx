@@ -7,6 +7,8 @@ import AdminPage from './pages/AdminPage';
 import RoleGuard from './components/guards/RoleGuard';
 import ManageAdminsPage from './pages/admin/ManageAdminsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminLoginPage from './pages/admin/AdminLoginPage';
+import AuthCallback from './components/auth/AuthCallback';
 
 
 function App() {
@@ -14,6 +16,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route 
           path="/" 
           element={
