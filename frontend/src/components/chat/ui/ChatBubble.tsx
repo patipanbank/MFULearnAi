@@ -427,7 +427,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* Action buttons for assistant messages */}
       {message.role === 'assistant' && message.isComplete && (
-        <div className="mt-2 ml-2 flex flex-wrap gap-2 justify-start">
+        <div className="mt-2 mr-2 flex flex-wrap gap-2 justify-end">
           {/* Continue button - shown for the latest assistant message */}
           {isLastAssistantMessage && (
             <button
