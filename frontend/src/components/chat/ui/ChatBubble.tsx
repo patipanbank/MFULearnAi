@@ -417,7 +417,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   title="Continue"
                   data-verify="false"
                 >
-                  <VscDebugContinue className="h-5 w-5" />
+                  <VscDebugContinue className="h-4 w-4" />
                 </button>
               )}
               
@@ -434,7 +434,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   disabled={!selectedModel}
                   title={isLastAssistantMessage ? "Regenerate response" : "Clear newer history and regenerate response"}
                 >
-                  <MdRefresh className="h-5 w-5" />
+                  <MdRefresh className="h-4 w-4" />
                 </button>
               )}
               
@@ -445,7 +445,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
                 title={isCopied ? "Copied!" : "Copy to clipboard"}
               >
-                <MdContentCopy className="h-5 w-5" />
+                <MdContentCopy className="h-4 w-4" />
               </button>
               
               {/* Edit button */}
@@ -455,7 +455,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
                 title="Edit message"
               >
-                <MdEdit className="h-5 w-5" />
+                <MdEdit className="h-4 w-4" />
               </button>
             </div>
           )}
@@ -470,7 +470,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
                 title={isCopied ? "Copied!" : "Copy to clipboard"}
               >
-                <MdContentCopy className="h-5 w-5" />
+                <MdContentCopy className="h-4 w-4" />
               </button>
               {/* Edit button - for all user messages */}
               {onEditClick && (
@@ -480,7 +480,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
                   title="Edit message"
                 >
-                  <MdEdit className="h-5 w-5" />
+                  <MdEdit className="h-4 w-4" />
                 </button>
               )}
             </div>
