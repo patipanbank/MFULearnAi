@@ -625,7 +625,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   <FaCog className="w-5 h-5 animate-spin-slow" />
                   Settings & Tools
                 </h3>
-                <p className="text-blue-100 text-sm mt-1">Manage your preferences and access tools</p>
               </div>
 
               <div className="p-1">
