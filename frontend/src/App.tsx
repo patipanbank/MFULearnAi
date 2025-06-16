@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import LoginPage from './pages/LoginPage';
 import ChatPage from './pages/ChatPage';
@@ -8,7 +8,7 @@ import RoleGuard from './components/guards/RoleGuard';
 import ManageAdminsPage from './pages/admin/ManageAdminsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
-import AuthCallback from './components/auth/AuthCallback';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 
 
 function App() {
@@ -17,7 +17,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route 
           path="/" 
           element={
@@ -26,7 +26,8 @@ function App() {
             </AuthGuard>
           }
         >
-          <Route index element={<ChatPage />} />
+          <Route index element={<Navigate to="/chat" replace />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route 
             path="admin" 
             element={
