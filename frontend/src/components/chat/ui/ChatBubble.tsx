@@ -459,6 +459,32 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               </button>
             </div>
           )}
+
+          {/* Action buttons for user messages (move inside bubble container) */}
+          {message.role === 'user' && (
+            <div className="mt-2 flex flex-wrap gap-2 justify-end w-full">
+              {/* Copy button */}
+              <button
+                type="button"
+                onClick={handleCopyToClipboard}
+                className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+                title={isCopied ? "Copied!" : "Copy to clipboard"}
+              >
+                <MdContentCopy className="h-5 w-5" />
+              </button>
+              {/* Edit button - for all user messages */}
+              {onEditClick && (
+                <button
+                  type="button"
+                  onClick={onStartEdit}
+                  className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+                  title="Edit message"
+                >
+                  <MdEdit className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -482,32 +508,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             </svg>
             View Sources ({message.sources.length})
           </button>
-        </div>
-      )}
-
-      {/* Action buttons for user messages */}
-      {message.role === 'user' && (
-        <div className="mt-2 flex flex-wrap gap-2 justify-start w-full">
-          {/* Copy button */}
-          <button
-            type="button"
-            onClick={handleCopyToClipboard}
-            className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title={isCopied ? "Copied!" : "Copy to clipboard"}
-          >
-            <MdContentCopy className="h-5 w-5" />
-          </button>
-          {/* Edit button - for all user messages */}
-          {onEditClick && (
-            <button
-              type="button"
-              onClick={onStartEdit}
-              className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-              title="Edit message"
-            >
-              <MdEdit className="h-5 w-5" />
-            </button>
-          )}
         </div>
       )}
     </div>
