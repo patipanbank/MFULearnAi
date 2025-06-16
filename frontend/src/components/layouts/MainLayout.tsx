@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../header/header';
 import Sidebar from '../sidebar/sidebar';
 import { FaBars } from 'react-icons/fa';
@@ -10,10 +10,14 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { isSidebarHovered, setIsSidebarHovered, isSidebarPinned } = useUIStore();
+  const { isSidebarHovered, setIsSidebarHovered, isSidebarPinned, initMobileDetection } = useUIStore();
 
   // Determine if sidebar should be expanded (either hovered or pinned)
   const isSidebarExpanded = isSidebarHovered || isSidebarPinned;
+
+  useEffect(() => {
+    initMobileDetection();
+  }, [initMobileDetection]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-900">
