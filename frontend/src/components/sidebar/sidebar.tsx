@@ -700,7 +700,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                       </div>
                       <div>
                         <div className="font-medium">Build Model</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Create AI models</div>
+                       
                       </div>
                     </Link>
                     <Link
@@ -712,7 +712,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                       </div>
                       <div>
                         <div className="font-medium">Knowledge Base</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Manage training data</div>
+                        
                       </div>
                     </Link>
                     <Link
@@ -724,7 +724,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                       </div>
                       <div>
                         <div className="font-medium">Help & Support</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Get assistance</div>
+                        
                       </div>
                     </Link>
                   </div>
@@ -751,9 +751,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                       <div className="font-medium">
                         {isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {isDarkMode ? 'Brighten up your interface' : 'Easy on the eyes'}
-                      </div>
+
                     </div>
                   </button>
                 </div>
