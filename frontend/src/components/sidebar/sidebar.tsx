@@ -659,7 +659,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
           {/* Settings popup */}
           {showSettingsPopup && (
-            <div className="absolute bottom-full left-2 mb-2 w-56 bg-white dark:bg-gray-700 rounded-lg shadow-lg p-4 sm:p-5 z-50 border border-gray-200 dark:border-gray-600">
+            <div className="absolute bottom-full left-2 mb-2 w-56 bg-white dark:bg-gray-700 rounded-lg shadow-lg p-4 sm:p-5 z-50 border border-gray-200 dark:border-gray-600" data-settings-popup>
               <div className="space-y-3 text-left">
                 <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600 pb-3">Settings</h3>
                 
