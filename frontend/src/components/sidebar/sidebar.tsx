@@ -618,51 +618,144 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
           {/* Settings popup */}
           {showSettingsPopup && (
-            <div className="absolute bottom-full left-2 mb-2 w-56 bg-white dark:bg-gray-700 rounded-lg shadow-lg p-4 sm:p-5 z-50 border border-gray-200 dark:border-gray-600" data-settings-popup>
-              <div className="space-y-3 text-left">
-                <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600 pb-3">Settings</h3>
-                {/* SuperAdmin menu in popup */}
+            <div className="absolute bottom-full left-2 mb-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-scale-in" data-settings-popup>
+              {/* Header with gradient */}
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 p-4">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <FaCog className="w-5 h-5 animate-spin-slow" />
+                  Settings & Tools
+                </h3>
+                <p className="text-blue-100 text-sm mt-1">Manage your preferences and access tools</p>
+              </div>
+
+              <div className="p-1">
+                {/* SuperAdmin section with distinct styling */}
                 {isSuperAdmin && (
-                  <div className="space-y-2 border-b border-gray-200 dark:border-gray-600 pb-3 mb-3">
-                    <Link to="/admin/create" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaUserPlus className="w-5 h-5 mr-3" />Create Admin</Link>
-                    <Link to="/admin/manage" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaUsers className="w-5 h-5 mr-3" />Manage Admins</Link>
-                    <Link to="/departments/manage" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaBuilding className="w-5 h-5 mr-3" />Manage Departments</Link>
-                    <Link to="/statistics" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaChartBar className="w-5 h-5 mr-3" />Statistics</Link>
-                    <Link to="/system-prompt" className="w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><FaCog className="w-5 h-5 mr-3" />Edit System Prompt</Link>
+                  <div className="mb-1">
+                    <div className="px-3 py-2">
+                      <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Admin Tools</h4>
+                    </div>
+                    <div className="space-y-1">
+                      <Link to="/admin/create" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaUserPlus className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Create Admin</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Add new administrator</div>
+                        </div>
+                      </Link>
+                      <Link to="/admin/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaUsers className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Manage Admins</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Admin user management</div>
+                        </div>
+                      </Link>
+                      <Link to="/departments/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaBuilding className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Departments</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Manage departments</div>
+                        </div>
+                      </Link>
+                      <Link to="/statistics" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaChartBar className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Statistics</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">View system stats</div>
+                        </div>
+                      </Link>
+                      <Link to="/system-prompt" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaCog className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-medium">System Prompt</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Edit system prompts</div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="border-t border-gray-200 dark:border-gray-600 my-3"></div>
                   </div>
                 )}
-                <div className="space-y-2">
-                  <Link
-                    to="/modelCreation"
-                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                  >
-                    <FaAndroid className="w-5 h-5 mr-3" />
-                    Build Model
-                  </Link>
-                  <Link
-                    to="/training"
-                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                  >
-                    <FaBookOpen className="w-5 h-5 mr-3" />
-                    Knowledge Base
-                  </Link>
-                  <Link
-                    to="/help"
-                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                  >
-                    <FaQuestionCircle className="w-5 h-5 mr-3" />
-                    Help
-                  </Link>
+
+                {/* General tools section */}
+                <div className="mb-1">
+                  <div className="px-3 py-2">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tools & Resources</h4>
+                  </div>
+                  <div className="space-y-1">
+                    <Link
+                      to="/modelCreation"
+                      className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                        <FaAndroid className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <div className="font-medium">Build Model</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Create AI models</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/training"
+                      className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                        <FaBookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                      </div>
+                      <div>
+                        <div className="font-medium">Knowledge Base</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Manage training data</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/help"
+                      className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                        <FaQuestionCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <div className="font-medium">Help & Support</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Get assistance</div>
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Theme toggle with special styling */}
+                <div className="border-t border-gray-200 dark:border-gray-600 mt-3 pt-3">
                   <button
                     onClick={toggleTheme}
-                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                    className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
                   >
-                    {isDarkMode ? (
-                      <FaSun className="w-5 h-5 mr-3 text-yellow-500" />
-                    ) : (
-                      <FaMoon className="w-5 h-5 mr-3" />
-                    )}
-                    Change Theme
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-all duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30' 
+                        : 'bg-gradient-to-br from-slate-100 to-gray-100 dark:from-slate-900/30 dark:to-gray-900/30'
+                    }`}>
+                      {isDarkMode ? (
+                        <FaSun className="w-4 h-4 text-yellow-500 group-hover:rotate-12 transition-transform duration-200" />
+                      ) : (
+                        <FaMoon className="w-4 h-4 text-slate-600 dark:text-slate-400 group-hover:-rotate-12 transition-transform duration-200" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium">
+                        {isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {isDarkMode ? 'Brighten up your interface' : 'Easy on the eyes'}
+                      </div>
+                    </div>
                   </button>
                 </div>
               </div>
