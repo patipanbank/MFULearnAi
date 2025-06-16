@@ -2,8 +2,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import React, { useState } from "react";
 import { authService } from "../../services/authService";
-import { FaUserShield } from "react-icons/fa";
-import { FiUser, FiLock, FiLogIn } from "react-icons/fi";
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
