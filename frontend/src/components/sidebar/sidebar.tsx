@@ -630,9 +630,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                       <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Admin Tools</h4>
                     </div>
                     <div className="space-y-1">
-                      <Link to="/admin/create" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
-                          <FaUserPlus className="w-4 h-4" />
+                      <Link to="/admin/create" className="group w-full flex items-center px-3 py-2.5 text-sm text-emerald-700 dark:text-emerald-300 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-green-50 dark:hover:from-emerald-900/20 dark:hover:to-green-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaUserPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
                           <div className="font-medium">Create Admin</div>
@@ -641,34 +641,34 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                       </Link>
                       <Link to="/admin/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
                         <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
-                          <FaUsers className="w-4 h-4" />
+                          <FaUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
                           <div className="font-medium">Manage Admins</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">Admin user management</div>
                         </div>
                       </Link>
-                      <Link to="/departments/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
-                          <FaBuilding className="w-4 h-4" />
+                      <Link to="/departments/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-violet-700 dark:text-violet-300 hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 dark:hover:from-violet-900/20 dark:hover:to-purple-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaBuilding className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                         </div>
                         <div>
                           <div className="font-medium">Departments</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">Manage departments</div>
                         </div>
                       </Link>
-                      <Link to="/statistics" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
-                          <FaChartBar className="w-4 h-4" />
+                      <Link to="/statistics" className="group w-full flex items-center px-3 py-2.5 text-sm text-orange-700 dark:text-orange-300 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 dark:hover:from-orange-900/20 dark:hover:to-amber-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaChartBar className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                         </div>
                         <div>
                           <div className="font-medium">Statistics</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">View system stats</div>
                         </div>
                       </Link>
-                      <Link to="/system-prompt" className="group w-full flex items-center px-3 py-2.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
-                          <FaCog className="w-4 h-4" />
+                      <Link to="/system-prompt" className="group w-full flex items-center px-3 py-2.5 text-sm text-rose-700 dark:text-rose-300 hover:bg-gradient-to-r hover:from-rose-50 hover:to-pink-50 dark:hover:from-rose-900/20 dark:hover:to-pink-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaCog className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                         </div>
                         <div>
                           <div className="font-medium">System Prompt</div>
