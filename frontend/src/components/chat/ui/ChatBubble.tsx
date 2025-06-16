@@ -427,61 +427,63 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* Action buttons for assistant messages */}
       {message.role === 'assistant' && message.isComplete && (
-        <div className="mt-2 mr-2 flex flex-wrap gap-2 justify-end">
-          {/* Continue button - shown for the latest assistant message */}
-          {isLastAssistantMessage && (
+        <div className="flex justify-start">
+          <div className="mt-2 flex flex-wrap gap-2 justify-end max-w-[80%] w-full">
+            {/* Continue button - shown for the latest assistant message */}
+            {isLastAssistantMessage && (
+              <button
+                type="button"
+                onClick={onContinueClick}
+                className={`p-2 rounded-md transition-colors ${
+                  selectedModel 
+                    ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
+                    : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                }`}
+                disabled={!selectedModel}
+                title="Continue"
+                data-verify="false"
+              >
+                <VscDebugContinue className="h-5 w-5" />
+              </button>
+            )}
+            
+            {/* Regenerate button - for all assistant messages */}
+            {onRegenerateClick && (
+              <button
+                type="button"
+                onClick={handleRegenerateClick}
+                className={`p-2 rounded-md transition-colors ${
+                  selectedModel 
+                    ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
+                    : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                }`}
+                disabled={!selectedModel}
+                title={isLastAssistantMessage ? "Regenerate response" : "Clear newer history and regenerate response"}
+              >
+                <MdRefresh className="h-5 w-5" />
+              </button>
+            )}
+            
+            {/* Copy to clipboard button */}
             <button
               type="button"
-              onClick={onContinueClick}
-              className={`p-2 rounded-md transition-colors ${
-                selectedModel 
-                  ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
-                  : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-              }`}
-              disabled={!selectedModel}
-              title="Continue"
-              data-verify="false"
+              onClick={handleCopyToClipboard}
+              className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+              title={isCopied ? "Copied!" : "Copy to clipboard"}
             >
-              <VscDebugContinue className="h-5 w-5" />
+              <MdContentCopy className="h-5 w-5" />
             </button>
-          )}
-          
-          {/* Regenerate button - for all assistant messages */}
-          {onRegenerateClick && (
+            
+            {/* Edit button */}
             <button
               type="button"
-              onClick={handleRegenerateClick}
-              className={`p-2 rounded-md transition-colors ${
-                selectedModel 
-                  ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
-                  : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-              }`}
-              disabled={!selectedModel}
-              title={isLastAssistantMessage ? "Regenerate response" : "Clear newer history and regenerate response"}
+              onClick={onStartEdit}
+              className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+              title="Edit message"
             >
-              <MdRefresh className="h-5 w-5" />
+              <MdEdit className="h-5 w-5" />
             </button>
-          )}
-          
-          {/* Copy to clipboard button */}
-          <button
-            type="button"
-            onClick={handleCopyToClipboard}
-            className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title={isCopied ? "Copied!" : "Copy to clipboard"}
-          >
-            <MdContentCopy className="h-5 w-5" />
-          </button>
-          
-          {/* Edit button */}
-          <button
-            type="button"
-            onClick={onStartEdit}
-            className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title="Edit message"
-          >
-            <MdEdit className="h-5 w-5" />
-          </button>
+          </div>
         </div>
       )}
       
