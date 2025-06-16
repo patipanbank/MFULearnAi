@@ -197,7 +197,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     document.getElementById('file-upload')?.click();
                   }}
                 >
-                  <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                  <RiFileAddFill className="h-3 w-3 text-gray-600 dark:text-gray-300" />
                   <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Attach File</span>
                 </button>
               </>
@@ -234,7 +234,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               {/* Document previews */}
               {selectedFiles.map((file, index) => (
                 <div key={`doc-${index}`} className="relative">
-                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                     <FileIcon fileName={file.name} />
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
