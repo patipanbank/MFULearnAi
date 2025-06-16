@@ -191,14 +191,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSettingsPopup]);
 
-  // ปิด settings popup เมื่อเปลี่ยนหน้า
-  useEffect(() => {
-    if (showSettingsPopup) {
-      setShowSettingsPopup(false);
-      localStorage.setItem('showSettingsPopup', 'false');
-    }
-  }, [location.pathname, location.search]);
-
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
