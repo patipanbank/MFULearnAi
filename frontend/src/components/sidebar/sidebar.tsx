@@ -618,11 +618,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
           {/* Settings popup */}
           {showSettingsPopup && (
-            <div className="absolute bottom-full left-2 mb-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-scale-in" data-settings-popup>
+            <div className="absolute bottom-full left-2 mb-2 w-72 max-h-[80vh] md:max-h-none bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-scale-in" data-settings-popup>
               {/* Header with gradient */}
 
 
-              <div className="p-1">
+                              <div className="p-1 overflow-y-auto max-h-[calc(80vh-2rem)] md:max-h-none scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-700">
                 {/* SuperAdmin section with distinct styling */}
                 {isSuperAdmin && (
                   <div className="mb-1">
