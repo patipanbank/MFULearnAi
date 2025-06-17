@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { config } from '../../config/config';
-import mfuBackground from '../../public/mba-mfu.jpg';
 
 const AdminLogin: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -35,7 +34,7 @@ const AdminLogin: React.FC = () => {
     <div 
       className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: `url(${mfuBackground})`,
+        backgroundImage: `url('/mba-mfu.jpg')`,
       }}
     >
       <div className="absolute inset-0 bg-black opacity-40"></div>
