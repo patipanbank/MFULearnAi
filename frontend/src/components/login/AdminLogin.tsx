@@ -7,7 +7,6 @@ import { FiEye, FiEyeOff, FiLock, FiUser } from 'react-icons/fi';
 const AdminLogin: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordError, setIsPasswordError] = useState(false);
@@ -17,7 +16,6 @@ const AdminLogin: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
     setIsPasswordError(false);
     setIsUsernameError(false);
     
@@ -33,13 +31,10 @@ const AdminLogin: React.FC = () => {
       navigate('/mfuchatbot');
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data?.message) {
-        setError(error.response.data.message);
         if (error.response.data.message.toLowerCase().includes('not found')) {
           setIsUsernameError(true);
         }
         setIsPasswordError(true);
-      } else {
-        setError('An error occurred during login');
       }
     } finally {
       setIsLoading(false);
