@@ -34,7 +34,7 @@ const AdminLogin: React.FC = () => {
     <div 
       className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: `url('/IMG_4246.jpg')`,
+        backgroundImage: `url('/IMG_4246.png')`,
       }}
     >
       <div className="absolute inset-0 bg-black opacity-40"></div>
