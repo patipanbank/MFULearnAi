@@ -75,8 +75,14 @@ const Header = () => {
               >
                 {/* Avatar */}
                 <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold"
-                  style={getAvatarStyle()}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold select-none" 
+                  style={{
+                    ...getAvatarStyle(),
+                    WebkitUserSelect: 'none',
+                    MozUserSelect: 'none',
+                    msUserSelect: 'none',
+                    userSelect: 'none'
+                  }}
                 >
                   {getUserInitials(userData.firstName, userData.lastName)}
                 </div>
