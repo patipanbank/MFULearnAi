@@ -144,7 +144,7 @@ const AdminLogin: React.FC = () => {
             <div className="flex justify-end mt-2">
               <a 
                 href="/login" 
-                className="text-sm text-gray-600 hover:text-blue-600 transition-colors duration-200"
+                className="text-xs text-gray-600 hover:text-blue-600 transition-colors duration-200 underline"
               >
                 Back to main login
               </a>
