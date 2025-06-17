@@ -56,7 +56,17 @@ const AdminLogin: React.FC = () => {
       <div className="max-w-md w-full space-y-8 p-10 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl relative z-10 transform transition-all duration-300 hover:shadow-2xl mx-4">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Admin <span className="text-blue-600">DINDIN AI</span> Login
+            Admin <span style={{ 
+              background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>DIN</span>DIN <span style={{
+              background: 'linear-gradient(to right, #00FFFF, #0099FF)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>AI</span> Login
           </h2>
           <p className="text-sm text-gray-600 mb-8">
             Mae Fah Luang University
