@@ -10,12 +10,14 @@ const AdminLogin: React.FC = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasswordError, setIsPasswordError] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setIsPasswordError(false);
     
     try {
       const response = await axios.post(`${config.apiUrl}/api/auth/admin/login`, {
@@ -30,6 +32,7 @@ const AdminLogin: React.FC = () => {
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data?.message) {
         setError(error.response.data.message);
+        setIsPasswordError(true);
       } else {
         setError('An error occurred during login');
       }
@@ -93,7 +96,7 @@ const AdminLogin: React.FC = () => {
 
             <div className="relative">
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
+                Password {isPasswordError && <span className="text-red-500 ml-1">is incorrect</span>}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -104,10 +107,11 @@ const AdminLogin: React.FC = () => {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg 
+                  className={`block w-full pl-10 pr-10 py-3 border rounded-lg 
                            focus:ring-2 focus:ring-blue-500 focus:border-transparent
                            bg-white/90 backdrop-blur-sm transition-all duration-200
-                           placeholder-gray-400 focus:outline-none"
+                           placeholder-gray-400 focus:outline-none
+                           ${isPasswordError ? 'border-red-500 ring-red-500' : 'border-gray-300'}`}
                   placeholder="Enter your password"
                   required
                 />
