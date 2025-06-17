@@ -122,21 +122,23 @@ const MFUChatbot: React.FC = () => {
   // Load chat history from URL params
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
-    const chatId = urlParams.get('chat');
+    const chatIdFromUrl = urlParams.get('chat');
     
-    if (chatId && isValidObjectId(chatId)) {
-      // Only load chat history if it's a different chatId than what we currently have
-      if (chatId !== currentChatId) {
-        console.log('Loading chat history for:', chatId);
-        loadChatHistory(chatId);
-        setCurrentChatId(chatId);
+    if (chatIdFromUrl && isValidObjectId(chatIdFromUrl)) {
+      // Only load history if the chat ID from URL is different from the one in the store.
+      // This prevents overwriting the live message stream with a DB fetch right after creation.
+      if (chatIdFromUrl !== currentChatId) {
+        console.log('Loading chat history for:', chatIdFromUrl);
+        loadChatHistory(chatIdFromUrl);
       }
+      // Always ensure the store's currentChatId is synced with the URL
+      setCurrentChatId(chatIdFromUrl);
     } else {
       // Reset chat when navigating to /mfuchatbot without chat ID
-      console.log('No valid chat ID found');
+      console.log('No valid chat ID found, resetting.');
       useChatStore.getState().resetChat();
     }
-  }, [location.search, loadChatHistory, setCurrentChatId, currentChatId]);
+  }, [location.search, currentChatId, loadChatHistory, setCurrentChatId]);
   
   // Fetch usage data when component mounts
   useEffect(() => {
