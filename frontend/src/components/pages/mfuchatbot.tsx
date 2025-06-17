@@ -126,18 +126,10 @@ const MFUChatbot: React.FC = () => {
     
     if (chatId && isValidObjectId(chatId)) {
       // Only load chat history if it's a different chatId than what we currently have
-      // But always update currentChatId if it's null (new chat scenario)
       if (chatId !== currentChatId) {
-        if (currentChatId === null) {
-          // New chat scenario: just update the chatId without loading history
-          console.log('Setting chatId for new chat:', chatId);
-          setCurrentChatId(chatId);
-        } else {
-          // Different chat: load the chat history
-          console.log('Loading chat history for different chat:', chatId);
-          loadChatHistory(chatId);
-          setCurrentChatId(chatId);
-        }
+        console.log('Loading chat history for:', chatId);
+        loadChatHistory(chatId);
+        setCurrentChatId(chatId);
       }
     } else {
       // Reset chat when navigating to /mfuchatbot without chat ID
