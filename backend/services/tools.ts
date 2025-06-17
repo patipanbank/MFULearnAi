@@ -42,10 +42,12 @@ export class KnowledgeTool implements BedrockTool {
   public async execute(input: { query: string }): Promise<any> {
     console.log(`KnowledgeTool executing with query: ${input.query}`);
     try {
-      const contextData = await this.hierarchicalSearch(input.query);
+      const contextData = await this.improvedSearch(input.query);
       if (!contextData || !contextData.context) {
+        console.log('KnowledgeTool: No relevant information found');
         return { success: true, content: 'No relevant information found in the knowledge base.' };
       }
+      console.log(`KnowledgeTool: Found ${contextData.sources.length} sources`);
       return { success: true, content: contextData.context, sources: contextData.sources };
     } catch (error) {
       console.error('Error executing KnowledgeTool:', error);
@@ -53,143 +55,123 @@ export class KnowledgeTool implements BedrockTool {
     }
   }
 
-  private async hierarchicalSearch(query: string): Promise<CollectionQueryResult> {
-    // L2 Search: Find the most relevant collections
-    const relevantCollections = await this.selectRelevantCollections(query);
-    if (relevantCollections.length === 0) {
-      console.log('L2 Search: No relevant collections found.');
-      return { context: '', sources: [] };
-    }
+  // Simplified search approach
+  private async improvedSearch(query: string): Promise<CollectionQueryResult> {
+    try {
+      console.log('KnowledgeTool: Starting improved search');
+      
+      // Get all available collections (remove strict summary requirement)
+      const allCollections = await CollectionModel.find({}).lean();
+      console.log(`KnowledgeTool: Found ${allCollections.length} total collections`);
+      
+      if (allCollections.length === 0) {
+        console.log('KnowledgeTool: No collections found');
+        return { context: '', sources: [] };
+      }
 
-    // L1 Search: For each relevant collection, find the most relevant documents
-    let relevantDocuments: any[] = [];
-    for (const collection of relevantCollections) {
-      const docs = await this.selectRelevantDocuments(query, (collection as any)._id.toString());
-      relevantDocuments.push(...docs);
+      let allChunksText: string[] = [];
+      let allSources: any[] = [];
+
+      // Search in all collections directly (skip L2 routing if few collections)
+      const collectionsToSearch = allCollections.length <= 5 ? 
+        allCollections : 
+        await this.selectRelevantCollections(query);
+
+      console.log(`KnowledgeTool: Searching in ${collectionsToSearch.length} collections`);
+
+      for (const collection of collectionsToSearch) {
+        try {
+          console.log(`KnowledgeTool: Searching collection: ${collection.name}`);
+          
+          // Direct ChromaDB search without document filtering
+          const hybridResult = await chromaService.hybridSearchWithReRanking(
+            collection.name,
+            query, 
+            8, // Increase results per collection
+            {} // No document filter
+          );
+
+          if (hybridResult?.documents && hybridResult.documents.length > 0) {
+            allChunksText.push(...hybridResult.documents);
+            const sources = hybridResult.metadatas.map((metadata, index) => ({
+                modelId: metadata.modelId || 'unknown',
+                collectionName: collection.name,
+                filename: metadata.filename || 'unknown',
+                similarity: hybridResult.scores[index] || 0,
+            }));
+            allSources.push(...sources);
+            console.log(`KnowledgeTool: Found ${hybridResult.documents.length} chunks in ${collection.name}`);
+          }
+        } catch (collectionError) {
+          console.error(`KnowledgeTool: Error searching collection ${collection.name}:`, collectionError);
+          // Continue with other collections
+        }
+      }
+
+      if (allChunksText.length === 0) {
+        console.log('KnowledgeTool: No chunks found across all collections');
+        return { context: '', sources: [] };
+      }
+
+      console.log(`KnowledgeTool: Total chunks found: ${allChunksText.length}`);
+
+      // Context compression
+      const compressionResult = await chromaService.selectAndCompressContext(
+        query,
+        allChunksText,
+        [],
+        [],
+        4000
+      );
+      
+      return {
+        context: compressionResult.compressedContext,
+        sources: allSources,
+        compressionStats: compressionResult.compressionStats
+      };
+
+    } catch (error) {
+      console.error('KnowledgeTool: Error in improved search:', error);
+      throw error;
     }
-    
-    if (relevantDocuments.length === 0) {
-      console.log('L1 Search: No relevant documents found in selected collections.');
-      return { context: '', sources: [] };
-    }
-    
-    // L0 Retrieval: Get the final chunks from the most relevant documents
-    const finalContext = await this.retrieveFinalContext(query, relevantDocuments);
-    
-    return finalContext;
   }
 
   protected async selectRelevantCollections(query: string): Promise<any[]> {
-    const allCollections = await CollectionModel.find({ 
-      $and: [
-        { summary: { $ne: null } },
-        { summary: { $ne: '' } }
-      ]
-    }).lean();
+    const allCollections = await CollectionModel.find({}).lean(); // Remove summary requirement
+    
     if (allCollections.length <= 3) {
       return allCollections;
     }
 
+    // Create a simpler collection selection prompt
     const collectionsString = allCollections
-      .map(c => `  - ${c.name} (ID: ${(c as any)._id}): ${c.summary}`)
-      .join('\\n');
+      .map(c => `  - ${c.name}: ${c.description || c.summary || 'No description'}`)
+      .join('\n');
     
-    const prompt = `You are an AI routing agent. Select the most relevant data collections for the user's query. User Query: "${query}". Available Collections:\\n${collectionsString}\\n\\nRespond with a JSON object containing a list of collection names, like this: { "collections": ["collection_name_1", "collection_name_2"] }`;
+    const prompt = `Select the most relevant collections for this query: "${query}"
+
+Available Collections:
+${collectionsString}
+
+Return only a JSON array of collection names: ["name1", "name2"]`;
 
     try {
-      const response = await bedrockService.invokeModelJSON(prompt);
-      if (response && Array.isArray(response.collections)) {
-        console.log('L2 Router selected collections:', response.collections);
-        return allCollections.filter(c => response.collections.includes(c.name));
+      const response = await bedrockService.invokeForText(prompt);
+      // Parse JSON from response
+      const jsonMatch = response.match(/\[(.*?)\]/);
+      if (jsonMatch) {
+        const selectedNames = JSON.parse(jsonMatch[0]);
+        console.log('KnowledgeTool: L2 Router selected collections:', selectedNames);
+        return allCollections.filter(c => selectedNames.includes(c.name));
       }
+      
+      // Fallback: return all collections
+      console.log('KnowledgeTool: L2 Router failed, using all collections');
       return allCollections;
     } catch (error) {
       console.error('Error in L2 collection selection:', error);
       return allCollections;
     }
-  }
-
-  private async selectRelevantDocuments(query: string, collectionId: string): Promise<any[]> {
-      const documentsInCollection = await DocumentModel.find({ 
-        collectionId: collectionId,
-        status: DocumentStatus.COMPLETED,
-        $and: [
-          { summary: { $ne: null } },
-          { summary: { $ne: '' } }
-        ]
-      }).lean();
-
-      if (documentsInCollection.length <= 5) {
-        return documentsInCollection;
-      }
-      
-      const documentsString = documentsInCollection
-        .map(d => `  - ${d.name} (ID: ${(d as any)._id}): ${d.summary}`)
-        .join('\\n');
-
-      const prompt = `You are an AI routing agent. From the collection, select the most relevant documents for the user's query. User Query: "${query}". Available Documents:\\n${documentsString}\\n\\nRespond with a JSON object containing a list of document IDs, like this: { "document_ids": ["id_1", "id_2"] }`;
-
-      try {
-          const response = await bedrockService.invokeModelJSON(prompt);
-          if (response && Array.isArray(response.document_ids)) {
-              console.log('L1 Router selected documents:', response.document_ids);
-              return documentsInCollection.filter(d => response.document_ids.includes((d as any)._id.toString()));
-          }
-          return documentsInCollection.slice(0, 5);
-      } catch (error) {
-          console.error('Error in L1 document selection:', error);
-          return documentsInCollection.slice(0, 5);
-      }
-  }
-
-  private async retrieveFinalContext(query: string, documents: any[]): Promise<CollectionQueryResult> {
-    let allChunksText: string[] = [];
-    let allSources: any[] = [];
-
-    for (const doc of documents) {
-      // Get collection name from collectionId
-      const collection = await CollectionModel.findById((doc as any).collectionId);
-      if (!collection) {
-        console.error(`Collection not found for document ${(doc as any)._id}`);
-        continue;
-      }
-
-      const hybridResult = await chromaService.hybridSearchWithReRanking(
-        collection.name, // Use collection name instead of ID
-        query, 
-        5,
-        { documentId: (doc as any)._id.toString() }
-      );
-
-      if (hybridResult?.documents && hybridResult.documents.length > 0) {
-        allChunksText.push(...hybridResult.documents);
-        const sources = hybridResult.metadatas.map((metadata, index) => ({
-            modelId: metadata.modelId,
-            collectionName: metadata.collectionName,
-            filename: metadata.filename,
-            similarity: hybridResult.scores[index] || 0,
-        }));
-        allSources.push(...sources);
-      }
-    }
-
-    if (allChunksText.length === 0) {
-      return { context: '', sources: [] };
-    }
-
-    const compressionResult = await chromaService.selectAndCompressContext(
-      query,
-      allChunksText,
-      [],
-      [],
-      4000
-    );
-    
-    return {
-      context: compressionResult.compressedContext,
-      sources: allSources,
-      compressionStats: compressionResult.compressionStats
-    };
   }
 }
 
@@ -210,13 +192,18 @@ export class WebSearchTool implements BedrockTool {
     console.log(`WebSearchTool executing with query: ${input.query}`);
     try {
       const searchResultText = await webSearchService.searchWeb(input.query);
-      if (!searchResultText) {
-        return { success: true, content: 'No results found on the web.' };
+      if (!searchResultText || searchResultText.trim() === '') {
+        console.log('WebSearchTool: No results found');
+        return { success: true, content: 'No search results found for your query. Please try rephrasing your question.' };
       }
+      console.log(`WebSearchTool: Successfully found search results (${searchResultText.length} characters)`);
       return { success: true, content: searchResultText };
     } catch (error) {
       console.error('Error executing WebSearchTool:', error);
-      return { success: false, content: 'An error occurred while searching the web.' };
+      return { 
+        success: false, 
+        content: 'Web search is currently unavailable. Please try again later or ask me something from my knowledge base.' 
+      };
     }
   }
 } 

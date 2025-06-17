@@ -524,34 +524,140 @@ class KnowledgeToolForModel extends KnowledgeTool {
   constructor(allowedCollections: string[]) {
     super();
     this.allowedCollections = allowedCollections;
+    console.log(`KnowledgeToolForModel: Created for collections: ${allowedCollections.join(', ')}`);
+  }
+
+  // Override the improved search to only use allowed collections
+  private async modelSpecificSearch(query: string): Promise<CollectionQueryResult> {
+    try {
+      console.log('KnowledgeToolForModel: Starting search with allowed collections');
+      
+      // Get only allowed collections
+      const allCollections = await CollectionModel.find({ 
+        name: { $in: this.allowedCollections }
+      }).lean();
+      
+      console.log(`KnowledgeToolForModel: Found ${allCollections.length} allowed collections`);
+      
+      if (allCollections.length === 0) {
+        console.log('KnowledgeToolForModel: No allowed collections found');
+        return { context: '', sources: [] };
+      }
+
+      let allChunksText: string[] = [];
+      let allSources: any[] = [];
+
+      // Search in all allowed collections directly
+      for (const collection of allCollections) {
+        try {
+          console.log(`KnowledgeToolForModel: Searching collection: ${collection.name}`);
+          
+          // Direct ChromaDB search
+          const hybridResult = await chromaService.hybridSearchWithReRanking(
+            collection.name,
+            query, 
+            10, // More results per collection for model-specific search
+            {} // No document filter
+          );
+
+          if (hybridResult?.documents && hybridResult.documents.length > 0) {
+            allChunksText.push(...hybridResult.documents);
+            const sources = hybridResult.metadatas.map((metadata, index) => ({
+                modelId: metadata.modelId || 'unknown',
+                collectionName: collection.name,
+                filename: metadata.filename || 'unknown',
+                similarity: hybridResult.scores[index] || 0,
+            }));
+            allSources.push(...sources);
+            console.log(`KnowledgeToolForModel: Found ${hybridResult.documents.length} chunks in ${collection.name}`);
+          }
+        } catch (collectionError) {
+          console.error(`KnowledgeToolForModel: Error searching collection ${collection.name}:`, collectionError);
+          // Continue with other collections
+        }
+      }
+
+      if (allChunksText.length === 0) {
+        console.log('KnowledgeToolForModel: No chunks found across allowed collections');
+        return { context: '', sources: [] };
+      }
+
+      console.log(`KnowledgeToolForModel: Total chunks found: ${allChunksText.length}`);
+
+      // Context compression
+      const compressionResult = await chromaService.selectAndCompressContext(
+        query,
+        allChunksText,
+        [],
+        [],
+        4000
+      );
+      
+      return {
+        context: compressionResult.compressedContext,
+        sources: allSources,
+        compressionStats: compressionResult.compressionStats
+      };
+
+    } catch (error) {
+      console.error('KnowledgeToolForModel: Error in model specific search:', error);
+      throw error;
+    }
+  }
+
+  // Override execute to use the model specific search
+  public async execute(input: { query: string }): Promise<any> {
+    console.log(`KnowledgeToolForModel executing with query: ${input.query}`);
+    console.log(`KnowledgeToolForModel: Allowed collections: ${this.allowedCollections.join(', ')}`);
+    
+    try {
+      const contextData = await this.modelSpecificSearch(input.query);
+      if (!contextData || !contextData.context) {
+        console.log('KnowledgeToolForModel: No relevant information found');
+        return { success: true, content: `No relevant information found in the selected knowledge bases: ${this.allowedCollections.join(', ')}` };
+      }
+      console.log(`KnowledgeToolForModel: Found ${contextData.sources.length} sources`);
+      return { success: true, content: contextData.context, sources: contextData.sources };
+    } catch (error) {
+      console.error('Error executing KnowledgeToolForModel:', error);
+      return { success: false, content: 'An error occurred while searching the knowledge base.' };
+    }
   }
 
   protected async selectRelevantCollections(query: string): Promise<any[]> {
     // Override to only search in allowed collections
     const allCollections = await CollectionModel.find({ 
-      name: { $in: this.allowedCollections },
-      $and: [
-        { summary: { $ne: null } },
-        { summary: { $ne: '' } }
-      ]
+      name: { $in: this.allowedCollections }
     }).lean();
 
     if (allCollections.length <= 3) {
       return allCollections;
     }
 
+    // Create a simpler collection selection prompt
     const collectionsString = allCollections
-      .map(c => `  - ${c.name} (ID: ${(c as any)._id}): ${c.summary}`)
-      .join('\\n');
+      .map(c => `  - ${c.name}: ${c.description || c.summary || 'No description'}`)
+      .join('\n');
     
-    const prompt = `You are an AI routing agent. Select the most relevant data collections for the user's query. User Query: "${query}". Available Collections:\\n${collectionsString}\\n\\nRespond with a JSON object containing a list of collection names, like this: { "collections": ["collection_name_1", "collection_name_2"] }`;
+    const prompt = `Select the most relevant collections for this query: "${query}"
+
+Available Collections:
+${collectionsString}
+
+Return only a JSON array of collection names: ["name1", "name2"]`;
 
     try {
-      const response = await bedrockService.invokeModelJSON(prompt);
-      if (response && Array.isArray(response.collections)) {
-        console.log('L2 Router selected collections:', response.collections);
-        return allCollections.filter(c => response.collections.includes(c.name));
+      const response = await bedrockService.invokeForText(prompt);
+      // Parse JSON from response
+      const jsonMatch = response.match(/\[(.*?)\]/);
+      if (jsonMatch) {
+        const selectedNames = JSON.parse(jsonMatch[0]);
+        console.log('KnowledgeToolForModel: L2 Router selected collections:', selectedNames);
+        return allCollections.filter(c => selectedNames.includes(c.name));
       }
+      
+      // Fallback: return all allowed collections
+      console.log('KnowledgeToolForModel: L2 Router failed, using all allowed collections');
       return allCollections;
     } catch (error) {
       console.error('Error in L2 collection selection:', error);

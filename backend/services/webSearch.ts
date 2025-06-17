@@ -16,41 +16,108 @@ export class WebSearchService {
   }
 
   async searchWeb(query: string): Promise<string> {
+    console.log(`WebSearchService: Searching for "${query}"`);
+    
     try {
-      // สุ่มเลือก search engine
-      const searchUrl = this.SEARCH_ENGINES[0]; // เริ่มด้วย DuckDuckGo
+      // Try DuckDuckGo first
+      let results = await this.searchDuckDuckGo(query);
+      
+      if (!results || results.length === 0) {
+        console.log('WebSearchService: DuckDuckGo failed, trying fallback search');
+        results = await this.fallbackSearch(query);
+      }
+
+      if (!results || results.length === 0) {
+        console.log('WebSearchService: All search methods failed');
+        return 'Unable to retrieve search results at this time. Please try again later.';
+      }
+
+      console.log(`WebSearchService: Found ${results.length} results`);
+      return results.join('\n\n');
+      
+    } catch (error) {
+      console.error('WebSearchService: Search error:', error);
+      return 'Search service is currently unavailable. Please try again later.';
+    }
+  }
+
+  private async searchDuckDuckGo(query: string): Promise<string[]> {
+    try {
+      const searchUrl = 'https://duckduckgo.com/html/';
       
       const response = await axios.get(searchUrl, {
         params: { q: query },
         headers: {
           'User-Agent': this.getRandomUserAgent(),
-          'Accept': 'text/html',
-          'Accept-Language': 'en-US,en;q=0.9,th;q=0.8'
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9,th;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
         },
-        timeout: 5000
+        timeout: 10000, // Increase timeout
+        maxRedirects: 5
       });
 
       const $ = cheerio.load(response.data);
       let results: string[] = [];
 
-      // Parser สำหรับ DuckDuckGo
-      $('.result').each((i, element) => {
-        if (i < 5) { // จำกัดแค่ 5 ผลลัพธ์
-          const title = $(element).find('.result__title').text().trim();
-          const snippet = $(element).find('.result__snippet').text().trim();
-          const link = $(element).find('.result__url').text().trim();
+      // Updated selectors for current DuckDuckGo structure
+      const searchResults = $('.result, .results_links, .web-result, .result--body');
+      
+      if (searchResults.length === 0) {
+        // Try alternative selectors
+        $('.links_main').each((i, element) => {
+          if (i >= 5) return false; // Limit to 5 results
+          
+          const $element = $(element);
+          const title = $element.find('a').first().text().trim() || 
+                       $element.find('.result__title, .result-title').text().trim();
+          const snippet = $element.find('.result__snippet, .result-snippet').text().trim() ||
+                         $element.text().replace(title, '').trim();
+          const link = $element.find('a').first().attr('href') || '';
           
           if (title && snippet) {
-            results.push(`[${title}]\n${snippet}\nSource: ${link}\n`);
+            results.push(`**${title}**\n${snippet}\nSource: ${link}`);
           }
-        }
-      });
+        });
+      } else {
+        // Use standard selectors
+        searchResults.each((i, element) => {
+          if (i >= 5) return false; // Limit to 5 results
+          
+          const $element = $(element);
+          const title = $element.find('a').first().text().trim() ||
+                       $element.find('.result__title, .result-title, h3').text().trim();
+          const snippet = $element.find('.result__snippet, .result-snippet, .snippet').text().trim();
+          const link = $element.find('a').first().attr('href') || '';
+          
+          if (title && snippet) {
+            results.push(`**${title}**\n${snippet}\nSource: ${link}`);
+          }
+        });
+      }
 
-      return results.join('\n');
+      return results;
+      
     } catch (error) {
-      console.error('Web search error:', error);
-      return '';
+      console.error('WebSearchService: DuckDuckGo error:', error);
+      return [];
     }
+  }
+
+  private async fallbackSearch(query: string): Promise<string[]> {
+    // Simple fallback - return a message indicating search limitations
+    return [
+      `**Search Results for "${query}"**\n` +
+      `I apologize, but I'm unable to access current web search results at the moment. ` +
+      `This could be due to network connectivity issues or search service restrictions. ` +
+      `For the most up-to-date information about "${query}", I recommend:\n\n` +
+      `1. Checking official websites directly\n` +
+      `2. Using search engines like Google, Bing, or DuckDuckGo in your browser\n` +
+      `3. Consulting relevant documentation or news sources\n\n` +
+      `I can still help answer questions based on my existing knowledge base.`
+    ];
   }
 
   // เพิ่มฟังก์ชันสำหรับดึงข้อมูลจากเว็บไซต์โดยตรง
@@ -60,7 +127,7 @@ export class WebSearchService {
         headers: {
           'User-Agent': this.getRandomUserAgent()
         },
-        timeout: 5000
+        timeout: 10000 // Increase timeout
       });
 
       const $ = cheerio.load(response.data);
@@ -82,7 +149,7 @@ export class WebSearchService {
 
       return content.substring(0, 2000); // จำกัดความยาว
     } catch (error) {
-      console.error('Web scraping error:', error);
+      console.error('WebSearchService: Web scraping error:', error);
       return '';
     }
   }
