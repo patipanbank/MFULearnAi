@@ -22,7 +22,6 @@ router.get('/', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserR
     });
 
     res.json(filtered);
-    return;
   } catch (err) {
     console.error('Error listing collections:', err);
     res.status(500).json({ error: 'Failed to list collections' });
