@@ -17,13 +17,6 @@ const getUserInitials = () => {
   return `${userData.firstName?.charAt(0) || ''}${userData.lastName?.charAt(0) || ''}`.toUpperCase();
 };
 
-// Function to generate avatar background style with gradient
-const getAvatarStyle = () => {
-  return {
-    background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))'
-  };
-};
-
 interface ChatBubbleProps {
   message: Message;
   isLastMessage: boolean;
@@ -377,15 +370,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       <div className={`flex items-start gap-3 ${
         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
       } w-full max-w-[98%] md:max-w-[80%] lg:max-w-[50%] mx-auto`}>
-        <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
-          message.role === 'user'
-            ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-            : 'bg-transparent'
-        } flex items-center justify-center`}>
+        <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center ${
+          message.role === 'user' ? '' : 'bg-transparent'
+        }`}>
           {message.role === 'user' ? (
             <div 
               className="w-full h-full flex items-center justify-center text-white text-sm font-semibold select-none"
               style={{
+                background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
                 WebkitUserSelect: 'none',
                 MozUserSelect: 'none',
                 msUserSelect: 'none',
