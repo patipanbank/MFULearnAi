@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaMoon, FaSun } from 'react-icons/fa';
 import { config } from '../../config/config';
@@ -61,6 +61,24 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode === 'true';
   });
+  
+  // Add scroll position state
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Save scroll position when scrolling
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      setScrollPosition(scrollContainerRef.current.scrollTop);
+    }
+  };
+
+  // Restore scroll position after navigation
+  useEffect(() => {
+    if (scrollContainerRef.current && showSettingsPopup) {
+      scrollContainerRef.current.scrollTop = scrollPosition;
+    }
+  }, [location.pathname, showSettingsPopup]);
 
   // Apply dark mode class on component mount and when isDarkMode changes
   useEffect(() => {
@@ -620,7 +638,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {showSettingsPopup && (
             <div className="absolute bottom-full left-2 mb-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-scale-in" data-settings-popup>
               {/* Content container with scrolling */}
-              <div className="max-h-[calc(100vh-12rem)] overflow-y-auto">
+              <div 
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="max-h-[calc(100vh-12rem)] overflow-y-auto"
+              >
                 <div className="p-1">
                   {/* SuperAdmin section with distinct styling */}
                   {isSuperAdmin && (
