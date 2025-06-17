@@ -27,14 +27,16 @@ export class KnowledgeTool implements BedrockTool {
   description =
     "Searches the knowledge base for specific information, documents, or data. Use this to answer questions about internal topics.";
   inputSchema = {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'string',
-        description: "The user's query to search for.",
+    json: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: "The user's query to search for.",
+        },
       },
-    },
-    required: ['query'],
+      required: ['query'],
+    }
   };
 
   public async execute(input: { query: string }): Promise<any> {
@@ -195,11 +197,13 @@ export class WebSearchTool implements BedrockTool {
   name = 'web_search';
   description = "Searches the web for up-to-date information. Use this for current events or general knowledge questions.";
   inputSchema = {
-    type: 'object',
-    properties: {
-      query: { type: 'string', description: 'The search query.' },
-    },
-    required: ['query'],
+    json: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'The search query.' },
+      },
+      required: ['query'],
+    }
   };
 
   async execute(input: { query: string }): Promise<any> {
