@@ -69,12 +69,6 @@ const AdminLogin: React.FC = () => {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 text-red-500 p-4 rounded-lg text-sm text-center animate-shake">
-              {error}
-            </div>
-          )}
-
           <div className="space-y-5">
             <div className="relative">
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
