@@ -55,7 +55,7 @@ const AdminLogin: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-white/30 backdrop-blur-sm"></div>
       <div className="max-w-md w-full space-y-8 p-10 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl relative z-10 transform transition-all duration-300 hover:shadow-2xl mx-4">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 whitespace-nowrap">
             Admin <span style={{ 
               background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
               WebkitBackgroundClip: 'text',
