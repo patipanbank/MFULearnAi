@@ -52,11 +52,6 @@ const AdminLogin: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-white/30 backdrop-blur-sm"></div>
       <div className="max-w-md w-full space-y-8 p-10 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl relative z-10 transform transition-all duration-300 hover:shadow-2xl mx-4">
         <div className="text-center">
-          <img 
-            src="/mfu_logo_chatbot.PNG" 
-            alt="MFU Logo" 
-            className="mx-auto h-24 w-auto mb-6 transform transition-transform duration-300 hover:scale-105" 
-          />
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
             Admin Login
           </h2>
