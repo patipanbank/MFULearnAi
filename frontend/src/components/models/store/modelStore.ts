@@ -25,15 +25,6 @@ interface ModelState {
   departmentName: string;
   isCreating: boolean;
   
-  // Bulk operations state
-  selectedModels: string[];
-  showBulkActions: boolean;
-  isBulkDeleting: boolean;
-  bulkActionResults: { success: number; errors: any[] } | null;
-  
-  // Edit model state
-  isUpdating: boolean;
-  
   // Actions
   setModels: (models: Model[]) => void;
   setIsLoading: (isLoading: boolean) => void;
@@ -53,26 +44,10 @@ interface ModelState {
   setDepartmentName: (name: string) => void;
   setIsCreating: (isCreating: boolean) => void;
   
-  // Bulk operations actions
-  setSelectedModels: (models: string[]) => void;
-  toggleModelSelection: (modelId: string) => void;
-  selectAllModels: () => void;
-  clearSelection: () => void;
-  setShowBulkActions: (show: boolean) => void;
-  setIsBulkDeleting: (isDeleting: boolean) => void;
-  setBulkActionResults: (results: { success: number; errors: any[] } | null) => void;
-  
-  // Edit model actions
-  setIsUpdating: (isUpdating: boolean) => void;
-  
   // Thunks
   fetchModels: () => Promise<void>;
-  fetchModelById: (modelId: string) => Promise<Model>;
   createModel: (e: React.FormEvent) => Promise<void>;
-  updateModel: (modelId: string, updates: Partial<Model>) => Promise<void>;
   deleteModel: (modelId: string) => Promise<void>;
-  bulkDeleteModels: (modelIds: string[]) => Promise<void>;
-  searchModels: (query: string, filters?: any) => Promise<Model[]>;
   fetchCollections: () => Promise<void>;
   toggleCollectionSelection: (collectionName: string) => void;
   confirmCollections: () => Promise<void>;
@@ -98,15 +73,6 @@ export const useModelStore = create<ModelState>((set, get) => ({
   departmentName: '',
   isCreating: false,
   
-  // Bulk operations initial state
-  selectedModels: [],
-  showBulkActions: false,
-  isBulkDeleting: false,
-  bulkActionResults: null,
-  
-  // Edit model initial state
-  isUpdating: false,
-  
   // Basic state setters
   setModels: (models) => set({ models }),
   setIsLoading: (isLoading) => set({ isLoading }),
@@ -125,28 +91,6 @@ export const useModelStore = create<ModelState>((set, get) => ({
   setNewModelType: (type) => set({ newModelType: type }),
   setDepartmentName: (name) => set({ departmentName: name }),
   setIsCreating: (isCreating) => set({ isCreating: isCreating }),
-  
-  // Bulk operations setters
-  setSelectedModels: (models) => set({ selectedModels: models }),
-  toggleModelSelection: (modelId) => {
-    const { selectedModels } = get();
-    set({
-      selectedModels: selectedModels.includes(modelId)
-        ? selectedModels.filter(id => id !== modelId)
-        : [...selectedModels, modelId]
-    });
-  },
-  selectAllModels: () => {
-    const { models } = get();
-    set({ selectedModels: models.map(m => m.id) });
-  },
-  clearSelection: () => set({ selectedModels: [], showBulkActions: false }),
-  setShowBulkActions: (show) => set({ showBulkActions: show }),
-  setIsBulkDeleting: (isDeleting) => set({ isBulkDeleting: isDeleting }),
-  setBulkActionResults: (results) => set({ bulkActionResults: results }),
-  
-  // Edit model setters
-  setIsUpdating: (isUpdating) => set({ isUpdating: isUpdating }),
   
   // Thunks
   fetchModels: async () => {
@@ -429,178 +373,6 @@ export const useModelStore = create<ModelState>((set, get) => ({
       alert(error instanceof Error ? error.message : 'Failed to update collections');
     } finally {
       setIsSavingCollections(false);
-    }
-  },
-  
-  // New API endpoints
-  fetchModelById: async (modelId: string): Promise<Model> => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No auth token found');
-      }
-
-      const response = await fetch(`${config.apiUrl}/api/models/${modelId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch model');
-      }
-
-      const modelData = await response.json();
-      return {
-        id: modelData._id,
-        name: modelData.name,
-        description: modelData.description,
-        collections: modelData.collections || [],
-        modelType: modelData.modelType,
-        department: modelData.department,
-        isAgent: modelData.isAgent,
-        prompt: modelData.prompt,
-        displayRetrievedChunks: modelData.displayRetrievedChunks,
-        createdAt: modelData.createdAt,
-        updatedAt: modelData.updatedAt,
-        createdBy: modelData.createdBy
-      };
-    } catch (error) {
-      console.error('Error fetching model:', error);
-      throw error;
-    }
-  },
-  
-  updateModel: async (modelId: string, updates: Partial<Model>) => {
-    const { setIsUpdating, models, setModels } = get();
-    setIsUpdating(true);
-    
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No auth token found');
-      }
-
-      const response = await fetch(`${config.apiUrl}/api/models/${modelId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update model');
-      }
-
-      const updatedModel = await response.json();
-      const transformedModel: Model = {
-        id: updatedModel._id,
-        name: updatedModel.name,
-        description: updatedModel.description,
-        collections: updatedModel.collections || [],
-        modelType: updatedModel.modelType,
-        department: updatedModel.department,
-        isAgent: updatedModel.isAgent,
-        prompt: updatedModel.prompt,
-        displayRetrievedChunks: updatedModel.displayRetrievedChunks,
-        createdAt: updatedModel.createdAt,
-        updatedAt: updatedModel.updatedAt,
-        createdBy: updatedModel.createdBy
-      };
-
-      setModels(models.map(m => m.id === modelId ? transformedModel : m));
-    } catch (error) {
-      console.error('Error updating model:', error);
-      throw error;
-    } finally {
-      setIsUpdating(false);
-    }
-  },
-  
-  bulkDeleteModels: async (modelIds: string[]) => {
-    const { setIsBulkDeleting, setBulkActionResults, models, setModels, clearSelection } = get();
-    setIsBulkDeleting(true);
-    
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No auth token found');
-      }
-
-      const response = await fetch(`${config.apiUrl}/api/models/bulk`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ modelIds }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete models');
-      }
-
-      const result = await response.json();
-      setBulkActionResults(result);
-      
-      // Remove successfully deleted models from state
-      const deletedIds = result.deletedModels.map((m: any) => m.id);
-      setModels(models.filter(m => !deletedIds.includes(m.id)));
-      
-      clearSelection();
-    } catch (error) {
-      console.error('Error bulk deleting models:', error);
-      setBulkActionResults({ success: 0, errors: [{ error: error instanceof Error ? error.message : 'Unknown error' }] });
-    } finally {
-      setIsBulkDeleting(false);
-    }
-  },
-  
-  searchModels: async (query: string, filters?: any): Promise<Model[]> => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No auth token found');
-      }
-
-      const searchParams = new URLSearchParams();
-      if (query) searchParams.append('q', query);
-      if (filters?.modelType) searchParams.append('modelType', filters.modelType);
-      if (filters?.department) searchParams.append('department', filters.department);
-      if (filters?.limit) searchParams.append('limit', filters.limit.toString());
-      if (filters?.offset) searchParams.append('offset', filters.offset.toString());
-
-      const response = await fetch(`${config.apiUrl}/api/models/search?${searchParams.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to search models');
-      }
-
-      const data = await response.json();
-      return data.models.map((model: any) => ({
-        id: model._id,
-        name: model.name,
-        description: model.description,
-        collections: model.collections || [],
-        modelType: model.modelType,
-        department: model.department,
-        isAgent: model.isAgent,
-        prompt: model.prompt,
-        displayRetrievedChunks: model.displayRetrievedChunks,
-        createdAt: model.createdAt,
-        updatedAt: model.updatedAt,
-        createdBy: model.createdBy
-      }));
-    } catch (error) {
-      console.error('Error searching models:', error);
-      throw error;
     }
   }
 })); 

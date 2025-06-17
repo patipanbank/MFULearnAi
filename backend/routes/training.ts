@@ -49,13 +49,8 @@ const upload = multer({
  * Returns true if user is Admin or SuperAdmin or is the owner of the collection.
  */
 async function checkCollectionAccess(user: any, collection: any): Promise<boolean> {
-  const userId = user.nameID || user.username;
-  const userGroups = user.groups || [];
-  const isAdmin = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
-  
-  return collection.permission === CollectionPermission.PUBLIC || 
-         collection.createdBy === userId ||
-         isAdmin;
+  return user.groups.includes('Admin') || user.groups.includes('SuperAdmin') || 
+         collection.createdBy === (user.nameID || user.username);
 }
 
 // OLD processFileDocuments is now handled by HierarchicalEmbeddingService
@@ -209,38 +204,16 @@ router.put('/collections/:id', roleGuard(['Staffs', 'Admin', 'Students', 'SuperA
       return;
     }
 
-    const userId = user.nameID || user.username;
-    const userGroups = user.groups || [];
-    const isAdmin = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
-    
     const canAccess =
-      collection.permission === CollectionPermission.PUBLIC || 
-      collection.createdBy === userId ||
-      isAdmin;
+      collection.permission === CollectionPermission.PUBLIC || collection.permission === CollectionPermission.PRIVATE || collection.createdBy === user.nameID;
     if (!canAccess) {
       res.status(403).json({ error: 'Permission denied' });
       return;
     }
     
-    // Validate new name uniqueness if changing name
-    if (newName && newName !== collection.name) {
-      const existingCollection = await CollectionModel.findOne({ name: newName });
-      if (existingCollection) {
-        res.status(400).json({ error: 'Collection name already exists' });
-        return;
-      }
-      
-      // Update models that reference this collection
-      const { ModelModel } = await import('../models/Model.js');
-      await ModelModel.updateMany(
-        { 'collections.name': collection.name },
-        { $set: { 'collections.$.name': newName, 'collections.$.description': `Collection: ${newName}` } }
-      );
-    }
-    
     // Update collection details
-    if (newName) collection.name = newName;
-    if (permission) collection.permission = permission;
+    collection.name = newName;
+    collection.permission = permission;
     await collection.save();
     
     res.json({ message: 'Collection updated successfully' });
@@ -274,20 +247,6 @@ router.delete('/collections/:id', roleGuard(['Staffs', 'Admin', 'Students', 'Sup
     const userId = user.nameID || user.username;
     if (!userId) {
       throw new Error('User identifier not found');
-    }
-    
-    // Check if collection is used by any models before deletion
-    const { ModelModel } = await import('../models/Model.js');
-    const modelsUsingCollection = await ModelModel.find({ 
-      'collections.name': collection.name 
-    }).lean();
-    
-    if (modelsUsingCollection.length > 0) {
-      const modelNames = modelsUsingCollection.map(m => m.name).join(', ');
-      res.status(400).json({ 
-        error: `Cannot delete collection. It is being used by the following models: ${modelNames}. Please remove the collection from these models first.` 
-      });
-      return;
     }
     
     // Track collection deletion with userId ที่ตรวจสอบแล้ว
@@ -367,13 +326,8 @@ router.get('/documents', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']
     
     // Check user permission based on collection settings.
     const userId = user.nameID || user.username;
-    const userGroups = user.groups || [];
-    const isAdmin = userGroups.includes('Admin') || userGroups.includes('SuperAdmin');
-    
     const canAccess = 
-      collection.permission === CollectionPermission.PUBLIC || 
-      collection.createdBy === userId ||
-      isAdmin;
+      collection.permission === CollectionPermission.PUBLIC || collection.createdBy === userId;
     if (!canAccess) {
       res.status(403).json({ error: 'No permission to access this collection' });
       return;
