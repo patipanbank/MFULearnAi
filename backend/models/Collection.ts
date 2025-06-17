@@ -27,4 +27,22 @@ const collectionSchema = new Schema<CollectionDocument>({
   // add default values if needed
 }, { timestamps: true });
 
+// Add unique index for collection names
+collectionSchema.index({ name: 1 }, { unique: true });
+
+// Add index for better query performance
+collectionSchema.index({ createdBy: 1, permission: 1 });
+
+// Add validation for collection name
+collectionSchema.pre('save', function(next) {
+  if (!this.name || this.name.trim().length === 0) {
+    throw new Error('Collection name cannot be empty');
+  }
+  
+  // Sanitize collection name (remove special characters that might cause issues)
+  this.name = this.name.trim().replace(/[<>:"/\\|?*]/g, '_');
+  
+  next();
+});
+
 export const CollectionModel = model<CollectionDocument>('Collection', collectionSchema);  

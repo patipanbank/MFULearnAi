@@ -37,4 +37,22 @@ const modelSchema = new Schema<ModelDocument>({
   is_active: { type: Boolean, default: true }
 }, { timestamps: true });
 
+// Add validation for collection references
+modelSchema.pre('save', async function(next) {
+  if (this.isModified('collections')) {
+    const { CollectionModel } = await import('./Collection.js');
+    for (const collection of this.collections) {
+      const exists = await CollectionModel.findOne({ name: collection.name });
+      if (!exists) {
+        throw new Error(`Collection '${collection.name}' does not exist`);
+      }
+    }
+  }
+  next();
+});
+
+// Add index for better query performance
+modelSchema.index({ createdBy: 1, modelType: 1 });
+modelSchema.index({ 'collections.name': 1 });
+
 export const ModelModel = model<ModelDocument>('Model', modelSchema);

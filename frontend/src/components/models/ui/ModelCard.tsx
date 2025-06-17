@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaEllipsisH, FaTrash, FaLayerGroup } from 'react-icons/fa';
+import { FaEllipsisH, FaTrash, FaLayerGroup, FaEdit } from 'react-icons/fa';
 import { Model } from '../utils/types';
 import { getModelTypeStyle, getRelativeTime } from '../utils/helpers';
 import { useAuth } from '../../../hooks/useAuth';
@@ -7,6 +7,7 @@ import { useAuth } from '../../../hooks/useAuth';
 interface ModelCardProps {
   model: Model;
   onCollectionsEdit: (model: Model, isReadOnly?: boolean) => void;
+  onEdit: (model: Model) => void;
   onDelete: (modelId: string) => void;
   isDeleting: string | null;
 }
@@ -14,6 +15,7 @@ interface ModelCardProps {
 export const ModelCard: React.FC<ModelCardProps> = ({ 
   model, 
   onCollectionsEdit, 
+  onEdit,
   onDelete, 
   isDeleting 
 }) => {
@@ -79,6 +81,18 @@ export const ModelCard: React.FC<ModelCardProps> = ({
       {showMenu && (
         <div className="absolute top-14 right-4 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
           border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(model);
+              setShowMenu(false);
+            }}
+            className="w-full px-4 py-2 text-left text-blue-600 dark:text-blue-400 hover:bg-blue-50 
+              dark:hover:bg-blue-900/30 flex items-center space-x-2"
+          >
+            <FaEdit size={14} />
+            <span>Edit</span>
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();

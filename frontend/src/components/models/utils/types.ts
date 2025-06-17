@@ -5,6 +5,9 @@ export interface Model {
   collections: Array<{ name: string; description?: string }> | string[]; // Support both formats for backward compatibility
   modelType: 'official' | 'personal' | 'department';
   department?: string;
+  isAgent?: boolean;
+  prompt?: string;
+  displayRetrievedChunks?: boolean;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
