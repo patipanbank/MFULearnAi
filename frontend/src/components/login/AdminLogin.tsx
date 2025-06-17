@@ -34,8 +34,10 @@ const AdminLogin: React.FC = () => {
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data?.message) {
         setError(error.response.data.message);
+        if (error.response.data.message.toLowerCase().includes('not found')) {
+          setIsUsernameError(true);
+        }
         setIsPasswordError(true);
-        setIsUsernameError(true);
       } else {
         setError('An error occurred during login');
       }
