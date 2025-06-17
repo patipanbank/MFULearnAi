@@ -83,7 +83,12 @@ const Header = () => {
                 
                 {/* Name and chevron */}
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">
+                  <span className="font-medium select-none" style={{ 
+                    WebkitUserSelect: 'none',
+                    MozUserSelect: 'none',
+                    msUserSelect: 'none',
+                    userSelect: 'none'
+                  }}>
                     {userData.firstName} {userData.lastName}
                   </span>
                   <FaChevronDown className={`w-3 h-3 transition-transform duration-200 ${showPopup ? 'rotate-180' : ''}`} />
