@@ -11,6 +11,7 @@ const AdminLogin: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordError, setIsPasswordError] = useState(false);
+  const [isUsernameError, setIsUsernameError] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,6 +19,7 @@ const AdminLogin: React.FC = () => {
     setIsLoading(true);
     setError('');
     setIsPasswordError(false);
+    setIsUsernameError(false);
     
     try {
       const response = await axios.post(`${config.apiUrl}/api/auth/admin/login`, {
@@ -33,6 +35,7 @@ const AdminLogin: React.FC = () => {
       if (axios.isAxiosError(error) && error.response?.data?.message) {
         setError(error.response.data.message);
         setIsPasswordError(true);
+        setIsUsernameError(true);
       } else {
         setError('An error occurred during login');
       }
@@ -73,7 +76,7 @@ const AdminLogin: React.FC = () => {
           <div className="space-y-5">
             <div className="relative">
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                Username
+                Username {isUsernameError && <span className="text-red-500 ml-1">not found</span>}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -84,10 +87,11 @@ const AdminLogin: React.FC = () => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg 
+                  className={`block w-full pl-10 pr-3 py-3 border rounded-lg 
                            focus:ring-2 focus:ring-blue-500 focus:border-transparent
                            bg-white/90 backdrop-blur-sm transition-all duration-200
-                           placeholder-gray-400 focus:outline-none"
+                           placeholder-gray-400 focus:outline-none
+                           ${isUsernameError ? 'border-red-500 ring-red-500' : 'border-gray-300'}`}
                   placeholder="Enter your username"
                   required
                 />
