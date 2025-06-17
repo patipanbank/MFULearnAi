@@ -806,132 +806,83 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { setIsLoading } = useUIStore.getState();
     
     if (message.role === 'user') {
-      // ค้นหาข้อความเดิมและตำแหน่ง
+      // Find the original message and its index
       const messageIndex = messages.findIndex(m => m.id === message.id);
       if (messageIndex === -1) {
         console.error('Message to edit not found');
         return;
       }
       
-      // เมื่อแก้ไขข้อความของ user: เป็นการส่งข้อความใหม่ (resubmit)
-      // สร้างข้อความผู้ใช้ใหม่จากข้อความที่แก้ไข
+      // Create a new array with the updated original message
+      const updatedMessages = [...messages];
+      updatedMessages[messageIndex] = {
+        ...updatedMessages[messageIndex],
+        content: message.content, // Update content from the edited message
+        isEdited: true,
+      };
+
+      // Create a new user message from the edited content for resubmission
       const newUserMessage: Message = {
-        id: Date.now(),
+        id: `user-${Date.now()}`, // Use a unique string ID
         role: 'user',
         content: message.content,
-        timestamp: {
-          $date: new Date().toISOString()
-        },
+        timestamp: { $date: new Date().toISOString() },
         isImageGeneration: false,
-        files: message.files // ใช้ไฟล์ที่ได้รับจากการแก้ไข (รวมไฟล์เดิมและไฟล์ใหม่)
+        files: message.files, 
+        images: message.images,
       };
       
-      // ตรวจสอบและแสดงข้อมูลไฟล์ที่จะส่ง
-      if (message.files && message.files.length > 0) {
-        console.log(`กำลังส่งข้อความพร้อมไฟล์ ${message.files.length} ไฟล์`);
-      }
-      
-      // สร้างข้อความใหม่ของ assistant สำหรับการตอบกลับ
+      // Create a new assistant message placeholder for the reply
       const newAssistantMessage: Message = {
-        id: Date.now() + 1,
+        id: `assistant-${Date.now()}`, // Use a unique string ID
         role: 'assistant',
         content: '',
-        timestamp: {
-          $date: new Date().toISOString()
-        },
+        timestamp: { $date: new Date().toISOString() },
         isImageGeneration: false,
-        isComplete: false
+        isComplete: false,
+        modelId: selectedModel,
       };
       
-      // อัพเดทข้อความโดยเพิ่มข้อความใหม่ต่อท้าย
-      set({ messages: [...messages, newUserMessage, newAssistantMessage] });
+      // Combine all messages and update the state once
+      const finalMessages = [...updatedMessages, newUserMessage, newAssistantMessage];
+      set({ messages: finalMessages });
       setIsLoading(true);
       
-      // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
+      // Notify UI to scroll down
       window.dispatchEvent(new CustomEvent('chatScrollAction', {
-        detail: { 
-          action: 'enableAutoScroll',
-          forceScroll: true
-        }
+        detail: { action: 'enableAutoScroll', forceScroll: true }
       }));
       
-      // ส่งคำขอไปยัง websocket
+      // Send the request to the websocket
       try {
         if (!wsRef) {
           console.error('WebSocket connection not available');
+          setIsLoading(false);
           return;
         }
         
-        // ส่งข้อความใหม่สำหรับการตอบกลับ
         const payload = {
-          messages: [newUserMessage],
+          messages: [newUserMessage], // Send only the new user message for context
           modelId: selectedModel,
           isImageGeneration: false,
           path: window.location.pathname,
           chatId: currentChatId,
           type: 'message',
-          files: newUserMessage.files // ส่งไฟล์ไปด้วย
+          files: newUserMessage.files,
+          images: newUserMessage.images,
         };
-        
-        // ตรวจสอบไฟล์แนบก่อนส่ง
-        if (newUserMessage.files && newUserMessage.files.length > 0) {
-          console.log('ไฟล์แนบที่จะส่ง:', newUserMessage.files.map(file => ({
-            name: file.name,
-            size: file.size,
-            type: file.mediaType,
-            dataPreview: file.data ? file.data.substring(0, 50) + '...' : 'No data'
-          })));
-        }
-        
-        console.log('ส่งข้อความที่แก้ไขพร้อมไฟล์:', {
-          messageContent: newUserMessage.content.substring(0, 50) + '...',
-          filesCount: newUserMessage.files?.length || 0
-        });
         
         wsRef.send(JSON.stringify(payload));
         
-        // อัพเดทการใช้งาน
+        // Update usage stats
         fetchUsage();
       } catch (error) {
         console.error('Error in handleEditMessage (resubmit):', error);
         setIsLoading(false);
       }
-      
-      // บันทึกข้อความใหม่ลงฐานข้อมูล
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (token && currentChatId) {
-          fetch(`${config.apiUrl}/api/chat/history/${currentChatId}/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              message: newUserMessage
-            })
-          })
-          .then(response => {
-            if (!response.ok) {
-              throw new Error(`การบันทึกข้อความล้มเหลว: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then(data => {
-            console.log('Message saved with attachments successfully:', { 
-              success: data.success,
-              filesCount: newUserMessage.files?.length || 0 
-            });
-          })
-          .catch(error => {
-            console.error('Error saving new message:', error);
-          });
-        }
-      } catch (error) {
-        console.error('Error sending save message request:', error);
-      }
+
     } else if (message.role === 'assistant') {
-      // ค้นหาข้อความเดิมและตำแหน่ง
+      // Find the original message and its index
       const messageIndex = messages.findIndex(m => m.id === message.id);
       if (messageIndex === -1) {
         console.error('Message to edit not found');
