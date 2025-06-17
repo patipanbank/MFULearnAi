@@ -273,6 +273,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isComplete: true
       } : msg
     ));
+
+    // Persist the updated chat (including assistant reply) to backend
+    const { currentChatId, messages: updatedMessages } = get();
+    if (currentChatId) {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        fetch(`${config.apiUrl}/api/chat/history/${currentChatId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ messages: updatedMessages })
+        }).catch(err => console.error('Failed to sync chat history:', err));
+      }
+    }
   },
   
   // Load chat history

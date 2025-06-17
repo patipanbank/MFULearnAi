@@ -235,19 +235,14 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       };
       extWs.on('message', cancelListener);
 
-      let allSources: any[] = [];
-      let assistantResponse = '';
+      let allSources: any[] = []; // To collect sources
       try {
         for await (const content of chatService.sendMessage(messages, modelId, userId!)) {
           if (isCancelled) break;
 
           if (content.type === 'sources') {
             allSources = content.data;
-            continue;
-          }
-
-          if (content.type === 'content') {
-            assistantResponse += content.data;
+            continue; // Don't send sources to client yet
           }
           
           if (extWs.readyState === WebSocket.OPEN) {
@@ -258,20 +253,6 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
         extWs.removeListener('message', cancelListener);
         if (extWs.readyState === WebSocket.OPEN && !isCancelled) {
             extWs.send(JSON.stringify({ type: 'complete', chatId: currentChatId, sources: allSources }));
-
-            // Save the assistant's message to the database
-            if (assistantResponse || allSources.length > 0) {
-              const assistantMessage = {
-                id: `assistant-${Date.now()}`,
-                role: 'assistant' as const,
-                content: assistantResponse,
-                timestamp: { $date: new Date().toISOString() },
-                modelId: modelId,
-                isComplete: true,
-                sources: allSources,
-              };
-              await chatService.addMessageToChat(currentChatId, assistantMessage);
-            }
         }
       }
 
