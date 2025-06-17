@@ -122,7 +122,7 @@ const AdminLogin: React.FC = () => {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 
                            hover:text-gray-600 transition-colors duration-200"
                 >
-                  {showPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+                  {showPassword ? <FiEye className="h-5 w-5" /> : <FiEyeOff className="h-5 w-5" />}
                 </button>
               </div>
             </div>
