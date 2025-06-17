@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { ModelModel, ModelDocument } from '../models/Model';
+import { ModelModel } from '../models/Model';
+import { CollectionModel } from '../models/Collection';
 import { roleGuard } from '../middleware/roleGuard';
 import { UserRole } from '../models/User';
 import { TrainingHistory } from '../models/TrainingHistory';
@@ -105,6 +106,20 @@ router.put('/:id/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperA
 
     if (!isOwner && !isAdmin) {
       res.status(403).json({ error: 'Permission denied' });
+      return;
+    }
+
+    // Validate collections array
+    if (!Array.isArray(collections) || collections.length === 0) {
+      res.status(400).json({ error: 'Collections must be a non-empty array' });
+      return;
+    }
+
+    // Deduplicate and ensure existence
+    const uniqueNames = [...new Set(collections)];
+    const existing = await CollectionModel.find({ name: { $in: uniqueNames } }).lean();
+    if (existing.length !== uniqueNames.length) {
+      res.status(400).json({ error: 'One or more collection names are invalid' });
       return;
     }
 

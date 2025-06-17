@@ -62,11 +62,13 @@ export class KnowledgeTool implements BedrockTool {
     }
 
     // L1 Search: For each relevant collection, find the most relevant documents
-    let relevantDocuments: any[] = [];
-    for (const collection of relevantCollections) {
-      const docs = await this.selectRelevantDocuments(query, (collection as any)._id.toString());
-      relevantDocuments.push(...docs);
-    }
+    // Fetch relevant documents from all selected collections in parallel to reduce latency
+    const docsArrays = await Promise.all(
+      relevantCollections.map(c =>
+        this.selectRelevantDocuments(query, (c as any)._id.toString())
+      )
+    );
+    const relevantDocuments: any[] = docsArrays.flat();
     
     if (relevantDocuments.length === 0) {
       console.log('L1 Search: No relevant documents found in selected collections.');
@@ -177,6 +179,11 @@ export class KnowledgeTool implements BedrockTool {
       return { context: '', sources: [] };
     }
 
+    // Deduplicate sources by collection + filename to avoid duplicates
+    const uniqueSources = Array.from(new Map(
+      allSources.map(s => [`${s.collectionName}:${s.filename}`, s])
+    ).values());
+
     const compressionResult = await chromaService.selectAndCompressContext(
       query,
       allChunksText,
@@ -187,7 +194,7 @@ export class KnowledgeTool implements BedrockTool {
     
     return {
       context: compressionResult.compressedContext,
-      sources: allSources,
+      sources: uniqueSources,
       compressionStats: compressionResult.compressionStats
     };
   }
