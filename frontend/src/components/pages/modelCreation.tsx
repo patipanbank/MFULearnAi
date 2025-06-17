@@ -36,7 +36,6 @@ export const ModelCreation: React.FC = () => {
     
     // Bulk operations state
     selectedModels,
-    showBulkActions,
     isBulkDeleting,
     bulkActionResults,
     
@@ -54,7 +53,6 @@ export const ModelCreation: React.FC = () => {
     toggleModelSelection,
     selectAllModels,
     clearSelection,
-    setShowBulkActions,
     
     // Thunks
     fetchModels,
