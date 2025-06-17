@@ -241,13 +241,13 @@ router.post('/admin/login', async (req: Request, res: Response):Promise<void> =>
 
     const user = await User.findOne({ username, role: { $in: ['Admin', 'SuperAdmin'] } });
     if (!user) {
-      res.status(401).json({ message: 'ไม่พบบัญชีผู้ใช้' });
+      res.status(401).json({ message: 'User account not found' });
       return;
     }
     // ใช้ method comparePassword ที่เราสร้างไว้ใน User model
     const isMatch = await (user as any).comparePassword(password);
     if (!isMatch) {
-      res.status(401).json({ message: 'รหัสผ่านไม่ถูกต้อง' });
+      res.status(401).json({ message: 'Password is incorrect' });
       return;
     }
 
