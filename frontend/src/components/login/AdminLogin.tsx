@@ -141,17 +141,16 @@ const AdminLogin: React.FC = () => {
               ) : null}
               {isLoading ? 'Logging in...' : 'Log in'}
             </button>
+            <div className="flex justify-end mt-2">
+              <a 
+                href="/login" 
+                className="text-sm text-gray-600 hover:text-blue-600 transition-colors duration-200"
+              >
+                Back to main login
+              </a>
+            </div>
           </div>
         </form>
-
-        <div className="text-center mt-4">
-          <a 
-            href="/login" 
-            className="text-sm text-gray-600 hover:text-blue-600 transition-colors duration-200"
-          >
-            Back to main login
-          </a>
-        </div>
       </div>
     </div>
   );
