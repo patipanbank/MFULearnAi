@@ -11,6 +11,19 @@ import { useChatInputStore } from '../store/chatInputStore';
 import { useChatStore } from '../store/chatStore';
 import { prepareMessageFiles, compressImage } from '../utils/fileProcessing';
 
+// Function to generate user initials for avatar
+const getUserInitials = () => {
+  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  return `${userData.firstName?.charAt(0) || ''}${userData.lastName?.charAt(0) || ''}`.toUpperCase();
+};
+
+// Function to generate avatar background style with gradient
+const getAvatarStyle = () => {
+  return {
+    background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))'
+  };
+};
+
 interface ChatBubbleProps {
   message: Message;
   isLastMessage: boolean;
@@ -370,9 +383,17 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             : 'bg-transparent'
         } flex items-center justify-center`}>
           {message.role === 'user' ? (
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-            </svg>
+            <div 
+              className="w-full h-full flex items-center justify-center text-white text-sm font-semibold select-none"
+              style={{
+                WebkitUserSelect: 'none',
+                MozUserSelect: 'none',
+                msUserSelect: 'none',
+                userSelect: 'none'
+              }}
+            >
+              {getUserInitials()}
+            </div>
           ) : (
             <img
               src="/dindin.PNG"
