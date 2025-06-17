@@ -18,7 +18,7 @@ export const EditModelModal: React.FC<EditModelModalProps> = ({
   onSave,
   isLoading
 }) => {
-  const { isAdmin, isSuperAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin, user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
