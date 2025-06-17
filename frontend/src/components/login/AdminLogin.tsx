@@ -34,7 +34,7 @@ const AdminLogin: React.FC = () => {
     <div 
       className="min-h-screen flex items-center justify-center bg-cover bg-center relative"
       style={{
-        backgroundImage: "url('/mfu_background_login_admin.jpg')"
+        backgroundImage: "url('/mfu_background_login_admin.png')"
       }}
     >
       <div className="absolute inset-0 bg-white/50"></div>
