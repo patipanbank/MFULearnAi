@@ -369,7 +369,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       <div className={`flex items-start gap-3 ${
         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-      } w-full max-w-[98%] md:max-w-[80%] lg:max-w-[50%] mx-auto`}>
+      } w-full ${
+        message.role === 'user' 
+          ? 'justify-end' 
+          : 'justify-start'
+      }`}>
         <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center ${
           message.role === 'user' ? '' : 'bg-transparent'
         }`}>
@@ -395,9 +399,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           )}
         </div>
  
-        <div className={`flex flex-col space-y-2 max-w-[80%] ${
+        <div className={`flex flex-col space-y-2 ${
           message.role === 'user' ? 'items-end' : 'items-start'
-        }`}>
+        } w-full sm:w-[85%] md:w-[75%] lg:w-[60%] xl:w-[50%]`}>
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {formatMessageTime(message.timestamp)}
           </div>
@@ -405,7 +409,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             message.role === 'user'
               ? 'bg-blue-500 text-white'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white'
-          }`}>
+          } w-full break-words`}>
             {message.role === 'assistant' && message.content === '' && isLoading ? (
               <LoadingDots />
             ) : (

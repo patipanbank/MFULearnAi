@@ -83,26 +83,26 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
   
   return (
-
-      <form onSubmit={handleSubmit} className="py-2 pr-2 md:py-4 md:pr-4 w-full">
-        <div className="flex flex-col gap-2 w-full max-w-[98%] md:max-w-[80%] lg:max-w-[50%] mx-auto">
-          {/* Edit mode indicator */}
-          {editingMessage && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 dark:bg-yellow-800 rounded-md text-sm">
-              <MdEdit className="h-4 w-4" />
-              <span>Editing message</span>
-            </div>
-          )}
-      
-          {/* Message input area */}
-          <div className="flex items-end gap-2">
+    <form onSubmit={handleSubmit} className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t dark:border-gray-700 py-2 px-4 md:py-4">
+      <div className="flex flex-col gap-2 w-full max-w-screen-xl mx-auto">
+        {/* Edit mode indicator */}
+        {editingMessage && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 dark:bg-yellow-800 rounded-md text-sm">
+            <MdEdit className="h-4 w-4" />
+            <span>Editing message</span>
+          </div>
+        )}
+    
+        {/* Message input area */}
+        <div className="flex items-end gap-2 w-full">
+          <div className="flex-1 min-w-0">
             <textarea
               ref={textareaRef}
               value={inputMessage}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              className="flex-1 min-w-0 p-2 text-sm md:text-base rounded-2xl border border-gray-300 dark:border-gray-600 
+              className="w-full p-2 text-sm md:text-base rounded-2xl border border-gray-300 dark:border-gray-600 
                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
                 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none
                 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 
@@ -124,11 +124,25 @@ const ChatInput: React.FC<ChatInputProps> = ({
               spellCheck="false"
               data-verify="false"
             />
-            
+          </div>
+          
+          <div className="flex-shrink-0 flex items-center gap-2">
+            <label htmlFor="file-upload" className="cursor-pointer">
+              <input
+                id="file-upload"
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.txt"
+              />
+              <RiFileAddFill className="h-6 w-6 text-gray-500 hover:text-blue-500 transition-colors" />
+            </label>
+
             <button
               type={isLoading ? "button" : "submit"}
               onClick={isLoading ? handleButtonClick : undefined}
-              className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+              className={`p-2 rounded-full transition-colors ${
                 isLoading ? 'bg-red-500 hover:bg-red-600 text-white' :
                 canSubmit() ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
               }`}
@@ -148,78 +162,23 @@ const ChatInput: React.FC<ChatInputProps> = ({
               )}
             </button>
           </div>
+        </div>
 
-          {/* Controls and options */}
-          <div className="flex flex-wrap gap-2 items-center justify-between">
-            {/* Left side controls */}
-            <div className="flex flex-wrap gap-2 items-center">
-              <ModelSelector 
-                models={models}
-                selectedModel={selectedModel}
-                setSelectedModel={setSelectedModel}
-              />
-              
-              {/* ซ่อนปุ่ม Image Gen */}
-              {false && (
-                <button
-                  type="button"
-                  onClick={() => setIsImageGenerationMode(!isImageGenerationMode)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors
-                    ${isImageGenerationMode 
-                      ? 'border-purple-400 dark:border-purple-500 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' 
-                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-xs whitespace-nowrap">
-                    {isImageGenerationMode ? 'Image Gen: ON' : 'Image Gen: OFF'}
-                  </span>
-                </button>
-              )}
-
-              {/* แสดงปุ่มแนบไฟล์เสมอ (ไม่ขึ้นกับ isImageGenerationMode) */}
-              <>
-                <input
-                  type="file"
-                  id="file-upload"
-                  accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 
-                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-                  onClick={() => {
-                    document.getElementById('file-upload')?.click();
-                  }}
-                >
-                  <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                  <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300 hidden md:inline">Attach File</span>
-                </button>
-              </>
-
-              {usage && <TokenUsageDisplay usage={usage} />}
+        {/* File attachments */}
+        {(selectedImages.length > 0 || selectedFiles.length > 0) && (
+          <div className="flex flex-col gap-2 mt-2">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Attached Files ({selectedImages.length + selectedFiles.length})
             </div>
-          </div>
-
-          {/* Combined Attached Files Preview */}
-          {(selectedImages.length > 0 || selectedFiles.length > 0) && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
-                Attached Files ({selectedImages.length + selectedFiles.length})
-              </div>
-              
+            
+            <div className="flex flex-wrap gap-2">
               {/* Image previews */}
               {selectedImages.map((image, index) => (
                 <div key={`img-${index}`} className="relative">
                   <img
                     src={URL.createObjectURL(image)}
                     alt={`Image ${index + 1}`}
-                    className="w-16 h-16 object-cover rounded-lg"
+                    className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg"
                   />
                   <button
                     type="button"
@@ -233,28 +192,39 @@ const ChatInput: React.FC<ChatInputProps> = ({
               
               {/* Document previews */}
               {selectedFiles.map((file, index) => (
-                <div key={`doc-${index}`} className="relative">
-                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <FileIcon fileName={file.name} />
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 rounded-b-lg">
-                    <div className="px-1 py-0.5 text-white text-[8px] truncate">
-                      {file.name}
-                    </div>
-                  </div>
+                <div key={`file-${index}`} className="relative flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                  <FileIcon fileName={file.name} />
+                  <span className="text-sm truncate max-w-[120px] sm:max-w-[200px]">{file.name}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                    className="ml-2 text-red-500 hover:text-red-600"
                   >
-                    <RiCloseLine />
+                    <RiCloseLine className="w-4 h-4" />
                   </button>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Model selector and token usage */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">
+          <div className="w-full sm:w-auto">
+            <ModelSelector
+              models={models}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
+            />
+          </div>
+          {usage && (
+            <div className="w-full sm:w-auto sm:ml-auto">
+              <TokenUsageDisplay usage={usage} />
+            </div>
           )}
         </div>
-      </form>
+      </div>
+    </form>
   );
 };
 

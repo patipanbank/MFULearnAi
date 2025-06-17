@@ -1,28 +1,24 @@
 import React from 'react';
-import { IoIosArrowDown } from "react-icons/io";
+import { FaArrowDown } from 'react-icons/fa';
 
 interface ScrollToBottomButtonProps {
-  isNearBottom: boolean;
   onClick: () => void;
 }
 
 /**
  * Button to scroll down to bottom when user is not at the bottom position
  */
-const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({ isNearBottom, onClick }) => {
+const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({ onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`absolute left-1/2 transform -translate-x-1/2 -top-6
-                bg-blue-500 hover:bg-blue-600 text-white rounded-full 
-                p-2 shadow-lg transition-all duration-300 z-20 ${
-                  isNearBottom 
-                    ? 'opacity-0 pointer-events-none translate-y-2' 
-                    : 'opacity-100 translate-y-0'
-                }`}
-      aria-label="Scroll to latest messages"
+      className="fixed bottom-24 sm:bottom-32 right-4 sm:right-8 z-10 p-2 sm:p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg 
+        hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 
+        border border-gray-200 dark:border-gray-700
+        text-gray-600 dark:text-gray-300"
+      aria-label="Scroll to bottom"
     >
-      <IoIosArrowDown className="h-4 w-4" />
+      <FaArrowDown className="w-4 h-4 sm:w-5 sm:h-5" />
     </button>
   );
 };

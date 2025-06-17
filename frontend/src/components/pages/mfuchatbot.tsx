@@ -158,15 +158,19 @@ const MFUChatbot: React.FC = () => {
       <div 
         className={`flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-6 pb-32 overscroll-contain scroll-smooth ${
           isSidebarExpanded ? 'pl-4 pr-4' : 'pl-2 pr-4'
+        } ${
+          isMobile ? 'px-2' : ''
         }`}
         ref={chatContainerRef}
         id="chat-messages"
         data-testid="chat-messages-container"
       >
         {messages.length === 0 ? (
-          <WelcomeMessage />
+          <div className="flex flex-col items-center justify-center h-full">
+            <WelcomeMessage />
+          </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 max-w-screen-xl mx-auto">
             {messages.map((message, index) => {
               // Check if this is the latest assistant message
               const isLastAssistantMessage = (() => {
@@ -207,19 +211,14 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 z-10 transition-all duration-300 ${
-        isSidebarExpanded ? 'lg:ml-64' : 'lg:ml-16'
-      }`}>
-        {/* Show scroll to bottom button when there are messages and user is not at the bottom */}
-        {messages.length > 0 && (
-          <div className="relative w-full max-w-[98%] lg:max-w-[90%] mx-auto h-0">
-            <ScrollToBottomButton 
-              isNearBottom={isNearBottom}
-              onClick={handleScrollToBottom}
-            />
-          </div>
-        )}
-        
+      {/* Scroll to bottom button */}
+      {!isNearBottom && messages.length > 0 && (
+        <ScrollToBottomButton onClick={handleScrollToBottom} />
+      )}
+
+      {/* Chat input */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 to-transparent h-32 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0">
         <ChatInput
           inputMessage={inputMessage}
           setInputMessage={setInputMessage}
@@ -244,7 +243,6 @@ const MFUChatbot: React.FC = () => {
           handleCancelGeneration={handleCancelGeneration}
         />
       </div>
-      
     </div>
   );
 };
