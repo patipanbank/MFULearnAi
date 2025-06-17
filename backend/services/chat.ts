@@ -515,6 +515,30 @@ class ChatService {
     await chat.save();
     return chat;
   }
+
+  async addMessageToChat(chatId: string, message: Partial<ChatMessage>) {
+    try {
+      if (!this.isValidObjectId(chatId)) {
+        throw new Error('Invalid chat ID format');
+      }
+
+      const update = {
+        $push: { messages: message },
+        $set: { updatedAt: new Date() }
+      };
+
+      const result = await Chat.updateOne({ _id: chatId }, update);
+
+      if (result.matchedCount === 0) {
+        throw new Error('Chat not found');
+      }
+
+    } catch (error) {
+      console.error(`Error adding message to chat ${chatId}:`, error);
+      // We don't rethrow here because failing to save the history shouldn't break the user's session.
+      // The message will just be missing on refresh, which is better than an error.
+    }
+  }
 }
 
 // Create a specialized KnowledgeTool that only searches specific collections
