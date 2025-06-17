@@ -235,8 +235,8 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       };
       extWs.on('message', cancelListener);
 
+      let allSources: any[] = []; // To collect sources
       try {
-        let allSources: any[] = []; // To collect sources
         for await (const content of chatService.sendMessage(messages, modelId, userId!)) {
           if (isCancelled) break;
 
