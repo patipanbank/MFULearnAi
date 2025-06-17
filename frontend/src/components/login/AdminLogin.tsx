@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { config } from '../../config/config';
@@ -12,7 +12,18 @@ const AdminLogin: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordError, setIsPasswordError] = useState(false);
   const [isUsernameError, setIsUsernameError] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (error) {
+      setShowAlert(true);
+      const timer = setTimeout(() => {
+        setShowAlert(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +31,7 @@ const AdminLogin: React.FC = () => {
     setError('');
     setIsPasswordError(false);
     setIsUsernameError(false);
+    setShowAlert(false);
     
     try {
       const response = await axios.post(`${config.apiUrl}/api/auth/admin/login`, {
@@ -33,11 +45,15 @@ const AdminLogin: React.FC = () => {
       navigate('/mfuchatbot');
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data?.message) {
-        setError(error.response.data.message);
-        setIsPasswordError(true);
-        setIsUsernameError(true);
+        setTimeout(() => {
+          setError(error.response?.data?.message || '');
+          setIsPasswordError(true);
+          setIsUsernameError(true);
+        }, 150);
       } else {
-        setError('An error occurred during login');
+        setTimeout(() => {
+          setError('An error occurred during login');
+        }, 150);
       }
     } finally {
       setIsLoading(false);
@@ -67,7 +83,7 @@ const AdminLogin: React.FC = () => {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
+          {error && showAlert && (
             <div className="bg-red-50 text-red-500 p-4 rounded-lg text-sm text-center animate-shake">
               {error}
             </div>
