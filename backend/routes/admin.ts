@@ -89,7 +89,7 @@ router.get('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request,
 // Update admin information (SuperAdmin only)
 router.put('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { username, password, firstName, lastName, email, department } = req.body;
+    const { username, password, firstName, lastName, email, department, subroles } = req.body;
     const adminId = req.params.id;
 
     // Find the admin user first
@@ -126,6 +126,9 @@ router.put('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request,
     if (lastName) admin.lastName = lastName;
     if (email) admin.email = email;
     if (department) admin.department = department;
+    if (subroles && Array.isArray(subroles)) {
+      admin.subroles = subroles;
+    }
 
     // Save the updated admin
     await admin.save();
@@ -139,7 +142,8 @@ router.put('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request,
       firstName: admin.firstName,
       lastName: admin.lastName,
       department: admin.department,
-      role: admin.role
+      role: admin.role,
+      subroles: admin.subroles
     };
 
     res.status(200).json({
@@ -171,7 +175,7 @@ router.delete('/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Reque
 
 router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response) => {
   try {
-    const { username, password, firstName, lastName, email, department } = req.body;
+    const { username, password, firstName, lastName, email, department, subroles } = req.body;
 
     // ตรวจสอบข้อมูลที่จำเป็น
     if (!username || !password || !firstName || !lastName || !email || !department) {
@@ -202,7 +206,8 @@ router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Requ
       lastName,
       department,
       role: 'Admin',
-      groups: ['Admin']
+      groups: ['Admin'],
+      subroles: subroles || []
     });
 
     await newAdmin.save();
@@ -214,7 +219,8 @@ router.post('/create', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Requ
       firstName: newAdmin.firstName,
       lastName: newAdmin.lastName,
       department: newAdmin.department,
-      role: newAdmin.role
+      role: newAdmin.role,
+      subroles: newAdmin.subroles
     };
 
     res.status(201).json({
