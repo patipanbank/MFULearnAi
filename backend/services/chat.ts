@@ -196,6 +196,7 @@ class ChatService {
     let conversationMessages = [...messages];
     let iterationCount = 0;
     const maxIterations = 10;
+    let allSources: any[] = []; // Collect sources from all tool calls
 
     while (iterationCount < maxIterations) {
       iterationCount++;
@@ -260,6 +261,12 @@ class ChatService {
           if (tool) {
             yield { type: 'tool_use', data: `Using ${tool.name}...` };
             const result = await tool.execute(toolUse.input);
+            
+            // Extract sources if the tool provides them
+            if (result.sources) {
+              allSources = [...allSources, ...result.sources];
+            }
+            
             toolResults.push({
               toolUseId: toolUse.toolUseId,
               content: [{ text: JSON.stringify(result) }]
@@ -282,6 +289,11 @@ class ChatService {
 
     if (iterationCount >= maxIterations) {
       yield { type: 'error', data: 'Maximum iterations reached.' };
+    }
+    
+    // Yield all collected sources at the end
+    if (allSources.length > 0) {
+      yield { type: 'sources', data: allSources };
     }
   }
 

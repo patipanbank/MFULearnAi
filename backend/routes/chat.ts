@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 import { usageService } from '../services/usageService';
 import multer from 'multer';
 import { fileParserService } from '../services/fileParser';
+import { EventEmitter } from 'events';
 
 const router = Router();
 const HEARTBEAT_INTERVAL = 30000;
@@ -47,7 +48,7 @@ const wss = new WebSocketServer({
   port: 5001,
   path: '/ws',
   clientTracking: true,
-  verifyClient: (info, cb) => {
+  verifyClient: (info: any, cb: any) => {
     try {
       // Get token from URL parameters
       const url = new URL(info.req.url!, `http://${info.req.headers.host}`);
@@ -157,7 +158,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
 
   extWs.on('pong', heartbeat);
 
-  extWs.on('error', (error) => {
+  extWs.on('error', (error: Error) => {
     console.error(`WebSocket error for user ${extWs.userId}:`, error);
   });
 
@@ -235,8 +236,15 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       extWs.on('message', cancelListener);
 
       try {
+        let allSources: any[] = []; // To collect sources
         for await (const content of chatService.sendMessage(messages, modelId, userId!)) {
           if (isCancelled) break;
+
+          if (content.type === 'sources') {
+            allSources = content.data;
+            continue; // Don't send sources to client yet
+          }
+          
           if (extWs.readyState === WebSocket.OPEN) {
             extWs.send(JSON.stringify(content));
           }
@@ -244,7 +252,7 @@ wss.on('connection', (ws: WebSocket, req: Request) => {
       } finally {
         extWs.removeListener('message', cancelListener);
         if (extWs.readyState === WebSocket.OPEN && !isCancelled) {
-            extWs.send(JSON.stringify({ type: 'complete', chatId: currentChatId }));
+            extWs.send(JSON.stringify({ type: 'complete', chatId: currentChatId, sources: allSources }));
         }
       }
 
