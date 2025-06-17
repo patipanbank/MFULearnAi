@@ -155,7 +155,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             break;
 
           case 'content':
-            get().updateMessageContent(data.content);
+            get().updateMessageContent(data.data);
             break;
 
           case 'complete':
