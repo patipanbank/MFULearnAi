@@ -62,14 +62,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     return savedMode === 'true';
   });
   
-  // Add scroll position state
-  const [scrollPosition, setScrollPosition] = useState(0);
+  // Add scroll position state with localStorage persistence
+  const [scrollPosition, setScrollPosition] = useState(() => {
+    const savedPosition = localStorage.getItem('settingsPopupScrollPosition');
+    return savedPosition ? parseInt(savedPosition) : 0;
+  });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Save scroll position when scrolling
   const handleScroll = () => {
     if (scrollContainerRef.current) {
-      setScrollPosition(scrollContainerRef.current.scrollTop);
+      const newPosition = scrollContainerRef.current.scrollTop;
+      setScrollPosition(newPosition);
+      localStorage.setItem('settingsPopupScrollPosition', newPosition.toString());
     }
   };
 
@@ -79,6 +84,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       scrollContainerRef.current.scrollTop = scrollPosition;
     }
   }, [location.pathname, showSettingsPopup]);
+
+  // Reset scroll position when popup is closed
+  useEffect(() => {
+    if (!showSettingsPopup) {
+      setScrollPosition(0);
+      localStorage.removeItem('settingsPopupScrollPosition');
+    }
+  }, [showSettingsPopup]);
 
   // Apply dark mode class on component mount and when isDarkMode changes
   useEffect(() => {
