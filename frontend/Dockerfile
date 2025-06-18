@@ -2,19 +2,18 @@
 FROM node:18 as build
 
 # Set working directory
-WORKDIR /app/frontend
+WORKDIR /app/frontend_new
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
 
 # Copy source code
 COPY . .
 
 # Build the application
-RUN npm run build
+# Use --force to overcome potential dependency issues during build
+RUN npm run build --force
 
 # Production stage
 FROM nginx:alpine
@@ -22,11 +21,11 @@ FROM nginx:alpine
 # Copy the Nginx configuration file
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy the build output from build stage
-COPY --from=build /app/frontend/dist /usr/share/nginx/html
+# Copy the build output from the build stage
+COPY --from=build /app/frontend_new/dist /usr/share/nginx/html
 
 # Expose port 80
 EXPOSE 80
 
 # Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["nginx", "-g", "daemon off;"] 

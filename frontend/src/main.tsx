@@ -1,9 +1,26 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './app/App.tsx';
+import './index.css';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+// Initialize theme on app start
+const initializeTheme = () => {
+  const savedTheme = localStorage.getItem('applied-theme') as 'light' | 'dark' | 'auto' | null;
+  const root = document.documentElement;
+  
+  if (savedTheme === 'auto' || !savedTheme) {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.classList.toggle('dark', prefersDark);
+  } else {
+    root.classList.toggle('dark', savedTheme === 'dark');
+  }
+};
+
+// Initialize theme before rendering
+initializeTheme();
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <BrowserRouter>
     <App />
-  </StrictMode>,
-)
+  </BrowserRouter>
+);

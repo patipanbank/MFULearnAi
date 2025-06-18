@@ -1,47 +1,37 @@
-# Use Node.js LTS version as base image
-FROM node:18
+FROM python:3.11-slim
 
+# ตั้งค่า Working Directory ใน Container
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
+# ติดตั้ง System Dependencies ที่จำเป็นสำหรับ build บาง package เช่น xmlsec และ lxml
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    pkg-config \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libxmlsec1-openssl \
+    libxslt1-dev \
+    zlib1g-dev \
+    # Dependencies for OCR
     tesseract-ocr \
     tesseract-ocr-tha \
-    tesseract-ocr-eng \
     poppler-utils \
-    imagemagick \
-    ghostscript \
-    libmagickwand-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure ImageMagick policy to allow PDF (for both v6 and v7)
-COPY policy.xml /etc/ImageMagick-6/policy.xml
-COPY policy.xml /etc/ImageMagick-7/policy.xml
+# คัดลอกไฟล์ requirements.txt และติดตั้ง dependencies ก่อน
+# เพื่อใช้ประโยชน์จาก Docker layer caching
+COPY requirements.txt .
 
-# สร้างโฟลเดอร์ uploads และกำหนดสิทธิ์
-RUN mkdir -p /app/uploads && chmod 777 /app/uploads
+# แก้ไขปัญหา lxml & xmlsec libxml2 library version mismatch
+# โดยการติดตั้ง lxml แบบ no-binary เพื่อให้ compile จาก source
+RUN pip install --no-cache-dir --no-binary lxml -r requirements.txt
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies and TypeScript globally
-RUN npm install
-RUN npm install -g typescript
-RUN npm install chromadb-default-embed
-RUN npm install axios cheerio
-
-# Copy source code
+# คัดลอกโค้ดโปรเจกต์ทั้งหมด
 COPY . .
 
-# Build TypeScript code
-RUN npm run build
-
-# Expose port
+# Expose port ที่ application จะรัน
 EXPOSE 5000
 
-# Start the application
-CMD ["npm", "start"]
+# คำสั่งสำหรับรัน application
+# --host 0.0.0.0 ทำให้สามารถเข้าถึงได้จากภายนอก container
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"] 

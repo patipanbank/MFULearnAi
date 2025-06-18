@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   db:
     image: mongo
-    container_name: mfulearnai
+    container_name: mfulearnai_db
     ports:
       - 27017:27017
     volumes:
@@ -19,16 +17,33 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
     ports:
-      - 5000:5000
-      - 5001:5001
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
     environment:
-      - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
-      - CHROMA_URL=http://chroma:8000
-      - WS_PORT=5001
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - SAML_IDP_ENTITY_ID=${SAML_IDP_ENTITY_ID}
+      - SAML_IDP_SSO_URL=${SAML_IDP_SSO_URL}
+      - SAML_IDP_SLO_URL=${SAML_IDP_SLO_URL}
+      - SAML_CERTIFICATE=${SAML_CERTIFICATE}
+      - SAML_SP_ENTITY_ID=${SAML_SP_ENTITY_ID}
+      - SAML_SP_ACS_URL=${SAML_SP_ACS_URL}
+      - SAML_IDENTIFIER_FORMAT=${SAML_IDENTIFIER_FORMAT}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_ALLOWED_DOMAINS=${GOOGLE_ALLOWED_DOMAINS}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
+      - CHROMA_URL=http://chroma:8000
     depends_on:
       - chroma
       - db
@@ -38,12 +53,6 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 4G
 
   frontend:
     build:
@@ -51,6 +60,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - 3000:80
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      - VITE_API_URL=https://mfulearnai.mfu.ac.th
+      - VITE_WS_URL=wss://mfulearnai.mfu.ac.th/ws
     depends_on:
       - backend
     networks:
@@ -62,8 +76,10 @@ services:
     image: nginx:alpine
     ports:
       - 80:80
+      - 443:443
     depends_on:
       - frontend
+      - backend
     networks:
       - mfulearnai
     restart: unless-stopped
@@ -74,9 +90,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - ANONYMIZED_TELEMETRY=False
       - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
-      - CHROMA_SERVER_HOST=0.0.0.0
-      - CHROMA_SERVER_PORT=8000
     volumes:
       - chroma:/chroma/chroma
     networks:
