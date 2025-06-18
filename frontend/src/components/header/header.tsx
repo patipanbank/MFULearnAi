@@ -89,7 +89,7 @@ const Header = () => {
                 
                 {/* Name and chevron */}
                 <div className="flex items-center gap-2">
-                  <span className="font-medium select-none" style={{ 
+                  <span className="hidden md:inline font-medium select-none" style={{ 
                     WebkitUserSelect: 'none',
                     MozUserSelect: 'none',
                     msUserSelect: 'none',
