@@ -84,8 +84,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   return (
 
-      <form onSubmit={handleSubmit} className="p-2 md:p-4 w-full">
-        <div className="flex flex-col gap-2 w-full max-w-[95%] lg:max-w-[85%] mx-auto">
+      <form onSubmit={handleSubmit} className="py-2 pr-2 md:py-4 md:pr-4 w-full">
+        <div className="flex flex-col gap-2 w-full max-w-[98%] md:max-w-[80%] lg:max-w-[50%] mx-auto">
           {/* Edit mode indicator */}
           {editingMessage && (
             <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 dark:bg-yellow-800 rounded-md text-sm">
@@ -112,7 +112,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 scrollbarWidth: 'thin',
                 scrollbarColor: 'rgb(209 213 219) transparent',
                 minHeight: '44px',
-                maxHeight: '150px'
+                maxHeight: '100px'
               }}
               placeholder={
                 selectedImages.length > 0 
