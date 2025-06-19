@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaSignOutAlt, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding } from 'react-icons/fa';
+import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaMoon, FaSun } from 'react-icons/fa';
 import { config } from '../../config/config';
-import DarkModeToggle from '../darkmode/DarkModeToggle';
+import { useUIStore } from '../chat/store/uiStore';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -47,15 +47,60 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  // const isStaff = userData.groups?.includes('Staffs') || userData.groups?.includes('Admin');
-  // const isAdmin = userData.groups?.includes('Admin');
-  const isStaff = userData.groups?.includes('Admin') || userData.groups?.includes('Students') || userData.groups?.includes('Staffs');
   const isSuperAdmin = userData.groups?.includes('SuperAdmin');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
   const currentChatId = searchParams.get('chat');
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSettingsPopup, setShowSettingsPopup] = useState(() => {
+    const savedState = localStorage.getItem('showSettingsPopup');
+    return savedState === 'true';
+  });
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedMode = localStorage.getItem('darkMode');
+    return savedMode === 'true';
+  });
+  
+  // Add scroll position state with localStorage persistence
+  const [scrollPosition, setScrollPosition] = useState(() => {
+    const savedPosition = localStorage.getItem('settingsPopupScrollPosition');
+    return savedPosition ? parseInt(savedPosition) : 0;
+  });
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Save scroll position when scrolling
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const newPosition = scrollContainerRef.current.scrollTop;
+      setScrollPosition(newPosition);
+      localStorage.setItem('settingsPopupScrollPosition', newPosition.toString());
+    }
+  };
+
+  // Restore scroll position after navigation
+  useEffect(() => {
+    if (scrollContainerRef.current && showSettingsPopup) {
+      scrollContainerRef.current.scrollTop = scrollPosition;
+    }
+  }, [location.pathname, showSettingsPopup]);
+
+  // Reset scroll position when popup is closed
+  useEffect(() => {
+    if (!showSettingsPopup) {
+      setScrollPosition(0);
+      localStorage.removeItem('settingsPopupScrollPosition');
+    }
+  }, [showSettingsPopup]);
+
+  // Apply dark mode class on component mount and when isDarkMode changes
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
   const [renameState, setRenameState] = useState<RenameState>({
     isEditing: false,
     chatId: null,
@@ -64,9 +109,32 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     error: null
   });
 
+  // Get UI store states
+  const { isSidebarPinned, toggleSidebarPin, isSidebarHovered, setIsSidebarHovered, isMobile } = useUIStore();
+  
+  // Determine if sidebar should show expanded content
+  const shouldShowContent = isMobile ? true : (isSidebarHovered || isSidebarPinned);
+
   const handleTokenExpired = () => {
     localStorage.clear();
     navigate('/login');
+  };
+
+  const toggleSettingsPopup = () => {
+    const newState = !showSettingsPopup;
+    setShowSettingsPopup(newState);
+    localStorage.setItem('showSettingsPopup', newState.toString());
+  };
+
+  const toggleTheme = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('darkMode', newDarkMode.toString());
   };
 
   const fetchChatHistories = async () => {
@@ -140,6 +208,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSettingsPopup) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('[data-settings-popup]')) {
+          setShowSettingsPopup(false);
+          localStorage.setItem('showSettingsPopup', 'false');
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSettingsPopup]);
+
+  useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
       // console.log('No auth token found, redirecting to login...');
@@ -201,23 +284,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   //   }
   // };
 
-  const handleLogout = async () => {
-    try {
-      // Clear local storage and cookies
-      localStorage.clear();
-      document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-      // Open login page in new tab
-      window.open('https://dindinai.mfu.ac.th/login');
-
-      // Redirect current tab to ADFS logout
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
-
-    } catch (error) {
-      console.error('Logout error:', error);
-      window.location.href = '/login';
-    }
-  };
 
 
   const handleDelete = async (chatId: string) => {
@@ -347,7 +413,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   };
 
-  const filteredChats = chatHistories.filter(chat =>
+  const filteredChats = chatHistories.filter((chat: ChatHistory) =>
     (chat.chatname || chat.name || 'Untitled Chat').toLowerCase().includes(searchQuery.toLowerCase())
   );
   // Only log in development
@@ -355,7 +421,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // console.log('Filtered chats:', filteredChats);
   }
 
-  const sortedChats = [...filteredChats].sort((a, b) => {
+  const sortedChats = [...filteredChats].sort((a: ChatHistory, b: ChatHistory) => {
     // First sort by pinned status
     if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
 
@@ -368,280 +434,378 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   }
 
   return (
-    <aside className="flex flex-col h-full">
-      <div className="flex-none p-4 border-gray-200 dark:border-gray-700">
+    <aside 
+      className={`flex flex-col h-full transition-all duration-300 ease-in-out ${
+        shouldShowContent ? 'w-64' : 'w-16'
+      }`}
+      onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
+      onMouseLeave={() => !isSidebarPinned && setIsSidebarHovered(false)}
+    >
+            <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-            <span style={{
-              background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>DIN</span>{''}
-            <span>DIN</span>
-            <span style={{
-              background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}> AI</span>
-          </h2>
           <div className="flex items-center gap-2">
-            <DarkModeToggle />
-            <button
-              onClick={onClose}
-              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
-            >
-              <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-            </button>
+            {/* Pin button - always visible */}
+            {!isMobile && (
+              <div className="group relative">
+                <button
+                  onClick={toggleSidebarPin}
+                  className={`${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 rounded-lg transition-all duration-200 ${
+                    isSidebarPinned 
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  <FaBars className="w-4 h-4 transition-transform duration-200" />
+                </button>
+              </div>
+            )}
+            {/* Mobile close button */}
+            {shouldShowContent && !isMobile && (
+              <button
+                onClick={onClose}
+                className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+              >
+                <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              </button>
+            )}
           </div>
+          
+
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 px-2 pb-[calc(72px+env(safe-area-inset-bottom))]">
-        <nav className="space-y-4">
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden py-2 px-1 pb-[calc(72px+env(safe-area-inset-bottom))]`}>
+        <nav className="space-y-2">
           <div className="space-y-1">
             {/* New Chat with dropdown indicator */}
             <div className="relative">
               <Link
                 to="/mfuchatbot"
-                className={`flex items-center justify-between px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
+                className={`flex items-center ${shouldShowContent ? 'justify-between px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
                   ${location.pathname === '/mfuchatbot' && !currentChatId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                title={!shouldShowContent ? "New Chat" : ""}
+                onClick={() => { if (isMobile && onClose) onClose(); }}
               >
-                <div className="flex items-center min-w-0 flex-1">
-                  <FaComments className="w-5 h-5 mr-3 flex-shrink-0" />
-                  <span className="font-medium truncate">New Chat</span>
+                <div className={`flex items-center ${shouldShowContent ? 'min-w-0 flex-1' : ''}`}>
+                  <FaComments className="w-5 h-5 flex-shrink-0 text-green-600 dark:text-green-400" />
+                  {shouldShowContent && <span className="font-medium truncate ml-2">New Chat</span>}
                 </div>
-                {sortedChats.length > 0 && (
-                  <svg className="w-4 h-4 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                )}
               </Link>
-
-              {/* Search Bar - only shown when more than 10 chats */}
-              {sortedChats.length > 10 && (
-                <div className="px-4 py-2">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search chats..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-4 py-1.5 pl-8 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
-                    />
-                    <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
-                  </div>
-                </div>
-              )}
-
-              {/* Chat History List */}
-              {sortedChats.length > 0 && (
-                <div className="mt-1 space-y-0.5">
-                  {sortedChats.map((chat) => (
-                    <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
-                      {editingChatId === chat._id ? (
-                        <div className="flex-1 flex items-center p-2 md:p-3">
-                          <div className="relative flex-1">
-                            <input
-                              type="text"
-                              value={renameState.newName}
-                              onChange={(e) => setRenameState(prev => ({ ...prev, newName: e.target.value, error: null }))}
-                              onKeyDown={handleRenameKeyDown}
-                              className={`w-full px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border 
-                                ${renameState.error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} 
-                                rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm`}
-                              autoFocus
-                              disabled={renameState.isLoading}
-                              placeholder="Enter new name..."
-                              maxLength={100}
-                            />
-                            {renameState.error && (
-                              <div className="absolute -bottom-6 left-0 text-xs text-red-500">
-                                {renameState.error}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 ml-2">
-                            <button
-                              onClick={() => handleSaveEdit(chat._id)}
-                              disabled={renameState.isLoading}
-                              className={`p-1.5 rounded-lg transition-colors
-                                ${renameState.isLoading
-                                  ? 'bg-gray-300 cursor-not-allowed'
-                                  : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30'}`}
-                              title="Save"
-                            >
-                              {renameState.isLoading ? (
-                                <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </button>
-                            <button
-                              onClick={cancelEdit}
-                              disabled={renameState.isLoading}
-                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                              title="Cancel"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
-                          <Link
-                            to={`/mfuchatbot?chat=${chat._id}`}
-                            className={`flex-1 flex items-center p-2 md:p-3 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm
-                              ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                          >
-                            <div className="flex flex-col min-w-0 w-full pr-10">
-                              <div className="font-medium truncate max-w-full">
-                                {chat.chatname || 'Untitled Chat'}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-full">
-                                {chat.name}
-                              </div>
-                            </div>
-                          </Link>
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-lg px-1.5 py-1 shadow-sm">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleEdit(chat._id, chat.chatname);
-                              }}
-                              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-                              title="Edit chat name"
-                            >
-                              <FaEdit className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDelete(chat._id);
-                              }}
-                              className="p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-                              title="Delete chat"
-                            >
-                              <FaTrash className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
-          {isStaff && (
-            <>
-              <Link
-                to="/modelCreation"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/modelCreation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-              >
-                <FaAndroid className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Build Model</span>
-              </Link>
 
-              <Link
-                to="/training"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/training' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-              >
-                <FaBookOpen className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Knowledge Base</span>
-              </Link>
-            </>
+
+          {/* Chat History List - moved below Help link */}
+          {shouldShowContent && (
+            <div className="mt-2">
+              {/* Latest chat label */}
+              {chatHistories.length > 0 && (
+                <div className="px-3 pb-1">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">--- Latest chat ---</span>
+                </div>
+              )}
+              {/* Search bar - show if there is at least one chat history */}
+              {chatHistories.length > 0 && (
+                <div className="px-2 py-1">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search Chat..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-3 py-1.5 pl-8 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-xs"
+                    />
+                    <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 w-3 h-3" />
+                  </div>
+                </div>
+              )}
+              {chatHistories.length > 0 && (
+                sortedChats.length > 0 ? (
+                  <div className="mt-1 space-y-0.5">
+                    {sortedChats.map((chat) => (
+                      <div key={chat._id} className="group relative rounded-lg transition-all duration-200">
+                        {editingChatId === chat._id ? (
+                          <div className="flex-1 flex items-center p-1 md:p-2">
+                            <div className="relative flex-1">
+                              <input
+                                type="text"
+                                value={renameState.newName}
+                                onChange={(e) => setRenameState(prev => ({ ...prev, newName: e.target.value, error: null }))}
+                                onKeyDown={handleRenameKeyDown}
+                                className={`w-full px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border \
+                                  ${renameState.error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} \
+                                  rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm`}
+                                autoFocus
+                                disabled={renameState.isLoading}
+                                placeholder="Enter new name..."
+                                maxLength={100}
+                              />
+                              {renameState.error && (
+                                <div className="absolute -bottom-6 left-0 text-xs text-red-500">
+                                  {renameState.error}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 ml-2">
+                              <button
+                                onClick={() => handleSaveEdit(chat._id)}
+                                disabled={renameState.isLoading}
+                                className={`p-1.5 rounded-lg transition-colors
+                                  ${renameState.isLoading
+                                    ? 'bg-gray-300 cursor-not-allowed'
+                                    : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30'}`}
+                                title="Save"
+                              >
+                                {renameState.isLoading ? (
+                                  <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                disabled={renameState.isLoading}
+                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                title="Cancel"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="relative flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group-hover:shadow-sm">
+                            <Link
+                              to={`/mfuchatbot?chat=${chat._id}`}
+                              className={`flex-1 flex items-center p-1 md:p-2 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm min-w-0 overflow-hidden
+                                ${currentChatId === chat._id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+                              onClick={() => { if (isMobile && onClose) onClose(); }}
+                            >
+                              <div className="flex flex-col min-w-0 flex-1 pr-4 overflow-hidden">
+                                <div className="font-medium text-ellipsis overflow-hidden whitespace-nowrap">
+                                  {chat.chatname || 'Untitled Chat'}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 text-ellipsis overflow-hidden whitespace-nowrap">
+                                  {chat.name}
+                                </div>
+                              </div>
+                            </Link>
+                            <div className={`absolute right-1 top-1/2 -translate-y-1/2 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity flex items-center gap-0.5 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-md px-1 py-0.5 shadow-sm`}>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleEdit(chat._id, chat.chatname);
+                                }}
+                                className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                                title="Edit chat name"
+                              >
+                                <FaEdit className="w-2.5 h-2.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDelete(chat._id);
+                                }}
+                                className="p-1 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                                title="Delete chat"
+                              >
+                                <FaTrash className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-4 select-none">
+                    No chat history
+                  </div>
+                )
+              )}
+            </div>
           )}
-
-          {isSuperAdmin && (
-            <>
-              <Link
-                to="/admin/create"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/admin/create' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-              >
-                <FaUserPlus className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Create Admin</span>
-              </Link>
-              
-              <Link
-                to="/admin/manage"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/admin/manage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-              >
-                <FaUsers className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Manage Admins</span>
-              </Link>
-              
-              <Link
-                to="/departments/manage"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/departments/manage' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-              >
-                <FaBuilding className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="font-medium truncate">Manage Departments</span>
-              </Link>
-              
-              <Link
-                to="/statistics"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/statistics' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-              >
-                <FaChartBar className="w-5 h-5 mr-3" />
-                <span className="font-medium">Statistics</span>
-              </Link>
-              
-              <Link
-                to="/system-prompt"
-                className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-                  ${location.pathname === '/system-prompt' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-                onClick={onClose}
-              >
-                <FaCog className="w-5 h-5 mr-3" />
-                <span className="font-medium">Edit System Prompt</span>
-              </Link>
-            </>
-          )}
-
-          {/* Help link */}
-          <Link
-            to="/help"
-            className={`flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200
-              ${location.pathname === '/help' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
-            onClick={onClose}
-          >
-            <FaQuestionCircle className="w-5 h-5 mr-3" />
-            <span className="font-medium">Help</span>
-          </Link>
         </nav>
       </div>
 
-      <div className="fixed bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] lg:w-64 z-40">
-        <div className="p-4">
+      {/* Settings icon at bottom */}
+      <div className={`fixed bottom-0 left-0 ${shouldShowContent ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
+        <div className="p-2 relative" data-settings-popup>
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+            onClick={toggleSettingsPopup}
+            className={`w-full flex items-center ${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700
+              ${showSettingsPopup ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}
+            title={!shouldShowContent ? "Settings" : ""}
           >
-            <FaSignOutAlt className="w-5 h-5 mr-3 flex-shrink-0" />
-            <span className="font-medium truncate">Logout</span>
+            <FaCog className="w-5 h-5 flex-shrink-0" />
+            {shouldShowContent && <span className="font-medium truncate ml-2">Settings and Help</span>}
           </button>
+
+          {/* Settings popup */}
+          {showSettingsPopup && (
+            <div className="absolute bottom-full left-2 mb-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-scale-in" data-settings-popup>
+              {/* Content container with scrolling */}
+              <div 
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="max-h-[calc(100vh-12rem)] overflow-y-auto"
+              >
+                <div className="p-1">
+                  {/* SuperAdmin section with distinct styling */}
+                  {isSuperAdmin && (
+                    <div className="mb-1">
+                      <div className="px-3 py-2">
+                        
+                        <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                          <FaCog className="w-4 h-4 animate-spin-slow" />
+                          Admin Tools
+                        </h4>
+                      </div>
+                      <div className="space-y-1">
+                        <Link to="/admin/create" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-green-50 dark:hover:from-emerald-900/20 dark:hover:to-green-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                          onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}>
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                            <FaUserPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium">Create Admin</div>
+                           
+                          </div>
+                        </Link>
+                        <Link to="/admin/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                          onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}>
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                            <FaUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium">Manage Admins</div>
+                           
+                          </div>
+                        </Link>
+                        <Link to="/departments/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 dark:hover:from-violet-900/20 dark:hover:to-purple-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                          onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}>
+                          <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                            <FaBuilding className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium">Departments</div>
+                            
+                          </div>
+                        </Link>
+                        <Link to="/statistics" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 dark:hover:from-orange-900/20 dark:hover:to-amber-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                          onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}>
+                          <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                            <FaChartBar className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium">Statistics</div>
+                            
+                          </div>
+                        </Link>
+                        <Link to="/system-prompt" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-rose-50 hover:to-pink-50 dark:hover:from-rose-900/20 dark:hover:to-pink-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                          onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}>
+                          <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                            <FaCog className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium">System Prompt</div>
+                            
+                          </div>
+                        </Link>
+                      </div>
+                      <div className="border-t border-gray-200 dark:border-gray-600 my-3"></div>
+                    </div>
+                  )}
+
+                                     {/* General tools section */}
+                   <div className="mb-1">
+                     <div className="px-3 py-2">
+                       <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                         <FaCog className="w-4 h-4 animate-spin-slow" />
+                         Tools & Resources
+                       </h4>
+                     </div>
+                    <div className="space-y-1">
+                      <Link
+                        to="/modelCreation"
+                        className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                        onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaAndroid className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Build Model</div>
+                         
+                        </div>
+                      </Link>
+                      <Link
+                        to="/training"
+                        className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                        onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaBookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Knowledge Base</div>
+                          
+                        </div>
+                      </Link>
+                      <Link
+                        to="/help"
+                        className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                        onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                          <FaQuestionCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Help</div>
+                          
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Theme toggle with special styling */}
+                  <div className="border-t border-gray-200 dark:border-gray-600 mt-3 pt-3">
+                    <button
+                      onClick={toggleTheme}
+                      className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-all duration-200 ${
+                        isDarkMode 
+                          ? 'bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30' 
+                          : 'bg-gradient-to-br from-slate-100 to-gray-100 dark:from-slate-900/30 dark:to-gray-900/30'
+                      }`}>
+                        {isDarkMode ? (
+                          <FaSun className="w-4 h-4 text-yellow-500 group-hover:rotate-12 transition-transform duration-200" />
+                        ) : (
+                          <FaMoon className="w-4 h-4 text-slate-600 dark:text-slate-400 group-hover:-rotate-12 transition-transform duration-200" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium">
+                          {isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                        </div>
+
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
     </aside>
   );
 };
