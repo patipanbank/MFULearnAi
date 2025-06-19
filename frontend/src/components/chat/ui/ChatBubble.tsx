@@ -11,6 +11,12 @@ import { useChatInputStore } from '../store/chatInputStore';
 import { useChatStore } from '../store/chatStore';
 import { prepareMessageFiles, compressImage } from '../utils/fileProcessing';
 
+// Function to generate user initials for avatar
+const getUserInitials = () => {
+  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  return `${userData.firstName?.charAt(0) || ''}${userData.lastName?.charAt(0) || ''}`.toUpperCase();
+};
+
 interface ChatBubbleProps {
   message: Message;
   isLastMessage: boolean;
@@ -363,16 +369,23 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       <div className={`flex items-start gap-3 ${
         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-      }`}>
-        <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ${
-          message.role === 'user'
-            ? 'bg-gradient-to-r from-red-600 to-yellow-400'
-            : 'bg-transparent'
-        } flex items-center justify-center`}>
+      } w-full max-w-[98%] md:max-w-[80%] lg:max-w-[50%] mx-auto`}>
+        <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center ${
+          message.role === 'user' ? '' : 'bg-transparent'
+        }`}>
           {message.role === 'user' ? (
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-            </svg>
+            <div 
+              className="w-full h-full flex items-center justify-center text-white text-sm font-semibold select-none"
+              style={{
+                background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+                WebkitUserSelect: 'none',
+                MozUserSelect: 'none',
+                msUserSelect: 'none',
+                userSelect: 'none'
+              }}
+            >
+              {getUserInitials()}
+            </div>
           ) : (
             <img
               src="/dindin.PNG"
@@ -381,7 +394,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             />
           )}
         </div>
-
+ 
         <div className={`flex flex-col space-y-2 max-w-[80%] ${
           message.role === 'user' ? 'items-end' : 'items-start'
         }`}>
@@ -399,11 +412,97 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <MessageContent message={message} />
             )}
           </div>
+
+          {/* Action buttons for assistant messages (moved inside bubble container) */}
+          {message.role === 'assistant' && message.isComplete && (
+            <div className="mt-2 flex flex-wrap gap-1 justify-start w-full">
+              {/* Continue button - shown for the latest assistant message */}
+              {isLastAssistantMessage && (
+                <button
+                  type="button"
+                  onClick={onContinueClick}
+                  className={`p-2 rounded-md transition-colors ${
+                    selectedModel 
+                      ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
+                      : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                  }`}
+                  disabled={!selectedModel}
+                  title="Continue"
+                  data-verify="false"
+                >
+                  <VscDebugContinue className="h-4 w-4" />
+                </button>
+              )}
+              
+              {/* Regenerate button - for all assistant messages */}
+              {onRegenerateClick && (
+                <button
+                  type="button"
+                  onClick={handleRegenerateClick}
+                  className={`p-2 rounded-md transition-colors ${
+                    selectedModel 
+                      ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
+                      : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                  }`}
+                  disabled={!selectedModel}
+                  title={isLastAssistantMessage ? "Regenerate response" : "Clear newer history and regenerate response"}
+                >
+                  <MdRefresh className="h-4 w-4" />
+                </button>
+              )}
+              
+              {/* Copy to clipboard button */}
+              <button
+                type="button"
+                onClick={handleCopyToClipboard}
+                className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+                title={isCopied ? "Copied!" : "Copy to clipboard"}
+              >
+                <MdContentCopy className="h-4 w-4" />
+              </button>
+              
+              {/* Edit button */}
+              <button
+                type="button"
+                onClick={onStartEdit}
+                className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+                title="Edit message"
+              >
+                <MdEdit className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Action buttons for user messages (move inside bubble container) */}
+          {message.role === 'user' && (
+            <div className="mt-2 flex flex-wrap gap-1 justify-end w-full">
+              {/* Copy button */}
+              <button
+                type="button"
+                onClick={handleCopyToClipboard}
+                className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+                title={isCopied ? "Copied!" : "Copy to clipboard"}
+              >
+                <MdContentCopy className="h-4 w-4" />
+              </button>
+              {/* Edit button - for all user messages */}
+              {onEditClick && (
+                <button
+                  type="button"
+                  onClick={onStartEdit}
+                  className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+                  title="Edit message"
+                >
+                  <MdEdit className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-        <div className="ml-11 mt-1">
+        <div className="mt-1 ml-2 flex justify-start">
           <button
             onClick={() => {
               const sourceInfo = message.sources?.map(source =>
@@ -422,93 +521,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             </svg>
             View Sources ({message.sources.length})
           </button>
-        </div>
-      )}
-
-      {/* Action buttons for assistant messages */}
-      {message.role === 'assistant' && message.isComplete && (
-        <div className="ml-11 mt-2 flex flex-wrap gap-2">
-          {/* Continue button - shown for the latest assistant message */}
-          {isLastAssistantMessage && (
-            <button
-              type="button"
-              onClick={onContinueClick}
-              className={`p-2 rounded-md transition-colors ${
-                selectedModel 
-                  ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
-                  : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-              }`}
-              disabled={!selectedModel}
-              title="Continue"
-              data-verify="false"
-            >
-              <VscDebugContinue className="h-5 w-5" />
-            </button>
-          )}
-          
-          {/* Regenerate button - for all assistant messages */}
-          {onRegenerateClick && (
-            <button
-              type="button"
-              onClick={handleRegenerateClick}
-              className={`p-2 rounded-md transition-colors ${
-                selectedModel 
-                  ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
-                  : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-              }`}
-              disabled={!selectedModel}
-              title={isLastAssistantMessage ? "Regenerate response" : "Clear newer history and regenerate response"}
-            >
-              <MdRefresh className="h-5 w-5" />
-            </button>
-          )}
-          
-          {/* Copy to clipboard button */}
-          <button
-            type="button"
-            onClick={handleCopyToClipboard}
-            className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title={isCopied ? "Copied!" : "Copy to clipboard"}
-          >
-            <MdContentCopy className="h-5 w-5" />
-          </button>
-          
-          {/* Edit button */}
-          <button
-            type="button"
-            onClick={onStartEdit}
-            className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title="Edit message"
-          >
-            <MdEdit className="h-5 w-5" />
-          </button>
-        </div>
-      )}
-      
-      {/* Action buttons for user messages */}
-      {message.role === 'user' && (
-        <div className={`${message.role === 'user' ? 'mr-11' : 'ml-11'} mt-2 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-          {/* Copy button */}
-          <button
-            type="button"
-            onClick={handleCopyToClipboard}
-            className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title={isCopied ? "Copied!" : "Copy to clipboard"}
-          >
-            <MdContentCopy className="h-5 w-5" />
-          </button>
-          
-          {/* Edit button - for all user messages */}
-          {onEditClick && (
-            <button
-              type="button"
-              onClick={onStartEdit}
-              className="p-2 rounded-md transition-colors text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-              title="Edit message"
-            >
-              <MdEdit className="h-5 w-5" />
-            </button>
-          )}
         </div>
       )}
     </div>
