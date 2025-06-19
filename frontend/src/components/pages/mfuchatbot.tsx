@@ -19,7 +19,6 @@ const MFUChatbot: React.FC = () => {
     messagesEndRef,
     chatContainerRef,
     isNearBottom,
-    messageCount: _messageCount,
     setMessageCount,
     handleScrollToBottom
   } = useScrollManager();
