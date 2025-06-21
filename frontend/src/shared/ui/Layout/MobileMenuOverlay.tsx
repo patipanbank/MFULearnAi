@@ -46,42 +46,75 @@ const MobileSettingsModal: React.FC<{
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-60 animate-fade-in md:hidden"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-60 animate-fade-in"
       onClick={onClose}
     >
       <div 
-        className="fixed bottom-0 left-0 right-0 bg-primary rounded-t-2xl animate-slide-up-from-bottom z-70 max-h-[70vh] overflow-hidden"
+        className="fixed bottom-0 left-0 right-0 bg-primary z-70 overflow-hidden
+                   rounded-t-2xl animate-slide-up-from-bottom
+                   max-h-[75vh] sm:max-h-[60vh] md:max-h-[50vh]
+                   md:left-1/2 md:transform md:-translate-x-1/2 
+                   md:bottom-8 md:rounded-2xl md:max-w-md md:w-full
+                   lg:max-w-lg xl:max-w-xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Drag Handle (Mobile Only) */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-8 h-1 bg-muted rounded-full opacity-50"></div>
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-primary">
-          <h3 className="text-lg font-semibold text-primary">Settings</h3>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-primary">
+          <h3 className="text-lg sm:text-xl font-semibold text-primary">Settings</h3>
           <button
             onClick={onClose}
-            className="btn-ghost p-2"
+            className="btn-ghost p-2 hover:bg-secondary rounded-lg transition-colors"
+            aria-label="Close settings"
           >
             <FiX className="h-5 w-5" />
           </button>
         </div>
 
         {/* Settings Items */}
-        <div className="p-6 space-y-3 overflow-y-auto">
+        <div className="p-4 sm:p-6 space-y-2 sm:space-y-3 overflow-y-auto 
+                        max-h-[calc(75vh-80px)] sm:max-h-[calc(60vh-80px)] md:max-h-[calc(50vh-80px)]">
           {settingsItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => handleItemClick(item)}
-                className="w-full flex items-center space-x-4 p-4 text-left card-hover transition-colors rounded-xl"
+                className="w-full flex items-center space-x-3 sm:space-x-4 
+                          p-3 sm:p-4 text-left card-hover transition-all duration-200 
+                          rounded-xl hover:scale-[1.02] active:scale-[0.98]
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
               >
-                <Icon className="h-5 w-5 text-muted flex-shrink-0" />
+                <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 
+                               bg-secondary rounded-xl flex items-center justify-center">
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-base font-medium text-primary">{item.label}</div>
-                  <div className="text-sm text-muted truncate">{item.description}</div>
+                  <div className="text-sm sm:text-base font-medium text-primary truncate">
+                    {item.label}
+                  </div>
+                  <div className="text-xs sm:text-sm text-muted truncate mt-0.5">
+                    {item.description}
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full opacity-0 
+                                 group-hover:opacity-100 transition-opacity"></div>
                 </div>
               </button>
             );
           })}
+        </div>
+
+        {/* Footer (Optional) */}
+        <div className="border-t border-primary p-4 sm:p-6 bg-tertiary rounded-b-2xl md:rounded-b-2xl">
+          <p className="text-xs sm:text-sm text-muted text-center">
+            Swipe down or tap outside to close
+          </p>
         </div>
       </div>
     </div>

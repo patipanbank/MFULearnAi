@@ -6,6 +6,7 @@ import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/LoginPage';
 import AdminLoginPage from '../pages/AdminLoginPage';
 import AuthCallbackPage from '../pages/AuthCallbackPage';
+import LogoutSuccessPage from '../pages/LogoutSuccessPage';
 import ChatPage from '../pages/ChatPage';
 import AgentPage from '../pages/AgentPage';
 import CollectionPage from '../pages/CollectionPage';
@@ -62,6 +63,7 @@ function App() {
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/auth-callback" element={<AuthCallbackPage />} />
+      <Route path="/logout/success" element={<LogoutSuccessPage />} />
 
       {/* Protected Routes with Layout */}
       <Route element={<AuthGuard />}>

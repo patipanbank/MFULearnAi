@@ -1,15 +1,18 @@
 import React, { useRef, useEffect } from 'react';
-import { FiLogOut, FiChevronDown, FiUser, FiMail, FiHome } from 'react-icons/fi';
+import { FiLogOut, FiChevronDown, FiUser, FiMail, FiHome, FiMoon, FiSun, FiMonitor } from 'react-icons/fi';
 import useAuthStore from '../../../entities/user/store';
 import useUIStore from '../../stores/uiStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 const UserProfile: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { user, logout } = useAuthStore();
+  const { user, logoutSAML } = useAuthStore();
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
+  const { preferences, setPreferences, getCurrentTheme } = useSettingsStore();
   
   const dropdownId = 'user-profile';
   const isOpen = openDropdowns.has(dropdownId);
+  const currentTheme = getCurrentTheme();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -23,9 +26,13 @@ const UserProfile: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [closeDropdown, dropdownId]);
 
-  const handleLogout = () => {
-    logout();
+  const handleCompleteLogout = () => {
+    logoutSAML();
     closeDropdown(dropdownId);
+  };
+
+  const handleThemeChange = (theme: 'light' | 'dark' | 'auto') => {
+    setPreferences({ theme });
   };
 
   if (!user) {
@@ -40,7 +47,7 @@ const UserProfile: React.FC = () => {
       {/* Profile Button */}
       <button
         onClick={() => toggleDropdown(dropdownId)}
-        className="btn-ghost flex items-center space-x-2"
+        className="btn-ghost flex items-center space-x-2 hover:bg-secondary transition-colors duration-200"
       >
         {/* Avatar */}
         <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm">
@@ -63,9 +70,9 @@ const UserProfile: React.FC = () => {
 
       {/* Dropdown Menu with Animation */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 dropdown-menu">
+        <div className="absolute right-0 mt-2 w-80 bg-primary border border-border rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
           {/* User Profile Header */}
-          <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-t-xl border-b border-secondary">
+          <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-border">
             <div className="flex items-center space-x-4">
               <div className="h-14 w-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xl font-semibold shadow-md">
                 {avatarLetter.toUpperCase()}
@@ -95,7 +102,7 @@ const UserProfile: React.FC = () => {
           </div>
 
           {/* User Stats */}
-          <div className="p-4 bg-secondary border-b border-secondary">
+          <div className="p-4 bg-secondary border-b border-border">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <div className="text-lg font-semibold text-primary">12</div>
@@ -112,9 +119,52 @@ const UserProfile: React.FC = () => {
             </div>
           </div>
 
+          {/* Theme Selector */}
+          <div className="p-4 border-b border-border">
+            <div className="text-xs font-medium text-muted uppercase tracking-wider mb-3">Appearance</div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handleThemeChange('light')}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                  preferences.theme === 'light'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'hover:bg-secondary text-muted hover:text-primary'
+                }`}
+              >
+                <FiSun className="h-4 w-4" />
+                <span className="text-sm">Light</span>
+              </button>
+              <button
+                onClick={() => handleThemeChange('dark')}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                  preferences.theme === 'dark'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'hover:bg-secondary text-muted hover:text-primary'
+                }`}
+              >
+                <FiMoon className="h-4 w-4" />
+                <span className="text-sm">Dark</span>
+              </button>
+              <button
+                onClick={() => handleThemeChange('auto')}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                  preferences.theme === 'auto'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'hover:bg-secondary text-muted hover:text-primary'
+                }`}
+              >
+                <FiMonitor className="h-4 w-4" />
+                <span className="text-sm">Auto</span>
+              </button>
+            </div>
+            <div className="text-xs text-muted mt-2">
+              Current: {currentTheme === 'light' ? 'Light mode' : 'Dark mode'}
+            </div>
+          </div>
+
           {/* Account Info */}
-          <div className="p-4 space-y-3">
-            <div className="text-xs font-medium text-muted uppercase tracking-wider">Account Information</div>
+          <div className="p-4 border-b border-border">
+            <div className="text-xs font-medium text-muted uppercase tracking-wider mb-3">Account Information</div>
             
             <div className="space-y-2">
               <div className="flex justify-between items-center py-1">
@@ -138,15 +188,18 @@ const UserProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* Logout Button */}
-          <div className="p-4 border-t border-secondary">
+          {/* Complete Logout */}
+          <div className="p-4">
             <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-medium"
+              onClick={handleCompleteLogout}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-medium group"
             >
-              <FiLogOut className="h-4 w-4" />
-              <span>Sign Out</span>
+              <FiLogOut className="h-4 w-4 group-hover:scale-110 transition-transform" />
+              <span>Complete Logout</span>
             </button>
+            <div className="text-xs text-muted text-center mt-2">
+              This will sign you out from all devices
+            </div>
           </div>
         </div>
       )}

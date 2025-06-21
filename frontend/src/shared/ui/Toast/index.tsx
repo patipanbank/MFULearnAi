@@ -40,7 +40,7 @@ const Toast: React.FC = () => {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+          <div className="fixed top-4 right-4 z-30 space-y-2 max-w-sm">
       {toasts.map((toast) => (
         <div
           key={toast.id}

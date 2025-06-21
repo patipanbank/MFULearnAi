@@ -1,9 +1,31 @@
 import React from 'react';
-import { FiMessageCircle, FiBell } from 'react-icons/fi';
+import { FiMessageCircle, FiBell, FiMoon, FiSun, FiMonitor } from 'react-icons/fi';
 import UserProfile from '../UserProfile';
 import ModelSelector from '../ModelSelector';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 const Header: React.FC = () => {
+  const { preferences, setPreferences, getCurrentTheme } = useSettingsStore();
+  const currentTheme = getCurrentTheme();
+
+  const getThemeIcon = () => {
+    switch (preferences.theme) {
+      case 'light':
+        return <FiSun className="h-5 w-5" />;
+      case 'dark':
+        return <FiMoon className="h-5 w-5" />;
+      case 'auto':
+        return <FiMonitor className="h-5 w-5" />;
+      default:
+        return <FiSun className="h-5 w-5" />;
+    }
+  };
+
+  const handleThemeToggle = () => {
+    const nextTheme = preferences.theme === 'light' ? 'dark' : preferences.theme === 'dark' ? 'auto' : 'light';
+    setPreferences({ theme: nextTheme });
+  };
+
   return (
     <header className="header px-6 py-4 flex items-center justify-between">
       {/* Left side - Logo, Title & Model Selector */}
@@ -31,11 +53,23 @@ const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Right side - Notifications & User Profile */}
+      {/* Right side - Theme Toggle, Notifications & User Profile */}
       <div className="flex items-center space-x-4">
+        {/* Theme Toggle (Desktop only) */}
+        <button
+          onClick={handleThemeToggle}
+          className="hidden md:flex btn-ghost p-2 hover:bg-secondary transition-colors group"
+          aria-label={`Switch to ${preferences.theme === 'light' ? 'dark' : preferences.theme === 'dark' ? 'auto' : 'light'} theme`}
+          title={`Current: ${currentTheme} mode`}
+        >
+          <div className="text-muted group-hover:text-primary group-hover:scale-110 transition-all">
+            {getThemeIcon()}
+          </div>
+        </button>
+
         {/* Notifications */}
-        <button className="btn-ghost p-2">
-          <FiBell className="h-5 w-5" />
+        <button className="btn-ghost p-2 hover:bg-secondary transition-colors group">
+          <FiBell className="h-5 w-5 text-muted group-hover:text-primary transition-colors" />
         </button>
 
         {/* User Profile */}

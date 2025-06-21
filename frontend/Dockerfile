@@ -1,19 +1,26 @@
 # Build stage
-FROM node:18 as build
+FROM node:20-alpine AS build
+
+# Build arguments
+ARG VITE_API_URL=https://mfulearnai.mfu.ac.th
+ARG VITE_WS_URL=wss://mfulearnai.mfu.ac.th/ws
+
+# Set environment variables for build
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_WS_URL=${VITE_WS_URL}
 
 # Set working directory
-WORKDIR /app/frontend_new
+WORKDIR /app/frontend
 
-# Copy package files and install dependencies
+# Install dependencies first (for better caching)
 COPY package*.json ./
-RUN npm install
+RUN npm ci --silent
 
 # Copy source code
 COPY . .
 
 # Build the application
-# Use --force to overcome potential dependency issues during build
-RUN npm run build --force
+RUN npm run build
 
 # Production stage
 FROM nginx:alpine
@@ -22,7 +29,7 @@ FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the build output from the build stage
-COPY --from=build /app/frontend_new/dist /usr/share/nginx/html
+COPY --from=build /app/frontend/dist /usr/share/nginx/html
 
 # Expose port 80
 EXPOSE 80

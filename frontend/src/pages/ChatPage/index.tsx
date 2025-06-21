@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useChatStore, useModelsStore, useUIStore, useAuthStore } from '../../shared/stores';
 import type { ChatMessage } from '../../shared/stores/chatStore';
 import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 
 const ChatPage: React.FC = () => {
-  const { user, token } = useAuthStore();
+  const { user, token, refreshToken } = useAuthStore();
   const { 
     currentSession, 
     addMessage, 
@@ -25,13 +26,22 @@ const ChatPage: React.FC = () => {
   
   const { setLoading, addToast } = useUIStore();
   
+  // Navigation
+  const navigate = useNavigate();
+  const { chatId } = useParams<{ chatId?: string }>();
+  
   // Local state
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<Array<{ data: string; mediaType: string }>>([]);
+  const [isConnectedToRoom, setIsConnectedToRoom] = useState(false);
   
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Determine if we're in a specific chat room
+  const isInChatRoom = Boolean(chatId);
+  const hasMessages = (currentSession?.messages.length || 0) > 0;
   
   // Initialize data on mount
   useEffect(() => {
@@ -57,17 +67,68 @@ const ChatPage: React.FC = () => {
     initializeData();
   }, [fetchModels, fetchCollections, setLoading, addToast]);
   
-  // Create new chat session if none exists
+  // Handle chat room navigation
   useEffect(() => {
-    if (!currentSession) {
+    if (isInChatRoom && chatId) {
+      // Load specific chat room or create if doesn't exist
+      if (!currentSession || currentSession.id !== chatId) {
+        // In a real app, you'd load the chat from backend
+        // For now, create a new session and then update its ID
+        createNewChat();
+        // Update the session ID after creation (this will be handled in the next useEffect)
+      }
+      // Connect to WebSocket when entering a chat room
+      if (!isConnectedToRoom) {
+        connectWebSocket();
+      }
+    } else if (!isInChatRoom && !currentSession) {
+      // Create new chat session if none exists and we're on /chat
       createNewChat();
     }
-  }, [currentSession, createNewChat]);
+  }, [chatId, isInChatRoom, currentSession, createNewChat]);
+  
+  // Update session ID when chat room changes
+  useEffect(() => {
+    if (isInChatRoom && chatId && currentSession && currentSession.id !== chatId) {
+      // Update current session ID to match the chat room
+      currentSession.id = chatId;
+    }
+  }, [chatId, isInChatRoom, currentSession]);
   
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentSession?.messages]);
+  
+  // Helper function to check if token is expired
+  const isTokenExpired = (token: string): boolean => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp && payload.exp < currentTime;
+    } catch {
+      return true; // Consider invalid tokens as expired
+    }
+  };
+
+  // Helper function to try token refresh and reconnect
+  const tryRefreshAndReconnect = async (): Promise<boolean> => {
+    try {
+      console.log('Attempting to refresh token...');
+      const newToken = await refreshToken();
+      if (newToken) {
+        console.log('Token refreshed successfully, reconnecting WebSocket...');
+        // Small delay to ensure token is updated in store
+        setTimeout(() => {
+          connectWebSocket();
+        }, 500);
+        return true;
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+    }
+    return false;
+  };
   
   // WebSocket connection management
   const connectWebSocket = () => {
@@ -75,14 +136,29 @@ const ChatPage: React.FC = () => {
       return;
     }
     
+    // Check if token is expired before connecting
+    if (isTokenExpired(token)) {
+      console.log('Token expired, attempting refresh...');
+      tryRefreshAndReconnect();
+      return;
+    }
+    
     setWsStatus('connecting');
     
-    const wsUrl = `${config.wsUrl}/api/chat/ws?token=${token}`;
+    // Use the new /ws endpoint
+    let wsUrl = `${config.wsUrl}?token=${token}`;
+    
+    // For local development, use localhost WebSocket
+    if (window.location.hostname === 'localhost') {
+      wsUrl = `ws://localhost/ws?token=${token}`;
+    }
+    
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
       console.log('WebSocket connected');
       setWsStatus('connected');
+      setIsConnectedToRoom(true);
       wsRef.current = ws;
       
       // Show connection success toast
@@ -133,6 +209,7 @@ const ChatPage: React.FC = () => {
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
       setWsStatus('error');
+      setIsConnectedToRoom(false);
       addToast({
         type: 'error',
         title: 'Connection Error',
@@ -140,44 +217,80 @@ const ChatPage: React.FC = () => {
         duration: 5000
       });
     };
-    
+
     ws.onclose = (event) => {
-      console.log('WebSocket disconnected');
       setWsStatus('disconnected');
+      setIsConnectedToRoom(false);
       wsRef.current = null;
       
-      // Show disconnection toast only if it wasn't a clean close
-      if (event.code !== 1000) {
+      // Handle different close codes
+      if (event.code === 1000) {
+        // Normal closure - no error needed
+        console.log('WebSocket closed normally');
+      } else if (event.code === 1006) {
+        // Connection failed - try token refresh first
+        console.log('WebSocket connection failed (code 1006)', { reason: event.reason });
+        if (token && isTokenExpired(token)) {
+          console.log('Connection failed due to expired token, attempting refresh...');
+          tryRefreshAndReconnect();
+        } else {
+          // Auto-reconnect for other reasons
+          setTimeout(() => {
+            console.log('Attempting to reconnect...');
+            connectWebSocket();
+          }, 3000);
+        }
+      } else {
+        console.log(`WebSocket closed with code ${event.code}:`, event.reason);
+        // Show appropriate error message
         addToast({
           type: 'warning',
-          title: 'Disconnected',
-          message: 'Chat service disconnected. Click refresh to reconnect.',
-          duration: 0 // Persistent until manually dismissed
+          title: 'Connection Lost',
+          message: 'Connection to chat service lost. Attempting to reconnect...',
+          duration: 5000
         });
       }
     };
   };
   
-  // Send message
+  // Handle room creation (when first message is sent)
+  const handleRoomCreated = (roomId: string) => {
+    console.log('Creating new chat room:', roomId);
+    
+    // Navigate to the new chat room
+    navigate(`/chat/${roomId}`);
+    
+    // Update current session ID
+    if (currentSession) {
+      // In a real app, you'd update the session ID in the backend
+      // For now, just update the local state
+      currentSession.id = roomId;
+    }
+    
+    // Connect to WebSocket for the new room
+    connectWebSocket();
+  };
+  
+  // Send message function
   const sendMessage = async () => {
-    if (!message.trim() || !selectedModel || !currentSession || !wsRef.current) {
+    if (!message.trim() || !selectedModel || wsStatus !== 'connected') {
       return;
     }
     
     // Add user message
     const userMessage: ChatMessage = {
-      id: `msg_${Date.now()}_user`,
+      id: Date.now().toString(),
       role: 'user',
-      content: message,
+      content: message.trim(),
       timestamp: new Date(),
       images: images.length > 0 ? images : undefined
     };
     
     addMessage(userMessage);
     
-    // Add assistant placeholder message
+    // Add assistant placeholder
     const assistantMessage: ChatMessage = {
-      id: `msg_${Date.now()}_assistant`,
+      id: (Date.now() + 1).toString(),
       role: 'assistant',
       content: '',
       timestamp: new Date(),
@@ -190,7 +303,7 @@ const ChatPage: React.FC = () => {
     
     // Send to WebSocket
     const payload = {
-      session_id: currentSession.id,
+      session_id: currentSession!.id,
       message: message,
       model_id: selectedModel.id,
       collection_names: selectedCollections,
@@ -198,7 +311,7 @@ const ChatPage: React.FC = () => {
     };
     
     try {
-      wsRef.current.send(JSON.stringify(payload));
+      wsRef.current!.send(JSON.stringify(payload));
       
       // Clear input
       setMessage('');
@@ -243,22 +356,23 @@ const ChatPage: React.FC = () => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
   
-  // Connect WebSocket when component mounts or dependencies change
-  useEffect(() => {
-    connectWebSocket();
-    
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [token, currentSession?.id]);
-
-  // Auto-reconnect when disconnected
+  // Auto-reconnect when disconnected (but only if token is still valid)
   useEffect(() => {
     let reconnectTimer: number;
     
-    if (wsStatus === 'disconnected' && token && currentSession) {
+    if (wsStatus === 'disconnected' && token && currentSession && isInChatRoom) {
+      // Check if token is still valid before attempting reconnect
+      if (isTokenExpired(token)) {
+        console.log('Token expired, not attempting reconnect');
+        addToast({
+          type: 'warning',
+          title: 'Session Expired',
+          message: 'Your session has expired. Please log in again to continue chatting.',
+          duration: 0
+        });
+        return;
+      }
+      
       // Try to reconnect after 3 seconds
       reconnectTimer = window.setTimeout(() => {
         console.log('Attempting to reconnect...');
@@ -271,7 +385,16 @@ const ChatPage: React.FC = () => {
         window.clearTimeout(reconnectTimer);
       }
     };
-  }, [wsStatus, token, currentSession]);
+  }, [wsStatus, token, currentSession, isInChatRoom]);
+  
+  // Cleanup WebSocket on unmount
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
   
   if (!user) {
     return (
@@ -337,9 +460,9 @@ const ChatPage: React.FC = () => {
             <div className="flex justify-start">
               <div className="card px-4 py-3">
                 <div className="flex space-x-1">
-                              <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
-            <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-            <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
                 </div>
               </div>
             </div>
@@ -348,7 +471,7 @@ const ChatPage: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
         
-        {/* Responsive Chat Input */}
+        {/* Responsive Chat Input with new props */}
         <ResponsiveChatInput
           message={message}
           onMessageChange={setMessage}
@@ -356,9 +479,11 @@ const ChatPage: React.FC = () => {
           onImageUpload={handleImageUpload}
           images={images}
           onRemoveImage={handleRemoveImage}
-          disabled={wsStatus !== 'connected' || !selectedModel}
+          disabled={(!isInChatRoom && !selectedModel) || (isInChatRoom && wsStatus !== 'connected')}
           isTyping={isTyping}
-          hasMessages={(currentSession?.messages.length || 0) > 0}
+          hasMessages={hasMessages}
+          isConnectedToRoom={isConnectedToRoom}
+          onRoomCreated={handleRoomCreated}
         />
       </div>
     </div>

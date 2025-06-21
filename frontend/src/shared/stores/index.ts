@@ -17,6 +17,9 @@ export { default as useChatStore } from './chatStore';
 // Models & Collections
 export { default as useModelsStore } from './modelsStore';
 
+// Agent Management
+export { default as useAgentStore } from './agentStore';
+
 // Settings & Preferences
 export { default as useSettingsStore } from './settingsStore';
 
@@ -30,6 +33,13 @@ export type {
   Model,
   Collection
 } from './modelsStore';
+
+export type {
+  AgentConfig,
+  AgentTool,
+  AgentExecution,
+  AgentTemplate
+} from './agentStore';
 
 export type {
   Toast,

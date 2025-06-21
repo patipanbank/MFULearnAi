@@ -9,7 +9,9 @@ interface AuthState {
   fetchError: string | null;
   setToken: (token: string) => void;
   fetchUser: () => Promise<void>;
+  refreshToken: () => Promise<string | null>;
   logout: () => void;
+  logoutSAML: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
@@ -18,52 +20,97 @@ export const useAuthStore = create<AuthState>((set, get) => {
   
   const store = {
     token: initialToken,
-    user: null,
+  user: null,
     status: initialToken ? 'loading' as const : 'unauthenticated' as const,
-    fetchError: null,
+  fetchError: null,
 
     setToken: (token: string) => {
-      localStorage.setItem('auth_token', token);
+    localStorage.setItem('auth_token', token);
       set({ token, status: 'loading' }); // Set status to loading, then fetch user
       get().fetchUser(); // Immediately fetch user data
-    },
+  },
 
-    fetchUser: async () => {
+  fetchUser: async () => {
+    const token = get().token;
+    if (!token) {
+      return set({ status: 'unauthenticated', user: null });
+    }
+    
+    // Ensure we don't fetch unnecessarily
+    if (get().status === 'authenticated') {
+        return;
+    }
+
+    set({ status: 'loading' });
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        localStorage.removeItem('auth_token');
+        return set({ status: 'unauthenticated', user: null, token: null });
+      }
+
+      const userData: User = await response.json();
+      set({ status: 'authenticated', user: userData, fetchError: null });
+    } catch (error) {
+      localStorage.removeItem('auth_token');
+      set({ status: 'unauthenticated', user: null, token: null, fetchError: error instanceof Error ? error.message : 'Network error' });
+    }
+  },
+
+    refreshToken: async (): Promise<string | null> => {
       const token = get().token;
       if (!token) {
-        return set({ status: 'unauthenticated', user: null });
+        return null;
       }
-      
-      // Ensure we don't fetch unnecessarily
-      if (get().status === 'authenticated') {
-          return;
-      }
-
-      set({ status: 'loading' });
 
       try {
-        const response = await fetch(`${config.apiUrl}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const response = await fetch(`${config.apiUrl}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
         });
 
         if (!response.ok) {
-          localStorage.removeItem('auth_token');
-          return set({ status: 'unauthenticated', user: null, token: null });
+          // If refresh fails, logout user
+          get().logout();
+          return null;
         }
 
-        const userData: User = await response.json();
-        set({ status: 'authenticated', user: userData, fetchError: null });
+        const data = await response.json();
+        const newToken = data.token;
+        
+        // Update token in store and localStorage
+        localStorage.setItem('auth_token', newToken);
+        set({ token: newToken });
+        
+        return newToken;
       } catch (error) {
-        localStorage.removeItem('auth_token');
-        set({ status: 'unauthenticated', user: null, token: null, fetchError: error instanceof Error ? error.message : 'Network error' });
+        console.error('Token refresh failed:', error);
+        get().logout();
+        return null;
       }
     },
 
-    logout: () => {
-      localStorage.removeItem('auth_token');
-      set({ token: null, user: null, status: 'unauthenticated' });
-      window.location.href = '/login'; 
-    },
+  logout: () => {
+    localStorage.removeItem('auth_token');
+    set({ token: null, user: null, status: 'unauthenticated' });
+    window.location.href = '/login'; 
+  },
+
+  logoutSAML: () => {
+    // Clear local storage first
+    localStorage.removeItem('auth_token');
+    set({ token: null, user: null, status: 'unauthenticated' });
+    
+    // Redirect to SAML logout endpoint to clear SAML session
+    window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+  },
   };
 
   // If we have a token at startup, fetch user data immediately

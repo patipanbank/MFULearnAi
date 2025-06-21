@@ -278,7 +278,7 @@
   .dropdown-menu {
     background-color: rgb(var(--color-dropdown));
     border-color: rgb(var(--color-border));
-    @apply rounded-xl shadow-lg border z-50;
+    @apply rounded-xl shadow-lg border z-30;
     animation: slide-in-from-top-2 0.2s ease-out, fade-in 0.2s ease-out;
   }
   

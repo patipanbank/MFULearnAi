@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from config.config import settings
 from lib.mongodb import connect_to_mongo, close_mongo_connection
@@ -16,15 +16,32 @@ from routes import (
 
 app = FastAPI()
 
-# CORS Middleware
-origins = settings.ALLOWED_ORIGINS.split(',') if settings.ALLOWED_ORIGINS else []
+# Enhanced CORS Middleware for WebSocket support
+origins = settings.ALLOWED_ORIGINS.split(',') if settings.ALLOWED_ORIGINS else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "Origin",
+        "X-Requested-With",
+        "X-Real-IP",
+        "X-Forwarded-For",
+        "X-Forwarded-Proto",
+        "Upgrade",
+        "Connection",
+        "Sec-WebSocket-Key",
+        "Sec-WebSocket-Version",
+        "Sec-WebSocket-Protocol",
+        "Sec-WebSocket-Extensions"
+    ],
 )
 
 @app.on_event("startup")
@@ -34,6 +51,17 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     await close_mongo_connection()
+
+# Root level WebSocket endpoint (matches nginx /ws route)
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    Root level WebSocket endpoint for chat functionality.
+    This matches the nginx /ws route configuration.
+    """
+    # Import the websocket handler from chat router
+    from routes.chat import websocket_endpoint as chat_websocket_handler
+    await chat_websocket_handler(websocket)
 
 # Include Routers
 app.include_router(embedding_router.router, prefix="/api")
@@ -45,6 +73,9 @@ app.include_router(models_router.router, prefix="/api")
 app.include_router(training_router.router, prefix="/api")
 app.include_router(collection_router.router, prefix="/api")
 app.include_router(chat_router.router, prefix="/api")
+
+# WebSocket routes are already included in chat_router with /api prefix
+# The nginx /ws location proxy_pass will handle the routing
 
 @app.get("/")
 def read_root():

@@ -55,7 +55,7 @@ interface ChatState {
   setIsLoading: (loading: boolean) => void;
   
   // Chat actions
-  createNewChat: () => void;
+  createNewChat: () => ChatSession;
   loadChat: (chatId: string) => Promise<void>;
   saveChat: () => Promise<void>;
   fetchChatHistory: () => Promise<void>;
@@ -143,6 +143,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     };
     
     set({ currentSession: newSession });
+    return newSession;
   },
   
   loadChat: async (chatId: string) => {

@@ -48,43 +48,84 @@ async def get_user_chat_history(current_user: User = Depends(role_guard([UserRol
     chat_history = await chat_history_service.get_chat_history_for_user(str(current_user.id))
     return chat_history
 
-@router.delete("/{chat_id}")
-async def delete_chat(chat_id: str, current_user: User = Depends(role_guard([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
-    """
-    Delete a chat session.
-    """
-    # First check if chat exists and belongs to user
-    chat = await chat_history_service.get_chat_by_id(chat_id)
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    
-    if str(chat.userId) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Not authorized to delete this chat")
-    
-    success = await chat_history_service.delete_chat(chat_id)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to delete chat")
-    
-    return {"message": "Chat deleted successfully"}
-
+# WebSocket route MUST come before catch-all delete route
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str):
-    await websocket.accept()
+async def websocket_endpoint(websocket: WebSocket):
+    print(f"🌐 WebSocket connection attempt from: {websocket.client}")
+    print(f"🔗 WebSocket URL: {websocket.url}")
+    print(f"🔍 Query params: {websocket.query_params}")
+    
+    # Extract token from query parameters manually
+    token = websocket.query_params.get("token")
+    print(f"🎫 Token received: {token[:50] if token else 'None'}...")
+    
+    # Pre-validate token before accepting connection
+    if not token:
+        print("❌ No token provided in query parameters")
+        await websocket.close(code=1008, reason="No token provided")
+        return
+        
     try:
+        # Quick token validation before accepting
         if not settings.JWT_SECRET or not settings.JWT_ALGORITHM:
+            print("❌ JWT configuration missing")
+            await websocket.close(code=1011, reason="Server configuration error")
+            return
+            
+        # Try to decode token
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        
+        if not user_id:
+            print("❌ No user_id in token payload")
+            await websocket.close(code=1008, reason="Invalid token")
+            return
+            
+        print(f"✅ Token pre-validation successful, user_id: {user_id}")
+        
+    except jwt.PyJWTError as e:
+        print(f"❌ JWT pre-validation error: {e}")
+        await websocket.close(code=1008, reason=f"Token error: {e}")
+        return
+    except Exception as e:
+        print(f"❌ Unexpected pre-validation error: {e}")
+        await websocket.close(code=1011, reason=f"Validation error: {e}")
+        return
+    
+    try:
+        await websocket.accept()
+        print("✅ WebSocket connection accepted")
+    except Exception as e:
+        print(f"❌ Failed to accept WebSocket connection: {e}")
+        return
+        
+    try:
+        print(f"🔐 WebSocket auth attempt with token: {token[:50]}...")
+        print(f"🔑 JWT_SECRET available: {'Yes' if settings.JWT_SECRET else 'No'}")
+        print(f"🔧 JWT_ALGORITHM: {settings.JWT_ALGORITHM}")
+        
+        if not settings.JWT_SECRET or not settings.JWT_ALGORITHM:
+            print("❌ JWT configuration missing")
             raise ValueError("JWT_SECRET and JWT_ALGORITHM must be configured")
 
         # 1. Authenticate user from token
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         user_id = payload.get("sub")
+        print(f"✅ Token decoded successfully, user_id: {user_id}")
+        
         if not user_id:
+            print("❌ No user_id in token payload")
             await websocket.close(code=1008, reason="Invalid token")
             return
+            
+        print(f"🎯 WebSocket authenticated for user: {user_id}")
 
     except jwt.PyJWTError as e:
+        print(f"❌ JWT decode error: {e}")
         await websocket.close(code=1008, reason=f"Token error: {e}")
         return
     except Exception as e:
+        print(f"❌ Unexpected auth error: {e}")
         await websocket.close(code=1011, reason=f"An unexpected error occurred during auth: {e}")
         return
 
@@ -130,3 +171,22 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
         if not websocket.client_state.value == 3: # i.e. not disconnected
             await websocket.close()
         print(f"WebSocket connection closed for user {user_id}") 
+
+@router.delete("/{chat_id}")
+async def delete_chat(chat_id: str, current_user: User = Depends(role_guard([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
+    """
+    Delete a chat session.
+    """
+    # First check if chat exists and belongs to user
+    chat = await chat_history_service.get_chat_by_id(chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    if str(chat.userId) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this chat")
+    
+    success = await chat_history_service.delete_chat(chat_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to delete chat")
+    
+    return {"message": "Chat deleted successfully"} 
