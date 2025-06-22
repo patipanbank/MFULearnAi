@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiArrowRight, FiFileText } from 'react-icons/fi';
+import { FiArrowRight, FiFileText, FiTag } from 'react-icons/fi';
 import type { AgentTemplate } from '../../stores/agentStore';
 
 interface AgentTemplateCardProps {
