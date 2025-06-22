@@ -30,15 +30,13 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Ensure URL is properly formatted with /api prefix when needed
+    // Log request details for debugging
     if (config.url) {
-      // If URL doesn't start with /api/ and doesn't start with http(s)://
-      if (!config.url.startsWith('/api/') && !config.url.match(/^https?:\/\//)) {
-        config.url = `/api${config.url.startsWith('/') ? '' : '/'}${config.url}`;
-      }
-      
-      // For debugging
-      console.log('Request URL:', config.url);
+      console.log('API Request:', {
+        url: config.url,
+        baseURL: config.baseURL,
+        fullUrl: config.baseURL ? `${config.baseURL}${config.url}` : config.url
+      });
     }
     
     return config;
@@ -52,16 +50,28 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => {
     // Any status code that lie within the range of 2xx cause this function to trigger
+    console.log('API Response:', {
+      url: response.config.url,
+      status: response.status,
+      contentType: response.headers['content-type']
+    });
+    
     return response;
   },
-  (error: AxiosError) => {
+  (error) => {
     // Any status codes that falls outside the range of 2xx cause this function to trigger
+    console.error('API Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      contentType: error.response?.headers?.['content-type'],
+      data: error.response?.data,
+      message: error.message
+    });
+    
     if (error.response?.status === 401) {
       // If we get a 401, logout the user
       useAuthStore.getState().logout();
     }
-    
-    // We can also add more complex logic here, like refreshing the token
     
     return Promise.reject(error);
   }

@@ -145,7 +145,7 @@ const useChatStore = create<ChatState>((set, get) => ({
   loadChat: async (chatId: string) => {
     set({ isLoading: true });
     try {
-      const response = await api.get<any>(`/chat/history/${chatId}`);
+      const response = await api.get<any>(`/api/chat/history/${chatId}`);
       
       if (response.success && response.data) {
         // Convert date strings back to Date objects
@@ -174,7 +174,7 @@ const useChatStore = create<ChatState>((set, get) => ({
     if (!currentSession) return;
     
     try {
-      const response = await api.post<any>('/chat/save', currentSession);
+      const response = await api.post<any>('/api/chat/save', currentSession);
       
       if (response.success) {
         // Update chat history with saved chat
@@ -202,7 +202,7 @@ const useChatStore = create<ChatState>((set, get) => ({
   fetchChatHistory: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get<any>('/chat/history');
+      const response = await api.get<any>('/api/chat/history');
       
       if (response.success && Array.isArray(response.data)) {
         const history: ChatSession[] = response.data
@@ -244,7 +244,7 @@ const useChatStore = create<ChatState>((set, get) => ({
   // Delete chat
   deleteChat: async (chatId: string) => {
     try {
-      const response = await api.delete<any>(`/chat/${chatId}`);
+      const response = await api.delete<any>(`/api/chat/${chatId}`);
       
       if (response.success) {
         set((state) => ({

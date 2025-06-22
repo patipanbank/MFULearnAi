@@ -116,7 +116,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
     // Fetch collections
     setLoadingCollections(true);
     try {
-      const response = await api.get<Collection[]>('/collections');
+      const response = await api.get<Collection[]>('/api/collections');
       if (response.success && Array.isArray(response.data)) {
         setCollections(response.data);
       } else {
