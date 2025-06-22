@@ -3,6 +3,7 @@ import { FiX, FiPlus, FiTrash2, FiToggleLeft, FiToggleRight, FiRefreshCw } from 
 import { useAgentStore } from '../../stores';
 import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
+import type { Collection } from '../../stores/collectionStore';
 
 interface AgentModalProps {
   isOpen: boolean;
@@ -30,9 +31,11 @@ const AgentModal: React.FC<AgentModalProps> = ({
     setShowAgentModal
   } = useAgentStore();
 
-  // Local state for models
+  // Local state for models and collections
   const [models, setModels] = useState<ModelOption[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [loadingCollections, setLoadingCollections] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<AgentConfig>>({
@@ -58,7 +61,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
     { id: 'function', name: 'Custom Function', description: 'Custom function tools' }
   ];
 
-  // Initialize models
+  // Initialize models and fetch collections
   const initializeData = async () => {
     // Set default models (no API call needed)
     setLoadingModels(true);
@@ -69,6 +72,44 @@ const AgentModal: React.FC<AgentModalProps> = ({
     ];
     setModels(defaultModels);
     setLoadingModels(false);
+
+    // Fetch collections using robust API utility
+    setLoadingCollections(true);
+    
+    let result = await api.get<Collection[]>('/api/collections', {
+      timeout: 30000, // เพิ่ม timeout เป็น 30 วินาที สำหรับ production
+      retries: 2, // ลด retries เป็น 2 ครั้ง
+      retryDelay: 3000 // เพิ่ม delay เป็น 3 วินาที
+    });
+    
+    // ถ้าไม่สามารถเข้าถึงได้เพราะ authentication ให้ลอง public endpoint
+    if (!result.success && result.status === 401) {
+      console.log('Authentication failed, trying public collections...');
+      result = await api.get<Collection[]>('/api/collections/public', {
+        timeout: 30000,
+        retries: 2,
+        retryDelay: 3000
+      });
+    }
+    
+    if (result.success && result.data) {
+      setCollections(result.data);
+      console.log(`Successfully loaded ${result.data.length} collections`);
+    } else {
+      console.warn('Failed to load collections:', result.error);
+      setCollections([]); // Continue with empty collections
+      
+      // Show user-friendly message for specific errors
+      if (result.status === 401) {
+        console.info('Collections require authentication - modal will work without them');
+      } else if (result.status === 0) {
+        console.error('Network timeout or connection issue loading collections:', result.error);
+      } else {
+        console.error('Server error loading collections:', result.error);
+      }
+    }
+    
+    setLoadingCollections(false);
   };
 
   // Initialize form data
@@ -101,6 +142,17 @@ const AgentModal: React.FC<AgentModalProps> = ({
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleCollectionToggle = (collectionName: string) => {
+    const currentCollections = formData.collectionNames || [];
+    const isSelected = currentCollections.includes(collectionName);
+    
+    if (isSelected) {
+      handleInputChange('collectionNames', currentCollections.filter(c => c !== collectionName));
+    } else {
+      handleInputChange('collectionNames', [...currentCollections, collectionName]);
+    }
   };
 
   const handleToolToggle = (toolId: string) => {
@@ -306,17 +358,32 @@ const AgentModal: React.FC<AgentModalProps> = ({
               </div>
             </div>
 
-            {/* Knowledge Base */}
+            {/* Collections */}
             <div>
               <label className="block text-sm font-medium text-primary mb-2">
-                Knowledge Base
+                Knowledge Collections
               </label>
-              <div className="p-4 bg-secondary rounded-lg">
-                <p className="text-sm text-muted">
-                  Knowledge base management is now integrated directly into the agent system. 
-                  You can manage your knowledge base through the agent's configuration.
-                </p>
-              </div>
+              {loadingCollections ? (
+                <div className="p-4 text-center text-muted">Loading collections...</div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {collections.map((collection) => (
+                    <button
+                      key={collection.id}
+                      type="button"
+                      onClick={() => handleCollectionToggle(collection.name)}
+                      className={`p-3 rounded-lg border text-left transition-colors ${
+                        (formData.collectionNames || []).includes(collection.name)
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-border hover:bg-secondary'
+                      }`}
+                    >
+                      <div className="font-medium text-sm">{collection.name}</div>
+                      <div className="text-xs text-muted">{collection.permission}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Tools */}
@@ -336,8 +403,8 @@ const AgentModal: React.FC<AgentModalProps> = ({
                         : 'border-border hover:bg-secondary'
                     }`}
                   >
-                    <div className="font-medium">{tool.name}</div>
-                    <div className="text-sm text-muted">{tool.description}</div>
+                    <div className="font-medium text-sm">{tool.name}</div>
+                    <div className="text-xs text-muted">{tool.description}</div>
                   </button>
                 ))}
               </div>
@@ -349,18 +416,18 @@ const AgentModal: React.FC<AgentModalProps> = ({
                 Tags
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
-                {(formData.tags || []).map((tag) => (
+                {(formData.tags || []).map((tag, index) => (
                   <span
-                    key={tag}
-                    className="px-2 py-1 rounded-full bg-secondary text-sm flex items-center space-x-1"
+                    key={index}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                   >
-                    <span>{tag}</span>
+                    {tag}
                     <button
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
-                      className="p-1 hover:text-red-500"
+                      className="ml-2 hover:text-red-600"
                     >
-                      <FiX className="h-3 w-3" />
+                      <FiTrash2 className="h-3 w-3" />
                     </button>
                   </span>
                 ))}
@@ -369,7 +436,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                 <input
                   type="text"
                   className="input flex-1"
-                  placeholder="Add a tag"
+                  placeholder="Add a tag..."
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
@@ -377,20 +444,20 @@ const AgentModal: React.FC<AgentModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAddTag}
-                  className="btn-primary px-4"
+                  className="btn-secondary"
                 >
-                  <FiPlus className="h-5 w-5" />
+                  <FiPlus className="h-4 w-4" />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-border flex justify-end space-x-4">
+          <div className="p-6 border-t border-border flex items-center justify-end space-x-3">
             <button
               type="button"
               onClick={handleClose}
-              className="btn-secondary"
+              className="btn-ghost"
             >
               Cancel
             </button>
@@ -400,7 +467,10 @@ const AgentModal: React.FC<AgentModalProps> = ({
               disabled={isCreatingAgent}
             >
               {isCreatingAgent ? (
-                <FiRefreshCw className="h-5 w-5 animate-spin" />
+                <>
+                  <FiRefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  {isEditing ? 'Updating...' : 'Creating...'}
+                </>
               ) : (
                 isEditing ? 'Update Agent' : 'Create Agent'
               )}
