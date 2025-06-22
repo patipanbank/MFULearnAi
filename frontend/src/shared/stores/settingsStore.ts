@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { api } from '../lib/api';
 
 export type Theme = 'light' | 'dark' | 'auto';
 
@@ -105,29 +106,26 @@ export const useSettingsStore = create<SettingsState>()(
       loadSettings: async () => {
         set({ isLoading: true });
         try {
-          const token = localStorage.getItem('token');
-          if (!token) return;
+          // The api object from api.ts automatically handles the token.
+          const response = await api.get<{
+            preferences: Partial<UserPreferences>;
+            profile: Partial<UserProfile>;
+            privacy: Partial<PrivacySettings>;
+          }>('/user/settings');
 
-          const response = await fetch('/api/user/settings', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
+          const data = response.data;
+
+          set({
+            preferences: { ...defaultPreferences, ...data.preferences },
+            profile: { ...defaultProfile, ...data.profile },
+            privacy: { ...defaultPrivacy, ...data.privacy },
           });
-
-          if (response.ok) {
-            const data = await response.json();
-            set({
-              preferences: { ...defaultPreferences, ...data.preferences },
-              profile: { ...defaultProfile, ...data.profile },
-              privacy: { ...defaultPrivacy, ...data.privacy },
-            });
-            
-            // Apply loaded theme
-            get().applyTheme(data.preferences?.theme || 'light');
-          }
+          
+          // Apply loaded theme
+          get().applyTheme(data.preferences?.theme || 'light');
         } catch (error) {
           console.error('Failed to load settings:', error);
+          // Don't throw here, allow the app to run with default settings
         } finally {
           set({ isLoading: false });
         }
@@ -136,29 +134,15 @@ export const useSettingsStore = create<SettingsState>()(
       saveSettings: async () => {
         set({ isSaving: true });
         try {
-          const token = localStorage.getItem('token');
-          if (!token) return;
-
           const { preferences, profile, privacy } = get();
-          const response = await fetch('/api/user/settings', {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              preferences,
-              profile,
-              privacy,
-            }),
+          await api.put('/user/settings', {
+            preferences,
+            profile,
+            privacy,
           });
-
-          if (!response.ok) {
-            throw new Error('Failed to save settings');
-          }
         } catch (error) {
           console.error('Failed to save settings:', error);
-          throw error;
+          throw error; // Re-throw to be caught by the UI layer
         } finally {
           set({ isSaving: false });
         }
@@ -205,15 +189,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       resetSettings: async () => {
         try {
-          const token = localStorage.getItem('token');
-          if (token) {
-            await fetch('/api/user/settings/reset', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-            });
-          }
+          // The api object handles the token automatically.
+          await api.post('/user/settings/reset');
 
           set({
             preferences: defaultPreferences,

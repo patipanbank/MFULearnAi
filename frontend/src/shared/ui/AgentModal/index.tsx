@@ -79,43 +79,32 @@ const AgentModal: React.FC<AgentModalProps> = ({
     setModels(defaultModels);
     setLoadingModels(false);
 
-    // Fetch collections using robust API utility
     setLoadingCollections(true);
-    
-    let result = await api.get<CollectionOption[]>('/api/collections', {
-      timeout: 30000, // เพิ่ม timeout เป็น 30 วินาที สำหรับ production
-      retries: 2, // ลด retries เป็น 2 ครั้ง
-      retryDelay: 3000 // เพิ่ม delay เป็น 3 วินาที
-    });
-    
-    // ถ้าไม่สามารถเข้าถึงได้เพราะ authentication ให้ลอง public endpoint
-    if (!result.success && result.status === 401) {
-      console.log('Authentication failed, trying public collections...');
-      result = await api.get<CollectionOption[]>('/api/collections/public', {
-        timeout: 30000,
-        retries: 2,
-        retryDelay: 3000
-      });
-    }
-    
-    if (result.success && result.data) {
-      setCollections(result.data);
-      console.log(`Successfully loaded ${result.data.length} collections`);
-    } else {
-      console.warn('Failed to load collections:', result.error);
-      setCollections([]); // Continue with empty collections
-      
-      // Show user-friendly message for specific errors
-      if (result.status === 401) {
-        console.info('Collections require authentication - modal will work without them');
-      } else if (result.status === 0) {
-        console.error('Network timeout or connection issue loading collections:', result.error);
+    try {
+      // First, try fetching the user's private and public collections
+      const response = await api.get<CollectionOption[]>('/collections');
+      setCollections(response.data);
+      console.log(`Successfully loaded ${response.data.length} collections`);
+    } catch (error: any) {
+      // If the first attempt fails with an authentication error, try the public endpoint
+      if (error.response?.status === 401) {
+        console.log('Authentication failed, trying public collections...');
+        try {
+          const publicResponse = await api.get<CollectionOption[]>('/collections/public');
+          setCollections(publicResponse.data);
+          console.log(`Successfully loaded ${publicResponse.data.length} public collections`);
+        } catch (publicError: any) {
+          console.warn('Failed to load public collections as well:', publicError);
+          setCollections([]); // Continue with empty collections
+        }
       } else {
-        console.error('Server error loading collections:', result.error);
+        // For any other error (network, server error, etc.), fail gracefully
+        console.warn('Failed to load collections:', error);
+        setCollections([]);
       }
+    } finally {
+      setLoadingCollections(false);
     }
-    
-    setLoadingCollections(false);
   };
 
   // Initialize form data

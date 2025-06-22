@@ -1,128 +1,90 @@
 // A robust API utility for handling fetch requests with advanced features.
 
+import axios from 'axios';
+import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { useAuthStore } from '../../entities/user/store';
 
-// Default options for fetch requests
-const DEFAULT_TIMEOUT = 15000; // 15 seconds
-
-// Interface for API responses
-interface ApiResponse<T> {
-  success: boolean;
-  data: T | null;
-  status: number;
-  error?: string;
-}
-
-// Interface for request options, extending RequestInit
-interface RequestOptions extends RequestInit {
-  timeout?: number;
-  retries?: number;
-  retryDelay?: number;
-}
-
-// Internal function to handle fetch with timeout
-async function fetchWithTimeout(
-  resource: RequestInfo,
-  options: RequestOptions = {}
-): Promise<Response> {
-  const { timeout = DEFAULT_TIMEOUT } = options;
-
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-
-  const response = await fetch(resource, {
-    ...options,
-    signal: controller.signal
-  });
-
-  clearTimeout(id);
-  return response;
-}
-
-// Main request function with retry logic
-async function request<T>(
-  url: string,
-  options: RequestOptions = {}
-): Promise<ApiResponse<T>> {
-  let { retries = 1, retryDelay = 1000, headers = {}, ...restOptions } = options;
-  const token = useAuthStore.getState().token;
-
-  // Add Authorization header if token exists
-  if (token) {
-    headers = {
-      ...headers,
-      'Authorization': `Bearer ${token}`
-    };
-  }
-  
-  // Add default headers if not present
-  headers = {
+/**
+ * Creates a configured instance of Axios.
+ * This instance includes the base API URL and an interceptor to automatically
+ * add the JWT token to authorization headers.
+ */
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 15000, // 15 seconds
+  headers: {
     'Content-Type': 'application/json',
-    ...headers
-  };
-  
-  const finalOptions: RequestOptions = {
-    ...restOptions,
-    headers,
-  };
+  },
+});
 
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetchWithTimeout(url, finalOptions);
-
-      if (!response.ok) {
-        // For client-side errors, don't retry
-        if (response.status >= 400 && response.status < 500) {
-          const errorData = await response.json().catch(() => ({ message: 'Invalid JSON response' }));
-          return {
-            success: false,
-            data: null,
-            status: response.status,
-            error: errorData?.message || response.statusText
-          };
-        }
-        // For server-side errors, retry
-        throw new Error(`Server error: ${response.status}`);
-      }
-      
-      const data: T = await response.json();
-      return { success: true, data, status: response.status };
-
-    } catch (error) {
-      // If it's the last retry, return the error
-      if (i === retries - 1) {
-        return {
-          success: false,
-          data: null,
-          status: 0,
-          error: error instanceof Error ? error.message : 'An unknown error occurred'
-        };
-      }
-      // Wait before retrying
-      await new Promise(res => setTimeout(res, retryDelay * (i + 1)));
+/**
+ * Request Interceptor
+ *
+ * Intercepts each request to inject the JWT token from the auth store.
+ */
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = useAuthStore.getState().token;
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
+);
 
-  // This should not be reached, but is a fallback
-  return {
-    success: false,
-    data: null,
-    status: 0,
-    error: 'Request failed after all retries'
-  };
-}
+/**
+ * Response Interceptor
+ *
+ * This interceptor simplifies the response data. On success (2xx), it returns
+ * the `data` property of the response directly. On error, it rejects with
+ * the error object, allowing `.catch()` or `try/catch` to handle it.
+ */
+apiClient.interceptors.response.use(
+  (response: AxiosResponse) => response.data,
+  (error) => {
+    // Reject with the error so the calling code can inspect it (e.g., error.response.status)
+    return Promise.reject(error);
+  }
+);
 
-// Exported API methods
+/**
+ * A wrapper around the configured axios instance.
+ *
+ * --- IMPORTANT ---
+ * This is a breaking change in how API calls are handled.
+ *
+ * Instead of returning `{ success, data, error }`, these methods now
+ * return a promise that resolves with the response data directly on success,
+ * or rejects with an error on failure.
+ *
+ * Code should be updated from:
+ * const { success, data, error } = await api.get(...);
+ * if (success) { ... }
+ *
+ * To the standard promise pattern:
+ * try {
+ *   const data = await api.get(...);
+ *   // work with data
+ * } catch (error) {
+ *   // handle error (e.g., check error.response.status)
+ * }
+ */
 export const api = {
-  get: <T>(url: string, options?: RequestOptions) => 
-    request<T>(url, { ...options, method: 'GET' }),
-  
-  post: <T>(url: string, body: any, options?: RequestOptions) =>
-    request<T>(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
-  
-  put: <T>(url: string, body: any, options?: RequestOptions) =>
-    request<T>(url, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+  get: <T>(url: string, config?: AxiosRequestConfig) =>
+    apiClient.get<T>(url, config),
 
-  delete: <T>(url: string, options?: RequestOptions) =>
-    request<T>(url, { ...options, method: 'DELETE' }),
+  post: <T>(url:string, data?: any, config?: AxiosRequestConfig) =>
+    apiClient.post<T>(url, data, config),
+
+  put: <T>(url: string, data?: any, config?: AxiosRequestConfig) =>
+    apiClient.put<T>(url, data, config),
+
+  delete: <T>(url: string, config?: AxiosRequestConfig) =>
+    apiClient.delete<T>(url, config),
 };
+
+// Exporting the raw instance in case advanced features (like cancelling requests) are needed.
+export default apiClient;

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { api } from '../lib/api';
 
 // Types
 export interface AgentTool {
@@ -160,40 +161,17 @@ const useAgentStore = create<AgentStore>()(
         fetchAgents: async () => {
           set({ isLoadingAgents: true });
           try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch('/api/agents/', {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
+            const response = await api.get<AgentConfig[]>('/agents/');
+            const agents = response.data;
+            set(state => {
+              const newState: Partial<AgentStore> = { agents, isLoadingAgents: false };
+              if (!state.selectedAgent && agents.length > 0) {
+                newState.selectedAgent = agents[0];
               }
+              return newState;
             });
-            
-            if (response.ok) {
-              const agents: AgentConfig[] = await response.json();
-              set(state => {
-                const newState = { agents, isLoadingAgents: false };
-                
-                // Auto-select first agent if none selected and agents exist
-                if (!state.selectedAgent && agents.length > 0) {
-                  (newState as any).selectedAgent = agents[0];
-                }
-                
-                return newState;
-              });
-            } else {
-              console.error('Failed to fetch agents:', response.status, response.statusText);
-              // If no agents from API, use template-based default
-              const defaultAgent = get().createDefaultAgent();
-              set({ 
-                agents: [defaultAgent],
-                selectedAgent: defaultAgent,
-                isLoadingAgents: false
-              });
-            }
           } catch (error) {
             console.error('Failed to fetch agents:', error);
-            // If network error, use template-based default
             const defaultAgent = get().createDefaultAgent();
             set({ 
               agents: [defaultAgent],
@@ -204,8 +182,6 @@ const useAgentStore = create<AgentStore>()(
         },
 
         createDefaultAgent: () => {
-          // Create a default agent for offline/fallback use
-          // Use a valid MongoDB ObjectId format (24 hex characters)
           const defaultAgent: AgentConfig = {
             id: '000000000000000000000001',
             name: 'General Assistant',
@@ -229,25 +205,12 @@ const useAgentStore = create<AgentStore>()(
 
         createAgent: async (config) => {
           try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch('/api/agents/', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-              },
-              body: JSON.stringify(config)
-            });
-
-            if (response.ok) {
-              const newAgent: AgentConfig = await response.json();
-              set(state => ({
-                agents: [...state.agents, newAgent]
-              }));
-              return newAgent;
-            } else {
-              throw new Error(`Failed to create agent: ${response.status} ${response.statusText}`);
-            }
+            const response = await api.post<AgentConfig>('/agents/', config);
+            const newAgent = response.data;
+            set(state => ({
+              agents: [...state.agents, newAgent]
+            }));
+            return newAgent;
           } catch (error) {
             console.error('Failed to create agent:', error);
             throw error;
@@ -256,166 +219,118 @@ const useAgentStore = create<AgentStore>()(
 
         updateAgent: async (id, updates) => {
           try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch(`/api/agents/${id}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-              },
-              body: JSON.stringify(updates)
-            });
-
-            if (response.ok) {
-              const updatedAgent: AgentConfig = await response.json();
-              set(state => ({
-                agents: state.agents.map(agent =>
-                  agent.id === id ? updatedAgent : agent
-                ),
-                selectedAgent: state.selectedAgent?.id === id ? updatedAgent : state.selectedAgent
-              }));
-            } else {
-              throw new Error(`Failed to update agent: ${response.status} ${response.statusText}`);
-            }
+            await api.put(`/agents/${id}`, updates);
+            set(state => ({
+              agents: state.agents.map(agent => 
+                agent.id === id ? { ...agent, ...updates } : agent
+              ),
+              ...(state.selectedAgent?.id === id && { selectedAgent: { ...state.selectedAgent, ...updates } })
+            }));
           } catch (error) {
-            console.error('Failed to update agent:', error);
+            console.error(`Failed to update agent ${id}:`, error);
             throw error;
           }
         },
 
-        deleteAgent: async (id) => {
+        deleteAgent: async (id: string) => {
           try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch(`/api/agents/${id}`, {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-              }
+            await api.delete(`/agents/${id}`);
+            set(state => {
+              const newAgents = state.agents.filter(agent => agent.id !== id);
+              const newSelectedAgent = state.selectedAgent?.id === id ? (newAgents[0] || null) : state.selectedAgent;
+              return {
+                agents: newAgents,
+                selectedAgent: newSelectedAgent
+              };
             });
-
-            if (response.ok) {
-              set(state => ({
-                agents: state.agents.filter(agent => agent.id !== id),
-                selectedAgent: state.selectedAgent?.id === id ? null : state.selectedAgent
-              }));
-            } else {
-              throw new Error(`Failed to delete agent: ${response.status} ${response.statusText}`);
-            }
           } catch (error) {
-            console.error('Failed to delete agent:', error);
+            console.error(`Failed to delete agent ${id}:`, error);
             throw error;
           }
         },
-
+        
         selectAgent: (agent) => {
           set({ selectedAgent: agent });
         },
 
         fetchTemplates: async () => {
           try {
-            const response = await fetch('/api/agents/templates', {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            if (response.ok) {
-              const templates: AgentTemplate[] = await response.json();
-              set({ agentTemplates: templates });
-            } else {
-              console.error('Failed to fetch templates:', response.status, response.statusText);
-            }
+            const response = await api.get<AgentTemplate[]>('/agents/templates');
+            set({ agentTemplates: response.data });
           } catch (error) {
-            console.error('Failed to fetch templates:', error);
+            console.error('Failed to fetch agent templates:', error);
           }
         },
 
-        createAgentFromTemplate: async (templateId, customizations = {}) => {
+        createAgentFromTemplate: async (templateId, customizations) => {
           const template = get().agentTemplates.find(t => t.id === templateId);
-          if (!template) {
-            throw new Error('Template not found');
-          }
+          if (!template) throw new Error('Template not found');
 
-          const agentConfig: Omit<AgentConfig, 'id' | 'createdAt' | 'updatedAt' | 'usageCount' | 'rating'> = {
-            name: customizations.name || template.name,
-            description: customizations.description || template.description,
-            systemPrompt: customizations.systemPrompt || template.systemPrompt,
-            modelId: customizations.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-            collectionNames: customizations.collectionNames || template.recommendedCollections,
-            tools: customizations.tools || template.recommendedTools.map(toolType => ({
-              id: toolType,
-              name: toolType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              description: `${toolType} tool`,
-              type: toolType as AgentTool['type'],
-              config: {},
-              enabled: true
-            })),
-            temperature: customizations.temperature || 0.7,
-            maxTokens: customizations.maxTokens || 4000,
-            isPublic: customizations.isPublic || false,
-            tags: customizations.tags || template.tags,
-            createdBy: customizations.createdBy || 'current-user'
+          const newAgentConfig = {
+            name: customizations?.name || template.name,
+            description: customizations?.description || template.description,
+            systemPrompt: customizations?.systemPrompt || template.systemPrompt,
+            modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+            collectionNames: template.recommendedCollections,
+            tools: template.recommendedTools.map(toolId => ({ id: toolId, name: toolId, type: 'web_search', enabled: true, config: {}, description: '' })), // Simplified tool creation
+            temperature: 0.7,
+            maxTokens: 4000,
+            isPublic: false,
+            tags: template.tags,
+            createdBy: 'current-user',
           };
-
-          return get().createAgent(agentConfig);
+          
+          return get().createAgent(newAgentConfig as any);
         },
 
         // Agent Execution
         startExecution: (agentId, sessionId) => {
-          const execution: AgentExecution = {
-            id: Date.now().toString(),
-            agentId,
-            sessionId,
-            status: 'thinking',
-            progress: 0,
-            startTime: new Date().toISOString(),
-            tokenUsage: { input: 0, output: 0 }
-          };
-
-          set({ currentExecution: execution });
+          set({ 
+            currentExecution: {
+              id: `exec_${Date.now()}`,
+              agentId,
+              sessionId,
+              status: 'idle',
+              progress: 0,
+              startTime: new Date().toISOString(),
+              tokenUsage: { input: 0, output: 0 }
+            } 
+          });
         },
 
         updateExecution: (updates) => {
           set(state => ({
-            currentExecution: state.currentExecution
-              ? { ...state.currentExecution, ...updates }
-              : null
+            currentExecution: state.currentExecution ? { ...state.currentExecution, ...updates } : null
           }));
         },
 
         endExecution: () => {
-          const { currentExecution } = get();
-          if (currentExecution) {
-            const completedExecution = {
-              ...currentExecution,
-              status: 'idle' as const,
-              endTime: new Date().toISOString(),
-              progress: 100
-            };
-
-            set(state => ({
-              currentExecution: null,
-              executionHistory: [completedExecution, ...state.executionHistory.slice(0, 49)] // Keep last 50
-            }));
-          }
+          set(state => {
+            if (state.currentExecution) {
+              const finalExecution = { ...state.currentExecution, endTime: new Date().toISOString() };
+              return {
+                currentExecution: null,
+                executionHistory: [finalExecution, ...state.executionHistory]
+              };
+            }
+            return state;
+          });
         },
 
         // UI Actions
         setCreatingAgent: (creating) => set({ isCreatingAgent: creating }),
         setEditingAgent: (editing) => set({ isEditingAgent: editing }),
-        setShowAgentModal: (show) => set({ showAgentModal: show })
+        setShowAgentModal: (show) => set({ showAgentModal: show }),
       }),
       {
-        name: 'agent-store',
+        name: 'agent-storage',
         partialize: (state) => ({
           agents: state.agents,
-          selectedAgent: state.selectedAgent
-        })
+          selectedAgent: state.selectedAgent,
+          agentTemplates: state.agentTemplates,
+        }),
       }
-    ),
-    { name: 'AgentStore' }
+    )
   )
 );
 

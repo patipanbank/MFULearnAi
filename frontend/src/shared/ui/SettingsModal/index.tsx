@@ -39,48 +39,35 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const fetchCollections = async () => {
     setCollectionsLoading(true);
     try {
-      const result = await api.get<Collection[]>('/api/collections', {
-        timeout: 30000, // เพิ่ม timeout เป็น 30 วินาที สำหรับ production
-        retries: 2, // ลด retries เป็น 2 ครั้ง
-        retryDelay: 3000 // เพิ่ม delay เป็น 3 วินาที
-      });
-      
-      if (result.success && result.data) {
-        setCollections(result.data);
-        console.log(`Successfully loaded ${result.data.length} collections`);
-      } else {
-        console.warn('Failed to load collections:', result.error);
-        setCollections([]);
-        
-        // Show appropriate error messages
-        if (result.status === 401) {
-          addToast({
-            type: 'warning',
-            title: 'Authentication Required',
-            message: 'Please log in to view collections'
-          });
-        } else if (result.status === 0) {
-          addToast({
-            type: 'error',
-            title: 'Connection Error',
-            message: 'Network timeout. Please check your connection and try again.'
-          });
-        } else {
-          addToast({
-            type: 'error',
-            title: 'Loading Error',
-            message: 'Unable to load collections. Please try again later.'
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Unexpected error loading collections:', error);
+      const response = await api.get<Collection[]>('/collections');
+      setCollections(response.data);
+      console.log(`Successfully loaded ${response.data.length} collections`);
+    } catch (error: any) {
+      console.warn('Failed to load collections:', error);
       setCollections([]);
-      addToast({
-        type: 'error',
-        title: 'Unexpected Error',
-        message: 'An unexpected error occurred while loading collections.'
-      });
+      
+      const status = error.response?.status;
+      
+      // Show appropriate error messages
+      if (status === 401) {
+        addToast({
+          type: 'warning',
+          title: 'Authentication Required',
+          message: 'Please log in to view collections'
+        });
+      } else if (error.code === 'ECONNABORTED' || status === undefined) { // Axios timeout or network error
+        addToast({
+          type: 'error',
+          title: 'Connection Error',
+          message: 'Network timeout. Please check your connection and try again.'
+        });
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Loading Error',
+          message: `Unable to load collections. (Error ${status})`
+        });
+      }
     } finally {
       setCollectionsLoading(false);
     }

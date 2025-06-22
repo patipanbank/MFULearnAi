@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { api } from '../lib/api';
 
 export interface ChatMessage {
   id: string;
@@ -141,28 +142,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadChat: async (chatId: string) => {
     set({ isLoading: true });
     try {
-      const response = await fetch(`/api/chat/history/${chatId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const chat = await response.json();
-        // Convert date strings back to Date objects
-        const chatSession: ChatSession = {
-          ...chat,
-          createdAt: new Date(chat.createdAt),
-          updatedAt: new Date(chat.updatedAt),
-          messages: chat.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          }))
-        };
-        set({ currentSession: chatSession });
-      } else {
-        throw new Error('Failed to load chat');
-      }
+      const response = await api.get<ChatSession>(`/chat/history/${chatId}`);
+      const chat = response.data;
+      // Convert date strings back to Date objects
+      const chatSession: ChatSession = {
+        ...chat,
+        createdAt: new Date(chat.createdAt),
+        updatedAt: new Date(chat.updatedAt),
+        messages: chat.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }))
+      };
+      set({ currentSession: chatSession });
     } catch (error) {
       console.error('Failed to load chat:', error);
     } finally {
@@ -175,31 +167,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!currentSession) return;
     
     try {
-      const response = await fetch('/api/chat/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(currentSession)
-      });
+      // API call now handles headers and token
+      await api.post('/chat/save', currentSession);
       
-      if (response.ok) {
-        // Update chat history with saved chat
-        const { chatHistory } = get();
-        const existingIndex = chatHistory.findIndex(chat => chat.id === currentSession.id);
-        
-        if (existingIndex >= 0) {
-          // Update existing chat
-          const updatedHistory = [...chatHistory];
-          updatedHistory[existingIndex] = currentSession;
-          set({ chatHistory: updatedHistory });
-        } else {
-          // Add new chat to history
-          set((state) => ({
-            chatHistory: [currentSession, ...state.chatHistory]
-          }));
-        }
+      // Update chat history with saved chat
+      const { chatHistory } = get();
+      const existingIndex = chatHistory.findIndex(chat => chat.id === currentSession.id);
+      
+      if (existingIndex >= 0) {
+        // Update existing chat
+        const updatedHistory = [...chatHistory];
+        updatedHistory[existingIndex] = currentSession;
+        set({ chatHistory: updatedHistory });
+      } else {
+        // Add new chat to history
+        set((state) => ({
+          chatHistory: [currentSession, ...state.chatHistory]
+        }));
       }
     } catch (error) {
       console.error('Failed to save chat:', error);
@@ -209,25 +193,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Fetch recent chats from backend
   fetchChatHistory: async () => {
     try {
-      const response = await fetch('/api/chat/history', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const chats = await response.json();
-        const chatSessions: ChatSession[] = chats.map((chat: any) => ({
-          ...chat,
-          createdAt: new Date(chat.createdAt),
-          updatedAt: new Date(chat.updatedAt),
-          messages: chat.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          }))
-        }));
-        set({ chatHistory: chatSessions });
-      }
+      const response = await api.get<ChatSession[]>('/chat/history');
+      const chats = response.data;
+      const chatSessions: ChatSession[] = chats.map((chat: any) => ({
+        ...chat,
+        createdAt: new Date(chat.createdAt),
+        updatedAt: new Date(chat.updatedAt),
+        messages: chat.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }))
+      }));
+      set({ chatHistory: chatSessions });
     } catch (error) {
       console.error('Failed to fetch chat history:', error);
     }
@@ -236,19 +213,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Delete chat
   deleteChat: async (chatId: string) => {
     try {
-      const response = await fetch(`/api/chat/${chatId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      await api.delete(`/chat/${chatId}`);
       
-      if (response.ok) {
-        set((state) => ({
-          chatHistory: state.chatHistory.filter(chat => chat.id !== chatId),
-          currentSession: state.currentSession?.id === chatId ? null : state.currentSession
-        }));
-      }
+      set((state) => ({
+        chatHistory: state.chatHistory.filter(chat => chat.id !== chatId),
+        currentSession: state.currentSession?.id === chatId ? null : state.currentSession
+      }));
     } catch (error) {
       console.error('Failed to delete chat:', error);
     }
