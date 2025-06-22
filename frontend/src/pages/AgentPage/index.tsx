@@ -20,7 +20,6 @@ const AgentPage: React.FC = () => {
     selectAgent,
     createAgentFromTemplate,
     setShowAgentModal,
-    setCreatingAgent,
     setEditingAgent
   } = useAgentStore();
 
