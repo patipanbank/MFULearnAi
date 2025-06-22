@@ -20,25 +20,18 @@ COPY . .
 # This generates the `dist` folder
 RUN npm run build
 
-# Stage 2: Serve the application using Nginx
-# Use a lightweight and secure Nginx image
+# Stage 2: Serve the application using a configured Nginx
 FROM nginx:stable-alpine AS production
 
 # Copy the built assets from the 'build' stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# It's good practice to remove the default Nginx configuration
-RUN rm /etc/nginx/conf.d/default.conf
+# Copy our custom Nginx configuration for the frontend server
+# This configuration is designed to properly serve a Single Page Application.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy our custom Nginx configuration
-# This will be handled by the main nginx service in docker-compose,
-# so this line is not strictly needed if we build the image separately
-# and then the main nginx uses its own config.
-# For simplicity and clarity in this new setup, we will let the main nginx service handle configuration.
-# The primary purpose of this Dockerfile is to produce the static assets.
-
-# Expose port 80
+# Expose port 80 for the reverse proxy to connect to
 EXPOSE 80
 
-# The command to start Nginx will be handled by the docker-compose service
+# Start Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"] 
