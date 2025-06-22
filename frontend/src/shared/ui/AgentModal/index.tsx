@@ -107,20 +107,26 @@ const AgentModal: React.FC<AgentModalProps> = ({
     }
   };
 
-  // Initialize form data
+  // Initialize data (models and collections) when the modal opens
   useEffect(() => {
     if (isOpen) {
       initializeData();
     }
-    
+  }, [isOpen]); // Run only when the modal's open state changes
+
+  // Initialize form data based on edit mode and selected agent
+  useEffect(() => {
+    if (!isOpen) return;
+
     if (isEditing && selectedAgent) {
       setFormData(selectedAgent);
     } else {
+      // Reset to default for new agent creation
       setFormData({
         name: '',
         description: '',
         systemPrompt: '',
-        modelId: models.length > 0 ? models[0].id : 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
         collectionNames: [],
         tools: [],
         temperature: 0.7,
@@ -130,7 +136,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
         createdBy: 'current-user'
       });
     }
-  }, [isEditing, selectedAgent, models, isOpen]);
+  }, [isEditing, selectedAgent, isOpen]);
 
   const handleInputChange = (field: keyof AgentConfig, value: any) => {
     setFormData(prev => ({
