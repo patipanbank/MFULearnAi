@@ -60,8 +60,8 @@ interface ChatState {
   error: string | null;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
-  // Current session
+const useChatStore = create<ChatState>((set, get) => ({
+  // Current chat session
   currentSession: null,
   setCurrentSession: (session) => set({ currentSession: session }),
   
@@ -145,20 +145,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadChat: async (chatId: string) => {
     set({ isLoading: true });
     try {
-      const response = await fetch(`/api/chat/history/${chatId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await api.get<any>(`/api/chat/history/${chatId}`);
       
-      if (response.ok) {
-        const chat = await response.json();
+      if (response.success && response.data) {
         // Convert date strings back to Date objects
         const chatSession: ChatSession = {
-          ...chat,
-          createdAt: new Date(chat.createdAt),
-          updatedAt: new Date(chat.updatedAt),
-          messages: chat.messages.map((msg: any) => ({
+          ...response.data,
+          createdAt: new Date(response.data.createdAt),
+          updatedAt: new Date(response.data.updatedAt),
+          messages: response.data.messages.map((msg: any) => ({
             ...msg,
             timestamp: new Date(msg.timestamp)
           }))
@@ -179,16 +174,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!currentSession) return;
     
     try {
-      const response = await fetch('/api/chat/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(currentSession)
-      });
+      const response = await api.post<any>('/api/chat/save', currentSession);
       
-      if (response.ok) {
+      if (response.success) {
         // Update chat history with saved chat
         const { chatHistory } = get();
         const existingIndex = chatHistory.findIndex(chat => chat.id === currentSession.id);
@@ -240,14 +228,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Delete chat
   deleteChat: async (chatId: string) => {
     try {
-      const response = await fetch(`/api/chat/${chatId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await api.delete<any>(`/api/chat/${chatId}`);
       
-      if (response.ok) {
+      if (response.success) {
         set((state) => ({
           chatHistory: state.chatHistory.filter(chat => chat.id !== chatId),
           currentSession: state.currentSession?.id === chatId ? null : state.currentSession
