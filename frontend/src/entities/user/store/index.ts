@@ -32,8 +32,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     fetchUser: async () => {
+      console.log('fetchUser: Attempting to fetch user data...');
       const token = get().token;
       if (!token) {
+        console.log('fetchUser: No token found, setting to unauthenticated.');
         return set({ status: 'unauthenticated', user: null });
       }
       
@@ -43,13 +45,16 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
 
       set({ status: 'loading' });
+      console.log('fetchUser: Token found, status set to loading.', { token });
 
       try {
         // api object now handles base URL and token
         const response = await api.get<User>('/auth/me');
         const userData = response.data;
+        console.log('fetchUser: Successfully fetched user data.', { userData });
         set({ status: 'authenticated', user: userData, fetchError: null });
       } catch (error) {
+        console.error('fetchUser: Failed to fetch user data.', error);
         localStorage.removeItem('auth_token');
         set({ status: 'unauthenticated', user: null, token: null, fetchError: error instanceof Error ? error.message : 'Network error' });
       }
