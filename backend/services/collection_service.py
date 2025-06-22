@@ -102,6 +102,10 @@ class CollectionService:
 
     def can_user_access_collection(self, user: User, collection: Collection) -> bool:
         """Check if user can access collection"""
+        # Admin and Super Admin can access all collections
+        if user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+            return True
+            
         # Public collections can be accessed by anyone
         if collection.permission == "public":
             return True
@@ -112,8 +116,16 @@ class CollectionService:
         
         # Department collections can be accessed by same department users
         if collection.permission == "department":
-            return (collection.createdBy == user.username or 
-                   user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN])
+            # Creator can always access their own collections
+            if collection.createdBy == user.username:
+                return True
+                
+            # Check if user has a department and it matches
+            if not user.department or not collection.createdBy:
+                return False
+                
+            # Compare departments case-insensitive
+            return user.department.lower() == collection.createdBy.lower()
         
         # Default to no access
         return False

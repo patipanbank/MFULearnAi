@@ -3,6 +3,7 @@ import { FiX, FiPlus, FiTrash2, FiToggleLeft, FiToggleRight, FiRefreshCw } from 
 import { useAgentStore } from '../../stores';
 import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
+import type { Collection } from '../../stores/collectionStore';
 
 interface AgentModalProps {
   isOpen: boolean;
@@ -13,13 +14,6 @@ interface AgentModalProps {
 interface ModelOption {
   id: string;
   name: string;
-}
-
-interface CollectionOption {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
 }
 
 const AgentModal: React.FC<AgentModalProps> = ({
@@ -39,7 +33,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
 
   // Local state for models and collections
   const [models, setModels] = useState<ModelOption[]>([]);
-  const [collections, setCollections] = useState<CollectionOption[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [loadingCollections, setLoadingCollections] = useState(false);
 
@@ -82,7 +76,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
     // Fetch collections using robust API utility
     setLoadingCollections(true);
     
-    let result = await api.get<CollectionOption[]>('/api/collections', {
+    let result = await api.get<Collection[]>('/api/collections', {
       timeout: 30000, // เพิ่ม timeout เป็น 30 วินาที สำหรับ production
       retries: 2, // ลด retries เป็น 2 ครั้ง
       retryDelay: 3000 // เพิ่ม delay เป็น 3 วินาที
@@ -91,7 +85,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
     // ถ้าไม่สามารถเข้าถึงได้เพราะ authentication ให้ลอง public endpoint
     if (!result.success && result.status === 401) {
       console.log('Authentication failed, trying public collections...');
-      result = await api.get<CollectionOption[]>('/api/collections/public', {
+      result = await api.get<Collection[]>('/api/collections/public', {
         timeout: 30000,
         retries: 2,
         retryDelay: 3000
