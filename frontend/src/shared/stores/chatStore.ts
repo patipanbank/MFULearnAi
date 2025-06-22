@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { api } from '../lib/api';
 
 export interface ChatMessage {
   id: string;
@@ -54,6 +55,9 @@ interface ChatState {
   fetchChatHistory: () => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
   pinChat: (chatId: string, pinned: boolean) => void;
+  
+  // เพิ่ม property error
+  error: string | null;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -208,28 +212,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   // Fetch recent chats from backend
   fetchChatHistory: async () => {
+    set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/chat/history', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await api.get<any>('/api/chat/history');
       
-      if (response.ok) {
-        const chats = await response.json();
-        const chatSessions: ChatSession[] = chats.map((chat: any) => ({
-          ...chat,
-          createdAt: new Date(chat.createdAt),
-          updatedAt: new Date(chat.updatedAt),
-          messages: chat.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          }))
-        }));
-        set({ chatHistory: chatSessions });
+      if (response.success && response.data) {
+        set({ 
+          chatHistory: response.data,
+          isLoading: false
+        });
+      } else {
+        console.error('Failed to fetch chat history:', response.error);
+        set({ 
+          error: 'Failed to fetch chat history',
+          isLoading: false
+        });
       }
-    } catch (error) {
-      console.error('Failed to fetch chat history:', error);
+    } catch (err) {
+      console.error('Error fetching chat history:', err);
+      set({ 
+        error: 'Error fetching chat history',
+        isLoading: false
+      });
     }
   },
   
@@ -258,7 +262,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     chatHistory: state.chatHistory.map(chat =>
       chat.id === chatId ? { ...chat, isPinned: pinned } : chat
     )
-  }))
+  })),
+  
+  // เพิ่ม property error
+  error: null,
 }));
 
 export default useChatStore; 

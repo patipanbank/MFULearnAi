@@ -66,9 +66,15 @@ async function request<T>(
     headers,
   };
 
+  // ปรับปรุง URL ให้เป็น relative path เสมอเพื่อป้องกันปัญหา mixed content
+  // และให้ใช้ protocol เดียวกับหน้าเว็บ
+  const normalizedUrl = url.startsWith('http') 
+    ? url.replace(/^http:\/\//, 'https://') // แปลง HTTP เป็น HTTPS เสมอ
+    : url.startsWith('/') ? url : `/${url}`; // ทำให้เป็น relative path
+
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetchWithTimeout(url, finalOptions);
+      const response = await fetchWithTimeout(normalizedUrl, finalOptions);
 
       if (!response.ok) {
         // For client-side errors, don't retry
