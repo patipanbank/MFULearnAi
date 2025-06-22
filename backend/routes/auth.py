@@ -204,8 +204,9 @@ async def saml_callback(request: Request):
         for key, value in saml_attributes.items():
             print(f"   {key}: {value}")
 
-        # Try different common SAML attribute formats
+        # Try different common SAML attribute formats, including the one with typo
         username = (
+            saml_attributes.get('User.Userrname', [None])[0] or  # Note: This is the actual attribute name with typo
             saml_attributes.get('User.Username', [None])[0] or
             saml_attributes.get('username', [None])[0] or
             saml_attributes.get('uid', [None])[0]
@@ -233,11 +234,21 @@ async def saml_callback(request: Request):
         groups = (
             saml_attributes.get('http://schemas.xmlsoap.org/claims/Group', []) or
             saml_attributes.get('groups', []) or
+            saml_attributes.get('Groups', []) or  # Add this as it's in the actual response
             saml_attributes.get('memberOf', [])
         )
 
         if not username:
             raise ValueError("Username not found in SAML attributes")
+
+        # Print mapped values for debugging
+        print("\n🔍 Mapped Values:")
+        print(f"   Username: {username}")
+        print(f"   Email: {email}")
+        print(f"   First Name: {first_name}")
+        print(f"   Last Name: {last_name}")
+        print(f"   Department: {department}")
+        print(f"   Groups: {groups}")
 
         profile = {
             'nameID': auth.get_nameid(),
@@ -249,7 +260,7 @@ async def saml_callback(request: Request):
             'groups': groups
         }
         
-        print(f"👤 Mapped Profile: {profile}")
+        print(f"\n👤 Mapped Profile: {profile}")
 
         user = await user_service.find_or_create_saml_user(profile)
         print(f"👤 Created/Found User: {user.username} ({user.email})")
