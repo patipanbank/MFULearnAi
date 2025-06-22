@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiToggleLeft, FiToggleRight, FiRefreshCw, FiAlertCircle, FiTag } from 'react-icons/fi';
 import { useAgentStore, useUIStore } from '../../stores';
 import { api } from '../../lib/api';
@@ -45,9 +45,6 @@ const AgentModal: React.FC<AgentModalProps> = ({
   const [loadingModels, setLoadingModels] = useState(false);
   const [loadingCollections, setLoadingCollections] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Ref to track if we've already initialized data
-  const hasInitializedRef = useRef(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<AgentConfig>>({
@@ -90,9 +87,6 @@ const AgentModal: React.FC<AgentModalProps> = ({
 
   // Initialize models and fetch collections
   const initializeData = async () => {
-    // Prevent duplicate API calls
-    if (hasInitializedRef.current) return;
-    
     setError(null);
     
     // Set default models (no API call needed)
@@ -131,41 +125,30 @@ const AgentModal: React.FC<AgentModalProps> = ({
     } finally {
       setLoadingCollections(false);
     }
-    
-    // Mark as initialized
-    hasInitializedRef.current = true;
   };
 
-  // Initialize data when modal opens
+  // Initialize form data
   useEffect(() => {
     if (isOpen) {
       initializeData();
       setFormErrors({});
-    } else {
-      // Reset the flag when modal closes so we can fetch fresh data next time
-      hasInitializedRef.current = false;
     }
-  }, [isOpen]);
-  
-  // Set form data when agent or models change
-  useEffect(() => {
-    if (isOpen) {
-      if (isEditing && selectedAgent) {
-        setFormData(selectedAgent);
-      } else {
-        setFormData({
-          name: '',
-          description: '',
-          systemPrompt: '',
-          modelId: models.length > 0 ? models[0].id : 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-          collectionNames: [],
-          tools: [],
-          temperature: 0.7,
-          maxTokens: 4000,
-          isPublic: false,
-          tags: [],
-        });
-      }
+    
+    if (isEditing && selectedAgent) {
+      setFormData(selectedAgent);
+    } else {
+      setFormData({
+        name: '',
+        description: '',
+        systemPrompt: '',
+        modelId: models.length > 0 ? models[0].id : 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        collectionNames: [],
+        tools: [],
+        temperature: 0.7,
+        maxTokens: 4000,
+        isPublic: false,
+        tags: [],
+      });
     }
   }, [isEditing, selectedAgent, models, isOpen]);
 
