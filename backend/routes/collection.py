@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime
 from services.collection_service import collection_service
 from services.chroma_service import chroma_service
 from models.user import User, UserRole
@@ -31,7 +32,7 @@ class CollectionResponse(BaseModel):
     name: str
     permission: str
     createdBy: str
-    createdAt: str
+    createdAt: datetime
 
     class Config:
         from_attributes = True
