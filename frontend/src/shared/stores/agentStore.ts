@@ -161,8 +161,7 @@ const useAgentStore = create<AgentStore>()(
         fetchAgents: async () => {
           set({ isLoadingAgents: true });
           try {
-            const response = await api.get<AgentConfig[]>('/agents/');
-            const agents = response.data;
+            const agents = await api.get<AgentConfig[]>('/agents/');
             set(state => {
               const newState: Partial<AgentStore> = { agents, isLoadingAgents: false };
               if (!state.selectedAgent && agents.length > 0) {
@@ -205,8 +204,7 @@ const useAgentStore = create<AgentStore>()(
 
         createAgent: async (config) => {
           try {
-            const response = await api.post<AgentConfig>('/agents/', config);
-            const newAgent = response.data;
+            const newAgent = await api.post<AgentConfig>('/agents/', config);
             set(state => ({
               agents: [...state.agents, newAgent]
             }));
@@ -255,8 +253,8 @@ const useAgentStore = create<AgentStore>()(
 
         fetchTemplates: async () => {
           try {
-            const response = await api.get<AgentTemplate[]>('/agents/templates');
-            set({ agentTemplates: response.data });
+            const templates = await api.get<AgentTemplate[]>('/agents/templates');
+            set({ agentTemplates: templates });
           } catch (error) {
             console.error('Failed to fetch agent templates:', error);
           }

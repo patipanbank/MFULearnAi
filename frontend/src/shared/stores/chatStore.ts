@@ -142,8 +142,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadChat: async (chatId: string) => {
     set({ isLoading: true });
     try {
-      const response = await api.get<ChatSession>(`/chat/history/${chatId}`);
-      const chat = response.data;
+      const chat = await api.get<ChatSession>(`/chat/history/${chatId}`);
       // Convert date strings back to Date objects
       const chatSession: ChatSession = {
         ...chat,
@@ -193,8 +192,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Fetch recent chats from backend
   fetchChatHistory: async () => {
     try {
-      const response = await api.get<ChatSession[]>('/chat/history');
-      const chats = response.data;
+      const chats = await api.get<ChatSession[]>('/chat/history');
       const chatSessions: ChatSession[] = chats.map((chat: any) => ({
         ...chat,
         createdAt: new Date(chat.createdAt),

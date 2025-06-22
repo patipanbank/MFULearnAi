@@ -107,13 +107,11 @@ export const useSettingsStore = create<SettingsState>()(
         set({ isLoading: true });
         try {
           // The api object from api.ts automatically handles the token.
-          const response = await api.get<{
+          const data = await api.get<{
             preferences: Partial<UserPreferences>;
             profile: Partial<UserProfile>;
             privacy: Partial<PrivacySettings>;
           }>('/user/settings');
-
-          const data = response.data;
 
           set({
             preferences: { ...defaultPreferences, ...data.preferences },
