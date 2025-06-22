@@ -21,18 +21,21 @@ interface RequestOptions extends RequestInit {
   retryDelay?: number;
 }
 
-// Build an absolute URL with the configured base URL
-function buildUrl(url: string): string {
-  // If the URL already starts with http(s)://, assume it's complete
-  if (/^https?:\/\//i.test(url)) {
-    return url;
+// Helper to ensure HTTPS URLs
+function ensureHttpsUrl(url: string): string {
+  // If it's already an absolute URL
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // Force HTTPS
+    return url.replace(/^http:\/\//i, 'https://');
   }
   
-  // Make sure we have a forward slash between base URL and endpoint
-  const baseUrl = config.apiUrl.endsWith('/') ? config.apiUrl.slice(0, -1) : config.apiUrl;
-  const path = url.startsWith('/') ? url : `/${url}`;
+  // If it's a relative URL with leading slash
+  if (url.startsWith('/')) {
+    return `${config.apiUrl}${url}`;
+  }
   
-  return `${baseUrl}${path}`;
+  // If it's a relative URL without leading slash
+  return `${config.apiUrl}/${url}`;
 }
 
 // Internal function to handle fetch with timeout
@@ -81,12 +84,12 @@ async function request<T>(
     headers,
   };
 
-  // Build absolute URL with configured base URL
-  const absoluteUrl = buildUrl(url);
+  // Ensure URL is HTTPS
+  const secureUrl = ensureHttpsUrl(url);
 
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetchWithTimeout(absoluteUrl, finalOptions);
+      const response = await fetchWithTimeout(secureUrl, finalOptions);
 
       if (!response.ok) {
         // For client-side errors, don't retry

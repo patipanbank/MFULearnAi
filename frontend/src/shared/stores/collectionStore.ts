@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { config } from '../../config/config';
 import { api } from '../lib/api';
 
 export interface Collection {
@@ -43,14 +44,15 @@ export const useCollectionStore = create<CollectionStore>()(
       fetchCollections: async () => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.get<Collection[]>('/api/collections');
-
-          if (!response.success || !response.data) {
-            throw new Error(`Failed to fetch collections: ${response.error || 'Unknown error'}`);
+          // Use API utility which handles auth and HTTPS properly
+          const response = await api.get<Collection[]>(`/api/collections`);
+          
+          if (!response.success) {
+            throw new Error(`Failed to fetch collections: ${response.error}`);
           }
 
           set({
-            collections: response.data,
+            collections: response.data || [],
             lastFetched: Date.now(),
             isLoading: false,
           });
