@@ -302,6 +302,12 @@ const AgentModal: React.FC<AgentModalProps> = ({
     onClose();
   };
 
+  // Function to get model name from ID
+  const getModelName = (modelId: string): string => {
+    const model = models.find(m => m.id === modelId);
+    return model ? model.name : modelId;
+  };
+
   if (!isOpen) return null;
 
   return (
