@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { api } from '../lib/api';
+import { useAuthStore } from '../../entities/user/store';
 
 // Types
 export interface AgentTool {
@@ -73,7 +74,6 @@ interface AgentStore {
   isEditingAgent: boolean;
   showAgentModal: boolean;
   isLoadingAgents: boolean;
-  error: string | null;
   
   // Actions
   fetchAgents: () => Promise<void>;
@@ -95,7 +95,6 @@ interface AgentStore {
   setCreatingAgent: (creating: boolean) => void;
   setEditingAgent: (editing: boolean) => void;
   setShowAgentModal: (show: boolean) => void;
-  setError: (error: string | null) => void;
   createDefaultAgent: () => AgentConfig;
 }
 
@@ -106,86 +105,59 @@ const useAgentStore = create<AgentStore>()(
         // Initial State
         agents: [],
         selectedAgent: null,
-        agentTemplates: [
-          {
-            id: 'programming-assistant',
-            name: 'Programming Assistant',
-            description: 'Expert in programming languages, debugging, and code review',
-            category: 'Development',
-            icon: '💻',
-            systemPrompt: 'You are an expert programming assistant. Help users with coding questions, debugging, code review, and software development best practices. Provide clear, practical solutions with examples.',
-            recommendedTools: ['web_search', 'calculator'],
-            recommendedCollections: ['programming-docs', 'api-documentation'],
-            tags: ['programming', 'coding', 'development']
-          },
-          {
-            id: 'academic-tutor',
-            name: 'Academic Tutor',
-            description: 'Specialized in academic subjects and research assistance',
-            category: 'Education',
-            icon: '🎓',
-            systemPrompt: 'You are an academic tutor. Provide clear explanations, help students understand complex concepts, and assist with research. Use evidence-based information and cite sources when appropriate.',
-            recommendedTools: ['web_search'],
-            recommendedCollections: ['academic-papers', 'textbooks', 'research-data'],
-            tags: ['education', 'academic', 'research']
-          },
-          {
-            id: 'data-analyst',
-            name: 'Data Analyst',
-            description: 'Analyzes data and generates insights with visualizations',
-            category: 'Analytics',
-            icon: '📊',
-            systemPrompt: 'You are a data analyst. Help users analyze data, create visualizations, interpret statistics, and generate actionable insights. Explain methodologies and provide data-driven recommendations.',
-            recommendedTools: ['calculator', 'web_search'],
-            recommendedCollections: ['datasets', 'analytics-guides'],
-            tags: ['data', 'analytics', 'statistics']
-          },
-          {
-            id: 'content-writer',
-            name: 'Content Writer',
-            description: 'Creates engaging content and copy for various purposes',
-            category: 'Content',
-            icon: '✍️',
-            systemPrompt: 'You are a professional content writer. Create engaging, well-structured content for various purposes including articles, marketing copy, social media posts, and documentation. Adapt your tone and style to the target audience.',
-            recommendedTools: ['web_search'],
-            recommendedCollections: ['writing-guides', 'style-guides'],
-            tags: ['writing', 'content', 'marketing']
-          }
-        ],
+        agentTemplates: [],
         currentExecution: null,
         executionHistory: [],
         isCreatingAgent: false,
         isEditingAgent: false,
         showAgentModal: false,
         isLoadingAgents: false,
-        error: null,
 
         // Actions
         fetchAgents: async () => {
-          set({ isLoadingAgents: true, error: null });
+          set({ isLoadingAgents: true });
           try {
-            const response = await api.get<AgentConfig[]>('/agents/');
-            if (!response.success || !response.data) {
-              throw new Error(response.error || 'Failed to fetch agents');
-            }
+            const response = await api.get<AgentConfig[]>('/api/agents/');
             
-            const agents = response.data;
-            set({ agents, isLoadingAgents: false });
-            
-            // Auto-select first agent if none selected and agents exist
-            if (!get().selectedAgent && agents.length > 0) {
-              set({ selectedAgent: agents[0] });
+            if (response.success) {
+              set(state => {
+                const newState = { 
+                  agents: response.data || [], 
+                  isLoadingAgents: false 
+                };
+                
+                // Auto-select first agent if none selected and agents exist
+                if (!state.selectedAgent && response.data && response.data.length > 0) {
+                  (newState as any).selectedAgent = response.data[0];
+                }
+                
+                return newState;
+              });
+            } else {
+              console.error('Failed to fetch agents:', response.status, response.error);
+              // If API call fails but returns status (not a network error)
+              if (response.status >= 400) {
+                throw new Error(`Server error: ${response.status}`);
+              }
+              
+              // If complete API failure, use default agent
+              const defaultAgent = get().createDefaultAgent();
+              set({ 
+                agents: [defaultAgent],
+                selectedAgent: defaultAgent,
+                isLoadingAgents: false
+              });
             }
           } catch (error) {
             console.error('Failed to fetch agents:', error);
-            set({ 
-              error: 'Failed to fetch agents. Please try again later.',
-              isLoadingAgents: false 
-            });
-            
             // If network error, use template-based default
             const defaultAgent = get().createDefaultAgent();
-            set({ agents: [defaultAgent], selectedAgent: defaultAgent });
+            set({ 
+              agents: [defaultAgent],
+              selectedAgent: defaultAgent,
+              isLoadingAgents: false
+            });
+            throw error;
           }
         },
 
@@ -214,62 +186,58 @@ const useAgentStore = create<AgentStore>()(
         },
 
         createAgent: async (config) => {
-          set({ error: null });
           try {
-            const response = await api.post<AgentConfig>('/agents/', config);
-            if (!response.success || !response.data) {
+            const response = await api.post<AgentConfig>('/api/agents/', config);
+
+            if (response.success) {
+              set(state => ({
+                agents: [...state.agents, response.data!]
+              }));
+              return response.data!;
+            } else {
               throw new Error(response.error || 'Failed to create agent');
             }
-            
-            const newAgent = response.data;
-            set(state => ({
-              agents: [...state.agents, newAgent]
-            }));
-            return newAgent;
           } catch (error) {
             console.error('Failed to create agent:', error);
-            set({ error: 'Failed to create agent. Please try again later.' });
             throw error;
           }
         },
 
         updateAgent: async (id, updates) => {
-          set({ error: null });
           try {
-            const response = await api.put<AgentConfig>(`/agents/${id}`, updates);
-            if (!response.success || !response.data) {
-              throw new Error(response.error || 'Failed to update agent');
+            const response = await api.put<AgentConfig>(`/api/agents/${id}`, updates);
+
+            if (response.success) {
+              const updatedAgent = response.data!;
+              set(state => ({
+                agents: state.agents.map(agent =>
+                  agent.id === id ? updatedAgent : agent
+                ),
+                selectedAgent: state.selectedAgent?.id === id ? updatedAgent : state.selectedAgent
+              }));
+            } else {
+              throw new Error(response.error || `Failed to update agent: ${response.status}`);
             }
-            
-            const updatedAgent = response.data;
-            set(state => ({
-              agents: state.agents.map(agent => 
-                agent.id === id ? updatedAgent : agent
-              ),
-              selectedAgent: state.selectedAgent?.id === id ? updatedAgent : state.selectedAgent
-            }));
           } catch (error) {
             console.error('Failed to update agent:', error);
-            set({ error: 'Failed to update agent. Please try again later.' });
             throw error;
           }
         },
 
         deleteAgent: async (id) => {
-          set({ error: null });
           try {
-            const response = await api.delete(`/agents/${id}`);
-            if (!response.success) {
-              throw new Error(response.error || 'Failed to delete agent');
+            const response = await api.delete(`/api/agents/${id}`);
+
+            if (response.success) {
+              set(state => ({
+                agents: state.agents.filter(agent => agent.id !== id),
+                selectedAgent: state.selectedAgent?.id === id ? null : state.selectedAgent
+              }));
+            } else {
+              throw new Error(response.error || `Failed to delete agent: ${response.status}`);
             }
-            
-            set(state => ({
-              agents: state.agents.filter(agent => agent.id !== id),
-              selectedAgent: state.selectedAgent?.id === id ? null : state.selectedAgent
-            }));
           } catch (error) {
             console.error('Failed to delete agent:', error);
-            set({ error: 'Failed to delete agent. Please try again later.' });
             throw error;
           }
         },
@@ -279,44 +247,47 @@ const useAgentStore = create<AgentStore>()(
         },
 
         fetchTemplates: async () => {
-          set({ error: null });
           try {
-            const response = await api.get<AgentTemplate[]>('/agents/templates');
-            if (response.success && response.data) {
-              set({ agentTemplates: response.data });
+            const response = await api.get<AgentTemplate[]>('/api/agents/templates');
+            
+            if (response.success) {
+              set({ agentTemplates: response.data || [] });
+            } else {
+              console.error('Failed to fetch templates:', response.status, response.error);
+              throw new Error(response.error || `Failed to fetch templates: ${response.status}`);
             }
           } catch (error) {
             console.error('Failed to fetch templates:', error);
-            // Keep using default templates on error
-          }
-        },
-
-        createAgentFromTemplate: async (templateId, customizations = {}) => {
-          set({ error: null });
-          try {
-            const response = await api.post<AgentConfig>('/agents/from-template', {
-              templateId,
-              ...customizations
-            });
-            if (!response.success || !response.data) {
-              throw new Error(response.error || 'Failed to create agent from template');
-            }
-            
-            const newAgent = response.data;
-            set(state => ({
-              agents: [...state.agents, newAgent]
-            }));
-            return newAgent;
-          } catch (error) {
-            console.error('Failed to create agent from template:', error);
-            set({ error: 'Failed to create agent from template. Please try again later.' });
             throw error;
           }
         },
 
+        createAgentFromTemplate: async (templateId, customizations = {}) => {
+          try {
+            const response = await api.post<AgentConfig>('/api/agents/from-template', {
+              templateId,
+              ...customizations
+            });
+
+            if (response.success) {
+              const newAgent = response.data!;
+              set(state => ({
+                agents: [...state.agents, newAgent]
+              }));
+              return newAgent;
+            } else {
+              throw new Error(response.error || 'Failed to create agent from template');
+            }
+          } catch (error) {
+            console.error('Failed to create agent from template:', error);
+            throw error;
+          }
+        },
+
+        // Agent Execution
         startExecution: (agentId, sessionId) => {
           const execution: AgentExecution = {
-            id: Math.random().toString(36).substring(7),
+            id: Date.now().toString(),
             agentId,
             sessionId,
             status: 'thinking',
@@ -324,50 +295,49 @@ const useAgentStore = create<AgentStore>()(
             startTime: new Date().toISOString(),
             tokenUsage: { input: 0, output: 0 }
           };
+
           set({ currentExecution: execution });
         },
 
         updateExecution: (updates) => {
           set(state => ({
-            currentExecution: state.currentExecution 
+            currentExecution: state.currentExecution
               ? { ...state.currentExecution, ...updates }
               : null
           }));
         },
 
         endExecution: () => {
-          set(state => {
-            if (state.currentExecution) {
-              return {
-                currentExecution: null,
-                executionHistory: [
-                  ...state.executionHistory,
-                  {
-                    ...state.currentExecution,
-                    status: 'idle',
-                    endTime: new Date().toISOString()
-                  }
-                ]
-              };
-            }
-            return state;
-          });
+          const { currentExecution } = get();
+          if (currentExecution) {
+            const completedExecution = {
+              ...currentExecution,
+              status: 'idle' as const,
+              endTime: new Date().toISOString(),
+              progress: 100
+            };
+
+            set(state => ({
+              currentExecution: null,
+              executionHistory: [completedExecution, ...state.executionHistory.slice(0, 49)] // Keep last 50
+            }));
+          }
         },
 
+        // UI Actions
         setCreatingAgent: (creating) => set({ isCreatingAgent: creating }),
         setEditingAgent: (editing) => set({ isEditingAgent: editing }),
-        setShowAgentModal: (show) => set({ showAgentModal: show }),
-        setError: (error) => set({ error })
+        setShowAgentModal: (show) => set({ showAgentModal: show })
       }),
       {
         name: 'agent-store',
         partialize: (state) => ({
           agents: state.agents,
-          selectedAgent: state.selectedAgent,
-          agentTemplates: state.agentTemplates
+          selectedAgent: state.selectedAgent
         })
       }
-    )
+    ),
+    { name: 'AgentStore' }
   )
 );
 
