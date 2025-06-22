@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '../lib/api';
 
 export type Theme = 'light' | 'dark' | 'auto';
 
@@ -106,21 +105,26 @@ export const useSettingsStore = create<SettingsState>()(
       loadSettings: async () => {
         set({ isLoading: true });
         try {
-          const response = await api.get<{
-            preferences: UserPreferences;
-            profile: UserProfile;
-            privacy: PrivacySettings;
-          }>('/api/user/settings');
+          const token = localStorage.getItem('token');
+          if (!token) return;
 
-          if (response.success && response.data) {
+          const response = await fetch('/api/user/settings', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
             set({
-              preferences: { ...defaultPreferences, ...response.data.preferences },
-              profile: { ...defaultProfile, ...response.data.profile },
-              privacy: { ...defaultPrivacy, ...response.data.privacy },
+              preferences: { ...defaultPreferences, ...data.preferences },
+              profile: { ...defaultProfile, ...data.profile },
+              privacy: { ...defaultPrivacy, ...data.privacy },
             });
             
             // Apply loaded theme
-            get().applyTheme(response.data.preferences?.theme || 'light');
+            get().applyTheme(data.preferences?.theme || 'light');
           }
         } catch (error) {
           console.error('Failed to load settings:', error);
@@ -132,14 +136,24 @@ export const useSettingsStore = create<SettingsState>()(
       saveSettings: async () => {
         set({ isSaving: true });
         try {
+          const token = localStorage.getItem('token');
+          if (!token) return;
+
           const { preferences, profile, privacy } = get();
-          const response = await api.put<{ success: boolean }>('/api/user/settings', {
-            preferences,
-            profile,
-            privacy,
+          const response = await fetch('/api/user/settings', {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              preferences,
+              profile,
+              privacy,
+            }),
           });
 
-          if (!response.success) {
+          if (!response.ok) {
             throw new Error('Failed to save settings');
           }
         } catch (error) {
@@ -191,7 +205,15 @@ export const useSettingsStore = create<SettingsState>()(
 
       resetSettings: async () => {
         try {
-          await api.post<{ success: boolean }>('/api/user/settings/reset', {});
+          const token = localStorage.getItem('token');
+          if (token) {
+            await fetch('/api/user/settings/reset', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+          }
 
           set({
             preferences: defaultPreferences,
@@ -226,28 +248,25 @@ export const useSettingsStore = create<SettingsState>()(
           // Remove previous listener and add new one
           mediaQuery.removeEventListener('change', handleChange);
           mediaQuery.addEventListener('change', handleChange);
-          
         } else {
-          // Set light or dark mode directly
           root.classList.toggle('dark', theme === 'dark');
-          
-          // Store in localStorage so it persists across page loads
-          localStorage.setItem('applied-theme', theme);
         }
+        
+        // Store applied theme in localStorage for persistence
+        localStorage.setItem('applied-theme', theme);
       },
-      
+
       getCurrentTheme: () => {
-        const isDarkMode = document.documentElement.classList.contains('dark');
-        return isDarkMode ? 'dark' : 'light';
+        return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
       },
     }),
     {
-      name: 'user-settings',
-      partialize: (state) => ({ 
+      name: 'settings-storage',
+      partialize: (state) => ({
         preferences: state.preferences,
         profile: state.profile,
-        privacy: state.privacy
-      })
+        privacy: state.privacy,
+      }),
     }
   )
 );
