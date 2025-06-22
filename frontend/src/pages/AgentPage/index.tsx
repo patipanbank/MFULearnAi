@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiFilter, FiBox, FiGrid } from 'react-icons/fi';
-import { useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
+import { FiPlus, FiSearch, FiFilter } from 'react-icons/fi';
+import { useAgentStore, useUIStore } from '../../shared/stores';
 import AgentCard from '../../shared/ui/AgentCard';
 import AgentTemplateCard from '../../shared/ui/AgentTemplateCard';
 import AgentModal from '../../shared/ui/AgentModal';
@@ -25,8 +25,6 @@ const AgentPage: React.FC = () => {
   } = useAgentStore();
 
   const { addToast } = useUIStore();
-
-  const { user } = useAuthStore();
 
   // Local state
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,9 +57,7 @@ const AgentPage: React.FC = () => {
 
   // Handlers
   const handleCreateAgent = () => {
-    // Reset selected agent and set editing state
-    selectAgent(null);
-    setEditingAgent(false);
+    setCreatingAgent(true);
     setShowAgentModal(true);
   };
 
@@ -89,16 +85,11 @@ const AgentPage: React.FC = () => {
   };
 
   const handleDuplicateAgent = async (agent: AgentConfig) => {
-    if (!user?._id) {
-      addToast({ type: 'error', title: 'Authentication Error', message: 'You must be logged in to duplicate an agent.' });
-      return;
-    }
-
     try {
       const duplicatedAgent = await createAgent({
         ...agent,
         name: `${agent.name} (Copy)`,
-        createdBy: user._id.$oid,
+        createdBy: 'current-user' // This should come from auth store
       });
       
       addToast({
@@ -116,14 +107,9 @@ const AgentPage: React.FC = () => {
   };
 
   const handleCreateFromTemplate = async (template: AgentTemplate) => {
-    if (!user?._id) {
-      addToast({ type: 'error', title: 'Authentication Error', message: 'You must be logged in to create an agent.' });
-      return;
-    }
-
     try {
       const newAgent = await createAgentFromTemplate(template.id, {
-        createdBy: user._id.$oid,
+        createdBy: 'current-user' // This should come from auth store
       });
       
       addToast({
@@ -141,141 +127,130 @@ const AgentPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 bg-primary p-6 sm:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-primary">AI Agents</h1>
-            <p className="text-secondary mt-1">
-              {showTemplates 
-                ? 'Choose from pre-built agent templates to get started.'
-                : 'Create and manage your specialized AI assistants.'
-              }
-            </p>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setShowTemplates(!showTemplates)}
-              className="btn-secondary"
-            >
-              {showTemplates ? 'My Agents' : 'View Templates'}
-            </button>
-            
-            {!showTemplates && (
-              <button
-                onClick={handleCreateAgent}
-                className="btn-primary flex items-center space-x-2"
-              >
-                <FiPlus className="h-5 w-5" />
-                <span>Create Agent</span>
-              </button>
-            )}
-          </div>
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">AI Agents</h1>
+          <p className="text-secondary mt-1">
+            {showTemplates 
+              ? 'Choose from pre-built agent templates'
+              : 'Create and manage specialized AI assistants'
+            }
+          </p>
         </div>
-
-        {/* Search and Filters */}
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="relative flex-1 max-w-lg">
-            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted" />
-            <input
-              type="text"
-              placeholder={showTemplates ? "Search templates by name or description..." : "Search agents by name, description, or tag..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input w-full pl-12"
-            />
-          </div>
+        
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowTemplates(!showTemplates)}
+            className={`btn ${showTemplates ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            {showTemplates ? 'My Agents' : 'Templates'}
+          </button>
           
-          {showTemplates && (
-            <div className="relative">
-              <FiFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="select pl-10"
-              >
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {category === 'all' ? 'All Categories' : category}
-                  </option>
-                ))}
-              </select>
+          {!showTemplates && (
+            <button
+              onClick={handleCreateAgent}
+              className="btn-primary flex items-center space-x-2"
+            >
+              <FiPlus className="h-5 w-5" />
+              <span>Create Agent</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex items-center space-x-4 mb-6">
+        <div className="relative flex-1 max-w-md">
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted" />
+          <input
+            type="text"
+            placeholder={showTemplates ? "Search templates..." : "Search agents..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input pl-10"
+          />
+        </div>
+        
+        {showTemplates && (
+          <div className="flex items-center space-x-2">
+            <FiFilter className="h-4 w-4 text-muted" />
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="input min-w-[120px]"
+            >
+              {categories.map(category => (
+                <option key={category} value={category}>
+                  {category === 'all' ? 'All Categories' : category}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      {showTemplates ? (
+        /* Agent Templates Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTemplates.map((template) => (
+            <AgentTemplateCard
+              key={template.id}
+              template={template}
+              onUse={handleCreateFromTemplate}
+            />
+          ))}
+          
+          {filteredTemplates.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <p className="text-muted">No templates found matching your criteria</p>
             </div>
           )}
         </div>
+      ) : (
+        /* My Agents Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAgents.map((agent) => (
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              onEdit={handleEditAgent}
+              onDuplicate={handleDuplicateAgent}
+              onDelete={handleDeleteAgent}
+              compact={true}
+            />
+          ))}
 
-        {/* Content */}
-        {showTemplates ? (
-          /* Agent Templates Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredTemplates.map((template) => (
-              <AgentTemplateCard
-                key={template.id}
-                template={template}
-                onUse={handleCreateFromTemplate}
-              />
-            ))}
-            
-            {filteredTemplates.length === 0 && (
-              <div className="col-span-full text-center py-20 card border-dashed">
-                <FiSearch className="mx-auto h-12 w-12 text-muted" />
-                <h3 className="mt-4 text-lg font-medium text-primary">No Templates Found</h3>
-                <p className="mt-1 text-sm text-secondary">
-                  Your search for "{searchQuery}" did not match any templates.
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* My Agents Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {/* Create New Agent Card */}
-            <div 
-              onClick={handleCreateAgent}
-              className="card border-2 border-dashed border-border flex flex-col items-center justify-center text-center cursor-pointer group hover:border-accent hover:bg-secondary transition-all"
-            >
-              <div className="h-16 w-16 bg-secondary rounded-full flex items-center justify-center mb-4 group-hover:bg-accent transition-colors">
-                <FiPlus className="h-8 w-8 text-primary group-hover:text-white transition-colors" />
-              </div>
-              <h3 className="font-medium text-primary text-lg">Create New Agent</h3>
-              <p className="text-muted text-sm mt-1 px-4">
-                Build a specialized AI assistant from scratch.
-              </p>
+          {/* Create New Agent Card */}
+          <div 
+            onClick={handleCreateAgent}
+            className="bg-tertiary border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-border-hover hover:bg-secondary transition-colors min-h-64"
+          >
+            <div className="h-12 w-12 bg-secondary rounded-lg flex items-center justify-center mb-4">
+              <FiPlus className="h-6 w-6 text-muted" />
             </div>
-
-            {filteredAgents.map((agent) => (
-              <AgentCard
-                key={agent.id}
-                agent={agent}
-                onEdit={handleEditAgent}
-                onDuplicate={handleDuplicateAgent}
-                onDelete={handleDeleteAgent}
-                onUse={() => { /* maybe navigate to chat with this agent */ }}
-                compact={false}
-              />
-            ))}
-            
-            {filteredAgents.length === 0 && (
-              <div className="col-span-full text-center py-20 card border-dashed">
-                <FiGrid className="mx-auto h-12 w-12 text-muted" />
-                <h3 className="mt-4 text-lg font-medium text-primary">No Agents Found</h3>
-                <p className="mt-1 text-sm text-secondary">
-                  Create your first agent to get started.
-                </p>
-              </div>
-            )}
+            <h3 className="font-medium text-primary mb-2">Create New Agent</h3>
+            <p className="text-muted text-sm">
+              Build a specialized AI assistant for your specific needs
+            </p>
           </div>
-        )}
+          
+          {filteredAgents.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <p className="text-muted">No agents found. Create your first agent to get started!</p>
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* Agent Modal */}
-        <AgentModal
-          isOpen={showAgentModal}
-          isEditing={isEditingAgent}
-          onClose={() => setShowAgentModal(false)}
-        />
-      </div>
+      {/* Agent Modal */}
+      <AgentModal
+        isOpen={showAgentModal}
+        onClose={() => setShowAgentModal(false)}
+        isEditing={isEditingAgent}
+      />
     </div>
   );
 };

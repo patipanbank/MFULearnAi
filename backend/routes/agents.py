@@ -50,7 +50,7 @@ async def get_all_agents(
 ):
     """Get all agents accessible to the current user"""
     try:
-        agents = await agent_service.get_all_agents(user_id=current_user.sub)
+        agents = await agent_service.get_all_agents(user_id=current_user.username)
         return agents
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -76,7 +76,7 @@ async def get_agent_by_id(
             raise HTTPException(status_code=404, detail="Agent not found")
         
         # Check if user has access to this agent
-        if agent.createdBy != current_user.sub and not agent.isPublic:
+        if agent.createdBy != current_user.username and not agent.isPublic:
             raise HTTPException(status_code=403, detail="Access denied")
         
         return agent
@@ -93,7 +93,7 @@ async def create_agent(
     """Create a new agent"""
     try:
         agent_dict = agent_data.model_dump()
-        agent_dict["createdBy"] = current_user.sub
+        agent_dict["createdBy"] = current_user.username
         
         agent = await agent_service.create_agent(agent_dict)
         return agent
@@ -110,7 +110,7 @@ async def create_agent_from_template(
     """Create an agent from a template"""
     try:
         customizations = request.model_dump(exclude={"templateId"}, exclude_unset=True)
-        customizations["createdBy"] = current_user.sub
+        customizations["createdBy"] = current_user.username
         
         agent = await agent_service.create_agent_from_template(
             request.templateId, 
@@ -135,7 +135,7 @@ async def update_agent(
         if not existing_agent:
             raise HTTPException(status_code=404, detail="Agent not found")
         
-        if existing_agent.createdBy != current_user.sub:
+        if existing_agent.createdBy != current_user.username:
             raise HTTPException(status_code=403, detail="Access denied")
         
         update_dict = updates.model_dump(exclude_unset=True)
@@ -164,7 +164,7 @@ async def delete_agent(
         if not existing_agent:
             raise HTTPException(status_code=404, detail="Agent not found")
         
-        if existing_agent.createdBy != current_user.sub:
+        if existing_agent.createdBy != current_user.username:
             raise HTTPException(status_code=403, detail="Access denied")
         
         success = await agent_service.delete_agent(agent_id)
@@ -189,7 +189,7 @@ async def use_agent(
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
         
-        if agent.createdBy != current_user.sub and not agent.isPublic:
+        if agent.createdBy != current_user.username and not agent.isPublic:
             raise HTTPException(status_code=403, detail="Access denied")
         
         await agent_service.increment_usage_count(agent_id)
@@ -215,7 +215,7 @@ async def rate_agent(
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
         
-        if agent.createdBy != current_user.sub and not agent.isPublic:
+        if agent.createdBy != current_user.username and not agent.isPublic:
             raise HTTPException(status_code=403, detail="Access denied")
         
         await agent_service.update_agent_rating(agent_id, rating)
