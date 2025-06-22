@@ -1,71 +1,56 @@
 import React from 'react';
 import useUIStore from '../../stores/uiStore';
-import { FiLoader } from 'react-icons/fi';
 
 interface LoadingProps {
-  isFullScreen?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  fullScreen?: boolean;
   message?: string;
-  size?: 'small' | 'medium' | 'large';
+  description?: string;
 }
 
-const Loading: React.FC<LoadingProps> = ({ 
-  isFullScreen = false,
+const Loading: React.FC<LoadingProps> = ({
+  size = 'md',
+  fullScreen = false,
   message = 'Loading...',
-  size = 'medium'
+  description = 'Please wait while we process your request.'
 }) => {
   const { isLoading } = useUIStore();
+  const showGlobal = isLoading && fullScreen;
 
-  // If this is a global loading indicator controlled by the UI store
-  if (isFullScreen && !isLoading) return null;
-
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'small':
-        return {
-          container: 'h-5 w-5',
-          spinner: 'h-5 w-5'
-        };
-      case 'large':
-        return {
-          container: 'h-12 w-12',
-          spinner: 'h-12 w-12' 
-        };
-      default:
-        return {
-          container: 'h-8 w-8',
-          spinner: 'h-8 w-8'
-        };
-    }
+  const sizeClasses = {
+    sm: 'h-4 w-4 border',
+    md: 'h-8 w-8 border-2',
+    lg: 'h-12 w-12 border-2'
   };
 
-  const sizeClasses = getSizeClasses();
+  const spinnerClass = `
+    animate-spin rounded-full
+    ${sizeClasses[size]}
+    border-b-primary dark:border-b-primary-dark
+    border-r-transparent border-l-transparent border-t-transparent
+  `;
 
-  // Full screen overlay loading
-  if (isFullScreen) {
+  if (showGlobal) {
     return (
-      <div className="modal-overlay z-50 fixed inset-0 bg-black bg-opacity-30 dark:bg-opacity-50 backdrop-blur-sm transition-all">
-        <div className="card p-6 max-w-sm mx-auto mt-[30vh] flex items-center space-x-4 shadow-lg">
-          <div className={`animate-spin ${sizeClasses.container} text-primary`}>
-            <FiLoader className={`${sizeClasses.spinner} text-primary`} />
-          </div>
+      <div className="fixed inset-0 bg-background/50 dark:bg-background-dark/50 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className="card dark:bg-card-dark p-6 max-w-sm mx-4 flex items-center space-x-4 shadow-lg">
+          <div className={spinnerClass}></div>
           <div>
-            <h3 className="text-lg font-medium text-primary">{message}</h3>
-            <p className="text-sm text-secondary">Please wait while we process your request.</p>
+            <h3 className="text-lg font-medium text-foreground dark:text-foreground-dark">
+              {message}
+            </h3>
+            <p className="text-sm text-muted dark:text-muted-dark">
+              {description}
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Inline loading
   return (
-    <div className="flex items-center justify-center py-4">
-      <div className={`animate-spin ${sizeClasses.container} text-primary`}>
-        <FiLoader className={`${sizeClasses.spinner} text-primary`} />
-      </div>
-      {message && (
-        <span className="ml-3 text-secondary">{message}</span>
-      )}
+    <div className="flex items-center justify-center">
+      <div className={spinnerClass}></div>
     </div>
   );
 };

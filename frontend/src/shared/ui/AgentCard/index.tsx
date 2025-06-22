@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiUser, FiEdit, FiCopy, FiTrash2, FiPlay, FiSettings, FiStar, FiCheck, FiTag } from 'react-icons/fi';
+import { FiUser, FiEdit, FiCopy, FiTrash2, FiPlay, FiSettings, FiStar } from 'react-icons/fi';
 import type { AgentConfig } from '../../stores/agentStore';
 
 interface AgentCardProps {
@@ -11,6 +11,7 @@ interface AgentCardProps {
   onConfigure?: (agent: AgentConfig) => void;
   showActions?: boolean;
   compact?: boolean;
+  isLoading?: boolean;
 }
 
 const AgentCard: React.FC<AgentCardProps> = ({
@@ -21,7 +22,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
   onUse,
   onConfigure,
   showActions = true,
-  compact = false
+  compact = false,
+  isLoading = false
 }) => {
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -33,10 +35,14 @@ const AgentCard: React.FC<AgentCardProps> = ({
     onDuplicate?.(agent);
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Are you sure you want to delete "${agent.name}"?`)) {
-      onDelete?.(agent.id);
+    if (window.confirm(`Are you sure you want to delete "${agent.name}"?`)) {
+      try {
+        await onDelete?.(agent.id);
+      } catch (error) {
+        console.error('Failed to delete agent:', error);
+      }
     }
   };
 
@@ -46,61 +52,56 @@ const AgentCard: React.FC<AgentCardProps> = ({
   };
 
   const handleUse = () => {
-    onUse?.(agent);
-  };
-
-  // Format date in a readable way
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString(undefined, { 
-        year: 'numeric',
-        month: 'short', 
-        day: 'numeric' 
-      });
-    } catch (err) {
-      return 'Unknown';
+    if (!isLoading) {
+      onUse?.(agent);
     }
-  };
-
-  // Get model display name from ID
-  const getModelDisplayName = (modelId: string) => {
-    if (!modelId) return 'Unknown';
-
-    // Example model ID: anthropic.claude-3-5-sonnet-20240620-v1:0
-    const parts = modelId.split('.');
-    if (parts.length > 1) {
-      // Extract readable name from the second part
-      const modelName = parts[1].split('-').join(' ');
-      return modelName.charAt(0).toUpperCase() + modelName.slice(1);
-    }
-    
-    // Fallback to original ID
-    return modelId;
   };
 
   return (
-    <div className="card card-hover cursor-pointer transition-all duration-200" onClick={handleUse}>
+    <div 
+      className={`
+        relative overflow-hidden
+        bg-card dark:bg-card-dark
+        border border-border dark:border-border-dark
+        rounded-lg shadow-sm hover:shadow-md
+        transition-all duration-200
+        ${compact ? 'p-4' : 'p-6'} 
+        ${onUse ? 'cursor-pointer' : ''}
+        ${isLoading ? 'opacity-70 pointer-events-none' : ''}
+      `}
+      onClick={handleUse}
+    >
+      {isLoading && (
+        <div className="absolute inset-0 bg-background/50 dark:bg-background-dark/50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      )}
+
       {/* Agent Header */}
-      <div className="flex items-start justify-between p-4 pb-2">
+      <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3 flex-1">
-          <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="h-10 w-10 bg-gradient-to-br from-primary/80 to-primary rounded-lg flex items-center justify-center flex-shrink-0">
             <FiUser className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-primary truncate">{agent.name}</h3>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                agent.isPublic 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                  : 'bg-secondary text-muted'
-              }`}>
+            <h3 className="font-semibold text-foreground dark:text-foreground-dark truncate">
+              {agent.name}
+            </h3>
+            <div className="flex items-center space-x-2 mt-1">
+              <span className={`
+                inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                ${agent.isPublic 
+                  ? 'bg-success/10 text-success dark:bg-success/20 dark:text-success-dark' 
+                  : 'bg-muted/10 text-muted dark:bg-muted/20 dark:text-muted-dark'}
+              `}>
                 {agent.isPublic ? 'Public' : 'Private'}
               </span>
               {agent.rating > 0 && (
                 <div className="flex items-center space-x-1">
-                  <FiStar className="h-3 w-3 text-yellow-500" />
-                  <span className="text-xs text-muted">{agent.rating.toFixed(1)}</span>
+                  <FiStar className="h-3 w-3 text-warning" />
+                  <span className="text-xs text-muted dark:text-muted-dark">
+                    {agent.rating.toFixed(1)}
+                  </span>
                 </div>
               )}
             </div>
@@ -113,7 +114,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             {onConfigure && (
               <button
                 onClick={handleConfigure}
-                className="btn-ghost p-2 rounded-full"
+                className="btn-ghost p-2 text-muted hover:text-foreground dark:text-muted-dark dark:hover:text-foreground-dark"
                 title="Configure Agent"
               >
                 <FiSettings className="h-4 w-4" />
@@ -122,7 +123,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             {onEdit && (
               <button
                 onClick={handleEdit}
-                className="btn-ghost p-2 rounded-full"
+                className="btn-ghost p-2 text-muted hover:text-foreground dark:text-muted-dark dark:hover:text-foreground-dark"
                 title="Edit Agent"
               >
                 <FiEdit className="h-4 w-4" />
@@ -131,7 +132,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             {onDuplicate && (
               <button
                 onClick={handleDuplicate}
-                className="btn-ghost p-2 rounded-full"
+                className="btn-ghost p-2 text-muted hover:text-foreground dark:text-muted-dark dark:hover:text-foreground-dark"
                 title="Duplicate Agent"
               >
                 <FiCopy className="h-4 w-4" />
@@ -140,7 +141,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             {onDelete && (
               <button
                 onClick={handleDelete}
-                className="btn-ghost p-2 rounded-full hover:!text-red-600 hover:!bg-red-50 dark:hover:!bg-red-900/20"
+                className="btn-ghost p-2 text-muted hover:text-error dark:text-muted-dark dark:hover:text-error-dark"
                 title="Delete Agent"
               >
                 <FiTrash2 className="h-4 w-4" />
@@ -152,80 +153,80 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
       {/* Agent Description */}
       {!compact && (
-        <div className="px-4">
-          <p className="text-secondary text-sm line-clamp-2">
-            {agent.description || "No description provided"}
-          </p>
-        </div>
+        <p className="text-muted dark:text-muted-dark text-sm mb-4 line-clamp-2">
+          {agent.description}
+        </p>
       )}
 
-      {/* Divider */}
-      <div className="border-t border-border-secondary my-2 mx-4"></div>
-
       {/* Agent Stats */}
-      <div className="px-4 py-2">
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="col-span-2 flex items-center justify-between pb-1">
-            <span className="text-muted">Model:</span>
-            <span className="text-primary font-medium text-xs truncate ml-2 max-w-[70%]">
-              {getModelDisplayName(agent.modelId)}
-            </span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-muted">Collections:</span>
-            <span className="text-primary">{agent.collectionNames.length}</span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-muted">Tools:</span>
-            <span className="text-primary">{agent.tools.filter(t => t.enabled).length}</span>
-          </div>
-          
-          {!compact && (
-            <>
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Usage:</span>
-                <span className="text-primary">{agent.usageCount}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Updated:</span>
-                <span className="text-primary">{formatDate(agent.updatedAt)}</span>
-              </div>
-            </>
-          )}
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-muted dark:text-muted-dark">Model:</span>
+          <span className="text-foreground dark:text-foreground-dark font-medium text-xs truncate ml-2">
+            {agent.modelId.split('/').pop() || agent.modelId}
+          </span>
         </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted dark:text-muted-dark">Collections:</span>
+          <span className="text-foreground dark:text-foreground-dark">
+            {agent.collectionNames.length}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted dark:text-muted-dark">Tools:</span>
+          <span className="text-foreground dark:text-foreground-dark">
+            {agent.tools.filter(t => t.enabled).length}
+          </span>
+        </div>
+        {!compact && (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-muted dark:text-muted-dark">Usage:</span>
+              <span className="text-foreground dark:text-foreground-dark">
+                {agent.usageCount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted dark:text-muted-dark">Updated:</span>
+              <span className="text-foreground dark:text-foreground-dark">
+                {new Date(agent.updatedAt).toLocaleDateString()}
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tags */}
-      {agent.tags.length > 0 && (
-        <div className="px-4 pt-1 pb-3 flex flex-wrap gap-1">
+      {!compact && agent.tags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1">
           {agent.tags.slice(0, 3).map((tag, index) => (
-            <div 
-              key={index} 
-              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary"
+            <span
+              key={index}
+              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium
+                bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-dark"
             >
-              <FiTag className="h-3 w-3 mr-1 text-muted" />
               {tag}
-            </div>
+            </span>
           ))}
           {agent.tags.length > 3 && (
-            <span className="text-xs text-muted">+{agent.tags.length - 3} more</span>
+            <span className="text-xs text-muted dark:text-muted-dark">
+              +{agent.tags.length - 3} more
+            </span>
           )}
         </div>
       )}
 
       {/* Use Agent Button */}
-      {!compact && (
-        <div className="p-4 pt-2">
-          <button 
-            className="w-full btn-primary flex items-center justify-center space-x-2"
-            onClick={handleUse}
-          >
-            <FiPlay className="h-4 w-4" />
-            <span>Use This Agent</span>
-          </button>
-        </div>
+      {!compact && onUse && (
+        <button 
+          className="w-full mt-4 btn-secondary flex items-center justify-center space-x-2
+            disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleUse}
+          disabled={isLoading}
+        >
+          <FiPlay className="h-4 w-4" />
+          <span>Use This Agent</span>
+        </button>
       )}
     </div>
   );

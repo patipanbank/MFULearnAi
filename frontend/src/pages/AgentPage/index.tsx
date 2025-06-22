@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiFilter, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiFilter, FiAlertCircle } from 'react-icons/fi';
 import { useAgentStore, useUIStore } from '../../shared/stores';
 import AgentCard from '../../shared/ui/AgentCard';
 import AgentTemplateCard from '../../shared/ui/AgentTemplateCard';
 import AgentModal from '../../shared/ui/AgentModal';
 import Loading from '../../shared/ui/Loading';
-import { api } from '../../shared/lib/api';
 import type { AgentConfig, AgentTemplate } from '../../shared/stores/agentStore';
 
 const AgentPage: React.FC = () => {
@@ -14,7 +13,6 @@ const AgentPage: React.FC = () => {
     agents,
     agentTemplates,
     showAgentModal,
-    isEditingAgent,
     isLoadingAgents,
     fetchAgents,
     fetchTemplates,
@@ -33,54 +31,39 @@ const AgentPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showTemplates, setShowTemplates] = useState(false);
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
 
   // Initialize data
   useEffect(() => {
     const loadData = async () => {
-      setError(null);
       try {
-        await fetchAgents();
+        setError(null);
+        await Promise.all([fetchAgents(), fetchTemplates()]);
       } catch (err) {
         setError('Failed to load agents. Please try again later.');
         console.error('Error loading agents:', err);
       }
     };
-    
     loadData();
-  }, [fetchAgents]);
-  
-  // Load templates when switching to template view
-  useEffect(() => {
-    if (showTemplates && agentTemplates.length === 0) {
-      const loadTemplates = async () => {
-        setIsLoadingTemplates(true);
-        try {
-          await fetchTemplates();
-        } catch (err) {
-          setError('Failed to load templates. Please try again later.');
-          console.error('Error loading templates:', err);
-        } finally {
-          setIsLoadingTemplates(false);
-        }
-      };
-      
-      loadTemplates();
-    }
-  }, [showTemplates, agentTemplates.length, fetchTemplates]);
+  }, [fetchAgents, fetchTemplates]);
 
   // Filter agents and templates
   const filteredAgents = agents.filter(agent => {
-    const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         agent.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesSearch;
+    const searchTerms = searchQuery.toLowerCase().split(' ');
+    return searchTerms.every(term => 
+      agent.name.toLowerCase().includes(term) ||
+      agent.description.toLowerCase().includes(term) ||
+      agent.tags.some(tag => tag.toLowerCase().includes(term))
+    );
   });
 
   const filteredTemplates = agentTemplates.filter(template => {
-    const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         template.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchTerms = searchQuery.toLowerCase().split(' ');
+    const matchesSearch = searchTerms.every(term =>
+      template.name.toLowerCase().includes(term) ||
+      template.description.toLowerCase().includes(term)
+    );
     const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -102,6 +85,7 @@ const AgentPage: React.FC = () => {
 
   const handleDeleteAgent = async (agentId: string) => {
     try {
+      setLoadingStates(prev => ({ ...prev, [agentId]: true }));
       await deleteAgent(agentId);
       addToast({
         type: 'success',
@@ -109,22 +93,24 @@ const AgentPage: React.FC = () => {
         message: 'Agent has been successfully deleted'
       });
     } catch (error) {
+      console.error('Delete failed:', error);
       addToast({
         type: 'error',
         title: 'Delete Failed',
-        message: 'Failed to delete agent'
+        message: 'Failed to delete agent. Please try again.'
       });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [agentId]: false }));
     }
   };
 
   const handleDuplicateAgent = async (agent: AgentConfig) => {
     try {
-      // Create a new agent based on the existing one
-      const { id, usageCount, rating, createdAt, updatedAt, ...agentData } = agent;
-      
+      setLoadingStates(prev => ({ ...prev, [agent.id]: true }));
       const duplicatedAgent = await createAgent({
-        ...agentData,
+        ...agent,
         name: `${agent.name} (Copy)`,
+        createdBy: 'current-user' // This should come from auth store
       });
       
       addToast({
@@ -133,69 +119,76 @@ const AgentPage: React.FC = () => {
         message: `Created "${duplicatedAgent.name}"`
       });
     } catch (error) {
+      console.error('Duplication failed:', error);
       addToast({
         type: 'error',
         title: 'Duplication Failed',
-        message: 'Failed to duplicate agent'
+        message: 'Failed to duplicate agent. Please try again.'
       });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [agent.id]: false }));
     }
   };
 
   const handleCreateFromTemplate = async (template: AgentTemplate) => {
     try {
-      const newAgent = await createAgentFromTemplate(template.id);
+      setLoadingStates(prev => ({ ...prev, [template.id]: true }));
+      const newAgent = await createAgentFromTemplate(template.id, {
+        createdBy: 'current-user' // This should come from auth store
+      });
       
       addToast({
         type: 'success',
         title: 'Agent Created',
         message: `Created "${newAgent.name}" from template`
       });
-      
-      // Switch back to agents view to show the new agent
-      setShowTemplates(false);
     } catch (error) {
+      console.error('Creation from template failed:', error);
       addToast({
         type: 'error',
         title: 'Creation Failed',
-        message: 'Failed to create agent from template'
+        message: 'Failed to create agent from template. Please try again.'
       });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [template.id]: false }));
     }
   };
 
-  // Handle refresh
-  const handleRefresh = async () => {
-    setError(null);
-    try {
-      if (showTemplates) {
-        setIsLoadingTemplates(true);
-        await fetchTemplates();
-        setIsLoadingTemplates(false);
-      } else {
-        await fetchAgents();
-      }
-      
-      addToast({
-        type: 'success',
-        title: 'Refreshed',
-        message: `${showTemplates ? 'Templates' : 'Agents'} refreshed successfully`
-      });
-    } catch (err) {
-      setError(`Failed to refresh ${showTemplates ? 'templates' : 'agents'}. Please try again.`);
-      addToast({
-        type: 'error',
-        title: 'Refresh Failed',
-        message: `Failed to refresh ${showTemplates ? 'templates' : 'agents'}`
-      });
-    }
-  };
+  if (isLoadingAgents && !agents.length) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loading size="lg" fullScreen={false} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+        <FiAlertCircle className="h-12 w-12 text-error mb-4" />
+        <h2 className="text-xl font-semibold text-foreground dark:text-foreground-dark mb-2">
+          Something went wrong
+        </h2>
+        <p className="text-muted dark:text-muted-dark mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="btn-primary"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-primary">AI Agents</h1>
-          <p className="text-secondary mt-1">
+          <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">
+            AI Agents
+          </h1>
+          <p className="text-muted dark:text-muted-dark mt-1">
             {showTemplates 
               ? 'Choose from pre-built agent templates'
               : 'Create and manage specialized AI assistants'
@@ -204,15 +197,6 @@ const AgentPage: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
-          <button
-            onClick={handleRefresh}
-            className="btn-ghost p-2"
-            aria-label="Refresh"
-            title="Refresh"
-          >
-            <FiRefreshCw className={`h-5 w-5 ${isLoadingAgents || isLoadingTemplates ? 'animate-spin' : ''}`} />
-          </button>
-          
           <button
             onClick={() => setShowTemplates(!showTemplates)}
             className={`btn ${showTemplates ? 'btn-primary' : 'btn-secondary'}`}
@@ -235,23 +219,23 @@ const AgentPage: React.FC = () => {
       {/* Search and Filters */}
       <div className="flex items-center space-x-4 mb-6">
         <div className="relative flex-1 max-w-md">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted" />
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted dark:text-muted-dark" />
           <input
             type="text"
             placeholder={showTemplates ? "Search templates..." : "Search agents..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input pl-10"
+            className="input pl-10 w-full bg-background dark:bg-background-dark"
           />
         </div>
         
         {showTemplates && (
           <div className="flex items-center space-x-2">
-            <FiFilter className="h-4 w-4 text-muted" />
+            <FiFilter className="h-4 w-4 text-muted dark:text-muted-dark" />
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="select min-w-[120px]"
+              className="input min-w-[120px] bg-background dark:bg-background-dark"
             >
               {categories.map(category => (
                 <option key={category} value={category}>
@@ -264,30 +248,7 @@ const AgentPage: React.FC = () => {
       </div>
 
       {/* Content */}
-      {error ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <FiAlertCircle className="h-12 w-12 text-red-500 mb-4" />
-          <p className="text-lg font-medium text-primary mb-2">Something went wrong</p>
-          <p className="text-secondary mb-4">{error}</p>
-          <button onClick={handleRefresh} className="btn-primary">
-            Try Again
-          </button>
-        </div>
-      ) : isLoadingAgents && !showTemplates ? (
-        <div className="flex justify-center py-16">
-          <div className="flex flex-col items-center text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            <p className="text-secondary">Loading agents...</p>
-          </div>
-        </div>
-      ) : isLoadingTemplates && showTemplates ? (
-        <div className="flex justify-center py-16">
-          <div className="flex flex-col items-center text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            <p className="text-secondary">Loading templates...</p>
-          </div>
-        </div>
-      ) : showTemplates ? (
+      {showTemplates ? (
         /* Agent Templates Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTemplates.map((template) => (
@@ -295,12 +256,15 @@ const AgentPage: React.FC = () => {
               key={template.id}
               template={template}
               onUse={handleCreateFromTemplate}
+              isLoading={loadingStates[template.id]}
             />
           ))}
           
           {filteredTemplates.length === 0 && (
             <div className="col-span-full text-center py-12">
-              <p className="text-muted">No templates found matching your criteria</p>
+              <p className="text-muted dark:text-muted-dark">
+                No templates found matching your criteria
+              </p>
             </div>
           )}
         </div>
@@ -314,6 +278,7 @@ const AgentPage: React.FC = () => {
               onEdit={handleEditAgent}
               onDuplicate={handleDuplicateAgent}
               onDelete={handleDeleteAgent}
+              isLoading={loadingStates[agent.id]}
               compact={true}
             />
           ))}
@@ -321,20 +286,29 @@ const AgentPage: React.FC = () => {
           {/* Create New Agent Card */}
           <div 
             onClick={handleCreateAgent}
-            className="bg-tertiary border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-border-hover hover:bg-secondary transition-colors min-h-64"
+            className="bg-card dark:bg-card-dark border-2 border-dashed border-border dark:border-border-dark 
+              rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer 
+              hover:border-border-hover dark:hover:border-border-hover-dark 
+              hover:bg-background dark:hover:bg-background-dark 
+              transition-colors min-h-64"
           >
-            <div className="h-12 w-12 bg-secondary rounded-lg flex items-center justify-center mb-4">
-              <FiPlus className="h-6 w-6 text-muted" />
+            <div className="h-12 w-12 bg-background dark:bg-background-dark rounded-lg 
+              flex items-center justify-center mb-4 border border-border dark:border-border-dark">
+              <FiPlus className="h-6 w-6 text-muted dark:text-muted-dark" />
             </div>
-            <h3 className="font-medium text-primary mb-2">Create New Agent</h3>
-            <p className="text-muted text-sm">
+            <h3 className="font-medium text-foreground dark:text-foreground-dark mb-2">
+              Create New Agent
+            </h3>
+            <p className="text-muted dark:text-muted-dark text-sm">
               Build a specialized AI assistant for your specific needs
             </p>
           </div>
           
           {filteredAgents.length === 0 && (
             <div className="col-span-full text-center py-12">
-              <p className="text-muted">No agents found. Create your first agent to get started!</p>
+              <p className="text-muted dark:text-muted-dark">
+                No agents found. Create your first agent to get started!
+              </p>
             </div>
           )}
         </div>
@@ -343,8 +317,12 @@ const AgentPage: React.FC = () => {
       {/* Agent Modal */}
       <AgentModal
         isOpen={showAgentModal}
-        onClose={() => setShowAgentModal(false)}
-        isEditing={isEditingAgent}
+        onClose={() => {
+          setShowAgentModal(false);
+          setCreatingAgent(false);
+          setEditingAgent(false);
+          selectAgent(null);
+        }}
       />
     </div>
   );

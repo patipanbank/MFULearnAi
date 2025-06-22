@@ -1,45 +1,68 @@
 import React from 'react';
-import { FiArrowRight, FiTag, FiBox } from 'react-icons/fi';
+import { FiArrowRight, FiTag } from 'react-icons/fi';
 import type { AgentTemplate } from '../../stores/agentStore';
 
 interface AgentTemplateCardProps {
   template: AgentTemplate;
   onUse: (template: AgentTemplate) => void;
   className?: string;
+  isLoading?: boolean;
 }
 
 const AgentTemplateCard: React.FC<AgentTemplateCardProps> = ({
   template,
   onUse,
-  className = ''
+  className = '',
+  isLoading = false
 }) => {
   const handleUse = () => {
-    onUse(template);
+    if (!isLoading) {
+      onUse(template);
+    }
   };
 
-  const getCategoryColor = (category: string): string => {
-    const colors: Record<string, string> = {
-      'Development': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      'Education': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      'Analytics': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      'Content': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      'Research': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
-      'Business': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      'Development': 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-dark',
+      'Education': 'bg-success/10 text-success dark:bg-success/20 dark:text-success-dark',
+      'Analytics': 'bg-info/10 text-info dark:bg-info/20 dark:text-info-dark',
+      'Content': 'bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning-dark',
+      'Research': 'bg-secondary/10 text-secondary dark:bg-secondary/20 dark:text-secondary-dark',
+      'Business': 'bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-dark'
     };
-    return colors[category] || 'bg-secondary text-muted';
+    return colors[category as keyof typeof colors] || 'bg-muted/10 text-muted dark:bg-muted/20 dark:text-muted-dark';
   };
 
   return (
-    <div className={`card card-hover transition-all duration-200 ${className}`} onClick={handleUse}>
+    <div 
+      className={`
+        relative overflow-hidden
+        bg-card dark:bg-card-dark
+        border border-border dark:border-border-dark
+        rounded-lg shadow-sm hover:shadow-md
+        transition-all duration-200
+        p-6
+        cursor-pointer
+        ${isLoading ? 'opacity-70 pointer-events-none' : ''}
+        ${className}
+      `} 
+      onClick={handleUse}
+    >
+      {isLoading && (
+        <div className="absolute inset-0 bg-background/50 dark:bg-background-dark/50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      )}
+
       {/* Template Header */}
-      <div className="flex items-start justify-between p-4 pb-2">
+      <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="h-12 w-12 bg-secondary rounded-lg flex items-center justify-center text-2xl">
-            {template.icon || <FiBox className="h-6 w-6 text-muted" />}
-          </div>
+          <div className="text-2xl">{template.icon}</div>
           <div>
-            <h3 className="font-semibold text-primary">{template.name}</h3>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${getCategoryColor(template.category)}`}>
+            <h3 className="font-semibold text-foreground dark:text-foreground-dark">
+              {template.name}
+            </h3>
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${getCategoryColor(template.category)}`}>
               {template.category}
             </span>
           </div>
@@ -47,54 +70,59 @@ const AgentTemplateCard: React.FC<AgentTemplateCardProps> = ({
       </div>
 
       {/* Template Description */}
-      <div className="px-4">
-        <p className="text-secondary text-sm line-clamp-2">
-          {template.description || "No description provided"}
-        </p>
-      </div>
-
-      {/* Divider */}
-      <div className="border-t border-border-secondary my-3 mx-4"></div>
+      <p className="text-muted dark:text-muted-dark text-sm mb-4 line-clamp-2">
+        {template.description}
+      </p>
 
       {/* Template Features */}
-      <div className="px-4 py-1">
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted">Tools:</span>
-            <span className="text-primary">{template.recommendedTools.length || 0}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted">Collections:</span>
-            <span className="text-primary">{template.recommendedCollections.length || 0}</span>
-          </div>
+      <div className="space-y-2 text-sm mb-4">
+        <div className="flex items-center justify-between">
+          <span className="text-muted dark:text-muted-dark">Recommended Tools:</span>
+          <span className="text-foreground dark:text-foreground-dark">
+            {template.recommendedTools.length}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted dark:text-muted-dark">Collections:</span>
+          <span className="text-foreground dark:text-foreground-dark">
+            {template.recommendedCollections.length}
+          </span>
         </div>
       </div>
 
       {/* Tags */}
-      {template.tags && template.tags.length > 0 && (
-        <div className="px-4 pt-2 pb-3 flex flex-wrap gap-1">
+      {template.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-4">
           {template.tags.slice(0, 3).map((tag, index) => (
-            <div key={index} className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-secondary text-secondary">
-              <FiTag className="h-3 w-3 mr-1 text-muted" />
-              <span>{tag}</span>
+            <div key={index} className="flex items-center space-x-1">
+              <FiTag className="h-3 w-3 text-muted dark:text-muted-dark" />
+              <span className="text-xs text-muted dark:text-muted-dark">{tag}</span>
             </div>
           ))}
           {template.tags.length > 3 && (
-            <span className="text-xs text-muted">+{template.tags.length - 3} more</span>
+            <span className="text-xs text-muted dark:text-muted-dark">
+              +{template.tags.length - 3} more
+            </span>
           )}
         </div>
       )}
 
       {/* Use Template Button */}
-      <div className="p-4 pt-3">
-        <button 
-          className="w-full btn-primary flex items-center justify-center space-x-2"
-          onClick={handleUse}
-        >
-          <span>Use Template</span>
-          <FiArrowRight className="h-4 w-4" />
-        </button>
-      </div>
+      <button 
+        className="w-full btn-primary flex items-center justify-center space-x-2
+          disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={handleUse}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <div className="animate-spin rounded-full h-4 w-4 border border-white"></div>
+        ) : (
+          <>
+            <span>Use Template</span>
+            <FiArrowRight className="h-4 w-4" />
+          </>
+        )}
+      </button>
     </div>
   );
 };
