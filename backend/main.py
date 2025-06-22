@@ -2,6 +2,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from config.config import settings
 from lib.mongodb import connect_to_mongo, close_mongo_connection
+from middleware.proxy import ProxyHeadersMiddleware
 from routes import (
     embedding as embedding_router,
     stats as stats_router,
@@ -15,6 +16,9 @@ from routes import (
 )
 
 app = FastAPI()
+
+# Add ProxyHeadersMiddleware to trust X-Forwarded-Proto
+app.add_middleware(ProxyHeadersMiddleware)
 
 # Enhanced CORS Middleware for WebSocket support
 origins = settings.ALLOWED_ORIGINS.split(',') if settings.ALLOWED_ORIGINS else ["*"]
