@@ -1,4 +1,4 @@
 export const config = {
-  apiUrl: 'https://mfulearnai.mfu.ac.th',
+  apiUrl: '',
   wsUrl: 'wss://mfulearnai.mfu.ac.th/ws'
 }; 
