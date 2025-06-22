@@ -198,41 +198,97 @@ async def saml_callback(request: Request):
     print("="*80 + "\n")
     
     # Original mapping logic
-    profile = {
-        'nameID': auth.get_nameid(),
-        'username': saml_attributes.get('User.Userrname', [None])[0],
-        'email': saml_attributes.get('User.Email', [None])[0],
-        'firstName': saml_attributes.get('first_name', [None])[0],
-        'lastName': saml_attributes.get('last_name', [None])[0],
-        'department': saml_attributes.get('depart_name', [None])[0],
-        'groups': saml_attributes.get('http://schemas.xmlsoap.org/claims/Group', [])
-    }
-    
-    print(f"👤 Mapped Profile: {profile}")
+    try:
+        # Get raw attributes for debugging
+        print("\n🔍 Raw SAML Attributes:")
+        for key, value in saml_attributes.items():
+            print(f"   {key}: {value}")
 
-    user = await user_service.find_or_create_saml_user(profile)
-    print(f"👤 Created/Found User: {user.username} ({user.email})")
+        # Try different common SAML attribute formats
+        username = (
+            saml_attributes.get('User.Username', [None])[0] or
+            saml_attributes.get('username', [None])[0] or
+            saml_attributes.get('uid', [None])[0]
+        )
+        email = (
+            saml_attributes.get('User.Email', [None])[0] or
+            saml_attributes.get('email', [None])[0] or
+            saml_attributes.get('mail', [None])[0]
+        )
+        first_name = (
+            saml_attributes.get('first_name', [None])[0] or
+            saml_attributes.get('firstname', [None])[0] or
+            saml_attributes.get('givenName', [None])[0]
+        )
+        last_name = (
+            saml_attributes.get('last_name', [None])[0] or
+            saml_attributes.get('lastname', [None])[0] or
+            saml_attributes.get('sn', [None])[0]
+        )
+        department = (
+            saml_attributes.get('depart_name', [None])[0] or
+            saml_attributes.get('department', [None])[0] or
+            saml_attributes.get('organizationalUnit', [None])[0]
+        )
+        groups = (
+            saml_attributes.get('http://schemas.xmlsoap.org/claims/Group', []) or
+            saml_attributes.get('groups', []) or
+            saml_attributes.get('memberOf', [])
+        )
 
-    token_payload = {
-        "sub": user.id, # 'sub' is a standard JWT claim for subject
-        "nameID": user.nameID,
-        "username": user.username,
-        "email": user.email,
-        "firstName": user.firstName,
-        "lastName": user.lastName,
-        "department": user.department,
-        "groups": user.groups,
-        "role": user.role.value,
-        "exp": datetime.utcnow() + timedelta(days=7)
-    }
+        if not username:
+            raise ValueError("Username not found in SAML attributes")
 
-    if not settings.JWT_SECRET:
-        raise HTTPException(status_code=500, detail="JWT_SECRET not configured")
-    token = jwt.encode(token_payload, settings.JWT_SECRET, algorithm="HS256")
-    
-    redirect_url = f"{settings.FRONTEND_URL}/auth/callback?token={token}"
-    print(f"🔄 Redirecting to: {redirect_url}")
-    return RedirectResponse(redirect_url, status_code=303)
+        profile = {
+            'nameID': auth.get_nameid(),
+            'username': username,
+            'email': email,
+            'firstName': first_name,
+            'lastName': last_name,
+            'department': department,
+            'groups': groups
+        }
+        
+        print(f"👤 Mapped Profile: {profile}")
+
+        user = await user_service.find_or_create_saml_user(profile)
+        print(f"👤 Created/Found User: {user.username} ({user.email})")
+
+    except Exception as e:
+        print(f"❌ Error processing SAML attributes: {e}")
+        return RedirectResponse(
+            f"{settings.FRONTEND_URL}/login?error=profile_mapping&reason={str(e)}", 
+            status_code=303
+        )
+
+    try:
+        token_payload = {
+            "sub": user.id, # 'sub' is a standard JWT claim for subject
+            "nameID": user.nameID,
+            "username": user.username,
+            "email": user.email,
+            "firstName": user.firstName,
+            "lastName": user.lastName,
+            "department": user.department,
+            "groups": user.groups,
+            "role": user.role.value,
+            "exp": datetime.utcnow() + timedelta(days=7)
+        }
+
+        if not settings.JWT_SECRET:
+            raise HTTPException(status_code=500, detail="JWT_SECRET not configured")
+        token = jwt.encode(token_payload, settings.JWT_SECRET, algorithm="HS256")
+        
+        redirect_url = f"{settings.FRONTEND_URL}/auth/callback?token={token}"
+        print(f"🔄 Redirecting to: {redirect_url}")
+        return RedirectResponse(redirect_url, status_code=303)
+        
+    except Exception as e:
+        print(f"❌ Error creating JWT token: {e}")
+        return RedirectResponse(
+            f"{settings.FRONTEND_URL}/login?error=token_creation&reason={str(e)}", 
+            status_code=303
+        )
 
 @router.get('/logout')
 async def logout(request: Request):
