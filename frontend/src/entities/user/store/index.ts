@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '../../../shared/types';
 import { config } from '../../../config/config';
-import { api } from '../../../shared/lib/api';
 
 interface AuthState {
   token: string | null;
@@ -45,14 +44,17 @@ export const useAuthStore = create<AuthState>((set, get) => {
     set({ status: 'loading' });
 
     try {
-      const response = await api.get<User>('/api/auth/me');
+      const response = await fetch(`${config.apiUrl}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      if (!response.success || !response.data) {
+      if (!response.ok) {
         localStorage.removeItem('auth_token');
         return set({ status: 'unauthenticated', user: null, token: null });
       }
 
-      set({ status: 'authenticated', user: response.data, fetchError: null });
+      const userData: User = await response.json();
+      set({ status: 'authenticated', user: userData, fetchError: null });
     } catch (error) {
       localStorage.removeItem('auth_token');
       set({ status: 'unauthenticated', user: null, token: null, fetchError: error instanceof Error ? error.message : 'Network error' });
@@ -66,15 +68,22 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
 
       try {
-        const response = await api.post<{ token: string }>('/api/auth/refresh', {});
+        const response = await fetch(`${config.apiUrl}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+        });
 
-        if (!response.success || !response.data) {
+        if (!response.ok) {
           // If refresh fails, logout user
           get().logout();
           return null;
         }
 
-        const newToken = response.data.token;
+        const data = await response.json();
+        const newToken = data.token;
         
         // Update token in store and localStorage
         localStorage.setItem('auth_token', newToken);
