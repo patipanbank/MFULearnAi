@@ -153,7 +153,7 @@ const useChatStore = create<ChatState>((set, get) => ({
           ...response.data,
           createdAt: new Date(response.data.createdAt),
           updatedAt: new Date(response.data.updatedAt),
-          messages: response.data.messages.map((msg: any) => ({
+          messages: (response.data.messages || []).map((msg: any) => ({
             ...msg,
             timestamp: new Date(msg.timestamp)
           }))
@@ -204,16 +204,32 @@ const useChatStore = create<ChatState>((set, get) => ({
     try {
       const response = await api.get<any>('/api/chat/history');
       
-      if (response.success && response.data) {
+      if (response.success && Array.isArray(response.data)) {
+        const history: ChatSession[] = response.data
+          .map((chat: any) => {
+            if (!chat.id) {
+              console.warn('Chat session from API is missing an ID, skipping.', chat);
+              return null;
+            }
+            return {
+              ...chat,
+              messages: [], // We don't load all messages for the history view
+              createdAt: new Date(chat.createdAt),
+              updatedAt: new Date(chat.updatedAt),
+            };
+          })
+          .filter((chat): chat is ChatSession => chat !== null);
+
         set({ 
-          chatHistory: response.data,
+          chatHistory: history,
           isLoading: false
         });
       } else {
-        console.error('Failed to fetch chat history:', response.error);
+        console.error('Failed to fetch chat history:', response.error || 'Response data is not an array');
         set({ 
           error: 'Failed to fetch chat history',
-          isLoading: false
+          isLoading: false,
+          chatHistory: [] // Reset history on failure
         });
       }
     } catch (err) {
