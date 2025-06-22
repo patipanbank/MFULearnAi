@@ -79,6 +79,8 @@ services:
       - SSL_KEY_PATH=/etc/nginx/ssl/key.pem
       - LOG_LEVEL=${NGINX_LOG_LEVEL:-warn}
       - CORS_ORIGIN=${NGINX_CORS_ORIGIN:-*}
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - 80:80
       - 443:443
