@@ -118,44 +118,54 @@ const useAgentStore = create<AgentStore>()(
           try {
             const response = await api.get<AgentConfig[]>('/api/agents/');
             
-            if (response.success) {
+            if (response.success && Array.isArray(response.data)) {
               set(state => {
-                const newState = { 
-                  agents: response.data || [], 
+                const responseData = response.data || [];
+                const newState: { agents: AgentConfig[], isLoadingAgents: boolean, selectedAgent?: AgentConfig | null } = { 
+                  agents: responseData, 
                   isLoadingAgents: false 
                 };
                 
                 // Auto-select first agent if none selected and agents exist
-                if (!state.selectedAgent && response.data && response.data.length > 0) {
-                  (newState as any).selectedAgent = response.data[0];
+                if (!state.selectedAgent && responseData.length > 0) {
+                  newState.selectedAgent = responseData[0];
                 }
                 
                 return newState;
               });
             } else {
-              console.error('Failed to fetch agents:', response.status, response.error);
-              // If API call fails but returns status (not a network error)
-              if (response.status >= 400) {
-                throw new Error(`Server error: ${response.status}`);
+              if (response.data && !Array.isArray(response.data)) {
+                console.error('Failed to fetch agents: API response is not an array.', response.data);
+              } else {
+                console.error('Failed to fetch agents:', response.error);
               }
-              
-              // If complete API failure, use default agent
+              // If API call fails or returns non-array, use default agent or empty array
+              const agents = get().agents;
+              if(agents.length === 0){
+                const defaultAgent = get().createDefaultAgent();
+                set({ 
+                  agents: [defaultAgent],
+                  selectedAgent: defaultAgent,
+                  isLoadingAgents: false
+                });
+              } else {
+                 set({ isLoadingAgents: false });
+              }
+            }
+          } catch (error) {
+            console.error('Failed to fetch agents:', error);
+            // If network error, use template-based default if no agents exist
+            const agents = get().agents;
+            if(agents.length === 0){
               const defaultAgent = get().createDefaultAgent();
               set({ 
                 agents: [defaultAgent],
                 selectedAgent: defaultAgent,
                 isLoadingAgents: false
               });
+            } else {
+               set({ isLoadingAgents: false });
             }
-          } catch (error) {
-            console.error('Failed to fetch agents:', error);
-            // If network error, use template-based default
-            const defaultAgent = get().createDefaultAgent();
-            set({ 
-              agents: [defaultAgent],
-              selectedAgent: defaultAgent,
-              isLoadingAgents: false
-            });
             throw error;
           }
         },
