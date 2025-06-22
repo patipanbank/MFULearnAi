@@ -233,7 +233,7 @@ const AgentPage: React.FC = () => {
             {/* Create New Agent Card */}
             <div 
               onClick={handleCreateAgent}
-              className="card border-2 border-dashed border-primary flex flex-col items-center justify-center text-center cursor-pointer group hover:border-accent hover:bg-secondary transition-all"
+              className="card border-2 border-dashed border-border flex flex-col items-center justify-center text-center cursor-pointer group hover:border-accent hover:bg-secondary transition-all"
             >
               <div className="h-16 w-16 bg-secondary rounded-full flex items-center justify-center mb-4 group-hover:bg-accent transition-colors">
                 <FiPlus className="h-8 w-8 text-primary group-hover:text-white transition-colors" />
