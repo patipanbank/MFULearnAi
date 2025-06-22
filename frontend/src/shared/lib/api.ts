@@ -30,6 +30,17 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // Ensure URL is properly formatted with /api prefix when needed
+    if (config.url) {
+      // If URL doesn't start with /api/ and doesn't start with http(s)://
+      if (!config.url.startsWith('/api/') && !config.url.match(/^https?:\/\//)) {
+        config.url = `/api${config.url.startsWith('/') ? '' : '/'}${config.url}`;
+      }
+      
+      // For debugging
+      console.log('Request URL:', config.url);
+    }
+    
     return config;
   },
   (error) => {
