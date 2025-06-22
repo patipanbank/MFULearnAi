@@ -116,7 +116,7 @@ const useAgentStore = create<AgentStore>()(
         fetchAgents: async () => {
           set({ isLoadingAgents: true });
           try {
-            const response = await api.get<AgentConfig[]>('/agents');
+            const response = await api.get<AgentConfig[]>('/api/agents/');
             
             if (response.success && Array.isArray(response.data)) {
               set(state => {
@@ -196,7 +196,7 @@ const useAgentStore = create<AgentStore>()(
 
         createAgent: async (config) => {
           try {
-            const response = await api.post<AgentConfig>('/agents', config);
+            const response = await api.post<AgentConfig>('/api/agents/', config);
 
             if (response.success) {
               set(state => ({
@@ -214,7 +214,7 @@ const useAgentStore = create<AgentStore>()(
 
         updateAgent: async (id, updates) => {
           try {
-            const response = await api.put<AgentConfig>(`/agents/${id}`, updates);
+            const response = await api.put<AgentConfig>(`/api/agents/${id}`, updates);
 
             if (response.success) {
               const updatedAgent = response.data!;
@@ -235,7 +235,7 @@ const useAgentStore = create<AgentStore>()(
 
         deleteAgent: async (id) => {
           try {
-            const response = await api.delete(`/agents/${id}`);
+            const response = await api.delete(`/api/agents/${id}`);
 
             if (response.success) {
               set(state => ({
@@ -257,7 +257,7 @@ const useAgentStore = create<AgentStore>()(
 
         fetchTemplates: async () => {
           try {
-            const response = await api.get<AgentTemplate[]>('/agents/templates');
+            const response = await api.get<AgentTemplate[]>('/api/agents/templates');
             if (response.success && Array.isArray(response.data)) {
               set({ agentTemplates: response.data || [] });
             } else {
@@ -273,7 +273,7 @@ const useAgentStore = create<AgentStore>()(
 
         createAgentFromTemplate: async (templateId, customizations = {}) => {
           try {
-            const response = await api.post<AgentConfig>('/agents/from-template', {
+            const response = await api.post<AgentConfig>('/api/agents/from-template', {
               templateId,
               ...customizations
             });

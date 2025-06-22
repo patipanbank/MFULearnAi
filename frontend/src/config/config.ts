@@ -1,4 +1,4 @@
 export const config = {
-  apiUrl: window.location.origin,
+  apiUrl: '',
   wsUrl: 'wss://mfulearnai.mfu.ac.th/ws'
 }; 
