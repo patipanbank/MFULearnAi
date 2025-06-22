@@ -56,29 +56,42 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Pass build-time variables to Vite
-        - VITE_API_URL=${FRONTEND_URL:-https://mfulearnai.mfu.ac.th}/api
+        - VITE_API_URL=${FRONTEND_URL:-https://mfulearnai.mfu.ac.th}
         - VITE_WS_URL=wss://mfulearnai.mfu.ac.th/ws
-    # This service is now a self-contained frontend server
-    restart: unless-stopped
+    # This service is now only for building the frontend assets.
+    # It will build and then exit. The assets are shared via the volume.
+    volumes:
+      - frontend-dist:/app/dist
+    # No need for ports or restart policy for a build-only service
     networks:
       - mfulearnai
-    # No ports are exposed to the host, communication is through the docker network
 
   nginx:
     build: 
       context: ./nginx
       dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      # Environment-specific nginx configuration
+      - SERVER_NAME=${NGINX_SERVER_NAME:-localhost}
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=5000
+      - FRONTEND_HOST=frontend
+      - FRONTEND_PORT=80
+      - SSL_CERT_PATH=/etc/nginx/ssl/cert.pem
+      - SSL_KEY_PATH=/etc/nginx/ssl/key.pem
+      - LOG_LEVEL=${NGINX_LOG_LEVEL:-warn}
+      - CORS_ORIGIN=${NGINX_CORS_ORIGIN:-*}
     ports:
-      - "80:80"
-      - "443:443"
+      - 80:80
+      - 443:443
     volumes:
-      # We still mount our custom nginx config for the reverse proxy
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      # We mount SSL certificates here
-      # - ./path/to/your/certs:/etc/nginx/ssl
+      # Mount the static assets built by the frontend service
+      - frontend-dist:/var/www/frontend
     depends_on:
-      - frontend
+      - frontend # Nginx will wait for the frontend build to complete
       - backend
     networks:
       - mfulearnai
@@ -98,11 +111,13 @@ services:
       - mfulearnai
     restart: unless-stopped
 
+
 volumes:
   data:
   redis:
   chroma:
-  # The frontend-dist volume is no longer needed with this architecture
+  # Define the volume that will hold the built frontend assets
+  frontend-dist:
 
 networks:
   mfulearnai:
