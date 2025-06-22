@@ -2,7 +2,7 @@
 FROM node:20-alpine AS build
 
 # Build arguments
-ARG VITE_API_URL=https://mfulearnai.mfu.ac.th
+ARG VITE_API_URL=https://mfulearnai.mfu.ac.th/api
 ARG VITE_WS_URL=wss://mfulearnai.mfu.ac.th/ws
 
 # Set environment variables for build
