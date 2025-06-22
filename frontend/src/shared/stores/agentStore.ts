@@ -140,7 +140,7 @@ const useAgentStore = create<AgentStore>()(
                 console.error('Failed to fetch agents:', response.error);
               }
               // If API call fails or returns non-array, use default agent or empty array
-              const agents = get().agents;
+              const agents = get().agents || [];
               if(agents.length === 0){
                 const defaultAgent = get().createDefaultAgent();
                 set({ 
@@ -155,7 +155,7 @@ const useAgentStore = create<AgentStore>()(
           } catch (error) {
             console.error('Failed to fetch agents:', error);
             // If network error, use template-based default if no agents exist
-            const agents = get().agents;
+            const agents = get().agents || [];
             if(agents.length === 0){
               const defaultAgent = get().createDefaultAgent();
               set({ 
@@ -258,15 +258,15 @@ const useAgentStore = create<AgentStore>()(
         fetchTemplates: async () => {
           try {
             const response = await api.get<AgentTemplate[]>('/api/agents/templates');
-            
-            if (response.success) {
+            if (response.success && Array.isArray(response.data)) {
               set({ agentTemplates: response.data || [] });
             } else {
-              console.error('Failed to fetch templates:', response.status, response.error);
-              throw new Error(response.error || `Failed to fetch templates: ${response.status}`);
+              console.error('Failed to fetch templates:', response.error);
+              set({ agentTemplates: [] });
             }
           } catch (error) {
             console.error('Failed to fetch templates:', error);
+            set({ agentTemplates: [] });
             throw error;
           }
         },

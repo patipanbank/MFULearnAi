@@ -69,22 +69,26 @@ const AgentPage: React.FC = () => {
   }, [showTemplates, agentTemplates.length, fetchTemplates]);
 
   // Filter agents and templates
-  const filteredAgents = agents.filter(agent => {
-    const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         agent.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesSearch;
-  });
+  const filteredAgents = Array.isArray(agents) 
+    ? agents.filter(agent => {
+        const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            agent.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesSearch;
+      })
+    : [];
 
-  const filteredTemplates = agentTemplates.filter(template => {
-    const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         template.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredTemplates = Array.isArray(agentTemplates)
+    ? agentTemplates.filter(template => {
+        const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            template.description.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+      })
+    : [];
 
   // Get unique categories
-  const categories = ['all', ...Array.from(new Set(agentTemplates.map(t => t.category)))];
+  const categories = ['all', ...Array.from(new Set(Array.isArray(agentTemplates) ? agentTemplates.map(t => t.category) : []))];
 
   // Handlers
   const handleCreateAgent = () => {
@@ -229,6 +233,23 @@ const AgentPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="mb-6 p-4 border border-error/20 bg-error/10 rounded-lg flex items-start gap-3">
+          <FiAlertCircle className="h-5 w-5 text-error mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="font-medium text-error mb-1">Error</h3>
+            <p className="text-error/90">{error}</p>
+            <button 
+              onClick={handleRefresh} 
+              className="mt-2 text-sm font-medium text-error hover:text-error/80"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="flex items-center space-x-4 mb-6">
