@@ -17,13 +17,18 @@ from middleware.role_guard import get_current_user_with_roles
 router = APIRouter()
 
 async def prepare_saml_request(request: Request):
+    # Force HTTPS for production environment
+    scheme = 'https'
+    
     return {
-        'https': 'on' if request.url.scheme == 'https' else 'off',
+        'https': 'on',  # Always use HTTPS
         'http_host': request.url.netloc,
         'script_name': request.url.path,
-        'server_port': str(request.url.port or (443 if request.url.scheme == 'https' else 80)),
+        'server_port': '443',  # Always use HTTPS port
         'get_data': request.query_params,
-        'post_data': await request.form()
+        'post_data': await request.form(),
+        'https_host': request.url.netloc,  # Add HTTPS host explicitly
+        'https_port': '443'
     }
 
 def init_saml_auth(req):
@@ -42,24 +47,29 @@ def get_saml_settings():
         cert = cert.replace("\\n", "").replace("\n", "")
         cert = cert.strip()
 
+    # Ensure base URL always uses HTTPS
+    base_url = settings.FRONTEND_URL or "https://mfulearnai.mfu.ac.th"
+    if isinstance(base_url, str) and base_url.startswith('http://'):
+        base_url = base_url.replace('http://', 'https://')
+
     return {
         "strict": True,  # Enable strict mode for better security
-        "debug": False,  # Disable debug in production
+        "debug": True,  # Temporarily enable debug for troubleshooting
         "sp": {
             "entityId": settings.SAML_SP_ENTITY_ID,
             "assertionConsumerService": {
-                "url": f"{settings.FRONTEND_URL}/api/auth/saml/callback",  # Updated to match actual callback URL
+                "url": f"{base_url}/api/auth/saml/callback",
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
             },
             "singleLogoutService": {
-                "url": f"{settings.FRONTEND_URL}/api/auth/saml/logout",  # Updated logout URL
+                "url": f"{base_url}/api/auth/saml/logout",
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
             },
-            "x509cert": cert,  # Use the same cert for SP if provided
-            "privateKey": ""  # Keep private key empty if not needed
+            "x509cert": cert,
+            "privateKey": ""
         },
         "idp": {
-            "entityId": settings.SAML_IDP_ENTITY_ID,  # Use explicit entity ID
+            "entityId": settings.SAML_IDP_ENTITY_ID,
             "singleSignOnService": {
                 "url": settings.SAML_IDP_SSO_URL,
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
