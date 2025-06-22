@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '../../../shared/types';
+import { config } from '../../../config/config';
 import { api } from '../../../shared/lib/api';
 
 interface AuthState {
