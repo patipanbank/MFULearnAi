@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiToggleLeft, FiToggleRight, FiRefreshCw } from 'react-icons/fi';
 import { useAgentStore } from '../../stores';
+import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
 
 interface AgentModalProps {
@@ -12,6 +13,13 @@ interface AgentModalProps {
 interface ModelOption {
   id: string;
   name: string;
+}
+
+interface Collection {
+  id: string;
+  name: string;
+  description: string;
+  permission: string;
 }
 
 const AgentModal: React.FC<AgentModalProps> = ({
@@ -29,9 +37,11 @@ const AgentModal: React.FC<AgentModalProps> = ({
     setShowAgentModal
   } = useAgentStore();
 
-  // Local state for models
+  // Local state for models and collections
   const [models, setModels] = useState<ModelOption[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [loadingCollections, setLoadingCollections] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<AgentConfig>>({
@@ -57,7 +67,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
     { id: 'function', name: 'Custom Function', description: 'Custom function tools' }
   ];
 
-  // Initialize models
+  // Initialize models and fetch collections
   const initializeData = async () => {
     // Set default models (no API call needed)
     setLoadingModels(true);
@@ -68,6 +78,22 @@ const AgentModal: React.FC<AgentModalProps> = ({
     ];
     setModels(defaultModels);
     setLoadingModels(false);
+
+    // Fetch collections
+    setLoadingCollections(true);
+    try {
+      const response = await api.get<Collection[]>('/api/collections');
+      if (response.success && Array.isArray(response.data)) {
+        setCollections(response.data);
+      } else {
+        console.error('Failed to fetch collections:', response.error);
+        setCollections([]);
+      }
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+      setCollections([]);
+    }
+    setLoadingCollections(false);
   };
 
   // Initialize form data
@@ -100,6 +126,17 @@ const AgentModal: React.FC<AgentModalProps> = ({
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleCollectionToggle = (collectionName: string) => {
+    const currentCollections = formData.collectionNames || [];
+    const isSelected = currentCollections.includes(collectionName);
+    
+    if (isSelected) {
+      handleInputChange('collectionNames', currentCollections.filter(c => c !== collectionName));
+    } else {
+      handleInputChange('collectionNames', [...currentCollections, collectionName]);
+    }
   };
 
   const handleToolToggle = (toolId: string) => {
@@ -305,17 +342,38 @@ const AgentModal: React.FC<AgentModalProps> = ({
               </div>
             </div>
 
-            {/* Knowledge Base */}
+            {/* Knowledge Collections */}
             <div>
               <label className="block text-sm font-medium text-primary mb-2">
-                Knowledge Base
+                Knowledge Collections
               </label>
-              <div className="p-4 bg-secondary rounded-lg">
-                <p className="text-sm text-muted">
-                  Knowledge base management is now integrated directly into the agent system. 
-                  You can manage your knowledge base through the agent's configuration.
-                </p>
-              </div>
+              {loadingCollections ? (
+                <div className="p-4 text-center text-muted">Loading collections...</div>
+              ) : collections.length === 0 ? (
+                <div className="p-4 bg-secondary rounded-lg">
+                  <p className="text-sm text-muted">
+                    No collections available. Create collections first to enhance your agent's knowledge.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {collections.map((collection) => (
+                    <button
+                      key={collection.id}
+                      type="button"
+                      onClick={() => handleCollectionToggle(collection.name)}
+                      className={`p-3 rounded-lg border text-left transition-colors ${
+                        (formData.collectionNames || []).includes(collection.name)
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-border hover:bg-secondary'
+                      }`}
+                    >
+                      <div className="font-medium text-sm">{collection.name}</div>
+                      <div className="text-xs text-muted">{collection.description}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Tools */}
