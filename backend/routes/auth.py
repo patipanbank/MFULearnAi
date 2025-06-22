@@ -43,23 +43,23 @@ def get_saml_settings():
         cert = cert.strip()
 
     return {
-        "strict": False, # In production, set to True
-        "debug": True, # In production, set to False
+        "strict": True,  # Enable strict mode for better security
+        "debug": False,  # Disable debug in production
         "sp": {
             "entityId": settings.SAML_SP_ENTITY_ID,
             "assertionConsumerService": {
-                "url": settings.SAML_SP_ACS_URL,
+                "url": f"{settings.FRONTEND_URL}/api/auth/saml/callback",  # Updated to match actual callback URL
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
             },
             "singleLogoutService": {
-                "url": f"{settings.FRONTEND_URL}/api/auth/logout/saml/callback",
+                "url": f"{settings.FRONTEND_URL}/api/auth/saml/logout",  # Updated logout URL
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
             },
-            "x509cert": "", # SP public key, optional for some IdPs
-            "privateKey": "" # SP private key, optional for some IdPs
+            "x509cert": cert,  # Use the same cert for SP if provided
+            "privateKey": ""  # Keep private key empty if not needed
         },
         "idp": {
-            "entityId": settings.SAML_IDP_ENTITY_ID or settings.SAML_IDP_SSO_URL,
+            "entityId": settings.SAML_IDP_ENTITY_ID,  # Use explicit entity ID
             "singleSignOnService": {
                 "url": settings.SAML_IDP_SSO_URL,
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
@@ -69,6 +69,21 @@ def get_saml_settings():
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
             },
             "x509cert": cert
+        },
+        "security": {
+            "nameIdEncrypted": False,
+            "authnRequestsSigned": False,
+            "logoutRequestSigned": False,
+            "logoutResponseSigned": False,
+            "signMetadata": False,
+            "wantMessagesSigned": False,
+            "wantAssertionsSigned": True,
+            "wantNameId": True,
+            "wantNameIdEncrypted": False,
+            "wantAssertionsEncrypted": False,
+            "allowSingleLabelDomains": False,
+            "signatureAlgorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+            "digestAlgorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
         }
     }
 
