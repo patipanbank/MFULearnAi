@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '../lib/api';
 
 export type Theme = 'light' | 'dark' | 'auto';
 
