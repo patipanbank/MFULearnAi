@@ -47,11 +47,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ status: 'loading' });
 
       try {
-        // api object now handles base URL and token
-        const response = await api.get<User>('/auth/me');
-        console.log('fetchUser: Raw response object:', response);
-        const userData = response.data;
-        console.log('fetchUser: Successfully fetched user data.', { userData });
+        // api object now handles base URL, token and returns data directly
+        const userData = await api.get<User>('/auth/me');
+        console.log('fetchUser: Successfully fetched user data:', userData);
         set({ status: 'authenticated', user: userData, fetchError: null });
       } catch (error) {
         console.error('fetchUser: Failed to fetch user data.', error);
@@ -63,8 +61,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
     refreshToken: async (): Promise<string | null> => {
       try {
         // api object now handles base URL and token
-        const response = await api.post<{token: string}>('/auth/refresh');
-        const newToken = response.data.token;
+        const tokenData = await api.post<{token: string}>('/auth/refresh');
+        const newToken = tokenData.token;
         
         // Update token in store and localStorage
         localStorage.setItem('auth_token', newToken);

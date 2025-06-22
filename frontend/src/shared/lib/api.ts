@@ -73,17 +73,17 @@ apiClient.interceptors.response.use(
  * }
  */
 export const api = {
-  get: <T>(url: string, config?: AxiosRequestConfig) =>
-    apiClient.get<T>(url, config),
+  get: <T>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    apiClient.get(url, config),
 
-  post: <T>(url:string, data?: any, config?: AxiosRequestConfig) =>
-    apiClient.post<T>(url, data, config),
+  post: <T>(url:string, data?: any, config?: AxiosRequestConfig): Promise<T> =>
+    apiClient.post(url, data, config),
 
-  put: <T>(url: string, data?: any, config?: AxiosRequestConfig) =>
-    apiClient.put<T>(url, data, config),
+  put: <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> =>
+    apiClient.put(url, data, config),
 
-  delete: <T>(url: string, config?: AxiosRequestConfig) =>
-    apiClient.delete<T>(url, config),
+  delete: <T>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    apiClient.delete(url, config),
 };
 
 // Exporting the raw instance in case advanced features (like cancelling requests) are needed.
