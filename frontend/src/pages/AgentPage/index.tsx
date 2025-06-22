@@ -13,6 +13,7 @@ const AgentPage: React.FC = () => {
     agents,
     agentTemplates,
     showAgentModal,
+    isEditingAgent,
     isLoadingAgents,
     fetchAgents,
     fetchTemplates,
