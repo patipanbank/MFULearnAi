@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { config } from '../../config/config';
+import { api } from '../lib/api';
 
 export interface Collection {
   id: string;
@@ -42,25 +44,15 @@ export const useCollectionStore = create<CollectionStore>()(
       fetchCollections: async () => {
         set({ isLoading: true, error: null });
         try {
-          const token = localStorage.getItem('token');
-          if (!token) {
-            throw new Error('No authentication token found');
+          // Use API utility which handles auth and HTTPS properly
+          const response = await api.get<Collection[]>(`/api/collections`);
+          
+          if (!response.success) {
+            throw new Error(`Failed to fetch collections: ${response.error}`);
           }
 
-          const response = await fetch('/api/collections', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to fetch collections: ${response.statusText}`);
-          }
-
-          const collections = await response.json();
           set({
-            collections,
+            collections: response.data || [],
             lastFetched: Date.now(),
             isLoading: false,
           });
