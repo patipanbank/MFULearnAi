@@ -399,8 +399,7 @@
 
   .badge-outline {
     color: rgb(var(--color-foreground));
-    border-color: rgb(var(--color-border));
-    @apply border;
+    @apply border-border;
   }
 }
 
