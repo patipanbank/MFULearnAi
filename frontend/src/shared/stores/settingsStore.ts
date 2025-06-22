@@ -106,31 +106,21 @@ export const useSettingsStore = create<SettingsState>()(
       loadSettings: async () => {
         set({ isLoading: true });
         try {
-          // API endpoint doesn't exist yet, use localStorage data instead
-          // const response = await api.get<{
-          //  preferences: UserPreferences;
-          //  profile: UserProfile;
-          //  privacy: PrivacySettings;
-          // }>('/api/user/settings');
+          const response = await api.get<{
+            preferences: UserPreferences;
+            profile: UserProfile;
+            privacy: PrivacySettings;
+          }>('/api/user/settings');
 
-          // Just use the persisted data from localStorage
-          const storedData = localStorage.getItem('user-settings');
-          if (storedData) {
-            try {
-              const parsedData = JSON.parse(storedData);
-              if (parsedData.state) {
-                set({
-                  preferences: { ...defaultPreferences, ...parsedData.state.preferences },
-                  profile: { ...defaultProfile, ...parsedData.state.profile },
-                  privacy: { ...defaultPrivacy, ...parsedData.state.privacy },
-                });
-                
-                // Apply loaded theme
-                get().applyTheme(parsedData.state.preferences?.theme || 'light');
-              }
-            } catch (err) {
-              console.error('Failed to parse stored settings:', err);
-            }
+          if (response.success && response.data) {
+            set({
+              preferences: { ...defaultPreferences, ...response.data.preferences },
+              profile: { ...defaultProfile, ...response.data.profile },
+              privacy: { ...defaultPrivacy, ...response.data.privacy },
+            });
+            
+            // Apply loaded theme
+            get().applyTheme(response.data.preferences?.theme || 'light');
           }
         } catch (error) {
           console.error('Failed to load settings:', error);
@@ -142,30 +132,21 @@ export const useSettingsStore = create<SettingsState>()(
       saveSettings: async () => {
         set({ isSaving: true });
         try {
-          // const { preferences, profile, privacy } = get();
-          
-          // API endpoint doesn't exist yet, use localStorage instead
-          // const response = await api.put<{ success: boolean }>('/api/user/settings', {
-          //  preferences,
-          //  profile,
-          //  privacy,
-          // });
+          const { preferences, profile, privacy } = get();
+          const response = await api.put<{ success: boolean }>('/api/user/settings', {
+            preferences,
+            profile,
+            privacy,
+          });
 
-          // Store in localStorage (this happens automatically with persist middleware)
-          // Just simulate a successful API call
-
-          // if (!response.success) {
-          //  throw new Error('Failed to save settings');
-          // }
-          
-          // Simulate successful save
-          setTimeout(() => {
-            set({ isSaving: false });
-          }, 300);
+          if (!response.success) {
+            throw new Error('Failed to save settings');
+          }
         } catch (error) {
           console.error('Failed to save settings:', error);
-          set({ isSaving: false });
           throw error;
+        } finally {
+          set({ isSaving: false });
         }
       },
 
@@ -210,10 +191,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       resetSettings: async () => {
         try {
-          // API endpoint doesn't exist yet, use localStorage instead
-          // await api.post<{ success: boolean }>('/api/user/settings/reset', {});
+          await api.post<{ success: boolean }>('/api/user/settings/reset', {});
 
-          // Reset to defaults
           set({
             preferences: defaultPreferences,
             profile: defaultProfile,
