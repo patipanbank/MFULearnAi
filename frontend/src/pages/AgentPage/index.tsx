@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiFilter, FiBox, FiGrid } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiFilter, FiGrid } from 'react-icons/fi';
 import { useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
 import AgentCard from '../../shared/ui/AgentCard';
 import AgentTemplateCard from '../../shared/ui/AgentTemplateCard';
