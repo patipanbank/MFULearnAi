@@ -1,12 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiPlus, FiTrash2, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
-import { useAgentStore, useModelsStore } from '../../stores';
+import { FiX, FiPlus, FiTrash2, FiToggleLeft, FiToggleRight, FiRefreshCw } from 'react-icons/fi';
+import { useAgentStore } from '../../stores';
+import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
 
 interface AgentModalProps {
   isOpen: boolean;
   onClose: () => void;
   isEditing?: boolean;
+}
+
+interface ModelOption {
+  id: string;
+  name: string;
+}
+
+interface CollectionOption {
+  id: string;
+  name: string;
+  permission: string;
+  createdBy: string;
 }
 
 const AgentModal: React.FC<AgentModalProps> = ({
@@ -18,12 +31,17 @@ const AgentModal: React.FC<AgentModalProps> = ({
     selectedAgent,
     createAgent,
     updateAgent,
+    isCreatingAgent,
     setCreatingAgent,
     setEditingAgent,
     setShowAgentModal
   } = useAgentStore();
 
-  const { models, collections } = useModelsStore();
+  // Local state for models and collections
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [collections, setCollections] = useState<CollectionOption[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [loadingCollections, setLoadingCollections] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<AgentConfig>>({
@@ -49,8 +67,63 @@ const AgentModal: React.FC<AgentModalProps> = ({
     { id: 'function', name: 'Custom Function', description: 'Custom function tools' }
   ];
 
+  // Initialize models and fetch collections
+  const initializeData = async () => {
+    // Set default models (no API call needed)
+    setLoadingModels(true);
+    const defaultModels = [
+      { id: 'anthropic.claude-3-5-sonnet-20240620-v1:0', name: 'Claude 3.5 Sonnet' },
+      { id: 'anthropic.claude-3-haiku-20240307-v1:0', name: 'Claude 3 Haiku' },
+      { id: 'anthropic.claude-3-opus-20240229-v1:0', name: 'Claude 3 Opus' }
+    ];
+    setModels(defaultModels);
+    setLoadingModels(false);
+
+    // Fetch collections using robust API utility
+    setLoadingCollections(true);
+    
+    let result = await api.get<CollectionOption[]>('/api/collections', {
+      timeout: 30000, // เพิ่ม timeout เป็น 30 วินาที สำหรับ production
+      retries: 2, // ลด retries เป็น 2 ครั้ง
+      retryDelay: 3000 // เพิ่ม delay เป็น 3 วินาที
+    });
+    
+    // ถ้าไม่สามารถเข้าถึงได้เพราะ authentication ให้ลอง public endpoint
+    if (!result.success && result.status === 401) {
+      console.log('Authentication failed, trying public collections...');
+      result = await api.get<CollectionOption[]>('/api/collections/public', {
+        timeout: 30000,
+        retries: 2,
+        retryDelay: 3000
+      });
+    }
+    
+    if (result.success && result.data) {
+      setCollections(result.data);
+      console.log(`Successfully loaded ${result.data.length} collections`);
+    } else {
+      console.warn('Failed to load collections:', result.error);
+      setCollections([]); // Continue with empty collections
+      
+      // Show user-friendly message for specific errors
+      if (result.status === 401) {
+        console.info('Collections require authentication - modal will work without them');
+      } else if (result.status === 0) {
+        console.error('Network timeout or connection issue loading collections:', result.error);
+      } else {
+        console.error('Server error loading collections:', result.error);
+      }
+    }
+    
+    setLoadingCollections(false);
+  };
+
   // Initialize form data
   useEffect(() => {
+    if (isOpen) {
+      initializeData();
+    }
+    
     if (isEditing && selectedAgent) {
       setFormData(selectedAgent);
     } else {
@@ -58,7 +131,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
         name: '',
         description: '',
         systemPrompt: '',
-        modelId: models.length > 0 ? models[0].id : '',
+        modelId: models.length > 0 ? models[0].id : 'anthropic.claude-3-5-sonnet-20240620-v1:0',
         collectionNames: [],
         tools: [],
         temperature: 0.7,
@@ -68,7 +141,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
         createdBy: 'current-user'
       });
     }
-  }, [isEditing, selectedAgent, models]);
+  }, [isEditing, selectedAgent, models, isOpen]);
 
   const handleInputChange = (field: keyof AgentConfig, value: any) => {
     setFormData(prev => ({
@@ -90,10 +163,10 @@ const AgentModal: React.FC<AgentModalProps> = ({
 
   const handleToolToggle = (toolId: string) => {
     const currentTools = formData.tools || [];
-    const existingTool = currentTools.find(t => t.id === toolId);
+    const existingTool = currentTools.find((t: any) => t.id === toolId);
     
     if (existingTool) {
-      handleInputChange('tools', currentTools.filter(t => t.id !== toolId));
+      handleInputChange('tools', currentTools.filter((t: any) => t.id !== toolId));
     } else {
       const toolInfo = availableTools.find(t => t.id === toolId);
       if (toolInfo) {
@@ -125,6 +198,8 @@ const AgentModal: React.FC<AgentModalProps> = ({
     e.preventDefault();
     
     try {
+      setCreatingAgent(true);
+      
       if (isEditing && selectedAgent) {
         await updateAgent(selectedAgent.id, formData);
       } else {
@@ -134,6 +209,9 @@ const AgentModal: React.FC<AgentModalProps> = ({
       handleClose();
     } catch (error) {
       console.error('Failed to save agent:', error);
+      alert(`Failed to ${isEditing ? 'update' : 'create'} agent. Please try again.`);
+    } finally {
+      setCreatingAgent(false);
     }
   };
 
@@ -191,6 +269,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   className="select"
                   value={formData.modelId || ''}
                   onChange={(e) => handleInputChange('modelId', e.target.value)}
+                  disabled={loadingModels}
                 >
                   <option value="">Select a model</option>
                   {models.map((model) => (
@@ -290,23 +369,27 @@ const AgentModal: React.FC<AgentModalProps> = ({
               <label className="block text-sm font-medium text-primary mb-2">
                 Knowledge Collections
               </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {collections.map((collection) => (
-                  <button
-                    key={collection.name}
-                    type="button"
-                    onClick={() => handleCollectionToggle(collection.name)}
-                    className={`p-3 rounded-lg border text-left transition-colors ${
-                      (formData.collectionNames || []).includes(collection.name)
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-border hover:bg-secondary'
-                    }`}
-                  >
-                    <div className="font-medium text-sm">{collection.name}</div>
-                    <div className="text-xs text-muted">{collection.permission}</div>
-                  </button>
-                ))}
-              </div>
+              {loadingCollections ? (
+                <div className="p-4 text-center text-muted">Loading collections...</div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {collections.map((collection) => (
+                    <button
+                      key={collection.id}
+                      type="button"
+                      onClick={() => handleCollectionToggle(collection.name)}
+                      className={`p-3 rounded-lg border text-left transition-colors ${
+                        (formData.collectionNames || []).includes(collection.name)
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-border hover:bg-secondary'
+                      }`}
+                    >
+                      <div className="font-medium text-sm">{collection.name}</div>
+                      <div className="text-xs text-muted">{collection.permission}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Tools */}
@@ -321,7 +404,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                     type="button"
                     onClick={() => handleToolToggle(tool.id)}
                     className={`w-full p-3 rounded-lg border text-left transition-colors ${
-                      (formData.tools || []).some(t => t.id === tool.id)
+                      (formData.tools || []).some((t: any) => t.id === tool.id)
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                         : 'border-border hover:bg-secondary'
                     }`}
@@ -387,8 +470,16 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <button
               type="submit"
               className="btn-primary"
+              disabled={isCreatingAgent}
             >
-              {isEditing ? 'Update Agent' : 'Create Agent'}
+              {isCreatingAgent ? (
+                <>
+                  <FiRefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  {isEditing ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                isEditing ? 'Update Agent' : 'Create Agent'
+              )}
             </button>
           </div>
         </form>

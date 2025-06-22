@@ -71,6 +71,7 @@ interface AgentStore {
   isCreatingAgent: boolean;
   isEditingAgent: boolean;
   showAgentModal: boolean;
+  isLoadingAgents: boolean;
   
   // Actions
   fetchAgents: () => Promise<void>;
@@ -92,6 +93,7 @@ interface AgentStore {
   setCreatingAgent: (creating: boolean) => void;
   setEditingAgent: (editing: boolean) => void;
   setShowAgentModal: (show: boolean) => void;
+  createDefaultAgent: () => AgentConfig;
 }
 
 const useAgentStore = create<AgentStore>()(
@@ -152,80 +154,158 @@ const useAgentStore = create<AgentStore>()(
         isCreatingAgent: false,
         isEditingAgent: false,
         showAgentModal: false,
+        isLoadingAgents: false,
 
         // Actions
         fetchAgents: async () => {
+          set({ isLoadingAgents: true });
           try {
-            // In real implementation, this would call API
-            // For now, we'll use mock data
-            const mockAgents: AgentConfig[] = [
-              {
-                id: '1',
-                name: 'My Programming Assistant',
-                description: 'Customized for Python and web development',
-                systemPrompt: 'You are a Python and web development expert...',
-                modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-                collectionNames: ['python-docs', 'web-dev-guides'],
-                tools: [
-                  {
-                    id: 'web-search',
-                    name: 'Web Search',
-                    description: 'Search the web for current information',
-                    type: 'web_search',
-                    config: {},
-                    enabled: true
-                  }
-                ],
-                temperature: 0.7,
-                maxTokens: 4000,
-                isPublic: false,
-                tags: ['python', 'web-dev'],
-                createdBy: 'user-1',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                usageCount: 15,
-                rating: 4.5
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/agents/', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
               }
-            ];
+            });
             
-            set({ agents: mockAgents });
+            if (response.ok) {
+              const agents: AgentConfig[] = await response.json();
+              set(state => {
+                const newState = { agents, isLoadingAgents: false };
+                
+                // Auto-select first agent if none selected and agents exist
+                if (!state.selectedAgent && agents.length > 0) {
+                  (newState as any).selectedAgent = agents[0];
+                }
+                
+                return newState;
+              });
+            } else {
+              console.error('Failed to fetch agents:', response.status, response.statusText);
+              // If no agents from API, use template-based default
+              const defaultAgent = get().createDefaultAgent();
+              set({ 
+                agents: [defaultAgent],
+                selectedAgent: defaultAgent,
+                isLoadingAgents: false
+              });
+            }
           } catch (error) {
             console.error('Failed to fetch agents:', error);
+            // If network error, use template-based default
+            const defaultAgent = get().createDefaultAgent();
+            set({ 
+              agents: [defaultAgent],
+              selectedAgent: defaultAgent,
+              isLoadingAgents: false
+            });
           }
         },
 
-        createAgent: async (config) => {
-          const newAgent: AgentConfig = {
-            ...config,
-            id: Date.now().toString(),
+        createDefaultAgent: () => {
+          // Create a default agent for offline/fallback use
+          // Use a valid MongoDB ObjectId format (24 hex characters)
+          const defaultAgent: AgentConfig = {
+            id: '000000000000000000000001',
+            name: 'General Assistant',
+            description: 'A helpful AI assistant for general questions and tasks',
+            systemPrompt: 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.',
+            modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+            collectionNames: [],
+            tools: [],
+            temperature: 0.7,
+            maxTokens: 4000,
+            isPublic: true,
+            tags: ['general', 'assistant'],
+            createdBy: 'system',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usageCount: 0,
             rating: 0
           };
+          return defaultAgent;
+        },
 
-          set(state => ({
-            agents: [...state.agents, newAgent]
-          }));
+        createAgent: async (config) => {
+          try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/agents/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+              },
+              body: JSON.stringify(config)
+            });
 
-          return newAgent;
+            if (response.ok) {
+              const newAgent: AgentConfig = await response.json();
+              set(state => ({
+                agents: [...state.agents, newAgent]
+              }));
+              return newAgent;
+            } else {
+              throw new Error(`Failed to create agent: ${response.status} ${response.statusText}`);
+            }
+          } catch (error) {
+            console.error('Failed to create agent:', error);
+            throw error;
+          }
         },
 
         updateAgent: async (id, updates) => {
-          set(state => ({
-            agents: state.agents.map(agent =>
-              agent.id === id
-                ? { ...agent, ...updates, updatedAt: new Date().toISOString() }
-                : agent
-            )
-          }));
+          try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`/api/agents/${id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+              },
+              body: JSON.stringify(updates)
+            });
+
+            if (response.ok) {
+              const updatedAgent: AgentConfig = await response.json();
+              set(state => ({
+                agents: state.agents.map(agent =>
+                  agent.id === id ? updatedAgent : agent
+                ),
+                selectedAgent: state.selectedAgent?.id === id ? updatedAgent : state.selectedAgent
+              }));
+            } else {
+              throw new Error(`Failed to update agent: ${response.status} ${response.statusText}`);
+            }
+          } catch (error) {
+            console.error('Failed to update agent:', error);
+            throw error;
+          }
         },
 
         deleteAgent: async (id) => {
-          set(state => ({
-            agents: state.agents.filter(agent => agent.id !== id),
-            selectedAgent: state.selectedAgent?.id === id ? null : state.selectedAgent
-          }));
+          try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`/api/agents/${id}`, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+              }
+            });
+
+            if (response.ok) {
+              set(state => ({
+                agents: state.agents.filter(agent => agent.id !== id),
+                selectedAgent: state.selectedAgent?.id === id ? null : state.selectedAgent
+              }));
+            } else {
+              throw new Error(`Failed to delete agent: ${response.status} ${response.statusText}`);
+            }
+          } catch (error) {
+            console.error('Failed to delete agent:', error);
+            throw error;
+          }
         },
 
         selectAgent: (agent) => {
@@ -233,8 +313,23 @@ const useAgentStore = create<AgentStore>()(
         },
 
         fetchTemplates: async () => {
-          // Templates are already loaded in initial state
-          // In real implementation, this might fetch from API
+          try {
+            const response = await fetch('/api/agents/templates', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (response.ok) {
+              const templates: AgentTemplate[] = await response.json();
+              set({ agentTemplates: templates });
+            } else {
+              console.error('Failed to fetch templates:', response.status, response.statusText);
+            }
+          } catch (error) {
+            console.error('Failed to fetch templates:', error);
+          }
         },
 
         createAgentFromTemplate: async (templateId, customizations = {}) => {

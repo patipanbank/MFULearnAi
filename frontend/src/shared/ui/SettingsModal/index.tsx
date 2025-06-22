@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiX, FiDatabase, FiSettings, FiUser, FiKey, FiDownload, FiUpload, FiTrash2, FiPlus, FiEdit, FiCopy } from 'react-icons/fi';
-import { useModelsStore, useSettingsStore, useUIStore } from '../../stores';
+import { useSettingsStore, useUIStore } from '../../stores';
+import { api } from '../../lib/api';
 import PreferencesModal from '../PreferencesModal';
 
 interface SettingsModalProps {
@@ -8,17 +9,22 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+interface Collection {
+  id: string;
+  name: string;
+  permission: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'knowledge' | 'agent' | 'preferences' | 'advanced'>('knowledge');
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
   
-  const { 
-    collections, 
-    selectedCollections, 
-    toggleCollection, 
-    fetchCollections,
-    collectionsLoading 
-  } = useModelsStore();
+  // Local state for collections
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
   
   const { 
     preferences,
@@ -28,6 +34,73 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   } = useSettingsStore();
   
   const { addToast } = useUIStore();
+
+  // Fetch collections using robust API utility
+  const fetchCollections = async () => {
+    setCollectionsLoading(true);
+    try {
+      const result = await api.get<Collection[]>('/api/collections', {
+        timeout: 30000, // เพิ่ม timeout เป็น 30 วินาที สำหรับ production
+        retries: 2, // ลด retries เป็น 2 ครั้ง
+        retryDelay: 3000 // เพิ่ม delay เป็น 3 วินาที
+      });
+      
+      if (result.success && result.data) {
+        setCollections(result.data);
+        console.log(`Successfully loaded ${result.data.length} collections`);
+      } else {
+        console.warn('Failed to load collections:', result.error);
+        setCollections([]);
+        
+        // Show appropriate error messages
+        if (result.status === 401) {
+          addToast({
+            type: 'warning',
+            title: 'Authentication Required',
+            message: 'Please log in to view collections'
+          });
+        } else if (result.status === 0) {
+          addToast({
+            type: 'error',
+            title: 'Connection Error',
+            message: 'Network timeout. Please check your connection and try again.'
+          });
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Loading Error',
+            message: 'Unable to load collections. Please try again later.'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Unexpected error loading collections:', error);
+      setCollections([]);
+      addToast({
+        type: 'error',
+        title: 'Unexpected Error',
+        message: 'An unexpected error occurred while loading collections.'
+      });
+    } finally {
+      setCollectionsLoading(false);
+    }
+  };
+
+  // Toggle collection selection
+  const toggleCollection = (collectionId: string) => {
+    setSelectedCollections(prev => 
+      prev.includes(collectionId)
+        ? prev.filter(id => id !== collectionId)
+        : [...prev, collectionId]
+    );
+  };
+
+  // Load collections when modal opens
+  useEffect(() => {
+    if (isOpen && activeTab === 'knowledge') {
+      fetchCollections();
+    }
+  }, [isOpen, activeTab]);
 
   if (!isOpen) return null;
 
@@ -198,19 +271,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         onClick={() => toggleCollection(collection.id)}
                       >
                         <div className="flex items-start space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedCollections.includes(collection.id)}
-                            onChange={() => toggleCollection(collection.id)}
-                            className="mt-1 rounded border-border text-blue-600 focus:ring-blue-500"
-                          />
-                          <div className="flex-1">
+                          <FiDatabase className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-primary">{collection.name}</h4>
-                            <p className="text-sm text-secondary mt-1">
-                              Permission: {collection.permission}
-                            </p>
-                            <p className="text-xs text-muted mt-1">
-                              Created by: {collection.createdBy}
+                            <p className="text-xs text-secondary mt-1">
+                              By: {collection.createdBy} • {collection.permission}
                             </p>
                           </div>
                         </div>
@@ -218,11 +283,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     ))}
                   </div>
 
-                  {collections.length === 0 && (
-                    <div className="text-center py-8 text-muted">
-                      <FiDatabase className="h-12 w-12 mx-auto mb-4 text-muted" />
-                      <p>No knowledge bases available</p>
-                      <p className="text-sm mt-1">Contact your administrator to add collections</p>
+                  {collections.length === 0 && !collectionsLoading && (
+                    <div className="text-center py-8">
+                      <FiDatabase className="h-12 w-12 mx-auto text-muted opacity-50" />
+                      <p className="text-muted mt-2">No collections available</p>
                     </div>
                   )}
                 </div>

@@ -9,7 +9,6 @@ import AuthCallbackPage from '../pages/AuthCallbackPage';
 import LogoutSuccessPage from '../pages/LogoutSuccessPage';
 import ChatPage from '../pages/ChatPage';
 import AgentPage from '../pages/AgentPage';
-import CollectionPage from '../pages/CollectionPage';
 import SearchPage from '../pages/SearchPage';
 import Toast from '../shared/ui/Toast';
 import Loading from '../shared/ui/Loading';
@@ -72,7 +71,7 @@ function App() {
             <Routes>
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/chat/history" element={<div className="p-6"><h1 className="text-2xl font-bold">Chat History</h1><p>Chat history will be implemented here</p></div>} />
-              <Route path="/knowledgebase" element={<CollectionPage />} />
+              <Route path="/knowledgebase" element={<div className="p-6"><h1 className="text-2xl font-bold">Knowledge Base</h1><p>Knowledge base management is now integrated into Agent system</p></div>} />
               <Route path="/agent" element={<AgentPage />} />
               <Route path="/search" element={<SearchPage />} />
               {/* Fallback */}

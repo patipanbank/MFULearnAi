@@ -1,21 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from typing import List, Optional
 from pydantic import BaseModel
-from services.model_service import model_service
+from services.collection_service import collection_service
 from services.chroma_service import chroma_service
 from models.user import User, UserRole
 from models.collection import Collection, CollectionPermission
 from middleware.role_guard import get_current_user_with_roles
 
 router = APIRouter(
-    prefix="/collections",
+    prefix="",
     tags=["Collections"]
 )
 
 class CollectionCreate(BaseModel):
     name: str
     permission: CollectionPermission
-    modelId: str
+    modelId: Optional[str] = None
 
 class CollectionUpdate(BaseModel):
     name: Optional[str] = None
@@ -36,22 +36,37 @@ class CollectionResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("", response_model=List[CollectionResponse])
+@router.get("/", response_model=List[CollectionResponse])
 async def get_all_collections(
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
-    collections = await model_service.get_all_collections()
+    collections = await collection_service.get_all_collections()
     # TODO: In a real app, you might filter this list based on user permissions
     return collections
 
-@router.post("", response_model=CollectionResponse, status_code=201)
+@router.get("/public", response_model=List[CollectionResponse])
+async def get_public_collections(
+    # ไม่จำเป็นต้องมี authentication สำหรับ public collections
+):
+    """Get public collections that don't require authentication"""
+    try:
+        # ใช้ method ที่มีอยู่แล้วแต่ filter เฉพาะที่ public
+        collections = await collection_service.get_all_collections()
+        # Filter เฉพาะ public collections
+        public_collections = [c for c in collections if c.permission == "public"]
+        return public_collections
+    except Exception as e:
+        # Return empty list instead of error to prevent resource exhaustion
+        return []
+
+@router.post("/", response_model=CollectionResponse, status_code=201)
 async def create_new_collection(
     collection_data: CollectionCreate,
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
     created_by = current_user.username
     try:
-        new_collection = await model_service.create_collection(
+        new_collection = await collection_service.create_collection(
             name=collection_data.name,
             permission=collection_data.permission,
             created_by=current_user,
@@ -67,15 +82,15 @@ async def update_existing_collection(
     collection_data: CollectionUpdate,
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
-    collection = await model_service.get_collection_by_id(collection_id)
+    collection = await collection_service.get_collection_by_id(collection_id)
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
     
-    if not model_service.can_user_access_collection(current_user, collection):
+    if not collection_service.can_user_access_collection(current_user, collection):
         raise HTTPException(status_code=403, detail="Not authorized to update this collection")
 
     updates = collection_data.model_dump(exclude_unset=True)
-    updated_collection = await model_service.update_collection(collection_id, updates)
+    updated_collection = await collection_service.update_collection(collection_id, updates)
     
     return updated_collection
 
@@ -84,15 +99,15 @@ async def delete_existing_collection(
     collection_id: str,
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN]))
 ):
-    collection = await model_service.get_collection_by_id(collection_id)
+    collection = await collection_service.get_collection_by_id(collection_id)
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
         
-    if not model_service.can_user_access_collection(current_user, collection):
+    if not collection_service.can_user_access_collection(current_user, collection):
         raise HTTPException(status_code=403, detail="Not authorized to delete this collection")
         
     try:
-        await model_service.delete_collection(collection, current_user)
+        await collection_service.delete_collection(collection, current_user)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete collection: {e}")
 
@@ -103,11 +118,11 @@ async def get_documents_in_collection(
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
-    collection = await model_service.get_collection_by_id(collection_id)
+    collection = await collection_service.get_collection_by_id(collection_id)
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
         
-    if not model_service.can_user_access_collection(current_user, collection):
+    if not collection_service.can_user_access_collection(current_user, collection):
         raise HTTPException(status_code=403, detail="Not authorized to view documents in this collection")
 
     documents = await chroma_service.get_documents(collection.name, limit=limit, offset=offset)
@@ -119,11 +134,11 @@ async def delete_documents_from_a_collection(
     document_ids: List[str] = Body(..., embed=True),
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN]))
 ):
-    collection = await model_service.get_collection_by_id(collection_id)
+    collection = await collection_service.get_collection_by_id(collection_id)
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    if not model_service.can_user_access_collection(current_user, collection):
+    if not collection_service.can_user_access_collection(current_user, collection):
         raise HTTPException(status_code=403, detail="Not authorized to delete documents from this collection")
         
     try:

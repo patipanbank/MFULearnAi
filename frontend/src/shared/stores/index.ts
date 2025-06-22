@@ -3,19 +3,10 @@ export { default as useAuthStore } from '../../entities/user/store';
 
 // Layout & UI Management  
 export { default as useLayoutStore } from './layoutStore';
-export { 
-  default as useUIStore, 
-  showSuccessToast, 
-  showErrorToast, 
-  showWarningToast, 
-  showInfoToast 
-} from './uiStore';
+export { default as useUIStore } from './uiStore';
 
 // Chat & Communication
 export { default as useChatStore } from './chatStore';
-
-// Models & Collections
-export { default as useModelsStore } from './modelsStore';
 
 // Agent Management
 export { default as useAgentStore } from './agentStore';
@@ -28,11 +19,6 @@ export type {
   ChatMessage, 
   ChatSession 
 } from './chatStore';
-
-export type {
-  Model,
-  Collection
-} from './modelsStore';
 
 export type {
   AgentConfig,

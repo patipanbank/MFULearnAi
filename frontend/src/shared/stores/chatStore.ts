@@ -2,26 +2,19 @@ import { create } from 'zustand';
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
   images?: Array<{ data: string; mediaType: string }>;
-  sources?: Array<{
-    modelId: string;
-    collectionName: string;
-    filename: string;
-    similarity: number;
-  }>;
-  isComplete?: boolean;
   isStreaming?: boolean;
+  isComplete?: boolean;
 }
 
 export interface ChatSession {
   id: string;
   name: string;
   messages: ChatMessage[];
-  modelId: string;
-  collectionNames: string[];
+  agentId: string;
   createdAt: Date;
   updatedAt: Date;
   isPinned?: boolean;
@@ -136,8 +129,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       id: `chat_${Date.now()}`,
       name: 'New Chat',
       messages: [],
-      modelId: '',
-      collectionNames: [],
+      agentId: '',
       createdAt: new Date(),
       updatedAt: new Date()
     };

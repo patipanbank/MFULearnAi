@@ -8,10 +8,10 @@ from routes import (
     department as department_router,
     auth as auth_router,
     admin as admin_router,
-    models as models_router,
     training as training_router,
     collection as collection_router,
-    chat as chat_router
+    chat as chat_router,
+    agents as agents_router
 )
 
 app = FastAPI()
@@ -64,15 +64,15 @@ async def websocket_endpoint(websocket: WebSocket):
     await chat_websocket_handler(websocket)
 
 # Include Routers
-app.include_router(embedding_router.router, prefix="/api")
-app.include_router(stats_router.router, prefix="/api")
-app.include_router(department_router.router, prefix="/api")
+app.include_router(embedding_router.router, prefix="/api/embeddings")
+app.include_router(stats_router.router, prefix="/api/stats")
+app.include_router(department_router.router, prefix="/api/departments")
 app.include_router(auth_router.router, prefix="/api/auth")
 app.include_router(admin_router.router, prefix="/api/admin")
-app.include_router(models_router.router, prefix="/api")
-app.include_router(training_router.router, prefix="/api")
-app.include_router(collection_router.router, prefix="/api")
-app.include_router(chat_router.router, prefix="/api")
+app.include_router(training_router.router, prefix="/api/training")
+app.include_router(collection_router.router, prefix="/api/collections")
+app.include_router(chat_router.router, prefix="/api/chat")
+app.include_router(agents_router.router, prefix="/api/agents")
 
 # WebSocket routes are already included in chat_router with /api prefix
 # The nginx /ws location proxy_pass will handle the routing

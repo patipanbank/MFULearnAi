@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useChatStore, useModelsStore, useUIStore, useAuthStore } from '../../shared/stores';
+import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
 import type { ChatMessage } from '../../shared/stores/chatStore';
 import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
@@ -19,10 +19,9 @@ const ChatPage: React.FC = () => {
   } = useChatStore();
   
   const { 
-    selectedModel, 
-    selectedCollections,
-    fetchModels, 
-    fetchCollections  } = useModelsStore();
+    selectedAgent,
+    fetchAgents
+  } = useAgentStore();
   
   const { setLoading, addToast } = useUIStore();
   
@@ -46,18 +45,15 @@ const ChatPage: React.FC = () => {
   // Initialize data on mount
   useEffect(() => {
     const initializeData = async () => {
-      setLoading(true, 'Loading models and collections...');
+      setLoading(true, 'Loading agents...');
       try {
-        await Promise.all([
-          fetchModels(),
-          fetchCollections()
-        ]);
+        await fetchAgents();
       } catch (error) {
         console.error('Failed to initialize data:', error);
         addToast({
           type: 'error',
           title: 'Initialization Error',
-          message: 'Failed to load models and collections'
+          message: 'Failed to load agents'
         });
       } finally {
         setLoading(false);
@@ -65,7 +61,7 @@ const ChatPage: React.FC = () => {
     };
     
     initializeData();
-  }, [fetchModels, fetchCollections, setLoading, addToast]);
+  }, [fetchAgents, setLoading, addToast]);
   
   // Handle chat room navigation
   useEffect(() => {
@@ -273,7 +269,7 @@ const ChatPage: React.FC = () => {
   
   // Send message function
   const sendMessage = async () => {
-    if (!message.trim() || !selectedModel || wsStatus !== 'connected') {
+    if (!message.trim() || !selectedAgent || wsStatus !== 'connected') {
       return;
     }
     
@@ -301,12 +297,11 @@ const ChatPage: React.FC = () => {
     addMessage(assistantMessage);
     setIsTyping(true);
     
-    // Send to WebSocket
+    // Send to WebSocket - New Agent-based payload
     const payload = {
       session_id: currentSession!.id,
       message: message,
-      model_id: selectedModel.id,
-      collection_names: selectedCollections,
+      agent_id: selectedAgent.id,
       images: images
     };
     
@@ -479,7 +474,7 @@ const ChatPage: React.FC = () => {
           onImageUpload={handleImageUpload}
           images={images}
           onRemoveImage={handleRemoveImage}
-          disabled={(!isInChatRoom && !selectedModel) || (isInChatRoom && wsStatus !== 'connected')}
+          disabled={(!isInChatRoom && !selectedAgent) || (isInChatRoom && wsStatus !== 'connected')}
           isTyping={isTyping}
           hasMessages={hasMessages}
           isConnectedToRoom={isConnectedToRoom}

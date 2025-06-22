@@ -1,79 +1,48 @@
 import React from 'react';
-import { FiMessageCircle, FiBell, FiMoon, FiSun, FiMonitor } from 'react-icons/fi';
+import { useLocation } from 'react-router-dom';
+import { FiSettings, FiUser } from 'react-icons/fi';
+import { useAuthStore, useUIStore } from '../../stores';
+import AgentSelector from '../AgentSelector';
 import UserProfile from '../UserProfile';
-import ModelSelector from '../ModelSelector';
-import { useSettingsStore } from '../../stores/settingsStore';
 
 const Header: React.FC = () => {
-  const { preferences, setPreferences, getCurrentTheme } = useSettingsStore();
-  const currentTheme = getCurrentTheme();
-
-  const getThemeIcon = () => {
-    switch (preferences.theme) {
-      case 'light':
-        return <FiSun className="h-5 w-5" />;
-      case 'dark':
-        return <FiMoon className="h-5 w-5" />;
-      case 'auto':
-        return <FiMonitor className="h-5 w-5" />;
-      default:
-        return <FiSun className="h-5 w-5" />;
-    }
-  };
-
-  const handleThemeToggle = () => {
-    const nextTheme = preferences.theme === 'light' ? 'dark' : preferences.theme === 'dark' ? 'auto' : 'light';
-    setPreferences({ theme: nextTheme });
-  };
+  const location = useLocation();
+  const { user } = useAuthStore();
+  const { toggleDropdown } = useUIStore();
+  
+  // Show AgentSelector only on chat routes
+  const showAgentSelector = location.pathname.startsWith('/chat');
 
   return (
-    <header className="header px-6 py-4 flex items-center justify-between">
-      {/* Left side - Logo, Title & Model Selector */}
-      <div className="flex items-center space-x-6">
-        <div className="flex flex-col space-y-3">
-          <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center">
-              <FiMessageCircle className="h-5 w-5 text-white" />
-            </div>
-            <h1 className="text-xl font-bold text-primary">
-              <span style={{ 
-                background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>DIN</span>DIN <span style={{
-                background: 'linear-gradient(to right, #00FFFF, #0099FF)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>AI</span>
-            </h1>
-          </div>
-          <ModelSelector />
-        </div>
+    <header className="h-16 bg-primary border-b border-border flex items-center justify-between px-6">
+      {/* Left side - Agent Selector (only on chat routes) */}
+      <div className="flex-1">
+        {showAgentSelector && <AgentSelector />}
       </div>
 
-      {/* Right side - Theme Toggle, Notifications & User Profile */}
+      {/* Right side - User controls */}
       <div className="flex items-center space-x-4">
-        {/* Theme Toggle (Desktop only) */}
+        {/* Settings Button */}
         <button
-          onClick={handleThemeToggle}
-          className="hidden md:flex btn-ghost p-2 hover:bg-secondary transition-colors group"
-          aria-label={`Switch to ${preferences.theme === 'light' ? 'dark' : preferences.theme === 'dark' ? 'auto' : 'light'} theme`}
-          title={`Current: ${currentTheme} mode`}
+          onClick={() => toggleDropdown('settings')}
+          className="p-2 hover:bg-secondary rounded-lg transition-colors"
+          title="Settings"
         >
-          <div className="text-muted group-hover:text-primary group-hover:scale-110 transition-all">
-            {getThemeIcon()}
-          </div>
-        </button>
-
-        {/* Notifications */}
-        <button className="btn-ghost p-2 hover:bg-secondary transition-colors group">
-          <FiBell className="h-5 w-5 text-muted group-hover:text-primary transition-colors" />
+          <FiSettings className="h-5 w-5 text-muted" />
         </button>
 
         {/* User Profile */}
-        <UserProfile />
+        {user ? (
+          <UserProfile />
+        ) : (
+          <button
+            onClick={() => toggleDropdown('user-menu')}
+            className="flex items-center space-x-2 p-2 hover:bg-secondary rounded-lg transition-colors"
+          >
+            <FiUser className="h-5 w-5 text-muted" />
+            <span className="text-sm text-muted">Sign In</span>
+          </button>
+        )}
       </div>
     </header>
   );

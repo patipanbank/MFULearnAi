@@ -6,17 +6,17 @@ import json
 
 from services.chat_service import chat_service
 from services.chat_history_service import chat_history_service
+from services.agent_service import agent_service
 from models.user import User, UserRole
 from models.chat import ImagePayload, Chat as ChatHistoryModel
-from middleware.role_guard import role_guard
+from middleware.role_guard import role_guard, get_current_user_with_roles
 from config.config import settings
 
 router = APIRouter(
-    prefix="/chat",
     tags=["Chat"]
 )
 
-# This is kept for reference, but the primary communication will be over WebSocket.
+# Legacy request format (kept for backward compatibility)
 class ChatRequest(BaseModel):
     session_id: str
     message: str
@@ -24,8 +24,15 @@ class ChatRequest(BaseModel):
     collection_names: List[str]
     images: Optional[List[ImagePayload]] = Field(default=None)
 
+# New agent-based request format
+class AgentChatRequest(BaseModel):
+    session_id: str
+    message: str
+    agent_id: str
+    images: Optional[List[ImagePayload]] = Field(default=None)
+
 @router.get("/history/{session_id}", response_model=ChatHistoryModel)
-async def get_chat_history(session_id: str, current_user: User = Depends(role_guard([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
+async def get_chat_history(session_id: str, current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
     """
     Retrieves the full chat history for a given session ID.
     Ensures that the user requesting the history is the one who owns it.
@@ -41,7 +48,7 @@ async def get_chat_history(session_id: str, current_user: User = Depends(role_gu
     return chat_history
 
 @router.get("/history", response_model=List[ChatHistoryModel])
-async def get_user_chat_history(current_user: User = Depends(role_guard([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
+async def get_user_chat_history(current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
     """
     Retrieves all chat history for the current user.
     """
@@ -134,15 +141,48 @@ async def websocket_endpoint(websocket: WebSocket):
         initial_message = await websocket.receive_text()
         data = json.loads(initial_message)
 
-        # 3. Extract chat parameters
+        # 3. Extract chat parameters - support both old and new format
         session_id = data.get("session_id")
         message = data.get("message")
-        model_id = data.get("model_id")
-        collection_names = data.get("collection_names")
         images_data = data.get("images", [])
         
+        # Check if using new agent-based format
+        agent_id = data.get("agent_id")
+        if agent_id:
+            # New agent-based format
+            try:
+                # Get agent data
+                agent = await agent_service.get_agent_by_id(agent_id)
+                if not agent:
+                    await websocket.send_text(json.dumps({"type": "error", "data": "Agent not found"}))
+                    await websocket.close()
+                    return
+                
+                # Extract model and collection info from agent
+                model_id = agent.modelId
+                collection_names = agent.collectionNames
+                system_prompt = agent.systemPrompt
+                temperature = agent.temperature
+                max_tokens = agent.maxTokens
+                
+                print(f"🤖 Using agent: {agent.name} (ID: {agent_id})")
+                print(f"📝 System prompt: {system_prompt[:100]}...")
+                
+            except Exception as e:
+                await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to load agent: {str(e)}"}))
+                await websocket.close()
+                return
+        else:
+            # Legacy format - model_id + collection_names
+            model_id = data.get("model_id")
+            collection_names = data.get("collection_names")
+            system_prompt = None
+            temperature = 0.7
+            max_tokens = 4000
+            
+            print(f"⚠️ Using legacy format: model_id={model_id}")
+        
         images = [ImagePayload(**img) for img in images_data] if images_data else []
-
 
         # 4. Basic validation
         if not all([session_id, message, model_id, isinstance(collection_names, list)]):
@@ -157,23 +197,33 @@ async def websocket_endpoint(websocket: WebSocket):
             message=message,
             model_id=model_id,
             collection_names=collection_names,
-            images=images
+            images=images,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens
         ):
             await websocket.send_text(chunk) # The service already JSON-encodes and adds newline
 
     except WebSocketDisconnect:
         print(f"Client {user_id} disconnected")
     except Exception as e:
-        error_message = json.dumps({"type": "error", "data": f"An unexpected error occurred: {str(e)}"})
-        await websocket.send_text(error_message)
+        try:
+            if websocket.client_state.name != 'DISCONNECTED':
+                error_message = json.dumps({"type": "error", "data": f"An unexpected error occurred: {str(e)}"})
+                await websocket.send_text(error_message)
+        except:
+            pass  # Ignore errors when sending error message
         print(f"Error in websocket for user {user_id}: {e}")
     finally:
-        if not websocket.client_state.value == 3: # i.e. not disconnected
-            await websocket.close()
+        try:
+            if websocket.client_state.name not in ['DISCONNECTED', 'CLOSED']:
+                await websocket.close()
+        except:
+            pass  # Ignore errors when closing connection
         print(f"WebSocket connection closed for user {user_id}") 
 
 @router.delete("/{chat_id}")
-async def delete_chat(chat_id: str, current_user: User = Depends(role_guard([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
+async def delete_chat(chat_id: str, current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
     """
     Delete a chat session.
     """

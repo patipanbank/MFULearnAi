@@ -1,46 +1,18 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Union, Any
+from typing import List, Optional
 from datetime import datetime
-
-class Image(BaseModel):
-    data: str
-    mediaType: str
-
-class File(BaseModel):
-    name: str
-    data: str
-    mediaType: str
-    size: int
-
-class Source(BaseModel):
-    modelId: str
-    collectionName: str
-    filename: str
-    similarity: float
+from enum import Enum
 
 class ImagePayload(BaseModel):
-    media_type: str
-    data: str # base64 encoded string
-
-class Document(BaseModel):
-    id: str
-    collection_name: str
-    filename: str
-    content: str
-    metadata: dict = {}
-    similarity: float
+    data: str
+    mediaType: str
 
 class ChatMessage(BaseModel):
-    id: Union[int, str]
-    role: str
+    id: str
+    role: str  # 'user' or 'assistant'
     content: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-    images: Optional[List[Image]] = None
-    files: Optional[List[File]] = None
-    sources: Optional[List[Source]] = None
-    isImageGeneration: Optional[bool] = None
-    isComplete: Optional[bool] = None
-    isEdited: Optional[bool] = None
+    timestamp: datetime
+    images: Optional[List[ImagePayload]] = None
 
 class ChatSession(BaseModel):
     id: str
@@ -53,7 +25,11 @@ class Chat(BaseModel):
     chatname: str = "Untitled Chat"
     name: str
     messages: List[ChatMessage]
-    modelId: str
+    # New agent-based field
+    agentId: Optional[str] = None
+    # Legacy fields for backward compatibility
+    modelId: Optional[str] = None
+    collectionNames: Optional[List[str]] = None
     isPinned: bool = False
     createdAt: datetime = Field(default_factory=datetime.utcnow)
     updatedAt: datetime = Field(default_factory=datetime.utcnow)
@@ -65,6 +41,6 @@ class Chat(BaseModel):
                 "userId": "user123",
                 "name": "My First Chat",
                 "messages": [],
-                "modelId": "model-abc"
+                "agentId": "agent-abc"
             }
         } 

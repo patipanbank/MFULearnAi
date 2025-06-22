@@ -7,7 +7,7 @@ APP_ENV = os.getenv('APP_ENV', 'development')
 
 # Define which .env files to load based on the mode.
 # The root .env is for shared secrets like AWS keys.
-env_files_to_load = ['.env'] 
+env_files_to_load = ['../.env']  # Point to root directory
 
 
 class Settings(BaseSettings):
@@ -27,21 +27,22 @@ class Settings(BaseSettings):
     OLLAMA_API_URL: Optional[str] = None
     HUGGINGFACE_API_KEY: Optional[str] = None
     
-    # CORS
-    ALLOWED_ORIGINS: Optional[str] = "http://localhost:3000,http://localhost"
+    # CORS - ใช้ environment variables ตาม APP_ENV
+    ALLOWED_ORIGINS: Optional[str] = None
 
     # JWT
-    JWT_SECRET: Optional[str] = "default_secret_key_for_development_change_in_production"
+    JWT_SECRET: Optional[str] = "dev"
     JWT_ALGORITHM: Optional[str] = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: Optional[int] = 30
 
-    # Frontend
-    FRONTEND_URL: Optional[str] = "http://localhost:3000"
+    # Frontend URL - ใช้ environment variables ตาม APP_ENV
+    FRONTEND_URL: Optional[str] = None
 
     # AWS
     AWS_REGION: Optional[str] = None
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_BEDROCK_MODEL_ID: Optional[str] = None
     
     # Google OAuth
     GOOGLE_CLIENT_ID: Optional[str] = None
@@ -62,5 +63,18 @@ class Settings(BaseSettings):
         env_file_encoding='utf-8',
         extra='ignore'
     )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        # Override with environment-specific values based on APP_ENV
+        if self.APP_ENV == 'development':
+            # Development settings - use DEV values from .env
+            self.FRONTEND_URL = os.getenv('DEV_FRONTEND_URL')
+            self.ALLOWED_ORIGINS = os.getenv('DEV_ALLOWED_ORIGINS')
+        else:
+            # Production settings - use PROD values from .env
+            self.FRONTEND_URL = os.getenv('PROD_FRONTEND_URL')
+            self.ALLOWED_ORIGINS = os.getenv('PROD_ALLOWED_ORIGINS')
 
 settings = Settings() 

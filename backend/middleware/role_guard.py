@@ -11,7 +11,7 @@ class TokenPayload(BaseModel):
     sub: str
     username: str
     nameID: str
-    groups: List[str] = []
+    role: str
     firstName: Optional[str] = None
     department: Optional[str] = None
     
@@ -35,17 +35,18 @@ def role_guard(allowed_groups: List[str]):
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        user_groups = token_data.groups or []
+        # Check role (single source of truth)
+        user_role = token_data.role
         
-        if "SuperAdmin" in user_groups:
+        # Special case for SuperAdmin
+        if user_role == "SuperAdmin":
             return token_data
-
-        has_allowed_role = any(group in user_groups for group in allowed_groups)
-
-        if not has_allowed_role:
+        
+        # Check if user role is in allowed roles
+        if user_role not in allowed_groups:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
+                detail=f"Access denied. Role '{user_role}' not allowed.",
             )
         
         return token_data

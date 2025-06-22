@@ -19,7 +19,10 @@ class ChatService:
         message: str,
         model_id: str,
         collection_names: List[str],
-        images: Optional[List[ImagePayload]] = None
+        images: Optional[List[ImagePayload]] = None,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4000
     ) -> AsyncGenerator[str, None]:
         
         try:
@@ -27,7 +30,10 @@ class ChatService:
             agent_with_chat_history = create_agent_executor(
                 model_id=model_id,
                 collection_names=collection_names,
-                session_id=session_id
+                session_id=session_id,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens
             )
 
             # 2. Prepare the input for the agent (simple string format for Bedrock compatibility)

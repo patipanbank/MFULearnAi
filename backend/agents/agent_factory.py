@@ -1,6 +1,6 @@
 import boto3
 from botocore.config import Config
-from typing import List
+from typing import List, Optional
 
 from langchain_aws import ChatBedrock
 from langchain_aws import BedrockEmbeddings
@@ -16,7 +16,14 @@ from config.config import settings
 from services.chroma_service import chroma_service
 from services.tool_service import tool_functions
 
-def create_agent_executor(model_id: str, collection_names: List[str], session_id: str) -> RunnableWithMessageHistory:
+def create_agent_executor(
+    model_id: str, 
+    collection_names: List[str], 
+    session_id: str,
+    system_prompt: Optional[str] = None,
+    temperature: float = 0.7,
+    max_tokens: int = 4000
+) -> RunnableWithMessageHistory:
     """
     Creates and returns a LangChain agent executor with chat history.
 
@@ -24,6 +31,9 @@ def create_agent_executor(model_id: str, collection_names: List[str], session_id
         model_id (str): The ID of the model to use (used to select agent type).
         collection_names (List[str]): A list of collection names to be used as tools.
         session_id (str): The ID of the current chat session for memory.
+        system_prompt (Optional[str]): Custom system prompt for the agent.
+        temperature (float): Temperature setting for the LLM (0.0-1.0).
+        max_tokens (int): Maximum tokens for the LLM response.
 
     Returns:
         An initialized LangChain agent executor with chat history.
@@ -43,48 +53,56 @@ def create_agent_executor(model_id: str, collection_names: List[str], session_id
         config=boto3_config
     )
 
-    llm = ChatBedrock(
-        client=bedrock_client,
-        model=model_id,
-        streaming=True,
-    )
+    # Create LLM with agent-specific parameters
+    llm_params = {
+        'client': bedrock_client,
+        'model': model_id,
+        'streaming': True,
+    }
+    
+    # Add model-specific parameters
+    model_kwargs = {}
+    if temperature is not None:
+        model_kwargs['temperature'] = temperature
+    if max_tokens is not None:
+        model_kwargs['max_tokens'] = max_tokens
+        
+    if model_kwargs:
+        llm_params['model_kwargs'] = model_kwargs
+
+    llm = ChatBedrock(**llm_params)
 
     # 2. Initialize Tools
     tools = []
 
-    # 2.1 Initialize Retriever Tools for each collection
-    if collection_names:
-        # Initialize the embedding function that the retriever will use
-        embedding_function = BedrockEmbeddings(
-            client=bedrock_client,
-            model_id="amazon.titan-embed-text-v1", # This is the model used in bedrock_service
-            region_name=settings.AWS_REGION,  # เพิ่ม region_name
-        )
-
-        for name in collection_names:
-            try:
-                # Use the existing ChromaDB client from chroma_service
-                vector_store = Chroma(
-                    client=chroma_service.client,
-                    collection_name=name,
-                    embedding_function=embedding_function,
-                )
-                
+    # 2.1 Create retrieval tools from collection names
+    for collection_name in collection_names:
+        try:
+            # Get the vector store for this collection
+            vector_store = chroma_service.get_vector_store(collection_name)
+            
+            if vector_store:
+                # Create a retriever from the vector store
                 retriever = vector_store.as_retriever(
-                    # You can configure search_type, search_kwargs here
-                    # e.g., search_kwargs={'k': 5}
+                    search_type="similarity",
+                    search_kwargs={"k": 5}  # Return top 5 similar documents
                 )
                 
-                # Create a retriever tool
-                retriever_tool = create_retriever_tool(
+                # Create a retrieval tool
+                retrieval_tool = create_retriever_tool(
                     retriever,
-                    name=f"search_{name.replace('-', '_')}", # Tool names should be python identifiers
-                    description=f"Searches and returns relevant documents from the '{name}' collection. Use this to find information related to {name}."
+                    name=f"search_{collection_name}",
+                    description=f"Search and retrieve information from the {collection_name} knowledge base. Use this when you need specific information about {collection_name}."
                 )
-                tools.append(retriever_tool)
-            except Exception as e:
-                # Log the error and continue without the tool
-                print(f"Warning: Could not create retriever tool for collection '{name}': {e}")
+                
+                tools.append(retrieval_tool)
+                print(f"✅ Created retrieval tool for collection: {collection_name}")
+            else:
+                print(f"⚠️ Vector store not found for collection: {collection_name}")
+                
+        except Exception as e:
+            print(f"❌ Error creating retrieval tool for {collection_name}: {e}")
+            continue
 
     # 2.2 Initialize Function tools from tool_service
     if tool_functions:
@@ -102,17 +120,21 @@ def create_agent_executor(model_id: str, collection_names: List[str], session_id
     print(f"LLM Initialized: {llm}")
     print(f"Tools Initialized: {tools}")
 
-    # TODO: 3. Create Prompt Template
-    # This is a generic prompt template. You might want to create specific ones
-    # based on the agent type (model_id) later.
+    # 3. Create Prompt Template
+    # Use custom system prompt if provided, otherwise use default
+    default_system_prompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate."
+    final_system_prompt = system_prompt if system_prompt else default_system_prompt
+    
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", "You are a helpful assistant. You have access to a number of tools and must use them when appropriate."),
+            ("system", final_system_prompt),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
             ("human", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]
     )
+
+    print(f"📝 Using system prompt: {final_system_prompt[:100]}...")
 
     # 4. Create Agent with Tools
     agent = create_tool_calling_agent(llm, tools, prompt)
