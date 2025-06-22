@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import AuthGuard from './providers/AuthGuard';
 import Layout from '../shared/ui/Layout';
@@ -13,6 +13,7 @@ import SearchPage from '../pages/SearchPage';
 import Toast from '../shared/ui/Toast';
 import Loading from '../shared/ui/Loading';
 import { useSettingsStore } from '../shared/stores/settingsStore';
+
 function App() {
   const location = useLocation();
   const { loadSettings, applyTheme, preferences } = useSettingsStore();
@@ -24,8 +25,11 @@ function App() {
     // Load settings from API and apply theme
     const initializeApp = async () => {
       try {
-        await loadSettings();
-        console.log('Settings loaded, current theme:', preferences.theme);
+        // TODO: The backend endpoint for settings needs to be implemented.
+        // Temporarily disabled to prevent 404 errors.
+        // await loadSettings();
+        console.log('Settings loading disabled. Applying default theme:', preferences.theme);
+        applyTheme(preferences.theme || 'light');
       } catch (error) {
         console.error('Failed to load settings:', error);
         // Apply default theme if loading fails
