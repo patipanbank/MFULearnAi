@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { api } from '../lib/api';
-import { useAuthStore } from '../../entities/user/store';
 
 // Types
 export interface AgentTool {

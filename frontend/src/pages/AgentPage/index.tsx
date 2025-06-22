@@ -4,8 +4,6 @@ import { useAgentStore, useUIStore } from '../../shared/stores';
 import AgentCard from '../../shared/ui/AgentCard';
 import AgentTemplateCard from '../../shared/ui/AgentTemplateCard';
 import AgentModal from '../../shared/ui/AgentModal';
-import Loading from '../../shared/ui/Loading';
-import { api } from '../../shared/lib/api';
 import type { AgentConfig, AgentTemplate } from '../../shared/stores/agentStore';
 
 const AgentPage: React.FC = () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiUser, FiEdit, FiCopy, FiTrash2, FiPlay, FiSettings, FiStar, FiCheck, FiTag } from 'react-icons/fi';
+import { FiUser, FiEdit, FiCopy, FiTrash2, FiPlay, FiSettings, FiStar, FiTag } from 'react-icons/fi';
 import type { AgentConfig } from '../../stores/agentStore';
 
 interface AgentCardProps {
