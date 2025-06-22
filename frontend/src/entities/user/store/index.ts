@@ -45,7 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     set({ status: 'loading' });
 
     try {
-      const response = await api.get<User>('/api/auth/me');
+      const response = await api.get<User>('/auth/me');
 
       if (!response.success || !response.data) {
         localStorage.removeItem('auth_token');
@@ -66,7 +66,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
 
       try {
-        const response = await api.post<{ token: string }>('/api/auth/refresh', {});
+        const response = await api.post<{ token: string }>('/auth/refresh', {});
 
         if (!response.success || !response.data) {
           // If refresh fails, logout user
@@ -100,7 +100,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     set({ token: null, user: null, status: 'unauthenticated' });
     
     // Redirect to SAML logout endpoint to clear SAML session
-    window.location.href = '/api/auth/logout/saml';
+    window.location.href = `${config.apiUrl}/auth/logout/saml`;
   },
   };
 
