@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { api } from '../lib/api';
 
 // Types
 export interface AgentTool {
@@ -72,6 +73,7 @@ interface AgentStore {
   isEditingAgent: boolean;
   showAgentModal: boolean;
   isLoadingAgents: boolean;
+  error: string | null;
   
   // Actions
   fetchAgents: () => Promise<void>;
@@ -93,6 +95,7 @@ interface AgentStore {
   setCreatingAgent: (creating: boolean) => void;
   setEditingAgent: (editing: boolean) => void;
   setShowAgentModal: (show: boolean) => void;
+  setError: (error: string | null) => void;
   createDefaultAgent: () => AgentConfig;
 }
 
@@ -155,51 +158,34 @@ const useAgentStore = create<AgentStore>()(
         isEditingAgent: false,
         showAgentModal: false,
         isLoadingAgents: false,
+        error: null,
 
         // Actions
         fetchAgents: async () => {
-          set({ isLoadingAgents: true });
+          set({ isLoadingAgents: true, error: null });
           try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch('/api/agents/', {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-              }
-            });
+            const response = await api.get<AgentConfig[]>('/agents/');
+            if (!response.success || !response.data) {
+              throw new Error(response.error || 'Failed to fetch agents');
+            }
             
-            if (response.ok) {
-              const agents: AgentConfig[] = await response.json();
-              set(state => {
-                const newState = { agents, isLoadingAgents: false };
-                
-                // Auto-select first agent if none selected and agents exist
-                if (!state.selectedAgent && agents.length > 0) {
-                  (newState as any).selectedAgent = agents[0];
-                }
-                
-                return newState;
-              });
-            } else {
-              console.error('Failed to fetch agents:', response.status, response.statusText);
-              // If no agents from API, use template-based default
-              const defaultAgent = get().createDefaultAgent();
-              set({ 
-                agents: [defaultAgent],
-                selectedAgent: defaultAgent,
-                isLoadingAgents: false
-              });
+            const agents = response.data;
+            set({ agents, isLoadingAgents: false });
+            
+            // Auto-select first agent if none selected and agents exist
+            if (!get().selectedAgent && agents.length > 0) {
+              set({ selectedAgent: agents[0] });
             }
           } catch (error) {
             console.error('Failed to fetch agents:', error);
+            set({ 
+              error: 'Failed to fetch agents. Please try again later.',
+              isLoadingAgents: false 
+            });
+            
             // If network error, use template-based default
             const defaultAgent = get().createDefaultAgent();
-            set({ 
-              agents: [defaultAgent],
-              selectedAgent: defaultAgent,
-              isLoadingAgents: false
-            });
+            set({ agents: [defaultAgent], selectedAgent: defaultAgent });
           }
         },
 
@@ -228,82 +214,62 @@ const useAgentStore = create<AgentStore>()(
         },
 
         createAgent: async (config) => {
+          set({ error: null });
           try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch('/api/agents/', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-              },
-              body: JSON.stringify(config)
-            });
-
-            if (response.ok) {
-              const newAgent: AgentConfig = await response.json();
-              set(state => ({
-                agents: [...state.agents, newAgent]
-              }));
-              return newAgent;
-            } else {
-              throw new Error(`Failed to create agent: ${response.status} ${response.statusText}`);
+            const response = await api.post<AgentConfig>('/agents/', config);
+            if (!response.success || !response.data) {
+              throw new Error(response.error || 'Failed to create agent');
             }
+            
+            const newAgent = response.data;
+            set(state => ({
+              agents: [...state.agents, newAgent]
+            }));
+            return newAgent;
           } catch (error) {
             console.error('Failed to create agent:', error);
+            set({ error: 'Failed to create agent. Please try again later.' });
             throw error;
           }
         },
 
         updateAgent: async (id, updates) => {
+          set({ error: null });
           try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch(`/api/agents/${id}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-              },
-              body: JSON.stringify(updates)
-            });
-
-            if (response.ok) {
-              const updatedAgent: AgentConfig = await response.json();
-              set(state => ({
-                agents: state.agents.map(agent =>
-                  agent.id === id ? updatedAgent : agent
-                ),
-                selectedAgent: state.selectedAgent?.id === id ? updatedAgent : state.selectedAgent
-              }));
-            } else {
-              throw new Error(`Failed to update agent: ${response.status} ${response.statusText}`);
+            const response = await api.put<AgentConfig>(`/agents/${id}`, updates);
+            if (!response.success || !response.data) {
+              throw new Error(response.error || 'Failed to update agent');
             }
+            
+            const updatedAgent = response.data;
+            set(state => ({
+              agents: state.agents.map(agent => 
+                agent.id === id ? updatedAgent : agent
+              ),
+              selectedAgent: state.selectedAgent?.id === id ? updatedAgent : state.selectedAgent
+            }));
           } catch (error) {
             console.error('Failed to update agent:', error);
+            set({ error: 'Failed to update agent. Please try again later.' });
             throw error;
           }
         },
 
         deleteAgent: async (id) => {
+          set({ error: null });
           try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch(`/api/agents/${id}`, {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-              }
-            });
-
-            if (response.ok) {
-              set(state => ({
-                agents: state.agents.filter(agent => agent.id !== id),
-                selectedAgent: state.selectedAgent?.id === id ? null : state.selectedAgent
-              }));
-            } else {
-              throw new Error(`Failed to delete agent: ${response.status} ${response.statusText}`);
+            const response = await api.delete(`/agents/${id}`);
+            if (!response.success) {
+              throw new Error(response.error || 'Failed to delete agent');
             }
+            
+            set(state => ({
+              agents: state.agents.filter(agent => agent.id !== id),
+              selectedAgent: state.selectedAgent?.id === id ? null : state.selectedAgent
+            }));
           } catch (error) {
             console.error('Failed to delete agent:', error);
+            set({ error: 'Failed to delete agent. Please try again later.' });
             throw error;
           }
         },
@@ -313,59 +279,44 @@ const useAgentStore = create<AgentStore>()(
         },
 
         fetchTemplates: async () => {
+          set({ error: null });
           try {
-            const response = await fetch('/api/agents/templates', {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            if (response.ok) {
-              const templates: AgentTemplate[] = await response.json();
-              set({ agentTemplates: templates });
-            } else {
-              console.error('Failed to fetch templates:', response.status, response.statusText);
+            const response = await api.get<AgentTemplate[]>('/agents/templates');
+            if (response.success && response.data) {
+              set({ agentTemplates: response.data });
             }
           } catch (error) {
             console.error('Failed to fetch templates:', error);
+            // Keep using default templates on error
           }
         },
 
         createAgentFromTemplate: async (templateId, customizations = {}) => {
-          const template = get().agentTemplates.find(t => t.id === templateId);
-          if (!template) {
-            throw new Error('Template not found');
+          set({ error: null });
+          try {
+            const response = await api.post<AgentConfig>('/agents/from-template', {
+              templateId,
+              ...customizations
+            });
+            if (!response.success || !response.data) {
+              throw new Error(response.error || 'Failed to create agent from template');
+            }
+            
+            const newAgent = response.data;
+            set(state => ({
+              agents: [...state.agents, newAgent]
+            }));
+            return newAgent;
+          } catch (error) {
+            console.error('Failed to create agent from template:', error);
+            set({ error: 'Failed to create agent from template. Please try again later.' });
+            throw error;
           }
-
-          const agentConfig: Omit<AgentConfig, 'id' | 'createdAt' | 'updatedAt' | 'usageCount' | 'rating'> = {
-            name: customizations.name || template.name,
-            description: customizations.description || template.description,
-            systemPrompt: customizations.systemPrompt || template.systemPrompt,
-            modelId: customizations.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-            collectionNames: customizations.collectionNames || template.recommendedCollections,
-            tools: customizations.tools || template.recommendedTools.map(toolType => ({
-              id: toolType,
-              name: toolType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              description: `${toolType} tool`,
-              type: toolType as AgentTool['type'],
-              config: {},
-              enabled: true
-            })),
-            temperature: customizations.temperature || 0.7,
-            maxTokens: customizations.maxTokens || 4000,
-            isPublic: customizations.isPublic || false,
-            tags: customizations.tags || template.tags,
-            createdBy: customizations.createdBy || 'current-user'
-          };
-
-          return get().createAgent(agentConfig);
         },
 
-        // Agent Execution
         startExecution: (agentId, sessionId) => {
           const execution: AgentExecution = {
-            id: Date.now().toString(),
+            id: Math.random().toString(36).substring(7),
             agentId,
             sessionId,
             status: 'thinking',
@@ -373,49 +324,50 @@ const useAgentStore = create<AgentStore>()(
             startTime: new Date().toISOString(),
             tokenUsage: { input: 0, output: 0 }
           };
-
           set({ currentExecution: execution });
         },
 
         updateExecution: (updates) => {
           set(state => ({
-            currentExecution: state.currentExecution
+            currentExecution: state.currentExecution 
               ? { ...state.currentExecution, ...updates }
               : null
           }));
         },
 
         endExecution: () => {
-          const { currentExecution } = get();
-          if (currentExecution) {
-            const completedExecution = {
-              ...currentExecution,
-              status: 'idle' as const,
-              endTime: new Date().toISOString(),
-              progress: 100
-            };
-
-            set(state => ({
-              currentExecution: null,
-              executionHistory: [completedExecution, ...state.executionHistory.slice(0, 49)] // Keep last 50
-            }));
-          }
+          set(state => {
+            if (state.currentExecution) {
+              return {
+                currentExecution: null,
+                executionHistory: [
+                  ...state.executionHistory,
+                  {
+                    ...state.currentExecution,
+                    status: 'idle',
+                    endTime: new Date().toISOString()
+                  }
+                ]
+              };
+            }
+            return state;
+          });
         },
 
-        // UI Actions
         setCreatingAgent: (creating) => set({ isCreatingAgent: creating }),
         setEditingAgent: (editing) => set({ isEditingAgent: editing }),
-        setShowAgentModal: (show) => set({ showAgentModal: show })
+        setShowAgentModal: (show) => set({ showAgentModal: show }),
+        setError: (error) => set({ error })
       }),
       {
         name: 'agent-store',
         partialize: (state) => ({
           agents: state.agents,
-          selectedAgent: state.selectedAgent
+          selectedAgent: state.selectedAgent,
+          agentTemplates: state.agentTemplates
         })
       }
-    ),
-    { name: 'AgentStore' }
+    )
   )
 );
 
