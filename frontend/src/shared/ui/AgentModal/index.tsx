@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiPlus, FiToggleLeft, FiToggleRight, FiRefreshCw, FiAlertCircle, FiTag } from 'react-icons/fi';
-import { useAgentStore, useUIStore } from '../../stores';
+import { FiX, FiPlus, FiToggleLeft, FiToggleRight, FiRefreshCw } from 'react-icons/fi';
+import { useAgentStore } from '../../stores';
 import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
 
@@ -36,15 +36,12 @@ const AgentModal: React.FC<AgentModalProps> = ({
     setEditingAgent,
     setShowAgentModal
   } = useAgentStore();
-  
-  const { addToast } = useUIStore();
 
   // Local state for models and collections
   const [models, setModels] = useState<ModelOption[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [loadingCollections, setLoadingCollections] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<Partial<AgentConfig>>({
@@ -58,55 +55,30 @@ const AgentModal: React.FC<AgentModalProps> = ({
     maxTokens: 4000,
     isPublic: false,
     tags: [],
+    createdBy: 'current-user'
   });
 
-  const [formErrors, setFormErrors] = useState<Record<string, string | undefined>>({});
   const [newTag, setNewTag] = useState('');
 
-  // Available tools with icons, descriptions and more details
+  // Available tools
   const availableTools = [
-    { 
-      id: 'web_search', 
-      name: 'Web Search', 
-      description: 'Search the web for current information and facts',
-      details: 'Provides access to up-to-date information from the internet'
-    },
-    { 
-      id: 'calculator', 
-      name: 'Calculator', 
-      description: 'Perform mathematical calculations',
-      details: 'Solves mathematical problems and equations'
-    },
-    { 
-      id: 'retriever', 
-      name: 'Knowledge Retriever', 
-      description: 'Retrieve information from knowledge collections',
-      details: 'Accesses information from the selected knowledge collections'
-    }
+    { id: 'web_search', name: 'Web Search', description: 'Search the web for current information' },
+    { id: 'calculator', name: 'Calculator', description: 'Perform mathematical calculations' },
+    { id: 'function', name: 'Custom Function', description: 'Custom function tools' }
   ];
 
   // Initialize models and fetch collections
   const initializeData = async () => {
-    setError(null);
-    
     // Set default models (no API call needed)
     setLoadingModels(true);
-    try {
-      // In a real implementation, this could be an API call
-      const defaultModels = [
-        { id: 'anthropic.claude-3-5-sonnet-20240620-v1:0', name: 'Claude 3.5 Sonnet' },
-        { id: 'anthropic.claude-3-haiku-20240307-v1:0', name: 'Claude 3 Haiku' },
-        { id: 'anthropic.claude-3-opus-20240229-v1:0', name: 'Claude 3 Opus' },
-        { id: 'amazon.titan-text-express-v1', name: 'Titan Text Express' }
-      ];
-      setModels(defaultModels);
-    } catch (error) {
-      console.error('Error fetching models:', error);
-      setError('Failed to load model options');
-    } finally {
-      setLoadingModels(false);
-    }
-    
+    const defaultModels = [
+      { id: 'anthropic.claude-3-5-sonnet-20240620-v1:0', name: 'Claude 3.5 Sonnet' },
+      { id: 'anthropic.claude-3-haiku-20240307-v1:0', name: 'Claude 3 Haiku' },
+      { id: 'anthropic.claude-3-opus-20240229-v1:0', name: 'Claude 3 Opus' }
+    ];
+    setModels(defaultModels);
+    setLoadingModels(false);
+
     // Fetch collections
     setLoadingCollections(true);
     try {
@@ -116,22 +88,18 @@ const AgentModal: React.FC<AgentModalProps> = ({
       } else {
         console.error('Failed to fetch collections:', response.error);
         setCollections([]);
-        setError('Failed to load collections');
       }
     } catch (error) {
       console.error('Error fetching collections:', error);
       setCollections([]);
-      setError('Failed to load collections');
-    } finally {
-      setLoadingCollections(false);
     }
+    setLoadingCollections(false);
   };
 
   // Initialize form data
   useEffect(() => {
     if (isOpen) {
       initializeData();
-      setFormErrors({});
     }
     
     if (isEditing && selectedAgent) {
@@ -148,58 +116,16 @@ const AgentModal: React.FC<AgentModalProps> = ({
         maxTokens: 4000,
         isPublic: false,
         tags: [],
+        createdBy: 'current-user'
       });
     }
   }, [isEditing, selectedAgent, models, isOpen]);
-
-  // Form validation
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-    
-    if (!formData.name?.trim()) {
-      errors.name = 'Name is required';
-    } else if (formData.name.length < 3) {
-      errors.name = 'Name must be at least 3 characters';
-    }
-    
-    if (!formData.description?.trim()) {
-      errors.description = 'Description is required';
-    }
-    
-    if (!formData.systemPrompt?.trim()) {
-      errors.systemPrompt = 'System prompt is required';
-    }
-    
-    if (!formData.modelId) {
-      errors.modelId = 'Please select a model';
-    }
-    
-    if (formData.temperature === undefined || formData.temperature < 0 || formData.temperature > 1) {
-      errors.temperature = 'Temperature must be between 0 and 1';
-    }
-    
-    if (formData.maxTokens === undefined || formData.maxTokens < 100 || formData.maxTokens > 8000) {
-      errors.maxTokens = 'Max tokens must be between 100 and 8000';
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
 
   const handleInputChange = (field: keyof AgentConfig, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-    
-    // Clear error for this field if it exists
-    if (formErrors[field]) {
-      setFormErrors(prev => {
-        const updatedErrors = { ...prev };
-        delete updatedErrors[field];
-        return updatedErrors;
-      });
-    }
   };
 
   const handleCollectionToggle = (collectionName: string) => {
@@ -249,45 +175,19 @@ const AgentModal: React.FC<AgentModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
-    if (!validateForm()) {
-      addToast({
-        type: 'error',
-        title: 'Validation Error',
-        message: 'Please fix the errors in the form'
-      });
-      return;
-    }
-    
     try {
-      setError(null);
       setCreatingAgent(true);
       
       if (isEditing && selectedAgent) {
         await updateAgent(selectedAgent.id, formData);
-        addToast({
-          type: 'success',
-          title: 'Agent Updated',
-          message: `${formData.name} has been updated successfully`
-        });
       } else {
         await createAgent(formData as Omit<AgentConfig, 'id' | 'createdAt' | 'updatedAt' | 'usageCount' | 'rating'>);
-        addToast({
-          type: 'success',
-          title: 'Agent Created',
-          message: `${formData.name} has been created successfully`
-        });
       }
       
       handleClose();
     } catch (error) {
       console.error('Failed to save agent:', error);
-      setError(typeof error === 'string' ? error : 'An error occurred while saving the agent');
-      addToast({
-        type: 'error',
-        title: `${isEditing ? 'Update' : 'Creation'} Failed`,
-        message: `Failed to ${isEditing ? 'update' : 'create'} agent. Please try again.`
-      });
+      alert(`Failed to ${isEditing ? 'update' : 'create'} agent. Please try again.`);
     } finally {
       setCreatingAgent(false);
     }
@@ -297,22 +197,14 @@ const AgentModal: React.FC<AgentModalProps> = ({
     setCreatingAgent(false);
     setEditingAgent(false);
     setShowAgentModal(false);
-    setError(null);
-    setFormErrors({});
     onClose();
-  };
-
-  // Function to get model name from ID
-  const getModelName = (modelId: string): string => {
-    const model = models.find(m => m.id === modelId);
-    return model ? model.name : modelId;
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay z-50">
-      <div className="modal-content max-w-4xl w-full max-h-[85vh] overflow-y-auto bg-card border border-border rounded-xl shadow-lg">
+    <div className="modal-overlay">
+      <div className="modal-content max-w-4xl w-full max-h-90vh overflow-y-auto">
         <form onSubmit={handleSubmit}>
           {/* Header */}
           <div className="p-6 border-b border-border flex items-center justify-between">
@@ -322,19 +214,11 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <button
               type="button"
               onClick={handleClose}
-              className="btn-ghost p-2 rounded-full"
+              className="btn-ghost p-2"
             >
               <FiX className="h-5 w-5" />
             </button>
           </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="mx-6 mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center">
-              <FiAlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-            </div>
-          )}
 
           {/* Content */}
           <div className="p-6 space-y-6">
@@ -342,28 +226,25 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-primary mb-2">
-                  Agent Name <span className="text-red-500">*</span>
+                  Agent Name *
                 </label>
                 <input
                   type="text"
                   required
-                  className={`input ${formErrors.name ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : ''}`}
+                  className="input"
                   placeholder="e.g., Programming Assistant"
                   value={formData.name || ''}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                 />
-                {formErrors.name && (
-                  <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>
-                )}
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-primary mb-2">
-                  AI Model <span className="text-red-500">*</span>
+                  AI Model *
                 </label>
                 <select
                   required
-                  className={`select ${formErrors.modelId ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : ''}`}
+                  className="select"
                   value={formData.modelId || ''}
                   onChange={(e) => handleInputChange('modelId', e.target.value)}
                   disabled={loadingModels}
@@ -375,47 +256,35 @@ const AgentModal: React.FC<AgentModalProps> = ({
                     </option>
                   ))}
                 </select>
-                {formErrors.modelId && (
-                  <p className="mt-1 text-xs text-red-500">{formErrors.modelId}</p>
-                )}
-                {loadingModels && (
-                  <p className="mt-1 text-xs text-muted">Loading models...</p>
-                )}
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-primary mb-2">
-                Description <span className="text-red-500">*</span>
+                Description *
               </label>
               <input
                 type="text"
                 required
-                className={`input ${formErrors.description ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : ''}`}
+                className="input"
                 placeholder="Brief description of what this agent does"
                 value={formData.description || ''}
                 onChange={(e) => handleInputChange('description', e.target.value)}
               />
-              {formErrors.description && (
-                <p className="mt-1 text-xs text-red-500">{formErrors.description}</p>
-              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-primary mb-2">
-                System Prompt <span className="text-red-500">*</span>
+                System Prompt *
               </label>
               <textarea
                 required
                 rows={4}
-                className={`input ${formErrors.systemPrompt ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : ''}`}
+                className="input"
                 placeholder="Define the agent's personality, expertise, and behavior..."
                 value={formData.systemPrompt || ''}
                 onChange={(e) => handleInputChange('systemPrompt', e.target.value)}
               />
-              {formErrors.systemPrompt && (
-                <p className="mt-1 text-xs text-red-500">{formErrors.systemPrompt}</p>
-              )}
             </div>
 
             {/* Advanced Settings */}
@@ -429,18 +298,13 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   min="0"
                   max="1"
                   step="0.1"
-                  className="w-full accent-blue-500"
+                  className="w-full"
                   value={formData.temperature || 0.7}
                   onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value))}
                 />
-                <div className="flex justify-between text-xs text-muted mt-1">
-                  <span>Precise (0.0)</span>
-                  <span>{formData.temperature || 0.7}</span>
-                  <span>Creative (1.0)</span>
+                <div className="text-xs text-muted mt-1">
+                  {formData.temperature || 0.7} (Creativity)
                 </div>
-                {formErrors.temperature && (
-                  <p className="mt-1 text-xs text-red-500">{formErrors.temperature}</p>
-                )}
               </div>
               
               <div>
@@ -451,16 +315,10 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   type="number"
                   min="100"
                   max="8000"
-                  className={`input ${formErrors.maxTokens ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : ''}`}
+                  className="input"
                   value={formData.maxTokens || 4000}
                   onChange={(e) => handleInputChange('maxTokens', parseInt(e.target.value))}
                 />
-                <div className="text-xs text-muted mt-1">
-                  Maximum tokens in the response
-                </div>
-                {formErrors.maxTokens && (
-                  <p className="mt-1 text-xs text-red-500">{formErrors.maxTokens}</p>
-                )}
               </div>
               
               <div>
@@ -470,15 +328,15 @@ const AgentModal: React.FC<AgentModalProps> = ({
                 <button
                   type="button"
                   onClick={() => handleInputChange('isPublic', !formData.isPublic)}
-                  className="flex items-center space-x-2 p-2 rounded-lg border border-border hover:bg-secondary transition-colors w-full"
+                  className="flex items-center space-x-2 p-2 rounded-lg border border-border hover:bg-secondary transition-colors"
                 >
                   {formData.isPublic ? (
                     <FiToggleRight className="h-5 w-5 text-green-500" />
                   ) : (
-                    <FiToggleLeft className="h-5 w-5 text-muted" />
+                    <FiToggleLeft className="h-5 w-5 text-gray-400" />
                   )}
                   <span className="text-sm">
-                    {formData.isPublic ? 'Public - Everyone can use' : 'Private - Only you can use'}
+                    {formData.isPublic ? 'Public' : 'Private'}
                   </span>
                 </button>
               </div>
@@ -488,13 +346,9 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <div>
               <label className="block text-sm font-medium text-primary mb-2">
                 Knowledge Collections
-                <span className="text-xs text-muted ml-2">(Optional)</span>
               </label>
               {loadingCollections ? (
-                <div className="p-4 text-center">
-                  <div className="animate-spin inline-block h-5 w-5 border-2 border-t-transparent border-primary rounded-full mr-2"></div>
-                  <span className="text-muted">Loading collections...</span>
-                </div>
+                <div className="p-4 text-center text-muted">Loading collections...</div>
               ) : collections.length === 0 ? (
                 <div className="p-4 bg-secondary rounded-lg">
                   <p className="text-sm text-muted">
@@ -502,7 +356,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {collections.map((collection) => (
                     <button
                       key={collection.id}
@@ -515,7 +369,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                       }`}
                     >
                       <div className="font-medium text-sm">{collection.name}</div>
-                      <div className="text-xs text-muted line-clamp-1">{collection.description}</div>
+                      <div className="text-xs text-muted">{collection.description}</div>
                     </button>
                   ))}
                 </div>
@@ -526,22 +380,21 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <div>
               <label className="block text-sm font-medium text-primary mb-2">
                 Available Tools
-                <span className="text-xs text-muted ml-2">(Optional)</span>
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="space-y-2">
                 {availableTools.map((tool) => (
                   <button
                     key={tool.id}
                     type="button"
                     onClick={() => handleToolToggle(tool.id)}
-                    className={`p-3 rounded-lg border text-left transition-colors ${
+                    className={`w-full p-3 rounded-lg border text-left transition-colors ${
                       (formData.tools || []).some((t: any) => t.id === tool.id)
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                         : 'border-border hover:bg-secondary'
                     }`}
                   >
                     <div className="font-medium">{tool.name}</div>
-                    <div className="text-xs text-muted">{tool.description}</div>
+                    <div className="text-sm text-muted">{tool.description}</div>
                   </button>
                 ))}
               </div>
@@ -551,32 +404,29 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <div>
               <label className="block text-sm font-medium text-primary mb-2">
                 Tags
-                <span className="text-xs text-muted ml-2">(Optional)</span>
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {(formData.tags || []).map((tag) => (
-                  <div
+                  <span
                     key={tag}
-                    className="px-2 py-1 rounded-full bg-secondary text-sm flex items-center"
+                    className="px-2 py-1 rounded-full bg-secondary text-sm flex items-center space-x-1"
                   >
-                    <FiTag className="h-3 w-3 mr-1 text-muted" />
                     <span>{tag}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 p-1 rounded-full hover:bg-tertiary hover:text-red-500"
-                      aria-label={`Remove tag ${tag}`}
+                      className="p-1 hover:text-red-500"
                     >
                       <FiX className="h-3 w-3" />
                     </button>
-                  </div>
+                  </span>
                 ))}
               </div>
               <div className="flex space-x-2">
                 <input
                   type="text"
                   className="input flex-1"
-                  placeholder="Add a tag (e.g., coding, research)"
+                  placeholder="Add a tag"
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
@@ -585,8 +435,6 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   type="button"
                   onClick={handleAddTag}
                   className="btn-primary px-4"
-                  disabled={!newTag.trim()}
-                  aria-label="Add tag"
                 >
                   <FiPlus className="h-5 w-5" />
                 </button>
@@ -605,11 +453,11 @@ const AgentModal: React.FC<AgentModalProps> = ({
             </button>
             <button
               type="submit"
-              className="btn-primary min-w-24"
+              className="btn-primary"
               disabled={isCreatingAgent}
             >
               {isCreatingAgent ? (
-                <FiRefreshCw className="h-5 w-5 animate-spin mx-auto" />
+                <FiRefreshCw className="h-5 w-5 animate-spin" />
               ) : (
                 isEditing ? 'Update Agent' : 'Create Agent'
               )}
