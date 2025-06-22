@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { config } from '../../config/config';
+import { useAuthStore } from '../../entities/user/store';
+import { api } from '../../shared/lib/api';
 import { FiEye, FiEyeOff, FiLock, FiUser, FiShield, FiArrowLeft } from 'react-icons/fi';
 
 const AdminLoginPage: React.FC = () => {
@@ -12,6 +12,7 @@ const AdminLoginPage: React.FC = () => {
   const [isPasswordError, setIsPasswordError] = useState(false);
   const [isUsernameError, setIsUsernameError] = useState(false);
   const navigate = useNavigate();
+  const setToken = useAuthStore((state) => state.setToken);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,29 +20,23 @@ const AdminLoginPage: React.FC = () => {
     setIsPasswordError(false);
     setIsUsernameError(false);
     
-    try {
-      const response = await axios.post(`${config.apiUrl}/api/auth/admin/login`, {
-        username,
-        password
-      });
+    const response = await api.post<{ token: string; user: any }>('/api/auth/admin/login', {
+      username,
+      password,
+    });
 
-      localStorage.setItem('auth_token', response.data.token);
-      localStorage.setItem('user_data', JSON.stringify(response.data.user));
-      
-      navigate('/chat'); // Redirect to chat instead of mfuchatbot
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.data?.detail) {
-        if (error.response.data.detail.toLowerCase().includes('not found')) {
-          setIsUsernameError(true);
-        } else {
-            setIsPasswordError(true);
-        }
+    if (response.success && response.data) {
+      setToken(response.data.token);
+      navigate('/chat');
+    } else {
+      if (response.error?.toLowerCase().includes('not found')) {
+        setIsUsernameError(true);
       } else {
-        setIsPasswordError(true); // Generic error
+        setIsPasswordError(true);
       }
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
 
   const togglePasswordVisibility = () => {
