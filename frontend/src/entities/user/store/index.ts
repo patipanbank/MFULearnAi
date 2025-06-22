@@ -49,9 +49,12 @@ export const useAuthStore = create<AuthState>((set, get) => {
       try {
         // api object now handles base URL and token
         const response = await api.get<User>('/auth/me');
+        console.log('fetchUser: Raw response object:', response);
         const userData = response.data;
+        console.log('fetchUser: Successfully fetched user data.', { userData });
         set({ status: 'authenticated', user: userData, fetchError: null });
       } catch (error) {
+        console.error('fetchUser: Failed to fetch user data.', error);
         localStorage.removeItem('auth_token');
         set({ status: 'unauthenticated', user: null, token: null, fetchError: error instanceof Error ? error.message : 'Network error' });
       }
