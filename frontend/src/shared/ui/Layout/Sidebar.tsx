@@ -15,7 +15,7 @@ import {
 import { cn } from '../../lib/utils';
 import useLayoutStore from '../../stores/layoutStore';
 import useUIStore from '../../stores/uiStore';
-import useChatStore from '../../stores/chatStore';
+import { useChatStore } from '../../stores/chatStore';
 import PreferencesModal from '../PreferencesModal';
 import AccountModal from '../AccountModal';
 import AdvancedModal from '../AdvancedModal';
