@@ -52,7 +52,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${FRONTEND_URL:-https://mfulearnai.mfu.ac.th}
+        - VITE_API_URL=${FRONTEND_URL:-https://mfulearnai.mfu.ac.th}/api
         - VITE_WS_URL=wss://mfulearnai.mfu.ac.th/ws
     env_file:
       - .env
