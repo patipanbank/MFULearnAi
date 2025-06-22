@@ -1,7 +1,6 @@
 // A robust API utility for handling fetch requests with advanced features.
 
 import { useAuthStore } from '../../entities/user/store';
-import { config } from '../../config/config';
 
 // Default options for fetch requests
 const DEFAULT_TIMEOUT = 15000; // 15 seconds
@@ -19,23 +18,6 @@ interface RequestOptions extends RequestInit {
   timeout?: number;
   retries?: number;
   retryDelay?: number;
-}
-
-// Helper to ensure HTTPS URLs
-function ensureHttpsUrl(url: string): string {
-  // If it's already an absolute URL
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    // Force HTTPS
-    return url.replace(/^http:\/\//i, 'https://');
-  }
-  
-  // If it's a relative URL with leading slash
-  if (url.startsWith('/')) {
-    return `${config.apiUrl}${url}`;
-  }
-  
-  // If it's a relative URL without leading slash
-  return `${config.apiUrl}/${url}`;
 }
 
 // Internal function to handle fetch with timeout
@@ -84,12 +66,9 @@ async function request<T>(
     headers,
   };
 
-  // Ensure URL is HTTPS
-  const secureUrl = ensureHttpsUrl(url);
-
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetchWithTimeout(secureUrl, finalOptions);
+      const response = await fetchWithTimeout(url, finalOptions);
 
       if (!response.ok) {
         // For client-side errors, don't retry
