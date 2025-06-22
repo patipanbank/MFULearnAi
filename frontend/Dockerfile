@@ -14,7 +14,6 @@ WORKDIR /app/frontend
 
 # Install dependencies first (for better caching)
 COPY package*.json ./
-RUN apk add --no-cache vips-dev build-base python3 pkgconfig
 RUN npm ci --silent
 
 # Copy source code
