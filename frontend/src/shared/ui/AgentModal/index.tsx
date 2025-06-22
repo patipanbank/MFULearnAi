@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiTrash2, FiToggleLeft, FiToggleRight, FiRefreshCw } from 'react-icons/fi';
 import { useAgentStore } from '../../stores';
-import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
 
 interface AgentModalProps {
