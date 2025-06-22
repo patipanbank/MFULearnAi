@@ -43,7 +43,7 @@ export const useCollectionStore = create<CollectionStore>()(
       fetchCollections: async () => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.get<Collection[]>('/collections');
+          const response = await api.get<Collection[]>('/api/collections');
 
           if (!response.success || !response.data) {
             throw new Error(`Failed to fetch collections: ${response.error || 'Unknown error'}`);
