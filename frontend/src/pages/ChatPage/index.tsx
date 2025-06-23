@@ -120,8 +120,13 @@ const ChatPage: React.FC = () => {
   // กรณี /chat (ไม่มี id)
   useEffect(() => {
     if (isInChatRoom) return; // handled above
-    if (!currentSession) createNewChat();
-  }, [isInChatRoom]);
+    
+    // If we are on /chat but the current session is a real, saved chat,
+    // we must create a new one to prevent sending messages to the old chat.
+    if (!currentSession || !currentSession.id.startsWith('chat_')) {
+      createNewChat();
+    }
+  }, [isInChatRoom, currentSession]);
   
   // Update session ID when chat room changes
   useEffect(() => {
