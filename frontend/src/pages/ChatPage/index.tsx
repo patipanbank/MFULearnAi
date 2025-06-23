@@ -138,6 +138,16 @@ const ChatPage: React.FC = () => {
     currentSessionRef.current = currentSession;
   }, [currentSession]);
   
+  // Reset input local state when switching to a different session (e.g., New Chat)
+  useEffect(() => {
+    // Whenever session ID changes, clear draft message & images
+    setMessage('');
+    setImages([]);
+    // Also reset typing indicator and pending queue
+    setIsTyping(false);
+    pendingQueueRef.current = [];
+  }, [currentSession?.id]);
+  
   // Helper function to check if token is expired
   const isTokenExpired = (token: string): boolean => {
     try {
