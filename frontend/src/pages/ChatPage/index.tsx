@@ -275,10 +275,8 @@ const ChatPage: React.FC = () => {
 
     if (!currentSession!.id || currentSession!.id.startsWith('chat_')) {
       // --- Start a completely new chat room ---
-      console.debug('[CHAT] Starting new chat: disconnect old socket, queue create_room');
       // 1. Force close any existing socket so backend won\'t treat first payload as belonging to old room
       chatWebSocket.disconnect();
-      console.debug('[CHAT] Disconnected, status', chatWebSocket.getStatus());
 
       // 2. Queue create_room payload (will be sent once connect finishes)
       const createPayload = {
@@ -287,11 +285,9 @@ const ChatPage: React.FC = () => {
         agent_id: selectedAgent?.id,
       };
       chatWebSocket.send(createPayload);
-      console.debug('[CHAT] create_room queued', createPayload);
 
       // 3. Re-open socket immediately (manager will ignore if already connecting)
       chatWebSocket.connect(token!);
-      console.debug('[CHAT] reconnect called');
 
       // 4. Mark UI state & remember first user message
       setIsRoomCreating(true);
