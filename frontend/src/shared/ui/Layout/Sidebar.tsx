@@ -27,7 +27,7 @@ const Sidebar: React.FC = () => {
     toggleSidebar, 
     setSidebarHovered
   } = useLayoutStore();
-  const { openDropdowns, toggleDropdown, closeDropdown, addToast } = useUIStore();
+  const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
   const { 
     chatHistory, 
     currentSession, 
