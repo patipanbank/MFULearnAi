@@ -23,5 +23,5 @@ celery.conf.update(
     result_expires=3600,
 )
 
-# Discover task modules inside backend.tasks package
-celery.autodiscover_tasks(["backend.tasks"]) 
+# Discover task modules inside the same backend package
+celery.autodiscover_tasks(["tasks"]) 
