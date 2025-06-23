@@ -18,7 +18,9 @@ const ChatPage: React.FC = () => {
     setWsStatus,
     isTyping,
     setIsTyping,
-    setCurrentSession
+    setCurrentSession,
+    chatHistory,
+    setChatHistory
   } = useChatStore();
   
   const { 
@@ -315,6 +317,17 @@ const ChatPage: React.FC = () => {
         ...currentSession,
         id: roomId,
       });
+
+      // Update chat history list: replace placeholder id
+      const updatedHistory = chatHistory.map((chat) =>
+        chat.id === currentSession.id ? { ...chat, id: roomId } : chat
+      );
+      // If not found, push new entry
+      const exists = updatedHistory.some((c) => c.id === roomId);
+      if (!exists) {
+        updatedHistory.unshift({ ...currentSession, id: roomId });
+      }
+      setChatHistory(updatedHistory);
     }
 
     // Re-open WebSocket bound to the new room
