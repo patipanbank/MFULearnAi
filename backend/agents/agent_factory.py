@@ -144,29 +144,26 @@ def create_agent_executor(
     # 5. Create Agent Executor
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    # 6. Ensure agent output is plain string (not list of Messages)
-    to_string = agent_executor | StrOutputParser()
+    # 6. Clean agent output to a plain string before memory layer
+    def _extract_output(data):
+        """Return only the assistant text (str) from AgentExecutor result."""
+        if isinstance(data, dict):
+            return data.get("output", "")
+        return str(data)
 
-    # helper to strip usage key (applied after memory)
-    def _drop_usage(output):
-        if isinstance(output, dict) and "usage" in output:
-            return {k: v for k, v in output.items() if k != "usage"}
-        return output
+    clean_agent = agent_executor | RunnableLambda(_extract_output)
 
     # 7. Wrap with Message History so that Human/AI messages stored in Redis
     redis_url = settings.REDIS_URL
     if not redis_url:
         raise ValueError("REDIS_URL must be set in the environment variables to use chat history.")
 
-    agent_with_chat_history = RunnableWithMessageHistory(
-        to_string,  # type: ignore
+    final_runnable = RunnableWithMessageHistory(
+        clean_agent,  # type: ignore
         lambda session_id: RedisChatMessageHistory(session_id, url=redis_url),
         input_messages_key="input",
         history_messages_key="chat_history",
     )
-
-    # 8. Strip usage key AFTER memory layer so stored messages remain intact
-    final_runnable = agent_with_chat_history | RunnableLambda(_drop_usage)  # type: ignore
 
     print(f"Agent Executor with history created for session: {session_id}")
 
