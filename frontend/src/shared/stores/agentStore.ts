@@ -86,7 +86,7 @@ interface AgentStore {
   createAgentFromTemplate: (templateId: string, customizations?: Partial<AgentConfig>) => Promise<AgentConfig>;
   
   // Agent Execution
-  startExecution: (agentId: string, sessionId: string) => void;
+  startExecution: () => void;
   updateExecution: (updates: Partial<AgentExecution>) => void;
   endExecution: () => void;
   
@@ -282,7 +282,7 @@ const useAgentStore = create<AgentStore>()(
         },
 
         // Agent Execution
-        startExecution: (agentId, sessionId) => {
+        startExecution: () => {
           // Logic to start an agent execution
         },
 
