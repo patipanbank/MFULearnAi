@@ -57,10 +57,16 @@ class ChatService:
                     chunk = event["data"].get("chunk")
                     chunk_text: str | None = None
                     if chunk:
-                        if hasattr(chunk, "content") and chunk.content:
-                            chunk_text = chunk.content  # type: ignore[attr-defined]
-                        elif isinstance(chunk, dict) and chunk.get("content"):
-                            chunk_text = str(chunk.get("content"))
+                        # Skip dicts that represent the full agent result (contain both output & messages)
+                        if isinstance(chunk, dict) and {"output", "messages"}.issubset(chunk.keys()):
+                            chunk_text = None  # ignore this chunk
+                        elif hasattr(chunk, "content") and getattr(chunk, "content", None):
+                            chunk_text = getattr(chunk, "content")  # type: ignore[attr-defined]
+                        elif isinstance(chunk, dict):
+                            if "content" in chunk and isinstance(chunk["content"], str):
+                                chunk_text = str(chunk["content"])
+                            elif "text" in chunk and isinstance(chunk["text"], str):
+                                chunk_text = str(chunk["text"])
                     if chunk_text:
                         content_received = True
                         yield json.dumps({"type": "chunk", "data": chunk_text})
@@ -69,10 +75,15 @@ class ChatService:
                     chunk = event["data"].get("chunk")
                     llm_chunk_text: str | None = None
                     if chunk:
-                        if hasattr(chunk, "content") and chunk.content:
-                            llm_chunk_text = chunk.content  # type: ignore[attr-defined]
-                        elif isinstance(chunk, dict) and chunk.get("content"):
-                            llm_chunk_text = str(chunk.get("content"))
+                        if isinstance(chunk, dict) and {"output", "messages"}.issubset(chunk.keys()):
+                            llm_chunk_text = None
+                        elif hasattr(chunk, "content") and getattr(chunk, "content", None):
+                            llm_chunk_text = getattr(chunk, "content")  # type: ignore[attr-defined]
+                        elif isinstance(chunk, dict):
+                            if "content" in chunk and isinstance(chunk["content"], str):
+                                llm_chunk_text = str(chunk["content"])
+                            elif "text" in chunk and isinstance(chunk["text"], str):
+                                llm_chunk_text = str(chunk["text"])
                     if llm_chunk_text:
                         content_received = True
                         yield json.dumps({"type": "chunk", "data": llm_chunk_text})
