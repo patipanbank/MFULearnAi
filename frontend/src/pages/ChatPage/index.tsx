@@ -506,6 +506,17 @@ const ChatPage: React.FC = () => {
     };
   }, []);
   
+  // เมื่อออกจากห้องแชท (route /chat ไม่มี id) ให้ปิด WS และรีเซตสถานะการเชื่อมต่อ
+  useEffect(() => {
+    if (!isInChatRoom) {
+      // ปิด websocket หากยังเปิดอยู่
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+      setIsConnectedToRoom(false);
+    }
+  }, [isInChatRoom]);
+  
   if (isLoading) {
     return <Loading />;
   }
@@ -596,6 +607,7 @@ const ChatPage: React.FC = () => {
           )}
         >
           <ResponsiveChatInput
+            key={currentSession?.id || 'no-session'}
             message={message}
             onMessageChange={setMessage}
             onSendMessage={sendMessage}
