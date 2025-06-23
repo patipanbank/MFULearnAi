@@ -75,7 +75,7 @@ interface AgentStore {
   isLoadingAgents: boolean;
   
   // Actions
-  fetchAgents: () => Promise<void>;
+  fetchAgents: (force?: boolean) => Promise<void>;
   createAgent: (config: Omit<AgentConfig, 'id' | 'createdAt' | 'updatedAt' | 'usageCount' | 'rating'>) => Promise<AgentConfig>;
   updateAgent: (id: string, updates: Partial<AgentConfig>) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
@@ -156,7 +156,12 @@ const useAgentStore = create<AgentStore>()(
         isLoadingAgents: false,
 
         // Actions
-        fetchAgents: async () => {
+        fetchAgents: async (force = false) => {
+          // Skip if we already have agents and not forced
+          if (!force && get().agents.length > 0) {
+            return;
+          }
+
           set({ isLoadingAgents: true });
           try {
             const agents = await api.get<AgentConfig[]>('/agents/');

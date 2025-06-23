@@ -52,7 +52,7 @@ interface ChatState {
   createNewChat: () => ChatSession;
   loadChat: (chatId: string) => Promise<boolean>;
   saveChat: () => Promise<void>;
-  fetchChatHistory: () => Promise<void>;
+  fetchChatHistory: (force?: boolean) => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
   pinChat: (chatId: string, pinned: boolean) => void;
 }
@@ -193,7 +193,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Fetch recent chats from backend
-  fetchChatHistory: async () => {
+  fetchChatHistory: async (force = false) => {
+    if (!force && get().chatHistory.length > 0) {
+      return;
+    }
     try {
       const chats = await api.get<ChatSession[]>('/chat/history');
       const chatSessions: ChatSession[] = chats

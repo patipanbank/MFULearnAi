@@ -92,13 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
   };
 
-  // If we have a token at startup, fetch user data immediately
-  if (initialToken) {
-    // Use setTimeout to avoid calling async function during store creation
-    setTimeout(() => {
-      store.fetchUser();
-    }, 0);
-  }
+  // We no longer auto-fetch user here; AuthGuard will trigger the fetch once.
 
   return store;
 });
