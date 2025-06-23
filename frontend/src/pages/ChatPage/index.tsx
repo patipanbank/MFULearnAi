@@ -247,7 +247,12 @@ const ChatPage: React.FC = () => {
       console.log('WebSocket connected');
       setWsStatus('connected');
       setIsConnectedToRoom(true);
-      // already assigned
+      
+      // If joining an existing room, send a join event immediately
+      // This helps the backend register the socket to the room without waiting for a message.
+      if (isInChatRoom && chatId) {
+        ws.send(JSON.stringify({ type: 'join_room', chatId }));
+      }
       
       // Show connection success toast
       addToast({

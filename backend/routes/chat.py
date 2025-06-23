@@ -151,31 +151,28 @@ async def websocket_endpoint(websocket: WebSocket):
         temperature: float = 0.7
         max_tokens: int = 4000
         
-        # 2. Wait for the initial message from the client (could be create_room or message)
+        # 2. The first message from the client determines the flow.
         initial_message = await websocket.receive_text()
         data = json.loads(initial_message)
-
         event_type = data.get("type")
 
-        # Defaults (now declared above)
-        # session_id: str | None = None
-        message: str | None = data.get("message")
-        images_data = data.get("images", [])
-        # agent_id: str | None = None
-
-        if event_type == "create_room":
-            # --- Handle explicit room creation handshake ---
+        # --- Flow 1: Client is joining an existing room (e.g., after a page refresh) ---
+        if event_type == "join_room":
+            session_id = data.get("chatId")
+            if not session_id or len(session_id) != 24:
+                await websocket.close(code=1007, reason="Invalid chatId for join_room")
+                return
+            await ws_manager.connect(str(session_id), websocket)
+            # Proceed directly to the main loop to wait for user messages
+        
+        # --- Flow 2: Client is creating a new room ---
+        elif event_type == "create_room":
             agent_id = data.get("agent_id") or data.get("agentId")
-
-            # If agent_id provided, load agent config for later reuse
             if agent_id:
                 try:
                     agent = await agent_service.get_agent_by_id(agent_id)
                     if not agent:
-                        await websocket.send_text(json.dumps({"type": "error", "data": "Agent not found"}))
-                        await websocket.close()
-                        return
-
+                        raise ValueError("Agent not found")
                     model_id = agent.modelId
                     collection_names = agent.collectionNames or []
                     system_prompt = agent.systemPrompt
@@ -185,110 +182,44 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to load agent: {str(e)}"}))
                     await websocket.close()
                     return
-            else:
-                model_id = None
-                collection_names = []
-                system_prompt = None
-                temperature = 0.7
-                max_tokens = 4000
-
-            # Create chat document immediately
+            
             new_chat = await chat_history_service.create_chat(
-                user_id=user_id,
-                name=data.get("name", "New Chat"),
-                agent_id=agent_id,
-                model_id=model_id,
+                user_id=user_id, name=data.get("name", "New Chat"), agent_id=agent_id, model_id=model_id,
             )
             session_id = new_chat.id
-
-            # Acknowledge room creation to client
             await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
-
-            # Register the websocket BEFORE dispatching the celery task to avoid race conditions.
             await ws_manager.connect(str(session_id), websocket)
+            # Proceed directly to the main loop to wait for the first message content
 
-            # Proceed waiting for next message
-            # Replace data with an empty dict for the while loop
-            data = {}
-
+        # --- Flow 3: Legacy or initial message includes content (deprecated but supported) ---
         else:
-            # Legacy initial message path (contains message)
-            session_id = data.get("session_id")
-            # message = data.get("message") # Already fetched
-            # images_data = data.get("images", []) # Already fetched
-            agent_id = data.get("agent_id")
-            # downstream legacy handling continues
-
-        images: list[ImagePayload] = [ImagePayload(**img) for img in images_data] if images_data else []
-
-        # This block now ONLY handles the initial message if it's NOT a create_room event.
-        if message:
-            # 4. Basic validation – ensure required fields present
-            if not session_id or not model_id or not isinstance(collection_names, list):
-                await websocket.send_text(json.dumps({"type": "error", "data": "Missing required fields"}))
-                await websocket.close()
-                return
-
-            # 4.1 Ensure chat document exists – create if new and inform client
-            db_chat = None
-            try:
-                if len(session_id) == 24:
-                    db_chat = await chat_history_service.get_chat_by_id(session_id)
-            except Exception:
-                db_chat = None
-
-            if db_chat is None:
-                new_chat = await chat_history_service.create_chat(
-                    user_id=user_id,
-                    name="New Chat",
-                    agent_id=agent_id,
-                    model_id=model_id,
-                )
-                session_id = new_chat.id
-                await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
+            message = data.get("message") or data.get("text")
+            if not message:
+                 await websocket.close(code=1007, reason="Invalid initial message")
+                 return
             
-            # --- Key Fix: Register websocket BEFORE dispatching background task ---
-            await ws_manager.connect(str(session_id), websocket)
+            session_id = data.get("session_id") or data.get("chatId")
+            agent_id = data.get("agent_id")
+            # ... (add logic to load agent, etc. if needed) ...
 
-            # 5. Persist user message immediately
+            if not session_id or len(session_id) != 24:
+                # Cannot proceed without a valid session
+                 await websocket.close(code=1007, reason="Missing session_id for initial message")
+                 return
+
+            await ws_manager.connect(str(session_id), websocket)
+            
+            # Persist and process the message
             await chat_history_service.add_message_to_chat(
                 str(session_id),
-                ChatMessage(
-                    id=str(ObjectId()),
-                    role="user",
-                    content=message,
-                    timestamp=_dt.utcnow(),
-                    images=images if images else None,
-                    isStreaming=False,
-                    isComplete=True,
-                ),
+                ChatMessage(id=str(ObjectId()), role="user", content=message, timestamp=_dt.utcnow(), images=[ImagePayload(**img) for img in data.get("images", [])] or None)
             )
-
-            # 6. Enqueue Celery task
-            task_payload = {
-                "session_id": session_id,
-                "user_id": user_id,
-                "message": message,
-                "model_id": model_id,
-                "collection_names": collection_names,
-                "images": images_data,
-                "system_prompt": system_prompt,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "agent_id": agent_id,
-            }
-
+            task_payload = { "session_id": session_id, "user_id": user_id, "message": message, "model_id": model_id, "collection_names": collection_names, "images": data.get("images", []), "system_prompt": system_prompt, "temperature": temperature, "max_tokens": max_tokens, "agent_id": agent_id }
             generate_answer.delay(task_payload)
-
-            # 7. Ack
             await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))
-        else:
-            # This path is taken for event_type 'create_room', where the client
-            # is expected to send a subsequent message.
-            await ws_manager.connect(str(session_id), websocket)
 
+        # --- Main Message Loop ---
         try:
-            # Keep connection alive; process all incoming user messages.
             while True:
                 try:
                     raw_msg = await websocket.receive_text()
