@@ -9,7 +9,7 @@ import { cn } from '../../shared/lib/utils';
 import { chatWebSocket } from '../../shared/lib/chatWebSocket';
 
 const ChatPage: React.FC = () => {
-  const { user, token } = useAuthStore();
+  const { user, token, refreshToken } = useAuthStore();
   const { 
     currentSession, 
     addMessage, 
