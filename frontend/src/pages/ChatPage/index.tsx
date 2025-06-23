@@ -515,6 +515,7 @@ const ChatPage: React.FC = () => {
       {/* Chat Area - Full Width without Header */}
       <div className="flex-1 flex flex-col max-w-none">
         {/* Messages */}
+        {hasMessages && (
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {currentSession?.messages.map((msg) => (
             <div
@@ -574,6 +575,7 @@ const ChatPage: React.FC = () => {
           
           <div ref={messagesEndRef} />
         </div>
+        )}
         
         {/* Chat Input Wrapper */}
         <div
