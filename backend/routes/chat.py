@@ -142,116 +142,133 @@ async def websocket_endpoint(websocket: WebSocket):
         return
 
     try:
-        # 2. Wait for the initial message from the client
+        # 2. Wait for the initial message from the client (could be create_room or message)
         initial_message = await websocket.receive_text()
         data = json.loads(initial_message)
 
-        # 3. Extract chat parameters - support both old and new format
-        session_id = data.get("session_id")
-        message = data.get("message")
+        event_type = data.get("type")
+
+        # Defaults
+        session_id: str | None = None
+        message: str | None = None
         images_data = data.get("images", [])
-        
-        # Check if using new agent-based format
-        agent_id = data.get("agent_id")
-        if agent_id:
-            # New agent-based format
-            try:
-                # Get agent data
-                agent = await agent_service.get_agent_by_id(agent_id)
-                if not agent:
-                    await websocket.send_text(json.dumps({"type": "error", "data": "Agent not found"}))
+        agent_id: str | None = None
+
+        if event_type == "create_room":
+            # --- Handle explicit room creation handshake ---
+            agent_id = data.get("agent_id") or data.get("agentId")
+
+            # If agent_id provided, load agent config for later reuse
+            if agent_id:
+                try:
+                    agent = await agent_service.get_agent_by_id(agent_id)
+                    if not agent:
+                        await websocket.send_text(json.dumps({"type": "error", "data": "Agent not found"}))
+                        await websocket.close()
+                        return
+
+                    model_id = agent.modelId
+                    collection_names = agent.collectionNames or []
+                    system_prompt = agent.systemPrompt
+                    temperature = agent.temperature
+                    max_tokens = agent.maxTokens
+                except Exception as e:
+                    await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to load agent: {str(e)}"}))
                     await websocket.close()
                     return
-                
-                # Extract model and collection info from agent
-                model_id = agent.modelId
-                collection_names = agent.collectionNames or []
-                system_prompt = agent.systemPrompt
-                temperature = agent.temperature
-                max_tokens = agent.maxTokens
-                
-                print(f"🤖 Using agent: {agent.name} (ID: {agent_id})")
-                print(f"📝 System prompt: {system_prompt[:100]}...")
-                
-            except Exception as e:
-                await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to load agent: {str(e)}"}))
-                await websocket.close()
-                return
-        else:
-            # Legacy format - model_id + collection_names
-            model_id = data.get("model_id")
-            collection_names = data.get("collection_names") or []
-            system_prompt = None
-            temperature = 0.7
-            max_tokens = 4000
-            
-            print(f"⚠️ Using legacy format: model_id={model_id}")
-        
-        images = [ImagePayload(**img) for img in images_data] if images_data else []
+            else:
+                model_id = None
+                collection_names = []
+                system_prompt = None
+                temperature = 0.7
+                max_tokens = 4000
 
-        # 4. Basic validation – ensure required fields present
-        if not session_id or not message or not model_id or not isinstance(collection_names, list):
-            await websocket.send_text(json.dumps({"type": "error", "data": "Missing required fields"}))
-            await websocket.close()
-            return
-            
-        # 4.1 Ensure chat document exists – create if new and inform client (Option A)
-        db_chat = None
-        try:
-            # Try load if looks like ObjectId
-            if len(session_id) == 24:
-                db_chat = await chat_history_service.get_chat_by_id(session_id)
-        except Exception:
-            db_chat = None
-
-        if db_chat is None:
-            # Create new chat in DB (use provided session_id if looks like ObjectId)
+            # Create chat document immediately
             new_chat = await chat_history_service.create_chat(
                 user_id=user_id,
-                name="New Chat",
+                name=data.get("name", "New Chat"),
                 agent_id=agent_id,
                 model_id=model_id,
-                custom_id=session_id if len(session_id) == 24 else None,
             )
-            # If backend had to create new id (when invalid provided), notify client
-            if new_chat.id != session_id:
+            session_id = new_chat.id
+
+            # Acknowledge room creation to client
+            await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
+
+            # Proceed waiting for next message
+            # Replace data with an empty dict for the while loop
+            data = {}
+
+        else:
+            # Legacy initial message path (contains message)
+            session_id = data.get("session_id")
+            message = data.get("message")
+            images_data = data.get("images", [])
+            agent_id = data.get("agent_id")
+            # downstream legacy handling continues
+
+        images: list[ImagePayload] = [ImagePayload(**img) for img in images_data] if images_data else []
+
+        # If the initial payload actually contains a user message (legacy path or new "message" event)
+        if message:
+            # 4. Basic validation – ensure required fields present
+            if not session_id or not model_id or not isinstance(collection_names, list):
+                await websocket.send_text(json.dumps({"type": "error", "data": "Missing required fields"}))
+                await websocket.close()
+                return
+
+            # 4.1 Ensure chat document exists – create if new and inform client
+            db_chat = None
+            try:
+                if len(session_id) == 24:
+                    db_chat = await chat_history_service.get_chat_by_id(session_id)
+            except Exception:
+                db_chat = None
+
+            if db_chat is None:
+                new_chat = await chat_history_service.create_chat(
+                    user_id=user_id,
+                    name="New Chat",
+                    agent_id=agent_id,
+                    model_id=model_id,
+                )
                 session_id = new_chat.id
                 await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
 
-        # 5. Persist user message immediately
-        await chat_history_service.add_message_to_chat(
-            str(session_id),
-            ChatMessage(
-                id=str(ObjectId()),
-                role="user",
-                content=message,
-                timestamp=_dt.utcnow(),
-                images=images if images else None,
-                isStreaming=False,
-                isComplete=True,
-            ),
-        )
+            # 5. Persist user message immediately
+            await chat_history_service.add_message_to_chat(
+                str(session_id),
+                ChatMessage(
+                    id=str(ObjectId()),
+                    role="user",
+                    content=message,
+                    timestamp=_dt.utcnow(),
+                    images=images if images else None,
+                    isStreaming=False,
+                    isComplete=True,
+                ),
+            )
 
-        # 6. Enqueue Celery task (background worker) to generate assistant answer
-        task_payload = {
-            "session_id": session_id,
-            "user_id": user_id,
-            "message": message,
-            "model_id": model_id,
-            "collection_names": collection_names,
-            "images": images_data,
-            "system_prompt": system_prompt,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "agent_id": agent_id,
-        }
+            # 6. Enqueue Celery task
+            task_payload = {
+                "session_id": session_id,
+                "user_id": user_id,
+                "message": message,
+                "model_id": model_id,
+                "collection_names": collection_names,
+                "images": images_data,
+                "system_prompt": system_prompt,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "agent_id": agent_id,
+            }
 
-        generate_answer.delay(task_payload)
+            generate_answer.delay(task_payload)
 
-        # 7. Send ack back to client but KEEP socket open for streaming
-        await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))
+            # 7. Ack
+            await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))
 
-        # --- Register WebSocket for streaming ---
+        # --- Register WebSocket for streaming (always after we have a valid session_id) ---
         await ws_manager.connect(str(session_id), websocket)
 
         try:
@@ -262,25 +279,78 @@ async def websocket_endpoint(websocket: WebSocket):
                 except WebSocketDisconnect:
                     break
 
-                # Handle simple ping/pong keep-alive
-                if raw_msg == "ping":
-                    await websocket.send_text("pong")
-                    continue
-
                 try:
                     incoming = json.loads(raw_msg)
                 except Exception as e:
-                    # Ignore malformed JSON
                     print(f"⚠️ Malformed WS message: {e}")
                     continue
 
-                # Extract parameters
-                new_message: str | None = incoming.get("message")
+                etype = incoming.get("type", "message")
+
+                if etype == "ping":
+                    await websocket.send_text("pong")
+                    continue
+
+                if etype == "create_room":
+                    # Client requests room creation mid-connection
+                    if len(session_id or "") == 24:
+                        # Room already exists; ignore
+                        continue
+
+                    cr_agent_id = incoming.get("agent_id") or incoming.get("agentId")
+
+                    cr_model_id: str | None = None
+                    cr_collection_names: list[str] = []
+                    cr_system_prompt: str | None = None
+                    cr_temperature = 0.7
+                    cr_max_tokens = 4000
+
+                    if cr_agent_id:
+                        try:
+                            cr_agent = await agent_service.get_agent_by_id(cr_agent_id)
+                            if cr_agent:
+                                cr_model_id = cr_agent.modelId
+                                cr_collection_names = cr_agent.collectionNames or []
+                                cr_system_prompt = cr_agent.systemPrompt
+                                cr_temperature = cr_agent.temperature
+                                cr_max_tokens = cr_agent.maxTokens
+                        except Exception as exc:
+                            await websocket.send_text(json.dumps({"type":"error","data":f"Failed to load agent: {exc}"}))
+                            continue
+
+                    new_chat = await chat_history_service.create_chat(
+                        user_id=user_id,
+                        name=incoming.get("name", "New Chat"),
+                        agent_id=cr_agent_id,
+                        model_id=cr_model_id,
+                    )
+
+                    session_id = new_chat.id
+
+                    # Update context variables for subsequent messages
+                    agent_id = cr_agent_id or agent_id
+                    model_id = cr_model_id or model_id
+                    collection_names = cr_collection_names or collection_names
+                    system_prompt = cr_system_prompt or system_prompt
+                    temperature = cr_temperature
+                    max_tokens = cr_max_tokens
+
+                    await websocket.send_text(json.dumps({"type":"room_created","data":{"chatId":session_id}}))
+
+                    # Connect to pubsub room
+                    await ws_manager.connect(str(session_id), websocket)
+                    continue  # wait next message
+
+                if etype != "message":
+                    # Unknown or unhandled event type
+                    continue
+
+                new_message: str | None = incoming.get("text") or incoming.get("message")
                 if not new_message:
                     continue  # nothing useful
 
-                # Allow switching chat room within same socket if client sends new session_id
-                incoming_session_id = incoming.get("session_id", session_id)
+                # Allow switching chat room within same socket if client sends chatId field
+                incoming_session_id = incoming.get("chatId") or incoming.get("session_id", session_id)
 
                 # Guard against placeholder or invalid ids (e.g., "chat_123...")
                 if len(incoming_session_id) != 24:
@@ -295,7 +365,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     await ws_manager.connect(str(session_id), websocket)
 
                 new_images_data = incoming.get("images", [])
-                new_agent_id = incoming.get("agent_id", agent_id)
+                new_agent_id = incoming.get("agent_id") or incoming.get("agentId", agent_id)
 
                 # If agent changed, reload its config
                 if new_agent_id and new_agent_id != agent_id:

@@ -42,6 +42,11 @@ const ChatPage: React.FC = () => {
   const [images, setImages] = useState<Array<{ url: string; mediaType: string }>>([]);
   const [isConnectedToRoom, setIsConnectedToRoom] = useState(false);
   const [isRoomCreating, setIsRoomCreating] = useState(false);
+  const [pendingFirst, setPendingFirst] = useState<{
+    text: string;
+    images: Array<{ url: string; mediaType: string }>;
+    agentId?: string;
+  } | null>(null);
   
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -50,12 +55,7 @@ const ChatPage: React.FC = () => {
   const currentSessionRef = useRef<typeof currentSession>(null); // NEW REF
   
   // Queue of pending payloads when websocket is not yet connected
-  type PendingPayload = {
-    session_id: string;
-    message: string;
-    agent_id?: string;
-    images: Array<{ url: string; mediaType: string }>;
-  };
+  type PendingPayload = Record<string, any>; // generic event payload
 
   const pendingQueueRef = useRef<PendingPayload[]>([]);
   
@@ -241,10 +241,9 @@ const ChatPage: React.FC = () => {
         duration: 3000
       });
       
-      // ส่งคิวข้อความที่ค้างทั้งหมด
+      // ส่งคิวข้อความที่ค้างทั้งหมด (สร้างใหม่ในรูปแบบ event)
       console.log('[CHAT] WebSocket OPEN – pending', pendingQueueRef.current.length);
       pendingQueueRef.current.forEach((p) => {
-        console.log('[CHAT] flush >>', p);
         ws.send(JSON.stringify(p));
       });
       pendingQueueRef.current = [];
@@ -276,6 +275,17 @@ const ChatPage: React.FC = () => {
           }
         } else if (data.type === 'room_created') {
           handleRoomCreated(data.data.chatId);
+          if (pendingFirst) {
+            const msgPayload = {
+              type: 'message',
+              chatId: data.data.chatId,
+              text: pendingFirst.text,
+              images: pendingFirst.images,
+              agent_id: pendingFirst.agentId
+            };
+            wsRef.current?.send(JSON.stringify(msgPayload));
+            setPendingFirst(null);
+          }
         } else if (data.type === 'end') {
           // Mark message as complete
           const session = currentSessionRef.current;
@@ -434,41 +444,55 @@ const ChatPage: React.FC = () => {
     };
     addMessage(placeholder);
 
-    const payloadToSend = {
-      session_id: currentSession!.id,
-      message: message.trim(),
-      agent_id: selectedAgent?.id,
-      images
-    };
+    if (!currentSession!.id || currentSession!.id.startsWith('chat_')) {
+      // need to create room first
+      const createPayload = {
+        type: 'create_room',
+        name: currentSession?.name ?? 'New Chat',
+        agent_id: selectedAgent?.id
+      };
 
-    // If current session is a placeholder id, mark that we are awaiting room creation
-    if (currentSession!.id.length !== 24) {
-      setIsRoomCreating(true);
-    }
+      const sendCreate = () => {
+        wsRef.current?.send(JSON.stringify(createPayload));
+        setIsRoomCreating(true);
+        setPendingFirst({ text: message.trim(), images, agentId: selectedAgent?.id });
+      };
 
-    console.log('[CHAT] sendMessage', { wsStatus, payloadToSend });
-
-    if (wsStatus === 'connected' && wsRef.current?.readyState === WebSocket.OPEN) {
-      try {
-        wsRef.current.send(JSON.stringify(payloadToSend));
-        setIsTyping(true);
-      } catch (err) {
-        console.error('Failed to send via existing WebSocket', err);
-        addToast({ type: 'error', title: 'Send Error', message: 'Failed to send message' });
+      if (wsStatus === 'connected' && wsRef.current?.readyState === WebSocket.OPEN) {
+        sendCreate();
+      } else {
+        pendingQueueRef.current.push(createPayload);
+        setPendingFirst({ text: message.trim(), images, agentId: selectedAgent?.id });
+        if (wsStatus !== 'connecting') connectWebSocket();
       }
     } else {
-      // Queue and ensure a connection attempt
-      pendingQueueRef.current.push(payloadToSend);
-      if (wsStatus !== 'connecting') {
-        connectWebSocket();
+      const payloadToSend = {
+        type: 'message',
+        chatId: currentSession!.id,
+        text: message.trim(),
+        images,
+        agent_id: selectedAgent?.id
+      };
+
+      if (wsStatus === 'connected' && wsRef.current?.readyState === WebSocket.OPEN) {
+        try {
+          wsRef.current.send(JSON.stringify(payloadToSend));
+          setIsTyping(true);
+        } catch (err) {
+          console.error('Failed to send via existing WebSocket', err);
+          addToast({ type: 'error', title: 'Send Error', message: 'Failed to send message' });
+        }
+      } else {
+        pendingQueueRef.current.push(payloadToSend);
+        if (wsStatus !== 'connecting') connectWebSocket();
+        addToast({
+          type: 'info',
+          title: 'Connecting',
+          message: 'Establishing chat connection…',
+          duration: 2000
+        });
+        setIsTyping(true);
       }
-      addToast({
-        type: 'info',
-        title: 'Connecting',
-        message: 'Establishing chat connection…',
-        duration: 2000
-      });
-      setIsTyping(true);
     }
 
     // Clear input fields immediately

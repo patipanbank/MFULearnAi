@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { api } from '../lib/api';
-import { generateObjectId } from '../lib/objectId';
 
 export interface ChatMessage {
   id: string;
@@ -128,7 +127,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Actions
   createNewChat: () => {
     const newSession: ChatSession = {
-      id: generateObjectId(),
+      id: `chat_${Date.now()}`,
       name: 'New Chat',
       messages: [],
       agentId: '',
