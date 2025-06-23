@@ -41,6 +41,7 @@ const ChatPage: React.FC = () => {
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<Array<{ url: string; mediaType: string }>>([]);
   const [isConnectedToRoom, setIsConnectedToRoom] = useState(false);
+  const [isRoomCreating, setIsRoomCreating] = useState(false);
   
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -378,6 +379,9 @@ const ChatPage: React.FC = () => {
       setChatHistory(updatedHistory);
     }
 
+    // Room created successfully; allow sending again
+    setIsRoomCreating(false);
+
     // Do not connect here; the URL change will trigger the effect that opens
     // a WebSocket for the new room. This prevents duplicate connections.
   };
@@ -393,6 +397,17 @@ const ChatPage: React.FC = () => {
         title: 'Select Agent',
         message: 'Please select an AI agent before sending a message.',
         duration: 3000
+      });
+      return;
+    }
+
+    // Prevent duplicate sends while backend is creating a new room
+    if (isRoomCreating) {
+      addToast({
+        type: 'info',
+        title: 'Creating Room',
+        message: 'Please wait while the chat room is being created…',
+        duration: 2000
       });
       return;
     }
@@ -425,6 +440,11 @@ const ChatPage: React.FC = () => {
       agent_id: selectedAgent?.id,
       images
     };
+
+    // If current session is a placeholder id, mark that we are awaiting room creation
+    if (currentSession!.id.startsWith('chat_')) {
+      setIsRoomCreating(true);
+    }
 
     console.log('[CHAT] sendMessage', { wsStatus, payloadToSend });
 

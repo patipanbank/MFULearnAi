@@ -279,6 +279,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Allow switching chat room within same socket if client sends new session_id
                 incoming_session_id = incoming.get("session_id", session_id)
 
+                # Guard against placeholder or invalid ids (e.g., "chat_123...")
+                if len(incoming_session_id) != 24:
+                    # Ignore invalid session_id; keep using current valid one
+                    incoming_session_id = session_id
+
                 # If session changed, join new room in manager
                 if incoming_session_id != session_id:
                     # Leave previous room
