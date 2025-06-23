@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
-import MobileMenuButton from './MobileMenuButton';
 import MobileMenuOverlay from './MobileMenuOverlay';
 import useLayoutStore from '../../stores/layoutStore';
 
@@ -42,12 +41,7 @@ const Layout: React.FC<LayoutProps> = ({
   return (
     <div className="h-screen flex bg-primary transition-colors duration-200">
       {/* Mobile Menu Components */}
-      {isMobile && showSidebar && (
-        <>
-          <MobileMenuButton />
-          {mobileMenuOpen && <MobileMenuOverlay />}
-        </>
-      )}
+      {isMobile && showSidebar && mobileMenuOpen && <MobileMenuOverlay />}
       
       {/* Desktop Sidebar - Only show on desktop */}
       {showSidebar && !isMobile && <Sidebar />}
