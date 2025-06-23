@@ -100,8 +100,16 @@ class ChatService:
                              # Handle cases where the output is just a string
                              final_answer = str(final_output)
 
-                        # Extract text if final_answer is message object
-                        if final_answer and hasattr(final_answer, 'content'):
+                        # Extract text when final_answer is list or message object
+                        if isinstance(final_answer, list):
+                            parts = []
+                            for m in final_answer:
+                                if hasattr(m, 'content') and m.content:
+                                    parts.append(m.content)  # type: ignore[attr-defined]
+                                else:
+                                    parts.append(str(m))
+                            final_answer_text = "\n".join(parts)
+                        elif final_answer and hasattr(final_answer, 'content'):
                             final_answer_text = final_answer.content  # type: ignore[attr-defined]
                         else:
                             final_answer_text = str(final_answer) if final_answer else ""
