@@ -52,7 +52,16 @@ def generate_answer(payload: Dict[str, Any]):
                                 text_parts.append(part["content"])
                         else:
                             text_parts.append(str(part))
-                    buffer.append("".join(text_parts))
+                    chunk_text = "".join(text_parts)
+                    buffer.append(chunk_text)
+
+                    # publish to redis for streaming
+                    try:
+                        import os, redis, json  # type: ignore
+                        redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+                        redis_client.publish(f"chat:{session_id}", json.dumps({"type": "chunk", "data": chunk_text}))
+                    except Exception as pub_err:
+                        print(f"Redis publish error: {pub_err}")
                 else:
                     buffer.append(str(chunk_payload))
             elif data["type"] == "end":
@@ -68,6 +77,14 @@ def generate_answer(payload: Dict[str, Any]):
                         isComplete=True,
                     ),
                 )
+
+                # publish end event
+                try:
+                    import os, redis, json  # type: ignore
+                    redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+                    redis_client.publish(f"chat:{session_id}", json.dumps({"type": "end"}))
+                except Exception as pub_err:
+                    print(f"Redis publish error: {pub_err}")
 
     # รัน coroutine บน event loop เดียวกับที่ Mongo เชื่อมอยู่เพื่อหลีกเลี่ยงปัญหา "attached to a different loop"
     try:

@@ -216,6 +216,17 @@ const ChatPage: React.FC = () => {
             updateMessage(lastMessage.id, {
               content: lastMessage.content + data.data
             });
+          } else {
+            // สร้าง assistant message หากยังไม่มี
+            const assistantMsg: ChatMessage = {
+              id: Date.now().toString() + '_assistant',
+              role: 'assistant',
+              content: data.data,
+              timestamp: new Date(),
+              isStreaming: true,
+              isComplete: false
+            };
+            addMessage(assistantMsg);
           }
         } else if (data.type === 'room_created') {
           handleRoomCreated(data.data.chatId);
@@ -327,6 +338,24 @@ const ChatPage: React.FC = () => {
     
     addMessage(userMessage);
 
+    // สร้าง assistant placeholder เพื่อแสดงระหว่างสตรีม
+    const placeholder: ChatMessage = {
+      id: Date.now().toString() + '_assistant',
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      isStreaming: true,
+      isComplete: false
+    };
+    addMessage(placeholder);
+
+    const payloadToSend = {
+      session_id: currentSession!.id,
+      message: message.trim(),
+      agent_id: selectedAgent?.id,
+      images
+    };
+
     if (wsStatus !== 'connected') {
       // queue payload and connect
       pendingMessageRef.current = { message: message.trim(), images };
@@ -345,6 +374,19 @@ const ChatPage: React.FC = () => {
       setIsTyping(true);
       return;
     }
+
+    // ถ้า websocket เชื่อมแล้ว ส่งทันที
+    try {
+      wsRef.current?.send(JSON.stringify(payloadToSend));
+      setIsTyping(true);
+    } catch (err) {
+      console.error('Failed to send message via WebSocket', err);
+      addToast({ type: 'error', title: 'Send Error', message: 'Failed to send message' });
+    }
+
+    // Clear input
+    setMessage('');
+    setImages([]);
   };
   
   // Handle image upload

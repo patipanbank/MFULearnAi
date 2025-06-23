@@ -52,10 +52,17 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     await connect_to_mongo()
+    # start redis pubsub listener as background task
+    import asyncio
+    from utils.redis_listener import pubsub_listener
+    app.state.pubsub_task = asyncio.create_task(pubsub_listener())
 
 @app.on_event("shutdown")
 async def shutdown_event():
     await close_mongo_connection()
+    task = getattr(app.state, "pubsub_task", None)
+    if task:
+        task.cancel()
 
 # Root level WebSocket endpoint (matches nginx /ws route)
 @app.websocket("/ws")

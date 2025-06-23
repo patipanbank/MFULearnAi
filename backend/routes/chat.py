@@ -15,6 +15,7 @@ from middleware.role_guard import role_guard, get_current_user_with_roles
 from config.config import settings
 from tasks.chat_tasks import generate_answer  # lazy import to avoid circular
 from datetime import datetime as _dt
+from utils.websocket_manager import ws_manager
 
 router = APIRouter(
     tags=["Chat"]
@@ -244,9 +245,20 @@ async def websocket_endpoint(websocket: WebSocket):
 
         generate_answer.delay(task_payload)
 
-        # 7. Send ack back to client and close socket. Client should reconnect for next message.
+        # 7. Send ack back to client but KEEP socket open for streaming
         await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))
-        await websocket.close()
+
+        # --- Register WebSocket for streaming ---
+        await ws_manager.connect(str(session_id), websocket)
+
+        try:
+            # Keep connection alive; listen for client pings or allow client to close.
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            pass
+        finally:
+            ws_manager.disconnect(str(session_id), websocket)
 
     except WebSocketDisconnect:
         print(f"Client {user_id} disconnected")
