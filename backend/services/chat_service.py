@@ -54,16 +54,27 @@ class ChatService:
                 # Handle different types of streaming events
                 if kind == "on_chat_model_stream":
                     chunk = event["data"].get("chunk")
-                    if chunk and hasattr(chunk, 'content') and chunk.content:
+                    chunk_text: str | None = None
+                    if chunk:
+                        if hasattr(chunk, "content") and chunk.content:
+                            chunk_text = chunk.content  # type: ignore[attr-defined]
+                        elif isinstance(chunk, dict) and chunk.get("content"):
+                            chunk_text = str(chunk.get("content"))
+                    if chunk_text:
                         content_received = True
-                        yield json.dumps({"type": "chunk", "data": chunk.content})
+                        yield json.dumps({"type": "chunk", "data": chunk_text})
                         
                 elif kind == "on_llm_stream":
-                    # Alternative event name for LLM streaming
                     chunk = event["data"].get("chunk")
-                    if chunk and hasattr(chunk, 'content') and chunk.content:
+                    chunk_text: str | None = None
+                    if chunk:
+                        if hasattr(chunk, "content") and chunk.content:
+                            chunk_text = chunk.content  # type: ignore[attr-defined]
+                        elif isinstance(chunk, dict) and chunk.get("content"):
+                            chunk_text = str(chunk.get("content"))
+                    if chunk_text:
                         content_received = True
-                        yield json.dumps({"type": "chunk", "data": chunk.content})
+                        yield json.dumps({"type": "chunk", "data": chunk_text})
                         
                 elif kind == "on_tool_end":
                     # Handle tool execution results
@@ -89,9 +100,15 @@ class ChatService:
                              # Handle cases where the output is just a string
                              final_answer = str(final_output)
 
+                        # Extract text if final_answer is message object
+                        if final_answer and hasattr(final_answer, 'content'):
+                            final_answer_text = final_answer.content  # type: ignore[attr-defined]
+                        else:
+                            final_answer_text = str(final_answer) if final_answer else ""
+
                         # If no chunks were streamed, send the final answer.
-                        if final_answer and not content_received:
-                            yield json.dumps({"type": "chunk", "data": final_answer})
+                        if final_answer_text and not content_received:
+                            yield json.dumps({"type": "chunk", "data": final_answer_text})
                             content_received = True
 
                         input_tokens = usage.get('input_tokens', 0)
