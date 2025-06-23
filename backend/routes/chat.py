@@ -165,7 +165,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Extract model and collection info from agent
                 model_id = agent.modelId
-                collection_names = agent.collectionNames
+                collection_names = agent.collectionNames or []
                 system_prompt = agent.systemPrompt
                 temperature = agent.temperature
                 max_tokens = agent.maxTokens
@@ -180,7 +180,7 @@ async def websocket_endpoint(websocket: WebSocket):
         else:
             # Legacy format - model_id + collection_names
             model_id = data.get("model_id")
-            collection_names = data.get("collection_names")
+            collection_names = data.get("collection_names") or []
             system_prompt = None
             temperature = 0.7
             max_tokens = 4000
@@ -189,8 +189,8 @@ async def websocket_endpoint(websocket: WebSocket):
         
         images = [ImagePayload(**img) for img in images_data] if images_data else []
 
-        # 4. Basic validation
-        if not all([session_id, message, model_id, isinstance(collection_names, list)]):
+        # 4. Basic validation – ensure required fields present
+        if not session_id or not message or not model_id or not isinstance(collection_names, list):
             await websocket.send_text(json.dumps({"type": "error", "data": "Missing required fields"}))
             await websocket.close()
             return
@@ -303,7 +303,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             continue
 
                         model_id = agent.modelId
-                        collection_names = agent.collectionNames
+                        collection_names = agent.collectionNames or []
                         system_prompt = agent.systemPrompt
                         temperature = agent.temperature
                         max_tokens = agent.maxTokens
