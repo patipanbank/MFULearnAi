@@ -69,4 +69,16 @@ def generate_answer(payload: Dict[str, Any]):
                     ),
                 )
 
-    asyncio.run(_run()) 
+    # รัน coroutine บน event loop เดียวกับที่ Mongo เชื่อมอยู่เพื่อหลีกเลี่ยงปัญหา "attached to a different loop"
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    if loop.is_running():
+        # ถ้า loop กำลังรันอยู่ (ไม่น่าเกิดใน Celery prefork) ให้สร้าง task แล้วรอ
+        fut = asyncio.run_coroutine_threadsafe(_run(), loop)
+        fut.result()
+    else:
+        loop.run_until_complete(_run()) 
