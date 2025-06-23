@@ -99,7 +99,8 @@ const Sidebar: React.FC = () => {
     }
   };
 
-  const handleChatClick = async (chatId: string) => {
+  const handleChatClick = async (chatId: string | undefined) => {
+    if (!chatId || chatId === 'undefined') return;
     await loadChat(chatId);
     navigate('/chat');
   };
