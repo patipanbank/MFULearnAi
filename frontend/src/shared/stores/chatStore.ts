@@ -40,12 +40,9 @@ interface ChatState {
   setChatHistory: (history: Chat[]) => void;
   setIsTyping: (isTyping: boolean) => void;
   setLoading: (isLoading: boolean) => void;
-  deleteChat: (chatId: string) => Promise<void>;
-  pinChat: (chatId: string, pinned: boolean) => void;
-  removeChatFromHistory: (chatId: string) => void;
 }
 
-export const useChatStore = create<ChatState>()((set, get) => ({
+export const useChatStore = create<ChatState>((set, get) => ({
   chatHistory: [],
   currentSession: null,
   isLoading: false,
@@ -83,13 +80,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   addMessage: (message) => {
     set((state) => {
       if (!state.currentSession) return state;
-      const newMessages = [...state.currentSession.messages, message];
-      // Ensure no duplicate messages by id
-      const uniqueMessages = Array.from(new Map(newMessages.map(m => [m.id, m])).values());
       return {
         currentSession: {
           ...state.currentSession,
-          messages: uniqueMessages,
+          messages: [...state.currentSession.messages, message],
         },
       };
     });
@@ -118,7 +112,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   },
   createNewChat: () => {
     const newChat: Chat = {
-      id: `temp_${Date.now()}`,
+      id: `chat_${Date.now()}`,
       name: 'New Chat',
       userId: '',
       messages: [],
@@ -133,32 +127,6 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   },
   setChatHistory: (history) => {
     set({ chatHistory: history });
-  },
-  removeChatFromHistory: (chatId) => {
-    set((state) => ({
-      chatHistory: state.chatHistory.filter((chat) => chat.id !== chatId),
-    }));
-  },
-  deleteChat: async (chatId) => {
-    const { removeChatFromHistory, currentSession, setCurrentSession, fetchChatHistory } = get();
-    try {
-      await api.delete(`/chat/${chatId}`);
-      removeChatFromHistory(chatId);
-      if (currentSession?.id === chatId) {
-        setCurrentSession(null);
-      }
-      // a temporary solution to update chat history after deletion
-      fetchChatHistory();
-    } catch (error) {
-      console.error("Failed to delete chat:", error);
-    }
-  },
-  pinChat: (chatId, pinned) => {
-    set((state) => ({
-      chatHistory: state.chatHistory.map((chat) =>
-        chat.id === chatId ? { ...chat, isPinned: pinned } : chat
-      ),
-    }));
   },
 }));
 
