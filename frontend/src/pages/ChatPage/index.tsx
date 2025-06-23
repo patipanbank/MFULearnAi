@@ -310,25 +310,7 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    if (wsStatus !== 'connected') {
-      // queue payload and connect
-      pendingMessageRef.current = { message: message.trim(), images };
-      connectWebSocket();
-      // The actual send will occur in ws.onopen
-      // Show feedback to user
-      addToast({
-        type: 'info',
-        title: 'Connecting',
-        message: 'Establishing chat connection…',
-        duration: 2000
-      });
-      // Clear input fields immediately
-      setMessage('');
-      setImages([]);
-      return;
-    }
-    
-    // Add user message
+    // Add user message immediately for local rendering
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -338,32 +320,24 @@ const ChatPage: React.FC = () => {
     };
     
     addMessage(userMessage);
-    
-    // Show typing indicator until answer is ready
-    setIsTyping(true);
-    
-    // Send to WebSocket - New Agent-based payload
-    const payload = {
-      session_id: currentSession!.id,
-      message: message,
-      agent_id: selectedAgent.id,
-      images: images
-    };
-    
-    try {
-      wsRef.current!.send(JSON.stringify(payload));
-      
-      // Clear input
+
+    if (wsStatus !== 'connected') {
+      // queue payload and connect
+      pendingMessageRef.current = { message: message.trim(), images };
+      connectWebSocket();
+      // The actual send will occur in ws.onopen
+      addToast({
+        type: 'info',
+        title: 'Connecting',
+        message: 'Establishing chat connection…',
+        duration: 2000
+      });
+      // Clear input fields immediately
       setMessage('');
       setImages([]);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      addToast({
-        type: 'error',
-        title: 'Send Error',
-        message: 'Failed to send message'
-      });
-      setIsTyping(false);
+      // Show typing indicator while waiting
+      setIsTyping(true);
+      return;
     }
   };
   

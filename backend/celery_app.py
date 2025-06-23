@@ -21,4 +21,7 @@ celery.conf.update(
     accept_content=["json"],
     task_acks_late=True,
     result_expires=3600,
-) 
+)
+
+# Discover task modules inside backend.tasks package
+celery.autodiscover_tasks(["backend.tasks"]) 
