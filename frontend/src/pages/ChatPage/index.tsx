@@ -42,11 +42,16 @@ const ChatPage: React.FC = () => {
   const [images, setImages] = useState<Array<{ url: string; mediaType: string }>>([]);
   const [isConnectedToRoom, setIsConnectedToRoom] = useState(false);
   const [isRoomCreating, setIsRoomCreating] = useState(false);
-  const [pendingFirst, setPendingFirst] = useState<{
+  
+  // Use a ref for the first pending message so the latest value is always
+  // visible inside WebSocket callbacks (avoids stale closure issues).
+  type PendingFirst = {
     text: string;
     images: Array<{ url: string; mediaType: string }>;
     agentId?: string;
-  } | null>(null);
+  } | null;
+
+  const pendingFirstRef = useRef<PendingFirst>(null);
   
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -275,16 +280,17 @@ const ChatPage: React.FC = () => {
           }
         } else if (data.type === 'room_created') {
           handleRoomCreated(data.data.chatId);
-          if (pendingFirst) {
+          if (pendingFirstRef.current) {
+            const { text, images: pImages, agentId: pAgentId } = pendingFirstRef.current;
             const msgPayload = {
               type: 'message',
               chatId: data.data.chatId,
-              text: pendingFirst.text,
-              images: pendingFirst.images,
-              agent_id: pendingFirst.agentId
+              text,
+              images: pImages,
+              agent_id: pAgentId
             };
             wsRef.current?.send(JSON.stringify(msgPayload));
-            setPendingFirst(null);
+            pendingFirstRef.current = null;
           }
         } else if (data.type === 'end') {
           // Mark message as complete
@@ -455,14 +461,22 @@ const ChatPage: React.FC = () => {
       const sendCreate = () => {
         wsRef.current?.send(JSON.stringify(createPayload));
         setIsRoomCreating(true);
-        setPendingFirst({ text: message.trim(), images, agentId: selectedAgent?.id });
+        pendingFirstRef.current = {
+          text: message.trim(),
+          images,
+          agentId: selectedAgent?.id,
+        };
       };
 
       if (wsStatus === 'connected' && wsRef.current?.readyState === WebSocket.OPEN) {
         sendCreate();
       } else {
         pendingQueueRef.current.push(createPayload);
-        setPendingFirst({ text: message.trim(), images, agentId: selectedAgent?.id });
+        pendingFirstRef.current = {
+          text: message.trim(),
+          images,
+          agentId: selectedAgent?.id,
+        };
         if (wsStatus !== 'connecting') connectWebSocket();
       }
     } else {
