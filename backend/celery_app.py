@@ -24,4 +24,4 @@ celery.conf.update(
 )
 
 # Discover task modules inside the same backend package
-celery.autodiscover_tasks(["tasks"]) 
+celery.autodiscover_tasks(["backend.tasks"]) 

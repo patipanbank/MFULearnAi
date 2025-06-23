@@ -133,7 +133,7 @@ services:
       - mfulearnai
     restart: unless-stopped
     command: >
-      celery -A celery_app.celery worker -l info --concurrency=4
+      celery -A backend.celery_app.celery worker -l info --concurrency=4
 
   minio:
     image: minio/minio
