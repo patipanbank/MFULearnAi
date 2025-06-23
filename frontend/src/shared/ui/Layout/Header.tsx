@@ -16,7 +16,7 @@ const Header: React.FC = () => {
   const showAgentSelector = location.pathname.startsWith('/chat');
 
   return (
-    <header className="h-16 bg-primary border-b border-border flex items-center justify-between px-6">
+    <header className="h-16 bg-primary border-b border-border flex items-center justify-between px-6 z-[10]">
       {/* Left side */}
       <div className="flex items-center space-x-3 flex-1">
         {/* Mobile Menu Button */}

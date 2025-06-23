@@ -109,7 +109,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   // Get container classes based on mode and device with enhanced animations
   const getContainerClasses = () => {
     const baseClasses = cn(
-      'transition-all duration-500 ease-in-out z-10',
+      'transition-all duration-500 ease-in-out z-[5]',
       'transform-gpu', // Use GPU acceleration
       isTransitioning && 'transition-transform transition-opacity duration-500'
     );
