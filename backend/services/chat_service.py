@@ -74,19 +74,28 @@ class ChatService:
                 
                 elif kind == "on_chain_end":
                     final_output = event["data"].get("output")
-                    if final_output and isinstance(final_output, dict):
-                        # Try to get the final answer
-                        final_answer = final_output.get('output')
+                    if final_output:
+                        final_answer = None
+                        usage = {}
+
+                        if isinstance(final_output, dict):
+                            final_answer = final_output.get('output')
+                            # Check for token usage in the nested structure
+                            if final_answer and hasattr(final_answer, 'response_metadata') and 'usage' in final_answer.response_metadata:
+                                usage = final_answer.response_metadata['usage']
+                            elif 'usage' in final_output:
+                                usage = final_output['usage']
+                        else:
+                             # Handle cases where the output is just a string
+                             final_answer = str(final_output)
+
+                        # If no chunks were streamed, send the final answer.
                         if final_answer and not content_received:
-                            # If no streaming content was received, send the final answer
-                            yield json.dumps({"type": "chunk", "data": str(final_answer)})
+                            yield json.dumps({"type": "chunk", "data": final_answer})
                             content_received = True
-                            
-                        # Extract token usage if available
-                        if final_answer and hasattr(final_answer, 'response_metadata'):
-                            usage = final_answer.response_metadata.get('usage', {})
-                            input_tokens = usage.get('input_tokens', 0)
-                            output_tokens = usage.get('output_tokens', 0)
+
+                        input_tokens = usage.get('input_tokens', 0)
+                        output_tokens = usage.get('output_tokens', 0)
 
             # 4. Finalize the chat
             if input_tokens > 0 or output_tokens > 0:
