@@ -6,6 +6,7 @@ import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
+import { cn } from '../../shared/lib/utils';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -574,20 +575,28 @@ const ChatPage: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
         
-        {/* Responsive Chat Input with new props */}
-        <ResponsiveChatInput
-          message={message}
-          onMessageChange={setMessage}
-          onSendMessage={sendMessage}
-          onImageUpload={handleImageUpload}
-          images={images}
-          onRemoveImage={handleRemoveImage}
-          disabled={(!isInChatRoom && !selectedAgent) || (isInChatRoom && wsStatus !== 'connected')}
-          isTyping={isTyping}
-          hasMessages={hasMessages}
-          isConnectedToRoom={isConnectedToRoom}
-          onRoomCreated={handleRoomCreated}
-        />
+        {/* Chat Input Wrapper */}
+        <div
+          className={cn(
+            hasMessages
+              ? 'pt-2 pb-4 border-t'
+              : 'flex-1 flex items-center justify-center'
+          )}
+        >
+          <ResponsiveChatInput
+            message={message}
+            onMessageChange={setMessage}
+            onSendMessage={sendMessage}
+            onImageUpload={handleImageUpload}
+            images={images}
+            onRemoveImage={handleRemoveImage}
+            disabled={(!isInChatRoom && !selectedAgent) || (isInChatRoom && wsStatus !== 'connected')}
+            isTyping={isTyping}
+            hasMessages={hasMessages}
+            isConnectedToRoom={isConnectedToRoom}
+            onRoomCreated={handleRoomCreated}
+          />
+        </div>
       </div>
     </div>
   );
