@@ -86,36 +86,32 @@ class ChatService:
                 elif kind == "on_chain_end":
                     final_output = event["data"].get("output")
                     if final_output:
-                        final_answer = None
-                        usage = {}
-
+                        final_answer_text = ""
                         if isinstance(final_output, dict):
-                            final_answer = final_output.get('output')
-                            # Check for token usage in the nested structure
-                            if final_answer and hasattr(final_answer, 'response_metadata') and 'usage' in final_answer.response_metadata:
-                                usage = final_answer.response_metadata['usage']
-                            elif 'usage' in final_output:
-                                usage = final_output['usage']
+                            usage = final_output.get("usage", {})
+                            content_piece = final_output.get("output", final_output)
                         else:
-                             # Handle cases where the output is just a string
-                             final_answer = str(final_output)
+                            usage = {}
+                            content_piece = final_output
 
-                        # Extract text when final_answer is list or message object
-                        if isinstance(final_answer, list):
+                        # Now normalise content_piece into text
+                        if isinstance(content_piece, list):
+                            # Extract the last AIMessage content or join contents
                             ai_text = None
-                            for msg in reversed(final_answer):
+                            for msg in reversed(content_piece):
                                 if isinstance(msg, AIMessage) and getattr(msg, "content", None):
                                     ai_text = msg.content
                                     break
                             if ai_text:
                                 final_answer_text = ai_text
                             else:
-                                parts = [m.content if hasattr(m, "content") else str(m) for m in final_answer]
+                                parts = [m.content if hasattr(m, "content") else str(m) for m in content_piece]
                                 final_answer_text = "\n".join(parts)
-                        elif final_answer and hasattr(final_answer, 'content'):
-                            final_answer_text = final_answer.content  # type: ignore[attr-defined]
+                        elif hasattr(content_piece, "content"):
+                            # Single AIMessage-like object
+                            final_answer_text = content_piece.content  # type: ignore[attr-defined]
                         else:
-                            final_answer_text = str(final_answer) if final_answer else ""
+                            final_answer_text = str(content_piece)
 
                         # If no chunks were streamed, send the final answer.
                         if final_answer_text and not content_received:
