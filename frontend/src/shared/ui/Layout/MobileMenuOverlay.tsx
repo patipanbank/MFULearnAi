@@ -130,7 +130,6 @@ const MobileMenuOverlay: React.FC = () => {
     loadChat, 
     deleteChat, 
     pinChat,
-    createNewChat 
   } = useChatStore();
   const navigate = useNavigate();
   const overlayRef = useRef<HTMLDivElement>(null);
