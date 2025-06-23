@@ -155,9 +155,8 @@ const ChatPage: React.FC = () => {
     // Whenever session ID changes, clear draft message & images
     setMessage('');
     setImages([]);
-    // Also reset typing indicator and pending queue
+    // Also reset typing indicator
     setIsTyping(false);
-    pendingQueueRef.current = [];
   }, [currentSession?.id]);
   
   // Helper function to check if token is expired
