@@ -35,6 +35,7 @@ interface ChatState {
   // Messages
   addMessage: (message: ChatMessage) => void;
   updateMessage: (messageId: string, updates: Partial<ChatMessage>) => void;
+  updateMessageById: (id: string, updates: ChatMessage) => void;
   clearMessages: () => void;
   
   // WebSocket state
@@ -101,6 +102,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     };
   }),
+  
+  updateMessageById: (id, newMessage) => {
+    set((state) => {
+      if (!state.currentSession) return state;
+      
+      const updatedMessages = state.currentSession.messages.map((msg) =>
+        msg.id === id ? newMessage : msg
+      );
+      
+      return {
+        currentSession: {
+          ...state.currentSession,
+          messages: updatedMessages,
+        },
+      };
+    });
+  },
   
   clearMessages: () => set((state) => {
     if (!state.currentSession) return state;
