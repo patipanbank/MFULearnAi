@@ -12,7 +12,7 @@ class ChatHistoryService:
         async for chat in chats_cursor:
             # Handle backward compatibility
             if "_id" in chat:
-                chat["id"] = str(chat["_id"])
+                chat["_id"] = str(chat["_id"])
             chats.append(Chat(**chat))
         return chats
 
@@ -22,7 +22,7 @@ class ChatHistoryService:
         if chat:
             # Handle backward compatibility
             if "_id" in chat:
-                chat["id"] = str(chat["_id"])
+                chat["_id"] = str(chat["_id"])
             return Chat(**chat)
         return None
 
@@ -65,9 +65,8 @@ class ChatHistoryService:
             },
             return_document=True
         )
-        if result:
-            if "_id" in result:
-                result["id"] = str(result["_id"])
+        if result and "_id" in result:
+            result["_id"] = str(result["_id"])
             return Chat(**result)
         return None
         
@@ -90,9 +89,8 @@ class ChatHistoryService:
             },
             return_document=True
         )
-        if result:
-            if "_id" in result:
-                result["id"] = str(result["_id"])
+        if result and "_id" in result:
+            result["_id"] = str(result["_id"])
             return Chat(**result)
         return None
 
