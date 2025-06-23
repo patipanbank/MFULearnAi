@@ -114,8 +114,37 @@ class ChatService:
 
             # ------------------------------------------------------------------
             # 6) Output parsing – convert LangChain Messages to raw string for UI
+            #    The agent executor returns a dict with keys like "output", "messages", etc.
+            #    StrOutputParser expects to receive either a string or generations list, **not** a dict.
+            #    Therefore, we first extract the "output" field (which contains the assistant text)
+            #    before piping the data into StrOutputParser.
             # ------------------------------------------------------------------
-            final_runnable = agent_with_history | StrOutputParser()
+            def _extract_output(res: Any) -> Any:  # noqa: ANN401
+                """Return the plain string assistant output from the agent result.
+
+                The agent executor typically returns a dict with an "output" key that
+                contains the assistant's textual response.  We convert that to a plain
+                string for downstream parsing.  If the structure is unexpected, we
+                fall back to str(res) to avoid raising errors.
+                """
+                if isinstance(res, dict) and "output" in res:
+                    out_val = res["output"]
+                else:
+                    out_val = res
+
+                # If the extracted value is a list of messages, join their content.
+                if isinstance(out_val, list):
+                    joined = []
+                    for m in out_val:
+                        if hasattr(m, "content") and getattr(m, "content", None):
+                            joined.append(str(getattr(m, "content")))
+                        else:
+                            joined.append(str(m))
+                    out_val = "\n".join(joined)
+
+                return out_val
+
+            final_runnable = agent_with_history | _extract_output | StrOutputParser()
 
             # 2. Prepare the input for the agent (simple string format for Bedrock compatibility)
             agent_input = {"input": message}
