@@ -28,7 +28,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   isTyping = false,
   hasMessages = false,
   isConnectedToRoom = false,
-  onRoomCreated
+  onRoomCreated: _onRoomCreated
 }) => {
   const { isMobile, sidebarCollapsed, sidebarHovered } = useLayoutStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
