@@ -13,7 +13,7 @@ interface ResponsiveChatInputProps {
   disabled?: boolean;
   isTyping?: boolean;
   hasMessages?: boolean; // To determine floating vs bottom mode
-  isConnectedToRoom?: boolean; // New prop to track WebSocket connection
+  isInChatRoom?: boolean; // New prop to track WebSocket connection
   onRoomCreated?: (roomId: string) => void; // Callback when room is created
 }
 
@@ -27,7 +27,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   disabled = false,
   isTyping = false,
   hasMessages = false,
-  isConnectedToRoom = false,
+  isInChatRoom = false,
   onRoomCreated: _onRoomCreated
 }) => {
   const { isMobile, sidebarCollapsed, sidebarHovered } = useLayoutStore();
@@ -39,7 +39,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   const [currentMode, setCurrentMode] = useState<'floating' | 'fixbottom'>('floating');
 
   // Determine input mode based on chat state
-  const targetMode = (hasMessages || isConnectedToRoom) ? 'fixbottom' : 'floating';
+  const targetMode = (hasMessages || isInChatRoom) ? 'fixbottom' : 'floating';
 
   // Handle mode transition with animation
   useEffect(() => {
@@ -96,7 +96,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       return;
     }
 
-    console.log('[INPUT] handleSendMessage fired', { isConnectedToRoom, hasMessages, disabled });
+    console.log('[INPUT] handleSendMessage fired', { isInChatRoom, hasMessages, disabled });
 
     // Under the new lazy-room-create flow, front-end no longer generates a
     // temporary chatId.  Instead, ChatPage will send a `create_room` event and
@@ -305,7 +305,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         </div>
 
         {/* Connection status indicator */}
-        {currentMode === 'fixbottom' && isConnectedToRoom && (
+        {currentMode === 'fixbottom' && isInChatRoom && (
           <div className="absolute bottom-1 left-4 flex items-center space-x-1 text-xs text-green-600">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span>Connected</span>
