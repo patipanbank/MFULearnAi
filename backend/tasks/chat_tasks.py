@@ -35,7 +35,26 @@ def generate_answer(payload: Dict[str, Any]):
                 continue
 
             if data["type"] == "chunk":
-                buffer.append(data["data"])
+                chunk_payload = data["data"]
+
+                # Normalize chunk_payload to string to avoid join errors
+                if isinstance(chunk_payload, list):
+                    # Flatten list of dict segments returned by some models (e.g. Bedrock Claude)
+                    text_parts = []
+                    for part in chunk_payload:
+                        if isinstance(part, str):
+                            text_parts.append(part)
+                        elif isinstance(part, dict):
+                            # common keys: "text", "content", "value"
+                            if "text" in part and isinstance(part["text"], str):
+                                text_parts.append(part["text"])
+                            elif "content" in part and isinstance(part["content"], str):
+                                text_parts.append(part["content"])
+                        else:
+                            text_parts.append(str(part))
+                    buffer.append("".join(text_parts))
+                else:
+                    buffer.append(str(chunk_payload))
             elif data["type"] == "end":
                 final_text = "".join(buffer)
                 await chat_history_service.add_message_to_chat(

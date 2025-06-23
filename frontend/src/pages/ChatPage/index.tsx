@@ -98,7 +98,12 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     if (isInChatRoom && chatId && currentSession && currentSession.id !== chatId) {
       // Update current session ID to match the chat room
-      currentSession.id = chatId;
+      if (currentSession) {
+        setCurrentSession({
+          ...currentSession,
+          id: chatId,
+        });
+      }
     }
   }, [chatId, isInChatRoom, currentSession]);
   
@@ -289,18 +294,19 @@ const ChatPage: React.FC = () => {
   // Handle room creation (when first message is sent)
   const handleRoomCreated = (roomId: string) => {
     console.log('Creating new chat room:', roomId);
-    
-    // Navigate to the new chat room
+
+    // Navigate to the new chat route (this will reset URL param)
     navigate(`/chat/${roomId}`);
-    
-    // Update current session ID
+
+    // Update current session ID in store so polling and subsequent sends use correct ID
     if (currentSession) {
-      // In a real app, you'd update the session ID in the backend
-      // For now, just update the local state
-      currentSession.id = roomId;
+      setCurrentSession({
+        ...currentSession,
+        id: roomId,
+      });
     }
-    
-    // Connect to WebSocket for the new room
+
+    // Re-open WebSocket bound to the new room
     connectWebSocket();
   };
   
