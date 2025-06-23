@@ -341,46 +341,39 @@ const ChatPage: React.FC = () => {
 
     ws.onclose = async (event) => {
       console.warn('WebSocket closed', event);
-      const isStaleSocket = wsRef.current !== ws;
-
-      // If this close event belongs to the latest active socket, clean up states
-      if (!isStaleSocket) {
-        // Clear ref so new connection can be established
+      // Clear ref so new connection can be established
+      if (wsRef.current === ws) {
         wsRef.current = null;
-        setWsStatus('disconnected');
-        setIsConnectedToRoom(false);
       }
+      setWsStatus('disconnected');
+      setIsConnectedToRoom(false);
       
       // Handle different close codes
       if (event.code === 1000) {
         // Normal closure - no error needed
         console.log('WebSocket closed normally');
       } else if (event.code === 1006) {
-        // Connection failed - try token refresh first (only for active socket)
+        // Connection failed - try token refresh first
         console.log('WebSocket connection failed (code 1006)', { reason: event.reason });
-        if (!isStaleSocket) {
-          if (token && isTokenExpired(token)) {
-            console.log('Connection failed due to expired token, attempting refresh...');
-            tryRefreshAndReconnect();
-          } else {
-            // Auto-reconnect for other reasons
-            setTimeout(() => {
-              console.log('Attempting to reconnect...');
-              connectWebSocket();
-            }, 3000);
-          }
+        if (token && isTokenExpired(token)) {
+          console.log('Connection failed due to expired token, attempting refresh...');
+          tryRefreshAndReconnect();
+        } else {
+          // Auto-reconnect for other reasons
+          setTimeout(() => {
+            console.log('Attempting to reconnect...');
+            connectWebSocket();
+          }, 3000);
         }
       } else {
         console.log(`WebSocket closed with code ${event.code}:`, event.reason);
-        if (!isStaleSocket) {
-          // Show appropriate error message
-          addToast({
-            type: 'warning',
-            title: 'Connection Lost',
-            message: 'Connection to chat service lost. Attempting to reconnect...',
-            duration: 5000
-          });
-        }
+        // Show appropriate error message
+        addToast({
+          type: 'warning',
+          title: 'Connection Lost',
+          message: 'Connection to chat service lost. Attempting to reconnect...',
+          duration: 5000
+        });
       }
     };
   };
@@ -605,10 +598,11 @@ const ChatPage: React.FC = () => {
   // Ensure input returns to floating when navigating to /chat (no room yet)
   useEffect(() => {
     if (!isInChatRoom) {
-      // Close any existing WebSocket so isConnectedToRoom becomes false
-      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-        wsRef.current.close();
-      }
+      // We intentionally keep the existing WebSocket open so it can be reused
+      // for creating a brand-new room ("create_room" event) without risking a
+      // race condition where the connection is closed before the server has a
+      // chance to acknowledge the request. Simply mark the logical connection
+      // to any previous room as inactive.
       setIsConnectedToRoom(false);
     }
   }, [isInChatRoom]);
