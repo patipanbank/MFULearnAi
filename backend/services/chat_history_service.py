@@ -2,7 +2,7 @@ from datetime import datetime
 from lib.mongodb import get_database
 from models.chat import Chat, ChatMessage
 from bson import ObjectId
-from typing import List, Optional
+from typing import List, Optional, Any
 from bson.errors import InvalidId
 
 class ChatHistoryService:
@@ -35,11 +35,11 @@ class ChatHistoryService:
             return Chat(**chat)
         return None
 
-    async def create_chat(self, user_id: str, name: str, agent_id: Optional[str] = None, model_id: Optional[str] = None) -> Chat:
+    async def create_chat(self, user_id: str, name: str, agent_id: Optional[str] = None, model_id: Optional[str] = None, custom_id: Optional[str] = None) -> Chat:
         """Create a new chat with agent_id (preferred) or model_id (legacy)"""
         db = get_database()
         
-        chat_data = {
+        chat_data: dict[str, Any] = {
             "userId": user_id,
             "name": name,
             "messages": [],
@@ -54,10 +54,17 @@ class ChatHistoryService:
         elif model_id:
             chat_data["modelId"] = model_id
         
+        if custom_id and len(custom_id) == 24:
+            try:
+                chat_data["_id"] = ObjectId(custom_id)
+            except Exception:
+                # Fallback to generated id if invalid
+                pass
+        
         result = await db.get_collection("chats").insert_one(chat_data)
         
-        # Create Chat object
-        chat_data["_id"] = str(result.inserted_id)
+        # Ensure _id is string for model
+        chat_data["_id"] = str(chat_data.get("_id", result.inserted_id))
         return Chat(**chat_data)
 
     async def create_chat_legacy(self, user_id: str, name: str, model_id: str) -> Chat:

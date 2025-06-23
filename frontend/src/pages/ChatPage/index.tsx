@@ -104,8 +104,8 @@ const ChatPage: React.FC = () => {
       if (ok) {
         connectWebSocket();
       } else {
-        const newSession = await createNewChat();
-        navigate(`/chat/${newSession.id}`);
+        navigate('/chat');
+        createNewChat();
       }
     })();
   }, [chatId, isInChatRoom]);
@@ -113,12 +113,7 @@ const ChatPage: React.FC = () => {
   // กรณี /chat (ไม่มี id)
   useEffect(() => {
     if (isInChatRoom) return; // handled above
-    if (!currentSession) {
-      (async () => {
-        const newSession = await createNewChat();
-        navigate(`/chat/${newSession.id}`);
-      })();
-    }
+    if (!currentSession) createNewChat();
   }, [isInChatRoom]);
   
   // Update session ID when chat room changes
@@ -447,7 +442,7 @@ const ChatPage: React.FC = () => {
     };
 
     // If current session is a placeholder id, mark that we are awaiting room creation
-    if (currentSession!.id.startsWith('chat_')) {
+    if (currentSession!.id.length !== 24) {
       setIsRoomCreating(true);
     }
 

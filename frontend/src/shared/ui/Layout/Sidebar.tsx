@@ -34,7 +34,8 @@ const Sidebar: React.FC = () => {
     fetchChatHistory, 
     loadChat, 
     deleteChat, 
-    pinChat 
+    pinChat,
+    createNewChat 
   } = useChatStore();
   const navigate = useNavigate();
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -117,6 +118,7 @@ const Sidebar: React.FC = () => {
   };
 
   const handleNewChat = () => {
+    createNewChat();
     navigate('/chat');
   };
 
