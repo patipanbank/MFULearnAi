@@ -598,19 +598,22 @@ const ChatPage: React.FC = () => {
     };
   }, []);
   
-  // We no longer force-close WebSocket when leaving a room; it will be
-  // cleaned up on unmount or reused for the next room to avoid race conditions.
-  
-  // Ensure input returns to floating when navigating to /chat (no room yet)
+  // When URL is /chat (no specific room), decide whether to keep or close existing WebSocket.
+  // If currentSession.id is a temporary "chat_" id we KEEP the socket because we still need it
+  //   to send create_room and wait for room_created.  Otherwise (leaving an existing room with a
+  //   real 24-char id) we close it.
   useEffect(() => {
     if (!isInChatRoom) {
-      // Close any existing WebSocket so isConnectedToRoom becomes false
-      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      const curId = currentSession?.id;
+      const isTempId = curId?.startsWith('chat_');
+      if (!isTempId && wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
         wsRef.current.close();
       }
-      setIsConnectedToRoom(false);
+      if (!isTempId) {
+        setIsConnectedToRoom(false);
+      }
     }
-  }, [isInChatRoom]);
+  }, [isInChatRoom, currentSession?.id]);
   
   if (isLoading) {
     return <Loading />;
