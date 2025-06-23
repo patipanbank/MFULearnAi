@@ -28,6 +28,7 @@ class ChatWebSocket {
   /** Connect (or reconnect) with a JWT token */
   connect(token: string) {
     if (!token) return;
+    console.debug('[ChatWS] connect called');
     if (this.status === 'connecting' || this.status === 'connected') {
       // already connected with same token
       if (this.token === token) return;
@@ -54,6 +55,7 @@ class ChatWebSocket {
     }
 
     this.ws.onopen = () => {
+      console.debug('[ChatWS] onopen - flushing', this.pendingQueue.length, 'items');
       this.status = 'connected';
       this.emit({ type: 'status', data: this.status });
       // flush queue
@@ -62,6 +64,7 @@ class ChatWebSocket {
     };
 
     this.ws.onmessage = (e) => {
+      console.debug('[ChatWS] onmessage raw', e.data);
       try {
         const payload = JSON.parse(e.data);
         this.emit(payload);
@@ -95,6 +98,7 @@ class ChatWebSocket {
 
   /** Send JSON payload or queue if not yet open */
   send(payload: any) {
+    console.debug('[ChatWS] send called', payload, 'status', this.status);
     if (this.status === 'connected' && this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.safeSend(payload);
     } else {
