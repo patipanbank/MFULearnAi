@@ -274,38 +274,28 @@ const ChatPage: React.FC = () => {
     addMessage(placeholder);
 
     if (!currentSession!.id || currentSession!.id.startsWith('chat_')) {
-      // 🛠️ Ensure we don't send create_room through a socket still bound to the previous chat room
-      //    Close it first and mark status disconnected; connectWebSocket() will open a fresh one.
-      //    if (!isInChatRoom && wsStatus === 'connected' && wsRef.current) {
-      //      wsRef.current.close();
-      //      setWsStatus('disconnected');
-      //    }
-      // need to create room first
+      // --- Start a completely new chat room ---
+      // 1. Force close any existing socket so backend won\'t treat first payload as belonging to old room
+      chatWebSocket.disconnect();
+
+      // 2. Queue create_room payload (will be sent once connect finishes)
       const createPayload = {
         type: 'create_room',
         name: currentSession?.name ?? 'New Chat',
-        agent_id: selectedAgent?.id
+        agent_id: selectedAgent?.id,
       };
+      chatWebSocket.send(createPayload);
 
-      const sendCreate = () => {
-        // If socket is already connected to a previous room, reset it so backend accepts create_room
-        if (chatWebSocket.getStatus() === 'connected') {
-          chatWebSocket.disconnect();
-        }
-        chatWebSocket.send(createPayload); // will queue if disconnected
-        setIsRoomCreating(true);
-        pendingFirstRef.current = {
-          text: message.trim(),
-          images,
-          agentId: selectedAgent?.id,
-        };
+      // 3. Re-open socket immediately (manager will ignore if already connecting)
+      chatWebSocket.connect(token!);
+
+      // 4. Mark UI state & remember first user message
+      setIsRoomCreating(true);
+      pendingFirstRef.current = {
+        text: message.trim(),
+        images,
+        agentId: selectedAgent?.id,
       };
-
-      // Always queue then (re)connect to guarantee fresh socket
-      sendCreate();
-      if (chatWebSocket.getStatus() === 'disconnected') {
-        chatWebSocket.connect(token!);
-      }
     } else {
       const payloadToSend = {
         type: 'message',
