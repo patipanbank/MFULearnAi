@@ -8,8 +8,6 @@ import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import { cn } from '../../shared/lib/utils';
 
-const isValidDate = (d: any) => d instanceof Date && !isNaN(d as any);
-
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
   const { 
@@ -25,8 +23,7 @@ const ChatPage: React.FC = () => {
     chatHistory,
     setChatHistory,
     loadChat,
-    isLoading,
-    updateMessageById
+    isLoading
   } = useChatStore();
   
   const { 
@@ -278,29 +275,25 @@ const ChatPage: React.FC = () => {
         const data = JSON.parse(event.data);
         
         if (data.type === 'chunk') {
+          // Handle streaming response – always read latest state from ref
           const session = currentSessionRef.current;
           const lastMessage = session?.messages[session.messages.length - 1];
           if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
             updateMessage(lastMessage.id, {
-              content: lastMessage.content + data.data,
+              content: lastMessage.content + data.data
             });
           } else {
+            // สร้าง assistant message หากยังไม่มี
             const assistantMsg: ChatMessage = {
               id: Date.now().toString() + '_assistant',
               role: 'assistant',
               content: data.data,
+              timestamp: new Date(),
               isStreaming: true,
-              isComplete: false,
+              isComplete: false
             };
             addMessage(assistantMsg);
           }
-        } else if (data.type === 'message_echo') {
-          // Authoritative update from server
-          const { tempId, message } = data.data;
-          updateMessageById(tempId, {
-            ...message,
-            timestamp: new Date(message.timestamp), // Ensure it's a Date object
-          });
         } else if (data.type === 'room_created') {
           handleRoomCreated(data.data.chatId);
           if (pendingFirstRef.current) {
@@ -316,13 +309,13 @@ const ChatPage: React.FC = () => {
             pendingFirstRef.current = null;
           }
         } else if (data.type === 'end') {
+          // Mark message as complete
           const session = currentSessionRef.current;
           const lastMessage = session?.messages[session.messages.length - 1];
           if (lastMessage && lastMessage.role === 'assistant') {
             updateMessage(lastMessage.id, {
               isComplete: true,
-              isStreaming: false,
-              timestamp: new Date(), // Set final timestamp for assistant message
+              isStreaming: false
             });
           }
           setIsTyping(false);
@@ -453,23 +446,25 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    const tempId = Date.now().toString();
-    // Add user message immediately for local rendering, WITHOUT timestamp
+    // Add user message immediately for local rendering
     const userMessage: ChatMessage = {
-      id: tempId,
+      id: Date.now().toString(),
       role: 'user',
       content: message.trim(),
-      images: images.length > 0 ? images : undefined,
+      timestamp: new Date(),
+      images: images.length > 0 ? images : undefined
     };
+    
     addMessage(userMessage);
 
-    // Create assistant placeholder, also WITHOUT timestamp
+    // สร้าง assistant placeholder เพื่อแสดงระหว่างสตรีม
     const placeholder: ChatMessage = {
-      id: tempId + '_assistant',
+      id: Date.now().toString() + '_assistant',
       role: 'assistant',
       content: '',
+      timestamp: new Date(),
       isStreaming: true,
-      isComplete: false,
+      isComplete: false
     };
     addMessage(placeholder);
 
@@ -504,7 +499,6 @@ const ChatPage: React.FC = () => {
       const payloadToSend = {
         type: 'message',
         chatId: currentSession!.id,
-        tempId: tempId, // Send tempId to backend
         text: message.trim(),
         images,
         agent_id: selectedAgent?.id
@@ -664,14 +658,12 @@ const ChatPage: React.FC = () => {
                   )}
                 </div>
                 
-                {/* Timestamp - Render only if it's a valid date */}
-                {msg.timestamp && isValidDate(msg.timestamp) && (
-                  <div className={`text-xs mt-2 ${
-                    msg.role === 'user' ? 'text-blue-100' : 'text-muted'
-                  }`}>
-                    {msg.timestamp.toLocaleTimeString()}
-                  </div>
-                )}
+                {/* Timestamp */}
+                <div className={`text-xs mt-2 ${
+                  msg.role === 'user' ? 'text-blue-100' : 'text-muted'
+                }`}>
+                  {msg.timestamp.toLocaleTimeString()}
+                </div>
               </div>
             </div>
           ))}
