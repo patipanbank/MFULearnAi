@@ -58,6 +58,8 @@ const ChatPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Keep a ref to always access latest session inside websocket callbacks
   const currentSessionRef = useRef<typeof currentSession>(null); // NEW REF
+  // Keep latest chatHistory to avoid stale closure
+  const chatHistoryRef = useRef<typeof chatHistory>(chatHistory);
   
   // Queue of pending payloads when websocket is not yet connected
   type PendingPayload = Record<string, any>; // generic event payload
@@ -143,6 +145,10 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     currentSessionRef.current = currentSession;
   }, [currentSession]);
+  
+  useEffect(() => {
+    chatHistoryRef.current = chatHistory;
+  }, [chatHistory]);
   
   // Reset input local state when switching to a different session (e.g., New Chat)
   useEffect(() => {
@@ -373,33 +379,32 @@ const ChatPage: React.FC = () => {
   const handleRoomCreated = (roomId: string) => {
     console.log('Creating new chat room:', roomId);
 
-    // Navigate to the new chat route (this will reset URL param)
+    // Navigate to the new chat route (this will update URL param)
     navigate(`/chat/${roomId}`);
 
-    // Update current session ID in store so polling and subsequent sends use correct ID
-    if (currentSession) {
+    // Use ref to ensure we get the latest messages (avoid stale closure)
+    const session = currentSessionRef.current;
+
+    if (session) {
+      // Update current session ID with latest state
       setCurrentSession({
-        ...currentSession,
+        ...session,
         id: roomId,
       });
 
-      // Update chat history list: replace placeholder id
-      const updatedHistory = chatHistory.map((chat) =>
-        chat.id === currentSession.id ? { ...chat, id: roomId } : chat
+      // Sync chat history: replace placeholder id or insert if absent
+      const replaced = chatHistoryRef.current.map((chat) =>
+        chat.id === session.id ? { ...chat, id: roomId } : chat
       );
-      // If not found, push new entry
-      const exists = updatedHistory.some((c) => c.id === roomId);
-      if (!exists) {
-        updatedHistory.unshift({ ...currentSession, id: roomId });
-      }
-      setChatHistory(updatedHistory);
+      const exists = replaced.some((c) => c.id === roomId);
+      const newHistory = exists ? replaced : [{ ...session, id: roomId }, ...replaced];
+      setChatHistory(newHistory);
     }
 
     // Room created successfully; allow sending again
     setIsRoomCreating(false);
 
-    // Do not connect here; the URL change will trigger the effect that opens
-    // a WebSocket for the new room. This prevents duplicate connections.
+    // URL change will trigger effect to ensure WebSocket joins correct room
   };
   
   // Send message function
