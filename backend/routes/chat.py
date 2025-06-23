@@ -333,8 +333,8 @@ async def create_chat_endpoint(
     Frontendจะเรียก endpoint นี้ก่อนส่งข้อความแรก เพื่อให้ได้ id คงที่สําหรับ Redis Memory.
     """
 
-    if not (req.agent_id or req.model_id):
-        raise HTTPException(status_code=400, detail="agent_id or model_id is required")
+    # agent_id / model_id are optional at this stage – user may select later
+    # (legacy sessions might fill these fields after first message)
 
     chat = await chat_history_service.create_chat(
         user_id=str(current_user.id),

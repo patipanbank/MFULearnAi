@@ -49,7 +49,7 @@ interface ChatState {
   setIsLoading: (loading: boolean) => void;
   
   // Chat actions
-  createNewChat: () => ChatSession;
+  createNewChat: (name?: string, agentId?: string) => Promise<ChatSession>;
   loadChat: (chatId: string) => Promise<boolean>;
   saveChat: () => Promise<void>;
   fetchChatHistory: (force?: boolean) => Promise<void>;
@@ -125,18 +125,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
   
   // Actions
-  createNewChat: () => {
-    const newSession: ChatSession = {
-      id: `chat_${Date.now()}`,
-      name: 'New Chat',
-      messages: [],
-      agentId: '',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    set({ currentSession: newSession });
-    return newSession;
+  createNewChat: async (name = 'New Chat', agentId?: string) => {
+    const { chatHistory } = get();
+    try {
+      set({ isLoading: true });
+
+      // Prepare request payload – only include agent_id if provided
+      const payload: Record<string, any> = { name };
+      if (agentId) payload.agent_id = agentId;
+
+      // Call backend to pre-create chat session
+      const res = await api.post<{ chatId: string }>('/chat/create', payload);
+      const newId = res.chatId;
+
+      const newSession: ChatSession = {
+        id: newId,
+        name,
+        messages: [],
+        agentId: agentId || '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Update store: set as current and prepend to history
+      set({
+        currentSession: newSession,
+        chatHistory: [newSession, ...chatHistory]
+      });
+
+      return newSession;
+    } catch (error) {
+      console.error('Failed to create new chat:', error);
+      // Fallback to local-only chat to avoid blocking UI (rare)
+      const fallbackSession: ChatSession = {
+        id: `chat_${Date.now()}`,
+        name,
+        messages: [],
+        agentId: agentId || '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      set({ currentSession: fallbackSession });
+      return fallbackSession;
+    } finally {
+      set({ isLoading: false });
+    }
   },
   
   loadChat: async (chatId: string) => {

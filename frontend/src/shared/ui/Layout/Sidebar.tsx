@@ -117,9 +117,11 @@ const Sidebar: React.FC = () => {
     pinChat(chatId, !isPinned);
   };
 
-  const handleNewChat = () => {
-    createNewChat();
-    navigate('/chat');
+  const handleNewChat = async () => {
+    // Optionally you can pass selected agent here if Sidebar has that context
+    const newChat = await createNewChat();
+    // Navigate to newly created chat room (using ObjectId)
+    navigate(`/chat/${newChat.id}`);
   };
 
   // Handle hover events for expand on hover
