@@ -48,7 +48,7 @@ class ChatHistoryService:
         result = await db.get_collection("chats").insert_one(chat_data)
         
         # Create Chat object
-        chat_data["id"] = str(result.inserted_id)
+        chat_data["_id"] = str(result.inserted_id)
         return Chat(**chat_data)
 
     async def create_chat_legacy(self, user_id: str, name: str, model_id: str) -> Chat:
