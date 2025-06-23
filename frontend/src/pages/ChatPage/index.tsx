@@ -466,25 +466,23 @@ const ChatPage: React.FC = () => {
         agent_id: selectedAgent?.id
       };
 
+      // Always populate the pending ref for the first message
+      pendingFirstRef.current = {
+        text: message.trim(),
+        images,
+        agentId: selectedAgent?.id,
+      };
+
       const sendCreate = () => {
         wsRef.current?.send(JSON.stringify(createPayload));
         setIsRoomCreating(true);
-        pendingFirstRef.current = {
-          text: message.trim(),
-          images,
-          agentId: selectedAgent?.id,
-        };
       };
 
       if (wsStatus === 'connected' && wsRef.current?.readyState === WebSocket.OPEN) {
         sendCreate();
       } else {
         pendingQueueRef.current.push(createPayload);
-        pendingFirstRef.current = {
-          text: message.trim(),
-          images,
-          agentId: selectedAgent?.id,
-        };
+        // The ref is already populated above
         if (wsStatus !== 'connecting') connectWebSocket();
       }
     } else {
