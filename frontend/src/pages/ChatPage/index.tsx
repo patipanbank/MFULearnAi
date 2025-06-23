@@ -223,12 +223,14 @@ const ChatPage: React.FC = () => {
     }
     
     const ws = new WebSocket(wsUrl);
+    // Assign immediately so subsequent calls recognise a connection attempt
+    wsRef.current = ws;
     
     ws.onopen = () => {
       console.log('WebSocket connected');
       setWsStatus('connected');
       setIsConnectedToRoom(true);
-      wsRef.current = ws;
+      // already assigned
       
       // Show connection success toast
       addToast({
@@ -309,10 +311,14 @@ const ChatPage: React.FC = () => {
       });
     };
 
-    ws.onclose = (event) => {
+    ws.onclose = async (event) => {
+      console.warn('WebSocket closed', event);
+      // Clear ref so new connection can be established
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
       setWsStatus('disconnected');
       setIsConnectedToRoom(false);
-      wsRef.current = null;
       
       // Handle different close codes
       if (event.code === 1000) {
