@@ -252,14 +252,96 @@ async def websocket_endpoint(websocket: WebSocket):
         await ws_manager.connect(str(session_id), websocket)
 
         try:
-            # Keep connection alive; listen for client pings or allow client to close.
+            # Keep connection alive; process all incoming user messages (including the first one already handled).
             while True:
-                await websocket.receive_text()
-        except WebSocketDisconnect:
-            pass
-        finally:
-            ws_manager.disconnect(str(session_id), websocket)
+                try:
+                    raw_msg = await websocket.receive_text()
+                except WebSocketDisconnect:
+                    break
 
+                # Handle simple ping/pong keep-alive
+                if raw_msg == "ping":
+                    await websocket.send_text("pong")
+                    continue
+
+                try:
+                    incoming = json.loads(raw_msg)
+                except Exception as e:
+                    # Ignore malformed JSON
+                    print(f"⚠️ Malformed WS message: {e}")
+                    continue
+
+                # Extract parameters
+                new_message: str | None = incoming.get("message")
+                if not new_message:
+                    continue  # nothing useful
+
+                # Allow switching chat room within same socket if client sends new session_id
+                incoming_session_id = incoming.get("session_id", session_id)
+
+                # If session changed, join new room in manager
+                if incoming_session_id != session_id:
+                    # Leave previous room
+                    ws_manager.disconnect(str(session_id), websocket)
+                    session_id = incoming_session_id
+                    await ws_manager.connect(str(session_id), websocket)
+
+                new_images_data = incoming.get("images", [])
+                new_agent_id = incoming.get("agent_id", agent_id)
+
+                # If agent changed, reload its config
+                if new_agent_id and new_agent_id != agent_id:
+                    try:
+                        agent = await agent_service.get_agent_by_id(new_agent_id)
+                        if not agent:
+                            await websocket.send_text(json.dumps({"type": "error", "data": "Agent not found"}))
+                            continue
+
+                        model_id = agent.modelId
+                        collection_names = agent.collectionNames
+                        system_prompt = agent.systemPrompt
+                        temperature = agent.temperature
+                        max_tokens = agent.maxTokens
+                        agent_id = new_agent_id
+                    except Exception as e:
+                        await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to load agent: {str(e)}"}))
+                        continue
+
+                # Persist the user message
+                await chat_history_service.add_message_to_chat(
+                    str(session_id),
+                    ChatMessage(
+                        id=str(ObjectId()),
+                        role="user",
+                        content=new_message,
+                        timestamp=_dt.utcnow(),
+                        images=[ImagePayload(**img) for img in new_images_data] if new_images_data else None,
+                        isStreaming=False,
+                        isComplete=True,
+                    ),
+                )
+
+                # Dispatch background generation task
+                task_payload = {
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "message": new_message,
+                    "model_id": model_id,
+                    "collection_names": collection_names,
+                    "images": new_images_data,
+                    "system_prompt": system_prompt,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "agent_id": agent_id,
+                }
+
+                generate_answer.delay(task_payload)
+
+                # Immediate ack so UI knows message accepted
+                await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))
+        except WebSocketDisconnect:
+            ws_manager.disconnect(str(session_id), websocket)
+            pass
     except WebSocketDisconnect:
         print(f"Client {user_id} disconnected")
     except Exception as e:
