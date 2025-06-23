@@ -294,9 +294,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Unknown or unhandled event type
                     continue
 
-                new_message: str | None = incoming.get("text") or incoming.get("message")
-                if not new_message:
+                new_message_text: str | None = incoming.get("text") or incoming.get("message")
+                if not new_message_text:
                     continue  # nothing useful
+                
+                temp_id = incoming.get("tempId") # Get the temporary ID from client
 
                 # Allow switching chat room within same socket if client sends chatId field
                 incoming_session_id = incoming.get("chatId") or incoming.get("session_id", session_id)
@@ -334,25 +336,40 @@ async def websocket_endpoint(websocket: WebSocket):
                         await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to load agent: {str(e)}"}))
                         continue
 
-                # Persist the user message
-                await chat_history_service.add_message_to_chat(
-                    str(session_id),
-                    ChatMessage(
-                        id=str(ObjectId()),
-                        role="user",
-                        content=new_message,
-                        timestamp=_dt.utcnow(),
-                        images=[ImagePayload(**img) for img in new_images_data] if new_images_data else None,
-                        isStreaming=False,
-                        isComplete=True,
-                    ),
+                # Create the full ChatMessage object with server-side data
+                message_to_save = ChatMessage(
+                    id=str(ObjectId()),
+                    role="user",
+                    content=new_message_text,
+                    timestamp=_dt.utcnow(),
+                    images=[ImagePayload(**img) for img in new_images_data] if new_images_data else None,
+                    isStreaming=False,
+                    isComplete=True,
                 )
+
+                # Persist the user message
+                updated_chat = await chat_history_service.add_message_to_chat(
+                    str(session_id),
+                    message_to_save,
+                )
+
+                # Echo the authoritative message back to the client immediately
+                if updated_chat and temp_id:
+                    # The saved message is the last one in the list
+                    saved_message_dict = updated_chat.messages[-1].model_dump(mode='json')
+                    await websocket.send_text(json.dumps({
+                        "type": "message_echo",
+                        "data": {
+                            "tempId": temp_id,
+                            "message": saved_message_dict
+                        }
+                    }))
 
                 # Dispatch background generation task
                 task_payload = {
                     "session_id": session_id,
                     "user_id": user_id,
-                    "message": new_message,
+                    "message": new_message_text,
                     "model_id": model_id,
                     "collection_names": collection_names,
                     "images": new_images_data,
@@ -363,9 +380,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
 
                 generate_answer.delay(task_payload)
-
-                # Immediate ack so UI knows message accepted
-                await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))
         except WebSocketDisconnect:
             ws_manager.disconnect(str(session_id), websocket)
             pass
