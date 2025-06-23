@@ -288,11 +288,7 @@ const ChatPage: React.FC = () => {
       };
 
       const sendCreate = () => {
-        // If socket is already connected to a previous room, reset it so backend accepts create_room
-        if (chatWebSocket.getStatus() === 'connected') {
-          chatWebSocket.disconnect();
-        }
-        chatWebSocket.send(createPayload); // will queue if disconnected
+        chatWebSocket.send(createPayload);
         setIsRoomCreating(true);
         pendingFirstRef.current = {
           text: message.trim(),
@@ -301,10 +297,13 @@ const ChatPage: React.FC = () => {
         };
       };
 
-      // Always queue then (re)connect to guarantee fresh socket
-      sendCreate();
-      if (chatWebSocket.getStatus() === 'disconnected') {
-        chatWebSocket.connect(token!);
+      if (chatWebSocket.getStatus() === 'connected') {
+        sendCreate();
+      } else {
+        sendCreate(); // queued inside manager
+        if (chatWebSocket.getStatus() === 'disconnected') {
+          chatWebSocket.connect(token!);
+        }
       }
     } else {
       const payloadToSend = {
