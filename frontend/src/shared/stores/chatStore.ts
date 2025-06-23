@@ -127,7 +127,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Actions
   createNewChat: () => {
     const newSession: ChatSession = {
-      id: '',
+      id: `chat_${Date.now()}`,
       name: 'New Chat',
       messages: [],
       agentId: '',
