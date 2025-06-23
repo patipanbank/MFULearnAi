@@ -142,17 +142,26 @@ async def websocket_endpoint(websocket: WebSocket):
         return
 
     try:
+        # Declare variables with defaults to prevent UnboundLocalError
+        session_id: str | None = None
+        agent_id: str | None = None
+        model_id: str | None = None
+        collection_names: list[str] = []
+        system_prompt: str | None = None
+        temperature: float = 0.7
+        max_tokens: int = 4000
+        
         # 2. Wait for the initial message from the client (could be create_room or message)
         initial_message = await websocket.receive_text()
         data = json.loads(initial_message)
 
         event_type = data.get("type")
 
-        # Defaults
-        session_id: str | None = None
-        message: str | None = None
+        # Defaults (now declared above)
+        # session_id: str | None = None
+        message: str | None = data.get("message")
         images_data = data.get("images", [])
-        agent_id: str | None = None
+        # agent_id: str | None = None
 
         if event_type == "create_room":
             # --- Handle explicit room creation handshake ---
@@ -202,8 +211,8 @@ async def websocket_endpoint(websocket: WebSocket):
         else:
             # Legacy initial message path (contains message)
             session_id = data.get("session_id")
-            message = data.get("message")
-            images_data = data.get("images", [])
+            # message = data.get("message") # Already fetched
+            # images_data = data.get("images", []) # Already fetched
             agent_id = data.get("agent_id")
             # downstream legacy handling continues
 
