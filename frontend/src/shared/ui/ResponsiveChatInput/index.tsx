@@ -98,17 +98,12 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
     console.log('[INPUT] handleSendMessage fired', { isConnectedToRoom, hasMessages, disabled });
 
-    // If this is the first message and no room exists, create a room
-    if (!isConnectedToRoom && !hasMessages && onRoomCreated) {
-      const newRoomId = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      onRoomCreated(newRoomId);
-      // Delay actual send to allow state (session id) to update first
-      setTimeout(() => {
-        onSendMessage();
-      }, 0);
-    } else {
-      onSendMessage();
-    }
+    // Under the new lazy-room-create flow, front-end no longer generates a
+    // temporary chatId.  Instead, ChatPage will send a `create_room` event and
+    // wait for `room_created` from the backend.  Therefore we simply delegate
+    // to onSendMessage() here.
+
+    onSendMessage();
   };
 
   // Get container classes based on mode and device with enhanced animations
