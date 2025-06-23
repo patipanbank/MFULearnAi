@@ -118,7 +118,6 @@ const Sidebar: React.FC = () => {
   };
 
   const handleNewChat = () => {
-    createNewChat();
     navigate('/chat');
   };
 

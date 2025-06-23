@@ -188,7 +188,6 @@ const MobileMenuOverlay: React.FC = () => {
   };
 
   const handleNewChat = () => {
-    createNewChat();
     navigate('/chat');
     setMobileMenuOpen(false);
   };

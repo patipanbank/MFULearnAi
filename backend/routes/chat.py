@@ -36,6 +36,10 @@ class AgentChatRequest(BaseModel):
     agent_id: str
     images: Optional[List[ImagePayload]] = Field(default=None)
 
+class ChatCreateRequest(BaseModel):
+    name: str = "New Chat"
+    agent_id: Optional[str] = None
+
 @router.get("/history/{session_id}", response_model=ChatHistoryModel)
 async def get_chat_history(session_id: str, current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
     """
@@ -382,4 +386,29 @@ async def delete_chat(chat_id: str, current_user: User = Depends(get_current_use
     if not success:
         raise HTTPException(status_code=500, detail="Failed to delete chat")
     
-    return {"message": "Chat deleted successfully"} 
+    return {"message": "Chat deleted successfully"}
+
+# --------------------------------------------------
+# New route: create a chat ahead of time (no message yet)
+# --------------------------------------------------
+
+@router.post("/create", response_model=ChatHistoryModel)
+async def create_chat_endpoint(
+    payload: ChatCreateRequest,
+    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS])),
+):
+    """Create a new chat document and return it.
+
+    The frontend can call this before sending the first message to avoid using
+    placeholder chat IDs.  If *agent_id* is provided, it will be associated with
+    the chat; otherwise it will be created as legacy chat (modelId will be set later).
+    """
+    try:
+        chat = await chat_history_service.create_chat(
+            user_id=str(current_user.id),
+            name=payload.name,
+            agent_id=payload.agent_id,
+        )
+        return chat
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create chat: {e}") 

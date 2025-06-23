@@ -49,7 +49,7 @@ interface ChatState {
   setIsLoading: (loading: boolean) => void;
   
   // Chat actions
-  createNewChat: () => ChatSession;
+  createNewChat: () => Promise<ChatSession>;
   loadChat: (chatId: string) => Promise<boolean>;
   saveChat: () => Promise<void>;
   fetchChatHistory: (force?: boolean) => Promise<void>;
@@ -125,18 +125,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
   
   // Actions
-  createNewChat: () => {
-    const newSession: ChatSession = {
-      id: `chat_${Date.now()}`,
-      name: 'New Chat',
-      messages: [],
-      agentId: '',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    set({ currentSession: newSession });
-    return newSession;
+  createNewChat: async () => {
+    try {
+      // Call backend to create chat immediately – this avoids placeholder IDs
+      const chat = await api.post<ChatSession>('/chat/create', { name: 'New Chat' });
+
+      // Normalise dates coming as string
+      const newSession: ChatSession = {
+        ...chat,
+        id: (chat as any)._id ?? chat.id,
+        createdAt: new Date(chat.createdAt),
+        updatedAt: new Date(chat.updatedAt),
+        messages: [],
+      };
+
+      set({ currentSession: newSession });
+      return newSession;
+    } catch (err) {
+      console.error('Failed to create chat remotely, falling back to local placeholder', err);
+      const fallback: ChatSession = {
+        id: `chat_${Date.now()}`,
+        name: 'New Chat',
+        messages: [],
+        agentId: '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      set({ currentSession: fallback });
+      return fallback;
+    }
   },
   
   loadChat: async (chatId: string) => {
