@@ -46,7 +46,7 @@ const ChatPage: React.FC = () => {
   // Store pending payload when websocket not connected yet
   const pendingMessageRef = useRef<{
     message: string;
-    images: Array<{ data: string; mediaType: string }>;
+    images: Array<{ url: string; mediaType: string }>;
   } | null>(null);
   
   // Determine if we're in a specific chat room
