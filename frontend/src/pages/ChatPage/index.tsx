@@ -6,6 +6,7 @@ import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import type { ChatSession } from '../../shared/stores/chatStore';
+import Loading from '../../shared/ui/Loading';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -21,7 +22,8 @@ const ChatPage: React.FC = () => {
     setCurrentSession,
     chatHistory,
     setChatHistory,
-    loadChat
+    loadChat,
+    isLoading
   } = useChatStore();
   
   const { 
@@ -46,11 +48,15 @@ const ChatPage: React.FC = () => {
   // Keep a ref to always access latest session inside websocket callbacks
   const currentSessionRef = useRef<typeof currentSession>(null); // NEW REF
   
-  // Store pending payload when websocket not connected yet
-  const pendingMessageRef = useRef<{
+  // Queue of pending payloads when websocket is not yet connected
+  type PendingPayload = {
+    session_id: string;
     message: string;
+    agent_id?: string;
     images: Array<{ url: string; mediaType: string }>;
-  } | null>(null);
+  };
+
+  const pendingQueueRef = useRef<PendingPayload[]>([]);
   
   // Determine if we're in a specific chat room
   const isInChatRoom = Boolean(chatId);
@@ -154,6 +160,21 @@ const ChatPage: React.FC = () => {
     return false;
   };
   
+  // Helper to mark current streaming assistant as aborted
+  const abortStreaming = (reason: string) => {
+    const session = currentSessionRef.current;
+    if (!session) return;
+    const lastMsg = session.messages[session.messages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isStreaming) {
+      updateMessage(lastMsg.id, {
+        content: lastMsg.content + `\n[${reason}]`,
+        isStreaming: false,
+        isComplete: true,
+      });
+    }
+    setIsTyping(false);
+  };
+  
   // WebSocket connection management
   const connectWebSocket = () => {
     if (!token || !currentSession || wsRef.current?.readyState === WebSocket.OPEN) {
@@ -193,22 +214,11 @@ const ChatPage: React.FC = () => {
         duration: 3000
       });
       
-      // After connection open, if there is pending message, send it automatically
-      if (pendingMessageRef.current) {
-        const { message: pendingText, images: pendingImages } = pendingMessageRef.current;
-        const payloadToSend = {
-          session_id: currentSession!.id,
-          message: pendingText,
-          agent_id: selectedAgent?.id,
-          images: pendingImages
-        };
-        try {
-          ws.send(JSON.stringify(payloadToSend));
-          pendingMessageRef.current = null;
-        } catch (e) {
-          console.error('Failed to send pending payload', e);
-        }
-      }
+      // ส่งคิวข้อความที่ค้างทั้งหมด
+      pendingQueueRef.current.forEach((p) => {
+        ws.send(JSON.stringify(p));
+      });
+      pendingQueueRef.current = [];
     };
     
     ws.onmessage = (event) => {
@@ -255,7 +265,7 @@ const ChatPage: React.FC = () => {
             title: 'Chat Error',
             message: data.data
           });
-          setIsTyping(false);
+          abortStreaming('ERROR');
         }
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
@@ -266,6 +276,7 @@ const ChatPage: React.FC = () => {
       console.error('WebSocket error:', error);
       setWsStatus('error');
       setIsConnectedToRoom(false);
+      abortStreaming('CONNECTION LOST');
       addToast({
         type: 'error',
         title: 'Connection Error',
@@ -376,7 +387,7 @@ const ChatPage: React.FC = () => {
 
     if (wsStatus !== 'connected') {
       // queue payload and connect
-      pendingMessageRef.current = { message: message.trim(), images };
+      pendingQueueRef.current.push(payloadToSend);
       connectWebSocket();
       // The actual send will occur in ws.onopen
       addToast({
@@ -477,35 +488,9 @@ const ChatPage: React.FC = () => {
     };
   }, []);
   
-  // Poll backend for updated assistant message when waiting for completion
-  useEffect(() => {
-    if (!isTyping || !currentSession) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const chat = await api.get<ChatSession>(`/chat/history/${currentSession.id}`);
-        // Update current session with new messages
-        const updatedMessages = chat.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }));
-        setCurrentSession({
-          ...currentSession,
-          messages: updatedMessages
-        });
-
-        // Check if last assistant message is complete → stop polling
-        const lastMsg = updatedMessages[updatedMessages.length - 1];
-        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isComplete) {
-          setIsTyping(false);
-        }
-      } catch (err) {
-        console.error('Polling chat history failed', err);
-      }
-    }, 2000); // 2-second interval
-
-    return () => clearInterval(pollInterval);
-  }, [isTyping, currentSession]);
+  if (isLoading) {
+    return <Loading />;
+  }
   
   if (!user) {
     return (
