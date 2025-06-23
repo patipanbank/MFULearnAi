@@ -461,10 +461,10 @@ const ChatPage: React.FC = () => {
     if (!currentSession!.id || currentSession!.id.startsWith('chat_')) {
       // 🛠️ Ensure we don't send create_room through a socket still bound to the previous chat room
       //    Close it first and mark status disconnected; connectWebSocket() will open a fresh one.
-      //    if (!isInChatRoom && wsStatus === 'connected' && wsRef.current) {
-      //      wsRef.current.close();
-      //      setWsStatus('disconnected');
-      //    }
+      if (!isInChatRoom && wsStatus === 'connected' && wsRef.current) {
+        wsRef.current.close();
+        setWsStatus('disconnected');
+      }
       // need to create room first
       const createPayload = {
         type: 'create_room',
