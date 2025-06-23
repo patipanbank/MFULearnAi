@@ -27,7 +27,7 @@ const Sidebar: React.FC = () => {
     toggleSidebar, 
     setSidebarHovered
   } = useLayoutStore();
-  const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
+  const { openDropdowns, toggleDropdown, closeDropdown, addToast } = useUIStore();
   const { 
     chatHistory, 
     currentSession, 
@@ -52,8 +52,6 @@ const Sidebar: React.FC = () => {
   useEffect(() => {
     fetchChatHistory();
   }, [fetchChatHistory]);
-
-
 
   // Close settings dropdown when clicking outside
   useEffect(() => {
@@ -101,8 +99,10 @@ const Sidebar: React.FC = () => {
 
   const handleChatClick = async (chatId: string | undefined) => {
     if (!chatId || chatId === 'undefined') return;
-    await loadChat(chatId);
-    navigate(`/chat/${chatId}`);
+    const ok = await loadChat(chatId);
+    if (ok) {
+      navigate(`/chat/${chatId}`, { replace: true });
+    }
   };
 
   const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {

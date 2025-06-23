@@ -50,7 +50,7 @@ interface ChatState {
   
   // Chat actions
   createNewChat: () => ChatSession;
-  loadChat: (chatId: string) => Promise<void>;
+  loadChat: (chatId: string) => Promise<boolean>;
   saveChat: () => Promise<void>;
   fetchChatHistory: () => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
@@ -154,8 +154,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }))
       };
       set({ currentSession: chatSession });
+      return true;
     } catch (error) {
       console.error('Failed to load chat:', error);
+      return false;
     } finally {
       set({ isLoading: false });
     }
