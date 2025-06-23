@@ -12,6 +12,7 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_community.chat_message_histories import RedisChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables import RunnableLambda
+from langchain_core.output_parsers import StrOutputParser
 
 from config.config import settings
 from services.chroma_service import chroma_service
@@ -141,33 +142,30 @@ def create_agent_executor(
     agent = create_tool_calling_agent(llm, tools, prompt)
 
     # 5. Create Agent Executor
-    # The AgentExecutor is what actually runs the agent and executes tools.
-    agent_executor = AgentExecutor(
-        agent=agent, 
-        tools=tools,
-        verbose=True # Set to True for debugging to see agent's thoughts
-    )
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    # --- Strip `usage` key from the final output to avoid LangChain tracer bug ---
-    def _drop_usage(output):  # helper removes the `usage` field that confuses AsyncRootListenersTracer
+    # 6. Ensure agent output is plain string (not list of Messages)
+    to_string = agent_executor | StrOutputParser()
+
+    # helper to strip usage key (applied after memory)
+    def _drop_usage(output):
         if isinstance(output, dict) and "usage" in output:
-            # Create a shallow copy to avoid mutating downstream
             return {k: v for k, v in output.items() if k != "usage"}
         return output
 
-    # 6. Create Agent with Message History (wrap BEFORE dropping usage)
+    # 7. Wrap with Message History so that Human/AI messages stored in Redis
     redis_url = settings.REDIS_URL
     if not redis_url:
         raise ValueError("REDIS_URL must be set in the environment variables to use chat history.")
 
     agent_with_chat_history = RunnableWithMessageHistory(
-        agent_executor,  # type: ignore
+        to_string,  # type: ignore
         lambda session_id: RedisChatMessageHistory(session_id, url=redis_url),
         input_messages_key="input",
         history_messages_key="chat_history",
     )
 
-    # --- Strip `usage` key AFTER memory layer so stored messages remain intact ---
+    # 8. Strip usage key AFTER memory layer so stored messages remain intact
     final_runnable = agent_with_chat_history | RunnableLambda(_drop_usage)  # type: ignore
 
     print(f"Agent Executor with history created for session: {session_id}")
