@@ -17,7 +17,7 @@ export { default as useSettingsStore } from './settingsStore';
 // Type exports for external usage
 export type { 
   ChatMessage, 
-  ChatSession 
+  Chat as ChatSession
 } from './chatStore';
 
 export type {
