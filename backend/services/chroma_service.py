@@ -182,5 +182,44 @@ class ChromaService:
         await self.delete_documents(collection_name, doc_ids_to_delete)
         print(f"Successfully deleted documents from source '{source_name}'.")
 
+    # ------------------------------------------------------------------
+    # LangChain integration
+    # ------------------------------------------------------------------
+    def get_vector_store(self, collection_name: str):
+        """คืนค่า LangChain Chroma VectorStore สำหรับ collection ที่กำหนด
+
+        ใช้ BedrockEmbeddings เป็น embedding function เพื่อให้ vector store
+        สามารถทำ similarity search ได้
+        """
+        try:
+            from langchain_community.vectorstores import Chroma  # lazy import เพื่อหลีกเลี่ยง heavy deps ตอน startup
+            from langchain_aws import BedrockEmbeddings
+            import boto3
+            from botocore.config import Config
+
+            # สร้าง embeddings (เหมือนที่ agent_factory ใช้)
+            boto3_config = Config(read_timeout=900, retries={"max_attempts": 3, "mode": "standard"})
+            bedrock_client = boto3.client(
+                service_name="bedrock-runtime",
+                region_name=settings.AWS_REGION,
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                config=boto3_config,
+            )
+
+            embeddings = BedrockEmbeddings(client=bedrock_client)
+
+            # สร้างและคืน vector store ใช้ client HTTP ที่สร้างไว้แล้วเพื่อเชื่อม ChromaDB
+            vector_store = Chroma(
+                client=self.client,
+                collection_name=collection_name,
+                embedding_function=embeddings,
+            )
+
+            return vector_store
+        except Exception as e:
+            print(f"❌ ไม่สามารถสร้าง VectorStore สำหรับ {collection_name}: {e}")
+            return None
+
 # Instantiate the service
 chroma_service = ChromaService() 
