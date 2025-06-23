@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 
 class ImagePayload(BaseModel):
-    data: str
+    url: str
     mediaType: str
 
 class ChatMessage(BaseModel):

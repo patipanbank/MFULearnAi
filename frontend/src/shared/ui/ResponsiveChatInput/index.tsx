@@ -8,7 +8,7 @@ interface ResponsiveChatInputProps {
   onMessageChange: (message: string) => void;
   onSendMessage: () => void;
   onImageUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  images: Array<{ data: string; mediaType: string }>;
+  images: Array<{ url: string; mediaType: string }>;
   onRemoveImage: (index: number) => void;
   disabled?: boolean;
   isTyping?: boolean;
@@ -232,7 +232,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
             {images.map((img, idx) => (
               <div key={idx} className="relative group">
                 <img
-                  src={`data:${img.mediaType};base64,${img.data}`}
+                  src={img.url}
                   alt="Preview"
                   className="w-16 h-16 object-cover rounded-lg border border-primary transition-transform group-hover:scale-105"
                 />

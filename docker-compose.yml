@@ -35,6 +35,10 @@ services:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
       - CHROMA_URL=http://chroma:8000
       - REDIS_URL=redis://redis:6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin123
+      - S3_BUCKET=uploads
       # All other environment variables will be loaded from .env file
     depends_on:
       - chroma
@@ -117,6 +121,10 @@ services:
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
       - CHROMA_URL=http://chroma:8000
       - REDIS_URL=redis://redis:6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin123
+      - S3_BUCKET=uploads
     depends_on:
       - db
       - redis
@@ -127,10 +135,27 @@ services:
     command: >
       celery -A celery_app.celery worker -l info --concurrency=4
 
+  minio:
+    image: minio/minio
+    container_name: mfulearnai_minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # Web console
+    networks:
+      - mfulearnai
+    restart: unless-stopped
+
 volumes:
   data:
   redis:
   chroma:
+  minio-data:
 
 networks:
   mfulearnai:

@@ -6,7 +6,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  images?: Array<{ data: string; mediaType: string }>;
+  images?: Array<{ url: string; mediaType: string }>;
   isStreaming?: boolean;
   isComplete?: boolean;
 }

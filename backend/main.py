@@ -12,7 +12,8 @@ from routes import (
     training as training_router,
     collection as collection_router,
     chat as chat_router,
-    agents as agents_router
+    agents as agents_router,
+    upload as upload_router
 )
 
 app = FastAPI()
@@ -77,6 +78,7 @@ app.include_router(training_router.router, prefix="/api/training")
 app.include_router(collection_router.router, prefix="/api/collections")
 app.include_router(chat_router.router, prefix="/api/chat")
 app.include_router(agents_router.router, prefix="/api/agents")
+app.include_router(upload_router.router, prefix="/api")
 
 # WebSocket routes are already included in chat_router with /api prefix
 # The nginx /ws location proxy_pass will handle the routing

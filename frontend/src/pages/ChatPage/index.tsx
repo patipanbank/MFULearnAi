@@ -34,7 +34,7 @@ const ChatPage: React.FC = () => {
   
   // Local state
   const [message, setMessage] = useState('');
-  const [images, setImages] = useState<Array<{ data: string; mediaType: string }>>([]);
+  const [images, setImages] = useState<Array<{ url: string; mediaType: string }>>([]);
   const [isConnectedToRoom, setIsConnectedToRoom] = useState(false);
   
   // Refs
@@ -368,23 +368,24 @@ const ChatPage: React.FC = () => {
   };
   
   // Handle image upload
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
     
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const base64 = e.target?.result as string;
-          const base64Data = base64.split(',')[1]; // Remove data:image/jpeg;base64, prefix
-          
-          setImages(prev => [...prev, {
-            data: base64Data,
-            mediaType: file.type
-          }]);
-        };
-        reader.readAsDataURL(file);
+    Array.from(files).forEach(async (file) => {
+      if (!file.type.startsWith('image/')) return;
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post<{ url: string; mediaType: string }>(
+          '/upload',
+          formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        setImages(prev => [...prev, { url: res.url, mediaType: res.mediaType }]);
+      } catch (err) {
+        console.error('Image upload failed', err);
+        addToast({ type: 'error', title: 'Upload Error', message: 'Failed to upload image' });
       }
     });
     
@@ -500,7 +501,7 @@ const ChatPage: React.FC = () => {
                     {msg.images.map((img, idx) => (
                       <img
                         key={idx}
-                        src={`data:${img.mediaType};base64,${img.data}`}
+                        src={img.url}
                         alt="Uploaded"
                         className="rounded-lg max-w-full h-auto"
                       />
