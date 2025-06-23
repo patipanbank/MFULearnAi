@@ -76,6 +76,12 @@ const ChatPage: React.FC = () => {
     initializeData();
   }, [fetchAgents, setLoading, addToast]);
   
+  // Cleanup placeholder chats (id not ObjectId) once on mount
+  useEffect(() => {
+    setChatHistory(chatHistory.filter((c) => c.id && c.id.length === 24));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
   // Handle chat room navigation
   useEffect(() => {
     if (isInChatRoom && chatId) {
