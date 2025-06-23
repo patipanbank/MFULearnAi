@@ -241,7 +241,9 @@ const ChatPage: React.FC = () => {
       });
       
       // ส่งคิวข้อความที่ค้างทั้งหมด
+      console.log('[CHAT] WebSocket OPEN – pending', pendingQueueRef.current.length);
       pendingQueueRef.current.forEach((p) => {
+        console.log('[CHAT] flush >>', p);
         ws.send(JSON.stringify(p));
       });
       pendingQueueRef.current = [];
@@ -424,35 +426,32 @@ const ChatPage: React.FC = () => {
       images
     };
 
-    if (wsStatus !== 'connected') {
-      // queue payload and open socket (even for new chat)
+    console.log('[CHAT] sendMessage', { wsStatus, payloadToSend });
+
+    if (wsStatus === 'connected' && wsRef.current?.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify(payloadToSend));
+        setIsTyping(true);
+      } catch (err) {
+        console.error('Failed to send via existing WebSocket', err);
+        addToast({ type: 'error', title: 'Send Error', message: 'Failed to send message' });
+      }
+    } else {
+      // Queue and ensure a connection attempt
       pendingQueueRef.current.push(payloadToSend);
-      connectWebSocket();
-      // The actual send will occur in ws.onopen
+      if (wsStatus !== 'connecting') {
+        connectWebSocket();
+      }
       addToast({
         type: 'info',
         title: 'Connecting',
         message: 'Establishing chat connection…',
         duration: 2000
       });
-      // Clear input fields immediately
-      setMessage('');
-      setImages([]);
-      // Show typing indicator while waiting
       setIsTyping(true);
-      return;
     }
 
-    // ถ้า websocket เชื่อมแล้ว ส่งทันที
-    try {
-      wsRef.current?.send(JSON.stringify(payloadToSend));
-      setIsTyping(true);
-    } catch (err) {
-      console.error('Failed to send message via WebSocket', err);
-      addToast({ type: 'error', title: 'Send Error', message: 'Failed to send message' });
-    }
-
-    // Clear input
+    // Clear input fields immediately
     setMessage('');
     setImages([]);
   };
