@@ -3,6 +3,7 @@ from lib.mongodb import get_database
 from models.chat import Chat, ChatMessage
 from bson import ObjectId
 from typing import List, Optional
+from bson.errors import InvalidId
 
 class ChatHistoryService:
     async def get_chat_history_for_user(self, user_id: str) -> List[Chat]:
@@ -18,7 +19,15 @@ class ChatHistoryService:
 
     async def get_chat_by_id(self, chat_id: str) -> Optional[Chat]:
         db = get_database()
-        chat = await db.get_collection("chats").find_one({"_id": ObjectId(chat_id)})
+
+        try:
+            # Attempt to convert to ObjectId – works for 24-char hex strings
+            query = {"_id": ObjectId(chat_id)}
+        except (InvalidId, TypeError):
+            # Fallback to raw string ID (e.g., legacy frontend-generated IDs)
+            query = {"_id": chat_id}
+
+        chat = await db.get_collection("chats").find_one(query)
         if chat:
             # Handle backward compatibility
             if "_id" in chat:

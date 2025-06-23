@@ -25,7 +25,7 @@ def generate_answer(payload: Dict[str, Any]):
         buffer: List[str] = []
         assistant_id = str(ObjectId())
 
-        async for chunk in chat_service.chat(**payload):
+        async for chunk in chat_service.chat(**{k: v for k, v in payload.items() if k != 'agent_id'}):
             data = None
             try:
                 import json
