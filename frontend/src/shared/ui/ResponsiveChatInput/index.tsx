@@ -100,13 +100,15 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
     // If this is the first message and no room exists, create a room
     if (!isConnectedToRoom && !hasMessages && onRoomCreated) {
-      // Generate a new room ID (you can implement your own logic)
       const newRoomId = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       onRoomCreated(newRoomId);
+      // Delay actual send to allow state (session id) to update first
+      setTimeout(() => {
+        onSendMessage();
+      }, 0);
+    } else {
+      onSendMessage();
     }
-
-    // Send the message
-    onSendMessage();
   };
 
   // Get container classes based on mode and device with enhanced animations
