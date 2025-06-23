@@ -407,6 +407,16 @@ const ChatPage: React.FC = () => {
     // Room created successfully; allow sending again
     setIsRoomCreating(false);
 
+    /*
+     * Close the temporary WebSocket that was used only for the room creation
+     * handshake.  A fresh connection (bound to the real chatId) will be
+     * established by the useEffect that listens to URL param changes.
+     */
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('[CHAT] Closing provisional socket – will reopen for new room');
+      wsRef.current.close();
+    }
+
     // URL change will trigger effect to ensure WebSocket joins correct room
   };
   
@@ -591,20 +601,6 @@ const ChatPage: React.FC = () => {
       }
     };
   }, []);
-  
-  // We no longer force-close WebSocket when leaving a room; it will be
-  // cleaned up on unmount or reused for the next room to avoid race conditions.
-  
-  // Ensure input returns to floating when navigating to /chat (no room yet)
-  useEffect(() => {
-    if (!isInChatRoom) {
-      // Close any existing WebSocket so isConnectedToRoom becomes false
-      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-        wsRef.current.close();
-      }
-      setIsConnectedToRoom(false);
-    }
-  }, [isInChatRoom]);
   
   if (isLoading) {
     return <Loading />;
