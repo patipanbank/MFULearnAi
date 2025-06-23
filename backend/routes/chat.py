@@ -301,10 +301,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     continue
 
                 if etype == "create_room":
-                    # Client requests room creation mid-connection
-                    if len(session_id or "") == 24:
-                        # Room already exists; ignore
-                        continue
+                    # This check is faulty as a user should be able to create
+                    # multiple new chats from the same WebSocket connection.
+                    # The frontend logic already ensures this is only sent with intent.
+                    # if len(session_id or "") == 24:
+                    #     # Room already exists; ignore
+                    #     continue
 
                     cr_agent_id = incoming.get("agent_id") or incoming.get("agentId")
 
