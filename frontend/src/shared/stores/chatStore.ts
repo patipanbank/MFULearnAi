@@ -146,9 +146,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Convert date strings back to Date objects
       const chatSession: ChatSession = {
         ...chat,
+        id: (chat as any)._id ?? chat.id,
         createdAt: new Date(chat.createdAt),
         updatedAt: new Date(chat.updatedAt),
-        messages: chat.messages.map((msg: any) => ({
+        messages: (chat.messages ?? []).map((msg: any) => ({
           ...msg,
           timestamp: new Date(msg.timestamp)
         }))
@@ -195,15 +196,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
   fetchChatHistory: async () => {
     try {
       const chats = await api.get<ChatSession[]>('/chat/history');
-      const chatSessions: ChatSession[] = chats.map((chat: any) => ({
-        ...chat,
-        createdAt: new Date(chat.createdAt),
-        updatedAt: new Date(chat.updatedAt),
-        messages: chat.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }))
-      }));
+      const chatSessions: ChatSession[] = chats
+        .filter((c: any) => c._id && c._id.length === 24)
+        .map((chat: any) => ({
+          ...chat,
+          id: chat._id ?? chat.id,
+          createdAt: new Date(chat.createdAt),
+          updatedAt: new Date(chat.updatedAt),
+          messages: (chat.messages ?? []).map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }))
+        }));
       set({ chatHistory: chatSessions });
     } catch (error) {
       console.error('Failed to fetch chat history:', error);
