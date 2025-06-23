@@ -425,11 +425,9 @@ const ChatPage: React.FC = () => {
     };
 
     if (wsStatus !== 'connected') {
-      // queue payload; open socket only if we are already in a room
+      // queue payload and open socket (even for new chat)
       pendingQueueRef.current.push(payloadToSend);
-      if (isInChatRoom) {
-        connectWebSocket();
-      }
+      connectWebSocket();
       // The actual send will occur in ws.onopen
       addToast({
         type: 'info',
@@ -529,16 +527,8 @@ const ChatPage: React.FC = () => {
     };
   }, []);
   
-  // เมื่อออกจากห้องแชท (route /chat ไม่มี id) ให้ปิด WS และรีเซตสถานะการเชื่อมต่อ
-  useEffect(() => {
-    if (!isInChatRoom && wsStatus === 'connected') {
-      // Leaving a room, close socket bound to that room
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
-      }
-      setIsConnectedToRoom(false);
-    }
-  }, [isInChatRoom, wsStatus]);
+  // We no longer force-close WebSocket when leaving a room; it will be
+  // cleaned up on unmount or reused for the next room to avoid race conditions.
   
   if (isLoading) {
     return <Loading />;
