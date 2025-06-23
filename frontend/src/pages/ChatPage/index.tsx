@@ -20,7 +20,8 @@ const ChatPage: React.FC = () => {
     setIsTyping,
     setCurrentSession,
     chatHistory,
-    setChatHistory
+    setChatHistory,
+    loadChat
   } = useChatStore();
   
   const { 
@@ -84,22 +85,20 @@ const ChatPage: React.FC = () => {
   
   // Handle chat room navigation
   useEffect(() => {
-    if (isInChatRoom && chatId) {
-      // Load specific chat room or create if doesn't exist
-      if (!currentSession || currentSession.id !== chatId) {
-        // In a real app, you'd load the chat from backend
-        // For now, create a new session and then update its ID
+    const init = async () => {
+      if (isInChatRoom && chatId) {
+        if (!currentSession || currentSession.id !== chatId) {
+          // load chat history from backend
+          await loadChat(chatId);
+        }
+        if (!isConnectedToRoom) {
+          connectWebSocket();
+        }
+      } else if (!isInChatRoom && !currentSession) {
         createNewChat();
-        // Update the session ID after creation (this will be handled in the next useEffect)
       }
-      // Connect to WebSocket when entering a chat room
-      if (!isConnectedToRoom) {
-        connectWebSocket();
-      }
-    } else if (!isInChatRoom && !currentSession) {
-      // Create new chat session if none exists and we're on /chat
-      createNewChat();
-    }
+    };
+    init();
   }, [chatId, isInChatRoom, currentSession, createNewChat]);
   
   // Update session ID when chat room changes
