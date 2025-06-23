@@ -88,23 +88,31 @@ const ChatPage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  // Handle chat room navigation
+  // เมื่อ URL มี chatId ให้โหลดประวัติหนึ่งครั้งและเชื่อม WS
   useEffect(() => {
-    const init = async () => {
-      if (isInChatRoom && chatId) {
-        if (!currentSession || currentSession.id !== chatId) {
-          // load chat history from backend
-          await loadChat(chatId);
-        }
-        if (!isConnectedToRoom) {
-          connectWebSocket();
-        }
-      } else if (!isInChatRoom && !currentSession) {
+    if (!isInChatRoom || !chatId) return;
+
+    if (currentSession && currentSession.id === chatId) {
+      if (!isConnectedToRoom) connectWebSocket();
+      return; // already loaded
+    }
+
+    (async () => {
+      const ok = await loadChat(chatId);
+      if (ok) {
+        connectWebSocket();
+      } else {
+        navigate('/chat');
         createNewChat();
       }
-    };
-    init();
-  }, [chatId, isInChatRoom, currentSession, createNewChat]);
+    })();
+  }, [chatId, isInChatRoom]);
+
+  // กรณี /chat (ไม่มี id)
+  useEffect(() => {
+    if (isInChatRoom) return; // handled above
+    if (!currentSession) createNewChat();
+  }, [isInChatRoom]);
   
   // Update session ID when chat room changes
   useEffect(() => {
