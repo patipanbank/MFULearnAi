@@ -102,7 +102,7 @@ const Sidebar: React.FC = () => {
   const handleChatClick = async (chatId: string | undefined) => {
     if (!chatId || chatId === 'undefined') return;
     await loadChat(chatId);
-    navigate('/chat');
+    navigate(`/chat/${chatId}`);
   };
 
   const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {
