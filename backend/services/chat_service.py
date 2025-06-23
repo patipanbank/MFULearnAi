@@ -3,7 +3,7 @@ import json
 import logging
 
 # LangChain and Agent imports
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from agents.agent_factory import create_agent_executor
 
@@ -102,13 +102,16 @@ class ChatService:
 
                         # Extract text when final_answer is list or message object
                         if isinstance(final_answer, list):
-                            parts = []
-                            for m in final_answer:
-                                if hasattr(m, 'content') and m.content:
-                                    parts.append(m.content)  # type: ignore[attr-defined]
-                                else:
-                                    parts.append(str(m))
-                            final_answer_text = "\n".join(parts)
+                            ai_text = None
+                            for msg in reversed(final_answer):
+                                if isinstance(msg, AIMessage) and getattr(msg, "content", None):
+                                    ai_text = msg.content
+                                    break
+                            if ai_text:
+                                final_answer_text = ai_text
+                            else:
+                                parts = [m.content if hasattr(m, "content") else str(m) for m in final_answer]
+                                final_answer_text = "\n".join(parts)
                         elif final_answer and hasattr(final_answer, 'content'):
                             final_answer_text = final_answer.content  # type: ignore[attr-defined]
                         else:

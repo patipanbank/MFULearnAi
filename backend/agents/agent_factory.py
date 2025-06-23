@@ -1,6 +1,6 @@
 import boto3
 from botocore.config import Config
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from langchain_aws import ChatBedrock
 from langchain_aws import BedrockEmbeddings
@@ -24,7 +24,7 @@ def create_agent_executor(
     system_prompt: Optional[str] = None,
     temperature: float = 0.7,
     max_tokens: int = 4000
-) -> RunnableWithMessageHistory:
+) -> Any:
     """
     Creates and returns a LangChain agent executor with chat history.
 
@@ -155,24 +155,21 @@ def create_agent_executor(
             return {k: v for k, v in output.items() if k != "usage"}
         return output
 
-    agent_executor = agent_executor | RunnableLambda(_drop_usage)
-
-    # 6. Create Agent with Message History
-    # This wraps the agent executor and manages the chat history.
+    # 6. Create Agent with Message History (wrap BEFORE dropping usage)
     redis_url = settings.REDIS_URL
     if not redis_url:
         raise ValueError("REDIS_URL must be set in the environment variables to use chat history.")
 
     agent_with_chat_history = RunnableWithMessageHistory(
-        agent_executor, # type: ignore
-        # The get_session_history function returns a history object based on the session ID
-        lambda session_id: RedisChatMessageHistory(
-            session_id, url=redis_url
-        ),
+        agent_executor,  # type: ignore
+        lambda session_id: RedisChatMessageHistory(session_id, url=redis_url),
         input_messages_key="input",
         history_messages_key="chat_history",
     )
-    
+
+    # --- Strip `usage` key AFTER memory layer so stored messages remain intact ---
+    final_runnable = agent_with_chat_history | RunnableLambda(_drop_usage)  # type: ignore
+
     print(f"Agent Executor with history created for session: {session_id}")
 
-    return agent_with_chat_history
+    return final_runnable
