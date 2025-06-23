@@ -529,6 +529,17 @@ const ChatPage: React.FC = () => {
   // We no longer force-close WebSocket when leaving a room; it will be
   // cleaned up on unmount or reused for the next room to avoid race conditions.
   
+  // Ensure input returns to floating when navigating to /chat (no room yet)
+  useEffect(() => {
+    if (!isInChatRoom) {
+      // Close any existing WebSocket so isConnectedToRoom becomes false
+      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+        wsRef.current.close();
+      }
+      setIsConnectedToRoom(false);
+    }
+  }, [isInChatRoom]);
+  
   if (isLoading) {
     return <Loading />;
   }
