@@ -150,8 +150,28 @@ def create_agent_executor(
         # 1. If dict -> common keys
         if isinstance(data, dict):
             for key in ("output", "text", "content", "answer"):
-                if key in data and isinstance(data[key], str):
-                    return data[key]
+                if key not in data:
+                    continue
+                val = data[key]
+                # If string return immediately
+                if isinstance(val, str):
+                    return val
+                # If list, extract first meaningful text
+                if isinstance(val, list):
+                    for item in val:
+                        if isinstance(item, str):
+                            return item
+                        if isinstance(item, dict):
+                            for subkey in ("text", "content", "value"):
+                                if subkey in item and isinstance(item[subkey], str):
+                                    return item[subkey]
+                        elif hasattr(item, "content"):
+                            text = getattr(item, "content")
+                            if isinstance(text, str):
+                                return text
+                # If object with content attr
+                if hasattr(val, "content"):
+                    return str(getattr(val, "content"))
             # Fallback stringified
             return str(data)
 
