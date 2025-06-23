@@ -681,7 +681,7 @@ const ChatPage: React.FC = () => {
             onImageUpload={handleImageUpload}
             images={images}
             onRemoveImage={handleRemoveImage}
-            disabled={(!isInChatRoom && !selectedAgent) || (isInChatRoom && wsStatus !== 'connected')}
+            disabled={isRoomCreating || (!isInChatRoom && !selectedAgent) || (isInChatRoom && wsStatus !== 'connected')}
             isTyping={isTyping}
             hasMessages={hasMessages}
             isConnectedToRoom={isConnectedToRoom}
