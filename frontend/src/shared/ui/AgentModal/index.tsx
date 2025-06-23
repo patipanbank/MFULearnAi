@@ -31,8 +31,6 @@ const AgentModal: React.FC<AgentModalProps> = ({
     selectedAgent,
     createAgent,
     updateAgent,
-    isCreatingAgent,
-    setCreatingAgent,
     setEditingAgent,
     setShowAgentModal
   } = useAgentStore();
@@ -189,29 +187,19 @@ const AgentModal: React.FC<AgentModalProps> = ({
     handleInputChange('tags', (formData.tags || []).filter(tag => tag !== tagToRemove));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    try {
-      setCreatingAgent(true);
-      
-      if (isEditing && selectedAgent) {
-        await updateAgent(selectedAgent.id, formData);
-      } else {
-        await createAgent(formData as Omit<AgentConfig, 'id' | 'createdAt' | 'updatedAt' | 'usageCount' | 'rating'>);
-      }
-      
-      handleClose();
-    } catch (error) {
-      console.error('Failed to save agent:', error);
-      alert(`Failed to ${isEditing ? 'update' : 'create'} agent. Please try again.`);
-    } finally {
-      setCreatingAgent(false);
+    if (isEditing && selectedAgent) {
+      updateAgent(selectedAgent.id, formData);
+    } else {
+      createAgent(formData as Omit<AgentConfig, 'id' | 'createdAt' | 'updatedAt' | 'usageCount' | 'rating'>);
     }
+    
+    handleClose();
   };
 
   const handleClose = () => {
-    setCreatingAgent(false);
     setEditingAgent(false);
     setShowAgentModal(false);
     onClose();
@@ -465,16 +453,8 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <button
               type="submit"
               className="btn-primary"
-              disabled={isCreatingAgent}
             >
-              {isCreatingAgent ? (
-                <>
-                  <FiRefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  {isEditing ? 'Updating...' : 'Creating...'}
-                </>
-              ) : (
-                isEditing ? 'Update Agent' : 'Create Agent'
-              )}
+              {isEditing ? 'Update Agent' : 'Create Agent'}
             </button>
           </div>
         </form>

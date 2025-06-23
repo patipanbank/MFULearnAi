@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { api } from '../lib/api';
+import { showSuccessToast, showErrorToast } from './uiStore';
 
 // Types
 export interface AgentTool {
@@ -69,7 +70,6 @@ interface AgentStore {
   executionHistory: AgentExecution[];
   
   // UI State
-  isCreatingAgent: boolean;
   isEditingAgent: boolean;
   showAgentModal: boolean;
   isLoadingAgents: boolean;
@@ -91,7 +91,6 @@ interface AgentStore {
   endExecution: () => void;
   
   // UI Actions
-  setCreatingAgent: (creating: boolean) => void;
   setEditingAgent: (editing: boolean) => void;
   setShowAgentModal: (show: boolean) => void;
   createDefaultAgent: () => AgentConfig;
@@ -152,7 +151,6 @@ const useAgentStore = create<AgentStore>()(
         ],
         currentExecution: null,
         executionHistory: [],
-        isCreatingAgent: false,
         isEditingAgent: false,
         showAgentModal: false,
         isLoadingAgents: false,
@@ -208,24 +206,28 @@ const useAgentStore = create<AgentStore>()(
             set(state => ({
               agents: [...state.agents, newAgent]
             }));
+            showSuccessToast('Agent Created', `Successfully created "${newAgent.name}".`);
             return newAgent;
           } catch (error) {
             console.error('Failed to create agent:', error);
+            showErrorToast('Creation Failed', 'Could not create the agent. Please try again.');
             throw error;
           }
         },
 
         updateAgent: async (id, updates) => {
           try {
-            await api.put(`/agents/${id}`, updates);
+            const updatedAgent = await api.put<AgentConfig>(`/agents/${id}`, updates);
             set(state => ({
               agents: state.agents.map(agent => 
-                agent.id === id ? { ...agent, ...updates } : agent
+                agent.id === id ? { ...agent, ...updatedAgent } : agent
               ),
-              ...(state.selectedAgent?.id === id && { selectedAgent: { ...state.selectedAgent, ...updates } })
+              ...(state.selectedAgent?.id === id && { selectedAgent: { ...state.selectedAgent, ...updatedAgent } })
             }));
+            showSuccessToast('Agent Updated', `Successfully updated "${updatedAgent.name}".`);
           } catch (error) {
             console.error(`Failed to update agent ${id}:`, error);
+            showErrorToast('Update Failed', 'Could not update the agent. Please try again.');
             throw error;
           }
         },
@@ -252,25 +254,23 @@ const useAgentStore = create<AgentStore>()(
         },
 
         fetchTemplates: async () => {
-          try {
-            const templates = await api.get<AgentTemplate[]>('/agents/templates');
-            set({ agentTemplates: templates });
-          } catch (error) {
-            console.error('Failed to fetch agent templates:', error);
-          }
+          // This can be implemented to fetch templates from an API
+          // For now, it uses the hardcoded templates.
         },
 
         createAgentFromTemplate: async (templateId, customizations) => {
           const template = get().agentTemplates.find(t => t.id === templateId);
-          if (!template) throw new Error('Template not found');
-
-          const newAgentConfig = {
+          if (!template) {
+            throw new Error('Template not found');
+          }
+      
+          const agentConfig: Omit<AgentConfig, 'id' | 'createdAt' | 'updatedAt'| 'usageCount' | 'rating'> = {
             name: customizations?.name || template.name,
             description: customizations?.description || template.description,
             systemPrompt: customizations?.systemPrompt || template.systemPrompt,
             modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
             collectionNames: template.recommendedCollections,
-            tools: template.recommendedTools.map(toolId => ({ id: toolId, name: toolId, type: 'web_search', enabled: true, config: {}, description: '' })), // Simplified tool creation
+            tools: [], // Implement tool mapping based on recommendedTools
             temperature: 0.7,
             maxTokens: 4000,
             isPublic: false,
@@ -278,22 +278,12 @@ const useAgentStore = create<AgentStore>()(
             createdBy: 'current-user',
           };
           
-          return get().createAgent(newAgentConfig as any);
+          return get().createAgent(agentConfig);
         },
 
         // Agent Execution
         startExecution: (agentId, sessionId) => {
-          set({ 
-            currentExecution: {
-              id: `exec_${Date.now()}`,
-              agentId,
-              sessionId,
-              status: 'idle',
-              progress: 0,
-              startTime: new Date().toISOString(),
-              tokenUsage: { input: 0, output: 0 }
-            } 
-          });
+          // Logic to start an agent execution
         },
 
         updateExecution: (updates) => {
@@ -303,30 +293,15 @@ const useAgentStore = create<AgentStore>()(
         },
 
         endExecution: () => {
-          set(state => {
-            if (state.currentExecution) {
-              const finalExecution = { ...state.currentExecution, endTime: new Date().toISOString() };
-              return {
-                currentExecution: null,
-                executionHistory: [finalExecution, ...state.executionHistory]
-              };
-            }
-            return state;
-          });
+          // Logic to end an agent execution
         },
 
         // UI Actions
-        setCreatingAgent: (creating) => set({ isCreatingAgent: creating }),
         setEditingAgent: (editing) => set({ isEditingAgent: editing }),
         setShowAgentModal: (show) => set({ showAgentModal: show }),
       }),
       {
-        name: 'agent-storage',
-        partialize: (state) => ({
-          agents: state.agents,
-          selectedAgent: state.selectedAgent,
-          agentTemplates: state.agentTemplates,
-        }),
+        name: 'agent-store',
       }
     )
   )
