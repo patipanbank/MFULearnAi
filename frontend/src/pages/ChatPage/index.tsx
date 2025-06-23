@@ -382,7 +382,16 @@ const ChatPage: React.FC = () => {
   
   // Send message function
   const sendMessage = async () => {
-    if (!message.trim() || !selectedAgent) {
+    if (!message.trim()) {
+      return;
+    }
+    if (!selectedAgent) {
+      addToast({
+        type: 'warning',
+        title: 'Select Agent',
+        message: 'Please select an AI agent before sending a message.',
+        duration: 3000
+      });
       return;
     }
 
