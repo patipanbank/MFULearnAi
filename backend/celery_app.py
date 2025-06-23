@@ -23,5 +23,8 @@ celery.conf.update(
     result_expires=3600,
 )
 
+# Import tasks module explicitly so Celery registers them
+from tasks import chat_tasks  # noqa: F401
+
 # Discover task modules in local tasks package
-celery.autodiscover_tasks(["tasks"]) 
+# celery.autodiscover_tasks(["tasks"]) 
