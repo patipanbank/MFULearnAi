@@ -605,13 +605,27 @@ const ChatPage: React.FC = () => {
   // Ensure input returns to floating when navigating to /chat (no room yet)
   useEffect(() => {
     if (!isInChatRoom) {
-      // Close any existing WebSocket so isConnectedToRoom becomes false
-      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-        wsRef.current.close();
+      // Close current socket (if any) and immediately open a fresh one for the new draft chat
+      if (wsRef.current &&
+          (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+        try {
+          wsRef.current.close();
+        } catch {
+          /* noop */
+        }
+        // Clear reference so stale onclose events are ignored
+        wsRef.current = null;
       }
       setIsConnectedToRoom(false);
+
+      // Pro-actively create a WebSocket for the new chat placeholder so that
+      // the first user message can be sent instantly without extra latency.
+      // Guard against double-connect if a connection attempt is already underway.
+      if (wsStatus === 'disconnected') {
+        connectWebSocket();
+      }
     }
-  }, [isInChatRoom]);
+  }, [isInChatRoom, wsStatus]);
   
   if (isLoading) {
     return <Loading />;
