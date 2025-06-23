@@ -66,15 +66,15 @@ class ChatService:
                         
                 elif kind == "on_llm_stream":
                     chunk = event["data"].get("chunk")
-                    chunk_text: str | None = None
+                    llm_chunk_text: str | None = None
                     if chunk:
                         if hasattr(chunk, "content") and chunk.content:
-                            chunk_text = chunk.content  # type: ignore[attr-defined]
+                            llm_chunk_text = chunk.content  # type: ignore[attr-defined]
                         elif isinstance(chunk, dict) and chunk.get("content"):
-                            chunk_text = str(chunk.get("content"))
-                    if chunk_text:
+                            llm_chunk_text = str(chunk.get("content"))
+                    if llm_chunk_text:
                         content_received = True
-                        yield json.dumps({"type": "chunk", "data": chunk_text})
+                        yield json.dumps({"type": "chunk", "data": llm_chunk_text})
                         
                 elif kind == "on_tool_end":
                     # Handle tool execution results

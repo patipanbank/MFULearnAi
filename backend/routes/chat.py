@@ -4,14 +4,17 @@ from typing import List, Optional
 import jwt
 import json
 from bson import ObjectId
+import asyncio
 
 from services.chat_service import chat_service
 from services.chat_history_service import chat_history_service
 from services.agent_service import agent_service
 from models.user import User, UserRole
-from models.chat import ImagePayload, Chat as ChatHistoryModel
+from models.chat import ImagePayload, Chat as ChatHistoryModel, ChatMessage
 from middleware.role_guard import role_guard, get_current_user_with_roles
 from config.config import settings
+from tasks.chat_tasks import generate_answer  # lazy import to avoid circular
+from datetime import datetime as _dt
 
 router = APIRouter(
     tags=["Chat"]
@@ -211,21 +214,39 @@ async def websocket_endpoint(websocket: WebSocket):
             session_id = new_chat.id
             await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
 
-        # 5. Call the chat service and stream the response
-        session_id_str: str = str(session_id)  # ensure correct type
+        # 5. Persist user message immediately
+        await chat_history_service.add_message_to_chat(
+            str(session_id),
+            ChatMessage(
+                id=str(ObjectId()),
+                role="user",
+                content=message,
+                timestamp=_dt.utcnow(),
+                images=images if images else None,
+                isStreaming=False,
+                isComplete=True,
+            ),
+        )
 
-        async for chunk in chat_service.chat(
-            session_id=session_id_str,
-            user_id=user_id,
-            message=message,
-            model_id=model_id,
-            collection_names=collection_names,
-            images=images,
-            system_prompt=system_prompt,
-            temperature=temperature,
-            max_tokens=max_tokens
-        ):
-            await websocket.send_text(chunk) # The service already JSON-encodes and adds newline
+        # 6. Enqueue Celery task (background worker) to generate assistant answer
+        task_payload = {
+            "session_id": session_id,
+            "user_id": user_id,
+            "message": message,
+            "model_id": model_id,
+            "collection_names": collection_names,
+            "images": images_data,
+            "system_prompt": system_prompt,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "agent_id": agent_id,
+        }
+
+        generate_answer.delay(task_payload)
+
+        # 7. Send ack back to client and close socket. Client should reconnect for next message.
+        await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))
+        await websocket.close()
 
     except WebSocketDisconnect:
         print(f"Client {user_id} disconnected")

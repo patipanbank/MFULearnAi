@@ -32,6 +32,10 @@ COPY . .
 # Expose port ที่ application จะรัน
 EXPOSE 5000
 
+# ใช้ gunicorn master + UvicornWorker เพื่อสเกลหลาย process ตาม CPU
+# ตัวอย่างนี้ใช้ 4 workers (ปรับโดยตั้ง ENV WORKERS หากต้องการ)
+ENV WORKERS=4
+
 # คำสั่งสำหรับรัน application
-# --host 0.0.0.0 ทำให้สามารถเข้าถึงได้จากภายนอก container
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"] 
+# gunicorn จะ fork UvicornWorker หลายตัวซึ่งรองรับ WebSocket ได้
+CMD ["bash", "-c", "gunicorn --worker-class uvicorn.workers.UvicornWorker -w ${WORKERS} -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:5000 main:app"] 

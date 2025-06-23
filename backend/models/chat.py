@@ -13,6 +13,9 @@ class ChatMessage(BaseModel):
     content: str
     timestamp: datetime
     images: Optional[List[ImagePayload]] = None
+    # Streaming flags (optional)
+    isStreaming: Optional[bool] = None
+    isComplete: Optional[bool] = None
 
 class ChatSession(BaseModel):
     id: str

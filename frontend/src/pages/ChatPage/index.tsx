@@ -4,6 +4,8 @@ import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../sha
 import type { ChatMessage } from '../../shared/stores/chatStore';
 import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
+import { api } from '../../shared/lib/api';
+import type { ChatSession } from '../../shared/stores/chatStore';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -15,7 +17,8 @@ const ChatPage: React.FC = () => {
     wsStatus,
     setWsStatus,
     isTyping,
-    setIsTyping
+    setIsTyping,
+    setCurrentSession
   } = useChatStore();
   
   const { 
@@ -39,6 +42,12 @@ const ChatPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Keep a ref to always access latest session inside websocket callbacks
   const currentSessionRef = useRef<typeof currentSession>(null); // NEW REF
+  
+  // Store pending payload when websocket not connected yet
+  const pendingMessageRef = useRef<{
+    message: string;
+    images: Array<{ data: string; mediaType: string }>;
+  } | null>(null);
   
   // Determine if we're in a specific chat room
   const isInChatRoom = Boolean(chatId);
@@ -171,6 +180,23 @@ const ChatPage: React.FC = () => {
         message: 'Chat service connected successfully',
         duration: 3000
       });
+      
+      // After connection open, if there is pending message, send it automatically
+      if (pendingMessageRef.current) {
+        const { message: pendingText, images: pendingImages } = pendingMessageRef.current;
+        const payloadToSend = {
+          session_id: currentSession!.id,
+          message: pendingText,
+          agent_id: selectedAgent?.id,
+          images: pendingImages
+        };
+        try {
+          ws.send(JSON.stringify(payloadToSend));
+          pendingMessageRef.current = null;
+        } catch (e) {
+          console.error('Failed to send pending payload', e);
+        }
+      }
     };
     
     ws.onmessage = (event) => {
@@ -280,7 +306,25 @@ const ChatPage: React.FC = () => {
   
   // Send message function
   const sendMessage = async () => {
-    if (!message.trim() || !selectedAgent || wsStatus !== 'connected') {
+    if (!message.trim() || !selectedAgent) {
+      return;
+    }
+
+    if (wsStatus !== 'connected') {
+      // queue payload and connect
+      pendingMessageRef.current = { message: message.trim(), images };
+      connectWebSocket();
+      // The actual send will occur in ws.onopen
+      // Show feedback to user
+      addToast({
+        type: 'info',
+        title: 'Connecting',
+        message: 'Establishing chat connection…',
+        duration: 2000
+      });
+      // Clear input fields immediately
+      setMessage('');
+      setImages([]);
       return;
     }
     
@@ -295,17 +339,7 @@ const ChatPage: React.FC = () => {
     
     addMessage(userMessage);
     
-    // Add assistant placeholder
-    const assistantMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-      isStreaming: true,
-      isComplete: false
-    };
-    
-    addMessage(assistantMessage);
+    // Show typing indicator until answer is ready
     setIsTyping(true);
     
     // Send to WebSocket - New Agent-based payload
@@ -401,6 +435,36 @@ const ChatPage: React.FC = () => {
       }
     };
   }, []);
+  
+  // Poll backend for updated assistant message when waiting for completion
+  useEffect(() => {
+    if (!isTyping || !currentSession) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const chat = await api.get<ChatSession>(`/chat/history/${currentSession.id}`);
+        // Update current session with new messages
+        const updatedMessages = chat.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+        setCurrentSession({
+          ...currentSession,
+          messages: updatedMessages
+        });
+
+        // Check if last assistant message is complete → stop polling
+        const lastMsg = updatedMessages[updatedMessages.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isComplete) {
+          setIsTyping(false);
+        }
+      } catch (err) {
+        console.error('Polling chat history failed', err);
+      }
+    }, 2000); // 2-second interval
+
+    return () => clearInterval(pollInterval);
+  }, [isTyping, currentSession]);
   
   if (!user) {
     return (
