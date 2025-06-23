@@ -25,28 +25,6 @@ from langchain_core.tools import Tool
 from services.usage_service import usage_service
 from models.chat import ImagePayload
 
-def _extract_chunk_text(chunk: Any) -> Optional[str]:
-    """Helper to robustly extract text from a LangChain stream chunk."""
-    if not chunk:
-        return None
-    
-    if isinstance(chunk, dict):
-        # First, check for common text keys
-        for key in ("text", "content", "value"):
-            if key in chunk and isinstance(chunk[key], str):
-                return chunk[key]
-        # Ignore full agent result dicts
-        if {"output", "messages"}.issubset(chunk.keys()):
-            return None
-        # Fallback to string representation if no text key found
-        return str(chunk)
-        
-    if hasattr(chunk, "content") and getattr(chunk, "content", None):
-        return getattr(chunk, "content")
-
-    return str(chunk)
-
-
 class ChatService:
     async def chat(
         self,
@@ -156,12 +134,40 @@ class ChatService:
                 logging.info(f"Event received: {kind}")  # Debug logging
                 
                 # Handle different types of streaming events
-                if kind in ("on_chat_model_stream", "on_llm_stream"):
+                if kind == "on_chat_model_stream":
                     chunk = event["data"].get("chunk")
-                    chunk_text = _extract_chunk_text(chunk)
+                    chunk_text: str | None = None
+                    if chunk:
+                        # Skip dicts that represent the full agent result (contain both output & messages)
+                        if isinstance(chunk, dict) and {"output", "messages"}.issubset(chunk.keys()):
+                            chunk_text = None  # ignore this chunk
+                        elif hasattr(chunk, "content") and getattr(chunk, "content", None):
+                            chunk_text = getattr(chunk, "content")  # type: ignore[attr-defined]
+                        elif isinstance(chunk, dict):
+                            if "content" in chunk and isinstance(chunk["content"], str):
+                                chunk_text = str(chunk["content"])
+                            elif "text" in chunk and isinstance(chunk["text"], str):
+                                chunk_text = str(chunk["text"])
                     if chunk_text:
                         content_received = True
                         yield json.dumps({"type": "chunk", "data": chunk_text})
+                        
+                elif kind == "on_llm_stream":
+                    chunk = event["data"].get("chunk")
+                    llm_chunk_text: str | None = None
+                    if chunk:
+                        if isinstance(chunk, dict) and {"output", "messages"}.issubset(chunk.keys()):
+                            llm_chunk_text = None
+                        elif hasattr(chunk, "content") and getattr(chunk, "content", None):
+                            llm_chunk_text = getattr(chunk, "content")  # type: ignore[attr-defined]
+                        elif isinstance(chunk, dict):
+                            if "content" in chunk and isinstance(chunk["content"], str):
+                                llm_chunk_text = str(chunk["content"])
+                            elif "text" in chunk and isinstance(chunk["text"], str):
+                                llm_chunk_text = str(chunk["text"])
+                    if llm_chunk_text:
+                        content_received = True
+                        yield json.dumps({"type": "chunk", "data": llm_chunk_text})
                         
                 elif kind == "on_tool_end":
                     # Handle tool execution results
@@ -206,9 +212,9 @@ class ChatService:
                     output_tokens = usage.get("output_tokens", 0)
 
             # 4. Finalize the chat – if no streaming chunks were emitted, send fallback_text.
-            # if not content_received and fallback_text:
-            #     yield json.dumps({"type": "chunk", "data": fallback_text})
-            #     content_received = True
+            if not content_received and fallback_text:
+                yield json.dumps({"type": "chunk", "data": fallback_text})
+                content_received = True
 
             # 5. Update usage and send end event
             if input_tokens > 0 or output_tokens > 0:
