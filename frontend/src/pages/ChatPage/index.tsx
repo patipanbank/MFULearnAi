@@ -170,25 +170,6 @@ const ChatPage: React.FC = () => {
       return true; // Consider invalid tokens as expired
     }
   };
-
-  // Helper function to try token refresh and reconnect
-  const tryRefreshAndReconnect = async (): Promise<boolean> => {
-    try {
-      console.log('Attempting to refresh token...');
-      const newToken = await refreshToken();
-      if (newToken) {
-        console.log('Token refreshed successfully, reconnecting WebSocket...');
-        // Small delay to ensure token is updated in store
-        setTimeout(() => {
-          connectWebSocket();
-        }, 500);
-        return true;
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-    }
-    return false;
-  };
   
   // Helper to mark current streaming assistant as aborted
   const abortStreaming = (reason: string) => {
