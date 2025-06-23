@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
 import type { ChatMessage } from '../../shared/stores/chatStore';
-import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import { cn } from '../../shared/lib/utils';
+import { chatWebSocket } from '../../shared/lib/chatWebSocket';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -205,177 +205,11 @@ const ChatPage: React.FC = () => {
     setIsTyping(false);
   };
   
-  // WebSocket connection management
+  // WebSocket connection management (wrapper to centralised manager)
   const connectWebSocket = () => {
-    if (
-      !token ||
-      !currentSession ||
-      (wsRef.current &&
-        (wsRef.current.readyState === WebSocket.OPEN ||
-         wsRef.current.readyState === WebSocket.CONNECTING))
-    ) {
-      return;
-    }
-    
-    // Check if token is expired before connecting
-    if (isTokenExpired(token)) {
-      console.log('Token expired, attempting refresh...');
-      tryRefreshAndReconnect();
-      return;
-    }
-    
+    if (!token) return;
     setWsStatus('connecting');
-    
-    // Use the new /ws endpoint
-    let wsUrl = `${config.wsUrl}?token=${token}`;
-    
-    // For local development, use localhost WebSocket
-    if (window.location.hostname === 'localhost') {
-      wsUrl = `ws://localhost/ws?token=${token}`;
-    }
-    
-    const ws = new WebSocket(wsUrl);
-    // Assign immediately so subsequent calls recognise a connection attempt
-    wsRef.current = ws;
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setWsStatus('connected');
-      setIsConnectedToRoom(true);
-      // already assigned
-      
-      // Show connection success toast
-      addToast({
-        type: 'success',
-        title: 'Connected',
-        message: 'Chat service connected successfully',
-        duration: 3000
-      });
-      
-      // ส่งคิวข้อความที่ค้างทั้งหมด (สร้างใหม่ในรูปแบบ event)
-      console.log('[CHAT] WebSocket OPEN – pending', pendingQueueRef.current.length);
-      pendingQueueRef.current.forEach((p) => {
-        ws.send(JSON.stringify(p));
-      });
-      pendingQueueRef.current = [];
-    };
-    
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'chunk') {
-          // Handle streaming response – always read latest state from ref
-          const session = currentSessionRef.current;
-          const lastMessage = session?.messages[session.messages.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
-            updateMessage(lastMessage.id, {
-              content: lastMessage.content + data.data
-            });
-          } else {
-            // สร้าง assistant message หากยังไม่มี
-            const assistantMsg: ChatMessage = {
-              id: Date.now().toString() + '_assistant',
-              role: 'assistant',
-              content: data.data,
-              timestamp: new Date(),
-              isStreaming: true,
-              isComplete: false
-            };
-            addMessage(assistantMsg);
-          }
-        } else if (data.type === 'room_created') {
-          handleRoomCreated(data.data.chatId);
-          if (pendingFirstRef.current) {
-            const { text, images: pImages, agentId: pAgentId } = pendingFirstRef.current;
-            const msgPayload = {
-              type: 'message',
-              chatId: data.data.chatId,
-              text,
-              images: pImages,
-              agent_id: pAgentId
-            };
-            wsRef.current?.send(JSON.stringify(msgPayload));
-            pendingFirstRef.current = null;
-          }
-        } else if (data.type === 'end') {
-          // Mark message as complete
-          const session = currentSessionRef.current;
-          const lastMessage = session?.messages[session.messages.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            updateMessage(lastMessage.id, {
-              isComplete: true,
-              isStreaming: false
-            });
-          }
-          setIsTyping(false);
-        } else if (data.type === 'error') {
-          console.error('WebSocket error:', data.data);
-          addToast({
-            type: 'error',
-            title: 'Chat Error',
-            message: data.data
-          });
-          abortStreaming('ERROR');
-        } else {
-          // Fallback: log any unexpected messages for easier debugging
-          console.debug('WS unhandled event', data);
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
-    
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setWsStatus('error');
-      setIsConnectedToRoom(false);
-      abortStreaming('CONNECTION LOST');
-      addToast({
-        type: 'error',
-        title: 'Connection Error',
-        message: 'Failed to connect to chat service. Retrying...',
-        duration: 5000
-      });
-    };
-
-    ws.onclose = async (event) => {
-      console.warn('WebSocket closed', event);
-      // Clear ref so new connection can be established
-      if (wsRef.current === ws) {
-        wsRef.current = null;
-      }
-      setWsStatus('disconnected');
-      setIsConnectedToRoom(false);
-      
-      // Handle different close codes
-      if (event.code === 1000) {
-        // Normal closure - no error needed
-        console.log('WebSocket closed normally');
-      } else if (event.code === 1006) {
-        // Connection failed - try token refresh first
-        console.log('WebSocket connection failed (code 1006)', { reason: event.reason });
-        if (token && isTokenExpired(token)) {
-          console.log('Connection failed due to expired token, attempting refresh...');
-          tryRefreshAndReconnect();
-        } else {
-          // Auto-reconnect for other reasons
-          setTimeout(() => {
-            console.log('Attempting to reconnect...');
-            connectWebSocket();
-          }, 3000);
-        }
-      } else {
-        console.log(`WebSocket closed with code ${event.code}:`, event.reason);
-        // Show appropriate error message
-        addToast({
-          type: 'warning',
-          title: 'Connection Lost',
-          message: 'Connection to chat service lost. Attempting to reconnect...',
-          duration: 5000
-        });
-      }
-    };
+    chatWebSocket.connect(token);
   };
   
   // Handle room creation (when first message is sent)
@@ -473,7 +307,7 @@ const ChatPage: React.FC = () => {
       };
 
       const sendCreate = () => {
-        wsRef.current?.send(JSON.stringify(createPayload));
+        chatWebSocket.send(createPayload);
         setIsRoomCreating(true);
         pendingFirstRef.current = {
           text: message.trim(),
@@ -482,16 +316,13 @@ const ChatPage: React.FC = () => {
         };
       };
 
-      if (wsStatus === 'connected' && wsRef.current?.readyState === WebSocket.OPEN) {
+      if (chatWebSocket.getStatus() === 'connected') {
         sendCreate();
       } else {
-        pendingQueueRef.current.push(createPayload);
-        pendingFirstRef.current = {
-          text: message.trim(),
-          images,
-          agentId: selectedAgent?.id,
-        };
-        if (wsStatus !== 'connecting') connectWebSocket();
+        sendCreate(); // queued inside manager
+        if (chatWebSocket.getStatus() === 'disconnected') {
+          chatWebSocket.connect(token!);
+        }
       }
     } else {
       const payloadToSend = {
@@ -502,17 +333,14 @@ const ChatPage: React.FC = () => {
         agent_id: selectedAgent?.id
       };
 
-      if (wsStatus === 'connected' && wsRef.current?.readyState === WebSocket.OPEN) {
-        try {
-          wsRef.current.send(JSON.stringify(payloadToSend));
-          setIsTyping(true);
-        } catch (err) {
-          console.error('Failed to send via existing WebSocket', err);
-          addToast({ type: 'error', title: 'Send Error', message: 'Failed to send message' });
-        }
+      if (chatWebSocket.getStatus() === 'connected') {
+        chatWebSocket.send(payloadToSend);
+        setIsTyping(true);
       } else {
-        pendingQueueRef.current.push(payloadToSend);
-        if (wsStatus !== 'connecting') connectWebSocket();
+        chatWebSocket.send(payloadToSend); // queued
+        if (chatWebSocket.getStatus() === 'disconnected') {
+          chatWebSocket.connect(token!);
+        }
         addToast({
           type: 'info',
           title: 'Connecting',
@@ -614,6 +442,83 @@ const ChatPage: React.FC = () => {
       }
     }
   }, [isInChatRoom, currentSession?.id]);
+  
+  // ---------- WebSocket via centralised manager ----------
+  // Connect / reconnect whenever token changes
+  useEffect(() => {
+    if (token) {
+      chatWebSocket.connect(token);
+    }
+  }, [token]);
+
+  // Subscribe to events emitted by chatWebSocket
+  useEffect(() => {
+    const listener = (payload: { type: string; data?: any }) => {
+      if (payload.type === 'status') {
+        setWsStatus(payload.data as any);
+        if (payload.data === 'connected') setIsConnectedToRoom(true);
+        if (payload.data === 'disconnected' || payload.data === 'error') setIsConnectedToRoom(false);
+      } else if (payload.type === 'chunk' || payload.type === 'end' || payload.type === 'error') {
+        // Re-emit to existing handlers by mimicking original ws.onmessage structure
+        handleWebSocketEvent(payload);
+      } else if (payload.type === 'room_created') {
+        const { chatId } = payload.data || {};
+        if (chatId) {
+          handleRoomCreated(chatId);
+          if (pendingFirstRef.current) {
+            const { text, images: pImages, agentId: pAgentId } = pendingFirstRef.current;
+            const msgPayload = {
+              type: 'message',
+              chatId,
+              text,
+              images: pImages,
+              agent_id: pAgentId,
+            };
+            chatWebSocket.send(msgPayload);
+            pendingFirstRef.current = null;
+          }
+        }
+      }
+    };
+    chatWebSocket.on(listener);
+    return () => chatWebSocket.off(listener);
+  }, []);
+
+  // Helper to reuse existing logic for chunk/end/error
+  const handleWebSocketEvent = (data: any) => {
+    if (data.type === 'chunk') {
+      const session = currentSessionRef.current;
+      const lastMessage = session?.messages[session.messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
+        updateMessage(lastMessage.id, {
+          content: lastMessage.content + data.data
+        });
+      } else {
+        const assistantMsg: ChatMessage = {
+          id: Date.now().toString() + '_assistant',
+          role: 'assistant',
+          content: data.data,
+          timestamp: new Date(),
+          isStreaming: true,
+          isComplete: false
+        };
+        addMessage(assistantMsg);
+      }
+    } else if (data.type === 'end') {
+      const session = currentSessionRef.current;
+      const lastMessage = session?.messages[session.messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        updateMessage(lastMessage.id, {
+          isComplete: true,
+          isStreaming: false
+        });
+      }
+      setIsTyping(false);
+    } else if (data.type === 'error') {
+      addToast({ type: 'error', title: 'Chat Error', message: data.data });
+      abortStreaming('ERROR');
+    }
+  };
   
   if (isLoading) {
     return <Loading />;
