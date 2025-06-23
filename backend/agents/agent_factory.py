@@ -146,9 +146,37 @@ def create_agent_executor(
 
     # 6. Clean agent output to a plain string before memory layer
     def _extract_output(data):
-        """Return only the assistant text (str) from AgentExecutor result."""
+        """Normalize agent output to a plain string for storage/streaming."""
+        # 1. If dict -> common keys
         if isinstance(data, dict):
-            return data.get("output", "")
+            for key in ("output", "text", "content", "answer"):
+                if key in data and isinstance(data[key], str):
+                    return data[key]
+            # Fallback stringified
+            return str(data)
+
+        # 2. If list -> extract text parts
+        if isinstance(data, list):
+            parts: list[str] = []
+            for item in data:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    for key in ("text", "content", "value"):
+                        if key in item and isinstance(item[key], str):
+                            parts.append(item[key])
+                            break
+                elif hasattr(item, "content"):
+                    parts.append(str(getattr(item, "content")))
+                else:
+                    parts.append(str(item))
+            return "".join(parts)
+
+        # 3. If message-like object
+        if hasattr(data, "content"):
+            return str(getattr(data, "content"))
+
+        # 4. Fallback
         return str(data)
 
     clean_agent = agent_executor | RunnableLambda(_extract_output)
