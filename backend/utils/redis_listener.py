@@ -3,7 +3,7 @@ import json
 import os
 from utils.websocket_manager import ws_manager
 
-import aioredis  # type: ignore
+import redis.asyncio as aioredis  # type: ignore
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
