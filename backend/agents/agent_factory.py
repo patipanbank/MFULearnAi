@@ -2,6 +2,7 @@ import boto3
 from botocore.config import Config
 from typing import List, Optional, Any
 from operator import itemgetter
+import re
 
 from langchain_aws import ChatBedrock
 from langchain_aws import BedrockEmbeddings
@@ -145,76 +146,25 @@ def create_agent_executor(
     # 5. Create Agent Executor
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    # 6. Clean agent output to a plain string before memory layer
-    def _extract_output(data):
-        """Normalize agent output to a plain string for storage/streaming."""
-        # 1. If dict -> common keys
-        if isinstance(data, dict):
-            for key in ("output", "text", "content", "answer"):
-                if key not in data:
-                    continue
-                val = data[key]
-                # If string return immediately
-                if isinstance(val, str):
-                    return val
-                # If list, extract first meaningful text
-                if isinstance(val, list):
-                    for item in val:
-                        if isinstance(item, str):
-                            return item
-                        if isinstance(item, dict):
-                            for subkey in ("text", "content", "value"):
-                                if subkey in item and isinstance(item[subkey], str):
-                                    return item[subkey]
-                        elif hasattr(item, "content"):
-                            text = getattr(item, "content")
-                            if isinstance(text, str):
-                                return text
-                # If object with content attr
-                if hasattr(val, "content"):
-                    return str(getattr(val, "content"))
-            # Fallback stringified
-            return str(data)
+    # 6. Wrap executor with message history (LangChain recommended pattern)
+    #   AgentExecutor by itself is not a Runnable, so convert to a Runnable by piping
+    #   through StrOutputParser (produces Runnable returning plain string).
+    executor_runnable = agent_executor | StrOutputParser()
 
-        # 2. If list -> extract text parts
-        if isinstance(data, list):
-            parts: list[str] = []
-            for item in data:
-                if isinstance(item, str):
-                    parts.append(item)
-                elif isinstance(item, dict):
-                    for key in ("text", "content", "value"):
-                        if key in item and isinstance(item[key], str):
-                            parts.append(item[key])
-                            break
-                elif hasattr(item, "content"):
-                    parts.append(str(getattr(item, "content")))
-                else:
-                    parts.append(str(item))
-            return "".join(parts)
-
-        # 3. If message-like object
-        if hasattr(data, "content"):
-            return str(getattr(data, "content"))
-
-        # 4. Fallback
-        return str(data)
-
-    to_string = agent_executor | itemgetter("output")
-    clean_agent = to_string | RunnableLambda(_extract_output)
-
-    # 7. Wrap with Message History so that Human/AI messages stored in Redis
     redis_url = settings.REDIS_URL
     if not redis_url:
         raise ValueError("REDIS_URL must be set in the environment variables to use chat history.")
 
-    final_runnable = RunnableWithMessageHistory(
-        clean_agent,  # type: ignore
+    agent_with_history = RunnableWithMessageHistory(  # type: ignore[arg-type]
+        executor_runnable,
         lambda session_id: RedisChatMessageHistory(session_id, url=redis_url),
         input_messages_key="input",
         history_messages_key="chat_history",
     )
 
-    print(f"Agent Executor with history created for session: {session_id}")
+    # 7. Convert final AIMessage to string for downstream UI/storage
+    final_runnable = agent_with_history | StrOutputParser()
+
+    print(f"Agent Runnable created (with history) for session: {session_id}")
 
     return final_runnable
