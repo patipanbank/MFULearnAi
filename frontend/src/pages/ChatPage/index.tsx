@@ -317,6 +317,9 @@ const ChatPage: React.FC = () => {
             message: data.data
           });
           abortStreaming('ERROR');
+        } else {
+          // Fallback: log any unexpected messages for easier debugging
+          console.debug('WS unhandled event', data);
         }
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
