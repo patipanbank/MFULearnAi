@@ -1,6 +1,7 @@
 import boto3
 from botocore.config import Config
 from typing import List, Optional, Any
+from operator import itemgetter
 
 from langchain_aws import ChatBedrock
 from langchain_aws import BedrockEmbeddings
@@ -199,7 +200,8 @@ def create_agent_executor(
         # 4. Fallback
         return str(data)
 
-    clean_agent = agent_executor | RunnableLambda(_extract_output)
+    to_string = agent_executor | itemgetter("output")
+    clean_agent = to_string | RunnableLambda(_extract_output)
 
     # 7. Wrap with Message History so that Human/AI messages stored in Redis
     redis_url = settings.REDIS_URL
