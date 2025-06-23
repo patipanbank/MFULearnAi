@@ -187,9 +187,9 @@ const MobileMenuOverlay: React.FC = () => {
     pinChat(chatId, !isPinned);
   };
 
-  const handleNewChat = async () => {
-    const newChat = await createNewChat();
-    navigate(`/chat/${newChat.id}`);
+  const handleNewChat = () => {
+    createNewChat();
+    navigate('/chat');
     setMobileMenuOpen(false);
   };
 

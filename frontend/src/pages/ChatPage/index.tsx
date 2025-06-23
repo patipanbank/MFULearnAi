@@ -103,8 +103,8 @@ const ChatPage: React.FC = () => {
       if (ok) {
         connectWebSocket();
       } else {
-        const newSession = await createNewChat();
-        navigate(`/chat/${newSession.id}`);
+        navigate('/chat');
+        createNewChat();
       }
     })();
   }, [chatId, isInChatRoom]);
@@ -112,12 +112,7 @@ const ChatPage: React.FC = () => {
   // กรณี /chat (ไม่มี id)
   useEffect(() => {
     if (isInChatRoom) return; // handled above
-    if (!currentSession) {
-      (async () => {
-        const newChat = await createNewChat();
-        navigate(`/chat/${newChat.id}`);
-      })();
-    }
+    if (!currentSession) createNewChat();
   }, [isInChatRoom]);
   
   // Update session ID when chat room changes

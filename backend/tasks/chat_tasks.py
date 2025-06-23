@@ -39,31 +39,44 @@ def generate_answer(payload: Dict[str, Any]):
 
                 # Normalize chunk_payload to string to avoid join errors
                 if isinstance(chunk_payload, list):
-                    # Flatten list of dict segments returned by some models (e.g. Bedrock Claude)
+                    # Flatten list of dict or message segments returned by some models
                     text_parts = []
                     for part in chunk_payload:
                         if isinstance(part, str):
                             text_parts.append(part)
                         elif isinstance(part, dict):
-                            # common keys: "text", "content", "value"
-                            if "text" in part and isinstance(part["text"], str):
-                                text_parts.append(part["text"])
-                            elif "content" in part and isinstance(part["content"], str):
-                                text_parts.append(part["content"])
+                            # Extract common keys
+                            for key in ("text", "content", "value"):
+                                if key in part and isinstance(part[key], str):
+                                    text_parts.append(part[key])
+                                    break
                         else:
+                            # Fallback to string representation
                             text_parts.append(str(part))
                     chunk_text = "".join(text_parts)
                     buffer.append(chunk_text)
 
-                    # publish to redis for streaming
-                    try:
-                        import os, redis, json  # type: ignore
-                        redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-                        redis_client.publish(f"chat:{session_id}", json.dumps({"type": "chunk", "data": chunk_text}))
-                    except Exception as pub_err:
-                        print(f"Redis publish error: {pub_err}")
+                elif isinstance(chunk_payload, dict):
+                    # Handle single dict payload
+                    extracted = None
+                    for key in ("text", "content", "value"):
+                        if key in chunk_payload and isinstance(chunk_payload[key], str):
+                            extracted = chunk_payload[key]
+                            break
+                    if extracted is None:
+                        extracted = str(chunk_payload)
+                    buffer.append(extracted)
+
                 else:
                     buffer.append(str(chunk_payload))
+
+                # publish to redis for streaming
+                try:
+                    import os, redis, json  # type: ignore
+                    redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+                    redis_client.publish(f"chat:{session_id}", json.dumps({"type": "chunk", "data": buffer[-1]}))
+                except Exception as pub_err:
+                    print(f"Redis publish error: {pub_err}")
             elif data["type"] == "end":
                 final_text = "".join(buffer)
                 await chat_history_service.add_message_to_chat(

@@ -36,27 +36,6 @@ class AgentChatRequest(BaseModel):
     agent_id: str
     images: Optional[List[ImagePayload]] = Field(default=None)
 
-# -------- New Chat Creation ---------
-
-class CreateChatRequest(BaseModel):
-    """Create a new chat before first message (Plan A).
-
-    Front-end supplies either agent_id (preferred) หรือ legacy model_id/collection_names.
-    Optional name สามารถตั้งเองได้ ไม่ส่งมาก็ใช้ "New Chat".
-    """
-
-    name: Optional[str] = Field(default="New Chat")
-    agent_id: Optional[str] = None
-    model_id: Optional[str] = None  # legacy fallback
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "Untitled Chat",
-                "agent_id": "68589ad661d8cf458c1d19f0"
-            }
-        }
-
 @router.get("/history/{session_id}", response_model=ChatHistoryModel)
 async def get_chat_history(session_id: str, current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
     """
@@ -316,31 +295,4 @@ async def delete_chat(chat_id: str, current_user: User = Depends(get_current_use
     if not success:
         raise HTTPException(status_code=500, detail="Failed to delete chat")
     
-    return {"message": "Chat deleted successfully"}
-
-@router.post("/create")
-async def create_chat_endpoint(
-    req: CreateChatRequest,
-    current_user: User = Depends(get_current_user_with_roles([
-        UserRole.STAFFS,
-        UserRole.ADMIN,
-        UserRole.SUPER_ADMIN,
-        UserRole.STUDENTS,
-    ])),
-):
-    """Pre-create a chat session and return its ObjectId.
-
-    Frontendจะเรียก endpoint นี้ก่อนส่งข้อความแรก เพื่อให้ได้ id คงที่สําหรับ Redis Memory.
-    """
-
-    # agent_id / model_id are optional at this stage – user may select later
-    # (legacy sessions might fill these fields after first message)
-
-    chat = await chat_history_service.create_chat(
-        user_id=str(current_user.id),
-        name=req.name or "New Chat",
-        agent_id=req.agent_id,
-        model_id=req.model_id,
-    )
-
-    return {"chatId": chat.id} 
+    return {"message": "Chat deleted successfully"} 
