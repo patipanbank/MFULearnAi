@@ -91,7 +91,12 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
   // Handle send message with room creation logic
   const handleSendMessage = () => {
-    if (!message.trim()) return;
+    if (!message.trim()) {
+      console.log('[INPUT] Empty message, skip');
+      return;
+    }
+
+    console.log('[INPUT] handleSendMessage fired', { isConnectedToRoom, hasMessages, disabled });
 
     // If this is the first message and no room exists, create a room
     if (!isConnectedToRoom && !hasMessages && onRoomCreated) {
