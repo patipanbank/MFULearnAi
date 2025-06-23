@@ -1,11 +1,25 @@
-from typing import AsyncGenerator, List, Dict, Any, Optional
+from typing import AsyncGenerator, List, Dict, Any, Optional, cast
 import json
 import logging
 
 # LangChain and Agent imports
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
-from agents.agent_factory import create_agent_executor
+
+# New modular factories
+from agents.llm_factory import get_llm
+from agents.prompt_factory import build_prompt
+from agents.agent_factory import create_agent
+from agents.tool_registry import TOOL_REGISTRY
+
+# LangChain utils for memory & parsing
+from langchain_community.chat_message_histories import RedisChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.output_parsers import StrOutputParser
+
+# Tooling
+from langchain.tools.retriever import create_retriever_tool
+from langchain_core.tools import Tool
 
 # Services
 from services.usage_service import usage_service
@@ -26,15 +40,82 @@ class ChatService:
     ) -> AsyncGenerator[str, None]:
         
         try:
-            # 1. Create the agent executor with history for the current session
-            agent_with_chat_history = create_agent_executor(
-                model_id=model_id,
-                collection_names=collection_names,
-                session_id=session_id,
-                system_prompt=system_prompt,
+            # ------------------------------------------------------------------
+            # 1) LLM
+            # ------------------------------------------------------------------
+            llm = get_llm(
+                model_id,
+                streaming=True,
                 temperature=temperature,
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
             )
+
+            # ------------------------------------------------------------------
+            # 2) Tools – static registry + dynamic retrieval tools
+            # ------------------------------------------------------------------
+            tools: list[Tool] = list(TOOL_REGISTRY.values())
+
+            from services.chroma_service import chroma_service  # local import to avoid cycles
+
+            for collection_name in collection_names:
+                try:
+                    vector_store = chroma_service.get_vector_store(collection_name)  # type: ignore[attr-defined]
+                    if not vector_store:
+                        continue
+
+                    retriever = vector_store.as_retriever(
+                        search_type="similarity",
+                        search_kwargs={"k": 5},
+                    )
+
+                    retrieval_tool = create_retriever_tool(
+                        retriever,
+                        name=f"search_{collection_name}",
+                        description=(
+                            f"Search and retrieve information from the {collection_name} knowledge base. "
+                            "Use this when you need specific information."
+                        ),
+                    )
+                    tools.append(retrieval_tool)
+                except Exception as e:
+                    logging.warning(
+                        f"Could not create retrieval tool for collection '{collection_name}': {e}"
+                    )
+
+            # ------------------------------------------------------------------
+            # 3) Prompt
+            # ------------------------------------------------------------------
+            default_system_prompt = (
+                "You are a helpful assistant. You have access to a number of tools and must use them when appropriate."
+            )
+            final_system_prompt = system_prompt if system_prompt else default_system_prompt
+
+            prompt = build_prompt(final_system_prompt)
+
+            # ------------------------------------------------------------------
+            # 4) Agent executor (without memory / output parsing)
+            # ------------------------------------------------------------------
+            agent_executor = create_agent(llm, tools, prompt)
+
+            # ------------------------------------------------------------------
+            # 5) Memory – wrap with message history
+            # ------------------------------------------------------------------
+            from config.config import settings
+            redis_url = settings.REDIS_URL
+            if not redis_url:
+                raise ValueError("REDIS_URL must be configured for chat history support.")
+
+            agent_with_history = RunnableWithMessageHistory(
+                cast(Any, agent_executor),
+                lambda s_id: RedisChatMessageHistory(s_id, url=redis_url),
+                input_messages_key="input",
+                history_messages_key="chat_history",
+            )
+
+            # ------------------------------------------------------------------
+            # 6) Output parsing – convert LangChain Messages to raw string for UI
+            # ------------------------------------------------------------------
+            final_runnable = agent_with_history | StrOutputParser()
 
             # 2. Prepare the input for the agent (simple string format for Bedrock compatibility)
             agent_input = {"input": message}
@@ -48,7 +129,7 @@ class ChatService:
             content_received = False
             fallback_text: Any = ""
             
-            async for event in agent_with_chat_history.astream_events(agent_input, config=config, version="v1"):
+            async for event in final_runnable.astream_events(agent_input, config=config, version="v1"):
                 kind = event["event"]
                 logging.info(f"Event received: {kind}")  # Debug logging
                 
