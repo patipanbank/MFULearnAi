@@ -204,6 +204,9 @@ async def websocket_endpoint(websocket: WebSocket):
             # Acknowledge room creation to client
             await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
 
+            # Register the websocket BEFORE dispatching the celery task to avoid race conditions.
+            await ws_manager.connect(str(session_id), websocket)
+
             # Proceed waiting for next message
             # Replace data with an empty dict for the while loop
             data = {}
@@ -218,7 +221,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         images: list[ImagePayload] = [ImagePayload(**img) for img in images_data] if images_data else []
 
-        # If the initial payload actually contains a user message (legacy path or new "message" event)
+        # This block now ONLY handles the initial message if it's NOT a create_room event.
         if message:
             # 4. Basic validation – ensure required fields present
             if not session_id or not model_id or not isinstance(collection_names, list):
@@ -243,6 +246,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 session_id = new_chat.id
                 await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
+            
+            # --- Key Fix: Register websocket BEFORE dispatching background task ---
+            await ws_manager.connect(str(session_id), websocket)
 
             # 5. Persist user message immediately
             await chat_history_service.add_message_to_chat(
@@ -276,12 +282,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # 7. Ack
             await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))
-
-        # --- Register WebSocket for streaming (always after we have a valid session_id) ---
-        await ws_manager.connect(str(session_id), websocket)
+        else:
+            # This path is taken for event_type 'create_room', where the client
+            # is expected to send a subsequent message.
+            await ws_manager.connect(str(session_id), websocket)
 
         try:
-            # Keep connection alive; process all incoming user messages (including the first one already handled).
+            # Keep connection alive; process all incoming user messages.
             while True:
                 try:
                     raw_msg = await websocket.receive_text()
