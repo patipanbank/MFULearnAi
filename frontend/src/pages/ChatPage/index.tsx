@@ -195,7 +195,13 @@ const ChatPage: React.FC = () => {
   
   // WebSocket connection management
   const connectWebSocket = () => {
-    if (!token || !currentSession || wsRef.current?.readyState === WebSocket.OPEN) {
+    if (
+      !token ||
+      !currentSession ||
+      (wsRef.current &&
+        (wsRef.current.readyState === WebSocket.OPEN ||
+         wsRef.current.readyState === WebSocket.CONNECTING))
+    ) {
       return;
     }
     
@@ -364,8 +370,8 @@ const ChatPage: React.FC = () => {
       setChatHistory(updatedHistory);
     }
 
-    // Re-open WebSocket bound to the new room
-    connectWebSocket();
+    // Do not connect here; the URL change will trigger the effect that opens
+    // a WebSocket for the new room. This prevents duplicate connections.
   };
   
   // Send message function
