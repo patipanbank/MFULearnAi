@@ -5,7 +5,6 @@ import type { ChatMessage } from '../../shared/stores/chatStore';
 import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
-import type { ChatSession } from '../../shared/stores/chatStore';
 import Loading from '../../shared/ui/Loading';
 
 const ChatPage: React.FC = () => {
