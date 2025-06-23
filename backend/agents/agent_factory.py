@@ -11,6 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_community.chat_message_histories import RedisChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.runnables import RunnableLambda
 
 from config.config import settings
 from services.chroma_service import chroma_service
@@ -79,7 +80,7 @@ def create_agent_executor(
     for collection_name in collection_names:
         try:
             # Get the vector store for this collection
-            vector_store = chroma_service.get_vector_store(collection_name)
+            vector_store = chroma_service.get_vector_store(collection_name)  # type: ignore[attr-defined]
             
             if vector_store:
                 # Create a retriever from the vector store
@@ -146,6 +147,15 @@ def create_agent_executor(
         tools=tools,
         verbose=True # Set to True for debugging to see agent's thoughts
     )
+
+    # --- Strip `usage` key from the final output to avoid LangChain tracer bug ---
+    def _drop_usage(output):  # helper removes the `usage` field that confuses AsyncRootListenersTracer
+        if isinstance(output, dict) and "usage" in output:
+            # Create a shallow copy to avoid mutating downstream
+            return {k: v for k, v in output.items() if k != "usage"}
+        return output
+
+    agent_executor = agent_executor | RunnableLambda(_drop_usage)
 
     # 6. Create Agent with Message History
     # This wraps the agent executor and manages the chat history.

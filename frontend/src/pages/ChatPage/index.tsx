@@ -37,6 +37,8 @@ const ChatPage: React.FC = () => {
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Keep a ref to always access latest session inside websocket callbacks
+  const currentSessionRef = useRef<typeof currentSession>(null); // NEW REF
   
   // Determine if we're in a specific chat room
   const isInChatRoom = Boolean(chatId);
@@ -95,6 +97,11 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentSession?.messages]);
+  
+  // Update ref whenever state changes
+  useEffect(() => {
+    currentSessionRef.current = currentSession;
+  }, [currentSession]);
   
   // Helper function to check if token is expired
   const isTokenExpired = (token: string): boolean => {
@@ -171,16 +178,20 @@ const ChatPage: React.FC = () => {
         const data = JSON.parse(event.data);
         
         if (data.type === 'chunk') {
-          // Handle streaming response
-          const lastMessage = currentSession?.messages[currentSession.messages.length - 1];
+          // Handle streaming response – always read latest state from ref
+          const session = currentSessionRef.current;
+          const lastMessage = session?.messages[session.messages.length - 1];
           if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
             updateMessage(lastMessage.id, {
               content: lastMessage.content + data.data
             });
           }
+        } else if (data.type === 'room_created') {
+          handleRoomCreated(data.data.chatId);
         } else if (data.type === 'end') {
           // Mark message as complete
-          const lastMessage = currentSession?.messages[currentSession.messages.length - 1];
+          const session = currentSessionRef.current;
+          const lastMessage = session?.messages[session.messages.length - 1];
           if (lastMessage && lastMessage.role === 'assistant') {
             updateMessage(lastMessage.id, {
               isComplete: true,

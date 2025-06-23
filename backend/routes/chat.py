@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 import jwt
 import json
+from bson import ObjectId
 
 from services.chat_service import chat_service
 from services.chat_history_service import chat_history_service
@@ -190,9 +191,31 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.close()
             return
             
+        # 4.1 Ensure chat document exists – create if new and inform client (Option A)
+        db_chat = None
+        try:
+            # Try load if looks like ObjectId
+            if len(session_id) == 24:
+                db_chat = await chat_history_service.get_chat_by_id(session_id)
+        except Exception:
+            db_chat = None
+
+        if db_chat is None:
+            # Create new chat in DB and send event back
+            new_chat = await chat_history_service.create_chat(
+                user_id=user_id,
+                name="New Chat",
+                agent_id=agent_id,
+                model_id=model_id,
+            )
+            session_id = new_chat.id
+            await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
+
         # 5. Call the chat service and stream the response
+        session_id_str: str = str(session_id)  # ensure correct type
+
         async for chunk in chat_service.chat(
-            session_id=session_id,
+            session_id=session_id_str,
             user_id=user_id,
             message=message,
             model_id=model_id,
