@@ -649,7 +649,7 @@ const ChatPage: React.FC = () => {
               />
               <h2 className="text-2xl font-bold text-primary mb-1">Welcome</h2>
               <h3 
-                className="text-xl font-semibold mb-2"
+                className="text-2xl font-bold mb-2"
                 style={{
                   background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
                   WebkitBackgroundClip: 'text',
