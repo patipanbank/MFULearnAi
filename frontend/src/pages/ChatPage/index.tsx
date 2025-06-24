@@ -654,7 +654,7 @@ const ChatPage: React.FC = () => {
                   />
                 </div>
               )}
-              <div className="flex flex-col max-w-[75%] sm:max-w-[85%]">
+              <div className="flex flex-col max-w-[65%] sm:max-w-[70%]">
                 {/* Timestamp */}
                 <div className={`text-xs mb-1 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
