@@ -885,7 +885,6 @@ const ChatPage: React.FC = () => {
             {/* Latest Bot Message Preview */}
             {hasMessages && getLatestBotMessage() && (
               <div className="mb-2 px-2 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg text-sm text-white/80 line-clamp-2">
-                <span className="font-medium text-white/90">Last response: </span>
                 {getLatestBotMessage()?.content}
               </div>
             )}
