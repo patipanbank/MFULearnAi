@@ -36,31 +36,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   
   // State for animation transition
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [currentMode, setCurrentMode] = useState<'floating' | 'fixbottom'>('floating');
-
-  // Determine input mode based on chat state
-  const targetMode = (hasMessages || isInChatRoom) ? 'fixbottom' : 'floating';
-
-  // Handle mode transition with animation
-  useEffect(() => {
-    if (targetMode !== currentMode) {
-      setIsTransitioning(true);
-      
-      // Start transition
-      const timer = setTimeout(() => {
-        setCurrentMode(targetMode);
-        
-        // Complete transition
-        const completeTimer = setTimeout(() => {
-          setIsTransitioning(false);
-        }, 300); // Match CSS transition duration
-        
-        return () => clearTimeout(completeTimer);
-      }, 50); // Small delay to ensure smooth transition
-      
-      return () => clearTimeout(timer);
-    }
-  }, [targetMode, currentMode]);
+  const [currentMode] = useState<'fixbottom'>('fixbottom');
 
   // Handle textarea auto-resize
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -106,50 +82,26 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
     );
     
     if (isMobile) {
-      if (currentMode === 'floating') {
-        return cn(
-          baseClasses,
-          'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-          'w-[calc(100vw-2rem)] max-w-none',
-          'border border-primary rounded-2xl shadow-2xl',
-          'backdrop-blur-sm bg-background/95',
-          // Animation classes
-          isTransitioning ? 'opacity-90 scale-95' : 'opacity-100 scale-100'
-        );
-      } else {
-        return cn(
-          baseClasses,
-          'fixed bottom-4 left-1/2 -translate-x-1/2',
-          'w-[calc(100vw-2rem)] max-w-none',
-          'border border-primary rounded-2xl shadow-lg',
-          'bg-background',
-          // Animation classes
-          isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
-        );
-      }
+      return cn(
+        baseClasses,
+        'fixed bottom-4 left-1/2 -translate-x-1/2',
+        'w-[calc(100vw-2rem)] max-w-none',
+        'border border-primary rounded-2xl shadow-lg',
+        'bg-background',
+        // Animation classes
+        isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
+      );
     } else {
       // Desktop - Position will be calculated in getContainerStyle()
-      if (currentMode === 'floating') {
-        return cn(
-          baseClasses,
-          'fixed top-1/2 -translate-x-1/2 -translate-y-1/2',
-          'w-full max-w-2xl',
-          'rounded-2xl shadow-2xl',
-          'backdrop-blur-sm bg-background/95 border border-primary',
-          // Animation classes
-          isTransitioning ? 'opacity-90 scale-95' : 'opacity-100 scale-100'
-        );
-      } else {
-        return cn(
-          baseClasses,
-          'fixed bottom-8 -translate-x-1/2',
-          'w-full max-w-2xl',
-          'rounded-2xl shadow-lg',
-          'bg-background border border-primary',
-          // Animation classes
-          isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
-        );
-      }
+      return cn(
+        baseClasses,
+        'fixed bottom-8 -translate-x-1/2',
+        'w-full max-w-2xl',
+        'rounded-2xl shadow-lg',
+        'bg-background border border-primary',
+        // Animation classes
+        isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
+      );
     }
   };
 
@@ -166,38 +118,26 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       'focus:outline-none focus:ring-0',
       'placeholder-muted text-primary',
       'text-base leading-relaxed transition-all duration-300',
-      currentMode === 'floating' ? 'text-lg py-2' : 'text-base py-1'
+      'text-base py-1'
     );
   };
 
   // Get button classes with enhanced styling for different modes
   const getButtonClasses = (variant: 'attach' | 'send') => {
-    if (currentMode === 'floating') {
-      // Floating mode: minimalist underline style
-      return cn(
-        'px-3 py-2 border-b-2 border-transparent transition-all duration-300',
-        'hover:border-blue-500 focus:border-blue-500 focus:outline-none',
-        'text-muted hover:text-primary transform hover:scale-105',
-        variant === 'send' && !disabled && message.trim() && 'text-blue-600 border-blue-600 scale-105'
-      );
-    } else {
-      // Fixed bottom mode: standard button style
-      const baseClasses = 'transition-all duration-200 transform hover:scale-105 active:scale-95';
-      return variant === 'send' 
-        ? cn('btn-primary px-4 py-2 shadow-md', baseClasses)
-        : cn('btn-ghost p-2 hover:bg-primary/10', baseClasses);
-    }
+    // Fixed bottom mode: standard button style
+    const baseClasses = 'transition-all duration-200 transform hover:scale-105 active:scale-95';
+    return variant === 'send' 
+      ? cn('btn-primary px-4 py-2 shadow-md', baseClasses)
+      : cn('btn-ghost p-2 hover:bg-primary/10', baseClasses);
   };
 
   // Get card styling based on mode
   const getCardClasses = () => {
     return cn(
       'transition-all duration-300',
-      currentMode === 'floating' 
-        ? 'p-6 backdrop-blur-md' 
-        : 'p-4',
+      'p-4',
       // Add subtle glow effect in floating mode
-      currentMode === 'floating' && 'shadow-xl shadow-primary/20'
+      'shadow-xl shadow-primary/20'
     );
   };
 
@@ -241,11 +181,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               value={message}
               onChange={handleTextareaChange}
               onKeyPress={handleKeyPress}
-              placeholder={
-                currentMode === 'floating' 
-                  ? 'Ask me anything...' 
-                  : 'Type your message...'
-              }
+              placeholder="Type your message..."
               className={getInputClasses()}
               rows={1}
               disabled={disabled || isTyping}
@@ -272,7 +208,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Attach images"
             >
               <FiPlus className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="sr-only">Attach</span>}
             </button>
 
             {/* Send Button */}
@@ -283,7 +218,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Send message"
             >
               <FiSend className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="ml-2">Send</span>}
             </button>
           </div>
         </div>
