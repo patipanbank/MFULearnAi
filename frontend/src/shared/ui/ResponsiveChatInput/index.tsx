@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { FiSend, FiPlus, FiX } from 'react-icons/fi';
 import { cn } from '../../lib/utils';
 import useLayoutStore from '../../stores/layoutStore';
@@ -35,7 +35,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // State for animation transition
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  // const [isTransitioning, setIsTransitioning] = useState(false);
   const [currentMode] = useState<'fixbottom'>('fixbottom');
 
   // Handle textarea auto-resize
@@ -78,7 +78,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
     const baseClasses = cn(
       'transition-all duration-500 ease-in-out z-[5]',
       'transform-gpu', // Use GPU acceleration
-      isTransitioning && 'transition-transform transition-opacity duration-500'
+      // isTransitioning && 'transition-transform transition-opacity duration-500'
     );
     
     if (isMobile) {
@@ -89,7 +89,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         'border border-primary rounded-2xl shadow-lg',
         'bg-background',
         // Animation classes
-        isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
+        // isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
       );
     } else {
       // Desktop - Position will be calculated in getContainerStyle()
@@ -100,7 +100,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         'rounded-2xl shadow-lg',
         'bg-background border border-primary',
         // Animation classes
-        isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
+        // isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
       );
     }
   };
@@ -148,9 +148,9 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
     >
       <div className={cn('card', getCardClasses())}>
         {/* Mode indicator (optional visual feedback) */}
-        {isTransitioning && (
+        {/* {isTransitioning && (
           <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-        )}
+        )} */}
 
         {/* Image Preview */}
         {images.length > 0 && (
