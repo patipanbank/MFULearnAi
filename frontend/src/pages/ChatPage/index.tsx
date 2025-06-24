@@ -284,12 +284,14 @@ const ChatPage: React.FC = () => {
               content: lastMessage.content + data.data
             });
           } else {
-            // สร้าง assistant message หากยังไม่มี
+            // Create assistant message if it doesn't exist
+            const now = new Date();
+            now.setHours(now.getHours() + 7); // Add 7 hours for Thai timezone
             const assistantMsg: ChatMessage = {
               id: Date.now().toString() + '_assistant',
               role: 'assistant',
               content: data.data,
-              timestamp: new Date(),
+              timestamp: now,
               isStreaming: true,
               isComplete: false
             };
