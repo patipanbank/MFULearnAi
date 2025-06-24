@@ -641,6 +641,11 @@ const ChatPage: React.FC = () => {
         {!hasMessages && (
           <div className="flex-1 flex items-center justify-center mb-32">
             <div className="text-center">
+              <img 
+                src="/mfu_logo_chatbot.png"
+                alt="MFU Logo"
+                className="w-32 h-32 mx-auto mb-8"
+              />
               <h2 className="text-4xl font-bold text-primary mb-8">DINDIN AI</h2>
               <p className="text-lg text-secondary">Start a conversation by typing your message below.</p>
             </div>
