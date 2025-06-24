@@ -631,38 +631,38 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 flex flex-col max-w-none">
         {/* Messages */}
         {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-2">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mr-3">
+                <div className="flex-shrink-0 mr-2">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
-                    className="w-8 h-8 rounded-full"
+                    className="w-6 h-6 rounded-full"
                   />
                 </div>
               )}
               <div className="flex flex-col">
                 {/* Timestamp */}
-                <div className={`text-xs mb-1 ${
+                <div className={`text-xs mb-0.5 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
                 <div
-                  className={`max-w-sm sm:max-w-md md:max-w-md lg:max-w-sm xl:max-w-xs w-fit px-4 py-3 rounded-lg ${
+                  className={`max-w-sm sm:max-w-md md:max-w-md lg:max-w-sm xl:max-w-xs w-fit px-3 py-2 rounded-lg ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white ml-4 sm:ml-6 md:ml-8 lg:ml-6 xl:ml-4'
-                      : 'card text-primary mr-4 sm:mr-6 md:mr-8 lg:mr-6 xl:mr-4'
+                      ? 'bg-blue-600 text-white ml-2 sm:ml-3 md:ml-4 lg:ml-3 xl:ml-2'
+                      : 'card text-primary mr-2 sm:mr-3 md:mr-4 lg:mr-3 xl:mr-2'
                   }`}
                 >
                   {/* Images */}
                   {msg.images && msg.images.length > 0 && (
-                    <div className="mb-3 grid grid-cols-2 gap-2">
+                    <div className="mb-2 grid grid-cols-2 gap-2">
                       {msg.images.map((img, idx) => (
                         <img
                           key={idx}
@@ -684,8 +684,8 @@ const ChatPage: React.FC = () => {
                 </div>
               </div>
               {msg.role === 'user' && (
-                <div className="flex-shrink-0 ml-3">
-                  <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium">
+                <div className="flex-shrink-0 ml-2">
+                  <div className="h-6 w-6 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-xs font-medium">
                     {getInitials()}
                   </div>
                 </div>
