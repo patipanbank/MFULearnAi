@@ -637,6 +637,16 @@ const ChatPage: React.FC = () => {
       
       {/* Chat Area - Centered with max width */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
+        {/* Show DINDIN AI text when no messages */}
+        {!hasMessages && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-primary mb-4">DINDIN AI</h1>
+              <p className="text-lg text-secondary">Start a conversation by typing your message below.</p>
+            </div>
+          </div>
+        )}
+        
         {/* Messages */}
         {hasMessages && (
         <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 pb-32 space-y-4">
@@ -727,12 +737,6 @@ const ChatPage: React.FC = () => {
         {/* Input Area - Fixed at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="px-4 pb-6">
-            {/* DINDIN AI Text - Show only when no messages */}
-            {!hasMessages && (
-              <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold text-primary">DINDIN AI</h2>
-              </div>
-            )}
             <ResponsiveChatInput
               message={message}
               onMessageChange={setMessage}
