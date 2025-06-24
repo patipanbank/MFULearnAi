@@ -9,8 +9,8 @@ export interface MongoDBDate {
 export interface User {
   _id: { $oid: string };
   email: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   role: 'user' | 'admin' | 'superadmin';
   department_id?: { $oid: string };
   student_id?: string;

@@ -36,7 +36,7 @@ const UserProfile: React.FC = () => {
   }
 
   // Extract first letter for avatar
-  const avatarLetter = user.first_name?.charAt(0) || user.email?.charAt(0) || 'U';
+  const avatarLetter = user.firstName?.charAt(0) || user.email?.charAt(0) || 'U';
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -53,7 +53,7 @@ const UserProfile: React.FC = () => {
         {/* User Info */}
         <div className="hidden sm:block text-left">
           <p className="text-sm font-medium text-primary">
-            {user.first_name} {user.last_name}
+            {user.firstName} {user.lastName}
           </p>
           <p className="text-xs text-muted truncate max-w-32">
             {user.student_id || user.email}
@@ -68,12 +68,12 @@ const UserProfile: React.FC = () => {
           <div className="p-4 bg-gradient-to-r from-red-500 to-amber-500">
             <div className="flex items-center space-x-4">
               <div className="h-16 w-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white text-2xl font-semibold">
-                {user.first_name?.charAt(0) || 'U'}
+                {user.firstName?.charAt(0) || 'U'}
               </div>
               <div className="flex-1">
                 <div>
                   <h3 className="text-xl font-bold text-white">
-                    {user.first_name} {user.last_name}
+                    {user.firstName} {user.lastName}
                   </h3>
                 </div>
               </div>
