@@ -142,45 +142,29 @@ const ChatPage: React.FC = () => {
     }
   }, [chatId, isInChatRoom, currentSession]);
   
-  // Scroll handling for loading old chats
+  // Scroll to bottom immediately when loading old chats
   useEffect(() => {
     if (currentSession?.messages.length && chatId) {
-      // Wait for images to load before scrolling
-      const images = document.querySelectorAll('.message-image');
-      let loadedImages = 0;
-      const totalImages = images.length;
-
-      const scrollToLatest = () => {
+      // Force scroll to bottom immediately when chat is loaded
+      const scrollToBottom = () => {
         const messagesContainer = document.querySelector('.messages-container');
         if (messagesContainer) {
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          // Use requestAnimationFrame to ensure DOM is ready
+          requestAnimationFrame(() => {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          });
         }
       };
 
-      if (totalImages > 0) {
-        images.forEach(img => {
-          if ((img as HTMLImageElement).complete) {
-            loadedImages++;
-            if (loadedImages === totalImages) {
-              scrollToLatest();
-            }
-          } else {
-            img.addEventListener('load', () => {
-              loadedImages++;
-              if (loadedImages === totalImages) {
-                scrollToLatest();
-              }
-            }, { once: true });
-          }
-        });
-      } else {
-        // If no images, scroll immediately
-        scrollToLatest();
-      }
+      // Execute scroll immediately and after a short delay to handle any late-loading content
+      scrollToBottom();
+      const timer = setTimeout(scrollToBottom, 100);
+
+      return () => clearTimeout(timer);
     }
-  }, [chatId, currentSession?.messages.length]);
-  
-  // Auto-scroll to bottom when new messages arrive or typing starts
+  }, [chatId, currentSession?.id]); // Only trigger when chat changes, not on every message update
+
+  // Keep the existing smooth scroll for new messages
   useEffect(() => {
     const scrollToBottom = () => {
       if (messagesEndRef.current) {
@@ -191,7 +175,7 @@ const ChatPage: React.FC = () => {
       }
     };
 
-    // Scroll when messages change or typing starts
+    // Scroll when new messages arrive or typing starts
     scrollToBottom();
 
     // Also scroll when images are loaded
