@@ -654,7 +654,7 @@ const ChatPage: React.FC = () => {
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
                 <div
-                  className={`max-w-2xl sm:max-w-xl md:max-w-2xl lg:max-w-xl xl:max-w-lg w-fit px-3 py-2 rounded-lg ${
+                  className={`max-w-2xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-2xl 2xl:max-w-3xl w-fit px-3 py-2 rounded-lg ${
                     msg.role === 'user'
                       ? 'bg-blue-600 text-white ml-2 sm:ml-3 md:ml-4 lg:ml-3 xl:ml-2'
                       : 'card text-primary mr-2 sm:mr-3 md:mr-4 lg:mr-3 xl:mr-2'
