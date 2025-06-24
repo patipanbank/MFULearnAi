@@ -143,7 +143,7 @@ const UserProfile: React.FC = () => {
               className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium text-base"
             >
               <FiLogOut className="h-5 w-5" />
-              <span>Sign Out</span>
+              <span>Log Out</span>
             </button>
           </div>
         </div>
