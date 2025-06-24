@@ -226,6 +226,13 @@ const MobileMenuOverlay: React.FC = () => {
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
 
+  // Add function to format date with Thailand timezone
+  const formatThaiDate = (date: Date | string) => {
+    const d = new Date(date);
+    d.setHours(d.getHours() + 7); // Add 7 hours for Thailand timezone
+    return d.toLocaleDateString('th-TH');
+  };
+
   if (!mobileMenuOpen) return null;
 
   return (
@@ -303,7 +310,7 @@ const MobileMenuOverlay: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-sm text-muted mt-1">
-                      {new Date(chat.updatedAt).toLocaleDateString()}
+                      {formatThaiDate(chat.updatedAt)}
                     </div>
                   </div>
                   
