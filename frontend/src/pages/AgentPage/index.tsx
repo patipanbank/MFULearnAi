@@ -83,27 +83,27 @@ const AgentPage: React.FC = () => {
     }
   };
 
-  // const handleDuplicateAgent = async (agent: AgentConfig) => {
-  //   try {
-  //     const duplicatedAgent = await createAgent({
-  //       ...agent,
-  //       name: `${agent.name} (Copy)`,
-  //       createdBy: 'current-user' // This should come from auth store
-  //     });
+  const handleDuplicateAgent = async (agent: AgentConfig) => {
+    try {
+      const duplicatedAgent = await createAgent({
+        ...agent,
+        name: `${agent.name} (Copy)`,
+        createdBy: 'current-user' // This should come from auth store
+      });
       
-  //     addToast({
-  //       type: 'success',
-  //       title: 'Agent Duplicated',
-  //       message: `Created "${duplicatedAgent.name}"`
-  //     });
-  //   } catch (error) {
-  //     addToast({
-  //       type: 'error',
-  //       title: 'Duplication Failed',
-  //       message: 'Failed to duplicate agent'
-  //     });
-  //   }
-  // };
+      addToast({
+        type: 'success',
+        title: 'Agent Duplicated',
+        message: `Created "${duplicatedAgent.name}"`
+      });
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Duplication Failed',
+        message: 'Failed to duplicate agent'
+      });
+    }
+  };
 
   const handleCreateFromTemplate = async (template: AgentTemplate) => {
     try {
