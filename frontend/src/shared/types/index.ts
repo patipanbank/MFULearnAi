@@ -14,6 +14,7 @@ export interface User {
   role: 'user' | 'admin' | 'superadmin';
   department_id?: { $oid: string };
   student_id?: string;
+  username?: string;
   is_active: boolean;
   usage: {
     total_tokens: number;

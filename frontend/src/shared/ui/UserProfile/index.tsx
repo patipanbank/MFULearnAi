@@ -71,8 +71,8 @@ const UserProfile: React.FC = () => {
                 <h3 className="text-xl font-bold text-white">
                   {user.first_name} {user.last_name}
                 </h3>
-                <p className="text-white/90 mt-1">
-                  {user.student_id}
+                <p className="text-white/80 mt-1">
+                  {user.username || user.student_id}
                 </p>
               </div>
             </div>
