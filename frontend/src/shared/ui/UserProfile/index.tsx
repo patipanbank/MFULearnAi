@@ -11,6 +11,9 @@ const UserProfile: React.FC = () => {
   const dropdownId = 'user-profile';
   const isOpen = openDropdowns.has(dropdownId);
 
+  // Debug user data
+  console.log('UserProfile - Current user data:', user);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
