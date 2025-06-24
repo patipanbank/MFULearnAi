@@ -151,7 +151,7 @@ const ChatPage: React.FC = () => {
     if (currentSession?.messages.length && chatId) {
       // Force scroll to bottom immediately when chat is loaded
       const scrollToBottom = () => {
-        const messagesContainer = document.querySelector('.flex-1.flex.flex-col');
+        const messagesContainer = document.querySelector('.messages-container');
         if (messagesContainer) {
           // Use requestAnimationFrame to ensure DOM is ready
           requestAnimationFrame(() => {
@@ -166,7 +166,7 @@ const ChatPage: React.FC = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [chatId, currentSession?.id]);
+  }, [chatId, currentSession?.id]); // Only trigger when chat changes, not on every message update
 
   // Keep the existing smooth scroll for new messages
   useEffect(() => {
@@ -679,7 +679,7 @@ const ChatPage: React.FC = () => {
   
   // Handle scroll events
   useEffect(() => {
-    const messagesContainer = document.querySelector('.flex-1.flex.flex-col');
+    const messagesContainer = document.querySelector('.messages-container');
     if (!messagesContainer) return;
 
     const handleScroll = () => {
@@ -694,7 +694,7 @@ const ChatPage: React.FC = () => {
   
   // Scroll to bottom function
   const scrollToBottom = () => {
-    const messagesContainer = document.querySelector('.flex-1.flex.flex-col');
+    const messagesContainer = document.querySelector('.messages-container');
     if (messagesContainer) {
       messagesContainer.scrollTo({
         top: messagesContainer.scrollHeight,
@@ -728,9 +728,9 @@ const ChatPage: React.FC = () => {
       </div>
       
       {/* Chat Area - Centered with max width */}
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-y-auto">
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
         {/* Messages Container - Make it fill available space */}
-        <div className="flex-1 relative">
+        <div className="flex-1 overflow-hidden relative">
           {/* Welcome Message */}
           {!hasMessages && (
             <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: '120px' }}>
@@ -758,9 +758,9 @@ const ChatPage: React.FC = () => {
           )}
 
           {/* Messages */}
-          <div className="absolute inset-0 overflow-y-auto messages-container" style={{ paddingBottom: '120px' }}>
-            <div className="min-h-[150vh] px-1 sm:px-4 py-12">
-              <div className="space-y-8 py-8">
+          <div className="messages-container" style={{ paddingBottom: '120px' }}>
+            <div className="min-h-full px-1 sm:px-4 py-4">
+              <div className="space-y-4">
                 {hasMessages && currentSession?.messages.map((msg) => (
                   <div
                     key={msg.id}
