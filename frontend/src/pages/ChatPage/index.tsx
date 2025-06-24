@@ -739,7 +739,7 @@ const ChatPage: React.FC = () => {
       {/* Chat Area - Centered with max width */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
         {/* Messages Container - Make it fill available space */}
-        <div className="flex-1 overflow-y-auto relative h-[calc(100vh-120px)]">
+        <div className="flex-1 overflow-y-auto messages-container">
           {/* Welcome Message */}
           {!hasMessages && (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -767,106 +767,101 @@ const ChatPage: React.FC = () => {
           )}
 
           {/* Messages */}
-          <div 
-            className="messages-container h-full overflow-y-auto overflow-x-hidden" 
-            style={{ paddingBottom: '100px' }}
-          >
-            <div className="min-h-full px-1 sm:px-4 py-4">
-              <div className="space-y-4">
-                {hasMessages && currentSession?.messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.role === 'user' ? 'justify-end pr-[2%] sm:pr-[15%]' : 'justify-start pl-[2%] sm:pl-[15%]'} items-end space-x-2`}
-                  >
-                    {msg.role !== 'user' && (
-                      <div className="flex-shrink-0">
-                        <img 
-                          src={dindinAvatar} 
-                          alt="DINDIN AI" 
-                          className="w-8 h-8 rounded-full shadow-md"
-                        />
-                      </div>
-                    )}
-                    <div className="flex flex-col max-w-[65%] sm:max-w-[70%]">
-                      <div className={`text-xs mb-1 ${
-                        msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
-                      }`}>
-                        {formatMessageTime(msg.timestamp)}
-                      </div>
-                      <div
-                        className={`px-4 py-3 rounded-2xl shadow-sm ${
-                          msg.role === 'user'
-                            ? 'bg-blue-600 text-white rounded-br-sm'
-                            : 'card text-primary rounded-bl-sm'
-                        }`}
-                      >
-                        {msg.images && msg.images.length > 0 && (
-                          <div className="mb-3 grid grid-cols-2 gap-3">
-                            {msg.images.map((img, idx) => (
-                              <img
-                                key={idx}
-                                src={img.url}
-                                alt="Uploaded"
-                                className="rounded-lg max-w-full h-auto shadow-sm message-image"
-                              />
-                            ))}
-                          </div>
-                        )}
-                        <div className="whitespace-pre-wrap">
-                          {msg.content}
-                          {msg.isStreaming && (
-                            <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {msg.role === 'user' && (
-                      <div className="flex-shrink-0">
-                        <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
-                          {getInitials()}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                
-                {/* Scroll to bottom button */}
-                {showScrollButton && (
-                  <button
-                    onClick={scrollToBottom}
-                    className="fixed bottom-24 right-8 bg-white text-primary p-3 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-200 z-[100] border-2 border-primary flex items-center gap-2"
-                    style={{
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                      transform: 'scale(1.1)'
-                    }}
-                    aria-label="Scroll to bottom"
-                  >
-                    <span className="text-sm font-medium">ล่างสุด</span>
-                    <FiChevronDown className="w-5 h-5" />
-                  </button>
-                )}
-                
-                {isTyping && (
-                  <div className="flex justify-start items-end space-x-2">
+          <div className="px-1 sm:px-4 py-4 pb-32">
+            <div className="space-y-4">
+              {hasMessages && currentSession?.messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.role === 'user' ? 'justify-end pr-[2%] sm:pr-[15%]' : 'justify-start pl-[2%] sm:pl-[15%]'} items-end space-x-2`}
+                >
+                  {msg.role !== 'user' && (
                     <div className="flex-shrink-0">
                       <img 
                         src={dindinAvatar} 
                         alt="DINDIN AI" 
-                        className="w-8 h-8 rounded-full shadow-md opacity-50"
+                        className="w-8 h-8 rounded-full shadow-md"
                       />
                     </div>
-                    <div className="card px-4 py-2 rounded-2xl rounded-bl-sm shadow-sm">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
-                        <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                        <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  )}
+                  <div className="flex flex-col max-w-[65%] sm:max-w-[70%]">
+                    <div className={`text-xs mb-1 ${
+                      msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
+                    }`}>
+                      {formatMessageTime(msg.timestamp)}
+                    </div>
+                    <div
+                      className={`px-4 py-3 rounded-2xl shadow-sm ${
+                        msg.role === 'user'
+                          ? 'bg-blue-600 text-white rounded-br-sm'
+                          : 'card text-primary rounded-bl-sm'
+                      }`}
+                    >
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="mb-3 grid grid-cols-2 gap-3">
+                          {msg.images.map((img, idx) => (
+                            <img
+                              key={idx}
+                              src={img.url}
+                              alt="Uploaded"
+                              className="rounded-lg max-w-full h-auto shadow-sm message-image"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <div className="whitespace-pre-wrap">
+                        {msg.content}
+                        {msg.isStreaming && (
+                          <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+                        )}
                       </div>
                     </div>
                   </div>
-                )}
-                
-                <div ref={messagesEndRef} />
-              </div>
+                  {msg.role === 'user' && (
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
+                        {getInitials()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {/* Scroll to bottom button */}
+              {showScrollButton && (
+                <button
+                  onClick={scrollToBottom}
+                  className="fixed bottom-24 right-8 bg-white text-primary p-3 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-200 z-[100] border-2 border-primary flex items-center gap-2"
+                  style={{
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    transform: 'scale(1.1)'
+                  }}
+                  aria-label="Scroll to bottom"
+                >
+                  <span className="text-sm font-medium">ล่างสุด</span>
+                  <FiChevronDown className="w-5 h-5" />
+                </button>
+              )}
+              
+              {isTyping && (
+                <div className="flex justify-start items-end space-x-2">
+                  <div className="flex-shrink-0">
+                    <img 
+                      src={dindinAvatar} 
+                      alt="DINDIN AI" 
+                      className="w-8 h-8 rounded-full shadow-md opacity-50"
+                    />
+                  </div>
+                  <div className="card px-4 py-2 rounded-2xl rounded-bl-sm shadow-sm">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} />
             </div>
           </div>
         </div>
