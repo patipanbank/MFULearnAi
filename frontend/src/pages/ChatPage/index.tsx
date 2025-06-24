@@ -450,11 +450,13 @@ const ChatPage: React.FC = () => {
     }
 
     // Add user message immediately for local rendering
+    const now = new Date();
+    now.setHours(now.getHours() - 7); // ลบ 7 ชั่วโมงสำหรับข้อความผู้ใช้ในแชทเก่า
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: message.trim(),
-      timestamp: new Date(),
+      timestamp: now,
       images: images.length > 0 ? images : undefined
     };
     
