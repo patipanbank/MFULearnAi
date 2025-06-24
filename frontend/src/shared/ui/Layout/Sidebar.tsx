@@ -227,7 +227,7 @@ const Sidebar: React.FC = () => {
               "px-4 pb-4 transition-all duration-200",
               sidebarHovered && "animate-fade-in"
             )}>
-              <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 pl-3">
                 --- Latest chat ---
               </h3>
               <div className="space-y-1">
