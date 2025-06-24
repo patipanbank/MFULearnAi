@@ -635,7 +635,7 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end pr-4 md:pr-16 lg:pr-32 xl:pr-48' : 'justify-start pl-4 md:pl-16 lg:pl-32 xl:pl-48'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end pr-2 md:pr-8 lg:pr-16 xl:pr-24' : 'justify-start pl-2 md:pl-8 lg:pl-16 xl:pl-24'}`}
             >
               {msg.role !== 'user' && (
                 <div className="flex-shrink-0 mr-2">
@@ -711,7 +711,7 @@ const ChatPage: React.FC = () => {
         
         {/* Input Area - Fixed at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
-          <div className="px-4 md:px-16 lg:px-32 xl:px-48 pb-6">
+          <div className="px-2 md:px-8 lg:px-16 xl:px-24 pb-6">
             <ResponsiveChatInput
               message={message}
               onMessageChange={setMessage}
