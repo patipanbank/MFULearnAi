@@ -13,6 +13,7 @@ export interface User {
   last_name: string;
   role: 'user' | 'admin' | 'superadmin';
   department_id?: { $oid: string };
+  student_id?: string;
   is_active: boolean;
   usage: {
     total_tokens: number;
