@@ -7,6 +7,7 @@ import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
+import mfuLogo from '../../assets/mfu_logo_chatbot.png';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -642,7 +643,7 @@ const ChatPage: React.FC = () => {
           <div className="flex-1 flex items-center justify-center mb-32">
             <div className="text-center">
               <img 
-                src="/assets/mfu_logo_chatbot.png"
+                src={mfuLogo}
                 alt="MFU Logo"
                 className="w-32 h-32 mx-auto mb-8"
               />
