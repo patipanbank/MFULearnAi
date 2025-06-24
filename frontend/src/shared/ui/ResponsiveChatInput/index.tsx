@@ -191,16 +191,16 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
     if (currentMode === 'floating') {
       // Floating mode: minimalist underline style
       return cn(
-        'px-3 py-2 border-b-2 border-transparent transition-all duration-300',
-        'hover:border-blue-500 focus:border-blue-500 focus:outline-none',
+        'p-2 transition-all duration-300',
+        'hover:bg-primary/10 focus:outline-none rounded-full',
         'text-muted hover:text-primary transform hover:scale-105',
-        variant === 'send' && !disabled && message.trim() && 'text-blue-600 border-blue-600 scale-105'
+        variant === 'send' && !disabled && message.trim() && 'text-blue-600 bg-blue-100 hover:bg-blue-200'
       );
     } else {
       // Fixed bottom mode: standard button style
-      const baseClasses = 'transition-all duration-200 transform hover:scale-105 active:scale-95';
+      const baseClasses = 'transition-all duration-200 transform hover:scale-105 active:scale-95 rounded-full';
       return variant === 'send' 
-        ? cn('btn-primary px-4 py-2 shadow-md', baseClasses)
+        ? cn('btn-primary p-3 shadow-md', baseClasses)
         : cn('btn-ghost p-2 hover:bg-primary/10', baseClasses);
     }
   };
@@ -288,7 +288,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Attach images"
             >
               <FiPlus className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="sr-only">Attach</span>}
             </button>
 
             {/* Send Button */}
@@ -299,7 +298,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Send message"
             >
               <FiSend className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="ml-2">Send</span>}
             </button>
           </div>
         </div>

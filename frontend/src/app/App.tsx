@@ -57,33 +57,33 @@ function App() {
   return (
     <>
       <Loading />
-      <Routes>
-        {/* Public Routes - No Layout */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
-        <Route path="/auth-callback" element={<AuthCallbackPage />} />
-        <Route path="/logout/success" element={<LogoutSuccessPage />} />
+    <Routes>
+      {/* Public Routes - No Layout */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/auth-callback" element={<AuthCallbackPage />} />
+      <Route path="/logout/success" element={<LogoutSuccessPage />} />
 
-        {/* Protected Routes with Layout */}
-        <Route element={<AuthGuard />}>
-          <Route path="/*" element={
-            <Layout>
-              <Routes>
-                <Route path="/chat" element={<ChatPage />} />
-                <Route path="/chat/:chatId" element={<ChatPage />} />
-                <Route path="/chat/history" element={<div className="p-6"><h1 className="text-2xl font-bold">Chat History</h1><p>Chat history will be implemented here</p></div>} />
-                <Route path="/knowledgebase" element={<div className="p-6"><h1 className="text-2xl font-bold">Knowledge Base</h1><p>Knowledge base management is now integrated into Agent system</p></div>} />
-                <Route path="/agent" element={<AgentPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                {/* Fallback */}
-                <Route path="*" element={<ChatPage />} />
-              </Routes>
-            </Layout>
-          } />
-        </Route>
-      </Routes>
+      {/* Protected Routes with Layout */}
+      <Route element={<AuthGuard />}>
+        <Route path="/*" element={
+          <Layout>
+            <Routes>
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/chat/:chatId" element={<ChatPage />} />
+              <Route path="/chat/history" element={<div className="p-6"><h1 className="text-2xl font-bold">Chat History</h1><p>Chat history will be implemented here</p></div>} />
+              <Route path="/knowledgebase" element={<div className="p-6"><h1 className="text-2xl font-bold">Knowledge Base</h1><p>Knowledge base management is now integrated into Agent system</p></div>} />
+              <Route path="/agent" element={<AgentPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              {/* Fallback */}
+              <Route path="*" element={<ChatPage />} />
+            </Routes>
+          </Layout>
+        } />
+      </Route>
+    </Routes>
     </>
   );
 }
