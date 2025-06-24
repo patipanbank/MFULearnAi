@@ -142,6 +142,23 @@ const ChatPage: React.FC = () => {
     }
   }, [chatId, isInChatRoom, currentSession]);
   
+  // Auto-scroll to bottom when loading old chats
+  useEffect(() => {
+    if (currentSession?.messages.length && chatId) {
+      // Small delay to ensure content is rendered
+      const timer = setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({
+            behavior: 'auto', // Use instant scroll for initial load
+            block: 'end'
+          });
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [chatId, currentSession?.messages.length]);
+  
   // Auto-scroll to bottom when new messages arrive or typing starts
   useEffect(() => {
     const scrollToBottom = () => {
