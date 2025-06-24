@@ -718,9 +718,9 @@ const ChatPage: React.FC = () => {
   }
   
   return (
-    <div className="flex h-full bg-primary relative">
+    <div className="flex h-full bg-primary relative overflow-hidden">
       {/* Add a subtle background pattern */}
-      <div className="absolute inset-0 opacity-5">
+      <div className="absolute inset-0 opacity-5 pointer-events-none">
         <div className="w-full h-full" style={{
           backgroundImage: `radial-gradient(circle at 1px 1px, rgb(186,12,47) 1px, transparent 0)`,
           backgroundSize: '40px 40px'
@@ -728,37 +728,37 @@ const ChatPage: React.FC = () => {
       </div>
       
       {/* Chat Area - Centered with max width */}
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
-        {/* Welcome Message */}
-        {!hasMessages && (
-          <div className="flex-1 flex items-center justify-center mb-32">
-            <div className="text-center">
-              <img 
-                src={mfuLogo}
-                alt="MFU Logo"
-                className="w-32 h-32 mx-auto mb-0.5"
-              />
-              <h2 className="text-2xl font-bold text-primary mb-0">Welcome</h2>
-              <h3 
-                className="text-2xl font-bold mb-0.5"
-                style={{
-                  background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text'
-                }}
-              >
-                {user?.firstName || 'Guest'}
-              </h3>
-              <p className="text-base text-secondary">How can I help you today?</p>
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-y-auto messages-container">
+        <div className="flex-1 min-h-full" style={{ paddingBottom: '120px' }}>
+          {/* Welcome Message */}
+          {!hasMessages && (
+            <div className="flex-1 flex items-center justify-center mb-32">
+              <div className="text-center">
+                <img 
+                  src={mfuLogo}
+                  alt="MFU Logo"
+                  className="w-32 h-32 mx-auto mb-0.5"
+                />
+                <h2 className="text-2xl font-bold text-primary mb-0">Welcome</h2>
+                <h3 
+                  className="text-2xl font-bold mb-0.5"
+                  style={{
+                    background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}
+                >
+                  {user?.firstName || 'Guest'}
+                </h3>
+                <p className="text-base text-secondary">How can I help you today?</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Messages */}
-        {hasMessages && (
-          <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 messages-container relative" style={{ paddingBottom: '120px', touchAction: 'pan-y' }}>
-            <div className="space-y-4 min-h-full">
+          {/* Messages */}
+          {hasMessages && (
+            <div className="px-1 sm:px-4 py-4 space-y-4">
               {currentSession?.messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -853,25 +853,25 @@ const ChatPage: React.FC = () => {
               
               <div ref={messagesEndRef} />
             </div>
-          </div>
-        )}
-        
-        {/* Input Area - Fixed at Bottom */}
-        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
-          <div className="container mx-auto max-w-4xl px-4 pb-6">
-            <ResponsiveChatInput
-              message={message}
-              onMessageChange={setMessage}
-              onSendMessage={sendMessage}
-              onImageUpload={handleImageUpload}
-              images={images}
-              onRemoveImage={handleRemoveImage}
-              disabled={!selectedAgent || isLoading}
-              isTyping={isTyping}
-              hasMessages={hasMessages}
-              isInChatRoom={isInChatRoom}
-              onRoomCreated={handleRoomCreated}
-            />
+          )}
+          
+          {/* Input Area - Fixed at Bottom */}
+          <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
+            <div className="container mx-auto max-w-4xl px-4 pb-6">
+              <ResponsiveChatInput
+                message={message}
+                onMessageChange={setMessage}
+                onSendMessage={sendMessage}
+                onImageUpload={handleImageUpload}
+                images={images}
+                onRemoveImage={handleRemoveImage}
+                disabled={!selectedAgent || isLoading}
+                isTyping={isTyping}
+                hasMessages={hasMessages}
+                isInChatRoom={isInChatRoom}
+                onRoomCreated={handleRoomCreated}
+              />
+            </div>
           </div>
         </div>
       </div>
