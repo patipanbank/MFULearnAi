@@ -645,11 +645,11 @@ const ChatPage: React.FC = () => {
               <img 
                 src={mfuLogo}
                 alt="MFU Logo"
-                className="w-24 h-24 mx-auto mb-1"
+                className="w-24 h-24 mx-auto mb-0.5"
               />
-              <h2 className="text-2xl font-bold text-primary mb-0.5">Welcome</h2>
+              <h2 className="text-2xl font-bold text-primary mb-0">Welcome</h2>
               <h3 
-                className="text-2xl font-bold mb-1"
+                className="text-2xl font-bold mb-0.5"
                 style={{
                   background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
                   WebkitBackgroundClip: 'text',
