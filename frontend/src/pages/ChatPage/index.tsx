@@ -759,8 +759,8 @@ const ChatPage: React.FC = () => {
 
           {/* Messages */}
           <div className="absolute inset-0 overflow-y-auto messages-container" style={{ paddingBottom: '120px' }}>
-            <div className="min-h-full px-1 sm:px-4 py-4">
-              <div className="space-y-4">
+            <div className="min-h-[150vh] px-1 sm:px-4 py-12">
+              <div className="space-y-8 py-8">
                 {hasMessages && currentSession?.messages.map((msg) => (
                   <div
                     key={msg.id}
