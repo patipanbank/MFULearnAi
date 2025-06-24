@@ -68,18 +68,12 @@ const UserProfile: React.FC = () => {
           <div className="p-4 bg-gradient-to-r from-red-500 to-amber-500">
             <div className="flex items-center space-x-4">
               <div className="h-16 w-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white text-2xl font-semibold">
-                {user.username?.charAt(0) || 'U'}
+                {user.first_name?.charAt(0) || 'U'}
               </div>
               <div className="flex-1">
-                <div className="space-y-1">
-                  <div className="text-base font-medium text-white/90">
-                    {user.first_name}
-                  </div>
-                  <div className="text-base font-medium text-white/90">
-                    {user.last_name}
-                  </div>
+                <div>
                   <h3 className="text-xl font-bold text-white">
-                    {user.username}
+                    {user.first_name} {user.last_name}
                   </h3>
                 </div>
               </div>
