@@ -189,7 +189,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Name</label>
                 <input
                   type="text"
-                  value={localProfile.name || (user ? `${user.first_name} ${user.last_name}` : '') || ''}
+                  value={localProfile.name || (user ? `${user.firstName} ${user.lastName}` : '') || ''}
                   onChange={(e) => setLocalProfile({ ...localProfile, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
                   placeholder="Enter your name"
