@@ -11,7 +11,6 @@ import {
   FiTrash2
 } from 'react-icons/fi';
 import { cn } from '../../lib/utils';
-import { formatDate } from '../../lib/utils';
 import useLayoutStore from '../../stores/layoutStore';
 import useUIStore from '../../stores/uiStore';
 import { useChatStore } from '../../stores/chatStore';
@@ -258,7 +257,7 @@ const Sidebar: React.FC = () => {
                           </span>
                         </div>
                         <div className="text-xs text-muted mt-1">
-                          {formatDate(chat.updatedAt)}
+                          {new Date(chat.updatedAt).toLocaleDateString()}
                         </div>
                       </div>
                       
