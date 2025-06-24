@@ -2,13 +2,11 @@ import React, { useRef, useEffect } from 'react';
 import { FiLogOut, FiChevronDown, FiUser, FiMail, FiHome } from 'react-icons/fi';
 import useAuthStore from '../../../entities/user/store';
 import useUIStore from '../../stores/uiStore';
-import { useSettingsStore } from '../../stores/settingsStore';
 
 const UserProfile: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, logoutSAML } = useAuthStore();
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
-  const { preferences } = useSettingsStore();
   
   const dropdownId = 'user-profile';
   const isOpen = openDropdowns.has(dropdownId);
