@@ -6,8 +6,6 @@ import {
   FiSettings,
   FiUser,
   FiDatabase,
-  FiKey,
-  FiShield,
   FiBookmark,
   FiTrash2,
   FiSearch
