@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiClock, FiFileText, FiMessageSquare } from 'react-icons/fi';
+import { FiSearch, FiMessageSquare } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import type { AxiosResponse } from 'axios';
 
