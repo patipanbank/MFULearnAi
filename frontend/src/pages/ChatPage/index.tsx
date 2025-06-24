@@ -658,7 +658,7 @@ const ChatPage: React.FC = () => {
                       className={`max-w-xl w-fit px-4 py-3 rounded-2xl ${
                         msg.role === 'user'
                           ? 'bg-blue-600 text-white ml-4 shadow-md'
-                          : 'bg-gradient-to-br from-gray-800/90 via-gray-800/80 to-gray-800/70 backdrop-blur-sm text-white mr-4 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out border border-gray-700/30 hover:border-gray-600/40'
+                          : 'bg-white dark:bg-gradient-to-br dark:from-gray-800/90 dark:via-gray-800/80 dark:to-gray-800/70 backdrop-blur-sm text-gray-800 dark:text-white mr-4 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out border border-gray-200 dark:border-gray-700/30 hover:border-gray-300 dark:hover:border-gray-600/40'
                       }`}
                     >
                       {/* Images */}
@@ -696,16 +696,16 @@ const ChatPage: React.FC = () => {
               
               {isTyping && (
                 <div className="flex justify-start max-w-3xl mx-auto">
-                  <div className="flex items-center space-x-3 bg-gradient-to-br from-gray-800/90 via-gray-800/80 to-gray-800/70 backdrop-blur-sm px-5 py-4 rounded-2xl shadow-lg border border-gray-700/30">
+                  <div className="flex items-center space-x-3 bg-white dark:bg-gradient-to-br dark:from-gray-800/90 dark:via-gray-800/80 dark:to-gray-800/70 backdrop-blur-sm px-5 py-4 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700/30">
                     <img 
                       src={dindinAvatar} 
                       alt="DINDIN AI" 
-                      className="w-7 h-7 rounded-full ring-2 ring-gray-600/30"
+                      className="w-7 h-7 rounded-full ring-2 ring-gray-200 dark:ring-gray-600/30"
                     />
                     <div className="flex space-x-2">
-                      <div className="w-2.5 h-2.5 bg-blue-400/80 rounded-full animate-bounce" />
-                      <div className="w-2.5 h-2.5 bg-blue-400/80 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                      <div className="w-2.5 h-2.5 bg-blue-400/80 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                      <div className="w-2.5 h-2.5 bg-blue-500/80 dark:bg-blue-400/80 rounded-full animate-bounce" />
+                      <div className="w-2.5 h-2.5 bg-blue-500/80 dark:bg-blue-400/80 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                      <div className="w-2.5 h-2.5 bg-blue-500/80 dark:bg-blue-400/80 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
                     </div>
                   </div>
                 </div>
