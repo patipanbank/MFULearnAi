@@ -7,6 +7,126 @@ import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
+import { format } from 'date-fns';
+import { th } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../../shared/lib/utils';
+
+// Message animation variants
+const messageVariants = {
+  hidden: { 
+    opacity: 0,
+    y: 20,
+    scale: 0.95
+  },
+  visible: { 
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 500,
+      damping: 40
+    }
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    transition: { duration: 0.2 }
+  }
+};
+
+// Typing indicator animation
+const TypingIndicator = () => (
+  <div className="flex items-center space-x-2 p-4 bg-primary/5 rounded-lg">
+    <div className="flex space-x-1">
+      <motion.div
+        className="w-2 h-2 bg-primary/40 rounded-full"
+        animate={{ y: [0, -5, 0] }}
+        transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
+      />
+      <motion.div
+        className="w-2 h-2 bg-primary/40 rounded-full"
+        animate={{ y: [0, -5, 0] }}
+        transition={{ duration: 0.5, delay: 0.2, repeat: Infinity, repeatType: "reverse" }}
+      />
+      <motion.div
+        className="w-2 h-2 bg-primary/40 rounded-full"
+        animate={{ y: [0, -5, 0] }}
+        transition={{ duration: 0.5, delay: 0.4, repeat: Infinity, repeatType: "reverse" }}
+      />
+    </div>
+    <span className="text-sm text-primary/60">AI กำลังพิมพ์...</span>
+  </div>
+);
+
+// Message component
+const ChatMessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ message, isLast }) => {
+  const isUser = message.role === 'user';
+  
+  return (
+    <motion.div
+      variants={messageVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className={cn(
+        "flex w-full mb-6",
+        isUser ? "justify-end" : "justify-start"
+      )}
+    >
+      {!isUser && (
+        <div className="flex-shrink-0 mr-4">
+          <img
+            src={dindinAvatar}
+            alt="AI Avatar"
+            className="w-10 h-10 rounded-full shadow-lg border-2 border-primary/20"
+          />
+        </div>
+      )}
+      
+      <div className={cn(
+        "flex flex-col max-w-[80%] space-y-1",
+        isUser ? "items-end" : "items-start"
+      )}>
+        <div className={cn(
+          "px-4 py-3 rounded-2xl break-words",
+          isUser ? "bg-primary text-primary-foreground" : "bg-muted",
+          message.isStreaming && "animate-pulse"
+        )}>
+          <div className="prose prose-sm max-w-none">
+            {message.content}
+          </div>
+          {message.images && message.images.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {message.images.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img.url}
+                  alt="Attached"
+                  className="max-w-[200px] rounded-lg border border-primary/20 hover:scale-105 transition-transform cursor-pointer"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {format(new Date(message.timestamp || Date.now()), 'HH:mm', { locale: th })}
+        </span>
+      </div>
+
+      {isUser && (
+        <div className="flex-shrink-0 ml-4">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <span className="text-sm font-medium text-primary">
+              {message.username?.slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -626,106 +746,41 @@ const ChatPage: React.FC = () => {
   }
   
   return (
-    <div className="flex h-full bg-primary">
-      {/* Chat Area - Full Width without Header */}
-      <div className="flex-1 flex flex-col max-w-none">
-        {/* Messages */}
-        {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-2">
-          {currentSession?.messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mr-2">
-                  <img 
-                    src={dindinAvatar} 
-                    alt="DINDIN AI" 
-                    className="w-6 h-6 rounded-full"
-                  />
-                </div>
-              )}
-              <div className="flex flex-col">
-                {/* Timestamp */}
-                <div className={`text-xs mb-0.5 ${
-                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
-                }`}>
-                  {msg.timestamp.toLocaleTimeString()}
-                </div>
-                <div
-                  className={`max-w-sm sm:max-w-md md:max-w-md lg:max-w-sm xl:max-w-xs w-fit px-3 py-2 rounded-lg ${
-                    msg.role === 'user'
-                      ? 'bg-blue-600 text-white ml-2 sm:ml-3 md:ml-4 lg:ml-3 xl:ml-2'
-                      : 'card text-primary mr-2 sm:mr-3 md:mr-4 lg:mr-3 xl:mr-2'
-                  }`}
-                >
-                  {/* Images */}
-                  {msg.images && msg.images.length > 0 && (
-                    <div className="mb-2 grid grid-cols-2 gap-2">
-                      {msg.images.map((img, idx) => (
-                        <img
-                          key={idx}
-                          src={img.url}
-                          alt="Uploaded"
-                          className="rounded-lg max-w-full h-auto"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Message Content */}
-                  <div className="whitespace-pre-wrap">
-                    {msg.content}
-                    {msg.isStreaming && (
-                      <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
-                    )}
-                  </div>
-                </div>
-              </div>
-              {msg.role === 'user' && (
-                <div className="flex-shrink-0 ml-2">
-                  <div className="h-6 w-6 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-xs font-medium">
-                    {getInitials()}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+    <div className="flex flex-col h-full bg-gradient-to-b from-background to-muted/20">
+      {/* Chat messages container */}
+      <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="max-w-3xl mx-auto">
+          <AnimatePresence mode="popLayout">
+            {currentSession?.messages.map((msg, idx) => (
+              <ChatMessageBubble
+                key={msg.id}
+                message={msg}
+                isLast={idx === currentSession.messages.length - 1}
+              />
+            ))}
+          </AnimatePresence>
           
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="card px-4 py-3">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                </div>
-              </div>
-            </div>
-          )}
+          {isTyping && <TypingIndicator />}
           
           <div ref={messagesEndRef} />
         </div>
-        )}
-        
-        {/* Input Area - Fixed at Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
-          <div className="px-4 md:px-16 lg:px-32 xl:px-48 pb-6">
-            <ResponsiveChatInput
-              message={message}
-              onMessageChange={setMessage}
-              onSendMessage={sendMessage}
-              onImageUpload={handleImageUpload}
-              images={images}
-              onRemoveImage={handleRemoveImage}
-              disabled={!selectedAgent || isLoading}
-              isTyping={isTyping}
-              hasMessages={hasMessages}
-              isInChatRoom={isInChatRoom}
-              onRoomCreated={handleRoomCreated}
-            />
-          </div>
+      </div>
+
+      {/* Input area */}
+      <div className="flex-shrink-0 border-t bg-background/80 backdrop-blur-sm">
+        <div className="max-w-3xl mx-auto w-full px-4">
+          <ResponsiveChatInput
+            message={message}
+            onMessageChange={setMessage}
+            onSendMessage={sendMessage}
+            onImageUpload={handleImageUpload}
+            images={images}
+            onRemoveImage={handleRemoveImage}
+            disabled={!selectedAgent || isTyping}
+            isTyping={isTyping}
+            hasMessages={hasMessages}
+            isInChatRoom={isInChatRoom}
+          />
         </div>
       </div>
     </div>
