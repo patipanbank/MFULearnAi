@@ -730,7 +730,7 @@ const ChatPage: React.FC = () => {
       {/* Chat Area - Centered with max width */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
         {/* Messages Container - Make it fill available space */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden relative h-[calc(100vh-120px)]">
           {/* Welcome Message */}
           {!hasMessages && (
             <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: '120px' }}>
@@ -758,7 +758,7 @@ const ChatPage: React.FC = () => {
           )}
 
           {/* Messages */}
-          <div className="messages-container" style={{ paddingBottom: '120px' }}>
+          <div className="messages-container h-full overflow-y-auto overflow-x-hidden" style={{ paddingBottom: '120px' }}>
             <div className="min-h-full px-1 sm:px-4 py-4">
               <div className="space-y-4">
                 {hasMessages && currentSession?.messages.map((msg) => (
