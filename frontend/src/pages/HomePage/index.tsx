@@ -116,6 +116,10 @@ const HomePage: React.FC = () => {
         {/* Input Area - Fixed at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="px-4 pb-6">
+            {/* DINDIN AI Text */}
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-bold text-primary">DINDIN AI</h2>
+            </div>
             <ResponsiveChatInput
               message={message}
               onMessageChange={setMessage}
