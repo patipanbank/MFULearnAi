@@ -264,7 +264,7 @@
   .modal-content {
     background-color: rgb(var(--color-modal));
     border-color: rgb(var(--color-border));
-    @apply rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-hidden;
+    @apply rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden;
     animation: scale-in 0.2s ease-out;
   }
 
