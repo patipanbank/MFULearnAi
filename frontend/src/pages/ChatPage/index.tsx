@@ -452,7 +452,7 @@ const ChatPage: React.FC = () => {
       id: Date.now().toString(),
       role: 'user',
       content: message.trim(),
-      timestamp: new Date(),
+      timestamp: new Date(new Date().toLocaleString('en-US', { timeZone: 'UTC' })),
       images: images.length > 0 ? images : undefined
     };
     
@@ -463,7 +463,7 @@ const ChatPage: React.FC = () => {
       id: Date.now().toString() + '_assistant',
       role: 'assistant',
       content: '',
-      timestamp: new Date(),
+      timestamp: new Date(new Date().toLocaleString('en-US', { timeZone: 'UTC' })),
       isStreaming: true,
       isComplete: false
     };
