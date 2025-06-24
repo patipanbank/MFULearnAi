@@ -27,6 +27,9 @@ const UserProfile: React.FC = () => {
   }, [closeDropdown, dropdownId]);
 
   const handleCompleteLogout = () => {
+    // Open login page in new tab first
+    window.open('/login', '_blank');
+    // Then perform logout
     logoutSAML();
     closeDropdown(dropdownId);
   };
