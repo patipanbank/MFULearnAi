@@ -284,9 +284,9 @@ const ChatPage: React.FC = () => {
               content: lastMessage.content + data.data
             });
           } else {
-            // Create assistant message if it doesn't exist
+            // สร้าง assistant message หากยังไม่มี
             const now = new Date();
-            now.setHours(now.getHours() + 7); // Add 7 hours for Thai timezone
+            now.setHours(now.getHours() - 7); // ลบ 7 ชั่วโมงสำหรับข้อความ AI
             const assistantMsg: ChatMessage = {
               id: Date.now().toString() + '_assistant',
               role: 'assistant',
