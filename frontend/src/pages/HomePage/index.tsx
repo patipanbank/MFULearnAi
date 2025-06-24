@@ -104,10 +104,12 @@ const HomePage: React.FC = () => {
       
       {/* Chat Area - Centered with max width */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
-        <div className="flex-1 flex items-center justify-center px-4">
-          <div className="text-center max-w-2xl">
-            <h1 className="text-4xl font-bold text-primary mb-4">Welcome to MFU Learn AI</h1>
-            <p className="text-lg text-secondary mb-8">Start a conversation by typing your message below.</p>
+        <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 pb-32">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center max-w-2xl">
+              <h1 className="text-4xl font-bold text-primary mb-4">Welcome to MFU Learn AI</h1>
+              <p className="text-lg text-secondary">Start a conversation by typing your message below.</p>
+            </div>
           </div>
         </div>
         
