@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { FiSend, FiPlus, FiX } from 'react-icons/fi';
 import { cn } from '../../lib/utils';
 import useLayoutStore from '../../stores/layoutStore';
@@ -240,7 +240,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         </div>
 
         {/* Connection status indicator */}
-        {currentMode === 'fixbottom' && isInChatRoom && (
+        {isInChatRoom && (
           <div className="absolute bottom-1 left-4 flex items-center space-x-1 text-xs text-green-600">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span>Connected</span>
