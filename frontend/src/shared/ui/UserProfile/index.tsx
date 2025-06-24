@@ -73,13 +73,13 @@ const UserProfile: React.FC = () => {
               <div className="flex-1">
                 <div className="space-y-0.5">
                   <h3 className="text-base font-medium text-white/90">
-                    {user.first_name}
+                    {user.first_name?.toUpperCase()}
                   </h3>
                   <h3 className="text-base font-medium text-white/90">
-                    {user.last_name}
+                    {user.last_name?.toUpperCase()}
                   </h3>
                   <p className="text-sm text-white/80">
-                    {user.username || user.student_id}
+                    {user.username}
                   </p>
                 </div>
               </div>
