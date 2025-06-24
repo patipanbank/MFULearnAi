@@ -635,10 +635,10 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start ml-8'}`}
             >
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mr-2 ml-8">
+                <div className="flex-shrink-0 mr-2">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
@@ -649,7 +649,7 @@ const ChatPage: React.FC = () => {
               <div className="flex flex-col">
                 {/* Timestamp */}
                 <div className={`text-xs mb-0.5 ${
-                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted ml-8'
+                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
@@ -657,7 +657,7 @@ const ChatPage: React.FC = () => {
                   className={`max-w-sm sm:max-w-md md:max-w-md lg:max-w-sm xl:max-w-xs w-fit px-3 py-2 rounded-lg ${
                     msg.role === 'user'
                       ? 'bg-blue-600 text-white ml-2 sm:ml-3 md:ml-4 lg:ml-3 xl:ml-2'
-                      : 'card text-primary mr-2 sm:mr-3 md:mr-4 lg:mr-3 xl:mr-2 ml-8'
+                      : 'card text-primary mr-2 sm:mr-3 md:mr-4 lg:mr-3 xl:mr-2'
                   }`}
                 >
                   {/* Images */}
