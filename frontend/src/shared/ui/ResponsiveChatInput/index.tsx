@@ -210,8 +210,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
     return cn(
       'transition-all duration-300',
       currentMode === 'floating' 
-        ? 'p-6 backdrop-blur-md' 
-        : 'p-4',
+        ? 'p-4 backdrop-blur-md' 
+        : 'p-2 sm:p-3',
       // Add subtle glow effect in floating mode
       currentMode === 'floating' && 'shadow-xl shadow-primary/20'
     );
@@ -249,9 +249,9 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           </div>
         )}
 
-        <div className="flex items-end space-x-1 sm:space-x-3">
+        <div className="flex items-end space-x-0.5">
           {/* Textarea */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pr-0.5">
             <textarea
               ref={textareaRef}
               value={message}
@@ -269,7 +269,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-0.5 sm:space-x-1 flex-shrink-0">
+          <div className="flex items-center gap-0.5 flex-shrink-0">
             {/* File Input */}
             <input
               ref={fileInputRef}
