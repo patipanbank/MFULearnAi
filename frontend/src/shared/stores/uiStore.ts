@@ -77,10 +77,10 @@ export const useUIStore = create<UIState>((set, get) => ({
   
   // Toasts
   toasts: [],
-  addToast: () => {
+  addToast: (_toast: Omit<Toast, 'id' | 'createdAt'>) => {
     // Disabled - do nothing
   },
-  removeToast: () => {
+  removeToast: (_toastId: string) => {
     // Disabled - do nothing
   },
   clearToasts: () => {
@@ -192,19 +192,19 @@ export const useUIStore = create<UIState>((set, get) => ({
 }));
 
 // Helper functions for common toast patterns
-export const showSuccessToast = () => {
+export const showSuccessToast = (_title: string, _message?: string) => {
   // Disabled - do nothing
 };
 
-export const showErrorToast = () => {
+export const showErrorToast = (_title: string, _message?: string) => {
   // Disabled - do nothing
 };
 
-export const showWarningToast = () => {
+export const showWarningToast = (_title: string, _message?: string) => {
   // Disabled - do nothing
 };
 
-export const showInfoToast = () => {
+export const showInfoToast = (_title: string, _message?: string) => {
   // Disabled - do nothing
 };
 
