@@ -639,11 +639,11 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
         {/* Messages */}
         {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-32 space-y-4">
+        <div className="flex-1 overflow-y-auto px-0 sm:px-4 py-4 pb-32 space-y-4">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end pr-[15%]' : 'justify-start pl-[15%]'} items-end space-x-2`}
+              className={`flex ${msg.role === 'user' ? 'justify-end pr-0 sm:pr-[15%]' : 'justify-start pl-0 sm:pl-[15%]'} items-end space-x-2 px-2 sm:px-0`}
             >
               {msg.role !== 'user' && (
                 <div className="flex-shrink-0">
