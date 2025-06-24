@@ -613,11 +613,11 @@ const ChatPage: React.FC = () => {
   };
   
   const formatMessageTime = (timestamp: Date) => {
-    return new Date(timestamp).toLocaleTimeString('th-TH', {
+    return new Date(timestamp).toLocaleTimeString(config.locale, {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-      timeZone: 'Asia/Bangkok' // UTC+7 (Thailand timezone)
+      timeZone: config.timezone
     });
   };
   

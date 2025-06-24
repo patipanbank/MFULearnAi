@@ -2,16 +2,15 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timezone
 from enum import Enum
-
-class ImagePayload(BaseModel):
-    url: str
-    mediaType: str
+import pytz
+from config.config import settings
+from .image import ImagePayload
 
 class ChatMessage(BaseModel):
     id: str
     role: str  # 'user' or 'assistant'
     content: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(pytz.timezone(settings.TIMEZONE)))
     images: Optional[List[ImagePayload]] = None
     # Streaming flags (optional)
     isStreaming: Optional[bool] = None
