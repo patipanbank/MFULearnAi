@@ -635,10 +635,10 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-end md:justify-end lg:justify-end xl:justify-end'} ${msg.role === 'assistant' && 'pr-[10%] md:pr-[15%] lg:pr-[20%] xl:pr-[25%]'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mr-2 order-2">
+                <div className="flex-shrink-0 mr-2">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
@@ -646,10 +646,10 @@ const ChatPage: React.FC = () => {
                   />
                 </div>
               )}
-              <div className="flex flex-col order-1">
+              <div className="flex flex-col">
                 {/* Timestamp */}
                 <div className={`text-xs mb-0.5 ${
-                  msg.role === 'user' ? 'text-right text-muted' : 'text-right text-muted'
+                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
@@ -657,7 +657,7 @@ const ChatPage: React.FC = () => {
                   className={`max-w-sm sm:max-w-md md:max-w-md lg:max-w-sm xl:max-w-xs w-fit px-3 py-2 rounded-lg ${
                     msg.role === 'user'
                       ? 'bg-blue-600 text-white ml-2 sm:ml-3 md:ml-4 lg:ml-3 xl:ml-2'
-                      : 'card text-primary ml-2 sm:ml-3 md:ml-4 lg:ml-3 xl:ml-2'
+                      : 'card text-primary mr-2 sm:mr-3 md:mr-4 lg:mr-3 xl:mr-2'
                   }`}
                 >
                   {/* Images */}
@@ -684,7 +684,7 @@ const ChatPage: React.FC = () => {
                 </div>
               </div>
               {msg.role === 'user' && (
-                <div className="flex-shrink-0 ml-2 order-3">
+                <div className="flex-shrink-0 ml-2">
                   <div className="h-6 w-6 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-xs font-medium">
                     {getInitials()}
                   </div>
