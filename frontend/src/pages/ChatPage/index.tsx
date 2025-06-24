@@ -645,10 +645,10 @@ const ChatPage: React.FC = () => {
               <img 
                 src={mfuLogo}
                 alt="MFU Logo"
-                className="w-24 h-24 mx-auto mb-8"
+                className="w-24 h-24 mx-auto mb-6"
               />
-              <h2 className="text-4xl font-bold text-primary mb-8">DINDIN AI</h2>
-              <p className="text-lg text-secondary">Start a conversation by typing your message below.</p>
+              <h2 className="text-3xl font-bold text-primary mb-4">DINDIN AI</h2>
+              <p className="text-base text-secondary">Start a conversation by typing your message below.</p>
             </div>
           </div>
         )}
