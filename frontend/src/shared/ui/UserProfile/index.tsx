@@ -151,32 +151,6 @@ const UserProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* Account Info */}
-          <div className="p-4 border-b border-border">
-            <div className="text-xs font-medium text-muted uppercase tracking-wider mb-3">Account Information</div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between items-center py-1">
-                <span className="text-sm text-secondary">Member since</span>
-                <span className="text-sm font-medium text-primary">
-                  {new Date().toLocaleDateString()}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center py-1">
-                <span className="text-sm text-secondary">Last login</span>
-                <span className="text-sm font-medium text-primary">Today</span>
-              </div>
-              
-              <div className="flex justify-between items-center py-1">
-                <span className="text-sm text-secondary">Account type</span>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                  {user.role || 'Student'}
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Complete Logout */}
           <div className="p-4">
             <button
@@ -187,7 +161,7 @@ const UserProfile: React.FC = () => {
               <span>Complete Logout</span>
             </button>
             <div className="text-xs text-muted text-center mt-2">
-              This will sign you out from all devices
+              This will log you out from all active sessions
             </div>
           </div>
         </div>
