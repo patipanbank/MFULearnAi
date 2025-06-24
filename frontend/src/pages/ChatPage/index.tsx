@@ -643,7 +643,7 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end pr-0 sm:pr-[15%]' : 'justify-start pl-0 sm:pl-[15%]'} items-end space-x-2 px-2 sm:px-0`}
+              className={`flex ${msg.role === 'user' ? 'justify-end pr-[15%]' : 'justify-start pl-[15%]'} items-end space-x-2`}
             >
               {msg.role !== 'user' && (
                 <div className="flex-shrink-0">
@@ -654,7 +654,7 @@ const ChatPage: React.FC = () => {
                   />
                 </div>
               )}
-              <div className="flex flex-col max-w-[60%]">
+              <div className="flex flex-col max-w-[75%] sm:max-w-[85%]">
                 {/* Timestamp */}
                 <div className={`text-xs mb-1 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
