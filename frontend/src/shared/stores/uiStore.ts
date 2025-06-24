@@ -69,7 +69,7 @@ interface UIState {
   removeUploadProgress: (fileId: string) => void;
 }
 
-export const useUIStore = create<UIState>((set, get) => ({
+export const useUIStore = create<UIState>((set) => ({
   // Global loading
   isLoading: false,
   loadingMessage: undefined,
