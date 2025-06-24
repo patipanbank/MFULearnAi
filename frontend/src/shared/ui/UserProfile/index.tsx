@@ -67,9 +67,9 @@ const UserProfile: React.FC = () => {
 
       {/* Dropdown Menu with Animation */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[320px] bg-primary border border-border rounded-xl shadow-xl overflow-hidden dropdown-menu py-2 animate-slide-in-from-bottom-2">
+        <div className="absolute right-0 mt-2 w-[320px] bg-primary border border-border rounded-xl shadow-xl overflow-hidden dropdown-menu animate-slide-in-from-bottom-2">
           {/* User Profile Header */}
-          <div className="p-4 bg-gradient-to-r from-[rgb(186,12,47)] to-[rgb(212,175,55)] animate-in fade-in duration-300 delay-75">
+          <div className="pt-6 pb-4 px-4 bg-gradient-to-r from-[rgb(186,12,47)] to-[rgb(212,175,55)] animate-in fade-in duration-300 delay-75">
             <div className="flex items-center space-x-4">
               <div className="h-14 w-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white text-2xl font-semibold animate-in fade-in zoom-in duration-300 delay-150">
                 {getInitials()}
