@@ -175,7 +175,7 @@ const Sidebar: React.FC = () => {
                       <button
               onClick={handleNewChat}
               className={cn(
-                'w-full flex items-center justify-center space-x-2 transition-all duration-200 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2',
+                'w-full flex items-center justify-center space-x-2 transition-all duration-200 bg-[#37f01a]/20 hover:bg-[#37f01a]/30 text-[#37f01a] dark:text-[#37f01a] rounded-lg py-2',
                 (sidebarCollapsed && !sidebarHovered) && 'px-2'
               )}
               title={sidebarCollapsed && !sidebarHovered ? 'New Chat' : undefined}
