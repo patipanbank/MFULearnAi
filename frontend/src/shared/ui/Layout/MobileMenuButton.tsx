@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiMenu, FiMoon, FiSun, FiMonitor } from 'react-icons/fi';
+import { FiMenu, FiMoon, FiSun } from 'react-icons/fi';
 import useLayoutStore from '../../stores/layoutStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 
@@ -10,20 +10,11 @@ const MobileMenuButton: React.FC = () => {
   const currentTheme = getCurrentTheme();
 
   const getThemeIcon = () => {
-    switch (preferences.theme) {
-      case 'light':
-        return <FiSun className="h-4 w-4" />;
-      case 'dark':
-        return <FiMoon className="h-4 w-4" />;
-      case 'auto':
-        return <FiMonitor className="h-4 w-4" />;
-      default:
-        return <FiSun className="h-4 w-4" />;
-    }
+    return preferences.theme === 'light' ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />;
   };
 
   const handleThemeToggle = () => {
-    const nextTheme = preferences.theme === 'light' ? 'dark' : preferences.theme === 'dark' ? 'auto' : 'light';
+    const nextTheme = preferences.theme === 'light' ? 'dark' : 'light';
     setPreferences({ theme: nextTheme });
   };
 
@@ -42,7 +33,7 @@ const MobileMenuButton: React.FC = () => {
       <button
         onClick={handleThemeToggle}
         className="btn-ghost p-3 bg-primary/90 backdrop-blur-sm rounded-xl shadow-lg border border-border hover:bg-secondary transition-all duration-200 group"
-        aria-label={`Switch to ${preferences.theme === 'light' ? 'dark' : preferences.theme === 'dark' ? 'auto' : 'light'} theme`}
+        aria-label={`Switch to ${preferences.theme === 'light' ? 'dark' : 'light'} theme`}
         title={`Current: ${currentTheme} mode`}
       >
         <div className="text-primary group-hover:scale-110 transition-transform">

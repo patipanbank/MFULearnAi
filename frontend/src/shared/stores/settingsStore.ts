@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 
-export type Theme = 'light' | 'dark' | 'auto';
+export type Theme = 'light' | 'dark';
 
 export interface UserPreferences {
   theme: Theme;
@@ -207,25 +207,7 @@ export const useSettingsStore = create<SettingsState>()(
       // Theme methods
       applyTheme: (theme: Theme) => {
         const root = document.documentElement;
-        
-        if (theme === 'auto') {
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          root.classList.toggle('dark', prefersDark);
-          
-          // Listen for system theme changes
-          const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-          const handleChange = (e: MediaQueryListEvent) => {
-            if (get().preferences.theme === 'auto') {
-              root.classList.toggle('dark', e.matches);
-            }
-          };
-          
-          // Remove previous listener and add new one
-          mediaQuery.removeEventListener('change', handleChange);
-          mediaQuery.addEventListener('change', handleChange);
-        } else {
-          root.classList.toggle('dark', theme === 'dark');
-        }
+        root.classList.toggle('dark', theme === 'dark');
         
         // Store applied theme in localStorage for persistence
         localStorage.setItem('applied-theme', theme);

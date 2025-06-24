@@ -55,7 +55,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen, handleKeyDown]);
 
-  const handleThemeChange = (theme: 'light' | 'dark' | 'auto') => {
+  const handleThemeChange = (theme: 'light' | 'dark') => {
     console.log('PreferencesModal: Changing theme to', theme);
     const newPreferences = { ...localPreferences, theme };
     setLocalPreferences(newPreferences);
@@ -108,8 +108,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
 
   const themes = [
     { value: 'light', label: 'Light', icon: FiSun, description: 'Light theme' },
-    { value: 'dark', label: 'Dark', icon: FiMoon, description: 'Dark theme' },
-    { value: 'auto', label: 'System', icon: FiMonitor, description: 'Follow system preference' }
+    { value: 'dark', label: 'Dark', icon: FiMoon, description: 'Dark theme' }
   ];
 
   return (
