@@ -62,15 +62,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
     }
   }, [targetMode, currentMode]);
 
-  // Calculate sidebar width for desktop positioning
-  const getSidebarWidth = () => {
-    if (isMobile) return 0; // No sidebar on mobile
-    
-    // Determine actual sidebar width based on collapsed state and hover
-    const showExpandedContent = !sidebarCollapsed || sidebarHovered;
-    return showExpandedContent ? 256 : 64; // w-64 = 256px, w-16 = 64px
-  };
-
   // Handle textarea auto-resize
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onMessageChange(e.target.value);
