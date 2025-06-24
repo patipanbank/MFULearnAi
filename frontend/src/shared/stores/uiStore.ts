@@ -77,32 +77,15 @@ export const useUIStore = create<UIState>((set, get) => ({
   
   // Toasts
   toasts: [],
-  addToast: (toast) => {
-    const id = `toast_${Date.now()}_${Math.random()}`;
-    const newToast: Toast = {
-      ...toast,
-      id,
-      createdAt: new Date(),
-      duration: toast.duration || 5000
-    };
-    
-    set((state) => ({
-      toasts: [...state.toasts, newToast]
-    }));
-    
-    // Auto remove toast after duration
-    if (newToast.duration && newToast.duration > 0) {
-      setTimeout(() => {
-        get().removeToast(id);
-      }, newToast.duration);
-    }
+  addToast: () => {
+    // Disabled - do nothing
   },
-  
-  removeToast: (toastId) => set((state) => ({
-    toasts: state.toasts.filter(toast => toast.id !== toastId)
-  })),
-  
-  clearToasts: () => set({ toasts: [] }),
+  removeToast: () => {
+    // Disabled - do nothing
+  },
+  clearToasts: () => {
+    // Disabled - do nothing
+  },
   
   // Modals
   modals: [],
@@ -209,20 +192,20 @@ export const useUIStore = create<UIState>((set, get) => ({
 }));
 
 // Helper functions for common toast patterns
-export const showSuccessToast = (title: string, message?: string) => {
-  useUIStore.getState().addToast({ type: 'success', title, message });
+export const showSuccessToast = () => {
+  // Disabled - do nothing
 };
 
-export const showErrorToast = (title: string, message?: string) => {
-  useUIStore.getState().addToast({ type: 'error', title, message });
+export const showErrorToast = () => {
+  // Disabled - do nothing
 };
 
-export const showWarningToast = (title: string, message?: string) => {
-  useUIStore.getState().addToast({ type: 'warning', title, message });
+export const showWarningToast = () => {
+  // Disabled - do nothing
 };
 
-export const showInfoToast = (title: string, message?: string) => {
-  useUIStore.getState().addToast({ type: 'info', title, message });
+export const showInfoToast = () => {
+  // Disabled - do nothing
 };
 
 export default useUIStore; 
