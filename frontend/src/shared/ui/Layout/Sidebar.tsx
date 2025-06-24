@@ -7,8 +7,6 @@ import {
   FiSettings,
   FiUser,
   FiDatabase,
-  FiKey,
-  FiShield,
   FiBookmark,
   FiTrash2
 } from 'react-icons/fi';
@@ -17,8 +15,6 @@ import useLayoutStore from '../../stores/layoutStore';
 import useUIStore from '../../stores/uiStore';
 import { useChatStore } from '../../stores/chatStore';
 import PreferencesModal from '../PreferencesModal';
-import AccountModal from '../AccountModal';
-import AdvancedModal from '../AdvancedModal';
 
 const Sidebar: React.FC = () => {
   const { 
@@ -42,8 +38,6 @@ const Sidebar: React.FC = () => {
 
   // Modal states
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false);
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [advancedModalOpen, setAdvancedModalOpen] = useState(false);
 
   const settingsDropdownId = 'settings-dropdown';
   const isSettingsOpen = openDropdowns.has(settingsDropdownId);
@@ -68,9 +62,7 @@ const Sidebar: React.FC = () => {
   const settingsItems = [
     { id: 'knowledge', label: 'Knowledge Base', icon: FiDatabase, description: 'Manage your collections', type: 'route', path: '/knowledgebase' },
     { id: 'agents', label: 'AI Agents', icon: FiUser, description: 'Create and manage agents', type: 'route', path: '/agent' },
-    { id: 'preferences', label: 'Preferences', icon: FiSettings, description: 'App settings and theme', type: 'modal' },
-    { id: 'account', label: 'Account', icon: FiShield, description: 'Profile and privacy', type: 'modal' },
-    { id: 'advanced', label: 'Advanced', icon: FiKey, description: 'Import/export settings', type: 'modal' }
+    { id: 'preferences', label: 'Preferences', icon: FiSettings, description: 'App settings and theme', type: 'modal' }
   ];
 
   const handleSettingsItemClick = (item: typeof settingsItems[0]) => {
@@ -84,12 +76,6 @@ const Sidebar: React.FC = () => {
       switch (item.id) {
         case 'preferences':
           setPreferencesModalOpen(true);
-          break;
-        case 'account':
-          setAccountModalOpen(true);
-          break;
-        case 'advanced':
-          setAdvancedModalOpen(true);
           break;
         default:
           console.log(`Open ${item.id} modal`);
@@ -360,14 +346,6 @@ const Sidebar: React.FC = () => {
       <PreferencesModal 
         isOpen={preferencesModalOpen} 
         onClose={() => setPreferencesModalOpen(false)} 
-      />
-      <AccountModal 
-        isOpen={accountModalOpen} 
-        onClose={() => setAccountModalOpen(false)} 
-      />
-      <AdvancedModal 
-        isOpen={advancedModalOpen} 
-        onClose={() => setAdvancedModalOpen(false)} 
       />
     </>
   );
