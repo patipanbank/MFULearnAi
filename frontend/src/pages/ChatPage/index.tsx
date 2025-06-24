@@ -632,7 +632,7 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 flex flex-col max-w-none">
         {/* Messages */}
         {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-4">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
@@ -710,28 +710,23 @@ const ChatPage: React.FC = () => {
         </div>
         )}
         
-        {/* Chat Input Wrapper */}
-        <div
-          className={cn(
-            hasMessages
-              ? 'pt-2 pb-4 border-t'
-              : 'flex-1 flex items-center justify-center'
-          )}
-        >
-          <ResponsiveChatInput
-            key={currentSession?.id || 'no-session'}
-            message={message}
-            onMessageChange={setMessage}
-            onSendMessage={sendMessage}
-            onImageUpload={handleImageUpload}
-            images={images}
-            onRemoveImage={handleRemoveImage}
-            disabled={isRoomCreating || (!isInChatRoom && !selectedAgent) || (isInChatRoom && wsStatus !== 'connected')}
-            isTyping={isTyping}
-            hasMessages={hasMessages}
-            isInChatRoom={isInChatRoom}
-            onRoomCreated={handleRoomCreated}
-          />
+        {/* Input Area - Fixed at Bottom */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
+          <div className="px-4 md:px-16 lg:px-32 xl:px-48 pb-6">
+            <ResponsiveChatInput
+              message={message}
+              onMessageChange={setMessage}
+              onSendMessage={sendMessage}
+              onImageUpload={handleImageUpload}
+              images={images}
+              onRemoveImage={handleRemoveImage}
+              disabled={!selectedAgent || isLoading}
+              isTyping={isTyping}
+              hasMessages={hasMessages}
+              isInChatRoom={isInChatRoom}
+              onRoomCreated={handleRoomCreated}
+            />
+          </div>
         </div>
       </div>
     </div>
