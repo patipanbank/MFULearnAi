@@ -658,7 +658,7 @@ const ChatPage: React.FC = () => {
                       className={`max-w-xl w-fit px-4 py-3 rounded-2xl shadow-md ${
                         msg.role === 'user'
                           ? 'bg-blue-600 text-white ml-4'
-                          : 'bg-card text-primary dark:text-primary mr-4 dark:shadow-primary/10'
+                          : 'bg-gray-100 dark:bg-gray-800/80 text-primary dark:text-primary mr-4 dark:shadow-primary/10'
                       }`}
                     >
                       {/* Images */}
@@ -696,7 +696,7 @@ const ChatPage: React.FC = () => {
               
               {isTyping && (
                 <div className="flex justify-start max-w-3xl mx-auto">
-                  <div className="flex items-center space-x-2 bg-card px-4 py-3 rounded-2xl shadow-md dark:shadow-primary/10">
+                  <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800/80 px-4 py-3 rounded-2xl shadow-md dark:shadow-primary/10">
                     <img 
                       src={dindinAvatar} 
                       alt="DINDIN AI" 
