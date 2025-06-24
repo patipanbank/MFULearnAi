@@ -822,15 +822,17 @@ const ChatPage: React.FC = () => {
                 {showScrollButton && (
                   <button
                     onClick={scrollToBottom}
-                    className="fixed bottom-24 right-8 bg-white text-primary p-3 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-200 z-[100] border-2 border-primary flex items-center gap-2"
+                    className="fixed right-4 bg-white text-primary p-2 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-200 z-[100] border-2 border-primary flex items-center justify-center"
                     style={{
                       boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                      transform: 'scale(1.1)'
+                      bottom: '50%',
+                      transform: 'translateY(50%)',
+                      width: '40px',
+                      height: '40px'
                     }}
                     aria-label="Scroll to bottom"
                   >
-                    <span className="text-sm font-medium">ล่างสุด</span>
-                    <FiChevronDown className="w-5 h-5" />
+                    <FiChevronDown className="w-6 h-6" />
                   </button>
                 )}
                 
