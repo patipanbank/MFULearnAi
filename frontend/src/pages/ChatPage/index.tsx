@@ -632,7 +632,7 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 flex flex-col max-w-none">
         {/* Messages */}
         {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-32 lg:px-64 xl:px-96 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 space-y-4">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
@@ -648,7 +648,7 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
               <div
-                className={`max-w-xl px-4 py-3 rounded-lg ${
+                className={`max-w-2xl px-4 py-3 rounded-lg ${
                   msg.role === 'user'
                     ? 'bg-blue-600 text-white'
                     : 'card text-primary'
