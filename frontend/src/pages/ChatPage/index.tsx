@@ -688,7 +688,7 @@ const ChatPage: React.FC = () => {
   
   // Handle scroll events
   useEffect(() => {
-    const mainContainer = document.querySelector('.flex-1.overflow-y-auto');
+    const mainContainer = document.querySelector('.messages-container');
     if (!mainContainer) return;
 
     const handleScroll = () => {
@@ -703,7 +703,7 @@ const ChatPage: React.FC = () => {
   
   // Scroll to bottom function
   const scrollToBottom = () => {
-    const mainContainer = document.querySelector('.flex-1.overflow-y-auto');
+    const mainContainer = document.querySelector('.messages-container');
     if (mainContainer) {
       mainContainer.scrollTo({
         top: mainContainer.scrollHeight,
