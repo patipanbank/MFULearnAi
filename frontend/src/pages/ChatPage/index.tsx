@@ -728,9 +728,9 @@ const ChatPage: React.FC = () => {
       </div>
       
       {/* Main scrollable container */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {/* Chat Area - Centered with max width */}
-        <div className="max-w-4xl mx-auto w-full relative pb-32"> {/* Added padding bottom for input area */}
+        <div className="max-w-4xl mx-auto w-full relative pb-32 overflow-hidden"> {/* Added overflow-hidden */}
           {/* Scroll to bottom button */}
           {showScrollButton && (
             <button
@@ -774,7 +774,7 @@ const ChatPage: React.FC = () => {
           )}
 
           {/* Messages */}
-          <div className="px-1 sm:px-4 py-4">
+          <div className="px-1 sm:px-4 py-4 overflow-hidden"> {/* Added overflow-hidden */}
             <div className="space-y-4">
               {hasMessages && currentSession?.messages.map((msg) => (
                 <div
