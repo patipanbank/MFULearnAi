@@ -1,7 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
+
+# Define Thailand timezone (UTC+7)
+THAILAND_TZ = timezone(timedelta(hours=7))
 
 class ImagePayload(BaseModel):
     url: str
@@ -11,7 +14,7 @@ class ChatMessage(BaseModel):
     id: str
     role: str  # 'user' or 'assistant'
     content: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(THAILAND_TZ))
     images: Optional[List[ImagePayload]] = None
     # Streaming flags (optional)
     isStreaming: Optional[bool] = None

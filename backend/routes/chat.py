@@ -5,13 +5,13 @@ import jwt
 import json
 from bson import ObjectId
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from services.chat_service import chat_service
 from services.chat_history_service import chat_history_service
 from services.agent_service import agent_service
 from models.user import User, UserRole
-from models.chat import ImagePayload, Chat as ChatHistoryModel, ChatMessage
+from models.chat import ImagePayload, Chat as ChatHistoryModel, ChatMessage, THAILAND_TZ
 from middleware.role_guard import role_guard, get_current_user_with_roles
 from config.config import settings
 from tasks.chat_tasks import generate_answer  # lazy import to avoid circular
@@ -216,6 +216,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     id=str(ObjectId()),
                     role="user",
                     content=message,
+                    timestamp=datetime.now(THAILAND_TZ),
                     timestamp=datetime.now(timezone.utc),
                     images=[ImagePayload(**img) for img in data.get("images", [])] or None
                 )

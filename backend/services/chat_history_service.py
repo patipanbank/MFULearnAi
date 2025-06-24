@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from lib.mongodb import get_database
-from models.chat import Chat, ChatMessage
+from models.chat import Chat, ChatMessage, THAILAND_TZ
 from bson import ObjectId
 from typing import List, Optional
 from bson.errors import InvalidId
@@ -39,7 +39,7 @@ class ChatHistoryService:
         """Create a new chat with agent_id (preferred) or model_id (legacy)"""
         db = get_database()
         
-        now = datetime.now(timezone.utc)
+        now = datetime.now(THAILAND_TZ)
         chat_data = {
             "userId": user_id,
             "name": name,
@@ -71,7 +71,7 @@ class ChatHistoryService:
             {"_id": ObjectId(chat_id)},
             {
                 "$push": {"messages": message.model_dump()}, 
-                "$set": {"updatedAt": datetime.now(timezone.utc)}
+                "$set": {"updatedAt": datetime.now(THAILAND_TZ)}
             },
             return_document=True
         )
