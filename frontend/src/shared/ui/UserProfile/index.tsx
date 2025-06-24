@@ -68,12 +68,17 @@ const UserProfile: React.FC = () => {
                 {avatarLetter.toUpperCase()}
               </div>
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-white">
-                  {user.first_name} {user.last_name}
-                </h3>
-                <p className="text-white/80 mt-1">
-                  {user.username || user.student_id}
-                </p>
+                <div className="space-y-0.5">
+                  <h3 className="text-base font-medium text-white/90">
+                    {user.first_name}
+                  </h3>
+                  <h3 className="text-base font-medium text-white/90">
+                    {user.last_name}
+                  </h3>
+                  <p className="text-sm text-white/80">
+                    {user.username || user.student_id}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
