@@ -38,7 +38,7 @@ const SearchPage: React.FC = () => {
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="border-b border-primary px-6 py-4">
-          <h1 className="text-2xl font-bold text-primary mb-4">Search</h1>
+          <h1 className="text-2xl font-bold text-primary mb-4">Search Chat History</h1>
           
           {/* Search Form */}
           <form onSubmit={handleSearch} className="flex space-x-4">
@@ -48,7 +48,7 @@ const SearchPage: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for documents, chats, or anything..."
+                placeholder="Search for chats"
                 className="input pl-10 w-full"
               />
             </div>
@@ -75,8 +75,8 @@ const SearchPage: React.FC = () => {
           {searchResults.length === 0 && !searchQuery && (
             <div className="text-center py-12">
               <FiSearch className="h-12 w-12 text-muted mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-primary mb-2">Search Everything</h3>
-              <p className="text-muted">Search through your documents, chat history, and AI agents</p>
+              <h3 className="text-lg font-medium text-primary mb-2">Search Chat History</h3>
+              <p className="text-muted">Search through your chat history</p>
             </div>
           )}
 
