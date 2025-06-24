@@ -21,7 +21,8 @@ const Sidebar: React.FC = () => {
     sidebarCollapsed, 
     sidebarHovered, 
     toggleSidebar, 
-    setSidebarHovered
+    setSidebarHovered,
+    isMobile
   } = useLayoutStore();
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
   const { 
@@ -60,9 +61,9 @@ const Sidebar: React.FC = () => {
   }, [closeDropdown, settingsDropdownId]);
 
   const settingsItems = [
-    { id: 'knowledge', label: 'Knowledge Base', icon: FiDatabase, description: 'Manage your collections', type: 'route', path: '/knowledgebase' },
-    { id: 'agents', label: 'AI Agents', icon: FiUser, description: 'Create and manage agents', type: 'route', path: '/agent' },
-    { id: 'preferences', label: 'Preferences', icon: FiSettings, description: 'App settings and theme', type: 'modal' }
+    { id: 'knowledge', label: 'Knowledge Base', icon: FiDatabase, description: 'Manage your collections', type: 'route', path: '/knowledgebase', showOnMobile: true },
+    { id: 'agents', label: 'AI Agents', icon: FiUser, description: 'Create and manage agents', type: 'route', path: '/agent', showOnMobile: true },
+    { id: 'preferences', label: 'Preferences', icon: FiSettings, description: 'App settings and theme', type: 'modal', showOnMobile: false }
   ];
 
   const handleSettingsItemClick = (item: typeof settingsItems[0]) => {
@@ -320,7 +321,9 @@ const Sidebar: React.FC = () => {
                   ? 'left-full ml-2 w-64' 
                   : 'left-0 right-0'
               )}>
-                {settingsItems.map((item) => {
+                {settingsItems
+                  .filter(item => !isMobile || item.showOnMobile)
+                  .map((item) => {
                   const Icon = item.icon;
                   return (
                     <button
