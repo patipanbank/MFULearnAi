@@ -29,9 +29,7 @@ const MobileSettingsModal: React.FC<{
   const settingsItems = [
     { id: 'knowledge', label: 'Knowledge Base', icon: FiDatabase, description: 'Manage your collections', type: 'route', path: '/knowledgebase' },
     { id: 'agents', label: 'AI Agents', icon: FiUser, description: 'Create and manage agents', type: 'route', path: '/agent' },
-    { id: 'preferences', label: 'Preferences', icon: FiSettings, description: 'App settings and theme', type: 'modal' },
-    { id: 'account', label: 'Account', icon: FiShield, description: 'Profile and privacy', type: 'modal' },
-    { id: 'advanced', label: 'Advanced', icon: FiKey, description: 'Import/export settings', type: 'modal' }
+    { id: 'preferences', label: 'Preferences', icon: FiSettings, description: 'App settings and theme', type: 'modal' }
   ];
 
   const handleItemClick = (item: typeof settingsItems[0]) => {
