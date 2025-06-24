@@ -645,7 +645,7 @@ const ChatPage: React.FC = () => {
               <img 
                 src={mfuLogo}
                 alt="MFU Logo"
-                className="w-24 h-24 mx-auto mb-0.5"
+                className="w-32 h-32 mx-auto mb-0.5"
               />
               <h2 className="text-2xl font-bold text-primary mb-0">Welcome</h2>
               <h3 
