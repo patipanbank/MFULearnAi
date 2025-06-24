@@ -119,9 +119,9 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         return cn(
           baseClasses,
           'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-          'w-[calc(100vw-2rem)] max-w-none',
-          'border border-primary rounded-2xl shadow-2xl',
-          'backdrop-blur-sm bg-background/95',
+          'w-[calc(100vw-2rem)] max-w-xl',
+          'border border-primary/20 rounded-2xl shadow-2xl',
+          'backdrop-blur-sm bg-white/95',
           // Animation classes
           isTransitioning ? 'opacity-90 scale-95' : 'opacity-100 scale-100'
         );
@@ -129,9 +129,9 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         return cn(
           baseClasses,
           'fixed bottom-4 left-1/2 -translate-x-1/2',
-          'w-[calc(100vw-2rem)] max-w-none',
-          'border border-primary rounded-2xl shadow-lg',
-          'bg-background',
+          'w-[calc(100vw-2rem)] max-w-xl',
+          'border border-primary/20 rounded-2xl shadow-lg',
+          'bg-white/95 backdrop-blur-sm',
           // Animation classes
           isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
         );
@@ -144,7 +144,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           'fixed top-1/2 -translate-x-1/2 -translate-y-1/2',
           'w-full max-w-2xl',
           'rounded-2xl shadow-2xl',
-          'backdrop-blur-sm bg-background/95 border border-primary',
+          'backdrop-blur-sm bg-white/95 border border-primary/20',
           // Animation classes
           isTransitioning ? 'opacity-90 scale-95' : 'opacity-100 scale-100'
         );
@@ -154,7 +154,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           'fixed bottom-8 -translate-x-1/2',
           'w-full max-w-2xl',
           'rounded-2xl shadow-lg',
-          'bg-background border border-primary',
+          'bg-white/95 backdrop-blur-sm border border-primary/20',
           // Animation classes
           isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
         );
@@ -182,26 +182,31 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       'focus:outline-none focus:ring-0',
       'placeholder-muted text-primary',
       'text-base leading-relaxed transition-all duration-300',
-      currentMode === 'floating' ? 'text-lg py-2' : 'text-base py-1'
+      currentMode === 'floating' ? 'text-lg py-3' : 'text-base py-2'
     );
   };
 
   // Get button classes with enhanced styling for different modes
   const getButtonClasses = (variant: 'attach' | 'send') => {
-    if (currentMode === 'floating') {
-      // Floating mode: minimalist underline style
+    const baseClasses = cn(
+      'transition-all duration-200 transform',
+      'rounded-xl flex items-center justify-center',
+      'hover:scale-105 active:scale-95'
+    );
+
+    if (variant === 'send') {
       return cn(
-        'px-3 py-2 border-b-2 border-transparent transition-all duration-300',
-        'hover:border-blue-500 focus:border-blue-500 focus:outline-none',
-        'text-muted hover:text-primary transform hover:scale-105',
-        variant === 'send' && !disabled && message.trim() && 'text-blue-600 border-blue-600 scale-105'
+        baseClasses,
+        'px-4 py-2',
+        !disabled && message.trim() 
+          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
+          : 'bg-gray-200 text-gray-400 cursor-not-allowed',
       );
     } else {
-      // Fixed bottom mode: standard button style
-      const baseClasses = 'transition-all duration-200 transform hover:scale-105 active:scale-95';
-      return variant === 'send' 
-        ? cn('btn-primary px-4 py-2 shadow-md', baseClasses)
-        : cn('btn-ghost p-2 hover:bg-primary/10', baseClasses);
+      return cn(
+        baseClasses,
+        'p-2 hover:bg-gray-100 text-gray-600 hover:text-gray-800'
+      );
     }
   };
 
@@ -230,19 +235,19 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
         {/* Image Preview */}
         {images.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-3">
             {images.map((img, idx) => (
               <div key={idx} className="relative group">
                 <img
                   src={img.url}
                   alt="Preview"
-                  className="w-16 h-16 object-cover rounded-lg border border-primary transition-transform group-hover:scale-105"
+                  className="w-20 h-20 object-cover rounded-xl border border-primary/20 shadow-sm transition-all duration-200 group-hover:shadow-md group-hover:border-primary/40"
                 />
                 <button
                   onClick={() => onRemoveImage(idx)}
-                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 transform hover:scale-110"
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 transform hover:scale-110 shadow-md"
                 >
-                  <FiX className="w-3 h-3" />
+                  <FiX className="w-4 h-4" />
                 </button>
               </div>
             ))}
@@ -251,7 +256,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
         <div className="flex items-end space-x-3">
           {/* Textarea */}
-          <div className="flex-1">
+          <div className="flex-1 bg-gray-50/50 rounded-xl px-4">
             <textarea
               ref={textareaRef}
               value={message}
@@ -269,7 +274,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2">
             {/* File Input */}
             <input
               ref={fileInputRef}
@@ -288,7 +293,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Attach images"
             >
               <FiPlus className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="sr-only">Attach</span>}
             </button>
 
             {/* Send Button */}
@@ -299,14 +303,14 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Send message"
             >
               <FiSend className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="ml-2">Send</span>}
+              <span className="ml-2 font-medium">Send</span>
             </button>
           </div>
         </div>
 
         {/* Connection status indicator */}
         {currentMode === 'fixbottom' && isInChatRoom && (
-          <div className="absolute bottom-1 left-4 flex items-center space-x-1 text-xs text-green-600">
+          <div className="absolute bottom-1 left-4 flex items-center space-x-2 text-xs text-green-600">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span>Connected</span>
           </div>

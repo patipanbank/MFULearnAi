@@ -627,104 +627,128 @@ const ChatPage: React.FC = () => {
   
   return (
     <div className="flex h-full bg-primary">
-      {/* Chat Area - Full Width without Header */}
-      <div className="flex-1 flex flex-col max-w-none">
-        {/* Messages */}
-        {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-2">
-          {currentSession?.messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mr-2">
-                  <img 
-                    src={dindinAvatar} 
-                    alt="DINDIN AI" 
-                    className="w-6 h-6 rounded-full"
-                  />
-                </div>
-              )}
-              <div className="flex flex-col">
-                {/* Timestamp */}
-                <div className={`text-xs mb-0.5 ${
-                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
-                }`}>
-                  {msg.timestamp.toLocaleTimeString()}
-                </div>
+      {/* Chat Area - Centered with max width */}
+      <div className="flex-1 flex flex-col items-center">
+        <div className="w-full max-w-4xl flex-1 flex flex-col relative">
+          {/* Messages */}
+          {hasMessages && (
+            <div className="flex-1 overflow-y-auto px-4 py-4 pb-32 space-y-4">
+              {currentSession?.messages.map((msg) => (
                 <div
-                  className={`max-w-sm sm:max-w-md md:max-w-md lg:max-w-sm xl:max-w-xs w-fit px-3 py-2 rounded-lg ${
-                    msg.role === 'user'
-                      ? 'bg-blue-600 text-white ml-2 sm:ml-3 md:ml-4 lg:ml-3 xl:ml-2'
-                      : 'card text-primary mr-8 sm:mr-12 md:mr-16 lg:mr-24 xl:mr-32'
-                  }`}
+                  key={msg.id}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} max-w-3xl mx-auto`}
                 >
-                  {/* Images */}
-                  {msg.images && msg.images.length > 0 && (
-                    <div className="mb-2 grid grid-cols-2 gap-2">
-                      {msg.images.map((img, idx) => (
-                        <img
-                          key={idx}
-                          src={img.url}
-                          alt="Uploaded"
-                          className="rounded-lg max-w-full h-auto"
-                        />
-                      ))}
+                  {msg.role !== 'user' && (
+                    <div className="flex-shrink-0 mr-3">
+                      <img 
+                        src={dindinAvatar} 
+                        alt="DINDIN AI" 
+                        className="w-8 h-8 rounded-full shadow-md"
+                      />
                     </div>
                   )}
-                  
-                  {/* Message Content */}
-                  <div className="whitespace-pre-wrap">
-                    {msg.content}
-                    {msg.isStreaming && (
-                      <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
-                    )}
+                  <div className="flex flex-col">
+                    {/* Timestamp */}
+                    <div className={`text-xs mb-1 ${
+                      msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
+                    }`}>
+                      {msg.timestamp.toLocaleTimeString()}
+                    </div>
+                    <div
+                      className={`max-w-xl w-fit px-4 py-3 rounded-2xl shadow-md ${
+                        msg.role === 'user'
+                          ? 'bg-blue-600 text-white ml-4'
+                          : 'bg-white/90 backdrop-blur-sm text-primary mr-4'
+                      }`}
+                    >
+                      {/* Images */}
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="mb-3 grid grid-cols-2 gap-3">
+                          {msg.images.map((img, idx) => (
+                            <img
+                              key={idx}
+                              src={img.url}
+                              alt="Uploaded"
+                              className="rounded-lg max-w-full h-auto shadow-sm hover:shadow-md transition-shadow duration-200"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Message Content */}
+                      <div className="whitespace-pre-wrap text-[15px] leading-relaxed">
+                        {msg.content}
+                        {msg.isStreaming && (
+                          <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  {msg.role === 'user' && (
+                    <div className="flex-shrink-0 ml-3">
+                      <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
+                        {getInitials()}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-              {msg.role === 'user' && (
-                <div className="flex-shrink-0 ml-2">
-                  <div className="h-6 w-6 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-xs font-medium">
-                    {getInitials()}
+              ))}
+              
+              {isTyping && (
+                <div className="flex justify-start max-w-3xl mx-auto">
+                  <div className="flex items-center space-x-2 bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl shadow-md">
+                    <img 
+                      src={dindinAvatar} 
+                      alt="DINDIN AI" 
+                      className="w-6 h-6 rounded-full"
+                    />
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
                   </div>
                 </div>
               )}
+              
+              <div ref={messagesEndRef} />
             </div>
-          ))}
+          )}
           
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="card px-4 py-3">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                </div>
+          {/* Welcome Message when no messages */}
+          {!hasMessages && !isLoading && (
+            <div className="flex-1 flex items-center justify-center px-4">
+              <div className="text-center space-y-4 max-w-lg">
+                <img 
+                  src={dindinAvatar} 
+                  alt="DINDIN AI" 
+                  className="w-20 h-20 mx-auto rounded-full shadow-xl mb-6"
+                />
+                <h1 className="text-2xl font-semibold text-primary">Welcome to DINDIN AI Chat</h1>
+                <p className="text-muted text-lg">
+                  I'm here to help you with any questions or tasks you have. Feel free to start a conversation!
+                </p>
               </div>
             </div>
           )}
           
-          <div ref={messagesEndRef} />
-        </div>
-        )}
-        
-        {/* Input Area - Fixed at Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
-          <div className="px-4 md:px-16 lg:px-32 xl:px-48 pb-6">
-            <ResponsiveChatInput
-              message={message}
-              onMessageChange={setMessage}
-              onSendMessage={sendMessage}
-              onImageUpload={handleImageUpload}
-              images={images}
-              onRemoveImage={handleRemoveImage}
-              disabled={!selectedAgent || isLoading}
-              isTyping={isTyping}
-              hasMessages={hasMessages}
-              isInChatRoom={isInChatRoom}
-              onRoomCreated={handleRoomCreated}
-            />
+          {/* Input Area - Fixed at Bottom */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
+            <div className="px-4 pb-6 max-w-3xl mx-auto">
+              <ResponsiveChatInput
+                message={message}
+                onMessageChange={setMessage}
+                onSendMessage={sendMessage}
+                onImageUpload={handleImageUpload}
+                images={images}
+                onRemoveImage={handleRemoveImage}
+                disabled={!selectedAgent || isLoading}
+                isTyping={isTyping}
+                hasMessages={hasMessages}
+                isInChatRoom={isInChatRoom}
+                onRoomCreated={handleRoomCreated}
+              />
+            </div>
           </div>
         </div>
       </div>
