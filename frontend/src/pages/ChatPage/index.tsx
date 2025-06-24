@@ -647,40 +647,41 @@ const ChatPage: React.FC = () => {
                   />
                 </div>
               )}
-              <div
-                className={`max-w-2xl px-4 py-3 rounded-lg ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'card text-primary'
-                }`}
-              >
-                {/* Images */}
-                {msg.images && msg.images.length > 0 && (
-                  <div className="mb-3 grid grid-cols-2 gap-2">
-                    {msg.images.map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img.url}
-                        alt="Uploaded"
-                        className="rounded-lg max-w-full h-auto"
-                      />
-                    ))}
-                  </div>
-                )}
-                
-                {/* Message Content */}
-                <div className="whitespace-pre-wrap">
-                  {msg.content}
-                  {msg.isStreaming && (
-                    <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
-                  )}
-                </div>
-                
+              <div className="flex flex-col">
                 {/* Timestamp */}
-                <div className={`text-xs mt-2 ${
-                  msg.role === 'user' ? 'text-blue-100' : 'text-muted'
+                <div className={`text-xs mb-1 ${
+                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.timestamp.toLocaleTimeString()}
+                </div>
+                <div
+                  className={`max-w-2xl px-4 py-3 rounded-lg ${
+                    msg.role === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'card text-primary'
+                  }`}
+                >
+                  {/* Images */}
+                  {msg.images && msg.images.length > 0 && (
+                    <div className="mb-3 grid grid-cols-2 gap-2">
+                      {msg.images.map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img.url}
+                          alt="Uploaded"
+                          className="rounded-lg max-w-full h-auto"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Message Content */}
+                  <div className="whitespace-pre-wrap">
+                    {msg.content}
+                    {msg.isStreaming && (
+                      <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+                    )}
+                  </div>
                 </div>
               </div>
               {msg.role === 'user' && (
