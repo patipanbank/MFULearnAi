@@ -631,14 +631,14 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 flex flex-col max-w-none">
         {/* Messages */}
         {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-2">
+        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-1">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-1`}
             >
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mr-2">
+                <div className="flex-shrink-0 mr-1">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
@@ -648,21 +648,21 @@ const ChatPage: React.FC = () => {
               )}
               <div className="flex flex-col">
                 {/* Timestamp */}
-                <div className={`text-xs mb-0.5 ${
+                <div className={`text-[10px] mb-0.5 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
                 <div
-                  className={`max-w-sm sm:max-w-md md:max-w-md lg:max-w-sm xl:max-w-xs w-fit px-3 py-2 rounded-lg ${
+                  className={`max-w-sm sm:max-w-md md:max-w-md lg:max-w-sm xl:max-w-xs w-fit px-2.5 py-1.5 rounded-lg ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white ml-2 sm:ml-3 md:ml-4 lg:ml-3 xl:ml-2'
-                      : 'card text-primary mr-2 sm:mr-3 md:mr-4 lg:mr-3 xl:mr-2'
+                      ? 'bg-blue-600 text-white ml-1 sm:ml-2 md:ml-2 lg:ml-2 xl:ml-1'
+                      : 'card text-primary mr-1 sm:mr-2 md:mr-2 lg:mr-2 xl:mr-1'
                   }`}
                 >
                   {/* Images */}
                   {msg.images && msg.images.length > 0 && (
-                    <div className="mb-2 grid grid-cols-2 gap-2">
+                    <div className="mb-1.5 grid grid-cols-2 gap-1.5">
                       {msg.images.map((img, idx) => (
                         <img
                           key={idx}
@@ -675,16 +675,16 @@ const ChatPage: React.FC = () => {
                   )}
                   
                   {/* Message Content */}
-                  <div className="whitespace-pre-wrap">
+                  <div className="whitespace-pre-wrap text-sm">
                     {msg.content}
                     {msg.isStreaming && (
-                      <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+                      <span className="inline-block w-1.5 h-4 bg-current animate-pulse ml-1" />
                     )}
                   </div>
                 </div>
               </div>
               {msg.role === 'user' && (
-                <div className="flex-shrink-0 ml-2">
+                <div className="flex-shrink-0 ml-1">
                   <div className="h-6 w-6 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-xs font-medium">
                     {getInitials()}
                   </div>
@@ -695,11 +695,11 @@ const ChatPage: React.FC = () => {
           
           {isTyping && (
             <div className="flex justify-start">
-              <div className="card px-4 py-3">
+              <div className="card px-3 py-2">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" />
+                  <div className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
                 </div>
               </div>
             </div>
