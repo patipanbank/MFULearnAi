@@ -635,7 +635,7 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-end pr-[10%]'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role !== 'user' && (
                 <div className="flex-shrink-0 mr-2">
@@ -649,7 +649,7 @@ const ChatPage: React.FC = () => {
               <div className="flex flex-col">
                 {/* Timestamp */}
                 <div className={`text-xs mb-0.5 ${
-                  msg.role === 'user' ? 'text-right text-muted' : 'text-right text-muted'
+                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
