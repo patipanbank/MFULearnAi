@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { FiLogOut, FiChevronDown, FiUser, FiMail, FiHome, FiMoon, FiSun } from 'react-icons/fi';
+import { FiLogOut, FiChevronDown, FiUser, FiMail, FiHome } from 'react-icons/fi';
 import useAuthStore from '../../../entities/user/store';
 import useUIStore from '../../stores/uiStore';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -8,11 +8,10 @@ const UserProfile: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, logoutSAML } = useAuthStore();
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
-  const { preferences, setPreferences, getCurrentTheme } = useSettingsStore();
+  const { preferences } = useSettingsStore();
   
   const dropdownId = 'user-profile';
   const isOpen = openDropdowns.has(dropdownId);
-  const currentTheme = getCurrentTheme();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -29,10 +28,6 @@ const UserProfile: React.FC = () => {
   const handleCompleteLogout = () => {
     logoutSAML();
     closeDropdown(dropdownId);
-  };
-
-  const handleThemeChange = (theme: 'light' | 'dark') => {
-    setPreferences({ theme });
   };
 
   if (!user) {
@@ -98,56 +93,6 @@ const UserProfile: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* User Stats */}
-          <div className="p-4 bg-secondary border-b border-border">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-lg font-semibold text-primary">12</div>
-                <div className="text-xs text-muted">Chats</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold text-primary">3</div>
-                <div className="text-xs text-muted">Agents</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold text-primary">5</div>
-                <div className="text-xs text-muted">Collections</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Theme Selector */}
-          <div className="p-4 border-b border-border">
-            <div className="text-xs font-medium text-muted uppercase tracking-wider mb-3">Appearance</div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handleThemeChange('light')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                  preferences.theme === 'light'
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'hover:bg-secondary text-muted hover:text-primary'
-                }`}
-              >
-                <FiSun className="h-4 w-4" />
-                <span className="text-sm">Light</span>
-              </button>
-              <button
-                onClick={() => handleThemeChange('dark')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                  preferences.theme === 'dark'
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'hover:bg-secondary text-muted hover:text-primary'
-                }`}
-              >
-                <FiMoon className="h-4 w-4" />
-                <span className="text-sm">Dark</span>
-              </button>
-            </div>
-            <div className="text-xs text-muted mt-2">
-              Current: {currentTheme === 'light' ? 'Light mode' : 'Dark mode'}
             </div>
           </div>
 
