@@ -7,7 +7,7 @@ import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
-import mfuLogo from '../../assets/mfu_logo_chatbot.png';
+import mfuLogo from '../../assets/dindin_logo_newchat.png';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
