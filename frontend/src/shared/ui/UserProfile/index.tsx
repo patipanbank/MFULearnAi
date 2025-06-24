@@ -72,9 +72,12 @@ const UserProfile: React.FC = () => {
               </div>
               <div className="flex-1">
                 <div>
-                  <h3 className="text-xl font-bold text-white">
+                  <h3 className="text-lg font-semibold text-white">
                     {user.firstName} {user.lastName}
                   </h3>
+                  <p className="text-sm text-white/80">
+                    {user.username || user.student_id || ''}
+                  </p>
                 </div>
               </div>
             </div>
