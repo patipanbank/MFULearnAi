@@ -655,10 +655,10 @@ const ChatPage: React.FC = () => {
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
                 <div
-                  className={`max-w-2xl px-4 py-3 rounded-lg ${
+                  className={`max-w-2xl w-fit px-4 py-3 rounded-lg ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'card text-primary'
+                      ? 'bg-blue-600 text-white ml-12'
+                      : 'card text-primary mr-12'
                   }`}
                 >
                   {/* Images */}
