@@ -642,7 +642,7 @@ const ChatPage: React.FC = () => {
           <div className="flex-1 flex items-center justify-center mb-32">
             <div className="text-center">
               <img 
-                src="../../assets/mfu_logo_chatbot.png"
+                src="/assets/mfu_logo_chatbot.png"
                 alt="MFU Logo"
                 className="w-32 h-32 mx-auto mb-8"
               />
