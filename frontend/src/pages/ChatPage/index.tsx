@@ -637,15 +637,6 @@ const ChatPage: React.FC = () => {
       
       {/* Chat Area - Centered with max width */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
-        {/* Show DINDIN AI text when no messages */}
-        {!hasMessages && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-primary mb-4">DINDIN AI</h1>
-            </div>
-          </div>
-        )}
-        
         {/* Messages */}
         {hasMessages && (
         <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 pb-32 space-y-4">
