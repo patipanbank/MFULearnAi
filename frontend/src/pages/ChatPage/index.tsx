@@ -769,7 +769,7 @@ const ChatPage: React.FC = () => {
           {/* Messages */}
           <div 
             className="messages-container h-full overflow-y-auto overflow-x-hidden" 
-            style={{ paddingBottom: '200px' }}
+            style={{ paddingBottom: '120px' }}
           >
             <div className="min-h-full px-1 sm:px-4 py-4">
               <div className="space-y-4">
@@ -872,7 +872,7 @@ const ChatPage: React.FC = () => {
         </div>
         
         {/* Input Area - Fixed at Bottom */}
-        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-10">
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-12">
           <div className="container mx-auto max-w-4xl px-4 pb-6">
             <ResponsiveChatInput
               message={message}
