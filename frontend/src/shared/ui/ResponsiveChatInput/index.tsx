@@ -12,9 +12,7 @@ interface ResponsiveChatInputProps {
   onRemoveImage: (index: number) => void;
   disabled?: boolean;
   isTyping?: boolean;
-  hasMessages?: boolean; // To determine floating vs bottom mode
-  isInChatRoom?: boolean; // New prop to track WebSocket connection
-  onRoomCreated?: (roomId: string) => void; // Callback when room is created
+  onRoomCreated?: (roomId: string) => void;
 }
 
 const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
@@ -26,19 +24,13 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   onRemoveImage,
   disabled = false,
   isTyping = false,
-  hasMessages = false,
-  isInChatRoom = false,
   onRoomCreated: _onRoomCreated
 }) => {
   const { isMobile, sidebarCollapsed, sidebarHovered } = useLayoutStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // State for animation transition
-  // const [isTransitioning, setIsTransitioning] = useState(false);
-  // const [currentMode, setCurrentMode] = useState<'floating' | 'fixbottom'>('floating');
-  // Always use 'fixbottom' mode
-  const currentMode: 'fixbottom' = 'fixbottom';
+  // Always fixed bottom mode, no state needed
 
   // Calculate sidebar width for desktop positioning
   const getSidebarWidth = () => {
@@ -74,7 +66,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       return;
     }
 
-    console.log('[INPUT] handleSendMessage fired', { isInChatRoom, hasMessages, disabled });
+    console.log('[INPUT] handleSendMessage fired', { disabled });
 
     // Under the new lazy-room-create flow, front-end no longer generates a
     // temporary chatId.  Instead, ChatPage will send a `create_room` event and
@@ -158,11 +150,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       style={getContainerStyle()}
     >
       <div className={cn('card', getCardClasses())}>
-        {/* Mode indicator (optional visual feedback) */}
-        {/* {isTransitioning && (
-          <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-        )} */}
-
         {/* Image Preview */}
         {images.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
@@ -192,11 +179,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               value={message}
               onChange={handleTextareaChange}
               onKeyPress={handleKeyPress}
-              placeholder={
-                currentMode === 'floating' 
-                  ? 'Ask me anything...' 
-                  : 'Type your message...'
-              }
+              placeholder={'Type your message...'}
               className={getInputClasses()}
               rows={1}
               disabled={disabled || isTyping}
@@ -223,7 +206,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Attach images"
             >
               <FiPlus className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="sr-only">Attach</span>}
             </button>
 
             {/* Send Button */}
@@ -234,18 +216,9 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Send message"
             >
               <FiSend className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="ml-2">Send</span>}
             </button>
           </div>
         </div>
-
-        {/* Connection status indicator */}
-        {isInChatRoom && (
-          <div className="absolute bottom-1 left-4 flex items-center space-x-1 text-xs text-green-600">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span>Connected</span>
-          </div>
-        )}
       </div>
     </div>
   );
