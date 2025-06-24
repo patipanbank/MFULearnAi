@@ -638,11 +638,11 @@ const ChatPage: React.FC = () => {
               className={`flex ${msg.role === 'user' ? 'justify-end pr-2 md:pr-8 lg:pr-16 xl:pr-24' : 'justify-start pl-2 md:pl-8 lg:pl-16 xl:pl-24'}`}
             >
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mr-2">
+                <div className="flex-shrink-0 mr-3">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
-                    className="w-6 h-6 rounded-full"
+                    className="w-8 h-8 rounded-full"
                   />
                 </div>
               )}
@@ -684,8 +684,8 @@ const ChatPage: React.FC = () => {
                 </div>
               </div>
               {msg.role === 'user' && (
-                <div className="flex-shrink-0 ml-2">
-                  <div className="h-6 w-6 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-xs font-medium">
+                <div className="flex-shrink-0 ml-3">
+                  <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium">
                     {getInitials()}
                   </div>
                 </div>
