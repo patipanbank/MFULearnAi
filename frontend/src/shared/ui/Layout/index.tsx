@@ -15,7 +15,7 @@ const Layout: React.FC<LayoutProps> = ({
   showSidebar = true, 
   showHeader = true 
 }) => {
-  const { isMobile, mobileMenuOpen, setIsMobile, setSidebarCollapsed, sidebarCollapsed } = useLayoutStore();
+  const { isMobile, mobileMenuOpen, setIsMobile, setSidebarCollapsed, sidebarCollapsed, sidebarHovered } = useLayoutStore();
 
   // Handle responsive behavior
   useEffect(() => {
@@ -38,8 +38,14 @@ const Layout: React.FC<LayoutProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [setIsMobile, setSidebarCollapsed, sidebarCollapsed]);
 
+  // Calculate sidebar width based on state
+  const sidebarWidth = isMobile ? 0 : (sidebarCollapsed && !sidebarHovered ? 64 : 256);
+
   return (
-    <div className="h-screen flex bg-primary transition-colors duration-200">
+    <div 
+      className="h-screen flex flex-col bg-background text-primary"
+      style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
+    >
       {/* Mobile Menu Components */}
       {isMobile && showSidebar && mobileMenuOpen && <MobileMenuOverlay />}
       

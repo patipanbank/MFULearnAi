@@ -628,7 +628,7 @@ const ChatPage: React.FC = () => {
   return (
     <div className="flex h-full bg-primary">
       {/* Chat Area - Full Width without Header */}
-      <div className="flex-1 flex flex-col max-w-none">
+      <div className="flex-1 flex flex-col max-w-none relative">
         {/* Messages */}
         {hasMessages && (
         <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-2">
@@ -710,7 +710,10 @@ const ChatPage: React.FC = () => {
         )}
         
         {/* Input Area - Fixed at Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
+        <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6" style={{ 
+          left: 'var(--sidebar-width, 0px)',
+          transition: 'left 300ms ease-in-out'
+        }}>
           <div className="px-4 md:px-16 lg:px-32 xl:px-48 pb-6">
             <ResponsiveChatInput
               message={message}

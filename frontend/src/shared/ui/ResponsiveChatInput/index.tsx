@@ -165,13 +165,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   // Get container style for dynamic positioning with smooth transitions
   const getContainerStyle = (): React.CSSProperties => {
     if (isMobile) return {};
-    
-    const sidebarWidth = getSidebarWidth();
-    const leftPosition = `calc(${sidebarWidth}px + (100vw - ${sidebarWidth}px) / 2)`;
-    
     return {
-      left: leftPosition,
-      transition: 'left 300ms ease-in-out' // Smooth sidebar transition
+      transition: 'all 300ms ease-in-out' // Keep smooth transitions for other properties
     };
   };
 
