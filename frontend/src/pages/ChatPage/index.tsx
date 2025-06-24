@@ -638,7 +638,7 @@ const ChatPage: React.FC = () => {
       {/* Chat Area - Centered with max width */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
         {/* Messages */}
-        {hasMessages && (
+        {hasMessages ? (
         <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 pb-32 space-y-4">
           {currentSession?.messages.map((msg) => (
             <div
@@ -722,6 +722,13 @@ const ChatPage: React.FC = () => {
           
           <div ref={messagesEndRef} />
         </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-4xl font-bold text-primary mb-8">DINDIN AI</h2>
+              <p className="text-lg text-secondary">Start a conversation by typing your message below.</p>
+            </div>
+          </div>
         )}
         
         {/* Input Area - Fixed at Bottom */}

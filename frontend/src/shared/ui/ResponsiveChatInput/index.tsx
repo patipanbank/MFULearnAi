@@ -223,11 +223,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       style={getContainerStyle()}
     >
       <div className={cn('card', getCardClasses())}>
-        {/* DINDIN AI Text */}
-        <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold text-primary">DINDIN AI</h2>
-        </div>
-
         {/* Mode indicator (optional visual feedback) */}
         {isTransitioning && (
           <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
