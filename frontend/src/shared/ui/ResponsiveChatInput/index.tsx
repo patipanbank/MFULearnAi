@@ -151,8 +151,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       } else {
         return cn(
           baseClasses,
-          'fixed bottom-8',
-          'w-full',
+          'fixed bottom-8 -translate-x-1/2',
+          'w-full max-w-2xl',
           'rounded-2xl shadow-lg',
           'bg-background border border-primary',
           // Animation classes
@@ -167,18 +167,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
     if (isMobile) return {};
     
     const sidebarWidth = getSidebarWidth();
-    
-    // Don't center the input in fixbottom mode
-    if (currentMode === 'fixbottom') {
-      return {
-        left: `${sidebarWidth}px`,
-        right: '0px',
-        transition: 'left 300ms ease-in-out' // Smooth sidebar transition
-      };
-    }
-    
-    // Center only in floating mode
     const leftPosition = `calc(${sidebarWidth}px + (100vw - ${sidebarWidth}px) / 2)`;
+    
     return {
       left: leftPosition,
       transition: 'left 300ms ease-in-out' // Smooth sidebar transition
