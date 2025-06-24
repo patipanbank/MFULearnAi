@@ -463,11 +463,13 @@ const ChatPage: React.FC = () => {
     addMessage(userMessage);
 
     // Create assistant placeholder for streaming
+    const placeholderTime = new Date();
+    placeholderTime.setHours(placeholderTime.getHours() - 7); // ลบ 7 ชั่วโมงสำหรับข้อความ AI ในแชทเก่า
     const placeholder: ChatMessage = {
       id: Date.now().toString() + '_assistant',
       role: 'assistant',
       content: '',
-      timestamp: new Date(),
+      timestamp: placeholderTime,
       isStreaming: true,
       isComplete: false
     };
