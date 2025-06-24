@@ -79,11 +79,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const updatedSession = {
       ...state.currentSession,
       messages: [...state.currentSession.messages, message],
+      // Update chat name with first user message if it's still "New Chat"
+      name: state.currentSession.name === 'New Chat' && message.role === 'user' 
+        ? message.content.slice(0, 50) // Limit to first 50 characters
+        : state.currentSession.name,
       updatedAt: new Date()
     };
     
+    // Update chat history if name changed
+    const updatedHistory = state.chatHistory.map(chat => 
+      chat.id === updatedSession.id ? updatedSession : chat
+    );
+    
     return {
-      currentSession: updatedSession
+      currentSession: updatedSession,
+      chatHistory: updatedHistory
     };
   }),
   
