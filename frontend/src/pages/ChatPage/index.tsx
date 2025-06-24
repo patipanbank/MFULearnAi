@@ -712,6 +712,14 @@ const ChatPage: React.FC = () => {
     }
   };
   
+  const getLatestBotMessage = () => {
+    if (!currentSession?.messages.length) return null;
+    // Get messages in reverse order and find the first assistant message
+    return [...currentSession.messages]
+      .reverse()
+      .find(msg => msg.role === 'assistant');
+  };
+  
   if (isLoading) {
     return <Loading />;
   }
@@ -874,6 +882,13 @@ const ChatPage: React.FC = () => {
         {/* Input Area - Fixed at Bottom */}
         <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="container mx-auto max-w-4xl px-4 pb-6">
+            {/* Latest Bot Message Preview */}
+            {hasMessages && getLatestBotMessage() && (
+              <div className="mb-2 px-2 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg text-sm text-white/80 line-clamp-2">
+                <span className="font-medium text-white/90">Last response: </span>
+                {getLatestBotMessage()?.content}
+              </div>
+            )}
             <ResponsiveChatInput
               message={message}
               onMessageChange={setMessage}
