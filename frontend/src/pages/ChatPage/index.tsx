@@ -642,7 +642,6 @@ const ChatPage: React.FC = () => {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <h1 className="text-4xl font-bold text-primary mb-4">DINDIN AI</h1>
-              <p className="text-lg text-secondary">Start a conversation by typing your message below.</p>
             </div>
           </div>
         )}
