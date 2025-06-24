@@ -647,7 +647,18 @@ const ChatPage: React.FC = () => {
                 alt="MFU Logo"
                 className="w-24 h-24 mx-auto mb-2"
               />
-              <h2 className="text-2xl font-bold text-primary mb-2">Welcome"</h2>
+              <h2 className="text-2xl font-bold text-primary mb-1">Welcome</h2>
+              <h3 
+                className="text-xl font-semibold mb-2"
+                style={{
+                  background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
+              >
+                {user?.firstName || 'Guest'}
+              </h3>
               <p className="text-base text-secondary">How can I help you today?</p>
             </div>
           </div>
