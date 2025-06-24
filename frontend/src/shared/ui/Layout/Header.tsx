@@ -1,19 +1,27 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu, FiUser } from 'react-icons/fi';
 import { useAuthStore, useUIStore } from '../../stores';
 import useLayoutStore from '../../stores/layoutStore';
+import { useChatStore } from '../../stores/chatStore';
 import AgentSelector from '../AgentSelector';
 import UserProfile from '../UserProfile';
 
 const Header: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { toggleMobileMenu } = useLayoutStore();
   const { toggleDropdown } = useUIStore();
+  const { createNewChat } = useChatStore();
    
   // Show AgentSelector only on chat routes
   const showAgentSelector = location.pathname.startsWith('/chat');
+
+  const handleLogoClick = async () => {
+    await createNewChat();
+    navigate('/chat');
+  };
 
   return (
     <header className="h-16 bg-primary border-b border-border flex items-center justify-between px-6 z-[10]">
@@ -29,7 +37,10 @@ const Header: React.FC = () => {
         </button>
 
         {/* DINDIN AI Logo */}
-        <div className="flex items-center mr-4 text-xl font-bold">
+        <button
+          onClick={handleLogoClick}
+          className="flex items-center mr-6 text-2xl md:text-3xl font-bold hover:opacity-80 transition-opacity"
+        >
           <span style={{
             background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
             WebkitBackgroundClip: 'text',
@@ -43,7 +54,7 @@ const Header: React.FC = () => {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text'
           }}>AI</span>
-        </div>
+        </button>
 
         {/* Agent Selector (chat routes) */}
         {showAgentSelector && <AgentSelector />}
