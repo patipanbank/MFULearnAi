@@ -28,6 +28,23 @@ const Header: React.FC = () => {
           <FiMenu className="h-5 w-5 text-primary" />
         </button>
 
+        {/* DINDIN AI Logo */}
+        <div className="flex items-center mr-4 text-xl font-bold">
+          <span style={{
+            background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>DIN</span>
+          <span>DIN </span>
+          <span style={{
+            background: 'linear-gradient(to right, #00FFFF, #0099FF)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>AI</span>
+        </div>
+
         {/* Agent Selector (chat routes) */}
         {showAgentSelector && <AgentSelector />}
       </div>
