@@ -6,7 +6,6 @@ import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
-import { cn } from '../../shared/lib/utils';
 import dindinAvatar from '../../assets/dindin.png';
 
 const ChatPage: React.FC = () => {
