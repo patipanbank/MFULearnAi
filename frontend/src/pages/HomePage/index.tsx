@@ -126,7 +126,7 @@ const HomePage: React.FC = () => {
               disabled={!selectedAgent}
               isTyping={false}
               hasMessages={false}
-              isInChatRoom={false}
+              isInChatRoom={true}
             />
           </div>
         </div>
