@@ -61,8 +61,16 @@ const TypingIndicator = () => (
 );
 
 // Message component
-const ChatMessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ message, isLast }) => {
+const ChatMessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
   const isUser = message.role === 'user';
+  const { user } = useAuthStore();
+  
+  const getInitials = () => {
+    if (!user) return 'U';
+    const firstInitial = user.firstName?.charAt(0) || '';
+    const lastInitial = user.lastName?.charAt(0) || '';
+    return (firstInitial + lastInitial).toUpperCase() || 'U';
+  };
   
   return (
     <motion.div
@@ -111,7 +119,7 @@ const ChatMessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = (
           )}
         </div>
         <span className="text-xs text-muted-foreground">
-          {format(new Date(message.timestamp || Date.now()), 'HH:mm', { locale: th })}
+          {format(new Date(message.timestamp), 'HH:mm', { locale: th })}
         </span>
       </div>
 
@@ -119,7 +127,7 @@ const ChatMessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = (
         <div className="flex-shrink-0 ml-4">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
             <span className="text-sm font-medium text-primary">
-              {message.username?.slice(0, 2).toUpperCase()}
+              {getInitials()}
             </span>
           </div>
         </div>
@@ -723,14 +731,6 @@ const ChatPage: React.FC = () => {
   // We no longer force-close WebSocket when leaving a room; it will be
   // cleaned up on unmount or reused for the next room to avoid race conditions.
   
-  // Get user initials for avatar
-  const getInitials = () => {
-    if (!user) return 'U';
-    const firstInitial = user.firstName?.charAt(0) || '';
-    const lastInitial = user.lastName?.charAt(0) || '';
-    return (firstInitial + lastInitial).toUpperCase() || 'U';
-  };
-  
   if (isLoading) {
     return <Loading />;
   }
@@ -751,11 +751,10 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto">
           <AnimatePresence mode="popLayout">
-            {currentSession?.messages.map((msg, idx) => (
+            {currentSession?.messages.map((msg) => (
               <ChatMessageBubble
                 key={msg.id}
                 message={msg}
-                isLast={idx === currentSession.messages.length - 1}
               />
             ))}
           </AnimatePresence>
