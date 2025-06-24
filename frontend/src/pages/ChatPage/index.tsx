@@ -636,10 +636,10 @@ const ChatPage: React.FC = () => {
       </div>
       
       {/* Chat Area - Centered with max width */}
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative min-h-screen">
         {/* Welcome Message */}
         {!hasMessages && (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center mb-32">
             <div className="text-center">
               <h2 className="text-4xl font-bold text-primary mb-8">DINDIN AI</h2>
               <p className="text-lg text-secondary">Start a conversation by typing your message below.</p>

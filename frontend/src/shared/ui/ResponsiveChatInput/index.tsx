@@ -39,7 +39,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   const [currentMode, setCurrentMode] = useState<'floating' | 'fixbottom'>('floating');
 
   // Determine input mode based on chat state
-  const targetMode = (hasMessages || isInChatRoom) ? 'fixbottom' : 'floating';
+  const targetMode = 'fixbottom'; // Always use fixbottom mode
 
   // Handle mode transition with animation
   useEffect(() => {
