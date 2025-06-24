@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
 import type { ChatMessage } from '../../shared/stores/chatStore';
@@ -74,6 +74,12 @@ const ChatPage: React.FC = () => {
   
   // Add state for scroll button visibility
   const [showScrollButton, setShowScrollButton] = useState(false);
+  
+  // Add new scroll management hooks at the top of the component
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [lastScrollPosition, setLastScrollPosition] = useState(0);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const mainContainerRef = useRef<HTMLDivElement | null>(null);
   
   // Initialize data on mount
   useEffect(() => {
@@ -686,31 +692,105 @@ const ChatPage: React.FC = () => {
     });
   };
   
-  // Handle scroll events
-  useEffect(() => {
-    const mainContainer = document.querySelector('.messages-container');
-    if (!mainContainer) return;
-
-    const handleScroll = () => {
-      // Show button if scrolled up more than 200px from bottom
-      const isScrolledUp = mainContainer.scrollHeight - mainContainer.scrollTop - mainContainer.clientHeight > 200;
-      setShowScrollButton(isScrolledUp);
-    };
-
-    mainContainer.addEventListener('scroll', handleScroll);
-    return () => mainContainer.removeEventListener('scroll', handleScroll);
+  // Add scroll manager function
+  const handleScroll = useCallback(() => {
+    if (!mainContainerRef.current) return;
+    
+    const container = mainContainerRef.current;
+    const scrollPosition = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    const distanceFromBottom = scrollHeight - scrollPosition - clientHeight;
+    
+    // Consider "near bottom" if within 100px of bottom
+    const nearBottom = distanceFromBottom < 100;
+    setIsNearBottom(nearBottom);
+    
+    // Auto-scroll only if we were previously at bottom
+    setAutoScroll(nearBottom);
+    
+    // Show scroll button if not near bottom
+    setShowScrollButton(!nearBottom);
+    
+    // Save last scroll position
+    setLastScrollPosition(scrollPosition);
   }, []);
-  
-  // Scroll to bottom function
-  const scrollToBottom = () => {
-    const mainContainer = document.querySelector('.messages-container');
-    if (mainContainer) {
-      mainContainer.scrollTo({
-        top: mainContainer.scrollHeight,
-        behavior: 'smooth'
-      });
+
+  // Improved scroll to bottom function
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (!mainContainerRef.current) return;
+    
+    const container = mainContainerRef.current;
+    const targetScroll = container.scrollHeight - container.clientHeight;
+    
+    container.scrollTo({
+      top: targetScroll,
+      behavior
+    });
+    
+    setAutoScroll(true);
+    setShowScrollButton(false);
+  }, []);
+
+  // Add scroll restoration effect
+  useEffect(() => {
+    const container = mainContainerRef.current;
+    if (!container) return;
+    
+    // Restore scroll position on mount
+    if (lastScrollPosition > 0) {
+      container.scrollTop = lastScrollPosition;
     }
-  };
+    
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll, lastScrollPosition]);
+
+  // Update message scroll effect
+  useEffect(() => {
+    if (!autoScroll || !currentSession?.messages.length) return;
+    
+    const scrollWithDelay = () => {
+      // Use RAF for smooth animation frame
+      requestAnimationFrame(() => {
+        scrollToBottom('smooth');
+      });
+    };
+    
+    // Scroll on new messages
+    scrollWithDelay();
+    
+    // Also scroll after a delay to handle dynamic content
+    const delayedScroll = setTimeout(scrollWithDelay, 100);
+    
+    return () => clearTimeout(delayedScroll);
+  }, [currentSession?.messages, autoScroll, scrollToBottom]);
+
+  // Add image load scroll handler
+  useEffect(() => {
+    if (!autoScroll) return;
+    
+    const handleImageLoad = () => {
+      if (isNearBottom) {
+        scrollToBottom('smooth');
+      }
+    };
+    
+    const images = document.querySelectorAll('.message-image');
+    images.forEach(img => {
+      if ((img as HTMLImageElement).complete) {
+        handleImageLoad();
+      } else {
+        img.addEventListener('load', handleImageLoad);
+      }
+    });
+    
+    return () => {
+      images.forEach(img => {
+        img.removeEventListener('load', handleImageLoad);
+      });
+    };
+  }, [autoScroll, isNearBottom, scrollToBottom]);
   
   if (isLoading) {
     return <Loading />;
@@ -739,7 +819,14 @@ const ChatPage: React.FC = () => {
       {/* Chat Area - Centered with max width */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
         {/* Messages Container - Make it fill available space */}
-        <div className="flex-1 overflow-y-auto messages-container">
+        <div 
+          ref={mainContainerRef}
+          className="flex-1 overflow-y-auto messages-container scroll-smooth"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(186,12,47,0.3) transparent'
+          }}
+        >
           {/* Welcome Message */}
           {!hasMessages && (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -829,16 +916,16 @@ const ChatPage: React.FC = () => {
               {/* Scroll to bottom button */}
               {showScrollButton && (
                 <button
-                  onClick={scrollToBottom}
-                  className="fixed bottom-24 right-8 bg-white text-primary p-3 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-200 z-[100] border-2 border-primary flex items-center gap-2"
+                  onClick={() => scrollToBottom('smooth')}
+                  className="fixed bottom-24 right-8 bg-white text-primary p-3 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-300 z-[100] border-2 border-primary flex items-center gap-2 transform hover:scale-110"
                   style={{
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                    transform: 'scale(1.1)'
+                    boxShadow: '0 4px 15px rgba(186,12,47,0.2)',
+                    animation: 'bounce-subtle 2s infinite'
                   }}
                   aria-label="Scroll to bottom"
                 >
                   <span className="text-sm font-medium">ล่างสุด</span>
-                  <FiChevronDown className="w-5 h-5" />
+                  <FiChevronDown className="w-5 h-5 animate-bounce" />
                 </button>
               )}
               
