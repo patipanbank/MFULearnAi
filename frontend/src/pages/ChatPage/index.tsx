@@ -658,7 +658,7 @@ const ChatPage: React.FC = () => {
                       className={`max-w-xl w-fit px-4 py-3 rounded-2xl ${
                         msg.role === 'user'
                           ? 'bg-blue-600 text-white ml-4 shadow-md'
-                          : 'bg-transparent dark:bg-gradient-to-br dark:from-gray-800/90 dark:via-gray-800/80 dark:to-gray-800/70 backdrop-blur-sm text-gray-800 dark:text-white mr-4 shadow-sm hover:shadow-md dark:shadow-lg dark:hover:shadow-xl transition-all duration-300 ease-in-out dark:border dark:border-gray-700/30 dark:hover:border-gray-600/40'
+                          : 'bg-gray-50/50 dark:bg-gradient-to-br dark:from-gray-800/90 dark:via-gray-800/80 dark:to-gray-800/70 backdrop-blur-sm text-gray-800 dark:text-white mr-4 shadow-sm hover:shadow-md dark:shadow-lg dark:hover:shadow-xl transition-all duration-300 ease-in-out dark:border dark:border-gray-700/30 dark:hover:border-gray-600/40'
                       }`}
                     >
                       {/* Images */}
@@ -696,7 +696,7 @@ const ChatPage: React.FC = () => {
               
               {isTyping && (
                 <div className="flex justify-start max-w-3xl mx-auto">
-                  <div className="flex items-center space-x-3 bg-transparent dark:bg-gradient-to-br dark:from-gray-800/90 dark:via-gray-800/80 dark:to-gray-800/70 backdrop-blur-sm px-5 py-4 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg dark:border dark:border-gray-700/30">
+                  <div className="flex items-center space-x-3 bg-gray-50/50 dark:bg-gradient-to-br dark:from-gray-800/90 dark:via-gray-800/80 dark:to-gray-800/70 backdrop-blur-sm px-5 py-4 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg dark:border dark:border-gray-700/30">
                     <img 
                       src={dindinAvatar} 
                       alt="DINDIN AI" 
