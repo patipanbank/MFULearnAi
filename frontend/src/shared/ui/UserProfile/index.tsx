@@ -56,7 +56,7 @@ const UserProfile: React.FC = () => {
             {user.firstName} {user.lastName}
           </p>
           <p className="text-xs text-muted truncate max-w-32">
-            {user.student_id || user.email}
+            {user.student_id || ''}
           </p>
         </div>
       </button>
