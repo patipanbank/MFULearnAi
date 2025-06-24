@@ -66,10 +66,6 @@ const ChatPage: React.FC = () => {
 
   const pendingQueueRef = useRef<PendingPayload[]>([]);
   
-  // Determine if we're in a specific chat room
-  const isInChatRoom = Boolean(chatId);
-  const hasMessages = (currentSession?.messages.length || 0) > 0;
-  
   // Initialize data on mount
   useEffect(() => {
     const initializeData = async () => {
@@ -99,7 +95,7 @@ const ChatPage: React.FC = () => {
   
   // เมื่อ URL มี chatId ให้โหลดประวัติหนึ่งครั้งและเชื่อม WS
   useEffect(() => {
-    if (!isInChatRoom || !chatId) return;
+    if (!chatId) return;
 
     if (currentSession && currentSession.id === chatId) {
       if (!isConnectedToRoom) connectWebSocket();
@@ -115,22 +111,22 @@ const ChatPage: React.FC = () => {
         createNewChat();
       }
     })();
-  }, [chatId, isInChatRoom]);
+  }, [chatId, isConnectedToRoom]);
 
   // กรณี /chat (ไม่มี id)
   useEffect(() => {
-    if (isInChatRoom) return; // handled above
+    if (chatId) return; // handled above
     
     // If we are on /chat but the current session is a real, saved chat,
     // we must create a new one to prevent sending messages to the old chat.
     if (!currentSession || !currentSession.id.startsWith('chat_')) {
       createNewChat();
     }
-  }, [isInChatRoom, currentSession]);
+  }, [chatId, currentSession]);
   
   // Update session ID when chat room changes
   useEffect(() => {
-    if (isInChatRoom && chatId && currentSession && currentSession.id !== chatId) {
+    if (chatId && currentSession && currentSession.id !== chatId) {
       // Update current session ID to match the chat room
       if (currentSession) {
         setCurrentSession({
@@ -139,7 +135,7 @@ const ChatPage: React.FC = () => {
         });
       }
     }
-  }, [chatId, isInChatRoom, currentSession]);
+  }, [chatId, currentSession]);
   
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -250,7 +246,7 @@ const ChatPage: React.FC = () => {
       
       // If joining an existing room, send a join event immediately
       // This helps the backend register the socket to the room without waiting for a message.
-      if (isInChatRoom && chatId) {
+      if (chatId) {
         ws.send(JSON.stringify({ type: 'join_room', chatId }));
       }
       
@@ -564,7 +560,7 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     let reconnectTimer: number;
     
-    if (wsStatus === 'disconnected' && token && currentSession && isInChatRoom) {
+    if (wsStatus === 'disconnected' && token && currentSession && chatId) {
       // Check if token is still valid before attempting reconnect
       if (isTokenExpired(token)) {
         console.log('Token expired, not attempting reconnect');
@@ -589,7 +585,7 @@ const ChatPage: React.FC = () => {
         window.clearTimeout(reconnectTimer);
       }
     };
-  }, [wsStatus, token, currentSession, isInChatRoom]);
+  }, [wsStatus, token, currentSession, chatId]);
   
   // Cleanup WebSocket on unmount
   useEffect(() => {
@@ -630,7 +626,6 @@ const ChatPage: React.FC = () => {
       {/* Chat Area - Full Width without Header */}
       <div className="flex-1 flex flex-col max-w-none">
         {/* Messages */}
-        {hasMessages && (
         <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-2">
           {currentSession?.messages.map((msg) => (
             <div
@@ -707,7 +702,6 @@ const ChatPage: React.FC = () => {
           
           <div ref={messagesEndRef} />
         </div>
-        )}
         
         {/* Input Area - Fixed at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
@@ -721,8 +715,6 @@ const ChatPage: React.FC = () => {
               onRemoveImage={handleRemoveImage}
               disabled={!selectedAgent || isLoading}
               isTyping={isTyping}
-              hasMessages={hasMessages}
-              isInChatRoom={isInChatRoom}
               onRoomCreated={handleRoomCreated}
             />
           </div>
