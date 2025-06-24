@@ -93,26 +93,41 @@ const HomePage: React.FC = () => {
 
   // Show chat input with welcome message
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-white">
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="text-center max-w-2xl">
-          <h1 className="text-4xl font-bold text-primary mb-4">Welcome to MFU Learn AI</h1>
-          <p className="text-lg text-secondary mb-8">Start a conversation by typing your message below.</p>
-        </div>
+    <div className="flex h-full bg-primary relative">
+      {/* Add a subtle background pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="w-full h-full" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgb(186,12,47) 1px, transparent 0)`,
+          backgroundSize: '40px 40px'
+        }}/>
       </div>
-      <div className="w-full max-w-4xl mx-auto px-4 pb-6">
-        <ResponsiveChatInput
-          message={message}
-          onMessageChange={setMessage}
-          onSendMessage={handleSendMessage}
-          onImageUpload={handleImageUpload}
-          images={images}
-          onRemoveImage={handleRemoveImage}
-          disabled={!selectedAgent}
-          isTyping={false}
-          hasMessages={false}
-          isInChatRoom={false}
-        />
+      
+      {/* Chat Area - Centered with max width */}
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-2xl">
+            <h1 className="text-4xl font-bold text-primary mb-4">Welcome to MFU Learn AI</h1>
+            <p className="text-lg text-secondary mb-8">Start a conversation by typing your message below.</p>
+          </div>
+        </div>
+        
+        {/* Input Area - Fixed at Bottom */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
+          <div className="px-4 pb-6">
+            <ResponsiveChatInput
+              message={message}
+              onMessageChange={setMessage}
+              onSendMessage={handleSendMessage}
+              onImageUpload={handleImageUpload}
+              images={images}
+              onRemoveImage={handleRemoveImage}
+              disabled={!selectedAgent}
+              isTyping={false}
+              hasMessages={false}
+              isInChatRoom={false}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
