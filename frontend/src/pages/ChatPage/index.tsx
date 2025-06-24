@@ -635,7 +635,7 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-end pr-[20%]'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-end pr-[10%]'}`}
             >
               {msg.role !== 'user' && (
                 <div className="flex-shrink-0 mr-2">
