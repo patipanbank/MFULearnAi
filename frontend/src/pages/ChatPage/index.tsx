@@ -658,7 +658,7 @@ const ChatPage: React.FC = () => {
                       className={`max-w-xl w-fit px-4 py-3 rounded-2xl ${
                         msg.role === 'user'
                           ? 'bg-blue-600 text-white ml-4 shadow-md'
-                          : 'bg-white dark:bg-gray-800/80 text-primary dark:text-primary mr-4 shadow-lg hover:shadow-xl transition-shadow duration-200 dark:shadow-primary/10'
+                          : 'bg-background dark:bg-gray-800/80 text-gray-800 dark:text-primary mr-4 shadow-lg hover:shadow-xl transition-shadow duration-200 dark:shadow-primary/10'
                       }`}
                     >
                       {/* Images */}
