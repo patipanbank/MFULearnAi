@@ -30,7 +30,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   isInChatRoom = false,
   onRoomCreated: _onRoomCreated
 }) => {
-  const { isMobile, sidebarCollapsed, sidebarHovered } = useLayoutStore();
+  const { isMobile } = useLayoutStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
