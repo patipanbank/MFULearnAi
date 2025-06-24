@@ -227,7 +227,7 @@ const Sidebar: React.FC = () => {
               sidebarHovered && "animate-fade-in"
             )}>
               <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
-                Recent Chats
+                --- Latest chat ---
               </h3>
               <div className="space-y-1">
                 {sortedChats.length === 0 ? (

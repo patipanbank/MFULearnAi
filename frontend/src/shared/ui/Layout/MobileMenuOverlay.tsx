@@ -278,7 +278,7 @@ const MobileMenuOverlay: React.FC = () => {
         {/* Recent Chats */}
         <div className="flex-1 overflow-y-auto p-6">
           <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-            Recent Chats
+            --- Latest chat ---
           </h3>
           <div className="space-y-2">
             {sortedChats.length === 0 ? (
