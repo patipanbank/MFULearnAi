@@ -249,9 +249,9 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           </div>
         )}
 
-        <div className="flex items-end space-x-3">
+        <div className="flex items-end space-x-1 sm:space-x-3">
           {/* Textarea */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <textarea
               ref={textareaRef}
               value={message}
@@ -269,7 +269,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-0.5 sm:space-x-1 flex-shrink-0">
             {/* File Input */}
             <input
               ref={fileInputRef}
