@@ -200,7 +200,7 @@ const Sidebar: React.FC = () => {
               {sortedChats.slice(0, 5).map((chat) => (
                 <button
                   key={chat.id}
-                  onClick={() => handleChatClick(chat.id)}
+                  onClick={() => currentSession?.id !== chat.id && handleChatClick(chat.id)}
                   className={cn(
                     'w-full h-10 rounded-lg flex items-center justify-center transition-colors relative',
                     currentSession?.id === chat.id
@@ -239,12 +239,12 @@ const Sidebar: React.FC = () => {
                   sortedChats.map((chat) => (
                     <div
                       key={chat.id}
-                      onClick={() => handleChatClick(chat.id)}
+                      onClick={() => currentSession?.id !== chat.id && handleChatClick(chat.id)}
                       className={cn(
-                        'group relative flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer',
+                        'group relative flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors',
                         currentSession?.id === chat.id
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                          : 'text-secondary card-hover'
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 cursor-default'
+                          : 'text-secondary card-hover cursor-pointer'
                       )}
                     >
                       <div className="flex-1 min-w-0">
