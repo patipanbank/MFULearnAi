@@ -7,6 +7,7 @@ import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import { cn } from '../../shared/lib/utils';
+import dindinAvatar from '../../assets/dindin.png';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -629,6 +630,15 @@ const ChatPage: React.FC = () => {
               key={msg.id}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
+              {msg.role !== 'user' && (
+                <div className="flex-shrink-0 mr-3">
+                  <img 
+                    src={dindinAvatar} 
+                    alt="DINDIN AI" 
+                    className="w-8 h-8 rounded-full"
+                  />
+                </div>
+              )}
               <div
                 className={`max-w-3xl px-4 py-3 rounded-lg ${
                   msg.role === 'user'
