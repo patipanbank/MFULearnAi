@@ -655,10 +655,10 @@ const ChatPage: React.FC = () => {
                       {msg.timestamp.toLocaleTimeString()}
                     </div>
                     <div
-                      className={`max-w-xl w-fit px-4 py-3 rounded-2xl shadow-md ${
+                      className={`max-w-xl w-fit px-4 py-3 rounded-2xl ${
                         msg.role === 'user'
-                          ? 'bg-blue-600 text-white ml-4'
-                          : 'bg-white/90 backdrop-blur-sm dark:bg-gray-800/80 text-primary dark:text-primary mr-4 dark:shadow-primary/10'
+                          ? 'bg-blue-600 text-white ml-4 shadow-md'
+                          : 'bg-white dark:bg-gray-800/80 text-primary dark:text-primary mr-4 shadow-lg dark:shadow-primary/10 border border-gray-100 dark:border-gray-700/50'
                       }`}
                     >
                       {/* Images */}
@@ -696,7 +696,7 @@ const ChatPage: React.FC = () => {
               
               {isTyping && (
                 <div className="flex justify-start max-w-3xl mx-auto">
-                  <div className="flex items-center space-x-2 bg-white/90 backdrop-blur-sm dark:bg-gray-800/80 px-4 py-3 rounded-2xl shadow-md dark:shadow-primary/10">
+                  <div className="flex items-center space-x-2 bg-white dark:bg-gray-800/80 px-4 py-3 rounded-2xl shadow-lg dark:shadow-primary/10 border border-gray-100 dark:border-gray-700/50">
                     <img 
                       src={dindinAvatar} 
                       alt="DINDIN AI" 
