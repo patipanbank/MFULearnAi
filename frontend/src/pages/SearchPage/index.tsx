@@ -5,7 +5,7 @@ const SearchPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedFilter, setSelectedFilter] = useState('chats');
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,10 +35,7 @@ const SearchPage: React.FC = () => {
   };
 
   const filterOptions = [
-    { value: 'all', label: 'All Results' },
-    { value: 'documents', label: 'Documents' },
-    { value: 'chats', label: 'Chat History' },
-    { value: 'agents', label: 'AI Agents' }
+    { value: 'chats', label: 'Chat History' }
   ];
 
   return (
