@@ -316,11 +316,15 @@ const Sidebar: React.FC = () => {
             {/* Settings Dropdown */}
             {isSettingsOpen && (
               <div className={cn(
-                'absolute bottom-full mb-2 dropdown-menu py-2 animate-slide-in-from-bottom-2',
+                'absolute bottom-full mb-2 dropdown-menu py-3 animate-slide-in-from-bottom-2 backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 shadow-lg rounded-xl',
                 (sidebarCollapsed && !sidebarHovered)
-                  ? 'left-full ml-2 w-64' 
+                  ? 'left-full ml-2 w-72' 
                   : 'left-0 right-0'
               )}>
+                <div className="px-4 pb-2 mb-2 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Settings & Tools</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Manage your workspace preferences</p>
+                </div>
                 {settingsItems
                   .filter(item => !isMobile || item.showOnMobile)
                   .map((item) => {
@@ -329,12 +333,19 @@ const Sidebar: React.FC = () => {
                     <button
                       key={item.id}
                       onClick={() => handleSettingsItemClick(item)}
-                      className="w-full flex items-center space-x-3 px-4 py-3 text-left card-hover transition-colors"
+                      className="w-full flex items-center space-x-3 px-4 py-2.5 text-left transition-all duration-200 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 group relative"
                     >
-                      <Icon className="h-4 w-4 text-muted flex-shrink-0" />
+                      <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                        <Icon className="h-4 w-4 text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-primary">{item.label}</div>
-                        <div className="text-xs text-muted truncate">{item.description}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">{item.label}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{item.description}</div>
+                      </div>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </div>
                     </button>
                   );
