@@ -39,7 +39,7 @@ const Header: React.FC = () => {
         {/* DINDIN AI Logo */}
         <button
           onClick={handleLogoClick}
-          className="flex items-center mr-6 text-2xl md:text-3xl font-bold hover:opacity-80 transition-opacity"
+          className="flex items-center mr-6 text-xl md:text-2xl font-bold hover:opacity-80 transition-opacity"
         >
           <span style={{
             background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
