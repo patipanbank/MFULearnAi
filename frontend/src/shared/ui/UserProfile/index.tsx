@@ -35,8 +35,12 @@ const UserProfile: React.FC = () => {
     return null;
   }
 
-  // Extract first letter for avatar
-  const avatarLetter = user.firstName?.charAt(0) || user.email?.charAt(0) || 'U';
+  // Extract initials for avatar
+  const getInitials = () => {
+    const firstInitial = user.firstName?.charAt(0) || '';
+    const lastInitial = user.lastName?.charAt(0) || '';
+    return (firstInitial + lastInitial).toUpperCase() || 'U';
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -47,7 +51,7 @@ const UserProfile: React.FC = () => {
       >
         {/* Avatar */}
         <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium">
-          {avatarLetter.toUpperCase()}
+          {getInitials()}
         </div>
         
         {/* User Info */}
@@ -68,7 +72,7 @@ const UserProfile: React.FC = () => {
           <div className="p-3 bg-gradient-to-r from-[rgb(186,12,47)] to-[rgb(212,175,55)]">
             <div className="flex items-center space-x-3">
               <div className="h-12 w-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white text-xl font-semibold">
-                {user.firstName?.charAt(0) || 'U'}
+                {getInitials()}
               </div>
               <div className="flex-1">
                 <div>
