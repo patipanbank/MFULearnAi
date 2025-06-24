@@ -452,7 +452,7 @@ const ChatPage: React.FC = () => {
       id: Date.now().toString(),
       role: 'user',
       content: message.trim(),
-      timestamp: new Date(new Date().toLocaleString('en-US', { timeZone: 'UTC' })),
+      timestamp: new Date(),
       images: images.length > 0 ? images : undefined
     };
     
@@ -463,7 +463,7 @@ const ChatPage: React.FC = () => {
       id: Date.now().toString() + '_assistant',
       role: 'assistant',
       content: '',
-      timestamp: new Date(new Date().toLocaleString('en-US', { timeZone: 'UTC' })),
+      timestamp: new Date(),
       isStreaming: true,
       isComplete: false
     };
@@ -613,11 +613,13 @@ const ChatPage: React.FC = () => {
   };
   
   const formatMessageTime = (timestamp: Date) => {
-    return new Date(timestamp).toLocaleTimeString('th-TH', {
+    const date = new Date(timestamp);
+    // Add 7 hours to match Thai timezone
+    date.setHours(date.getHours() + 7);
+    return date.toLocaleTimeString('th-TH', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false,
-      timeZone: 'Asia/Bangkok' // UTC+7 (Thailand timezone)
+      hour12: false
     });
   };
   
