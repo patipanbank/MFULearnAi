@@ -181,8 +181,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       'w-full resize-none border-none bg-transparent',
       'focus:outline-none focus:ring-0',
       'placeholder-muted text-primary',
-      'text-base leading-relaxed transition-all duration-300',
-      currentMode === 'floating' ? 'text-lg py-2' : 'text-base py-1'
+      'text-base leading-normal transition-all duration-300',
+      currentMode === 'floating' ? 'text-lg py-1.5' : 'text-base py-0.5'
     );
   };
 
@@ -251,7 +251,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
         <div className="flex items-end space-x-3">
           {/* Textarea */}
-          <div className="flex-1">
+          <div className="flex-1 min-h-[36px]">
             <textarea
               ref={textareaRef}
               value={message}
