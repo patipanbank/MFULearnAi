@@ -626,27 +626,35 @@ const ChatPage: React.FC = () => {
   }
   
   return (
-    <div className="flex h-full bg-primary">
-      {/* Chat Area - Full Width without Header */}
-      <div className="flex-1 flex flex-col max-w-[1200px] mx-auto w-full">
+    <div className="flex h-full bg-primary relative">
+      {/* Add a subtle background pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="w-full h-full" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgb(186,12,47) 1px, transparent 0)`,
+          backgroundSize: '40px 40px'
+        }}/>
+      </div>
+      
+      {/* Chat Area - Centered with max width */}
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
         {/* Messages */}
         {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-12 py-4 pb-32 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-32 space-y-4">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-end`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-end space-x-2`}
             >
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mr-3">
+                <div className="flex-shrink-0">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
-                    className="w-8 h-8 rounded-full shadow-sm"
+                    className="w-8 h-8 rounded-full shadow-md"
                   />
                 </div>
               )}
-              <div className="flex flex-col">
+              <div className="flex flex-col max-w-[80%]">
                 {/* Timestamp */}
                 <div className={`text-xs mb-1 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
@@ -654,10 +662,10 @@ const ChatPage: React.FC = () => {
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
                 <div
-                  className={`max-w-[80%] sm:max-w-[70%] md:max-w-[60%] lg:max-w-[50%] w-fit px-4 py-3 rounded-2xl shadow-sm ${
+                  className={`px-4 py-3 rounded-2xl shadow-sm ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white ml-2'
-                      : 'bg-white/90 backdrop-blur-sm text-primary mr-2 border border-gray-100'
+                      ? 'bg-blue-600 text-white rounded-br-sm'
+                      : 'card text-primary rounded-bl-sm'
                   }`}
                 >
                   {/* Images */}
@@ -668,14 +676,14 @@ const ChatPage: React.FC = () => {
                           key={idx}
                           src={img.url}
                           alt="Uploaded"
-                          className="rounded-lg max-w-full h-auto shadow-sm hover:shadow-md transition-shadow"
+                          className="rounded-lg max-w-full h-auto shadow-sm"
                         />
                       ))}
                     </div>
                   )}
                   
                   {/* Message Content */}
-                  <div className="whitespace-pre-wrap text-[15px]">
+                  <div className="whitespace-pre-wrap">
                     {msg.content}
                     {msg.isStreaming && (
                       <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
@@ -684,8 +692,8 @@ const ChatPage: React.FC = () => {
                 </div>
               </div>
               {msg.role === 'user' && (
-                <div className="flex-shrink-0 ml-3">
-                  <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
                     {getInitials()}
                   </div>
                 </div>
@@ -694,11 +702,20 @@ const ChatPage: React.FC = () => {
           ))}
           
           {isTyping && (
-            <div className="flex justify-start">
-              <div className="flex items-center space-x-2 bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl shadow-sm border border-gray-100">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+            <div className="flex justify-start items-end space-x-2">
+              <div className="flex-shrink-0">
+                <img 
+                  src={dindinAvatar} 
+                  alt="DINDIN AI" 
+                  className="w-8 h-8 rounded-full shadow-md opacity-50"
+                />
+              </div>
+              <div className="card px-4 py-2 rounded-2xl rounded-bl-sm shadow-sm">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                </div>
               </div>
             </div>
           )}
@@ -709,7 +726,7 @@ const ChatPage: React.FC = () => {
         
         {/* Input Area - Fixed at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
-          <div className="max-w-[1200px] mx-auto px-4 md:px-8 lg:px-12 pb-6">
+          <div className="px-4 pb-6">
             <ResponsiveChatInput
               message={message}
               onMessageChange={setMessage}
