@@ -684,7 +684,7 @@ const ChatPage: React.FC = () => {
 
     const handleScroll = () => {
       // Show button if scrolled up just a little (50px) from bottom
-      const isScrolledUp = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight > 25;
+      const isScrolledUp = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight > 5;
       setShowScrollButton(isScrolledUp);
     };
 
