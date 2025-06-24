@@ -683,8 +683,8 @@ const ChatPage: React.FC = () => {
     if (!messagesContainer) return;
 
     const handleScroll = () => {
-      // Show button if scrolled up just a little (50px) from bottom
-      const isScrolledUp = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight > 0;
+      // Show button if scrolled up more than 200px from bottom
+      const isScrolledUp = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight > 200;
       setShowScrollButton(isScrolledUp);
     };
 
@@ -819,13 +819,15 @@ const ChatPage: React.FC = () => {
             {showScrollButton && (
               <button
                 onClick={scrollToBottom}
-                className="fixed bottom-[140px] right-8 bg-blue-600 text-white p-3 rounded-full shadow-xl hover:bg-blue-700 transition-all duration-200 z-[100] border-2 border-white"
+                className="fixed bottom-[140px] right-8 bg-white text-primary p-3 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-200 z-[100] border-2 border-primary flex items-center gap-2"
                 style={{
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  transform: 'scale(1.1)'
                 }}
                 aria-label="Scroll to bottom"
               >
-                <FiChevronDown className="w-6 h-6" />
+                <span className="text-sm font-medium">ล่างสุด</span>
+                <FiChevronDown className="w-5 h-5" />
               </button>
             )}
             
