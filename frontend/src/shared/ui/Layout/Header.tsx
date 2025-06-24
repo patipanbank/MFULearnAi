@@ -47,7 +47,7 @@ const Header: React.FC = () => {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text'
           }}>DIN</span>
-          <span>DIN </span>
+          <span>DIN&nbsp;</span>
           <span style={{
             background: 'linear-gradient(to right, #00FFFF, #0099FF)',
             WebkitBackgroundClip: 'text',
