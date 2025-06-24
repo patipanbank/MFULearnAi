@@ -331,14 +331,12 @@ const Sidebar: React.FC = () => {
                       onClick={() => handleSettingsItemClick(item)}
                       className="w-full flex items-center space-x-3 px-4 py-3 text-left card-hover transition-colors"
                     >
-                      <div className={cn(
-                        "p-2 rounded-lg",
-                        item.id === 'knowledge' && "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
-                        item.id === 'agents' && "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
-                        item.id === 'preferences' && "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                      )}>
-                        <Icon className="h-4 w-4 flex-shrink-0" />
-                      </div>
+                      <Icon className={cn(
+                        "h-4 w-4 flex-shrink-0",
+                        item.id === 'knowledge' && "text-emerald-600 dark:text-emerald-400",
+                        item.id === 'agents' && "text-purple-600 dark:text-purple-400",
+                        item.id === 'preferences' && "text-blue-600 dark:text-blue-400"
+                      )} />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-primary">{item.label}</div>
                         <div className="text-xs text-muted truncate">{item.description}</div>
