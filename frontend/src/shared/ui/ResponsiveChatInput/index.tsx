@@ -119,7 +119,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         return cn(
           baseClasses,
           'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-          'w-[calc(100vw-2rem)] max-w-none',
+          'w-[calc(100vw-1rem)] max-w-none',
           'border border-primary rounded-2xl shadow-2xl',
           'backdrop-blur-sm bg-background/95',
           // Animation classes
@@ -129,7 +129,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         return cn(
           baseClasses,
           'fixed bottom-4 left-1/2 -translate-x-1/2',
-          'w-[calc(100vw-2rem)] max-w-none',
+          'w-[calc(100vw-1rem)] max-w-none',
           'border border-primary rounded-2xl shadow-lg',
           'bg-background',
           // Animation classes
