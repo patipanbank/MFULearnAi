@@ -181,8 +181,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
       'w-full resize-none border-none bg-transparent',
       'focus:outline-none focus:ring-0',
       'placeholder-muted text-primary',
-      'text-sm leading-relaxed transition-all duration-300',
-      currentMode === 'floating' ? 'text-base py-1.5' : 'text-sm py-1'
+      'text-base leading-relaxed transition-all duration-300',
+      currentMode === 'floating' ? 'text-lg py-2' : 'text-base py-1'
     );
   };
 
@@ -210,8 +210,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
     return cn(
       'transition-all duration-300',
       currentMode === 'floating' 
-        ? 'p-4 backdrop-blur-md' 
-        : 'p-3',
+        ? 'p-6 backdrop-blur-md' 
+        : 'p-4',
       // Add subtle glow effect in floating mode
       currentMode === 'floating' && 'shadow-xl shadow-primary/20'
     );
