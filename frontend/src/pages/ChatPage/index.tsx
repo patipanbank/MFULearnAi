@@ -631,7 +631,7 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 flex flex-col max-w-none">
         {/* Messages */}
         {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-24 2xl:px-16 py-4 pb-32 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-32 xl:px-48 py-4 pb-32 space-y-4">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
@@ -711,7 +711,7 @@ const ChatPage: React.FC = () => {
         
         {/* Input Area - Fixed at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
-          <div className="px-4 md:px-16 lg:px-32 xl:px-24 2xl:px-16 pb-6">
+          <div className="px-4 md:px-16 lg:px-32 xl:px-48 pb-6">
             <ResponsiveChatInput
               message={message}
               onMessageChange={setMessage}
