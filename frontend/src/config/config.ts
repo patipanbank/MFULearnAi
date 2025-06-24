@@ -1,6 +1,4 @@
 export const config = {
   apiUrl: 'https://mfulearnai.mfu.ac.th',
-  wsUrl: 'wss://mfulearnai.mfu.ac.th/ws',
-  timezone: 'Asia/Bangkok',
-  locale: 'th-TH'
+  wsUrl: 'wss://mfulearnai.mfu.ac.th/ws'
 }; 

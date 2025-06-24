@@ -1,7 +1,6 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional, List
-import pytz
 
 # Determine the environment mode. Default to 'development' if not set.
 APP_ENV = os.getenv('APP_ENV', 'development')
@@ -18,7 +17,6 @@ class Settings(BaseSettings):
     # Server
     PORT: int = 5000
     LOG_LEVEL: str = "info"
-    TIMEZONE: str = "Asia/Bangkok"  # Default timezone for Thailand (UTC+7)
 
     # Database & Cache
     MONGODB_URI: str = ""
