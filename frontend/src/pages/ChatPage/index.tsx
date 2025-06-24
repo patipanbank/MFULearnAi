@@ -142,10 +142,32 @@ const ChatPage: React.FC = () => {
     }
   }, [chatId, isInChatRoom, currentSession]);
   
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or typing starts
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentSession?.messages]);
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
+        });
+      }
+    };
+
+    // Scroll when messages change or typing starts
+    scrollToBottom();
+
+    // Also scroll when images are loaded
+    const messageImages = document.querySelectorAll('.message-image');
+    messageImages.forEach(img => {
+      img.addEventListener('load', scrollToBottom);
+    });
+
+    return () => {
+      messageImages.forEach(img => {
+        img.removeEventListener('load', scrollToBottom);
+      });
+    };
+  }, [currentSession?.messages, isTyping]);
   
   // Update ref whenever state changes
   useEffect(() => {
@@ -718,7 +740,7 @@ const ChatPage: React.FC = () => {
                             key={idx}
                             src={img.url}
                             alt="Uploaded"
-                            className="rounded-lg max-w-full h-auto shadow-sm"
+                            className="rounded-lg max-w-full h-auto shadow-sm message-image"
                           />
                         ))}
                       </div>
