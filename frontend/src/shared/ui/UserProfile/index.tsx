@@ -71,9 +71,17 @@ const UserProfile: React.FC = () => {
                 {user.username?.charAt(0) || 'U'}
               </div>
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-white">
-                  {user.username}
-                </h3>
+                <div className="space-y-1">
+                  <div className="text-base font-medium text-white/90">
+                    {user.first_name}
+                  </div>
+                  <div className="text-base font-medium text-white/90">
+                    {user.last_name}
+                  </div>
+                  <h3 className="text-xl font-bold text-white">
+                    {user.username}
+                  </h3>
+                </div>
               </div>
             </div>
           </div>
