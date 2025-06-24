@@ -643,27 +643,29 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'} items-end space-x-2`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-end space-x-2`}
             >
-              {msg.role === 'user' && (
+              {msg.role !== 'user' && (
                 <div className="flex-shrink-0">
-                  <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
-                    {getInitials()}
-                  </div>
+                  <img 
+                    src={dindinAvatar} 
+                    alt="DINDIN AI" 
+                    className="w-8 h-8 rounded-full shadow-md"
+                  />
                 </div>
               )}
-              <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'pl-1' : 'pr-1'}`}>
+              <div className="flex flex-col max-w-[80%]">
                 {/* Timestamp */}
                 <div className={`text-xs mb-1 ${
-                  msg.role === 'user' ? 'text-left text-muted' : 'text-right text-muted'
+                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
                 <div
                   className={`px-4 py-3 rounded-2xl shadow-sm ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-bl-sm'
-                      : 'card text-primary rounded-br-sm'
+                      ? 'bg-blue-600 text-white rounded-br-sm'
+                      : 'card text-primary rounded-bl-sm'
                   }`}
                 >
                   {/* Images */}
@@ -689,35 +691,31 @@ const ChatPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              {msg.role !== 'user' && (
+              {msg.role === 'user' && (
                 <div className="flex-shrink-0">
-                  <img 
-                    src={dindinAvatar} 
-                    alt="DINDIN AI" 
-                    className="w-8 h-8 rounded-full shadow-md"
-                  />
+                  <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
+                    {getInitials()}
+                  </div>
                 </div>
               )}
             </div>
           ))}
           
           {isTyping && (
-            <div className="flex justify-end items-end space-x-2">
-              <div className="flex flex-col max-w-[80%] pr-1">
-                <div className="card px-4 py-2 rounded-2xl rounded-br-sm shadow-sm">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                    <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                  </div>
-                </div>
-              </div>
+            <div className="flex justify-start items-end space-x-2">
               <div className="flex-shrink-0">
                 <img 
                   src={dindinAvatar} 
                   alt="DINDIN AI" 
                   className="w-8 h-8 rounded-full shadow-md opacity-50"
                 />
+              </div>
+              <div className="card px-4 py-2 rounded-2xl rounded-bl-sm shadow-sm">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                </div>
               </div>
             </div>
           )}
