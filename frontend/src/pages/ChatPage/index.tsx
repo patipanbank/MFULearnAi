@@ -152,10 +152,13 @@ const ChatPage: React.FC = () => {
       // Force scroll to bottom immediately when chat is loaded
       const scrollToBottom = () => {
         const messagesContainer = document.querySelector('.messages-container');
-        if (messagesContainer) {
+        const inputContainer = document.querySelector('.chat-input-container');
+        if (messagesContainer && inputContainer) {
           // Use requestAnimationFrame to ensure DOM is ready
           requestAnimationFrame(() => {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            // Calculate the scroll position that puts the last message just above the input
+            const inputHeight = inputContainer.getBoundingClientRect().height;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight - messagesContainer.clientHeight + inputHeight;
           });
         }
       };
@@ -163,18 +166,37 @@ const ChatPage: React.FC = () => {
       // Execute scroll immediately and after a short delay to handle any late-loading content
       scrollToBottom();
       const timer = setTimeout(scrollToBottom, 100);
+      // Also scroll after images are loaded
+      const messageImages = document.querySelectorAll('.message-image');
+      messageImages.forEach(img => {
+        if ((img as HTMLImageElement).complete) {
+          scrollToBottom();
+        } else {
+          img.addEventListener('load', scrollToBottom, { once: true });
+        }
+      });
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        messageImages.forEach(img => {
+          img.removeEventListener('load', scrollToBottom);
+        });
+      };
     }
-  }, [chatId, currentSession?.id]); // Only trigger when chat changes, not on every message update
+  }, [chatId, currentSession?.id, currentSession?.messages]);
 
   // Keep the existing smooth scroll for new messages
   useEffect(() => {
     const scrollToBottom = () => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ 
-          behavior: 'smooth',
-          block: 'end'
+      const messagesContainer = document.querySelector('.messages-container');
+      const inputContainer = document.querySelector('.chat-input-container');
+      if (messagesContainer && inputContainer) {
+        const inputHeight = inputContainer.getBoundingClientRect().height;
+        const targetScroll = messagesContainer.scrollHeight - messagesContainer.clientHeight + inputHeight;
+        
+        messagesContainer.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth'
         });
       }
     };
@@ -185,7 +207,11 @@ const ChatPage: React.FC = () => {
     // Also scroll when images are loaded
     const messageImages = document.querySelectorAll('.message-image');
     messageImages.forEach(img => {
-      img.addEventListener('load', scrollToBottom);
+      if ((img as HTMLImageElement).complete) {
+        scrollToBottom();
+      } else {
+        img.addEventListener('load', scrollToBottom, { once: true });
+      }
     });
 
     return () => {
@@ -860,7 +886,7 @@ const ChatPage: React.FC = () => {
         </div>
         
         {/* Input Area - Fixed at Bottom */}
-        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6 chat-input-container">
           <div className="container mx-auto max-w-4xl px-4 pb-6">
             <ResponsiveChatInput
               message={message}
