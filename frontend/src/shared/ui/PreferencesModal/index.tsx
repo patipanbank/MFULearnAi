@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiSave, FiMoon, FiSun, FiMonitor, FiMessageSquare } from 'react-icons/fi';
+import { FiX, FiSave, FiMoon, FiSun, FiMessageSquare } from 'react-icons/fi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUIStore } from '../../stores/uiStore';
 import useLayoutStore from '../../stores/layoutStore';

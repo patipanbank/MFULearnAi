@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { FiLogOut, FiChevronDown, FiUser, FiMail, FiHome, FiMoon, FiSun, FiMonitor } from 'react-icons/fi';
+import { FiLogOut, FiChevronDown, FiUser, FiMail, FiHome, FiMoon, FiSun } from 'react-icons/fi';
 import useAuthStore from '../../../entities/user/store';
 import useUIStore from '../../stores/uiStore';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -31,7 +31,7 @@ const UserProfile: React.FC = () => {
     closeDropdown(dropdownId);
   };
 
-  const handleThemeChange = (theme: 'light' | 'dark' | 'auto') => {
+  const handleThemeChange = (theme: 'light' | 'dark') => {
     setPreferences({ theme });
   };
 
@@ -144,17 +144,6 @@ const UserProfile: React.FC = () => {
               >
                 <FiMoon className="h-4 w-4" />
                 <span className="text-sm">Dark</span>
-              </button>
-              <button
-                onClick={() => handleThemeChange('auto')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                  preferences.theme === 'auto'
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'hover:bg-secondary text-muted hover:text-primary'
-                }`}
-              >
-                <FiMonitor className="h-4 w-4" />
-                <span className="text-sm">Auto</span>
               </button>
             </div>
             <div className="text-xs text-muted mt-2">
