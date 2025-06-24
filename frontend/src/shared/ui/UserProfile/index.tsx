@@ -68,20 +68,12 @@ const UserProfile: React.FC = () => {
           <div className="p-4 bg-gradient-to-r from-red-500 to-amber-500">
             <div className="flex items-center space-x-4">
               <div className="h-16 w-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white text-2xl font-semibold">
-                {avatarLetter.toUpperCase()}
+                {user.username?.charAt(0) || 'U'}
               </div>
               <div className="flex-1">
-                <div className="space-y-0.5">
-                  <h3 className="text-base font-medium text-white/90">
-                    {user.first_name?.toUpperCase()}
-                  </h3>
-                  <h3 className="text-base font-medium text-white/90">
-                    {user.last_name?.toUpperCase()}
-                  </h3>
-                  <p className="text-sm text-white/80">
-                    {user.username}
-                  </p>
-                </div>
+                <h3 className="text-xl font-bold text-white">
+                  {user.username}
+                </h3>
               </div>
             </div>
           </div>
@@ -125,7 +117,7 @@ const UserProfile: React.FC = () => {
                 <div className="text-sm text-muted">GROUPS</div>
                 <div className="mt-1">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
-                    Students
+                    {user.role}
                   </span>
                 </div>
               </div>
