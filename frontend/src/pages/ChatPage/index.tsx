@@ -604,6 +604,14 @@ const ChatPage: React.FC = () => {
   // We no longer force-close WebSocket when leaving a room; it will be
   // cleaned up on unmount or reused for the next room to avoid race conditions.
   
+  // Get user initials for avatar
+  const getInitials = () => {
+    if (!user) return 'U';
+    const firstInitial = user.firstName?.charAt(0) || '';
+    const lastInitial = user.lastName?.charAt(0) || '';
+    return (firstInitial + lastInitial).toUpperCase() || 'U';
+  };
+  
   if (isLoading) {
     return <Loading />;
   }
@@ -675,6 +683,13 @@ const ChatPage: React.FC = () => {
                   {msg.timestamp.toLocaleTimeString()}
                 </div>
               </div>
+              {msg.role === 'user' && (
+                <div className="flex-shrink-0 ml-3">
+                  <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium">
+                    {getInitials()}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           
