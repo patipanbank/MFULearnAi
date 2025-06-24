@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch, FiClock, FiFileText, FiBookmark } from 'react-icons/fi';
+import { FiSearch, FiBookmark } from 'react-icons/fi';
 import { useChatStore } from '../../shared/stores';
 import { cn } from '../../shared/lib/utils';
 
@@ -14,7 +14,6 @@ const SearchPage: React.FC = () => {
     currentSession, 
     fetchChatHistory, 
     loadChat, 
-    deleteChat, 
     pinChat 
   } = useChatStore();
 
@@ -58,12 +57,6 @@ const SearchPage: React.FC = () => {
     }
   };
 
-  const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {
-    e.stopPropagation();
-    if (confirm('Are you sure you want to delete this chat?')) {
-      await deleteChat(chatId);
-    }
-  };
 
   const handlePinChat = async (e: React.MouseEvent, chatId: string, isPinned: boolean | undefined) => {
     e.stopPropagation();
