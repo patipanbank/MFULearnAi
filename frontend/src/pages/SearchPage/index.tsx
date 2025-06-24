@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { FiSearch, FiFilter, FiClock, FiFileText } from 'react-icons/fi';
+import { FiSearch, FiClock, FiFileText } from 'react-icons/fi';
 
 const SearchPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('chats');
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,10 +33,6 @@ const SearchPage: React.FC = () => {
     }, 1000);
   };
 
-  const filterOptions = [
-    { value: 'chats', label: 'Chat History' }
-  ];
-
   return (
     <div className="flex-1 bg-primary overflow-hidden">
       <div className="h-full flex flex-col">
@@ -65,26 +60,6 @@ const SearchPage: React.FC = () => {
               {isLoading ? 'Searching...' : 'Search'}
             </button>
           </form>
-
-          {/* Filters */}
-          <div className="flex items-center space-x-4 mt-4">
-            <FiFilter className="text-muted h-4 w-4" />
-            <div className="flex space-x-2">
-              {filterOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setSelectedFilter(option.value)}
-                  className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                    selectedFilter === option.value
-                      ? 'btn-primary'
-                      : 'btn-ghost'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Results */}
