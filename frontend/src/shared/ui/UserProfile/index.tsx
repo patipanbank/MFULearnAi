@@ -46,7 +46,7 @@ const UserProfile: React.FC = () => {
         className="btn-ghost flex items-center space-x-2 hover:bg-secondary transition-colors duration-200"
       >
         {/* Avatar */}
-        <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-amber-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+        <div className="h-8 w-8 bg-gradient-to-br from-[#00FFFF] to-[#0099FF] rounded-full flex items-center justify-center text-white text-sm font-medium">
           {avatarLetter.toUpperCase()}
         </div>
         
@@ -65,7 +65,7 @@ const UserProfile: React.FC = () => {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-[320px] bg-primary border border-border rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
           {/* User Profile Header */}
-          <div className="p-4 bg-gradient-to-r from-red-500 to-amber-500">
+          <div className="p-4 bg-gradient-to-r from-[#00FFFF] to-[#0099FF]">
             <div className="flex items-center space-x-4">
               <div className="h-16 w-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white text-2xl font-semibold">
                 {user.firstName?.charAt(0) || 'U'}
