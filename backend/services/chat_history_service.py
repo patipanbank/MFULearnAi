@@ -67,12 +67,23 @@ class ChatHistoryService:
 
     async def add_message_to_chat(self, chat_id: str, message: ChatMessage) -> Optional[Chat]:
         db = get_database()
+        
+        # First check if this is the first user message and chat name is still default
+        chat = await db.get_collection("chats").find_one({"_id": ObjectId(chat_id)})
+        update_dict = {
+            "$push": {"messages": message.model_dump()},
+            "$set": {"updatedAt": datetime.now(timezone.utc)}
+        }
+        
+        # If this is a user message and chat name is default, update the name
+        if (chat and chat.get("name") == "New Chat" and 
+            message.role == "user" and 
+            len(chat.get("messages", [])) == 0):
+            update_dict["$set"]["name"] = message.content[:50]  # Limit to 50 chars
+        
         result = await db.get_collection("chats").find_one_and_update(
             {"_id": ObjectId(chat_id)},
-            {
-                "$push": {"messages": message.model_dump()}, 
-                "$set": {"updatedAt": datetime.now(timezone.utc)}
-            },
+            update_dict,
             return_document=True
         )
         if result and "_id" in result:
