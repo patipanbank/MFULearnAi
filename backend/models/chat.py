@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 class ImagePayload(BaseModel):
@@ -11,7 +11,7 @@ class ChatMessage(BaseModel):
     id: str
     role: str  # 'user' or 'assistant'
     content: str
-    timestamp: datetime
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     images: Optional[List[ImagePayload]] = None
     # Streaming flags (optional)
     isStreaming: Optional[bool] = None

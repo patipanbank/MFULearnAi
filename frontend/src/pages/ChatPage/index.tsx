@@ -458,7 +458,7 @@ const ChatPage: React.FC = () => {
     
     addMessage(userMessage);
 
-    // สร้าง assistant placeholder เพื่อแสดงระหว่างสตรีม
+    // Create assistant placeholder for streaming
     const placeholder: ChatMessage = {
       id: Date.now().toString() + '_assistant',
       role: 'assistant',
@@ -612,6 +612,15 @@ const ChatPage: React.FC = () => {
     return (firstInitial + lastInitial).toUpperCase() || 'U';
   };
   
+  const formatMessageTime = (timestamp: Date) => {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+  };
+  
   if (isLoading) {
     return <Loading />;
   }
@@ -685,7 +694,7 @@ const ChatPage: React.FC = () => {
                   <div className={`text-xs mb-1 ${
                     msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                   }`}>
-                    {msg.timestamp.toLocaleTimeString()}
+                    {formatMessageTime(msg.timestamp)}
                   </div>
                   <div
                     className={`px-4 py-3 rounded-2xl shadow-sm ${

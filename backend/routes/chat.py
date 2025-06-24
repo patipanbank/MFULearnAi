@@ -5,6 +5,7 @@ import jwt
 import json
 from bson import ObjectId
 import asyncio
+from datetime import datetime, timezone
 
 from services.chat_service import chat_service
 from services.chat_history_service import chat_history_service
@@ -14,7 +15,6 @@ from models.chat import ImagePayload, Chat as ChatHistoryModel, ChatMessage
 from middleware.role_guard import role_guard, get_current_user_with_roles
 from config.config import settings
 from tasks.chat_tasks import generate_answer  # lazy import to avoid circular
-from datetime import datetime as _dt
 from utils.websocket_manager import ws_manager
 
 router = APIRouter(
@@ -212,7 +212,13 @@ async def websocket_endpoint(websocket: WebSocket):
             # Persist and process the message
             await chat_history_service.add_message_to_chat(
                 str(session_id),
-                ChatMessage(id=str(ObjectId()), role="user", content=message, timestamp=_dt.utcnow(), images=[ImagePayload(**img) for img in data.get("images", [])] or None)
+                ChatMessage(
+                    id=str(ObjectId()),
+                    role="user",
+                    content=message,
+                    timestamp=datetime.now(timezone.utc),
+                    images=[ImagePayload(**img) for img in data.get("images", [])] or None
+                )
             )
             task_payload = { "session_id": session_id, "user_id": user_id, "message": message, "model_id": model_id, "collection_names": collection_names, "images": data.get("images", []), "system_prompt": system_prompt, "temperature": temperature, "max_tokens": max_tokens, "agent_id": agent_id }
             generate_answer.delay(task_payload)
@@ -341,7 +347,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         id=str(ObjectId()),
                         role="user",
                         content=new_message,
-                        timestamp=_dt.utcnow(),
+                        timestamp=datetime.now(timezone.utc),
                         images=[ImagePayload(**img) for img in new_images_data] if new_images_data else None,
                         isStreaming=False,
                         isComplete=True,
