@@ -728,10 +728,10 @@ const ChatPage: React.FC = () => {
       </div>
       
       {/* Chat Area - Centered with max width */}
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
+      <div className="flex-1 max-w-4xl mx-auto w-full relative">
         {/* Welcome Message */}
         {!hasMessages && (
-          <div className="flex-1 flex items-center justify-center mb-32">
+          <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
             <div className="text-center">
               <img 
                 src={mfuLogo}
@@ -757,7 +757,7 @@ const ChatPage: React.FC = () => {
 
         {/* Messages */}
         {hasMessages && (
-          <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 messages-container relative" style={{ paddingBottom: '120px' }}>
+          <div className="px-1 sm:px-4 py-4 messages-container" style={{ minHeight: 'calc(100vh - 120px)' }}>
             {currentSession?.messages.map((msg) => (
               <div
                 key={msg.id}
