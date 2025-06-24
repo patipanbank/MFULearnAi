@@ -152,51 +152,34 @@ const ChatPage: React.FC = () => {
       // Force scroll to bottom immediately when chat is loaded
       const scrollToBottom = () => {
         const messagesContainer = document.querySelector('.messages-container');
-        const inputContainer = document.querySelector('.chat-input-container');
-        if (messagesContainer && inputContainer) {
+        if (messagesContainer) {
           // Use requestAnimationFrame to ensure DOM is ready
           requestAnimationFrame(() => {
-            // Calculate the scroll position that puts the last message just above the input
-            const inputHeight = inputContainer.getBoundingClientRect().height;
-            messagesContainer.scrollTop = messagesContainer.scrollHeight - messagesContainer.clientHeight + inputHeight;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            // Add a second scroll after a delay to handle any dynamic content
+            setTimeout(() => {
+              messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 200);
           });
         }
       };
 
       // Execute scroll immediately and after a short delay to handle any late-loading content
       scrollToBottom();
-      const timer = setTimeout(scrollToBottom, 100);
-      // Also scroll after images are loaded
-      const messageImages = document.querySelectorAll('.message-image');
-      messageImages.forEach(img => {
-        if ((img as HTMLImageElement).complete) {
-          scrollToBottom();
-        } else {
-          img.addEventListener('load', scrollToBottom, { once: true });
-        }
-      });
+      // Also scroll after images might have loaded
+      const timer = setTimeout(scrollToBottom, 500);
 
-      return () => {
-        clearTimeout(timer);
-        messageImages.forEach(img => {
-          img.removeEventListener('load', scrollToBottom);
-        });
-      };
+      return () => clearTimeout(timer);
     }
-  }, [chatId, currentSession?.id, currentSession?.messages]);
+  }, [chatId, currentSession?.id]); // Only trigger when chat changes, not on every message update
 
   // Keep the existing smooth scroll for new messages
   useEffect(() => {
     const scrollToBottom = () => {
-      const messagesContainer = document.querySelector('.messages-container');
-      const inputContainer = document.querySelector('.chat-input-container');
-      if (messagesContainer && inputContainer) {
-        const inputHeight = inputContainer.getBoundingClientRect().height;
-        const targetScroll = messagesContainer.scrollHeight - messagesContainer.clientHeight + inputHeight;
-        
-        messagesContainer.scrollTo({
-          top: targetScroll,
-          behavior: 'smooth'
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
         });
       }
     };
@@ -210,7 +193,7 @@ const ChatPage: React.FC = () => {
       if ((img as HTMLImageElement).complete) {
         scrollToBottom();
       } else {
-        img.addEventListener('load', scrollToBottom, { once: true });
+        img.addEventListener('load', scrollToBottom);
       }
     });
 
@@ -784,7 +767,10 @@ const ChatPage: React.FC = () => {
           )}
 
           {/* Messages */}
-          <div className="messages-container h-full overflow-y-auto overflow-x-hidden" style={{ paddingBottom: '120px' }}>
+          <div 
+            className="messages-container h-full overflow-y-auto overflow-x-hidden" 
+            style={{ paddingBottom: '160px' }}
+          >
             <div className="min-h-full px-1 sm:px-4 py-4">
               <div className="space-y-4">
                 {hasMessages && currentSession?.messages.map((msg) => (
@@ -886,7 +872,7 @@ const ChatPage: React.FC = () => {
         </div>
         
         {/* Input Area - Fixed at Bottom */}
-        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6 chat-input-container">
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="container mx-auto max-w-4xl px-4 pb-6">
             <ResponsiveChatInput
               message={message}
