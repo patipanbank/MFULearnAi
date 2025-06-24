@@ -121,7 +121,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
           'w-[calc(100vw-2rem)] max-w-xl',
           'border border-primary/20 rounded-2xl shadow-2xl',
-          'backdrop-blur-sm bg-white/95',
+          'bg-card dark:shadow-primary/10',
           // Animation classes
           isTransitioning ? 'opacity-90 scale-95' : 'opacity-100 scale-100'
         );
@@ -131,7 +131,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           'fixed bottom-4 left-1/2 -translate-x-1/2',
           'w-[calc(100vw-2rem)] max-w-xl',
           'border border-primary/20 rounded-2xl shadow-lg',
-          'bg-white/95 backdrop-blur-sm',
+          'bg-card dark:shadow-primary/10',
           // Animation classes
           isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
         );
@@ -144,7 +144,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           'fixed top-1/2 -translate-x-1/2 -translate-y-1/2',
           'w-full max-w-2xl',
           'rounded-2xl shadow-2xl',
-          'backdrop-blur-sm bg-white/95 border border-primary/20',
+          'bg-card border border-primary/20 dark:shadow-primary/10',
           // Animation classes
           isTransitioning ? 'opacity-90 scale-95' : 'opacity-100 scale-100'
         );
@@ -154,7 +154,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
           'fixed bottom-8 -translate-x-1/2',
           'w-full max-w-2xl',
           'rounded-2xl shadow-lg',
-          'bg-white/95 backdrop-blur-sm border border-primary/20',
+          'bg-card border border-primary/20 dark:shadow-primary/10',
           // Animation classes
           isTransitioning ? 'opacity-90 translate-y-2' : 'opacity-100 translate-y-0'
         );
@@ -199,13 +199,15 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         baseClasses,
         'px-4 py-2',
         !disabled && message.trim() 
-          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
-          : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md dark:shadow-primary/10'
+          : 'bg-muted/20 text-muted cursor-not-allowed dark:bg-muted/10',
       );
     } else {
       return cn(
         baseClasses,
-        'p-2 hover:bg-gray-100 text-gray-600 hover:text-gray-800'
+        'p-2',
+        'text-muted hover:text-primary',
+        'hover:bg-muted/10 dark:hover:bg-muted/5'
       );
     }
   };
@@ -241,11 +243,11 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
                 <img
                   src={img.url}
                   alt="Preview"
-                  className="w-20 h-20 object-cover rounded-xl border border-primary/20 shadow-sm transition-all duration-200 group-hover:shadow-md group-hover:border-primary/40"
+                  className="w-20 h-20 object-cover rounded-xl border border-primary/20 shadow-sm transition-all duration-200 group-hover:shadow-md dark:shadow-primary/10 dark:border-primary/10"
                 />
                 <button
                   onClick={() => onRemoveImage(idx)}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 transform hover:scale-110 shadow-md"
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 transform hover:scale-110 shadow-md dark:shadow-primary/10"
                 >
                   <FiX className="w-4 h-4" />
                 </button>
@@ -256,7 +258,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
         <div className="flex items-end space-x-3">
           {/* Textarea */}
-          <div className="flex-1 bg-gray-50/50 rounded-xl px-4">
+          <div className="flex-1 bg-muted/5 dark:bg-muted/10 rounded-xl px-4">
             <textarea
               ref={textareaRef}
               value={message}
@@ -310,8 +312,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
         {/* Connection status indicator */}
         {currentMode === 'fixbottom' && isInChatRoom && (
-          <div className="absolute bottom-1 left-4 flex items-center space-x-2 text-xs text-green-600">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <div className="absolute bottom-1 left-4 flex items-center space-x-2 text-xs text-green-600 dark:text-green-500">
+            <div className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full animate-pulse" />
             <span>Connected</span>
           </div>
         )}

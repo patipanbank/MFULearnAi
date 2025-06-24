@@ -643,7 +643,7 @@ const ChatPage: React.FC = () => {
                       <img 
                         src={dindinAvatar} 
                         alt="DINDIN AI" 
-                        className="w-8 h-8 rounded-full shadow-md"
+                        className="w-8 h-8 rounded-full shadow-md dark:shadow-primary/10"
                       />
                     </div>
                   )}
@@ -658,7 +658,7 @@ const ChatPage: React.FC = () => {
                       className={`max-w-xl w-fit px-4 py-3 rounded-2xl shadow-md ${
                         msg.role === 'user'
                           ? 'bg-blue-600 text-white ml-4'
-                          : 'bg-white/90 backdrop-blur-sm text-primary mr-4'
+                          : 'bg-card text-primary dark:text-primary mr-4 dark:shadow-primary/10'
                       }`}
                     >
                       {/* Images */}
@@ -669,7 +669,7 @@ const ChatPage: React.FC = () => {
                               key={idx}
                               src={img.url}
                               alt="Uploaded"
-                              className="rounded-lg max-w-full h-auto shadow-sm hover:shadow-md transition-shadow duration-200"
+                              className="rounded-lg max-w-full h-auto shadow-sm hover:shadow-md transition-shadow duration-200 dark:shadow-primary/10"
                             />
                           ))}
                         </div>
@@ -686,7 +686,7 @@ const ChatPage: React.FC = () => {
                   </div>
                   {msg.role === 'user' && (
                     <div className="flex-shrink-0 ml-3">
-                      <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
+                      <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md dark:shadow-primary/10">
                         {getInitials()}
                       </div>
                     </div>
@@ -696,7 +696,7 @@ const ChatPage: React.FC = () => {
               
               {isTyping && (
                 <div className="flex justify-start max-w-3xl mx-auto">
-                  <div className="flex items-center space-x-2 bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl shadow-md">
+                  <div className="flex items-center space-x-2 bg-card px-4 py-3 rounded-2xl shadow-md dark:shadow-primary/10">
                     <img 
                       src={dindinAvatar} 
                       alt="DINDIN AI" 
@@ -722,7 +722,7 @@ const ChatPage: React.FC = () => {
                 <img 
                   src={dindinAvatar} 
                   alt="DINDIN AI" 
-                  className="w-20 h-20 mx-auto rounded-full shadow-xl mb-6"
+                  className="w-20 h-20 mx-auto rounded-full shadow-xl dark:shadow-primary/10 mb-6"
                 />
                 <h1 className="text-2xl font-semibold text-primary">Welcome to DINDIN AI Chat</h1>
                 <p className="text-muted text-lg">
