@@ -142,20 +142,41 @@ const ChatPage: React.FC = () => {
     }
   }, [chatId, isInChatRoom, currentSession]);
   
-  // Auto-scroll to bottom when loading old chats
+  // Scroll handling for loading old chats
   useEffect(() => {
     if (currentSession?.messages.length && chatId) {
-      // Small delay to ensure content is rendered
-      const timer = setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({
-            behavior: 'auto', // Use instant scroll for initial load
-            block: 'end'
-          });
+      // Wait for images to load before scrolling
+      const images = document.querySelectorAll('.message-image');
+      let loadedImages = 0;
+      const totalImages = images.length;
+
+      const scrollToLatest = () => {
+        const messagesContainer = document.querySelector('.messages-container');
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
-      }, 100);
-      
-      return () => clearTimeout(timer);
+      };
+
+      if (totalImages > 0) {
+        images.forEach(img => {
+          if ((img as HTMLImageElement).complete) {
+            loadedImages++;
+            if (loadedImages === totalImages) {
+              scrollToLatest();
+            }
+          } else {
+            img.addEventListener('load', () => {
+              loadedImages++;
+              if (loadedImages === totalImages) {
+                scrollToLatest();
+              }
+            }, { once: true });
+          }
+        });
+      } else {
+        // If no images, scroll immediately
+        scrollToLatest();
+      }
     }
   }, [chatId, currentSession?.messages.length]);
   
@@ -722,7 +743,7 @@ const ChatPage: React.FC = () => {
 
         {/* Messages */}
         {hasMessages && (
-          <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 pb-32 space-y-4">
+          <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 pb-32 space-y-4 messages-container">
             {currentSession?.messages.map((msg) => (
               <div
                 key={msg.id}
