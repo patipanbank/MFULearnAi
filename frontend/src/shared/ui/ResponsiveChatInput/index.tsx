@@ -194,13 +194,13 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
         'p-2 transition-all duration-300',
         'hover:bg-primary/10 focus:outline-none rounded-full',
         'text-muted hover:text-primary transform hover:scale-105',
-        variant === 'send' && !disabled && message.trim() && 'text-blue-600 bg-blue-100 hover:bg-blue-200'
+        variant === 'send' && !disabled && message.trim() && 'text-black bg-[#39e21e] hover:bg-[#2ed114]'
       );
     } else {
       // Fixed bottom mode: standard button style
       const baseClasses = 'transition-all duration-200 transform hover:scale-105 active:scale-95 rounded-full';
       return variant === 'send' 
-        ? cn('btn-primary p-3 shadow-md', baseClasses)
+        ? cn('p-3 shadow-md bg-[#39e21e] hover:bg-[#2ed114] text-black', baseClasses)
         : cn('btn-ghost p-2 hover:bg-primary/10', baseClasses);
     }
   };
