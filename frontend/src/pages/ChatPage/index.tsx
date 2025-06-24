@@ -8,6 +8,7 @@ import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
 import mfuLogo from '../../assets/dindin_logo_newchat.png';
+import { FiChevronDown } from 'react-icons/fi';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -70,6 +71,9 @@ const ChatPage: React.FC = () => {
   // Determine if we're in a specific chat room
   const isInChatRoom = Boolean(chatId);
   const hasMessages = (currentSession?.messages.length || 0) > 0;
+  
+  // Add state for scroll button visibility
+  const [showScrollButton, setShowScrollButton] = useState(false);
   
   // Initialize data on mount
   useEffect(() => {
@@ -673,6 +677,32 @@ const ChatPage: React.FC = () => {
     });
   };
   
+  // Handle scroll events
+  useEffect(() => {
+    const messagesContainer = document.querySelector('.messages-container');
+    if (!messagesContainer) return;
+
+    const handleScroll = () => {
+      // Show button if scrolled up more than 200px from bottom
+      const isScrolledUp = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight > 200;
+      setShowScrollButton(isScrolledUp);
+    };
+
+    messagesContainer.addEventListener('scroll', handleScroll);
+    return () => messagesContainer.removeEventListener('scroll', handleScroll);
+  }, []);
+  
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    const messagesContainer = document.querySelector('.messages-container');
+    if (messagesContainer) {
+      messagesContainer.scrollTo({
+        top: messagesContainer.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+  
   if (isLoading) {
     return <Loading />;
   }
@@ -727,7 +757,7 @@ const ChatPage: React.FC = () => {
 
         {/* Messages */}
         {hasMessages && (
-          <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 pb-32 space-y-4 messages-container">
+          <div className="flex-1 overflow-y-auto px-1 sm:px-4 py-4 pb-32 space-y-4 messages-container relative">
             {currentSession?.messages.map((msg) => (
               <div
                 key={msg.id}
@@ -784,6 +814,17 @@ const ChatPage: React.FC = () => {
                 )}
               </div>
             ))}
+            
+            {/* Scroll to bottom button */}
+            {showScrollButton && (
+              <button
+                onClick={scrollToBottom}
+                className="fixed bottom-32 right-8 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-primary/90 transition-all duration-200 z-50"
+                aria-label="Scroll to bottom"
+              >
+                <FiChevronDown className="w-6 h-6" />
+              </button>
+            )}
             
             {isTyping && (
               <div className="flex justify-start items-end space-x-2">
