@@ -11,7 +11,7 @@ const Header: React.FC = () => {
   const { user } = useAuthStore();
   const { toggleMobileMenu } = useLayoutStore();
   const { toggleDropdown } = useUIStore();
-  
+   
   // Show AgentSelector only on chat routes
   const showAgentSelector = location.pathname.startsWith('/chat');
 
