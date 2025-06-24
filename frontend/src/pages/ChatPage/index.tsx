@@ -712,20 +712,6 @@ const ChatPage: React.FC = () => {
     }
   };
   
-  // Get last bot message
-  const getLastBotMessage = () => {
-    if (!currentSession?.messages.length) return null;
-    
-    // Find the last message from the bot (assistant)
-    for (let i = currentSession.messages.length - 1; i >= 0; i--) {
-      const msg = currentSession.messages[i];
-      if (msg.role === 'assistant') {
-        return msg;
-      }
-    }
-    return null;
-  };
-  
   if (isLoading) {
     return <Loading />;
   }
@@ -888,22 +874,6 @@ const ChatPage: React.FC = () => {
         {/* Input Area - Fixed at Bottom */}
         <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="container mx-auto max-w-4xl px-4 pb-6">
-            {/* Last Bot Message Preview */}
-            {hasMessages && !isTyping && (
-              <div className="mb-2 px-2">
-                <div className="flex items-start space-x-2 opacity-75 hover:opacity-100 transition-opacity">
-                  <img 
-                    src={dindinAvatar} 
-                    alt="DINDIN AI" 
-                    className="w-6 h-6 rounded-full shadow-sm mt-1"
-                  />
-                  <div className="flex-1 text-sm text-white bg-black/20 rounded-xl px-3 py-2 backdrop-blur-sm">
-                    {getLastBotMessage()?.content || ''}
-                  </div>
-                </div>
-              </div>
-            )}
-            
             <ResponsiveChatInput
               message={message}
               onMessageChange={setMessage}
