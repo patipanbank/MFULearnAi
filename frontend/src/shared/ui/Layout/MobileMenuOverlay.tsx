@@ -15,6 +15,18 @@ import useLayoutStore from '../../stores/layoutStore';
 import { useChatStore } from '../../stores/chatStore';
 import PreferencesModal from '../PreferencesModal';
 
+// Define gradient styles for icons (matching sidebar)
+const iconGradients = {
+  close: 'hover:bg-gradient-to-r hover:from-gray-400 hover:to-slate-400 hover:text-transparent hover:bg-clip-text',
+  search: 'hover:bg-gradient-to-r hover:from-blue-400 hover:to-cyan-300 hover:text-transparent hover:bg-clip-text',
+  plus: 'hover:bg-gradient-to-r hover:from-green-400 hover:to-emerald-400 hover:text-transparent hover:bg-clip-text',
+  settings: 'hover:bg-gradient-to-r hover:from-amber-400 hover:to-orange-400 hover:text-transparent hover:bg-clip-text',
+  database: 'hover:bg-gradient-to-r hover:from-indigo-400 hover:to-purple-400 hover:text-transparent hover:bg-clip-text',
+  user: 'hover:bg-gradient-to-r hover:from-rose-400 hover:to-pink-400 hover:text-transparent hover:bg-clip-text',
+  bookmark: 'hover:bg-gradient-to-r hover:from-yellow-400 hover:to-amber-400 hover:text-transparent hover:bg-clip-text',
+  trash: 'hover:bg-gradient-to-r hover:from-red-400 hover:to-rose-400 hover:text-transparent hover:bg-clip-text'
+};
+
 const MobileMenuOverlay: React.FC = () => {
   const { mobileMenuOpen, setMobileMenuOpen } = useLayoutStore();
   const { 
@@ -121,9 +133,9 @@ const MobileMenuOverlay: React.FC = () => {
               <h2 className="text-xl font-semibold text-primary">Menu</h2>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="btn-ghost p-2"
+                className="btn-ghost p-2 group"
               >
-                <FiX className="h-5 w-5" />
+                <FiX className={cn("h-5 w-5 transition-all duration-300", iconGradients.close)} />
               </button>
             </div>
           </div>
@@ -133,16 +145,16 @@ const MobileMenuOverlay: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={handleNewChat}
-                className="btn-ghost flex items-center justify-center space-x-2 py-3"
+                className="btn-ghost flex items-center justify-center space-x-2 py-3 group"
               >
-                <FiPlus className="h-5 w-5" />
+                <FiPlus className={cn("h-5 w-5 transition-all duration-300", iconGradients.plus)} />
                 <span>New Chat</span>
               </button>
               <button
                 onClick={handleSearch}
-                className="btn-ghost flex items-center justify-center space-x-2 py-3"
+                className="btn-ghost flex items-center justify-center space-x-2 py-3 group"
               >
-                <FiSearch className="h-5 w-5" />
+                <FiSearch className={cn("h-5 w-5 transition-all duration-300", iconGradients.search)} />
                 <span>Search</span>
               </button>
             </div>
@@ -171,20 +183,20 @@ const MobileMenuOverlay: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={(e) => handlePinChat(e, chat.id, chat.isPinned)}
-                      className="p-2 text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      className="p-2 text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors group"
                       title={chat.isPinned ? 'Unpin chat' : 'Pin chat'}
                     >
                       <FiBookmark className={cn(
-                        'h-4 w-4',
-                        chat.isPinned && 'fill-current'
+                        'h-4 w-4 transition-all duration-300',
+                        chat.isPinned ? 'fill-current' : iconGradients.bookmark
                       )} />
                     </button>
                     <button
                       onClick={(e) => handleDeleteChat(e, chat.id)}
-                      className="p-2 text-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      className="p-2 text-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors group"
                       title="Delete chat"
                     >
-                      <FiTrash2 className="h-4 w-4" />
+                      <FiTrash2 className={cn("h-4 w-4 transition-all duration-300", iconGradients.trash)} />
                     </button>
                   </div>
                 </div>
@@ -196,9 +208,9 @@ const MobileMenuOverlay: React.FC = () => {
           <div className="border-t border-border p-4 space-y-4">
             <button
               onClick={() => handleNavigate('/knowledgebase')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover group"
             >
-              <FiDatabase className="h-5 w-5" />
+              <FiDatabase className={cn("h-5 w-5 transition-all duration-300", iconGradients.database)} />
               <div className="flex-1">
                 <div className="text-sm font-medium">Knowledge Base</div>
                 <div className="text-xs text-muted">Manage your collections</div>
@@ -207,9 +219,9 @@ const MobileMenuOverlay: React.FC = () => {
 
             <button
               onClick={() => handleNavigate('/agent')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover group"
             >
-              <FiUser className="h-5 w-5" />
+              <FiUser className={cn("h-5 w-5 transition-all duration-300", iconGradients.user)} />
               <div className="flex-1">
                 <div className="text-sm font-medium">AI Agents</div>
                 <div className="text-xs text-muted">Create and manage agents</div>
@@ -218,9 +230,9 @@ const MobileMenuOverlay: React.FC = () => {
 
             <button
               onClick={() => setPreferencesModalOpen(true)}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover group"
             >
-              <FiSliders className="h-5 w-5" />
+              <FiSliders className={cn("h-5 w-5 transition-all duration-300", iconGradients.settings)} />
               <div className="flex-1">
                 <div className="text-sm font-medium">Preferences</div>
                 <div className="text-xs text-muted">App settings and theme</div>
