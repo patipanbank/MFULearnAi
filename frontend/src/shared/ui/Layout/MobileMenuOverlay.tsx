@@ -196,9 +196,9 @@ const MobileMenuOverlay: React.FC = () => {
           <div className="border-t border-border p-4 space-y-4">
             <button
               onClick={() => handleNavigate('/knowledgebase')}
-              className="w-full flex items-center p-3 rounded-lg card-hover"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover"
             >
-              <FiDatabase className="h-5 w-5 mr-2" />
+              <FiDatabase className="h-5 w-5" />
               <div className="flex-1">
                 <div className="text-sm font-medium">Knowledge Base</div>
                 <div className="text-xs text-muted">Manage your collections</div>
@@ -207,9 +207,9 @@ const MobileMenuOverlay: React.FC = () => {
 
             <button
               onClick={() => handleNavigate('/agent')}
-              className="w-full flex items-center p-3 rounded-lg card-hover"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover"
             >
-              <FiUser className="h-5 w-5 mr-2" />
+              <FiUser className="h-5 w-5" />
               <div className="flex-1">
                 <div className="text-sm font-medium">AI Agents</div>
                 <div className="text-xs text-muted">Create and manage agents</div>
@@ -218,9 +218,9 @@ const MobileMenuOverlay: React.FC = () => {
 
             <button
               onClick={() => setPreferencesModalOpen(true)}
-              className="w-full flex items-center p-3 rounded-lg card-hover"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg card-hover"
             >
-              <FiSliders className="h-5 w-5 mr-2" />
+              <FiSliders className="h-5 w-5" />
               <div className="flex-1">
                 <div className="text-sm font-medium">Preferences</div>
                 <div className="text-xs text-muted">App settings and theme</div>
