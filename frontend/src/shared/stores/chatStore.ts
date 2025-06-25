@@ -80,7 +80,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let shouldUpdateName = false;
     // เปลี่ยนชื่อแชทเฉพาะตอนแรกเท่านั้น
     if (
-      (!state.currentSession.name) &&
+      (state.currentSession.name === 'New Chat' || !state.currentSession.name) &&
       message.role === 'user' &&
       state.currentSession.messages.length === 0
     ) {
@@ -184,6 +184,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const chatSession: ChatSession = {
         ...chat,
         id: (chat as any)._id ?? chat.id,
+        name: chat.name || 'New Chat', // Ensure we have a name
         createdAt: new Date(chat.createdAt),
         updatedAt: new Date(chat.updatedAt),
         messages: (chat.messages ?? []).map((msg: any) => {
@@ -192,7 +193,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
           return { ...msg, timestamp: ts };
         })
       };
+
+      // If chat has no name but has messages, use first user message as name
+      if (chatSession.name === 'New Chat' && chatSession.messages.length > 0) {
+        const firstUserMessage = chatSession.messages.find(msg => msg.role === 'user');
+        if (firstUserMessage) {
+          chatSession.name = firstUserMessage.content.slice(0, 20);
+        }
+      }
+
       set({ currentSession: chatSession });
+
+      // Also update the chat in history
+      set((state) => ({
+        chatHistory: state.chatHistory.map(chat =>
+          chat.id === chatId ? chatSession : chat
+        )
+      }));
+
       return true;
     } catch (error) {
       console.error('Failed to load chat:', error);
