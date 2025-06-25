@@ -103,4 +103,20 @@ class ChatHistoryService:
             return Chat(**result)
         return None
 
+    async def update_chat_name(self, chat_id: str, name: str) -> Optional[Chat]:
+        db = get_database()
+        try:
+            query = {"_id": ObjectId(chat_id)}
+        except Exception:
+            query = {"_id": chat_id}
+        result = await db.get_collection("chats").find_one_and_update(
+            query,
+            {"$set": {"name": name, "updatedAt": datetime.utcnow()}},
+            return_document=True
+        )
+        if result and "_id" in result:
+            result["_id"] = str(result["_id"])
+            return Chat(**result)
+        return None
+
 chat_history_service = ChatHistoryService() 

@@ -36,6 +36,10 @@ class AgentChatRequest(BaseModel):
     agent_id: str
     images: Optional[List[ImagePayload]] = Field(default=None)
 
+class UpdateChatNameRequest(BaseModel):
+    chat_id: str
+    name: str
+
 @router.get("/history/{session_id}", response_model=ChatHistoryModel)
 async def get_chat_history(session_id: str, current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
     """
@@ -404,4 +408,19 @@ async def delete_chat(chat_id: str, current_user: User = Depends(get_current_use
     if not success:
         raise HTTPException(status_code=500, detail="Failed to delete chat")
     
-    return {"message": "Chat deleted successfully"} 
+    return {"message": "Chat deleted successfully"}
+
+@router.post("/update-name", response_model=ChatHistoryModel)
+async def update_chat_name(
+    req: UpdateChatNameRequest,
+    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
+):
+    chat = await chat_history_service.get_chat_by_id(req.chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if str(chat.userId) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to update this chat")
+    updated_chat = await chat_history_service.update_chat_name(req.chat_id, req.name)
+    if not updated_chat:
+        raise HTTPException(status_code=500, detail="Failed to update chat name")
+    return updated_chat 
