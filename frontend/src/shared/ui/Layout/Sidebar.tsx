@@ -5,6 +5,7 @@ import {
   FiSearch,
   FiPlus, 
   FiSettings,
+  FiSliders,
   FiUser,
   FiDatabase,
   FiBookmark,
@@ -94,7 +95,7 @@ const Sidebar: React.FC = () => {
     { 
       id: 'preferences', 
       label: 'Preferences', 
-      icon: FiSettings, 
+      icon: FiSliders, 
       description: 'App settings and theme', 
       type: 'modal',
       iconColor: iconColors.settings
@@ -353,7 +354,7 @@ const Sidebar: React.FC = () => {
               )}
               title={sidebarCollapsed && !sidebarHovered ? 'Settings' : undefined}
             >
-              <FiSettings className={cn("h-5 w-5", iconBaseStyle, iconColors.settings)} />
+              <FiSliders className={cn("h-5 w-5", iconBaseStyle, iconColors.settings)} />
               {showExpandedContent && (
                 <span className={cn(
                   "transition-all duration-200",
