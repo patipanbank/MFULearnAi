@@ -4,6 +4,7 @@ import {
   FiMenu, 
   FiSearch,
   FiPlus, 
+  FiSettings,
   FiSliders,
   FiUser,
   FiDatabase,
@@ -23,6 +24,7 @@ const iconColors = {
   search: "text-blue-500 hover:text-blue-600",
   plus: "text-white", // For the new chat button which has a primary background
   settings: "text-blue-500 hover:text-blue-600",
+  preferences: "text-emerald-500 hover:text-emerald-600",
   database: "text-amber-500 hover:text-amber-600",
   user: "text-indigo-500 hover:text-indigo-600",
   bookmark: "text-rose-500 hover:text-rose-600",
@@ -97,7 +99,7 @@ const Sidebar: React.FC = () => {
       icon: FiSliders, 
       description: 'App settings and theme', 
       type: 'modal',
-      iconColor: iconColors.settings
+      iconColor: iconColors.preferences
     }
   ];
 
@@ -353,7 +355,7 @@ const Sidebar: React.FC = () => {
               )}
               title={sidebarCollapsed && !sidebarHovered ? 'Settings' : undefined}
             >
-              <FiSliders className={cn("h-5 w-5", iconBaseStyle, iconColors.settings)} />
+              <FiSettings className={cn("h-5 w-5", iconBaseStyle, iconColors.settings)} />
               {showExpandedContent && (
                 <span className={cn(
                   "transition-all duration-200",
