@@ -644,20 +644,24 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end mr-[485px]' : 'justify-start ml-[500px]'} items-end space-x-2 px-2 sm:px-0`}
+              className={`flex ${
+                msg.role === 'user' 
+                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[200px] xl:mr-[485px]' 
+                  : 'justify-start sm:ml-4 md:ml-8 lg:ml-[200px] xl:ml-[500px]'
+              } items-end space-x-2 px-2 sm:px-0`}
             >
               {msg.role !== 'user' && (
                 <div className="flex-shrink-0">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
-                    className="w-8 h-8 rounded-full shadow-md"
+                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-full shadow-md"
                   />
                 </div>
               )}
-              <div className="flex flex-col max-w-[60%]">
+              <div className="flex flex-col max-w-[85%] sm:max-w-[75%] md:max-w-[70%] lg:max-w-[65%] xl:max-w-[60%]">
                 {/* Timestamp */}
-                <div className={`text-xs mb-1 ${
+                <div className={`text-[10px] sm:text-xs mb-1 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.role === 'user'
@@ -665,7 +669,7 @@ const ChatPage: React.FC = () => {
                     : msg.timestamp.toLocaleTimeString()}
                 </div>
                 <div
-                  className={`px-4 py-3 rounded-2xl shadow-sm ${
+                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm ${
                     msg.role === 'user'
                       ? 'bg-blue-600 text-white rounded-br-sm'
                       : 'card text-primary rounded-bl-sm'
@@ -673,7 +677,7 @@ const ChatPage: React.FC = () => {
                 >
                   {/* Images */}
                   {msg.images && msg.images.length > 0 && (
-                    <div className="mb-3 grid grid-cols-2 gap-3">
+                    <div className="mb-3 grid grid-cols-2 gap-2 sm:gap-3">
                       {msg.images.map((img, idx) => (
                         <img
                           key={idx}
@@ -686,17 +690,17 @@ const ChatPage: React.FC = () => {
                   )}
                   
                   {/* Message Content */}
-                  <div className="whitespace-pre-wrap">
+                  <div className="whitespace-pre-wrap text-sm sm:text-base">
                     {msg.content}
                     {msg.isStreaming && (
-                      <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+                      <span className="inline-block w-1.5 sm:w-2 h-4 sm:h-5 bg-current animate-pulse ml-1" />
                     )}
                   </div>
                 </div>
               </div>
               {msg.role === 'user' && (
                 <div className="flex-shrink-0">
-                  <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
+                  <div className="h-6 w-6 sm:h-8 sm:w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium shadow-md">
                     {getInitials()}
                   </div>
                 </div>
