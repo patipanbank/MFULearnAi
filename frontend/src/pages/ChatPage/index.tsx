@@ -813,11 +813,11 @@ const ChatPage: React.FC = () => {
       </div>
       
       {/* Chat Area - Centered with max width */}
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative min-h-0">
         {/* Messages Container - Make it fill available space */}
         <div 
           ref={mainContainerRef}
-          className="flex-1 overflow-y-auto messages-container scroll-smooth"
+          className="flex-1 overflow-y-auto messages-container scroll-smooth min-h-0"
           style={{
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(186,12,47,0.3) transparent',
