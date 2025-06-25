@@ -447,11 +447,13 @@ const ChatPage: React.FC = () => {
     }
 
     // Add user message immediately for local rendering
+    const userTimestamp = new Date();
+    userTimestamp.setHours(userTimestamp.getHours() - 7);
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: message.trim(),
-      timestamp: new Date(),
+      timestamp: userTimestamp,
       images: images.length > 0 ? images : undefined
     };
     
