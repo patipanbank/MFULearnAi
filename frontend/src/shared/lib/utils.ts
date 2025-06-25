@@ -6,14 +6,14 @@ export function formatDate(date: Date | string): string {
   const d = new Date(date);
   // Add 7 hours for Thailand timezone
   d.setHours(d.getHours() + 7);
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
+  
+  const day = d.getDate();
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  const year = d.getFullYear();
+  const hour = d.getHours().toString().padStart(2, '0');
+  const minute = d.getMinutes().toString().padStart(2, '0');
+  
+  return `${day} ${month} ${year}, ${hour}:${minute}`;
 }
 
 export function generateId(): string {
