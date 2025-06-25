@@ -103,62 +103,62 @@ const AgentSelector: React.FC = () => {
           </div>
 
           {/* Agents List */}
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-72 md:max-h-96 overflow-y-auto">
             {isLoadingAgents ? (
-              <div className="p-6 text-center">
-                <FiRefreshCw className="h-6 w-6 animate-spin mx-auto text-muted" />
-                <p className="text-sm text-muted mt-2">Loading agents...</p>
+              <div className="p-3 md:p-6 text-center">
+                <FiRefreshCw className="h-4 w-4 md:h-6 md:w-6 animate-spin mx-auto text-muted" />
+                <p className="text-xs md:text-sm text-muted mt-1 md:mt-2">Loading agents...</p>
               </div>
             ) : agents.length === 0 ? (
-              <div className="p-6 text-center">
-                <FiUser className="h-8 w-8 mx-auto text-muted opacity-50" />
-                <p className="text-sm text-muted mt-2">No agents available</p>
-                <p className="text-xs text-muted mt-1">Create your first agent to get started</p>
+              <div className="p-3 md:p-6 text-center">
+                <FiUser className="h-5 w-5 md:h-8 md:w-8 mx-auto text-muted opacity-50" />
+                <p className="text-xs md:text-sm text-muted mt-1 md:mt-2">No agents available</p>
+                <p className="text-[10px] md:text-xs text-muted mt-0.5 md:mt-1">Create your first agent to get started</p>
               </div>
             ) : (
-              <div className="p-2">
+              <div className="p-1 md:p-2">
                 {agents.map((agent: AgentConfig) => (
                   <div
                     key={agent.id}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                    className={`p-1.5 md:p-3 rounded-lg cursor-pointer transition-colors ${
                       selectedAgent?.id === agent.id
                         ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
                         : 'hover:bg-secondary'
                     }`}
                     onClick={() => handleAgentSelect(agent)}
                   >
-                    <div className="flex items-start space-x-3">
+                    <div className="flex items-start space-x-2 md:space-x-3">
                       <div className="flex-shrink-0 mt-0.5">
                         {selectedAgent?.id === agent.id ? (
-                          <FiCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <FiCheck className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-400" />
                         ) : (
-                          <FiUser className="h-4 w-4 text-muted" />
+                          <FiUser className="h-3 w-3 md:h-4 md:w-4 text-muted" />
                         )}
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h4 className="text-sm font-medium text-primary truncate">
+                        <div className="flex items-center space-x-1 md:space-x-2 mb-0.5 md:mb-1">
+                          <h4 className="text-xs md:text-sm font-medium text-primary truncate">
                             {agent.name}
                           </h4>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getAgentTypeColor(agent.isPublic)}`}>
+                          <span className={`inline-flex items-center px-1 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium ${getAgentTypeColor(agent.isPublic)}`}>
                             {agent.isPublic ? 'Public' : 'Private'}
                           </span>
                           {agent.rating > 0 && (
-                            <div className="flex items-center space-x-1">
-                              <FiStar className="h-3 w-3 text-yellow-500" />
-                              <span className="text-xs text-muted">{agent.rating.toFixed(1)}</span>
+                            <div className="flex items-center space-x-0.5 md:space-x-1">
+                              <FiStar className="h-2.5 w-2.5 md:h-3 md:w-3 text-yellow-500" />
+                              <span className="text-[10px] md:text-xs text-muted">{agent.rating.toFixed(1)}</span>
                             </div>
                           )}
                         </div>
                         
-                        <p className="text-xs text-secondary line-clamp-2 mb-2">
+                        <p className="text-[10px] md:text-xs text-secondary line-clamp-1 md:line-clamp-2 mb-1 md:mb-2">
                           {agent.description}
                         </p>
                         
-                        <div className="flex items-center space-x-4 text-xs text-muted">
-                          <div className="flex items-center space-x-1">
-                            <FiCpu className="h-3 w-3" />
+                        <div className="flex items-center space-x-2 md:space-x-4 text-[10px] md:text-xs text-muted">
+                          <div className="flex items-center space-x-0.5 md:space-x-1">
+                            <FiCpu className="h-2.5 w-2.5 md:h-3 md:w-3" />
                             <span>{agent.modelId.split('/').pop() || agent.modelId}</span>
                           </div>
                           <span>{agent.collectionNames.length} collections</span>
@@ -173,9 +173,9 @@ const AgentSelector: React.FC = () => {
           </div>
 
           {/* Footer */}
-          <div className="p-3 bg-secondary border-t border-border">
+          <div className="p-2 md:p-3 bg-secondary border-t border-border">
             <div className="flex items-center justify-between">
-              <div className="text-xs text-muted">
+              <div className="text-[10px] md:text-xs text-muted">
                 {selectedAgent ? (
                   <>
                     Selected: <span className="font-medium">{selectedAgent.name}</span>
@@ -186,9 +186,9 @@ const AgentSelector: React.FC = () => {
               </div>
               <button
                 onClick={() => window.open('/agent', '_blank')}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center space-x-1"
+                className="text-[10px] md:text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center space-x-0.5 md:space-x-1"
               >
-                <FiSettings className="h-3 w-3" />
+                <FiSettings className="h-2.5 w-2.5 md:h-3 md:w-3" />
                 <span>Manage Agents</span>
               </button>
             </div>
