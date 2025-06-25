@@ -23,7 +23,7 @@ const iconColors = {
   search: "text-blue-500 hover:text-blue-600",
   database: "text-amber-500 hover:text-amber-600",
   user: "text-indigo-500 hover:text-indigo-600",
-  bookmark: "text-rose-500 hover:text-rose-600",
+  bookmark: "text-yellow-500 hover:text-yellow-600",
   trash: "text-red-500 hover:text-red-600",
   settings: "text-purple-500 hover:text-purple-600"
 };
