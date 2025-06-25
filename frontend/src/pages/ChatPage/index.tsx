@@ -637,10 +637,10 @@ const ChatPage: React.FC = () => {
       </div>
       
       {/* Chat Area - Centered with max width */}
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative h-full overflow-hidden">
         {/* Messages */}
         {hasMessages && (
-        <div className="flex-1 overflow-y-auto px-0 sm:px-4 py-4 pb-32 space-y-4">
+        <div className="flex-1 overflow-y-auto px-0 sm:px-4 py-4 pb-32 space-y-4 h-full">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
