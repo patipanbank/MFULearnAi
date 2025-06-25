@@ -6,13 +6,6 @@ import useLayoutStore from '../../stores/layoutStore';
 import { useChatStore } from '../../stores/chatStore';
 import AgentSelector from '../AgentSelector';
 import UserProfile from '../UserProfile';
-import { cn } from '../../lib/utils';
-
-// Define gradient styles for icons (matching sidebar)
-const iconGradients = {
-  menu: 'hover:bg-gradient-to-r hover:from-purple-500 hover:to-pink-500 hover:text-transparent hover:bg-clip-text',
-  user: 'hover:bg-gradient-to-r hover:from-rose-400 hover:to-pink-400 hover:text-transparent hover:bg-clip-text'
-};
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -37,10 +30,10 @@ const Header: React.FC = () => {
         {/* Mobile Menu Button */}
         <button
           onClick={toggleMobileMenu}
-          className="p-2 md:hidden hover:bg-secondary rounded-lg transition-colors group"
+          className="p-2 md:hidden hover:bg-secondary rounded-lg transition-colors"
           aria-label="Open menu"
         >
-          <FiMenu className={cn("h-5 w-5 text-primary transition-all duration-300", iconGradients.menu)} />
+          <FiMenu className="h-5 w-5 text-primary" />
         </button>
 
         {/* DINDIN AI Logo */}
@@ -75,9 +68,9 @@ const Header: React.FC = () => {
         ) : (
           <button
             onClick={() => toggleDropdown('user-menu')}
-            className="flex items-center space-x-2 p-2 hover:bg-secondary rounded-lg transition-colors group"
+            className="flex items-center space-x-2 p-2 hover:bg-secondary rounded-lg transition-colors"
           >
-            <FiUser className={cn("h-5 w-5 text-muted transition-all duration-300", iconGradients.user)} />
+            <FiUser className="h-5 w-5 text-muted" />
             <span className="text-sm text-muted">Sign In</span>
           </button>
         )}

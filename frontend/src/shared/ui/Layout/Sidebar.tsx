@@ -16,18 +16,6 @@ import useUIStore from '../../stores/uiStore';
 import { useChatStore } from '../../stores/chatStore';
 import PreferencesModal from '../PreferencesModal';
 
-// Define gradient styles for icons
-const iconGradients = {
-  menu: 'hover:bg-gradient-to-r hover:from-purple-500 hover:to-pink-500 hover:text-transparent hover:bg-clip-text',
-  search: 'hover:bg-gradient-to-r hover:from-blue-400 hover:to-cyan-300 hover:text-transparent hover:bg-clip-text',
-  plus: 'hover:bg-gradient-to-r hover:from-green-400 hover:to-emerald-400 hover:text-transparent hover:bg-clip-text',
-  settings: 'hover:bg-gradient-to-r hover:from-amber-400 hover:to-orange-400 hover:text-transparent hover:bg-clip-text',
-  database: 'hover:bg-gradient-to-r hover:from-indigo-400 hover:to-purple-400 hover:text-transparent hover:bg-clip-text',
-  user: 'hover:bg-gradient-to-r hover:from-rose-400 hover:to-pink-400 hover:text-transparent hover:bg-clip-text',
-  bookmark: 'hover:bg-gradient-to-r hover:from-yellow-400 hover:to-amber-400 hover:text-transparent hover:bg-clip-text',
-  trash: 'hover:bg-gradient-to-r hover:from-red-400 hover:to-rose-400 hover:text-transparent hover:bg-clip-text'
-};
-
 const Sidebar: React.FC = () => {
   const { 
     sidebarCollapsed, 
@@ -169,21 +157,21 @@ const Sidebar: React.FC = () => {
           <div className="flex items-center justify-between">
             <button
               onClick={toggleSidebar}
-              className="btn-ghost p-2 group"
+              className="btn-ghost p-2"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              <FiMenu className={cn("h-5 w-5 text-secondary transition-all duration-300", iconGradients.menu)} />
+              <FiMenu className="h-5 w-5 text-secondary" />
             </button>
             
             {showExpandedContent && (
               <button
                 onClick={() => navigate('/search')}
                 className={cn(
-                  "btn-ghost px-3 py-1 flex items-center space-x-2 transition-all duration-200 group",
+                  "btn-ghost px-3 py-1 flex items-center space-x-2 transition-all duration-200",
                   sidebarHovered && "animate-fade-in"
                 )}
               >
-                <FiSearch className={cn("h-4 w-4 transition-all duration-300", iconGradients.search)} />
+                <FiSearch className="h-4 w-4" />
                 <span className="text-sm font-medium">Search</span>
               </button>
             )}
@@ -195,12 +183,12 @@ const Sidebar: React.FC = () => {
           <button
             onClick={handleNewChat}
             className={cn(
-              'btn-ghost w-full flex items-center justify-center space-x-2 transition-all duration-200 group',
+              'btn-primary w-full flex items-center justify-center space-x-2 transition-all duration-200',
               (sidebarCollapsed && !sidebarHovered) && 'px-2'
             )}
             title={sidebarCollapsed && !sidebarHovered ? 'New Chat' : undefined}
           >
-            <FiPlus className={cn("h-5 w-5 transition-all duration-300", iconGradients.plus)} />
+            <FiPlus className="h-5 w-5" />
             {showExpandedContent && (
               <span className={cn(
                 "transition-all duration-200",
@@ -291,20 +279,20 @@ const Sidebar: React.FC = () => {
                         <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={(e) => handlePinChat(e, chat.id, chat.isPinned)}
-                            className="p-1 text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors group"
+                            className="p-1 text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
                             title={chat.isPinned ? 'Unpin chat' : 'Pin chat'}
                           >
                             <FiBookmark className={cn(
-                              'h-3 w-3 transition-all duration-300',
-                              chat.isPinned ? 'fill-current' : iconGradients.bookmark
+                              'h-3 w-3',
+                              chat.isPinned && 'fill-current'
                             )} />
                           </button>
                           <button
                             onClick={(e) => handleDeleteChat(e, chat.id)}
-                            className="p-1 text-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors group"
+                            className="p-1 text-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                             title="Delete chat"
                           >
-                            <FiTrash2 className={cn("h-3 w-3 transition-all duration-300", iconGradients.trash)} />
+                            <FiTrash2 className="h-3 w-3" />
                           </button>
                         </div>
                       </div>
@@ -324,12 +312,12 @@ const Sidebar: React.FC = () => {
             <button
               onClick={() => toggleDropdown(settingsDropdownId)}
               className={cn(
-                'btn-ghost w-full flex items-center justify-center space-x-2 transition-all duration-200 group',
+                'btn-ghost w-full flex items-center justify-center space-x-2 transition-all duration-200',
                 (sidebarCollapsed && !sidebarHovered) && 'px-2'
               )}
               title={sidebarCollapsed && !sidebarHovered ? 'Settings' : undefined}
             >
-              <FiSettings className={cn("h-5 w-5 transition-all duration-300", iconGradients.settings)} />
+              <FiSettings className="h-5 w-5" />
               {showExpandedContent && (
                 <span className={cn(
                   "transition-all duration-200",
@@ -350,19 +338,13 @@ const Sidebar: React.FC = () => {
               )}>
                 {settingsItems.map((item) => {
                   const Icon = item.icon;
-                  const gradientClass = item.id === 'knowledge' 
-                    ? iconGradients.database 
-                    : item.id === 'agents' 
-                    ? iconGradients.user 
-                    : iconGradients.settings;
-                    
                   return (
                     <button
                       key={item.id}
                       onClick={() => handleSettingsItemClick(item)}
-                      className="w-full flex items-center space-x-3 px-4 py-3 text-left card-hover transition-colors group"
+                      className="w-full flex items-center space-x-3 px-4 py-3 text-left card-hover transition-colors"
                     >
-                      <Icon className={cn("h-4 w-4 text-muted flex-shrink-0 transition-all duration-300", gradientClass)} />
+                      <Icon className="h-4 w-4 text-muted flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-primary">{item.label}</div>
                         <div className="text-xs text-muted truncate">{item.description}</div>
