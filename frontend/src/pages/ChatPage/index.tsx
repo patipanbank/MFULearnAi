@@ -7,7 +7,7 @@ import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
-import dindinNp from '../../assets/dindin_np.png';
+import dindinNp from '../../assets/dindin_np.PNG';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -739,7 +739,9 @@ const ChatPage: React.FC = () => {
                 className="w-32 h-32 mx-auto mb-6 rounded-full shadow-lg"
               />
               <h1 className="text-2xl font-bold text-primary mb-4">Welcome</h1>
-              <h2 className="text-2xl font-semibold text-primary mb-2">{user?.firstName || 'Guest'}</h2>
+              <h2 
+                className="text-2xl font-semibold mb-2 bg-gradient-to-r from-[rgb(186,12,47)] to-[rgb(212,175,55)] text-transparent bg-clip-text"
+              >{user?.firstName || 'Guest'}</h2>
               <h3 className="text-lg text-primary mb-4">How can I help you today?</h3>
             </div>
           </div>
