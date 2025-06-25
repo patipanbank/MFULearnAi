@@ -86,11 +86,11 @@ const AgentSelector: React.FC = () => {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-96 bg-primary border border-border rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200 z-50">
+        <div className="absolute top-full left-0 mt-2 w-[calc(100vw-3rem)] md:w-96 bg-primary border border-border rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200 z-50">
           {/* Header */}
-          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-border">
+          <div className="p-3 md:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-border">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-primary">Select Agent</h3>
+              <h3 className="text-base md:text-lg font-semibold text-primary">Select Agent</h3>
               <button
                 onClick={handleRefresh}
                 className="p-1 hover:bg-secondary rounded transition-colors"
@@ -99,7 +99,7 @@ const AgentSelector: React.FC = () => {
                 <FiRefreshCw className={`h-4 w-4 text-muted ${isLoadingAgents ? 'animate-spin' : ''}`} />
               </button>
             </div>
-            <p className="text-sm text-secondary mt-1">Choose an AI agent for your conversation</p>
+            <p className="text-xs md:text-sm text-secondary mt-1">Choose an AI agent for your conversation</p>
           </div>
 
           {/* Agents List */}
