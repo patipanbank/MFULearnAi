@@ -736,13 +736,13 @@ const ChatPage: React.FC = () => {
               <img 
                 src={dindinNp} 
                 alt="DINDIN AI"
-                className="w-32 h-32 mx-auto mb-6 rounded-full shadow-lg"
+                className="w-32 h-32 mx-auto mb-3 rounded-full shadow-lg"
               />
-              <h1 className="text-2xl font-bold text-primary mb-4">Welcome</h1>
+              <h1 className="text-2xl font-bold text-primary mb-1">Welcome</h1>
               <h2 
-                className="text-2xl font-bold mb-2 bg-gradient-to-r from-[rgb(186,12,47)] to-[rgb(212,175,55)] text-transparent bg-clip-text"
+                className="text-2xl font-bold mb-1 bg-gradient-to-r from-[rgb(186,12,47)] to-[rgb(212,175,55)] text-transparent bg-clip-text"
               >{user?.firstName || 'Guest'}</h2>
-              <h3 className="text-lg text-primary mb-4">How can I help you today?</h3>
+              <h3 className="text-lg text-primary">How can I help you today?</h3>
             </div>
           </div>
         )}
