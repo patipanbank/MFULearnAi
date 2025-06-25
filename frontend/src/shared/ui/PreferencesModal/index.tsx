@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiSave, FiMoon, FiSun, FiMessageSquare } from 'react-icons/fi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUIStore } from '../../stores/uiStore';
+import { cn } from '../../lib/utils';
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -53,19 +54,9 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   }, [isOpen, handleKeyDown]);
 
   const handleThemeChange = (theme: 'light' | 'dark') => {
-    console.log('PreferencesModal: Changing theme to', theme);
     const newPreferences = { ...localPreferences, theme };
     setLocalPreferences(newPreferences);
-    
-    // Apply theme immediately for preview
     applyTheme(theme);
-    
-    // Debug: Check if dark class is applied
-    setTimeout(() => {
-      const isDark = document.documentElement.classList.contains('dark');
-      console.log('PreferencesModal: Dark class applied?', isDark);
-      console.log('PreferencesModal: HTML classes:', document.documentElement.className);
-    }, 100);
   };
 
   const handleSave = async () => {
@@ -90,7 +81,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   const handleCancel = () => {
     if (hasChanges) {
       if (confirm('You have unsaved changes. Are you sure you want to close?')) {
-        // Revert theme changes
         applyTheme(preferences.theme);
         setLocalPreferences(preferences);
         setHasChanges(false);
@@ -110,12 +100,16 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
 
   return (
     <div 
-      className="modal-overlay"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center md:p-4"
       onClick={handleBackdropClick}
     >
-      <div className="modal-content max-w-2xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
+      <div className={cn(
+        "relative w-full bg-primary flex flex-col max-h-[100vh] md:max-h-[90vh] md:w-auto md:min-w-[500px] md:max-w-2xl md:rounded-2xl overflow-hidden",
+        "animate-in fade-in duration-200",
+        "md:animate-in md:slide-in-from-bottom-2 md:duration-200"
+      )}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
+        <div className="flex items-center justify-between p-4 md:p-6 border-b border-border">
           <div>
             <h2 className="text-xl font-semibold text-primary">Preferences</h2>
             <p className="text-sm text-secondary mt-1">Customize your DINDIN AI experience</p>
@@ -128,8 +122,8 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] space-y-6">
+        {/* Content - Scrollable Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
           {/* Theme Settings */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
@@ -139,7 +133,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             
             <div className="mt-4">
               <label className="block text-sm font-medium text-primary mb-3">Theme</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {themes.map(({ value, label, icon: Icon, description }) => (
                   <button
                     key={value}
@@ -166,7 +160,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               <span>Chat Settings</span>
             </h3>
             
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-tertiary rounded-lg">
                 <div>
                   <span className="text-sm font-medium text-primary">Auto-save chats</span>
@@ -202,8 +196,8 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-border bg-tertiary">
+        {/* Footer - Fixed at Bottom */}
+        <div className="sticky bottom-0 left-0 right-0 flex items-center justify-between p-4 md:p-6 border-t border-border bg-primary shadow-lg">
           <div className="text-sm text-muted">
             {hasChanges && (
               <span className="flex items-center space-x-1">
