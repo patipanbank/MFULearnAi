@@ -646,8 +646,8 @@ const ChatPage: React.FC = () => {
               key={msg.id}
               className={`flex ${
                 msg.role === 'user' 
-                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[100px] xl:mr-[485px]' 
-                  : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[100px] xl:ml-[500px]'
+                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[100px] 2xl:mr-[485px]' 
+                  : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[100px] 2xl:ml-[500px]'
               } items-end space-x-2 px-1 sm:px-2`}
             >
               {msg.role !== 'user' && (
@@ -659,7 +659,7 @@ const ChatPage: React.FC = () => {
                   />
                 </div>
               )}
-              <div className="flex flex-col max-w-[85%] sm:max-w-[75%] md:max-w-[70%] lg:max-w-[65%] xl:max-w-[60%]">
+              <div className="flex flex-col max-w-[85%] sm:max-w-[75%] md:max-w-[70%] lg:max-w-[65%] 2xl:max-w-[60%]">
                 {/* Timestamp */}
                 <div className={`text-[10px] sm:text-xs mb-1 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
