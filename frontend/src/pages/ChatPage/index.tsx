@@ -405,19 +405,18 @@ const ChatPage: React.FC = () => {
         id: roomId,
       });
 
-      // Sync chat history: replace placeholder id or insert if absent
-      const replaced = chatHistoryRef.current.map((chat) =>
-        chat.id === session.id ? { ...chat, id: roomId } : chat
-      );
-      const exists = replaced.some((c) => c.id === roomId);
-      const newHistory = exists ? replaced : [{ ...session, id: roomId }, ...replaced];
-      setChatHistory(newHistory);
+      // Only add to history if it's a real chat (has a MongoDB ObjectId)
+      if (roomId.length === 24) {
+        // Add the new chat to history
+        setChatHistory([
+          { ...session, id: roomId },
+          ...chatHistoryRef.current.filter(chat => chat.id !== session.id)
+        ]);
+      }
     }
 
     // Room created successfully; allow sending again
     setIsRoomCreating(false);
-
-    // URL change will trigger effect to ensure WebSocket joins correct room
   };
   
   // Send message function

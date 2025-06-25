@@ -165,14 +165,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       updatedAt: new Date()
     };
     
-    set((state) => {
-      // Remove any temporary chat from history
-      const filteredHistory = state.chatHistory.filter(chat => !chat.id.startsWith('chat_'));
-      return {
-        currentSession: newSession,
-        chatHistory: [newSession, ...filteredHistory]
-      };
-    });
+    set({ currentSession: newSession });
     return newSession;
   },
   
