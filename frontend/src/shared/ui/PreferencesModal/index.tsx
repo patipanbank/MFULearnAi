@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiSave, FiMoon, FiSun, FiMessageSquare } from 'react-icons/fi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUIStore } from '../../stores/uiStore';
-import useLayoutStore from '../../stores/layoutStore';
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -19,8 +18,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   } = useSettingsStore();
   
   const { addToast } = useUIStore();
-  const { isMobile } = useLayoutStore();
-  
   const [localPreferences, setLocalPreferences] = useState(preferences);
   const [hasChanges, setHasChanges] = useState(false);
 
