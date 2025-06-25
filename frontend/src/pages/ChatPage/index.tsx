@@ -159,28 +159,25 @@ const ChatPage: React.FC = () => {
       const scrollToBottom = () => {
         const messagesContainer = document.querySelector('.messages-container');
         if (messagesContainer) {
-          // Use requestAnimationFrame to ensure DOM is ready
           requestAnimationFrame(() => {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            // Add a second scroll after a delay to handle any dynamic content
             setTimeout(() => {
               messagesContainer.scrollTop = messagesContainer.scrollHeight;
+              // หลัง scroll อัตโนมัติ ให้ปิด autoScroll เพื่อไม่ให้ดึง scroll กลับล่างสุดอีก
+              setAutoScroll(false);
             }, 200);
           });
         }
       };
-
-      // Execute scroll immediately and after a short delay to handle any late-loading content
       scrollToBottom();
-      // Also scroll after images might have loaded
       const timer = setTimeout(scrollToBottom, 500);
-
       return () => clearTimeout(timer);
     }
-  }, [chatId, currentSession?.id]); // Only trigger when chat changes, not on every message update
+  }, [chatId, currentSession?.id]);
 
   // Keep the existing smooth scroll for new messages
   useEffect(() => {
+    if (!autoScroll || !currentSession?.messages.length) return;
     const scrollToBottom = () => {
       if (messagesEndRef.current) {
         messagesEndRef.current.scrollIntoView({ 
@@ -189,11 +186,7 @@ const ChatPage: React.FC = () => {
         });
       }
     };
-
-    // Scroll when new messages arrive or typing starts
     scrollToBottom();
-
-    // Also scroll when images are loaded
     const messageImages = document.querySelectorAll('.message-image');
     messageImages.forEach(img => {
       if ((img as HTMLImageElement).complete) {
@@ -202,13 +195,12 @@ const ChatPage: React.FC = () => {
         img.addEventListener('load', scrollToBottom);
       }
     });
-
     return () => {
       messageImages.forEach(img => {
         img.removeEventListener('load', scrollToBottom);
       });
     };
-  }, [currentSession?.messages, isTyping]);
+  }, [currentSession?.messages, isTyping, autoScroll]);
   
   // Update ref whenever state changes
   useEffect(() => {
