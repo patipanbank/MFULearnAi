@@ -16,6 +16,19 @@ import useUIStore from '../../stores/uiStore';
 import { useChatStore } from '../../stores/chatStore';
 import PreferencesModal from '../PreferencesModal';
 
+// Add custom icon styles
+const iconBaseStyle = "transition-colors duration-200";
+const iconColors = {
+  menu: "text-purple-500 hover:text-purple-600",
+  search: "text-blue-500 hover:text-blue-600",
+  plus: "text-white", // For the new chat button which has a primary background
+  settings: "text-emerald-500 hover:text-emerald-600",
+  database: "text-amber-500 hover:text-amber-600",
+  user: "text-indigo-500 hover:text-indigo-600",
+  bookmark: "text-rose-500 hover:text-rose-600",
+  trash: "text-red-500 hover:text-red-600"
+};
+
 const Sidebar: React.FC = () => {
   const { 
     sidebarCollapsed, 
@@ -60,9 +73,32 @@ const Sidebar: React.FC = () => {
   }, [closeDropdown, settingsDropdownId]);
 
   const settingsItems = [
-    { id: 'knowledge', label: 'Knowledge Base', icon: FiDatabase, description: 'Manage your collections', type: 'route', path: '/knowledgebase' },
-    { id: 'agents', label: 'AI Agents', icon: FiUser, description: 'Create and manage agents', type: 'route', path: '/agent' },
-    { id: 'preferences', label: 'Preferences', icon: FiSettings, description: 'App settings and theme', type: 'modal' }
+    { 
+      id: 'knowledge', 
+      label: 'Knowledge Base', 
+      icon: FiDatabase, 
+      description: 'Manage your collections', 
+      type: 'route', 
+      path: '/knowledgebase',
+      iconColor: iconColors.database
+    },
+    { 
+      id: 'agents', 
+      label: 'AI Agents', 
+      icon: FiUser, 
+      description: 'Create and manage agents', 
+      type: 'route', 
+      path: '/agent',
+      iconColor: iconColors.user
+    },
+    { 
+      id: 'preferences', 
+      label: 'Preferences', 
+      icon: FiSettings, 
+      description: 'App settings and theme', 
+      type: 'modal',
+      iconColor: iconColors.settings
+    }
   ];
 
   const handleSettingsItemClick = (item: typeof settingsItems[0]) => {
@@ -160,7 +196,7 @@ const Sidebar: React.FC = () => {
               className="btn-ghost p-2"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              <FiMenu className="h-5 w-5 text-secondary" />
+              <FiMenu className={cn("h-5 w-5", iconBaseStyle, iconColors.menu)} />
             </button>
             
             {showExpandedContent && (
@@ -171,7 +207,7 @@ const Sidebar: React.FC = () => {
                   sidebarHovered && "animate-fade-in"
                 )}
               >
-                <FiSearch className="h-4 w-4" />
+                <FiSearch className={cn("h-4 w-4", iconBaseStyle, iconColors.search)} />
                 <span className="text-sm font-medium">Search</span>
               </button>
             )}
@@ -188,7 +224,7 @@ const Sidebar: React.FC = () => {
             )}
             title={sidebarCollapsed && !sidebarHovered ? 'New Chat' : undefined}
           >
-            <FiPlus className="h-5 w-5" />
+            <FiPlus className={cn("h-5 w-5", iconBaseStyle, iconColors.plus)} />
             {showExpandedContent && (
               <span className={cn(
                 "transition-all duration-200",
@@ -317,7 +353,7 @@ const Sidebar: React.FC = () => {
               )}
               title={sidebarCollapsed && !sidebarHovered ? 'Settings' : undefined}
             >
-              <FiSettings className="h-5 w-5" />
+              <FiSettings className={cn("h-5 w-5", iconBaseStyle, iconColors.settings)} />
               {showExpandedContent && (
                 <span className={cn(
                   "transition-all duration-200",
@@ -344,7 +380,7 @@ const Sidebar: React.FC = () => {
                       onClick={() => handleSettingsItemClick(item)}
                       className="w-full flex items-center space-x-3 px-4 py-3 text-left card-hover transition-colors"
                     >
-                      <Icon className="h-4 w-4 text-muted flex-shrink-0" />
+                      <Icon className={cn("h-4 w-4", iconBaseStyle, item.iconColor)} />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-primary">{item.label}</div>
                         <div className="text-xs text-muted truncate">{item.description}</div>
