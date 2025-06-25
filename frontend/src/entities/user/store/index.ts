@@ -79,7 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     logout: () => {
       localStorage.removeItem('auth_token');
       set({ token: null, user: null, status: 'unauthenticated' });
-      window.location.href = '/login'; 
+      window.open('/login', '_blank'); 
     },
 
     logoutSAML: () => {
