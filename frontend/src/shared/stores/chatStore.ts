@@ -80,7 +80,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let shouldUpdateName = false;
     // เปลี่ยนชื่อแชทเฉพาะตอนแรกเท่านั้น
     if (
-      (state.currentSession.name === 'New Chat' || !state.currentSession.name) &&
+      (!state.currentSession.name) &&
       message.role === 'user' &&
       state.currentSession.messages.length === 0
     ) {
