@@ -523,6 +523,27 @@
   .sidebar .flex-1::-webkit-scrollbar-thumb:hover {
     background-color: rgb(var(--color-border-hover));
   }
+
+  /* Custom scrollbar for main content */
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+    position: absolute;
+    right: 0;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--color-border));
+    border-radius: 3px;
+    transition: background-color 0.2s;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--color-border-hover));
+  }
 }
 
 .scroll-to-bottom-enter {
