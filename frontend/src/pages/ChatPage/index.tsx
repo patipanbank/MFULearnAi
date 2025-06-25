@@ -702,19 +702,19 @@ const ChatPage: React.FC = () => {
     const clientHeight = container.clientHeight;
     const distanceFromBottom = scrollHeight - scrollPosition - clientHeight;
     
-    // Consider "near bottom" if within 150px of bottom
-    const nearBottom = distanceFromBottom < 150;
+    // Consider "near bottom" if within 100px of bottom
+    const nearBottom = distanceFromBottom < 100;
     setIsNearBottom(nearBottom);
     
-    // Only auto-scroll if we're near bottom and not actively scrolling up
-    setAutoScroll(nearBottom && scrollPosition > lastScrollPosition);
+    // Auto-scroll only if we were previously at bottom
+    setAutoScroll(nearBottom);
     
     // Show scroll button if not near bottom
     setShowScrollButton(!nearBottom);
     
     // Save last scroll position
     setLastScrollPosition(scrollPosition);
-  }, [lastScrollPosition]);
+  }, []);
 
   // Improved scroll to bottom function
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -753,13 +753,7 @@ const ChatPage: React.FC = () => {
     const scrollWithDelay = () => {
       // Use RAF for smooth animation frame
       requestAnimationFrame(() => {
-        if (mainContainerRef.current) {
-          const container = mainContainerRef.current;
-          // Only scroll if we're near bottom or it's a new message
-          if (isNearBottom || container.scrollTop === lastScrollPosition) {
-            scrollToBottom('smooth');
-          }
-        }
+        scrollToBottom('smooth');
       });
     };
     
@@ -770,7 +764,7 @@ const ChatPage: React.FC = () => {
     const delayedScroll = setTimeout(scrollWithDelay, 100);
     
     return () => clearTimeout(delayedScroll);
-  }, [currentSession?.messages, autoScroll, scrollToBottom, isNearBottom, lastScrollPosition]);
+  }, [currentSession?.messages, autoScroll, scrollToBottom]);
 
   // Add image load scroll handler
   useEffect(() => {
@@ -830,9 +824,7 @@ const ChatPage: React.FC = () => {
           className="flex-1 overflow-y-auto messages-container scroll-smooth min-h-0"
           style={{
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(186,12,47,0.3) transparent',
-            overscrollBehavior: 'contain', // Prevent scroll chaining
-            WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+            scrollbarColor: 'rgba(186,12,47,0.3) transparent'
           }}
         >
           {/* Welcome Message */}
