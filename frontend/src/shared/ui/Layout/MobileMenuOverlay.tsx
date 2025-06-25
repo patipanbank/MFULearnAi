@@ -339,7 +339,10 @@ const MobileMenuOverlay: React.FC = () => {
       {/* Modals */}
       <PreferencesModal 
         isOpen={preferencesModalOpen} 
-        onClose={() => setPreferencesModalOpen(false)} 
+        onClose={() => {
+          setPreferencesModalOpen(false);
+          setMobileMenuOpen(false);
+        }} 
       />
       <MobileSettingsModal 
         isOpen={settingsModalOpen} 
