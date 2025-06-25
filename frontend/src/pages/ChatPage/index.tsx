@@ -706,17 +706,15 @@ const ChatPage: React.FC = () => {
     const nearBottom = distanceFromBottom < 150;
     setIsNearBottom(nearBottom);
     
-    // ถ้าผู้ใช้ scroll ขึ้น ให้หยุด autoScroll ทันที
-    if (!nearBottom) {
-      setAutoScroll(false);
-    } else {
-      setAutoScroll(true);
-    }
+    // Only auto-scroll if we're near bottom and not actively scrolling up
+    setAutoScroll(nearBottom && scrollPosition > lastScrollPosition);
+    
     // Show scroll button if not near bottom
     setShowScrollButton(!nearBottom);
+    
     // Save last scroll position
     setLastScrollPosition(scrollPosition);
-  }, []);
+  }, [lastScrollPosition]);
 
   // Improved scroll to bottom function
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -729,7 +727,8 @@ const ChatPage: React.FC = () => {
       top: targetScroll,
       behavior
     });
-    setAutoScroll(true); // กลับมา autoScroll เมื่อกดปุ่มล่างสุด
+    
+    setAutoScroll(true);
     setShowScrollButton(false);
   }, []);
 
@@ -737,10 +736,12 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     const container = mainContainerRef.current;
     if (!container) return;
+    
     // Restore scroll position on mount
     if (lastScrollPosition > 0) {
       container.scrollTop = lastScrollPosition;
     }
+    
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
   }, [handleScroll, lastScrollPosition]);
@@ -748,31 +749,39 @@ const ChatPage: React.FC = () => {
   // Update message scroll effect
   useEffect(() => {
     if (!autoScroll || !currentSession?.messages.length) return;
-    // Scroll to bottom เฉพาะถ้า autoScroll เป็น true
+    
     const scrollWithDelay = () => {
+      // Use RAF for smooth animation frame
       requestAnimationFrame(() => {
         if (mainContainerRef.current) {
           const container = mainContainerRef.current;
-          container.scrollTo({
-            top: container.scrollHeight - container.clientHeight,
-            behavior: 'smooth',
-          });
+          // Only scroll if we're near bottom or it's a new message
+          if (isNearBottom || container.scrollTop === lastScrollPosition) {
+            scrollToBottom('smooth');
+          }
         }
       });
     };
+    
+    // Scroll on new messages
     scrollWithDelay();
+    
+    // Also scroll after a delay to handle dynamic content
     const delayedScroll = setTimeout(scrollWithDelay, 100);
+    
     return () => clearTimeout(delayedScroll);
-  }, [currentSession?.messages, autoScroll]);
+  }, [currentSession?.messages, autoScroll, scrollToBottom, isNearBottom, lastScrollPosition]);
 
   // Add image load scroll handler
   useEffect(() => {
     if (!autoScroll) return;
+    
     const handleImageLoad = () => {
       if (isNearBottom) {
         scrollToBottom('smooth');
       }
     };
+    
     const images = document.querySelectorAll('.message-image');
     images.forEach(img => {
       if ((img as HTMLImageElement).complete) {
@@ -781,6 +790,7 @@ const ChatPage: React.FC = () => {
         img.addEventListener('load', handleImageLoad);
       }
     });
+    
     return () => {
       images.forEach(img => {
         img.removeEventListener('load', handleImageLoad);
