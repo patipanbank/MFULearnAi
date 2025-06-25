@@ -22,7 +22,7 @@ const iconColors = {
   menu: "text-purple-500 hover:text-purple-600",
   search: "text-blue-500 hover:text-blue-600",
   plus: "text-white", // For the new chat button which has a primary background
-  settings: "text-emerald-500 hover:text-emerald-600",
+  settings: "text-blue-500 hover:text-blue-600",
   database: "text-amber-500 hover:text-amber-600",
   user: "text-indigo-500 hover:text-indigo-600",
   bookmark: "text-rose-500 hover:text-rose-600",
