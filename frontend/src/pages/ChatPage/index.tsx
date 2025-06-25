@@ -740,7 +740,7 @@ const ChatPage: React.FC = () => {
               />
               <h1 className="text-2xl font-bold text-primary mb-4">Welcome</h1>
               <h2 
-                className="text-2xl font-semibold mb-2 bg-gradient-to-r from-[rgb(186,12,47)] to-[rgb(212,175,55)] text-transparent bg-clip-text"
+                className="text-2xl font-bold mb-2 bg-gradient-to-r from-[rgb(186,12,47)] to-[rgb(212,175,55)] text-transparent bg-clip-text"
               >{user?.firstName || 'Guest'}</h2>
               <h3 className="text-lg text-primary mb-4">How can I help you today?</h3>
             </div>
