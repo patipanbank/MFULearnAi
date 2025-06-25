@@ -253,26 +253,12 @@
   .modal-overlay {
     @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50;
   }
-
-  /* Mobile: Position modal at bottom for slide-up effect */
-  @media (max-width: 768px) {
-    .modal-overlay {
-      @apply items-end justify-center pb-0;
-    }
-  }
   
   .modal-content {
     background-color: rgb(var(--color-modal));
     border-color: rgb(var(--color-border));
     @apply rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden;
     animation: scale-in 0.2s ease-out;
-  }
-
-  /* Mobile: Full width bottom modal */
-  @media (max-width: 768px) {
-    .modal-content {
-      @apply w-full max-w-none rounded-b-none rounded-t-2xl max-h-[85vh];
-    }
   }
   
   .dropdown-menu {

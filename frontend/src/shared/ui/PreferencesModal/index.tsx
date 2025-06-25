@@ -116,9 +116,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
       className="modal-overlay"
       onClick={handleBackdropClick}
     >
-      <div className={`modal-content max-w-2xl w-full max-h-[90vh] overflow-hidden ${
-        isMobile ? 'animate-slide-up-from-bottom' : ''
-      }`}>
+      <div className="modal-content max-w-2xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
