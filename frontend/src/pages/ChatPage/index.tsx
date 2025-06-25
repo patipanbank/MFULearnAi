@@ -918,7 +918,7 @@ const ChatPage: React.FC = () => {
               {showScrollButton && (
                 <button
                   onClick={() => scrollToBottom('smooth')}
-                  className="fixed bottom-24 right-8 bg-white text-primary p-3 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-300 z-[100] border-2 border-primary flex items-center gap-2 transform hover:scale-110"
+                  className="fixed bottom-4 right-8 bg-white text-primary p-3 rounded-full shadow-xl hover:bg-gray-100 transition-all duration-300 z-[100] border-2 border-primary flex items-center gap-2 transform hover:scale-110"
                   style={{
                     boxShadow: '0 4px 15px rgba(186,12,47,0.2)',
                     animation: 'bounce-subtle 2s infinite'
