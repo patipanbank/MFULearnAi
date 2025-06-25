@@ -149,10 +149,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         id: (chat as any)._id ?? chat.id,
         createdAt: new Date(chat.createdAt),
         updatedAt: new Date(chat.updatedAt),
-        messages: (chat.messages ?? []).map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }))
+        messages: (chat.messages ?? []).map((msg: any) => {
+          const ts = new Date(msg.timestamp);
+          if (msg.role === 'assistant') ts.setHours(ts.getHours() + 7);
+          return { ...msg, timestamp: ts };
+        })
       };
       set({ currentSession: chatSession });
       return true;
@@ -206,10 +207,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           id: chat._id ?? chat.id,
           createdAt: new Date(chat.createdAt),
           updatedAt: new Date(chat.updatedAt),
-          messages: (chat.messages ?? []).map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          }))
+          messages: (chat.messages ?? []).map((msg: any) => {
+            const ts = new Date(msg.timestamp);
+            if (msg.role === 'assistant') ts.setHours(ts.getHours() + 7);
+            return { ...msg, timestamp: ts };
+          })
         }));
       set({ chatHistory: chatSessions });
     } catch (error) {
