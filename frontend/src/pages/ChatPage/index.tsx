@@ -639,7 +639,7 @@ const ChatPage: React.FC = () => {
       {/* Chat Area - Full width */}
       <div className="flex-1 flex flex-col w-full relative h-full overflow-hidden">
         {/* Messages */}
-        {hasMessages && (
+        {hasMessages ? (
         <div className="flex-1 overflow-y-auto px-0 sm:px-4 py-4 pb-32 space-y-4 h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 dark:hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
           {currentSession?.messages.map((msg) => (
             <div
@@ -729,6 +729,15 @@ const ChatPage: React.FC = () => {
           
           <div ref={messagesEndRef} />
         </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-primary mb-4">Welcome</h1>
+              <h2 className="text-2xl font-semibold text-primary mb-2">{user?.firstName || 'Guest'}</h2>
+              <h3 className="text-xl text-primary mb-4">How can I help you today?</h3>
+              <p className="text-lg text-muted">Start a conversation by typing a message below</p>
+            </div>
+          </div>
         )}
         
         {/* Input Area - Fixed at Bottom */}
