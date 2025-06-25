@@ -255,14 +255,6 @@ const ChatPage: React.FC = () => {
         ws.send(JSON.stringify({ type: 'join_room', chatId }));
       }
       
-      // Show connection success toast
-      addToast({
-        type: 'success',
-        title: 'Connected',
-        message: 'Chat service connected successfully',
-        duration: 3000
-      });
-      
       // ส่งคิวข้อความที่ค้างทั้งหมด (สร้างใหม่ในรูปแบบ event)
       console.log('[CHAT] WebSocket OPEN – pending', pendingQueueRef.current.length);
       pendingQueueRef.current.forEach((p) => {
