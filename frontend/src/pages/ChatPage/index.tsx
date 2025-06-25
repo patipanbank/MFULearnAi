@@ -7,6 +7,7 @@ import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
+import dindinNp from '../../assets/dindin_np.png';
 
 const ChatPage: React.FC = () => {
   const { user, token, refreshToken } = useAuthStore();
@@ -732,10 +733,14 @@ const ChatPage: React.FC = () => {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <h1 className="text-4xl font-bold text-primary mb-4">Welcome</h1>
+              <img 
+                src={dindinNp} 
+                alt="DINDIN AI"
+                className="w-32 h-32 mx-auto mb-6 rounded-full shadow-lg"
+              />
+              <h1 className="text-2xl font-bold text-primary mb-4">Welcome</h1>
               <h2 className="text-2xl font-semibold text-primary mb-2">{user?.firstName || 'Guest'}</h2>
-              <h3 className="text-xl text-primary mb-4">How can I help you today?</h3>
-              <p className="text-lg text-muted">Start a conversation by typing a message below</p>
+              <h3 className="text-lg text-primary mb-4">How can I help you today?</h3>
             </div>
           </div>
         )}
