@@ -736,7 +736,7 @@ const ChatPage: React.FC = () => {
               <img 
                 src={dindinNp} 
                 alt="DINDIN AI"
-                className="w-32 h-32 mx-auto mb-3 rounded-full shadow-lg"
+                className="w-32 h-32 mx-auto mb-3 rounded-full"
               />
               <h1 className="text-2xl font-bold text-primary mb-1">Welcome</h1>
               <h2 
