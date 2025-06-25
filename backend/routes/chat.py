@@ -40,6 +40,9 @@ class UpdateChatNameRequest(BaseModel):
     chat_id: str
     name: str
 
+class PinChatRequest(BaseModel):
+    isPinned: bool
+
 @router.get("/history/{session_id}", response_model=ChatHistoryModel)
 async def get_chat_history(session_id: str, current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))):
     """
@@ -423,4 +426,23 @@ async def update_chat_name(
     updated_chat = await chat_history_service.update_chat_name(req.chat_id, req.name)
     if not updated_chat:
         raise HTTPException(status_code=500, detail="Failed to update chat name")
+    return updated_chat
+
+@router.post("/{chat_id}/pin", response_model=ChatHistoryModel)
+async def pin_chat(
+    chat_id: str,
+    req: PinChatRequest,
+    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
+):
+    """
+    Pin or unpin a chat.
+    """
+    chat = await chat_history_service.get_chat_by_id(chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if str(chat.userId) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to pin this chat")
+    updated_chat = await chat_history_service.update_chat_pin_status(chat_id, req.isPinned)
+    if not updated_chat:
+        raise HTTPException(status_code=500, detail="Failed to update chat pin status")
     return updated_chat 

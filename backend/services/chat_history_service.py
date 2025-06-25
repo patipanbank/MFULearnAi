@@ -119,4 +119,21 @@ class ChatHistoryService:
             return Chat(**result)
         return None
 
+    async def update_chat_pin_status(self, chat_id: str, is_pinned: bool) -> Optional[Chat]:
+        """Update the pin status of a chat."""
+        db = get_database()
+        try:
+            query = {"_id": ObjectId(chat_id)}
+        except Exception:
+            query = {"_id": chat_id}
+        result = await db.get_collection("chats").find_one_and_update(
+            query,
+            {"$set": {"isPinned": is_pinned, "updatedAt": datetime.utcnow()}},
+            return_document=True
+        )
+        if result and "_id" in result:
+            result["_id"] = str(result["_id"])
+            return Chat(**result)
+        return None
+
 chat_history_service = ChatHistoryService() 

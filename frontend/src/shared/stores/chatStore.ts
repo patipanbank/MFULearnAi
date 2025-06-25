@@ -293,11 +293,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   
-  pinChat: (chatId, pinned) => set((state) => ({
-    chatHistory: state.chatHistory.map(chat =>
-      chat.id === chatId ? { ...chat, isPinned: pinned } : chat
-    )
-  }))
+  pinChat: async (chatId, pinned) => {
+    try {
+      // Update pin state in backend
+      await api.post(`/chat/${chatId}/pin`, { isPinned: pinned });
+      
+      // Update local state
+      set((state) => ({
+        chatHistory: state.chatHistory.map(chat =>
+          chat.id === chatId ? { ...chat, isPinned: pinned } : chat
+        ),
+        // Also update current session if it's the same chat
+        currentSession: state.currentSession?.id === chatId 
+          ? { ...state.currentSession, isPinned: pinned }
+          : state.currentSession
+      }));
+    } catch (error) {
+      console.error('Failed to pin chat:', error);
+    }
+  }
 }));
 
 export default useChatStore; 
