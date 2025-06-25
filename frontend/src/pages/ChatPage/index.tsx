@@ -854,62 +854,65 @@ const ChatPage: React.FC = () => {
           {/* Messages */}
           <div className="px-1 sm:px-4 py-4 pb-24">
             <div className="space-y-4">
-              {hasMessages && currentSession?.messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === 'user' ? 'justify-end pr-[2%] sm:pr-[15%]' : 'justify-start pl-[2%] sm:pl-[15%]'} items-end space-x-2`}
-                >
-                  {msg.role !== 'user' && (
-                    <div className="flex-shrink-0">
-                      <img 
-                        src={dindinAvatar} 
-                        alt="DINDIN AI" 
-                        className="w-8 h-8 rounded-full shadow-md"
-                      />
-                    </div>
-                  )}
-                  <div className="flex flex-col max-w-[65%] sm:max-w-[70%]">
-                    <div className={`text-xs mb-1 ${
-                      msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
-                    }`}>
-                      {formatMessageTime(msg.timestamp)}
-                    </div>
-                    <div
-                      className={`px-4 py-3 rounded-2xl shadow-sm ${
-                        msg.role === 'user'
-                          ? 'bg-blue-600 text-white rounded-br-sm'
-                          : 'card text-primary rounded-bl-sm'
-                      }`}
-                    >
-                      {msg.images && msg.images.length > 0 && (
-                        <div className="mb-3 grid grid-cols-2 gap-3">
-                          {msg.images.map((img, idx) => (
-                            <img
-                              key={idx}
-                              src={img.url}
-                              alt="Uploaded"
-                              className="rounded-lg max-w-full h-auto shadow-sm message-image"
-                            />
-                          ))}
-                        </div>
-                      )}
-                      <div className="whitespace-pre-wrap">
-                        {msg.content}
-                        {msg.isStreaming && (
-                          <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+              {hasMessages && currentSession?.messages.map((msg, idx, arr) => {
+                const isLast = idx === arr.length - 1;
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.role === 'user' ? 'justify-end pr-[2%] sm:pr-[15%]' : 'justify-start pl-[2%] sm:pl-[15%]'} items-end space-x-2`}
+                  >
+                    {msg.role !== 'user' && (
+                      <div className="flex-shrink-0">
+                        <img 
+                          src={dindinAvatar} 
+                          alt="DINDIN AI" 
+                          className="w-8 h-8 rounded-full shadow-md"
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-col max-w-[65%] sm:max-w-[70%]">
+                      <div className={`text-xs mb-1 ${
+                        msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
+                      }`}>
+                        {formatMessageTime(msg.timestamp)}
+                      </div>
+                      <div
+                        className={`px-4 py-3 rounded-2xl shadow-sm ${
+                          msg.role === 'user'
+                            ? 'bg-blue-600 text-white rounded-br-sm'
+                            : 'card text-primary rounded-bl-sm'
+                        } ${msg.role === 'assistant' && isLast ? 'mb-8 sm:mb-12' : ''}`}
+                      >
+                        {msg.images && msg.images.length > 0 && (
+                          <div className="mb-3 grid grid-cols-2 gap-3">
+                            {msg.images.map((img, idx) => (
+                              <img
+                                key={idx}
+                                src={img.url}
+                                alt="Uploaded"
+                                className="rounded-lg max-w-full h-auto shadow-sm message-image"
+                              />
+                            ))}
+                          </div>
                         )}
+                        <div className="whitespace-pre-wrap">
+                          {msg.content}
+                          {msg.isStreaming && (
+                            <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+                          )}
+                        </div>
                       </div>
                     </div>
+                    {msg.role === 'user' && (
+                      <div className="flex-shrink-0">
+                        <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
+                          {getInitials()}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {msg.role === 'user' && (
-                    <div className="flex-shrink-0">
-                      <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md">
-                        {getInitials()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               
               {/* Scroll to bottom button */}
               {showScrollButton && (
