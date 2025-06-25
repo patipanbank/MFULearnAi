@@ -196,34 +196,34 @@ const MobileMenuOverlay: React.FC = () => {
           <div className="border-t border-border p-4 space-y-2">
             <button
               onClick={() => handleNavigate('/knowledgebase')}
-              className="w-full flex items-center p-3 rounded-lg card-hover"
+              className="w-full flex items-start p-3 rounded-lg card-hover"
             >
-              <FiDatabase className="h-5 w-5 mr-1.5 flex-shrink-0" />
-              <div>
-                <div className="text-sm font-medium">Knowledge Base</div>
-                <div className="text-xs text-muted">Manage your collections</div>
+              <FiDatabase className="h-5 w-5 mr-1.5 flex-shrink-0 mt-0.5" />
+              <div className="-mt-1">
+                <div className="text-sm font-medium leading-tight">Knowledge Base</div>
+                <div className="text-xs text-muted mt-0.5">Manage your collections</div>
               </div>
             </button>
 
             <button
               onClick={() => handleNavigate('/agent')}
-              className="w-full flex items-center p-3 rounded-lg card-hover"
+              className="w-full flex items-start p-3 rounded-lg card-hover"
             >
-              <FiUser className="h-5 w-5 mr-1.5 flex-shrink-0" />
-              <div>
-                <div className="text-sm font-medium">AI Agents</div>
-                <div className="text-xs text-muted">Create and manage agents</div>
+              <FiUser className="h-5 w-5 mr-1.5 flex-shrink-0 mt-0.5" />
+              <div className="-mt-1">
+                <div className="text-sm font-medium leading-tight">AI Agents</div>
+                <div className="text-xs text-muted mt-0.5">Create and manage agents</div>
               </div>
             </button>
 
             <button
               onClick={() => setPreferencesModalOpen(true)}
-              className="w-full flex items-center p-3 rounded-lg card-hover"
+              className="w-full flex items-start p-3 rounded-lg card-hover"
             >
-              <FiSliders className="h-5 w-5 mr-1.5 flex-shrink-0" />
-              <div>
-                <div className="text-sm font-medium">Preferences</div>
-                <div className="text-xs text-muted">App settings and theme</div>
+              <FiSliders className="h-5 w-5 mr-1.5 flex-shrink-0 mt-0.5" />
+              <div className="-mt-1">
+                <div className="text-sm font-medium leading-tight">Preferences</div>
+                <div className="text-xs text-muted mt-0.5">App settings and theme</div>
               </div>
             </button>
           </div>
