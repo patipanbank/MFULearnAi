@@ -883,7 +883,7 @@ const ChatPage: React.FC = () => {
                             : 'card text-primary rounded-bl-sm'
                         } ${msg.role === 'assistant' && isLast ? 'mb-8 sm:mb-12' : ''}`}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-nowrap">
                           {msg.images && msg.images.length > 0 && (
                             <div className="flex gap-2">
                               {msg.images.map((img, idx) => (
@@ -891,12 +891,12 @@ const ChatPage: React.FC = () => {
                                   key={idx}
                                   src={img.url}
                                   alt="Uploaded"
-                                  className="rounded-lg w-12 h-12 object-cover shadow-sm message-image"
+                                  className="rounded-lg w-10 h-10 object-cover shadow-sm message-image"
                                 />
                               ))}
                             </div>
                           )}
-                          <div className="whitespace-pre-wrap">
+                          <div className="whitespace-pre-wrap break-words max-w-[70%]">
                             {msg.content}
                             {msg.isStreaming && (
                               <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
