@@ -690,10 +690,10 @@ const ChatPage: React.FC = () => {
                   )}
                   
                   {/* Message Content */}
-                  <div className="whitespace-pre-wrap text-sm sm:text-base">
+                  <div className="whitespace-pre-wrap text-base sm:text-base">
                     {msg.content}
                     {msg.isStreaming && (
-                      <span className="inline-block w-1.5 sm:w-2 h-4 sm:h-5 bg-current animate-pulse ml-1" />
+                      <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
                     )}
                   </div>
                 </div>
