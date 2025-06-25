@@ -852,7 +852,7 @@ const ChatPage: React.FC = () => {
           )}
 
           {/* Messages */}
-          <div className="px-1 sm:px-4 py-4 pb-32">
+          <div className="px-1 sm:px-4 py-4 pb-24">
             <div className="space-y-4">
               {hasMessages && currentSession?.messages.map((msg) => (
                 <div
