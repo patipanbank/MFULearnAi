@@ -95,7 +95,7 @@ const SearchPage: React.FC = () => {
         </div>
 
         {/* Results */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 pr-0">
           <div className="max-w-2xl mx-auto">
             {searchResults.length === 0 && !isLoading && searchQuery && (
               <div className="text-center py-12">
