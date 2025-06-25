@@ -644,10 +644,10 @@ const ChatPage: React.FC = () => {
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-end space-x-2 px-2 sm:px-0`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-end'} items-end space-x-2 px-2 sm:px-0`}
             >
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 order-2 ml-2">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
@@ -655,10 +655,10 @@ const ChatPage: React.FC = () => {
                   />
                 </div>
               )}
-              <div className="flex flex-col max-w-[60%]">
+              <div className={`flex flex-col max-w-[60%] ${msg.role !== 'user' ? 'order-1' : ''}`}>
                 {/* Timestamp */}
                 <div className={`text-xs mb-1 ${
-                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
+                  msg.role === 'user' ? 'text-right text-muted' : 'text-right text-muted'
                 }`}>
                   {msg.role === 'user'
                     ? (() => { const d = new Date(msg.timestamp); d.setHours(d.getHours() + 7); return d.toLocaleTimeString(); })()
