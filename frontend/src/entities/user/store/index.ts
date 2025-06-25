@@ -79,7 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     logout: () => {
       localStorage.removeItem('auth_token');
       set({ token: null, user: null, status: 'unauthenticated' });
-      const loginTab = window.open(`${config.apiUrl}/api/auth/logout/saml`, '_blank');
+      const loginTab = window.open('/login', '_blank');
       if (loginTab) {
         loginTab.focus();
       }
@@ -90,8 +90,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
       localStorage.removeItem('auth_token');
       set({ token: null, user: null, status: 'unauthenticated' });
       
-      // Open login page in new tab
-      const logoutTab = window.open('/login', '_blank');
+      // Open SAML logout endpoint in new tab
+      const logoutTab = window.open(`${config.apiUrl}/api/auth/logout/saml`, '_blank');
       if (logoutTab) {
         logoutTab.focus();
       }
