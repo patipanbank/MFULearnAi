@@ -27,11 +27,7 @@ const UserProfile: React.FC = () => {
   }, [closeDropdown, dropdownId]);
 
   const handleCompleteLogout = () => {
-    localStorage.removeItem('auth_token');
-    const loginTab = window.open('/login', '_blank');
-    if (loginTab) {
-      loginTab.focus();
-    }
+    logoutSAML();
     closeDropdown(dropdownId);
   };
 
