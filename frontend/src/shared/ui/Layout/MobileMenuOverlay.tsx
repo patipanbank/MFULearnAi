@@ -196,10 +196,10 @@ const MobileMenuOverlay: React.FC = () => {
           <div className="border-t border-border p-4 space-y-4">
             <button
               onClick={() => handleNavigate('/knowledgebase')}
-              className="w-full flex items-start gap-2 rounded-lg card-hover"
+              className="w-full flex items-center gap-2 rounded-lg card-hover"
             >
-              <FiDatabase className="h-6 w-6 flex-shrink-0 mt-0.5" />
-              <div className="-mt-1">
+              <FiDatabase className="h-6 w-6 flex-shrink-0" />
+              <div>
                 <div className="text-base font-medium leading-tight">Knowledge Base</div>
                 <div className="text-[13px] text-gray-500">Manage your collections</div>
               </div>
@@ -207,10 +207,10 @@ const MobileMenuOverlay: React.FC = () => {
 
             <button
               onClick={() => handleNavigate('/agent')}
-              className="w-full flex items-start gap-2 rounded-lg card-hover"
+              className="w-full flex items-center gap-2 rounded-lg card-hover"
             >
-              <FiUser className="h-6 w-6 flex-shrink-0 mt-0.5" />
-              <div className="-mt-1">
+              <FiUser className="h-6 w-6 flex-shrink-0" />
+              <div>
                 <div className="text-base font-medium leading-tight">AI Agents</div>
                 <div className="text-[13px] text-gray-500">Create and manage agents</div>
               </div>
@@ -218,10 +218,10 @@ const MobileMenuOverlay: React.FC = () => {
 
             <button
               onClick={() => setPreferencesModalOpen(true)}
-              className="w-full flex items-start gap-2 rounded-lg card-hover"
+              className="w-full flex items-center gap-2 rounded-lg card-hover"
             >
-              <FiSliders className="h-6 w-6 flex-shrink-0 mt-0.5" />
-              <div className="-mt-1">
+              <FiSliders className="h-6 w-6 flex-shrink-0" />
+              <div>
                 <div className="text-base font-medium leading-tight">Preferences</div>
                 <div className="text-[13px] text-gray-500">App settings and theme</div>
               </div>
