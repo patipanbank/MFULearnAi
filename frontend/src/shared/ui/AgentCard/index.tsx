@@ -151,7 +151,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted">Updated:</span>
-              <span className="text-primary">{new Date(agent.updatedAt).toLocaleDateString()}</span>
+              <span className="text-primary">{(() => { const d = new Date(agent.updatedAt); d.setHours(d.getHours() + 7); return d.toLocaleDateString(); })()}</span>
             </div>
           </>
         )}

@@ -307,7 +307,7 @@ const MobileMenuOverlay: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-sm text-muted mt-1">
-                      {new Date(chat.updatedAt).toLocaleDateString()}
+                      {(() => { const d = new Date(chat.updatedAt); d.setHours(d.getHours() + 7); return d.toLocaleDateString(); })()}
                     </div>
                   </div>
                   
