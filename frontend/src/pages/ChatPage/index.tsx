@@ -655,7 +655,7 @@ const ChatPage: React.FC = () => {
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
-                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-full shadow-md"
+                    className="w-8 h-8 sm:w-8 sm:h-8 rounded-full shadow-md"
                   />
                 </div>
               )}
@@ -700,7 +700,7 @@ const ChatPage: React.FC = () => {
               </div>
               {msg.role === 'user' && (
                 <div className="flex-shrink-0">
-                  <div className="h-6 w-6 sm:h-8 sm:w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium shadow-md">
+                  <div className="h-8 w-8 sm:h-8 sm:w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm sm:text-sm font-medium shadow-md">
                     {getInitials()}
                   </div>
                 </div>
