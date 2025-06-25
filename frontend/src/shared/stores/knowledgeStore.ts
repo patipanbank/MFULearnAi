@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import api from '../utils/api';
+import { api } from '../lib/api';
 
 export interface Document {
   id: string;

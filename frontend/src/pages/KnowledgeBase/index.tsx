@@ -42,11 +42,11 @@ const KnowledgeBase: React.FC = () => {
         title: 'Upload Success',
         message: 'Documents have been uploaded successfully'
       });
-    } catch (error) {
+    } catch (error: Error) {
       addToast({
         type: 'error',
         title: 'Upload Failed',
-        message: 'Failed to upload documents'
+        message: error.message || 'Failed to upload documents'
       });
     } finally {
       setIsUploading(false);
@@ -61,11 +61,11 @@ const KnowledgeBase: React.FC = () => {
         title: 'Collection Created',
         message: `Collection "${name}" has been created`
       });
-    } catch (error) {
+    } catch (error: Error) {
       addToast({
         type: 'error',
         title: 'Creation Failed',
-        message: 'Failed to create collection'
+        message: error.message || 'Failed to create collection'
       });
     }
   };
@@ -78,11 +78,11 @@ const KnowledgeBase: React.FC = () => {
         title: 'Collection Deleted',
         message: 'Collection has been deleted'
       });
-    } catch (error) {
+    } catch (error: Error) {
       addToast({
         type: 'error',
         title: 'Deletion Failed',
-        message: 'Failed to delete collection'
+        message: error.message || 'Failed to delete collection'
       });
     }
   };
@@ -97,11 +97,11 @@ const KnowledgeBase: React.FC = () => {
         title: 'Document Deleted',
         message: 'Document has been deleted'
       });
-    } catch (error) {
+    } catch (error: Error) {
       addToast({
         type: 'error',
         title: 'Deletion Failed',
-        message: 'Failed to delete document'
+        message: error.message || 'Failed to delete document'
       });
     }
   };
@@ -204,7 +204,7 @@ const KnowledgeBase: React.FC = () => {
                 htmlFor={`file-upload-${collection.id}`}
                 className="btn-secondary w-full text-center cursor-pointer"
               >
-                Upload Documents
+                {isUploading ? 'Uploading...' : 'Upload Documents'}
               </label>
             </div>
           </div>
