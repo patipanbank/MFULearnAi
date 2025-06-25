@@ -31,7 +31,8 @@ const Sidebar: React.FC = () => {
     loadChat, 
     deleteChat, 
     pinChat,
-    createNewChat 
+    createNewChat,
+    setChatHistory
   } = useChatStore();
   const navigate = useNavigate();
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -42,10 +43,19 @@ const Sidebar: React.FC = () => {
   const settingsDropdownId = 'settings-dropdown';
   const isSettingsOpen = openDropdowns.has(settingsDropdownId);
 
-  // Fetch chat history on mount
+  // Fetch chat history on mount and when current session changes
   useEffect(() => {
-    fetchChatHistory();
-  }, [fetchChatHistory]);
+    fetchChatHistory(true);
+  }, [fetchChatHistory, currentSession?.id]);
+
+  // Update chat history when chat name changes
+  useEffect(() => {
+    if (currentSession) {
+      setChatHistory(chatHistory.map(chat =>
+        chat.id === currentSession.id ? { ...chat, name: currentSession.name } : chat
+      ));
+    }
+  }, [currentSession?.name, chatHistory, currentSession, setChatHistory]);
 
   // Close settings dropdown when clicking outside
   useEffect(() => {
@@ -87,6 +97,8 @@ const Sidebar: React.FC = () => {
     if (!chatId || chatId === 'undefined') return;
     const ok = await loadChat(chatId);
     if (ok) {
+      // Force refresh chat history after loading chat
+      await fetchChatHistory(true);
       navigate(`/chat/${chatId}`, { replace: true });
     }
   };
