@@ -659,7 +659,9 @@ const ChatPage: React.FC = () => {
                 <div className={`text-xs mb-1 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
-                  {msg.timestamp.toLocaleTimeString()}
+                  {msg.role === 'user'
+                    ? (() => { const d = new Date(msg.timestamp); d.setHours(d.getHours() + 7); return d.toLocaleTimeString(); })()
+                    : msg.timestamp.toLocaleTimeString()}
                 </div>
                 <div
                   className={`px-4 py-3 rounded-2xl shadow-sm ${
