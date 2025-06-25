@@ -198,8 +198,8 @@ const MobileMenuOverlay: React.FC = () => {
               onClick={() => handleNavigate('/knowledgebase')}
               className="w-full flex items-center p-3 rounded-lg card-hover"
             >
-              <FiDatabase className="h-5 w-5 mr-2" />
-              <div className="flex-1">
+              <FiDatabase className="h-5 w-5 mr-1.5 flex-shrink-0" />
+              <div>
                 <div className="text-sm font-medium">Knowledge Base</div>
                 <div className="text-xs text-muted">Manage your collections</div>
               </div>
@@ -209,8 +209,8 @@ const MobileMenuOverlay: React.FC = () => {
               onClick={() => handleNavigate('/agent')}
               className="w-full flex items-center p-3 rounded-lg card-hover"
             >
-              <FiUser className="h-5 w-5 mr-2" />
-              <div className="flex-1">
+              <FiUser className="h-5 w-5 mr-1.5 flex-shrink-0" />
+              <div>
                 <div className="text-sm font-medium">AI Agents</div>
                 <div className="text-xs text-muted">Create and manage agents</div>
               </div>
@@ -220,8 +220,8 @@ const MobileMenuOverlay: React.FC = () => {
               onClick={() => setPreferencesModalOpen(true)}
               className="w-full flex items-center p-3 rounded-lg card-hover"
             >
-              <FiSliders className="h-5 w-5 mr-2" />
-              <div className="flex-1">
+              <FiSliders className="h-5 w-5 mr-1.5 flex-shrink-0" />
+              <div>
                 <div className="text-sm font-medium">Preferences</div>
                 <div className="text-xs text-muted">App settings and theme</div>
               </div>
