@@ -157,11 +157,6 @@ const useAgentStore = create<AgentStore>()(
 
         // Actions
         fetchAgents: async (force = false) => {
-          // Skip if we already have agents and not forced
-          if (!force && get().agents.length > 0) {
-            return;
-          }
-
           set({ isLoadingAgents: true });
           try {
             const agents = await api.get<AgentConfig[]>('/agents/');
