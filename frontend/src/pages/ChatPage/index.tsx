@@ -646,8 +646,8 @@ const ChatPage: React.FC = () => {
               key={msg.id}
               className={`flex ${
                 msg.role === 'user' 
-                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[250px] xl:mr-[485px]' 
-                  : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[250px] xl:ml-[500px]'
+                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[10px] xl:mr-[485px]' 
+                  : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[10px] xl:ml-[500px]'
               } items-end space-x-2 px-1 sm:px-2`}
             >
               {msg.role !== 'user' && (
