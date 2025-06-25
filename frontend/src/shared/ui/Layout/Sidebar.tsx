@@ -26,7 +26,6 @@ const Sidebar: React.FC = () => {
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
   const { 
     chatHistory, 
-    currentSession, 
     fetchChatHistory, 
     loadChat, 
     deleteChat, 
