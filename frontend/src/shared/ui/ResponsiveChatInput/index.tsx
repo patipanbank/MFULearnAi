@@ -299,7 +299,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
               title="Send message"
             >
               <FiSend className="h-5 w-5" />
-              {currentMode === 'fixbottom' && <span className="ml-2">Send</span>}
+              <span className="sr-only">Send</span>
             </button>
           </div>
         </div>
