@@ -647,11 +647,11 @@ const ChatPage: React.FC = () => {
               className={`flex ${
                 msg.role === 'user' 
                   ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[200px] xl:mr-[485px]' 
-                  : 'justify-start sm:ml-4 md:ml-8 lg:ml-[200px] xl:ml-[500px]'
-              } items-end space-x-2 px-2 sm:px-0`}
+                  : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[200px] xl:ml-[500px]'
+              } items-end space-x-2 px-1 sm:px-2`}
             >
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 ml-1 sm:ml-0">
                   <img 
                     src={dindinAvatar} 
                     alt="DINDIN AI" 
