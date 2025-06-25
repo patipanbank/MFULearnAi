@@ -883,23 +883,25 @@ const ChatPage: React.FC = () => {
                             : 'card text-primary rounded-bl-sm'
                         } ${msg.role === 'assistant' && isLast ? 'mb-8 sm:mb-12' : ''}`}
                       >
-                        {msg.images && msg.images.length > 0 && (
-                          <div className="mb-3 grid grid-cols-2 gap-3">
-                            {msg.images.map((img, idx) => (
-                              <img
-                                key={idx}
-                                src={img.url}
-                                alt="Uploaded"
-                                className="rounded-lg max-w-full h-auto shadow-sm message-image"
-                              />
-                            ))}
-                          </div>
-                        )}
-                        <div className="whitespace-pre-wrap">
-                          {msg.content}
-                          {msg.isStreaming && (
-                            <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+                        <div className="flex items-center gap-2">
+                          {msg.images && msg.images.length > 0 && (
+                            <div className="flex gap-2">
+                              {msg.images.map((img, idx) => (
+                                <img
+                                  key={idx}
+                                  src={img.url}
+                                  alt="Uploaded"
+                                  className="rounded-lg w-12 h-12 object-cover shadow-sm message-image"
+                                />
+                              ))}
+                            </div>
                           )}
+                          <div className="whitespace-pre-wrap">
+                            {msg.content}
+                            {msg.isStreaming && (
+                              <span className="inline-block w-2 h-5 bg-current animate-pulse ml-1" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
