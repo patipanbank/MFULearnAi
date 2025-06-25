@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FiX,
   FiPlus, 
-  FiSettings,
   FiUser,
   FiDatabase,
   FiBookmark,
@@ -20,7 +19,6 @@ const MobileMenuOverlay: React.FC = () => {
   const { mobileMenuOpen, setMobileMenuOpen } = useLayoutStore();
   const { 
     chatHistory, 
-    currentSession, 
     fetchChatHistory, 
     loadChat, 
     deleteChat, 
