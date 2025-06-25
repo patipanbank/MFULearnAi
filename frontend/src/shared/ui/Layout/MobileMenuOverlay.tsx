@@ -73,8 +73,10 @@ const MobileMenuOverlay: React.FC = () => {
   }, [mobileMenuOpen]);
 
   const handleChatClick = async (chatId: string) => {
-    await loadChat(chatId);
-    navigate('/chat');
+    const ok = await loadChat(chatId);
+    if (ok) {
+      navigate(`/chat/${chatId}`);
+    }
     setMobileMenuOpen(false);
   };
 
