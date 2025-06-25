@@ -4,7 +4,6 @@ import {
   FiMenu, 
   FiSearch,
   FiPlus, 
-  FiSettings,
   FiSliders,
   FiUser,
   FiDatabase,
