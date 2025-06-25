@@ -85,9 +85,15 @@ const Sidebar: React.FC = () => {
 
   const handleChatClick = async (chatId: string | undefined) => {
     if (!chatId || chatId === 'undefined') return;
-    const ok = await loadChat(chatId);
-    if (ok) {
-      navigate(`/chat/${chatId}`, { replace: true });
+    
+    // Find the chat in history first
+    const chatFromHistory = chatHistory.find(chat => chat.id === chatId);
+    if (chatFromHistory) {
+      // Use the name from history to prevent flashing "New Chat"
+      const ok = await loadChat(chatId);
+      if (ok) {
+        navigate(`/chat/${chatId}`, { replace: true });
+      }
     }
   };
 

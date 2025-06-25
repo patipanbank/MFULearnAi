@@ -257,17 +257,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const chats = await api.get<ChatSession[]>('/chat/history');
       const chatSessions: ChatSession[] = chats
         .filter((c: any) => c._id && c._id.length === 24)
-        .map((chat: any) => ({
-          ...chat,
-          id: chat._id ?? chat.id,
-          createdAt: new Date(chat.createdAt),
-          updatedAt: new Date(chat.updatedAt),
-          messages: (chat.messages ?? []).map((msg: any) => {
-            const ts = new Date(msg.timestamp);
-            if (msg.role === 'assistant') ts.setHours(ts.getHours() + 7);
-            return { ...msg, timestamp: ts };
-          })
-        }));
+        .map((chat: any) => {
+          // Find first user message if name is "New Chat"
+          let chatName = chat.name || 'New Chat';
+          if (chatName === 'New Chat' && chat.messages && chat.messages.length > 0) {
+            const firstUserMessage = chat.messages.find((msg: any) => msg.role === 'user');
+            if (firstUserMessage) {
+              chatName = firstUserMessage.content.slice(0, 20);
+            }
+          }
+
+          return {
+            ...chat,
+            id: chat._id ?? chat.id,
+            name: chatName,
+            createdAt: new Date(chat.createdAt),
+            updatedAt: new Date(chat.updatedAt),
+            messages: (chat.messages ?? []).map((msg: any) => {
+              const ts = new Date(msg.timestamp);
+              if (msg.role === 'assistant') ts.setHours(ts.getHours() + 7);
+              return { ...msg, timestamp: ts };
+            })
+          };
+        });
       set({ chatHistory: chatSessions });
     } catch (error) {
       console.error('Failed to fetch chat history:', error);
