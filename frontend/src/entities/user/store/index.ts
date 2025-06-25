@@ -79,10 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     logout: () => {
       localStorage.removeItem('auth_token');
       set({ token: null, user: null, status: 'unauthenticated' });
-      const loginTab = window.open('/login', '_blank');
-      if (loginTab) {
-        loginTab.focus();
-      }
+      window.open('/login', '_blank'); 
     },
 
     logoutSAML: () => {
