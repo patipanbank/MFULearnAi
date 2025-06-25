@@ -9,8 +9,7 @@ import {
   FiUser,
   FiDatabase,
   FiBookmark,
-  FiTrash2,
-  FiLogOut
+  FiTrash2
 } from 'react-icons/fi';
 import { cn, formatDate } from '../../lib/utils';
 import useLayoutStore from '../../stores/layoutStore';
@@ -29,8 +28,7 @@ const iconColors = {
   database: "text-amber-500 hover:text-amber-600",
   user: "text-indigo-500 hover:text-indigo-600",
   bookmark: "text-rose-500 hover:text-rose-600",
-  trash: "text-red-500 hover:text-red-600",
-  logout: "text-red-500 hover:text-red-600"
+  trash: "text-red-500 hover:text-red-600"
 };
 
 const Sidebar: React.FC = () => {
@@ -102,14 +100,6 @@ const Sidebar: React.FC = () => {
       description: 'App settings and theme', 
       type: 'modal',
       iconColor: iconColors.preferences
-    },
-    {
-      id: 'logout',
-      label: 'Logout',
-      icon: FiLogOut,
-      description: 'Sign out of your account',
-      type: 'action',
-      iconColor: iconColors.logout
     }
   ];
 
@@ -128,10 +118,6 @@ const Sidebar: React.FC = () => {
         default:
           console.log(`Open ${item.id} modal`);
       }
-    } else if (item.type === 'action' && item.id === 'logout') {
-      // Open login page in new tab
-      window.open('/login', '_blank');
-      closeDropdown(settingsDropdownId);
     }
   };
 
