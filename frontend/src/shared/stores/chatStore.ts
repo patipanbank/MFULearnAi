@@ -80,7 +80,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let shouldUpdateName = false;
     // เปลี่ยนชื่อแชทเฉพาะตอนแรกเท่านั้น
     if (
-      state.currentSession.name === 'New Chat' &&
+      (state.currentSession.name === 'New Chat' || !state.currentSession.name) &&
       message.role === 'user' &&
       state.currentSession.messages.length === 0
     ) {
@@ -95,12 +95,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     };
     set({ currentSession: updatedSession });
     // อัปเดตชื่อไป backend แค่ครั้งเดียว
-    if (shouldUpdateName && state.currentSession.id && state.currentSession.id.length === 24) {
+    if (shouldUpdateName) {
       try {
-        await api.post('/chat/update-name', {
-          chat_id: state.currentSession.id,
-          name: updatedName
-        });
+        if (state.currentSession.id && state.currentSession.id.length === 24) {
+          await api.post('/chat/update-name', {
+            chat_id: state.currentSession.id,
+            name: updatedName
+          });
+        }
         // อัปเดตชื่อใน chatHistory ด้วย
         set((prev) => ({
           chatHistory: prev.chatHistory.map(chat =>
@@ -109,7 +111,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
               : chat
           )
         }));
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to update chat name:', e);
+      }
     }
   },
   
@@ -161,7 +165,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       updatedAt: new Date()
     };
     
-    set({ currentSession: newSession });
+    set((state) => {
+      // Remove any temporary chat from history
+      const filteredHistory = state.chatHistory.filter(chat => !chat.id.startsWith('chat_'));
+      return {
+        currentSession: newSession,
+        chatHistory: [newSession, ...filteredHistory]
+      };
+    });
     return newSession;
   },
   
