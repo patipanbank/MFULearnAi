@@ -1,11 +1,25 @@
-import React, { useState } from 'react';
-import { FiSearch, FiFilter, FiClock, FiFileText } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiSearch, FiBookmark } from 'react-icons/fi';
+import { useChatStore } from '../../shared/stores';
+import { cn } from '../../shared/lib/utils';
 
 const SearchPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const { 
+    chatHistory, 
+    currentSession, 
+    fetchChatHistory, 
+    loadChat, 
+    pinChat 
+  } = useChatStore();
+
+  useEffect(() => {
+    fetchChatHistory();
+  }, [fetchChatHistory]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,141 +28,190 @@ const SearchPage: React.FC = () => {
     setIsLoading(true);
     // TODO: Implement actual search API call
     setTimeout(() => {
-      setSearchResults([
-        {
-          id: 1,
-          title: 'Sample Search Result 1',
-          content: 'This is a sample search result content...',
-          type: 'document',
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: 2,
-          title: 'Sample Search Result 2',
-          content: 'Another sample search result with different content...',
-          type: 'chat',
-          timestamp: new Date().toISOString()
-        }
-      ]);
+      const filteredChats = chatHistory.filter(chat => 
+        chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setSearchResults(filteredChats);
       setIsLoading(false);
-    }, 1000);
+    }, 300);
   };
 
-  const filterOptions = [
-    { value: 'all', label: 'All Results' },
-    { value: 'documents', label: 'Documents' },
-    { value: 'chats', label: 'Chat History' },
-    { value: 'agents', label: 'AI Agents' }
-  ];
+  // Sort chats: pinned first, then by updatedAt
+  const sortedChats = [...chatHistory].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+
+  // Add function to format date with Thailand timezone
+  const formatThaiDate = (date: Date | string) => {
+    const d = new Date(date);
+    d.setHours(d.getHours() + 7); // Add 7 hours for Thailand timezone
+    return d.toLocaleDateString('th-TH');
+  };
+
+  const handleChatClick = async (chatId: string) => {
+    const ok = await loadChat(chatId);
+    if (ok) {
+      navigate(`/chat/${chatId}`);
+    }
+  };
+
+
+  const handlePinChat = async (e: React.MouseEvent, chatId: string, isPinned: boolean | undefined) => {
+    e.stopPropagation();
+    pinChat(chatId, !isPinned);
+  };
 
   return (
     <div className="flex-1 bg-primary overflow-hidden">
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="border-b border-primary px-6 py-4">
-          <h1 className="text-2xl font-bold text-primary mb-4">Search</h1>
-          
-          {/* Search Form */}
-          <form onSubmit={handleSearch} className="flex space-x-4">
-            <div className="flex-1 relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted h-5 w-5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for documents, chats, or anything..."
-                className="input pl-10 w-full"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isLoading || !searchQuery.trim()}
-              className="btn-primary px-6"
-            >
-              {isLoading ? 'Searching...' : 'Search'}
-            </button>
-          </form>
-
-          {/* Filters */}
-          <div className="flex items-center space-x-4 mt-4">
-            <FiFilter className="text-muted h-4 w-4" />
-            <div className="flex space-x-2">
-              {filterOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setSelectedFilter(option.value)}
-                  className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                    selectedFilter === option.value
-                      ? 'btn-primary'
-                      : 'btn-ghost'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+          <div className="max-w-2xl mx-auto text-center">
+            <h1 className="text-2xl font-bold text-primary mb-4">Search Chat History</h1>
+            
+            {/* Search Form */}
+            <form onSubmit={handleSearch} className="flex space-x-4">
+              <div className="flex-1 relative">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted h-5 w-5" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search for chats"
+                  className="input pl-10 w-full"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading || !searchQuery.trim()}
+                className="btn-primary px-6"
+              >
+                {isLoading ? 'Searching...' : 'Search'}
+              </button>
+            </form>
           </div>
         </div>
 
         {/* Results */}
         <div className="flex-1 overflow-y-auto p-6">
-          {searchResults.length === 0 && !isLoading && searchQuery && (
-            <div className="text-center py-12">
-              <FiSearch className="h-12 w-12 text-muted mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-primary mb-2">No results found</h3>
-              <p className="text-muted">Try adjusting your search terms or filters</p>
-            </div>
-          )}
+          <div className="max-w-2xl mx-auto">
+            {searchResults.length === 0 && !isLoading && searchQuery && (
+              <div className="text-center py-12">
+                <FiSearch className="h-12 w-12 text-muted mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-primary mb-2">No results found</h3>
+                <p className="text-muted">Try adjusting your search terms</p>
+              </div>
+            )}
 
-          {searchResults.length === 0 && !searchQuery && (
-            <div className="text-center py-12">
-              <FiSearch className="h-12 w-12 text-muted mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-primary mb-2">Search Everything</h3>
-              <p className="text-muted">Search through your documents, chat history, and AI agents</p>
-            </div>
-          )}
-
-          {isLoading && (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-muted">Searching...</p>
-            </div>
-          )}
-
-          {searchResults.length > 0 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted">
-                Found {searchResults.length} results for "{searchQuery}"
-              </p>
-              
-              {searchResults.map((result) => (
-                <div key={result.id} className="card p-6 card-hover">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      {result.type === 'document' ? (
-                        <FiFileText className="h-5 w-5 text-blue-600" />
-                      ) : (
-                        <FiClock className="h-5 w-5 text-green-600" />
+            {searchResults.length === 0 && !searchQuery && (
+              <div className="space-y-2">
+                {sortedChats.length === 0 ? (
+                  <div className="text-sm text-muted text-center py-8">
+                    No chats yet. Start a new conversation!
+                  </div>
+                ) : (
+                  sortedChats.map((chat) => (
+                    <div
+                      key={chat.id}
+                      onClick={() => handleChatClick(chat.id)}
+                      className={cn(
+                        'group relative flex items-center justify-between p-4 rounded-xl transition-colors cursor-pointer',
+                        currentSession?.id === chat.id
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                          : 'text-secondary card-hover'
                       )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-medium text-primary mb-2">
-                        {result.title}
-                      </h3>
-                      <p className="text-secondary mb-3 line-clamp-3">
-                        {result.content}
-                      </p>
-                      <div className="flex items-center space-x-4 text-sm text-muted">
-                        <span className="capitalize">{result.type}</span>
-                        <span>•</span>
-                        <span>{new Date(result.timestamp).toLocaleDateString()}</span>
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3">
+                          {chat.isPinned && (
+                            <FiBookmark className="h-4 w-4 text-muted flex-shrink-0" />
+                          )}
+                          <span className="truncate font-medium text-base">
+                            {chat.name}
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted mt-1">
+                          {formatThaiDate(chat.updatedAt)}
+                        </div>
+                      </div>
+                      
+                      {/* Chat Actions */}
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => handlePinChat(e, chat.id, chat.isPinned)}
+                          className="p-1 text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                          title={chat.isPinned ? 'Unpin chat' : 'Pin chat'}
+                        >
+                          <FiBookmark className={cn(
+                            'h-4 w-4',
+                            chat.isPinned && 'fill-current'
+                          )} />
+                        </button>
                       </div>
                     </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {isLoading && (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-muted">Searching...</p>
+              </div>
+            )}
+
+            {searchResults.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted mb-4">
+                  Found {searchResults.length} results for "{searchQuery}"
+                </p>
+                
+                {searchResults.map((chat) => (
+                  <div
+                    key={chat.id}
+                    onClick={() => handleChatClick(chat.id)}
+                    className={cn(
+                      'group relative flex items-center justify-between p-4 rounded-xl transition-colors cursor-pointer',
+                      currentSession?.id === chat.id
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                        : 'text-secondary card-hover'
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-3">
+                        {chat.isPinned && (
+                          <FiBookmark className="h-4 w-4 text-muted flex-shrink-0" />
+                        )}
+                        <span className="truncate font-medium text-base">
+                          {chat.name}
+                        </span>
+                      </div>
+                      <div className="text-sm text-muted mt-1">
+                        {formatThaiDate(chat.updatedAt)}
+                      </div>
+                    </div>
+                    
+                    {/* Chat Actions */}
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => handlePinChat(e, chat.id, chat.isPinned)}
+                        className="p-1 text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                        title={chat.isPinned ? 'Unpin chat' : 'Pin chat'}
+                      >
+                        <FiBookmark className={cn(
+                          'h-4 w-4',
+                          chat.isPinned && 'fill-current'
+                        )} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
