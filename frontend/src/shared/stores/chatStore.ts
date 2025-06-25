@@ -84,7 +84,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       message.role === 'user' &&
       state.currentSession.messages.length === 0
     ) {
-      updatedName = message.content.slice(0, 20) || 'New Chat';
+      updatedName = message.content.slice(0, 20);
       shouldUpdateName = true;
     }
     const updatedSession = {
