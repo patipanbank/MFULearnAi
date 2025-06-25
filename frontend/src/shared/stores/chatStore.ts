@@ -73,9 +73,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   })),
   
   // Messages
-  addMessage: (message) => set((state) => {
-    if (!state.currentSession) return state;
+  addMessage: async (message) => {
+    const state = get();
+    if (!state.currentSession) return;
     let updatedName = state.currentSession.name;
+    let shouldUpdateName = false;
     // If this is the first user message and the chat name is still 'New Chat', update the name
     if (
       state.currentSession.name === 'New Chat' &&
@@ -83,6 +85,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       state.currentSession.messages.length === 0
     ) {
       updatedName = message.content.slice(0, 20) || 'New Chat';
+      shouldUpdateName = true;
     }
     const updatedSession = {
       ...state.currentSession,
@@ -90,10 +93,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [...state.currentSession.messages, message],
       updatedAt: new Date()
     };
-    return {
-      currentSession: updatedSession
-    };
-  }),
+    set({ currentSession: updatedSession });
+    // เรียก backend อัปเดตชื่อแชท ถ้าเป็นการเปลี่ยนชื่อครั้งแรกและ id เป็น ObjectId จริง
+    if (shouldUpdateName && state.currentSession.id && state.currentSession.id.length === 24) {
+      try {
+        await api.post('/chat/update-name', {
+          chat_id: state.currentSession.id,
+          name: updatedName
+        });
+      } catch (e) {}
+    }
+  },
   
   updateMessage: (messageId, updates) => set((state) => {
     if (!state.currentSession) return state;
