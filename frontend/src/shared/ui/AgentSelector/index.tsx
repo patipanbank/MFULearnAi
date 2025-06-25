@@ -86,7 +86,7 @@ const AgentSelector: React.FC = () => {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-[-8px] md:left-0 mt-1 md:mt-2 w-[calc(100vw-2.5rem)] md:w-96 max-w-[calc(100vw-1rem)] bg-primary border border-border rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200 z-50">
+        <div className="fixed md:absolute left-2 md:left-0 right-2 md:right-auto top-[4.5rem] md:top-full mt-1 md:mt-2 w-auto md:w-96 bg-primary border border-border rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200 z-50">
           {/* Header */}
           <div className="p-2 md:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-border">
             <div className="flex items-center justify-between">
