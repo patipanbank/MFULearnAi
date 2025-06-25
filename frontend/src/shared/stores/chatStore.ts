@@ -101,6 +101,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
           chat_id: state.currentSession.id,
           name: updatedName
         });
+        // อัปเดตชื่อใน chatHistory ด้วย
+        set((prev) => ({
+          chatHistory: prev.chatHistory.map(chat =>
+            chat.id === state.currentSession!.id
+              ? { ...chat, name: updatedName }
+              : chat
+          )
+        }));
       } catch (e) {}
     }
   },
