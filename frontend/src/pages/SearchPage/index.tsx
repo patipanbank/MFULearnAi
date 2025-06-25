@@ -21,20 +21,23 @@ const SearchPage: React.FC = () => {
     fetchChatHistory();
   }, [fetchChatHistory]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
+  // Realtime search with debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
-    // TODO: Implement actual search API call
-    setTimeout(() => {
+    const handler = setTimeout(() => {
       const filteredChats = chatHistory.filter(chat => 
         chat.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setSearchResults(filteredChats);
       setIsLoading(false);
     }, 300);
-  };
+    return () => clearTimeout(handler);
+  }, [searchQuery, chatHistory]);
 
   // Sort chats: pinned first, then by updatedAt
   const sortedChats = [...chatHistory].sort((a, b) => {
@@ -68,9 +71,8 @@ const SearchPage: React.FC = () => {
         <div className="border-b border-primary px-6 py-4">
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="text-2xl font-bold text-primary mb-4">Search Chat History</h1>
-            
-            {/* Search Form */}
-            <form onSubmit={handleSearch} className="flex space-x-4">
+            {/* Search Input (no form, no button) */}
+            <div className="flex space-x-4">
               <div className="flex-1 relative">
                 <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted h-5 w-5" />
                 <input
@@ -81,14 +83,7 @@ const SearchPage: React.FC = () => {
                   className="input pl-10 w-full"
                 />
               </div>
-              <button
-                type="submit"
-                disabled={isLoading || !searchQuery.trim()}
-                className="btn-primary px-6"
-              >
-                {isLoading ? 'Searching...' : 'Search'}
-              </button>
-            </form>
+            </div>
           </div>
         </div>
 
