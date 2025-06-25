@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FiMenu, 
   FiSearch,
@@ -34,6 +34,7 @@ const Sidebar: React.FC = () => {
     createNewChat 
   } = useChatStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Modal states
@@ -85,6 +86,9 @@ const Sidebar: React.FC = () => {
 
   const handleChatClick = async (chatId: string | undefined) => {
     if (!chatId || chatId === 'undefined') return;
+    
+    // Check if we're already on this chat page
+    if (location.pathname === `/chat/${chatId}`) return;
     
     // Find the chat in history first
     const chatFromHistory = chatHistory.find(chat => chat.id === chatId);
@@ -177,24 +181,24 @@ const Sidebar: React.FC = () => {
 
         {/* New Chat Button */}
         <div className="p-4">
-                      <button
-              onClick={handleNewChat}
-              className={cn(
-                'btn-primary w-full flex items-center justify-center space-x-2 transition-all duration-200',
-                (sidebarCollapsed && !sidebarHovered) && 'px-2'
-              )}
-              title={sidebarCollapsed && !sidebarHovered ? 'New Chat' : undefined}
-            >
-              <FiPlus className="h-5 w-5" />
-              {showExpandedContent && (
-                <span className={cn(
-                  "transition-all duration-200",
-                  sidebarHovered && "animate-fade-in"
-                )}>
-                  New Chat
-                </span>
-              )}
-            </button>
+          <button
+            onClick={handleNewChat}
+            className={cn(
+              'btn-primary w-full flex items-center justify-center space-x-2 transition-all duration-200',
+              (sidebarCollapsed && !sidebarHovered) && 'px-2'
+            )}
+            title={sidebarCollapsed && !sidebarHovered ? 'New Chat' : undefined}
+          >
+            <FiPlus className="h-5 w-5" />
+            {showExpandedContent && (
+              <span className={cn(
+                "transition-all duration-200",
+                sidebarHovered && "animate-fade-in"
+              )}>
+                New Chat
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Recent Chats - Main Content Area */}
@@ -202,28 +206,32 @@ const Sidebar: React.FC = () => {
           {/* Collapsed Chat Icons */}
           {(sidebarCollapsed && !sidebarHovered) && (
             <div className="px-2 py-4 space-y-2">
-              {sortedChats.slice(0, 5).map((chat) => (
-                <button
-                  key={chat.id}
-                  onClick={() => handleChatClick(chat.id)}
-                  className={cn(
-                    'w-full h-10 rounded-lg flex items-center justify-center transition-colors relative',
-                    currentSession?.id === chat.id
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                      : 'text-muted hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary'
-                  )}
-                  title={chat.name}
-                >
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium">
-                    {chat.name.charAt(0).toUpperCase()}
-                  </div>
-                  {chat.isPinned && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900">
-                      <FiBookmark className="w-2 h-2 text-white" />
+              {sortedChats.slice(0, 5).map((chat) => {
+                const isCurrentChat = location.pathname === `/chat/${chat.id}`;
+                return (
+                  <button
+                    key={chat.id}
+                    onClick={() => handleChatClick(chat.id)}
+                    className={cn(
+                      'w-full h-10 rounded-lg flex items-center justify-center transition-colors relative',
+                      isCurrentChat
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 cursor-default'
+                        : 'text-muted hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary'
+                    )}
+                    title={chat.name}
+                    disabled={isCurrentChat}
+                  >
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium">
+                      {chat.name.charAt(0).toUpperCase()}
                     </div>
-                  )}
-                </button>
-              ))}
+                    {chat.isPinned && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900">
+                        <FiBookmark className="w-2 h-2 text-white" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
           
@@ -241,53 +249,56 @@ const Sidebar: React.FC = () => {
                     No chats yet. Start a new conversation!
                   </div>
                 ) : (
-                  sortedChats.map((chat) => (
-                    <div
-                      key={chat.id}
-                      onClick={() => handleChatClick(chat.id)}
-                      className={cn(
-                        'group relative flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer',
-                        currentSession?.id === chat.id
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                          : 'text-secondary card-hover'
-                      )}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          {chat.isPinned && (
-                            <FiBookmark className="h-3 w-3 text-muted flex-shrink-0" />
-                          )}
-                          <span className="truncate font-medium">
-                            {chat.name}
-                          </span>
+                  sortedChats.map((chat) => {
+                    const isCurrentChat = location.pathname === `/chat/${chat.id}`;
+                    return (
+                      <div
+                        key={chat.id}
+                        onClick={() => handleChatClick(chat.id)}
+                        className={cn(
+                          'group relative flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors',
+                          isCurrentChat
+                            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 cursor-default'
+                            : 'text-secondary card-hover cursor-pointer'
+                        )}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            {chat.isPinned && (
+                              <FiBookmark className="h-3 w-3 text-muted flex-shrink-0" />
+                            )}
+                            <span className="truncate font-medium">
+                              {chat.name}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted mt-1">
+                            {(() => { const d = new Date(chat.updatedAt); d.setHours(d.getHours() + 7); return d.toLocaleDateString(); })()}
+                          </div>
                         </div>
-                        <div className="text-xs text-muted mt-1">
-                          {(() => { const d = new Date(chat.updatedAt); d.setHours(d.getHours() + 7); return d.toLocaleDateString(); })()}
+                        
+                        {/* Chat Actions */}
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => handlePinChat(e, chat.id, chat.isPinned)}
+                            className="p-1 text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                            title={chat.isPinned ? 'Unpin chat' : 'Pin chat'}
+                          >
+                            <FiBookmark className={cn(
+                              'h-3 w-3',
+                              chat.isPinned && 'fill-current'
+                            )} />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteChat(e, chat.id)}
+                            className="p-1 text-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                            title="Delete chat"
+                          >
+                            <FiTrash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </div>
-                      
-                      {/* Chat Actions */}
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => handlePinChat(e, chat.id, chat.isPinned)}
-                          className="p-1 text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                          title={chat.isPinned ? 'Unpin chat' : 'Pin chat'}
-                        >
-                          <FiBookmark className={cn(
-                            'h-3 w-3',
-                            chat.isPinned && 'fill-current'
-                          )} />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteChat(e, chat.id)}
-                          className="p-1 text-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                          title="Delete chat"
-                        >
-                          <FiTrash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
