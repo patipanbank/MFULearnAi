@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiBookmark } from 'react-icons/fi';
 import { useChatStore } from '../../shared/stores';
-import { cn } from '../../shared/lib/utils';
+import { cn, formatDate } from '../../shared/lib/utils';
 
 const SearchPage: React.FC = () => {
   const navigate = useNavigate();
@@ -45,9 +45,7 @@ const SearchPage: React.FC = () => {
 
   // Add function to format date with Thailand timezone
   const formatThaiDate = (date: Date | string) => {
-    const d = new Date(date);
-    d.setHours(d.getHours() + 7); // Add 7 hours for Thailand timezone
-    return d.toLocaleDateString('th-TH');
+    return formatDate(date);
   };
 
   const handleChatClick = async (chatId: string) => {

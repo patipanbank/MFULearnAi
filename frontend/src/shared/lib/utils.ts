@@ -4,6 +4,8 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
 
 export function formatDate(date: Date | string): string {
   const d = new Date(date);
+  // Add 7 hours for Thailand timezone
+  d.setHours(d.getHours() + 7);
   return d.toLocaleDateString('th-TH', {
     year: 'numeric',
     month: 'short',
