@@ -13,7 +13,8 @@ const AgentTemplateCard: React.FC<AgentTemplateCardProps> = ({
   onUse,
   className = ''
 }) => {
-  const handleUse = () => {
+  const handleUse = (event: React.MouseEvent) => {
+    event.stopPropagation();
     onUse(template);
   };
 
@@ -30,7 +31,7 @@ const AgentTemplateCard: React.FC<AgentTemplateCardProps> = ({
   };
 
   return (
-    <div className={`card card-hover p-6 cursor-pointer ${className}`} onClick={handleUse}>
+    <div className={`card card-hover p-6 ${className}`}>
       {/* Template Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
