@@ -24,83 +24,58 @@ class DocumentService:
     async def parse_file_content(self, file_content: bytes, filename: str) -> str:
         """
         Parses file content from bytes and extracts text based on the file extension.
-        This is the core logic that works from memory.
+        Supports: PDF, PNG, TXT, JPG/JPEG
         """
         ext = os.path.splitext(filename)[1].lower()
         text = ""
-
+        
         try:
+            # Handle PDF files
             if ext == '.pdf':
-                # Use a BytesIO object to handle the byte content in memory
-                with fitz.open(stream=file_content, filetype="pdf") as doc:
-                    pdf_text = "".join(page.get_text() for page in doc)
-                
-                cleaned_pdf_text = self._clean_text(pdf_text)
+                with fitz.open(stream=file_content, filetype="pdf") as pdf:
+                    for page in pdf:
+                        text += page.get_text()
+                    text = self._clean_text(text)
 
-                # Simple check if OCR is needed.
-                if len(cleaned_pdf_text) < 100:
-                    # OCR requires a file path, so we must write to a temp file
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-                        temp_pdf.write(file_content)
-                        temp_pdf_path = temp_pdf.name
-                    
-                    try:
-                        text = await self._ocr_pdf(temp_pdf_path)
-                    finally:
-                        os.remove(temp_pdf_path) # Clean up the temp file
-                else:
-                    text = cleaned_pdf_text
+            # Handle image files (PNG, JPG, JPEG)
+            elif ext in ['.png', '.jpg', '.jpeg']:
+                image = Image.open(BytesIO(file_content))
+                text = pytesseract.image_to_string(image)
+                text = self._clean_text(text)
 
-            elif ext in ['.doc', '.docx']:
-                with io.BytesIO(file_content) as docx_file:
-                    result = await asyncio.to_thread(mammoth.extract_raw_text, docx_file)
-                    text = self._clean_text(result.value)
-
-            elif ext in ['.xls', '.xlsx']:
-                with io.BytesIO(file_content) as xlsx_file:
-                    excel_file = pd.ExcelFile(xlsx_file)
-                    sheets_content = []
-                    for sheet_name in excel_file.sheet_names:
-                        df = pd.read_excel(excel_file, sheet_name=sheet_name)
-                        df.dropna(how='all', axis=0, inplace=True)
-                        df.dropna(how='all', axis=1, inplace=True)
-                        if not df.empty:
-                            sheets_content.append(f"[Sheet: {sheet_name}]\n{df.to_csv(index=False)}")
-                    text = self._clean_text("\n\n".join(sheets_content))
-            
-            elif ext == '.csv':
-                 # Decode bytes to string for csv reader
-                csv_string = file_content.decode('utf-8')
-                with io.StringIO(csv_string) as csvfile:
-                    reader = csv.reader(csvfile)
-                    rows_content = []
-                    for row in reader:
-                        non_empty_values = [value for value in row if value and value.strip()]
-                        if non_empty_values:
-                             rows_content.append(','.join(non_empty_values))
-                    text = self._clean_text('\n'.join(rows_content))
-
+            # Handle text files
             elif ext == '.txt':
                 text = self._clean_text(file_content.decode('utf-8'))
 
             else:
-                # Fallback for unsupported but text-like files
-                try:
-                    text = self._clean_text(file_content.decode('utf-8'))
-                except UnicodeDecodeError:
-                    raise ValueError(f"Unsupported file type: {ext}")
-        
+                raise ValueError(f"Unsupported file type: {ext}. Supported types are: PDF, PNG, TXT, JPG, JPEG")
+
+            if not text.strip():
+                raise ValueError(f"No text content could be extracted from the file: {filename}")
+
+            return text
+
         except Exception as e:
             print(f"Error processing file content for {filename}: {e}")
-            # Re-raise to be handled by the caller
-            raise ValueError(f"Failed to parse file {filename}") from e
-
-        return text
+            if "not authorized" in str(e).lower():
+                raise ValueError("PDF is password protected. Please provide an unprotected PDF file.")
+            elif "image" in str(e).lower():
+                raise ValueError("Invalid or corrupted image file. Please provide a valid image file.")
+            raise ValueError(f"Failed to parse file {filename}: {str(e)}")
 
     async def process_file(self, file: UploadFile) -> str:
         """
         Processes an uploaded file by reading its content and passing it to the core parsing logic.
         """
+        if not file.filename:
+            raise ValueError("File has no filename")
+            
+        # Check file extension
+        ext = os.path.splitext(file.filename)[1].lower()
+        supported_extensions = ['.pdf', '.png', '.txt', '.jpg', '.jpeg']
+        if ext not in supported_extensions:
+            raise ValueError(f"Unsupported file type: {ext}. Supported types are: {', '.join(supported_extensions)}")
+
         file_content = await file.read()
         return await self.parse_file_content(file_content, file.filename)
 
