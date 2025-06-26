@@ -12,8 +12,8 @@ async def upload_file(
 ):
     """Accepts image file and stores to object storage, returns URL."""
     content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large (max 5 MB)")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
     try:
         filename = file.filename or "upload"
         url = await storage_service.upload_file(content, filename, file.content_type or "application/octet-stream")
