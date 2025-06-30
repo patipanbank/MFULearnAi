@@ -62,9 +62,13 @@ class StorageService:
 
     async def upload_file(self, data: bytes, filename: str, content_type: str) -> str:
         """Upload bytes to bucket and return public URL."""
-        key = f"{uuid.uuid4().hex}/{filename}"
-        _s3.put_object(Bucket=_S3_BUCKET, Key=key, Body=data, ContentType=content_type)
-        return f"{_PUBLIC_ENDPOINT}/{_S3_BUCKET}/{key}"
+        try:
+            key = f"{uuid.uuid4().hex}/{filename}"
+            _s3.put_object(Bucket=_S3_BUCKET, Key=key, Body=data, ContentType=content_type)
+            return f"{_PUBLIC_ENDPOINT}/{_S3_BUCKET}/{key}"
+        except Exception as e:
+            print(f"Storage service error: {str(e)}")
+            raise Exception(f"Failed to upload file: {str(e)}")
 
 
 storage_service = StorageService() 

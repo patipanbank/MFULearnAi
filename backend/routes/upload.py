@@ -3,7 +3,7 @@ from middleware.role_guard import get_current_user_with_roles
 from models.user import User, UserRole
 from services.storage_service import storage_service
 
-router = APIRouter(tags=["Upload"])
+router = APIRouter(prefix="/api", tags=["Upload"])
 
 @router.post("/upload")
 async def upload_file(
