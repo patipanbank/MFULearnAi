@@ -9,6 +9,7 @@ Usage:
 import os
 import uuid
 from typing import Final
+import json
 
 import boto3
 from botocore.client import Config
@@ -34,6 +35,31 @@ _s3 = _session.client(
 
 
 class StorageService:
+    def __init__(self):
+        """Initialize the storage service and ensure bucket exists."""
+        # Create bucket if it doesn't exist
+        try:
+            if not _s3.head_bucket(Bucket=_S3_BUCKET):
+                _s3.create_bucket(Bucket=_S3_BUCKET)
+                # Set bucket policy to allow public read
+                policy = {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "PublicRead",
+                            "Effect": "Allow",
+                            "Principal": "*",
+                            "Action": ["s3:GetObject"],
+                            "Resource": [f"arn:aws:s3:::{_S3_BUCKET}/*"]
+                        }
+                    ]
+                }
+                _s3.put_bucket_policy(Bucket=_S3_BUCKET, Policy=json.dumps(policy))
+        except _s3.exceptions.NoSuchBucket:
+            _s3.create_bucket(Bucket=_S3_BUCKET)
+        except Exception as e:
+            print(f"Error initializing storage service: {e}")
+
     async def upload_file(self, data: bytes, filename: str, content_type: str) -> str:
         """Upload bytes to bucket and return public URL."""
         key = f"{uuid.uuid4().hex}/{filename}"
