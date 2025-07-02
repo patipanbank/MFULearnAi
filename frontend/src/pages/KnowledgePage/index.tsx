@@ -60,6 +60,12 @@ const KnowledgePage: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      {/* Page Title */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-primary">Knowledge Base</h1>
+        <p className="text-secondary text-base mt-1">Knowledge base management is now integrated into Agent system</p>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 space-y-4 md:space-y-0">
         <div className="flex-1 max-w-md relative">
