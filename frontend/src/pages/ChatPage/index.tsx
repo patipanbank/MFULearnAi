@@ -9,7 +9,7 @@ import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
 import dindinNp from '../../assets/dindin_np.PNG';
 
-const ChatPage: React.FC = () => {
+const ChatPage: React.FC = React.memo(() => {
   const { user, token, refreshToken } = useAuthStore();
   const { 
     currentSession, 
@@ -70,6 +70,15 @@ const ChatPage: React.FC = () => {
   // Determine if we're in a specific chat room
   const isInChatRoom = Boolean(chatId);
   const hasMessages = (currentSession?.messages.length || 0) > 0;
+  
+  // Debug render
+  console.log('ChatPage - RENDER:', {
+    chatId,
+    isInChatRoom,
+    hasMessages,
+    currentSessionId: currentSession?.id,
+    timestamp: new Date().toISOString()
+  });
   
   // Initialize data on mount
   useEffect(() => {
@@ -761,5 +770,7 @@ const ChatPage: React.FC = () => {
     </div>
   );
 };
+
+});
 
 export default ChatPage; 

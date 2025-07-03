@@ -12,7 +12,12 @@ const UserProfile: React.FC = React.memo(() => {
   const isOpen = openDropdowns.has(dropdownId);
 
   // Debug user data
-  console.log('UserProfile - Current user data:', user);
+  console.log('UserProfile - RENDER:', {
+    user: user?.username,
+    openDropdowns: Array.from(openDropdowns),
+    isOpen,
+    timestamp: new Date().toISOString()
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {

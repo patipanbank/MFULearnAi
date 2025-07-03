@@ -10,12 +10,21 @@ interface LayoutProps {
   showHeader?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ 
+const Layout: React.FC<LayoutProps> = React.memo(({ 
   children, 
   showSidebar = true, 
   showHeader = true 
 }) => {
   const { isMobile, mobileMenuOpen, setIsMobile, setSidebarCollapsed, sidebarCollapsed } = useLayoutStore();
+  
+  console.log('Layout - RENDER:', {
+    showSidebar,
+    showHeader,
+    isMobile,
+    mobileMenuOpen,
+    sidebarCollapsed,
+    timestamp: new Date().toISOString()
+  });
 
   // Handle responsive behavior
   useEffect(() => {
@@ -58,6 +67,6 @@ const Layout: React.FC<LayoutProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default Layout; 
