@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import AuthGuard from './providers/AuthGuard';
 import Layout from '../shared/ui/Layout';
@@ -17,10 +17,7 @@ import KnowledgePage from '../pages/KnowledgePage';
 
 function App() {
   const location = useLocation();
-  const { preferences } = useSettingsStore();
-
-  // Memoize store functions to prevent re-creation
-  const { applyTheme } = useSettingsStore();
+  const { loadSettings, applyTheme, preferences } = useSettingsStore();
 
   // Initialize settings on app start
   useEffect(() => {
@@ -46,13 +43,13 @@ function App() {
     return () => {
       console.log('App: Component unmounted');
     };
-  }, []); // Remove store functions from dependencies
+  }, [loadSettings, applyTheme]);
 
   // Apply theme when preferences change
   useEffect(() => {
     console.log('Theme changed to:', preferences.theme);
     applyTheme(preferences.theme);
-  }, [preferences.theme]); // Remove applyTheme from dependencies
+  }, [preferences.theme, applyTheme]);
 
   useEffect(() => {
     console.log('App: Current location =', location.pathname);
