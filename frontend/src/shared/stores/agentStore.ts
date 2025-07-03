@@ -97,9 +97,8 @@ interface AgentStore {
 }
 
 const useAgentStore = create<AgentStore>()(
-  devtools(
-    persist(
-      (set, get) => ({
+  persist(
+    (set, get) => ({
         // Initial State
         agents: [],
         selectedAgent: null,
@@ -312,7 +311,6 @@ const useAgentStore = create<AgentStore>()(
         // Only persist specific fields to avoid issues
         partialize: (state) => ({
           selectedAgent: state.selectedAgent,
-          agents: state.agents,
         }),
       }
     )

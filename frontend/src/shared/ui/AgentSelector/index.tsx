@@ -6,20 +6,14 @@ import type { AgentConfig } from '../../stores/agentStore';
 const AgentSelector: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [hasError, setHasError] = useState(false);
-  const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
-  const { 
-    agents, 
-    selectedAgent, 
-    isLoadingAgents,
-    selectAgent,
-    fetchAgents
-  } = useAgentStore(state => ({
-    agents: state.agents,
-    selectedAgent: state.selectedAgent,
-    isLoadingAgents: state.isLoadingAgents,
-    selectAgent: state.selectAgent,
-    fetchAgents: state.fetchAgents
-  }));
+  const openDropdowns = useUIStore(state => state.openDropdowns);
+  const toggleDropdown = useUIStore(state => state.toggleDropdown);
+  const closeDropdown = useUIStore(state => state.closeDropdown);
+  const agents = useAgentStore(state => state.agents);
+  const selectedAgent = useAgentStore(state => state.selectedAgent);
+  const isLoadingAgents = useAgentStore(state => state.isLoadingAgents);
+  const selectAgent = useAgentStore(state => state.selectAgent);
+  const fetchAgents = useAgentStore(state => state.fetchAgents);
 
   const dropdownId = 'agent-selector';
   const isOpen = openDropdowns.includes(dropdownId);
@@ -36,19 +30,15 @@ const AgentSelector: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [closeDropdown, dropdownId]);
 
-  // Fetch agents on mount - Fixed dependency array
-  const fetchAgentsCallback = useCallback(() => {
+  // Fetch agents on mount
+  useEffect(() => {
     try {
       fetchAgents();
     } catch (error) {
       console.error('Error fetching agents:', error);
       setHasError(true);
     }
-  }, [fetchAgents]);
-
-  useEffect(() => {
-    fetchAgentsCallback();
-  }, [fetchAgentsCallback]);
+  }, []); // Remove fetchAgents from dependencies to prevent infinite re-renders
 
   const handleAgentSelect = (agent: AgentConfig | null) => {
     try {
@@ -60,7 +50,7 @@ const AgentSelector: React.FC = () => {
     }
   };
 
-  const handleRefresh = async (e: React.MouseEvent) => {
+  const handleRefresh = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await fetchAgents();
@@ -68,7 +58,12 @@ const AgentSelector: React.FC = () => {
       console.error('Error refreshing agents:', error);
       setHasError(true);
     }
-  };
+  }, [fetchAgents]);
+
+  const handleRetry = useCallback(() => {
+    setHasError(false);
+    fetchAgents();
+  }, [fetchAgents]);
 
   const getAgentTypeColor = (isPublic: boolean) => {
     return isPublic 
@@ -83,10 +78,7 @@ const AgentSelector: React.FC = () => {
         <FiUser className="h-4 w-4 text-red-600 dark:text-red-400" />
         <span className="text-sm text-red-600 dark:text-red-400">Agent selector error</span>
         <button
-          onClick={() => {
-            setHasError(false);
-            fetchAgentsCallback();
-          }}
+          onClick={handleRetry}
           className="text-xs text-red-600 dark:text-red-400 hover:underline"
         >
           Retry

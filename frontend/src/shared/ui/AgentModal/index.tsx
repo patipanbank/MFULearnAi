@@ -27,13 +27,11 @@ const AgentModal: React.FC<AgentModalProps> = ({
   onClose,
   isEditing = false
 }) => {
-  const {
-    selectedAgent,
-    createAgent,
-    updateAgent,
-    setEditingAgent,
-    setShowAgentModal
-  } = useAgentStore();
+  const selectedAgent = useAgentStore(state => state.selectedAgent);
+  const createAgent = useAgentStore(state => state.createAgent);
+  const updateAgent = useAgentStore(state => state.updateAgent);
+  const setEditingAgent = useAgentStore(state => state.setEditingAgent);
+  const setShowAgentModal = useAgentStore(state => state.setShowAgentModal);
 
   // Local state for models and collections
   const [models, setModels] = useState<ModelOption[]>([]);
