@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 import { showSuccessToast, showErrorToast } from './uiStore';
 
@@ -97,9 +97,8 @@ interface AgentStore {
 }
 
 const useAgentStore = create<AgentStore>()(
-  devtools(
-    persist(
-      (set, get) => ({
+  persist(
+    (set, get) => ({
         // Initial State
         agents: [],
         selectedAgent: null,
@@ -309,8 +308,7 @@ const useAgentStore = create<AgentStore>()(
       }),
       { name: 'agent-store' }
     )
-  )
-);
+  );
 
 // Custom hook for memoized actions
 export const useAgentActions = () => {

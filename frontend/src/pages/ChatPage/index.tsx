@@ -66,7 +66,9 @@ const ChatPage: React.FC = () => {
       setLoading(true, 'Loading agents...');
       try {
         await fetchAgents();
-        setChatHistory(chatHistory.filter((c) => c.id && c.id.length === 24));
+        // Filter chat history only once on mount, not on every chatHistory change
+        const currentChatHistory = useChatStore.getState().chatHistory;
+        setChatHistory(currentChatHistory.filter((c) => c.id && c.id.length === 24));
       } catch (error) {
         console.error('Failed to initialize data:', error);
         addToast({
@@ -79,7 +81,7 @@ const ChatPage: React.FC = () => {
       }
     };
     initializeData();
-  }, [fetchAgents, setChatHistory, chatHistory, setLoading, addToast]);
+  }, [fetchAgents, setChatHistory, setLoading, addToast]);
 
   // Auto-reconnect when disconnected (but only if token is still valid)
   useEffect(() => {
