@@ -29,8 +29,13 @@ class Settings(BaseSettings):  # type: ignore[misc]
     DEBUG: bool = Field(default=False, env="DEBUG")
     
     # Security
-    API_KEYS: List[str] = Field(default_factory=list, env="API_KEYS")
-    SECRET_KEY: str = Field(default="your-secret-key-change-this", env="SECRET_KEY")
+    API_KEYS: List[str] = Field(default_factory=lambda: [
+        "mfu-web-app-2024-secure-key",
+        "mfu-mobile-app-2024-secure-key", 
+        "mfu-admin-panel-2024-secure-key",
+        "mfu-partner-api-2024-secure-key"
+    ], env="API_KEYS")
+    SECRET_KEY: str = Field(default="mfu-learn-ai-secret-key-2024-change-in-production", env="SECRET_KEY")
     
     # CORS settings
     CORS_ORIGINS: List[str] = Field(default=["*"], env="CORS_ORIGINS")
