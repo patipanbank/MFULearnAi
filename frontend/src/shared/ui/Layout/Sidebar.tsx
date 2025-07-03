@@ -13,7 +13,7 @@ import {
 } from 'react-icons/fi';
 import useLayoutStore from '../../stores/layoutStore';
 import { useUIStore } from '../../stores/uiStore';
-import { useAuthStore } from '../../stores';
+
 import { cn, formatDate } from '../../lib/utils';
 import { useChatStore } from '../../stores/chatStore';
 import PreferencesModal from '../PreferencesModal';
