@@ -26,7 +26,6 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   onRemoveImage,
   disabled = false,
   isTyping = false,
-  hasMessages = false,
   isInChatRoom = false,
   onRoomCreated: _onRoomCreated
 }) => {
