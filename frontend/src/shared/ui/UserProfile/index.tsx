@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { FiLogOut } from 'react-icons/fi';
 import { useAuthStore, useUIStore } from '../../stores';
 import { useDepartment } from '../../hooks/useDepartment';
+import UserProfileErrorBoundary from './UserProfileErrorBoundary';
 
 const UserProfile: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -41,27 +42,28 @@ const UserProfile: React.FC = () => {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* Profile Button */}
-      <button
-        onClick={() => toggleDropdown(dropdownId)}
-        className="btn-ghost flex items-center space-x-2 hover:bg-secondary transition-colors duration-200"
-      >
-        {/* Avatar */}
-        <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium">
-          {getInitials()}
-        </div>
-        
-        {/* User Info */}
-        <div className="hidden sm:block text-left">
-          <p className="text-sm font-medium text-primary">
-            {user.firstName} {user.lastName}
-          </p>
-          <p className="text-xs text-muted truncate max-w-32">
-            {user.student_id || ''}
-          </p>
-        </div>
-      </button>
+    <UserProfileErrorBoundary>
+      <div className="relative" ref={dropdownRef}>
+        {/* Profile Button */}
+        <button
+          onClick={() => toggleDropdown(dropdownId)}
+          className="btn-ghost flex items-center space-x-2 hover:bg-secondary transition-colors duration-200"
+        >
+          {/* Avatar */}
+          <div className="h-8 w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm font-medium">
+            {getInitials()}
+          </div>
+          
+          {/* User Info */}
+          <div className="hidden sm:block text-left">
+            <p className="text-sm font-medium text-primary">
+              {user.firstName} {user.lastName}
+            </p>
+            <p className="text-xs text-muted truncate max-w-32">
+              {user.student_id || ''}
+            </p>
+          </div>
+        </button>
 
       {/* Dropdown Menu with Animation */}
       {isOpen && (
@@ -149,7 +151,8 @@ const UserProfile: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </UserProfileErrorBoundary>
   );
 };
 

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import MobileMenuOverlay from './MobileMenuOverlay';
+import LayoutErrorBoundary from './LayoutErrorBoundary';
 import useLayoutStore from '../../stores/layoutStore';
 
 interface LayoutProps {
@@ -39,24 +40,26 @@ const Layout: React.FC<LayoutProps> = ({
   }, [setIsMobile, setSidebarCollapsed, sidebarCollapsed]);
 
   return (
-    <div className="h-screen flex bg-primary transition-colors duration-200">
-      {/* Mobile Menu Components */}
-      {isMobile && showSidebar && mobileMenuOpen && <MobileMenuOverlay />}
-      
-      {/* Desktop Sidebar - Only show on desktop */}
-      {showSidebar && !isMobile && <Sidebar />}
-      
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header - Always show for authenticated pages */}
-        {showHeader && <Header />}
+    <LayoutErrorBoundary>
+      <div className="h-screen flex bg-primary transition-colors duration-200">
+        {/* Mobile Menu Components */}
+        {isMobile && showSidebar && mobileMenuOpen && <MobileMenuOverlay />}
         
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
+        {/* Desktop Sidebar - Only show on desktop */}
+        {showSidebar && !isMobile && <Sidebar />}
+        
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header - Always show for authenticated pages */}
+          {showHeader && <Header />}
+          
+          {/* Page Content */}
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </LayoutErrorBoundary>
   );
 };
 

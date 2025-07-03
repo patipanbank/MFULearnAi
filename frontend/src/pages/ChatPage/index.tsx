@@ -45,7 +45,6 @@ const ChatPage: React.FC = () => {
     pendingQueueRef,
     connectWebSocket,
     handleRoomCreated,
-    abortStreaming,
     isTokenExpired,
     tryRefreshToken
   } = useWebSocket({ chatId, isInChatRoom });
