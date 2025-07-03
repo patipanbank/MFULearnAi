@@ -178,7 +178,7 @@ services:
     restart: unless-stopped
 
   mongodb-exporter:
-    image: percona/mongodb_exporter:0.45
+    image: percona/mongodb_exporter:0.39
     container_name: mongodb_exporter
     environment:
       - MONGODB_URI=mongodb://root:1234@db:27017/admin?authSource=admin
