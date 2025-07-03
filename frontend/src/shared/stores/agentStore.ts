@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 import { showSuccessToast, showErrorToast } from './uiStore';
-import { shallow } from 'zustand/shallow';
 
 // Types
 export interface AgentTool {
