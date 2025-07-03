@@ -2,7 +2,7 @@
 
 import os
 from pydantic_settings import BaseSettings
-from pydantic import Field as _PydanticField
+from pydantic import Field as _PydanticField, field_validator
 from typing import List, Optional, Any
 
 # ---- Type-checker shim ----
@@ -67,6 +67,8 @@ class Settings(BaseSettings):  # type: ignore[misc]
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
     LOG_FORMAT: str = Field(default="json", env="LOG_FORMAT")  # json or text
     LOG_FILE: Optional[str] = Field(default=None, env="LOG_FILE")
+    LOG_REQUESTS: bool = Field(default=True, env="LOG_REQUESTS")
+    LOG_RESPONSES: bool = Field(default=True, env="LOG_RESPONSES")
     
     # Monitoring settings
     ENABLE_METRICS: bool = Field(default=True, env="ENABLE_METRICS")
@@ -98,16 +100,18 @@ class Settings(BaseSettings):  # type: ignore[misc]
     ENABLE_DOCS: bool = Field(default=True, env="ENABLE_DOCS")
     ENABLE_REDOC: bool = Field(default=True, env="ENABLE_REDOC")
     
-    class Config:
-        # Load env vars from project root first, then local dir (if any)
-        env_file = ("../.env", ".env")
-        case_sensitive = True
-        
-        @classmethod
-        def parse_env_var(cls, field_name: str, raw_val: str) -> any:  # type: ignore[override]
-            if field_name in ["API_KEYS", "CORS_ORIGINS", "CORS_METHODS", "CORS_HEADERS"]:
-                return [item.strip() for item in raw_val.split(",") if item.strip()]
-            return cls.json_loads(raw_val)  # type: ignore[attr-defined]
+    @field_validator('API_KEYS', 'CORS_ORIGINS', 'CORS_METHODS', 'CORS_HEADERS', mode='before')
+    @classmethod
+    def parse_comma_separated(cls, v):
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return v
+    
+    model_config = {
+        "env_file": ("../.env", ".env"),
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
