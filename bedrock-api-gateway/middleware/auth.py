@@ -31,7 +31,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             "/redoc",
             "/openapi.json",
             "/health",
-            "/api/v1/models"
+            "/api/v1/models",
+            "/metrics"  # Prometheus metrics endpoint
         }
         
         logger.info(f"API Key middleware initialized with {len(self.api_keys)} keys")

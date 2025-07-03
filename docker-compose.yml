@@ -162,7 +162,7 @@ services:
       # Bedrock Gateway specific environment variables
       - APP_ENV=${BEDROCK_APP_ENV:-production}
       - PORT=8000
-      - LOG_LEVEL=${BEDROCK_LOG_LEVEL:-info}
+      - LOG_LEVEL=${BEDROCK_LOG_LEVEL:-INFO}
       
       # AWS Configuration
       - AWS_REGION=${AWS_REGION:-us-east-1}

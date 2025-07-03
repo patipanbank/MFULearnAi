@@ -14,7 +14,7 @@ AWS_BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20240620-v1:0
 # Bedrock API Gateway Configuration
 # =============================================================================
 BEDROCK_APP_ENV=production
-BEDROCK_LOG_LEVEL=info
+BEDROCK_LOG_LEVEL=INFO
 BEDROCK_SECRET_KEY=your-super-secret-key-change-in-production
 
 # API Keys for Bedrock Gateway (comma-separated)
