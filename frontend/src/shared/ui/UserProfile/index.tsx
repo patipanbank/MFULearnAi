@@ -1,18 +1,16 @@
 import React, { useRef, useEffect } from 'react';
 import { FiLogOut } from 'react-icons/fi';
-import useAuthStore from '../../../entities/user/store';
-import useUIStore from '../../stores/uiStore';
+import { useAuthStore, useUIStore } from '../../stores';
+import { useDepartment } from '../../hooks/useDepartment';
 
 const UserProfile: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, logoutSAML } = useAuthStore();
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
+  const { department, loading: departmentLoading } = useDepartment(user?.department_id?.['$oid']);
   
   const dropdownId = 'user-profile';
   const isOpen = openDropdowns.has(dropdownId);
-
-  // Debug user data
-  console.log('UserProfile - Current user data:', user);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -111,7 +109,13 @@ const UserProfile: React.FC = () => {
               </div>
               <div className="flex-1">
                 <div className="text-xs md:text-sm text-muted">DEPARTMENT</div>
-                <div className="text-sm md:text-base text-primary">computer engineering</div>
+                <div className="text-sm md:text-base text-primary">
+                  {departmentLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-4 w-24 rounded"></div>
+                  ) : (
+                    department?.name || 'Not specified'
+                  )}
+                </div>
               </div>
             </div>
 
