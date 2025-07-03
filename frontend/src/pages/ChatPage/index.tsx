@@ -79,7 +79,7 @@ const ChatPage: React.FC = () => {
       }
     };
     initializeData();
-  }, []);
+  }, [fetchAgents, setChatHistory, chatHistory, setLoading, addToast]);
 
   // Auto-reconnect when disconnected (but only if token is still valid)
   useEffect(() => {

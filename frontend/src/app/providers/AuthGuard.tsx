@@ -9,7 +9,7 @@ const AuthGuard: React.FC = () => {
   // Prevent issuing multiple fetchUser calls during the same render loop.
   const isFetchingRef = useRef(false);
 
-  const fetchUserCallback = useCallback(() => {
+  useEffect(() => {
     if (token && status === 'loading' && !isFetchingRef.current) {
       isFetchingRef.current = true;
       // Use the promise resolution to reset the ref so it can be triggered again if needed.
@@ -18,10 +18,6 @@ const AuthGuard: React.FC = () => {
       });
     }
   }, [token, status]);
-
-  useEffect(() => {
-    fetchUserCallback();
-  }, [fetchUserCallback]);
 
   useEffect(() => {
     if (!token && status !== 'unauthenticated') {

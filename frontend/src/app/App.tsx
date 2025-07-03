@@ -43,7 +43,7 @@ function App() {
     return () => {
       console.log('App: Component unmounted');
     };
-  }, [loadSettings, applyTheme]);
+  }, [applyTheme, preferences.theme]);
 
   // Apply theme when preferences change
   useEffect(() => {

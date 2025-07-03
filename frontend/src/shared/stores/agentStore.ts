@@ -314,6 +314,8 @@ const useAgentStore = create<AgentStore>()(
           selectedAgent: state.selectedAgent,
           agents: state.agents,
         }),
+        // Add version to handle migrations
+        version: 1,
       }
     )
   )

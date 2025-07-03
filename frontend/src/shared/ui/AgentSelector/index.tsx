@@ -36,19 +36,19 @@ const AgentSelector: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [closeDropdown, dropdownId]);
 
-  // Fetch agents on mount - Fixed dependency array
-  const fetchAgentsCallback = useCallback(() => {
-    try {
-      fetchAgents();
-    } catch (error) {
-      console.error('Error fetching agents:', error);
-      setHasError(true);
-    }
-  }, [fetchAgents]);
-
+  // Fetch agents on mount - Only fetch once
   useEffect(() => {
-    fetchAgentsCallback();
-  }, [fetchAgentsCallback]);
+    const loadAgents = async () => {
+      try {
+        await fetchAgents();
+      } catch (error) {
+        console.error('Error fetching agents:', error);
+        setHasError(true);
+      }
+    };
+    
+    loadAgents();
+  }, []); // Empty dependency array to run only once
 
   const handleAgentSelect = (agent: AgentConfig | null) => {
     try {
@@ -85,7 +85,7 @@ const AgentSelector: React.FC = () => {
         <button
           onClick={() => {
             setHasError(false);
-            fetchAgentsCallback();
+            fetchAgents();
           }}
           className="text-xs text-red-600 dark:text-red-400 hover:underline"
         >
