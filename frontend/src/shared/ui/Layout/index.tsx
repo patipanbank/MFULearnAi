@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import MobileMenuOverlay from './MobileMenuOverlay';
@@ -27,17 +27,17 @@ const Layout: React.FC<LayoutProps> = React.memo(({
   });
 
   // Handle responsive behavior
-  const handleResize = useCallback(() => {
-    const mobile = window.innerWidth < 768; // md breakpoint
-    setIsMobile(mobile);
-    
-    // Auto-collapse sidebar on mobile
-    if (mobile && !sidebarCollapsed) {
-      setSidebarCollapsed(true);
-    }
-  }, [setIsMobile, setSidebarCollapsed, sidebarCollapsed]);
-
   useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768; // md breakpoint
+      setIsMobile(mobile);
+      
+      // Auto-collapse sidebar on mobile
+      if (mobile && !sidebarCollapsed) {
+        setSidebarCollapsed(true);
+      }
+    };
+
     // Initial check
     handleResize();
     
@@ -45,7 +45,7 @@ const Layout: React.FC<LayoutProps> = React.memo(({
     window.addEventListener('resize', handleResize);
     
     return () => window.removeEventListener('resize', handleResize);
-  }, [handleResize]);
+  }, [setIsMobile, setSidebarCollapsed, sidebarCollapsed]);
 
   return (
     <div className="h-screen flex bg-primary transition-colors duration-200">
