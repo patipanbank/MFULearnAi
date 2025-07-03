@@ -24,7 +24,11 @@ const ChatPage: React.FC = () => {
     chatHistory,
     setChatHistory,
     loadChat,
-    isLoading
+    isLoading,
+    isConnectedToRoom,
+    setIsConnectedToRoom,
+    isRoomCreating,
+    setIsRoomCreating
   } = useChatStore();
   
   const { 
@@ -41,8 +45,6 @@ const ChatPage: React.FC = () => {
   // Local state
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<Array<{ url: string; mediaType: string }>>([]);
-  const [isConnectedToRoom, setIsConnectedToRoom] = useState(false);
-  const [isRoomCreating, setIsRoomCreating] = useState(false);
   
   // Use a ref for the first pending message so the latest value is always
   // visible inside WebSocket callbacks (avoids stale closure issues).
@@ -583,7 +585,7 @@ const ChatPage: React.FC = () => {
         window.clearTimeout(reconnectTimer);
       }
     };
-  }, [wsStatus, token, currentSession, isInChatRoom]);
+  }, [wsStatus, token, currentSession, isInChatRoom, isTokenExpired, addToast, connectWebSocket]);
   
   // Cleanup WebSocket on unmount
   useEffect(() => {

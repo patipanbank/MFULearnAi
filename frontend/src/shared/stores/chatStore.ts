@@ -41,6 +41,12 @@ interface ChatState {
   wsStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
   setWsStatus: (status: ChatState['wsStatus']) => void;
   
+  // Room management state
+  isConnectedToRoom: boolean;
+  setIsConnectedToRoom: (connected: boolean) => void;
+  isRoomCreating: boolean;
+  setIsRoomCreating: (creating: boolean) => void;
+  
   // UI states
   isTyping: boolean;
   setIsTyping: (typing: boolean) => void;
@@ -146,6 +152,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // WebSocket state
   wsStatus: 'disconnected',
   setWsStatus: (status) => set({ wsStatus: status }),
+  
+  // Room management state
+  isConnectedToRoom: false,
+  setIsConnectedToRoom: (connected) => set({ isConnectedToRoom: connected }),
+  isRoomCreating: false,
+  setIsRoomCreating: (creating) => set({ isRoomCreating: creating }),
   
   // UI states
   isTyping: false,
