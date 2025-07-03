@@ -1,10 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { FiChevronDown, FiUser, FiCpu, FiCheck, FiRefreshCw, FiSettings, FiStar } from 'react-icons/fi';
 import { useAgentStore, useUIStore } from '../../stores';
 import type { AgentConfig } from '../../stores/agentStore';
 
 const AgentSelector: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [hasError, setHasError] = useState(false);
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
   const { 
     agents, 
@@ -21,7 +22,7 @@ const AgentSelector: React.FC = () => {
   }));
 
   const dropdownId = 'agent-selector';
-  const isOpen = openDropdowns.has(dropdownId);
+  const isOpen = openDropdowns.includes(dropdownId);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -35,19 +36,38 @@ const AgentSelector: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [closeDropdown, dropdownId]);
 
-  // Fetch agents on mount
+  // Fetch agents on mount - Fixed dependency array
+  const fetchAgentsCallback = useCallback(() => {
+    try {
+      fetchAgents();
+    } catch (error) {
+      console.error('Error fetching agents:', error);
+      setHasError(true);
+    }
+  }, [fetchAgents]);
+
   useEffect(() => {
-    fetchAgents();
-  }, []);
+    fetchAgentsCallback();
+  }, [fetchAgentsCallback]);
 
   const handleAgentSelect = (agent: AgentConfig | null) => {
-    selectAgent(agent);
-    closeDropdown(dropdownId);
+    try {
+      selectAgent(agent);
+      closeDropdown(dropdownId);
+    } catch (error) {
+      console.error('Error selecting agent:', error);
+      setHasError(true);
+    }
   };
 
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await fetchAgents();
+    try {
+      await fetchAgents();
+    } catch (error) {
+      console.error('Error refreshing agents:', error);
+      setHasError(true);
+    }
   };
 
   const getAgentTypeColor = (isPublic: boolean) => {
@@ -55,6 +75,25 @@ const AgentSelector: React.FC = () => {
       ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
       : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
   };
+
+  // Error fallback
+  if (hasError) {
+    return (
+      <div className="flex items-center space-x-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <FiUser className="h-4 w-4 text-red-600 dark:text-red-400" />
+        <span className="text-sm text-red-600 dark:text-red-400">Agent selector error</span>
+        <button
+          onClick={() => {
+            setHasError(false);
+            fetchAgentsCallback();
+          }}
+          className="text-xs text-red-600 dark:text-red-400 hover:underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative" ref={dropdownRef}>

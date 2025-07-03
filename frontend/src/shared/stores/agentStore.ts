@@ -157,11 +157,18 @@ const useAgentStore = create<AgentStore>()(
 
         // Actions
         fetchAgents: async () => {
+          const currentState = get();
+          // Prevent multiple simultaneous fetches
+          if (currentState.isLoadingAgents) {
+            return;
+          }
+          
           set({ isLoadingAgents: true });
           try {
             const agents = await api.get<AgentConfig[]>('/agents/');
             set(state => {
               const newState: Partial<AgentStore> = { agents, isLoadingAgents: false };
+              // Only set selectedAgent if none is currently selected
               if (!state.selectedAgent && agents.length > 0) {
                 newState.selectedAgent = agents[0];
               }
@@ -302,6 +309,11 @@ const useAgentStore = create<AgentStore>()(
       }),
       {
         name: 'agent-store',
+        // Only persist specific fields to avoid issues
+        partialize: (state) => ({
+          selectedAgent: state.selectedAgent,
+          agents: state.agents,
+        }),
       }
     )
   )

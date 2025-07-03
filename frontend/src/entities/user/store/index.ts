@@ -28,7 +28,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
     setToken: (token: string) => {
       localStorage.setItem('auth_token', token);
       set({ token, status: 'loading' }); // Set status to loading, then fetch user
-      get().fetchUser(); // Immediately fetch user data
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        get().fetchUser();
+      }, 0);
     },
 
     fetchUser: async () => {
@@ -36,12 +39,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const token = get().token;
       if (!token) {
         console.log('fetchUser: No token found, setting to unauthenticated.');
-        return set({ status: 'unauthenticated', user: null });
+        set({ status: 'unauthenticated', user: null });
+        return;
       }
       
       // Ensure we don't fetch unnecessarily
       if (get().status === 'authenticated') {
-          return;
+        return;
       }
 
       set({ status: 'loading' });
@@ -54,7 +58,12 @@ export const useAuthStore = create<AuthState>((set, get) => {
       } catch (error) {
         console.error('fetchUser: Failed to fetch user data.', error);
         localStorage.removeItem('auth_token');
-        set({ status: 'unauthenticated', user: null, token: null, fetchError: error instanceof Error ? error.message : 'Network error' });
+        set({ 
+          status: 'unauthenticated', 
+          user: null, 
+          token: null, 
+          fetchError: error instanceof Error ? error.message : 'Network error' 
+        });
       }
     },
 

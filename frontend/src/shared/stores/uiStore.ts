@@ -57,8 +57,8 @@ interface UIState {
   removeNotification: (notificationId: string) => void;
   clearNotifications: () => void;
   
-  // Dropdowns & Popovers
-  openDropdowns: Set<string>;
+  // Dropdowns & Popovers - Changed from Set to array for better React compatibility
+  openDropdowns: string[];
   toggleDropdown: (dropdownId: string) => void;
   closeDropdown: (dropdownId: string) => void;
   closeAllDropdowns: () => void;
@@ -171,26 +171,23 @@ export const useUIStore = create<UIState>((set, get) => ({
   
   clearNotifications: () => set({ notifications: [], unreadCount: 0 }),
   
-  // Dropdowns & Popovers
-  openDropdowns: new Set(),
+  // Dropdowns & Popovers - Fixed to use array instead of Set
+  openDropdowns: [],
   
   toggleDropdown: (dropdownId) => set((state) => {
-    const newSet = new Set(state.openDropdowns);
-    if (newSet.has(dropdownId)) {
-      newSet.delete(dropdownId);
+    const isOpen = state.openDropdowns.includes(dropdownId);
+    if (isOpen) {
+      return { openDropdowns: state.openDropdowns.filter(id => id !== dropdownId) };
     } else {
-      newSet.add(dropdownId);
+      return { openDropdowns: [...state.openDropdowns, dropdownId] };
     }
-    return { openDropdowns: newSet };
   }),
   
-  closeDropdown: (dropdownId) => set((state) => {
-    const newSet = new Set(state.openDropdowns);
-    newSet.delete(dropdownId);
-    return { openDropdowns: newSet };
-  }),
+  closeDropdown: (dropdownId) => set((state) => ({
+    openDropdowns: state.openDropdowns.filter(id => id !== dropdownId)
+  })),
   
-  closeAllDropdowns: () => set({ openDropdowns: new Set() }),
+  closeAllDropdowns: () => set({ openDropdowns: [] }),
   
   // File upload
   uploadProgress: {},
