@@ -6,20 +6,20 @@ import type { AgentConfig } from '../../stores/agentStore';
 const AgentSelector: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [hasError, setHasError] = useState(false);
-  const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
-  const { 
-    agents, 
-    selectedAgent, 
-    isLoadingAgents,
-    selectAgent,
-    fetchAgents
-  } = useAgentStore(state => ({
-    agents: state.agents,
-    selectedAgent: state.selectedAgent,
-    isLoadingAgents: state.isLoadingAgents,
-    selectAgent: state.selectAgent,
-    fetchAgents: state.fetchAgents
-  }));
+
+  // เรียก useUIStore แค่ครั้งเดียว
+  const uiStore = useUIStore();
+  const openDropdowns = uiStore.openDropdowns;
+  const toggleDropdown = uiStore.toggleDropdown;
+  const closeDropdown = uiStore.closeDropdown;
+
+  // เรียก useAgentStore แค่ครั้งเดียว
+  const agentStore = useAgentStore(state => state);
+  const agents = agentStore.agents;
+  const selectedAgent = agentStore.selectedAgent;
+  const isLoadingAgents = agentStore.isLoadingAgents;
+  const selectAgent = agentStore.selectAgent;
+  const fetchAgents = agentStore.fetchAgents;
 
   const dropdownId = 'agent-selector';
   const isOpen = openDropdowns.includes(dropdownId);
@@ -46,7 +46,6 @@ const AgentSelector: React.FC = () => {
         setHasError(true);
       }
     };
-    
     loadAgents();
   }, []); // Empty dependency array to run only once
 
