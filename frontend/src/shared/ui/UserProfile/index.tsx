@@ -1,9 +1,9 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { FiLogOut } from 'react-icons/fi';
 import useAuthStore from '../../../entities/user/store';
 import useUIStore from '../../stores/uiStore';
 
-const UserProfile: React.FC = () => {
+const UserProfile: React.FC = React.memo(() => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, logoutSAML } = useAuthStore();
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
@@ -24,12 +24,12 @@ const UserProfile: React.FC = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [closeDropdown, dropdownId]);
+  }, [dropdownId]); // Remove closeDropdown from dependencies
 
-  const handleCompleteLogout = () => {
+  const handleCompleteLogout = useCallback(() => {
     logoutSAML();
     closeDropdown(dropdownId);
-  };
+  }, [logoutSAML, closeDropdown, dropdownId]);
 
   if (!user) {
     return null;
@@ -147,6 +147,6 @@ const UserProfile: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default UserProfile; 
