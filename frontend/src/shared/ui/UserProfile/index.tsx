@@ -11,7 +11,7 @@ const UserProfile: React.FC = () => {
   const { department, loading: departmentLoading } = useDepartment(user?.department_id?.['$oid']);
   
   const dropdownId = 'user-profile';
-  const isOpen = openDropdowns.has(dropdownId);
+  const isOpen = openDropdowns.includes(dropdownId);
 
   // Close dropdown when clicking outside
   useEffect(() => {

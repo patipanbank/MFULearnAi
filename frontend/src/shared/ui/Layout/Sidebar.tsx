@@ -53,7 +53,7 @@ const Sidebar: React.FC = () => {
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false);
 
   const settingsDropdownId = 'settings-dropdown';
-  const isSettingsOpen = openDropdowns.has(settingsDropdownId);
+  const isSettingsOpen = openDropdowns.includes(settingsDropdownId);
 
   // Fetch chat history on mount
   useEffect(() => {
