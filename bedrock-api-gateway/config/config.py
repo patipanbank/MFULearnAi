@@ -103,9 +103,17 @@ class Settings(BaseSettings):  # type: ignore[misc]
     @field_validator('API_KEYS', 'CORS_ORIGINS', 'CORS_METHODS', 'CORS_HEADERS', mode='before')
     @classmethod
     def parse_comma_separated(cls, v):
-        if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
-        return v
+        try:
+            if v is None:
+                return []
+            if isinstance(v, str):
+                if not v.strip():
+                    return []
+                return [item.strip() for item in v.split(",") if item.strip()]
+            return v
+        except Exception:
+            # Fallback to empty list if parsing fails
+            return []
     
     model_config = {
         "env_file": ("../.env", ".env"),
