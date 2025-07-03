@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from bson import ObjectId
 import json
 
@@ -16,11 +16,18 @@ class PyObjectId(ObjectId):
         return ObjectId(v)
 
     @classmethod
-    def __modify_schema__(cls, field_schema):
+    def __get_pydantic_json_schema__(cls, field_schema):
         field_schema.update(type="string")
+        return field_schema
 
 class UsageRecord(BaseModel):
     """Model for API usage tracking"""
+    
+    model_config = ConfigDict(
+        validate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
     
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     
@@ -57,13 +64,14 @@ class UsageRecord(BaseModel):
     error_message: Optional[str] = Field(None, description="Error message if failed")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
 
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-
 class ApiKeyUsage(BaseModel):
     """Model for API key usage statistics"""
+    
+    model_config = ConfigDict(
+        validate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
     
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     
@@ -104,13 +112,14 @@ class ApiKeyUsage(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-
 class DailyUsageStats(BaseModel):
     """Model for daily usage statistics"""
+    
+    model_config = ConfigDict(
+        validate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
     
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     
@@ -151,13 +160,14 @@ class DailyUsageStats(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-
 class SystemMetrics(BaseModel):
     """Model for system-wide metrics"""
+    
+    model_config = ConfigDict(
+        validate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
     
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     
@@ -188,9 +198,4 @@ class SystemMetrics(BaseModel):
     mongodb_connected: bool = Field(False, description="MongoDB connection status")
     
     # Rate limiting stats
-    total_rate_limit_hits: int = Field(0, description="Total rate limit violations")
-    
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str} 
+    total_rate_limit_hits: int = Field(0, description="Total rate limit violations") 
