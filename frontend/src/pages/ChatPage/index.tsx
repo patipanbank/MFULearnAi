@@ -769,6 +769,8 @@ const ChatPage: React.FC = React.memo(() => {
       </div>
     </div>
   );
+};
+
 });
 
 export default ChatPage; 

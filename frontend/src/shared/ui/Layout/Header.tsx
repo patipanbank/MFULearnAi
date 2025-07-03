@@ -8,6 +8,11 @@ import AgentSelector from '../AgentSelector';
 import UserProfile from '../UserProfile';
 
 const Header: React.FC = React.memo(() => {
+  console.log('Header - RENDER:', {
+    user: user?.username,
+    showAgentSelector,
+    timestamp: new Date().toISOString()
+  });
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -17,12 +22,6 @@ const Header: React.FC = React.memo(() => {
    
   // Show AgentSelector only on chat routes
   const showAgentSelector = location.pathname.startsWith('/chat');
-  
-  console.log('Header - RENDER:', {
-    user: user?.username,
-    showAgentSelector,
-    timestamp: new Date().toISOString()
-  });
 
   const handleLogoClick = async () => {
     await createNewChat();
@@ -83,6 +82,8 @@ const Header: React.FC = React.memo(() => {
       </div>
     </header>
   );
+};
+
 });
 
 export default Header; 
