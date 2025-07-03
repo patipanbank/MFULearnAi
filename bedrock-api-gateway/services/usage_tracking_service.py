@@ -1,11 +1,16 @@
 import logging
 import hashlib
+import sys
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 import json
+
+# Add current directory to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.config import settings
 from models.usage import UsageRecord, ApiKeyUsage, DailyUsageStats, SystemMetrics
