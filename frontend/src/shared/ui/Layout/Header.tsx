@@ -7,12 +7,7 @@ import { useChatStore } from '../../stores/chatStore';
 import AgentSelector from '../AgentSelector';
 import UserProfile from '../UserProfile';
 
-const Header: React.FC = React.memo(() => {
-  console.log('Header - RENDER:', {
-    user: user?.username,
-    showAgentSelector,
-    timestamp: new Date().toISOString()
-  });
+const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -83,7 +78,5 @@ const Header: React.FC = React.memo(() => {
     </header>
   );
 };
-
-});
 
 export default Header; 
