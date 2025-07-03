@@ -155,8 +155,37 @@ services:
     build:
       context: ./bedrock-api-gateway
       dockerfile: Dockerfile
+    container_name: mfulearnai_bedrock_gateway
     env_file:
       - .env
+    environment:
+      # Bedrock Gateway specific environment variables
+      - APP_ENV=${BEDROCK_APP_ENV:-production}
+      - PORT=8000
+      - LOG_LEVEL=${BEDROCK_LOG_LEVEL:-info}
+      
+      # AWS Configuration
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_BEDROCK_MODEL_ID=${AWS_BEDROCK_MODEL_ID:-anthropic.claude-3-5-sonnet-20240620-v1:0}
+      
+      # API Gateway Configuration
+      - API_KEYS=${BEDROCK_API_KEYS:-}
+      - ALLOWED_ORIGINS=${BEDROCK_ALLOWED_ORIGINS:-*}
+      - RATE_LIMIT_REQUESTS=${BEDROCK_RATE_LIMIT_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW=${BEDROCK_RATE_LIMIT_WINDOW:-60}
+      
+      # Logging Configuration
+      - LOG_REQUESTS=${BEDROCK_LOG_REQUESTS:-true}
+      - LOG_RESPONSES=${BEDROCK_LOG_RESPONSES:-false}
+      
+      # Use existing services from root docker-compose
+      - REDIS_URL=redis://redis:6379
+      - MONGODB_URI=mongodb://root:1234@db:27017/bedrock_usage?authSource=admin
+      
+      # Security
+      - SECRET_KEY=${BEDROCK_SECRET_KEY:-your-secret-key-change-in-production}
     depends_on:
       - db
       - redis
@@ -165,6 +194,12 @@ services:
     ports:
       - "8001:8000"  # Changed to avoid conflict with ChromaDB
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   prometheus:
     image: prom/prometheus

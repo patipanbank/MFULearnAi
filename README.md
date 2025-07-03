@@ -57,7 +57,7 @@ MFU Learn AI เป็นระบบการเรียนรู้ด้ว�
 ## 🆕 AWS Bedrock API Gateway
 
 ### Enterprise Features
-- ✅ **Production-Ready**: Full production deployment with Docker
+- ✅ **Production-Ready**: Integrated with main docker-compose
 - ✅ **Distributed Rate Limiting**: Redis-based rate limiting across multiple instances
 - ✅ **Usage Analytics**: Comprehensive MongoDB-based usage tracking
 - ✅ **Security**: API key authentication, SSL/TLS, security headers
@@ -65,29 +65,38 @@ MFU Learn AI เป็นระบบการเรียนรู้ด้ว�
 - ✅ **Scalability**: Docker Swarm/Kubernetes ready
 - ✅ **High Availability**: Multi-container deployment with failover
 
-### Quick Start - Production Deployment
+### Configuration
 
+#### Environment Variables
 ```bash
-# Clone repository
-git clone https://github.com/your-org/MFULearnAi.git
-cd MFULearnAi/bedrock-api-gateway
+# Copy and configure environment
+cp bedrock-env.example .env
 
-# Configure environment
-cp production-env.example .env
-# Edit .env with your configuration
+# Required AWS Configuration
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-aws-access-key-id
+AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
+AWS_BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20240620-v1:0
 
-# Deploy production stack
-chmod +x deploy-production.sh
-./deploy-production.sh
+# Bedrock Gateway Configuration
+BEDROCK_SECRET_KEY=your-super-secret-key-change-in-production
+BEDROCK_API_KEYS=api-key-1,api-key-2,api-key-3
+BEDROCK_ALLOWED_ORIGINS=*
+BEDROCK_RATE_LIMIT_REQUESTS=100
+BEDROCK_RATE_LIMIT_WINDOW=60
 ```
 
-### Services Included
+#### Generate API Keys
+```bash
+# Generate secure API keys
+python generate_bedrock_keys.py
+```
+
+### Services Integration
 - **API Gateway**: FastAPI application with advanced middleware
-- **Redis**: For distributed caching and rate limiting
-- **MongoDB**: For usage tracking and analytics
-- **Nginx**: Reverse proxy with SSL termination
-- **Prometheus**: (Optional) Metrics collection
-- **Grafana**: (Optional) Visualization and dashboards
+- **Redis**: Shared with main system for distributed caching and rate limiting
+- **MongoDB**: Shared with main system for usage tracking and analytics
+- **Port**: 8001 (external) -> 8000 (internal) to avoid conflict with ChromaDB
 
 ### API Endpoints
 ```
@@ -98,6 +107,18 @@ POST   /api/v1/bedrock/converse-stream - Chat completions
 POST   /api/v1/bedrock/embeddings/text - Text embeddings
 POST   /api/v1/bedrock/embeddings/image - Image embeddings
 POST   /api/v1/bedrock/images/generate - Image generation
+```
+
+### Usage Examples
+```bash
+# Test the gateway
+curl -X GET http://localhost:8001/health
+
+# Chat completion with API key
+curl -X POST http://localhost:8001/api/v1/bedrock/converse-stream \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
 ## 🚀 Quick Start
@@ -131,22 +152,28 @@ uvicorn main:app --reload
 
 ### Production Deployment
 
-#### Option 1: AWS Bedrock API Gateway (Recommended)
+#### Option 1: Full Stack with Bedrock Gateway (Recommended)
 ```bash
-cd bedrock-api-gateway
-cp production-env.example .env
-# Configure your settings in .env
-./deploy-production.sh
+# Configure environment for Bedrock Gateway
+cp bedrock-env.example .env
+# Edit .env with your AWS credentials and API keys
+
+# Deploy all services including Bedrock Gateway
+docker-compose up -d
+
+# Bedrock Gateway will be available at:
+# - External: http://localhost:8001
+# - Internal: http://bedrock-gateway:8000
 ```
 
-#### Option 2: Full Stack Deployment
+#### Option 2: Development Environment
 ```bash
 # Configure environment
 cp .env.example .env
 # Edit .env with your configuration
 
-# Deploy all services
-docker-compose -f docker-compose.prod.yml up -d
+# Deploy development services
+docker-compose up -d
 ```
 
 ## 🛠️ Development
@@ -170,9 +197,10 @@ MFULearnAi/
 │   ├── middleware/         # Custom middleware
 │   ├── services/           # Service implementations
 │   ├── models/             # Data models
-│   ├── docker-compose.prod.yml
-│   └── deploy-production.sh
-└── docker-compose.yml       # Development environment
+│   └── generate_api_keys.py
+├── docker-compose.yml       # Main docker-compose (includes Bedrock Gateway)
+├── bedrock-env.example      # Bedrock Gateway environment template
+└── monitoring/              # Prometheus & Grafana configuration
 ```
 
 ### Key Technologies
