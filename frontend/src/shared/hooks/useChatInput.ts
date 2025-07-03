@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useChatStore } from '../stores';
 
 export const useChatInput = () => {
-  const { currentSession, setIsTyping } = useChatStore();
+  const currentSession = useChatStore((state) => state.currentSession);
+  const setIsTyping = useChatStore((state) => state.setIsTyping);
   
   // Local state
   const [message, setMessage] = useState('');

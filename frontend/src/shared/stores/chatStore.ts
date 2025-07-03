@@ -79,7 +79,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   })),
   
   // Messages
-  addMessage: async (message) => {
+  addMessage: (message) => {
     const state = get();
     if (!state.currentSession) return;
     let updatedName = state.currentSession.name;
@@ -102,23 +102,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ currentSession: updatedSession });
     // อัปเดตชื่อไป backend แค่ครั้งเดียว
     if (shouldUpdateName) {
-      try {
-        if (state.currentSession.id && state.currentSession.id.length === 24) {
-          await api.post('/chat/update-name', {
-            chat_id: state.currentSession.id,
-            name: updatedName
-          });
-        }
-        // อัปเดตชื่อใน chatHistory ด้วย
-        set((prev) => ({
-          chatHistory: prev.chatHistory.map(chat =>
-            chat.id === state.currentSession!.id
-              ? { ...chat, name: updatedName }
-              : chat
-          )
-        }));
-      } catch (e) {
-        console.error('Failed to update chat name:', e);
+      // Update chatHistory immediately
+      set((prev) => ({
+        chatHistory: prev.chatHistory.map(chat =>
+          chat.id === state.currentSession!.id
+            ? { ...chat, name: updatedName }
+            : chat
+        )
+      }));
+      
+      // Make API call in background
+      if (state.currentSession.id && state.currentSession.id.length === 24) {
+        api.post('/chat/update-name', {
+          chat_id: state.currentSession.id,
+          name: updatedName
+        }).catch((e) => {
+          console.error('Failed to update chat name:', e);
+        });
       }
     }
   },

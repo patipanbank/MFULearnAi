@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useAuthStore, useChatStore, useUIStore } from '../stores';
 import { config } from '../../config/config';
 import type { ChatMessage } from '../stores/chatStore';
@@ -9,19 +9,20 @@ interface UseWebSocketOptions {
 }
 
 export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
-  const { token, refreshToken } = useAuthStore();
-  const { 
-    currentSession, 
-    addMessage, 
-    updateMessage,
-    setWsStatus,
-    setIsConnectedToRoom,
-    setIsRoomCreating,
-    setCurrentSession,
-    setChatHistory,
-    chatHistory
-  } = useChatStore();
-  const { addToast } = useUIStore();
+  const token = useAuthStore((state) => state.token);
+  const refreshToken = useAuthStore((state) => state.refreshToken);
+  
+  const currentSession = useChatStore((state) => state.currentSession);
+  const addMessage = useChatStore((state) => state.addMessage);
+  const updateMessage = useChatStore((state) => state.updateMessage);
+  const setWsStatus = useChatStore((state) => state.setWsStatus);
+  const setIsConnectedToRoom = useChatStore((state) => state.setIsConnectedToRoom);
+  const setIsRoomCreating = useChatStore((state) => state.setIsRoomCreating);
+  const setCurrentSession = useChatStore((state) => state.setCurrentSession);
+  const setChatHistory = useChatStore((state) => state.setChatHistory);
+  const chatHistory = useChatStore((state) => state.chatHistory);
+  
+  const addToast = useUIStore((state) => state.addToast);
 
   const wsRef = useRef<WebSocket | null>(null);
   const currentSessionRef = useRef<typeof currentSession>(null);
@@ -33,12 +34,12 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     agentId?: string;
   } | null>(null);
 
-  // Update refs when state changes
-  useEffect(() => {
+  // Update refs when state changes - use useLayoutEffect to avoid extra renders
+  useLayoutEffect(() => {
     currentSessionRef.current = currentSession;
   }, [currentSession]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     chatHistoryRef.current = chatHistory;
   }, [chatHistory]);
 

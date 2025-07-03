@@ -12,22 +12,21 @@ import { useChatNavigation } from '../../shared/hooks/useChatNavigation';
 import { useChatInput } from '../../shared/hooks/useChatInput';
 
 const ChatPage: React.FC = () => {
-  const { user, token } = useAuthStore();
-  const { 
-    currentSession, 
-    addMessage,
-    wsStatus,
-    isTyping,
-    setChatHistory,
-    isLoading
-  } = useChatStore();
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
   
-  const { selectedAgent, fetchAgents } = useAgentStore(state => ({
-    selectedAgent: state.selectedAgent,
-    fetchAgents: state.fetchAgents
-  }));
+  const currentSession = useChatStore((state) => state.currentSession);
+  const addMessage = useChatStore((state) => state.addMessage);
+  const wsStatus = useChatStore((state) => state.wsStatus);
+  const isTyping = useChatStore((state) => state.isTyping);
+  const setChatHistory = useChatStore((state) => state.setChatHistory);
+  const isLoading = useChatStore((state) => state.isLoading);
   
-  const { setLoading, addToast } = useUIStore();
+  const selectedAgent = useAgentStore((state) => state.selectedAgent);
+  const fetchAgents = useAgentStore((state) => state.fetchAgents);
+  
+  const setLoading = useUIStore((state) => state.setLoading);
+  const addToast = useUIStore((state) => state.addToast);
   
   // Navigation
   const navigate = useNavigate();

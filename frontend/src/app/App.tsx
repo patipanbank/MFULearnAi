@@ -17,7 +17,8 @@ import KnowledgePage from '../pages/KnowledgePage';
 
 function App() {
   const location = useLocation();
-  const { applyTheme, preferences } = useSettingsStore();
+  const applyTheme = useSettingsStore((state) => state.applyTheme);
+  const preferences = useSettingsStore((state) => state.preferences);
 
   // Initialize settings on app start
   useEffect(() => {

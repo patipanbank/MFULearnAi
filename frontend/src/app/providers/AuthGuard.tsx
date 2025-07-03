@@ -5,6 +5,7 @@ import useAuthStore from '../../entities/user/store';
 const AuthGuard: React.FC = () => {
   const status = useAuthStore((state) => state.status);
   const token = useAuthStore((state) => state.token);
+  const fetchUser = useAuthStore((state) => state.fetchUser);
 
   // Prevent issuing multiple fetchUser calls during the same render loop.
   const isFetchingRef = useRef(false);
@@ -12,12 +13,11 @@ const AuthGuard: React.FC = () => {
   useEffect(() => {
     if (token && status === 'loading' && !isFetchingRef.current) {
       isFetchingRef.current = true;
-      // Use the promise resolution to reset the ref so it can be triggered again if needed.
-      Promise.resolve(useAuthStore.getState().fetchUser()).finally(() => {
+      fetchUser().finally(() => {
         isFetchingRef.current = false;
       });
     }
-  }, [token, status]);
+  }, [token, status, fetchUser]);
 
   useEffect(() => {
     if (!token && status !== 'unauthenticated') {

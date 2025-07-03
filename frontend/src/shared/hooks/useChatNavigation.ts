@@ -10,13 +10,11 @@ interface UseChatNavigationOptions {
 
 export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: UseChatNavigationOptions) => {
   const navigate = useNavigate();
-  const { 
-    currentSession, 
-    loadChat, 
-    createNewChat,
-    setCurrentSession,
-    isConnectedToRoom
-  } = useChatStore();
+  const currentSession = useChatStore((state) => state.currentSession);
+  const loadChat = useChatStore((state) => state.loadChat);
+  const createNewChat = useChatStore((state) => state.createNewChat);
+  const setCurrentSession = useChatStore((state) => state.setCurrentSession);
+  const isConnectedToRoom = useChatStore((state) => state.isConnectedToRoom);
 
   // Combined effect for chat navigation logic
   useEffect(() => {
@@ -27,15 +25,24 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
         return; // already loaded
       }
 
-      (async () => {
-        const ok = await loadChat(chatId);
-        if (ok) {
-          connectWebSocket();
-        } else {
+      // Use a separate function to avoid async in useEffect
+      const handleChatLoad = async () => {
+        try {
+          const ok = await loadChat(chatId);
+          if (ok) {
+            connectWebSocket();
+          } else {
+            navigate('/chat');
+            createNewChat();
+          }
+        } catch (error) {
+          console.error('Failed to load chat:', error);
           navigate('/chat');
           createNewChat();
         }
-      })();
+      };
+      
+      handleChatLoad();
     } else {
       // Handle new chat creation
       if (!currentSession || !currentSession.id.startsWith('chat_')) {

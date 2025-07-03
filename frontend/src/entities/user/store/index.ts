@@ -28,10 +28,6 @@ export const useAuthStore = create<AuthState>((set, get) => {
     setToken: (token: string) => {
       localStorage.setItem('auth_token', token);
       set({ token, status: 'loading' }); // Set status to loading, then fetch user
-      // Use setTimeout to avoid state updates during render
-      setTimeout(() => {
-        get().fetchUser();
-      }, 0);
     },
 
     fetchUser: async () => {
