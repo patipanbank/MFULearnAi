@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import useAuthStore from '../../entities/user/store';
 
