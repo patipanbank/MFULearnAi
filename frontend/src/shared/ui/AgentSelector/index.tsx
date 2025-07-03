@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { FiChevronDown, FiUser, FiCpu, FiCheck, FiRefreshCw, FiSettings, FiStar } from 'react-icons/fi';
 import useAgentStore, { type AgentConfig } from '../../stores/agentStore';
-import { useUIStore } from '../../stores/uiStore';
+import useUIStore from '../../stores/uiStore';
 
 const AgentSelector: React.FC = React.memo(() => {
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -60,28 +60,6 @@ const AgentSelector: React.FC = React.memo(() => {
       : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
   }, []);
 
-  // Memoize button content
-  const buttonContent = useMemo(() => {
-    if (selectedAgent) {
-      return (
-        <>
-          <div className="text-xs md:text-sm font-medium text-primary truncate">
-            {selectedAgent.name}
-          </div>
-          <div className="text-[10px] md:text-xs text-muted">
-            {selectedAgent.collectionNames?.length || 0} collections • {selectedAgent.tools?.filter((t: any) => t.enabled).length || 0} tools
-          </div>
-        </>
-      );
-    } else {
-      return (
-        <div className="text-xs md:text-sm text-muted">
-          {isLoadingAgents ? 'Loading agents...' : 'Select an agent'}
-        </div>
-      );
-    }
-  }, [selectedAgent, isLoadingAgents]);
-
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Agent Selector Button */}
@@ -92,7 +70,20 @@ const AgentSelector: React.FC = React.memo(() => {
         <FiUser className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-400" />
         
         <div className="flex-1 text-left">
-          {buttonContent}
+          {selectedAgent ? (
+            <>
+              <div className="text-xs md:text-sm font-medium text-primary truncate">
+                {selectedAgent.name}
+              </div>
+              <div className="text-[10px] md:text-xs text-muted">
+                {selectedAgent.collectionNames?.length || 0} collections • {selectedAgent.tools?.filter((t: any) => t.enabled).length || 0} tools
+              </div>
+            </>
+          ) : (
+            <div className="text-xs md:text-sm text-muted">
+              {isLoadingAgents ? 'Loading agents...' : 'Select an agent'}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-1 md:space-x-2">
@@ -216,6 +207,6 @@ const AgentSelector: React.FC = React.memo(() => {
       )}
     </div>
   );
-});
+};
 
 export default AgentSelector; 
