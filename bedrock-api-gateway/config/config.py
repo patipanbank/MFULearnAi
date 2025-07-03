@@ -29,12 +29,7 @@ class Settings(BaseSettings):  # type: ignore[misc]
     DEBUG: bool = Field(default=False, env="DEBUG")
     
     # Security
-    API_KEYS: List[str] = Field(default_factory=lambda: [
-        "mfu-web-app-2024-secure-key",
-        "mfu-mobile-app-2024-secure-key", 
-        "mfu-admin-panel-2024-secure-key",
-        "mfu-partner-api-2024-secure-key"
-    ], env="API_KEYS")
+    API_KEYS: str = Field(default="mfu-web-app-2024-secure-key,mfu-mobile-app-2024-secure-key,mfu-admin-panel-2024-secure-key,mfu-partner-api-2024-secure-key", env="API_KEYS")
     SECRET_KEY: str = Field(default="mfu-learn-ai-secret-key-2024-change-in-production", env="SECRET_KEY")
     
     # CORS settings
@@ -100,7 +95,7 @@ class Settings(BaseSettings):  # type: ignore[misc]
     ENABLE_DOCS: bool = Field(default=True, env="ENABLE_DOCS")
     ENABLE_REDOC: bool = Field(default=True, env="ENABLE_REDOC")
     
-    @field_validator('API_KEYS', 'CORS_ORIGINS', 'CORS_METHODS', 'CORS_HEADERS', mode='before')
+    @field_validator('CORS_ORIGINS', 'CORS_METHODS', 'CORS_HEADERS', mode='before')
     @classmethod
     def parse_comma_separated(cls, v):
         try:
@@ -124,10 +119,6 @@ class Settings(BaseSettings):  # type: ignore[misc]
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
-        # Parse API keys from environment if provided as string
-        if isinstance(self.API_KEYS, str):
-            self.API_KEYS = [key.strip() for key in self.API_KEYS.split(",") if key.strip()]
-        
         # Parse CORS origins if provided as string
         if isinstance(self.CORS_ORIGINS, str):
             self.CORS_ORIGINS = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
@@ -141,7 +132,7 @@ class Settings(BaseSettings):  # type: ignore[misc]
         errors = []
         
         # Check API keys
-        if not self.API_KEYS:
+        if not self.API_KEYS or not self.API_KEYS.strip():
             errors.append("API_KEYS must be provided in production")
         
         # Check AWS credentials
