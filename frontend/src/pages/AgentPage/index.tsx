@@ -8,20 +8,35 @@ import type { AgentConfig, AgentTemplate } from '../../shared/stores/agentStore'
 
 const AgentPage: React.FC = () => {
   // Store hooks
-  const agents = useAgentStore(state => state.agents);
-  const agentTemplates = useAgentStore(state => state.agentTemplates);
-  const showAgentModal = useAgentStore(state => state.showAgentModal);
-  const isEditingAgent = useAgentStore(state => state.isEditingAgent);
-  const createAgent = useAgentStore(state => state.createAgent);
-  const deleteAgent = useAgentStore(state => state.deleteAgent);
-  const selectAgent = useAgentStore(state => state.selectAgent);
-  const createAgentFromTemplate = useAgentStore(state => state.createAgentFromTemplate);
-  const setShowAgentModal = useAgentStore(state => state.setShowAgentModal);
-  const setEditingAgent = useAgentStore(state => state.setEditingAgent);
-  const fetchAgents = useAgentStore(state => state.fetchAgents);
-  const fetchTemplates = useAgentStore(state => state.fetchTemplates);
+  const {
+    agents,
+    agentTemplates,
+    showAgentModal,
+    isEditingAgent,
+    createAgent,
+    deleteAgent,
+    selectAgent,
+    createAgentFromTemplate,
+    setShowAgentModal,
+    setEditingAgent,
+    fetchAgents,
+    fetchTemplates
+  } = useAgentStore(state => ({
+    agents: state.agents,
+    agentTemplates: state.agentTemplates,
+    showAgentModal: state.showAgentModal,
+    isEditingAgent: state.isEditingAgent,
+    createAgent: state.createAgent,
+    deleteAgent: state.deleteAgent,
+    selectAgent: state.selectAgent,
+    createAgentFromTemplate: state.createAgentFromTemplate,
+    setShowAgentModal: state.setShowAgentModal,
+    setEditingAgent: state.setEditingAgent,
+    fetchAgents: state.fetchAgents,
+    fetchTemplates: state.fetchTemplates
+  }));
 
-  const addToast = useUIStore(state => state.addToast);
+  const { addToast } = useUIStore();
 
   // Local state
   const [searchQuery, setSearchQuery] = useState('');

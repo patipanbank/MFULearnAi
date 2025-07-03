@@ -23,11 +23,12 @@ const ChatPage: React.FC = () => {
     isLoading
   } = useChatStore();
   
-  const selectedAgent = useAgentStore(state => state.selectedAgent);
-  const fetchAgents = useAgentStore(state => state.fetchAgents);
+  const { selectedAgent, fetchAgents } = useAgentStore(state => ({
+    selectedAgent: state.selectedAgent,
+    fetchAgents: state.fetchAgents
+  }));
   
-  const setLoading = useUIStore(state => state.setLoading);
-  const addToast = useUIStore(state => state.addToast);
+  const { setLoading, addToast } = useUIStore();
   
   // Navigation
   const navigate = useNavigate();
