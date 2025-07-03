@@ -1,9 +1,9 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { FiChevronDown, FiUser, FiCpu, FiCheck, FiRefreshCw, FiSettings, FiStar } from 'react-icons/fi';
 import useAgentStore, { type AgentConfig } from '../../stores/agentStore';
 import useUIStore from '../../stores/uiStore';
 
-const AgentSelector: React.FC = () => {
+const AgentSelector: React.FC = React.memo(() => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
   const { 
@@ -17,44 +17,54 @@ const AgentSelector: React.FC = () => {
   const dropdownId = 'agent-selector';
   const isOpen = openDropdowns.has(dropdownId);
 
+  // Memoize event handlers
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      closeDropdown(dropdownId);
+    }
+  }, [closeDropdown, dropdownId]);
+
+  const handleAgentSelect = useCallback((agent: AgentConfig | null) => {
+    selectAgent(agent);
+    closeDropdown(dropdownId);
+  }, [selectAgent, closeDropdown, dropdownId]);
+
+  const handleRefresh = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await fetchAgents();
+  }, [fetchAgents]);
+
+  const handleToggleDropdown = useCallback(() => {
+    toggleDropdown(dropdownId);
+  }, [toggleDropdown, dropdownId]);
+
+  const handleManageAgents = useCallback(() => {
+    window.open('/agent', '_blank');
+  }, []);
+
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        closeDropdown(dropdownId);
-      }
-    };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [closeDropdown, dropdownId]);
+  }, [handleClickOutside]);
 
   // Fetch agents on mount
   useEffect(() => {
     fetchAgents();
-  }, [fetchAgents]);
+  }, []); // Remove store functions from dependencies
 
-  const handleAgentSelect = (agent: AgentConfig | null) => {
-    selectAgent(agent);
-    closeDropdown(dropdownId);
-  };
-
-  const handleRefresh = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await fetchAgents();
-  };
-
-  const getAgentTypeColor = (isPublic: boolean) => {
+  // Memoize utility functions
+  const getAgentTypeColor = useCallback((isPublic: boolean) => {
     return isPublic 
       ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
       : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
-  };
+  }, []);
 
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Agent Selector Button */}
       <button
-        onClick={() => toggleDropdown(dropdownId)}
+        onClick={handleToggleDropdown}
         className="flex items-center space-x-2 md:space-x-3 px-2 md:px-4 py-1.5 md:py-2 bg-secondary hover:bg-accent rounded-lg transition-colors duration-200 min-w-48 md:min-w-64"
       >
         <FiUser className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-400" />
@@ -185,7 +195,7 @@ const AgentSelector: React.FC = () => {
                 )}
               </div>
               <button
-                onClick={() => window.open('/agent', '_blank')}
+                onClick={handleManageAgents}
                 className="text-[10px] md:text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center space-x-0.5 md:space-x-1"
               >
                 <FiSettings className="h-2.5 w-2.5 md:h-3 md:w-3" />

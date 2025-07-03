@@ -73,7 +73,9 @@ export const useUIStore = create<UIState>((set, get) => ({
   // Global loading
   isLoading: false,
   loadingMessage: undefined,
-  setLoading: (loading, message) => set({ isLoading: loading, loadingMessage: message }),
+  setLoading: (loading, message) => {
+    set({ isLoading: loading, loadingMessage: message });
+  },
   
   // Toasts
   toasts: [],
@@ -98,11 +100,15 @@ export const useUIStore = create<UIState>((set, get) => ({
     }
   },
   
-  removeToast: (toastId) => set((state) => ({
-    toasts: state.toasts.filter(toast => toast.id !== toastId)
-  })),
+  removeToast: (toastId) => {
+    set((state) => ({
+      toasts: state.toasts.filter(toast => toast.id !== toastId)
+    }));
+  },
   
-  clearToasts: () => set({ toasts: [] }),
+  clearToasts: () => {
+    set({ toasts: [] });
+  },
   
   // Modals
   modals: [],
@@ -117,11 +123,15 @@ export const useUIStore = create<UIState>((set, get) => ({
     return id;
   },
   
-  closeModal: (modalId) => set((state) => ({
-    modals: state.modals.filter(modal => modal.id !== modalId)
-  })),
+  closeModal: (modalId) => {
+    set((state) => ({
+      modals: state.modals.filter(modal => modal.id !== modalId)
+    }));
+  },
   
-  closeAllModals: () => set({ modals: [] }),
+  closeAllModals: () => {
+    set({ modals: [] });
+  },
   
   // Notifications
   notifications: [],
@@ -142,87 +152,120 @@ export const useUIStore = create<UIState>((set, get) => ({
     }));
   },
   
-  markNotificationAsRead: (notificationId) => set((state) => {
-    const notification = state.notifications.find(n => n.id === notificationId);
-    if (!notification || notification.isRead) return state;
-    
-    return {
-      notifications: state.notifications.map(n =>
-        n.id === notificationId ? { ...n, isRead: true } : n
-      ),
-      unreadCount: Math.max(0, state.unreadCount - 1)
-    };
-  }),
+  markNotificationAsRead: (notificationId) => {
+    set((state) => {
+      const notification = state.notifications.find(n => n.id === notificationId);
+      if (!notification || notification.isRead) return state;
+      
+      return {
+        notifications: state.notifications.map(n =>
+          n.id === notificationId ? { ...n, isRead: true } : n
+        ),
+        unreadCount: Math.max(0, state.unreadCount - 1)
+      };
+    });
+  },
   
-  markAllNotificationsAsRead: () => set((state) => ({
-    notifications: state.notifications.map(n => ({ ...n, isRead: true })),
-    unreadCount: 0
-  })),
+  markAllNotificationsAsRead: () => {
+    set((state) => ({
+      notifications: state.notifications.map(n => ({ ...n, isRead: true })),
+      unreadCount: 0
+    }));
+  },
   
-  removeNotification: (notificationId) => set((state) => {
-    const notification = state.notifications.find(n => n.id === notificationId);
-    const unreadCountDelta = notification && !notification.isRead ? 1 : 0;
-    
-    return {
-      notifications: state.notifications.filter(n => n.id !== notificationId),
-      unreadCount: Math.max(0, state.unreadCount - unreadCountDelta)
-    };
-  }),
+  removeNotification: (notificationId) => {
+    set((state) => {
+      const notification = state.notifications.find(n => n.id === notificationId);
+      const unreadCountDelta = notification && !notification.isRead ? 1 : 0;
+      
+      return {
+        notifications: state.notifications.filter(n => n.id !== notificationId),
+        unreadCount: Math.max(0, state.unreadCount - unreadCountDelta)
+      };
+    });
+  },
   
-  clearNotifications: () => set({ notifications: [], unreadCount: 0 }),
+  clearNotifications: () => {
+    set({ notifications: [], unreadCount: 0 });
+  },
   
   // Dropdowns & Popovers
   openDropdowns: new Set(),
   
-  toggleDropdown: (dropdownId) => set((state) => {
-    const newSet = new Set(state.openDropdowns);
-    if (newSet.has(dropdownId)) {
+  toggleDropdown: (dropdownId) => {
+    set((state) => {
+      const newSet = new Set(state.openDropdowns);
+      if (newSet.has(dropdownId)) {
+        newSet.delete(dropdownId);
+      } else {
+        newSet.add(dropdownId);
+      }
+      return { openDropdowns: newSet };
+    });
+  },
+  
+  closeDropdown: (dropdownId) => {
+    set((state) => {
+      const newSet = new Set(state.openDropdowns);
       newSet.delete(dropdownId);
-    } else {
-      newSet.add(dropdownId);
-    }
-    return { openDropdowns: newSet };
-  }),
+      return { openDropdowns: newSet };
+    });
+  },
   
-  closeDropdown: (dropdownId) => set((state) => {
-    const newSet = new Set(state.openDropdowns);
-    newSet.delete(dropdownId);
-    return { openDropdowns: newSet };
-  }),
-  
-  closeAllDropdowns: () => set({ openDropdowns: new Set() }),
+  closeAllDropdowns: () => {
+    set({ openDropdowns: new Set() });
+  },
   
   // File upload
   uploadProgress: {},
   
-  setUploadProgress: (fileId, progress) => set((state) => ({
-    uploadProgress: {
-      ...state.uploadProgress,
-      [fileId]: Math.max(0, Math.min(100, progress))
-    }
-  })),
+  setUploadProgress: (fileId, progress) => {
+    set((state) => ({
+      uploadProgress: {
+        ...state.uploadProgress,
+        [fileId]: progress
+      }
+    }));
+  },
   
-  removeUploadProgress: (fileId) => set((state) => {
-    const { [fileId]: removed, ...rest } = state.uploadProgress;
-    return { uploadProgress: rest };
-  })
+  removeUploadProgress: (fileId) => {
+    set((state) => {
+      const newProgress = { ...state.uploadProgress };
+      delete newProgress[fileId];
+      return { uploadProgress: newProgress };
+    });
+  },
 }));
 
-// Helper functions for common toast patterns
+// Helper functions for common toast operations
 export const showSuccessToast = (title: string, message?: string) => {
-  useUIStore.getState().addToast({ type: 'success', title, message });
+  useUIStore.getState().addToast({
+    type: 'success',
+    title,
+    message
+  });
 };
 
 export const showErrorToast = (title: string, message?: string) => {
-  useUIStore.getState().addToast({ type: 'error', title, message });
+  useUIStore.getState().addToast({
+    type: 'error',
+    title,
+    message
+  });
 };
 
 export const showWarningToast = (title: string, message?: string) => {
-  useUIStore.getState().addToast({ type: 'warning', title, message });
+  useUIStore.getState().addToast({
+    type: 'warning',
+    title,
+    message
+  });
 };
 
 export const showInfoToast = (title: string, message?: string) => {
-  useUIStore.getState().addToast({ type: 'info', title, message });
-};
-
-export default useUIStore; 
+  useUIStore.getState().addToast({
+    type: 'info',
+    title,
+    message
+  });
+}; 

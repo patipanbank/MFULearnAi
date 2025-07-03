@@ -31,12 +31,30 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   sidebarHovered: false,
   isMobile: false,
   mobileMenuOpen: false,
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-  setSidebarHovered: (hovered) => set({ sidebarHovered: hovered }),
-  setIsMobile: (mobile) => set({ isMobile: mobile }),
-  setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
-  toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
-  toggleMobileMenu: () => set({ mobileMenuOpen: !get().mobileMenuOpen }),
+  
+  // Memoized setters to prevent re-creation
+  setSidebarCollapsed: (collapsed) => {
+    set({ sidebarCollapsed: collapsed });
+  },
+  setSidebarHovered: (hovered) => {
+    set({ sidebarHovered: hovered });
+  },
+  setIsMobile: (mobile) => {
+    set({ isMobile: mobile });
+  },
+  setMobileMenuOpen: (open) => {
+    set({ mobileMenuOpen: open });
+  },
+  
+  // Memoized toggles
+  toggleSidebar: () => {
+    const current = get().sidebarCollapsed;
+    set({ sidebarCollapsed: !current });
+  },
+  toggleMobileMenu: () => {
+    const current = get().mobileMenuOpen;
+    set({ mobileMenuOpen: !current });
+  },
   
   // Theme state
   theme: 'light',
