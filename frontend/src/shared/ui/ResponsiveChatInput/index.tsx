@@ -290,9 +290,9 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
             {/* Send Button */}
             <button
               onClick={handleSendMessage}
-              disabled={true}
+              disabled={disabled || isTyping || !message.trim()}
               className={getButtonClasses('send')}
-              title="Send message (currently disabled)"
+              title={disabled || isTyping ? "Cannot send message" : "Send message"}
             >
               <FiSend className="h-5 w-5" />
               <span className="sr-only">Send</span>
