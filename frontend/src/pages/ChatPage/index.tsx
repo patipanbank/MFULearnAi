@@ -1,7 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
-import { useAgentActions } from '../../shared/stores/agentStore';
 import type { ChatMessage } from '../../shared/stores/chatStore';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
@@ -24,8 +23,10 @@ const ChatPage: React.FC = () => {
     isLoading
   } = useChatStore();
   
-  const { selectedAgent } = useAgentStore();
-  const { fetchAgents } = useAgentActions();
+  const { selectedAgent, fetchAgents } = useAgentStore(state => ({
+    selectedAgent: state.selectedAgent,
+    fetchAgents: state.fetchAgents
+  }));
   
   const { setLoading, addToast } = useUIStore();
   
@@ -65,7 +66,6 @@ const ChatPage: React.FC = () => {
       setLoading(true, 'Loading agents...');
       try {
         await fetchAgents();
-        // Cleanup placeholder chats (id not ObjectId) once on mount
         setChatHistory(chatHistory.filter((c) => c.id && c.id.length === 24));
       } catch (error) {
         console.error('Failed to initialize data:', error);

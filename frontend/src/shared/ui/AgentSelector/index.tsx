@@ -1,7 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { FiChevronDown, FiUser, FiCpu, FiCheck, FiRefreshCw, FiSettings, FiStar } from 'react-icons/fi';
 import { useAgentStore, useUIStore } from '../../stores';
-import { useAgentActions } from '../../stores/agentStore';
 import type { AgentConfig } from '../../stores/agentStore';
 
 const AgentSelector: React.FC = () => {
@@ -11,9 +10,15 @@ const AgentSelector: React.FC = () => {
     agents, 
     selectedAgent, 
     isLoadingAgents,
-    selectAgent
-  } = useAgentStore();
-  const { fetchAgents } = useAgentActions();
+    selectAgent,
+    fetchAgents
+  } = useAgentStore(state => ({
+    agents: state.agents,
+    selectedAgent: state.selectedAgent,
+    isLoadingAgents: state.isLoadingAgents,
+    selectAgent: state.selectAgent,
+    fetchAgents: state.fetchAgents
+  }));
 
   const dropdownId = 'agent-selector';
   const isOpen = openDropdowns.has(dropdownId);

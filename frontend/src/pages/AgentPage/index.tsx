@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiSearch, FiFilter } from 'react-icons/fi';
 import { useAgentStore, useUIStore } from '../../shared/stores';
-import { useAgentActions } from '../../shared/stores/agentStore';
 import AgentCard from '../../shared/ui/AgentCard';
 import AgentTemplateCard from '../../shared/ui/AgentTemplateCard';
 import AgentModal from '../../shared/ui/AgentModal';
@@ -19,9 +18,23 @@ const AgentPage: React.FC = () => {
     selectAgent,
     createAgentFromTemplate,
     setShowAgentModal,
-    setEditingAgent
-  } = useAgentStore();
-  const { fetchAgents, fetchTemplates } = useAgentActions();
+    setEditingAgent,
+    fetchAgents,
+    fetchTemplates
+  } = useAgentStore(state => ({
+    agents: state.agents,
+    agentTemplates: state.agentTemplates,
+    showAgentModal: state.showAgentModal,
+    isEditingAgent: state.isEditingAgent,
+    createAgent: state.createAgent,
+    deleteAgent: state.deleteAgent,
+    selectAgent: state.selectAgent,
+    createAgentFromTemplate: state.createAgentFromTemplate,
+    setShowAgentModal: state.setShowAgentModal,
+    setEditingAgent: state.setEditingAgent,
+    fetchAgents: state.fetchAgents,
+    fetchTemplates: state.fetchTemplates
+  }));
 
   const { addToast } = useUIStore();
 
