@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
 import type { ChatMessage } from '../../shared/stores/chatStore';
-import { config } from '../../config/config';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
@@ -48,7 +47,7 @@ const ChatPage: React.FC = () => {
     handleRoomCreated,
     abortStreaming,
     isTokenExpired,
-    tryRefreshAndReconnect
+    tryRefreshToken
   } = useWebSocket({ chatId, isInChatRoom });
 
   // Chat navigation is handled by useChatNavigation hook
@@ -89,32 +88,39 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     let reconnectTimer: number;
     
-    if (wsStatus === 'disconnected' && token && currentSession && isInChatRoom) {
-      // Check if token is still valid before attempting reconnect
-      if (isTokenExpired(token)) {
-        console.log('Token expired, not attempting reconnect');
-        addToast({
-          type: 'warning',
-          title: 'Session Expired',
-          message: 'Your session has expired. Please log in again to continue chatting.',
-          duration: 0
-        });
-        return;
+    const handleReconnect = async () => {
+      if (wsStatus === 'disconnected' && token && currentSession && isInChatRoom) {
+        // Check if token is still valid before attempting reconnect
+        if (isTokenExpired(token)) {
+          console.log('Token expired, attempting refresh...');
+          const refreshSuccess = await tryRefreshToken();
+          if (!refreshSuccess) {
+            addToast({
+              type: 'warning',
+              title: 'Session Expired',
+              message: 'Your session has expired. Please log in again to continue chatting.',
+              duration: 0
+            });
+            return;
+          }
+        }
+        
+        // Try to reconnect after 3 seconds
+        reconnectTimer = window.setTimeout(() => {
+          console.log('Attempting to reconnect...');
+          connectWebSocket();
+        }, 3000);
       }
-      
-      // Try to reconnect after 3 seconds
-      reconnectTimer = window.setTimeout(() => {
-        console.log('Attempting to reconnect...');
-        connectWebSocket();
-      }, 3000);
-    }
+    };
+    
+    handleReconnect();
     
     return () => {
       if (reconnectTimer) {
         window.clearTimeout(reconnectTimer);
       }
     };
-  }, [wsStatus, token, currentSession, isInChatRoom, isTokenExpired, addToast, connectWebSocket]);
+  }, [wsStatus, token, currentSession, isInChatRoom, isTokenExpired, addToast, connectWebSocket, tryRefreshToken]);
 
   // Handle room creation (when first message is sent)
   const handleRoomCreatedWithNavigate = useCallback((roomId: string) => {

@@ -18,7 +18,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     setIsConnectedToRoom,
     setIsRoomCreating,
     setCurrentSession,
-    setChatHistory
+    setChatHistory,
+    chatHistory
   } = useChatStore();
   const { addToast } = useUIStore();
 
@@ -36,6 +37,10 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   useEffect(() => {
     currentSessionRef.current = currentSession;
   }, [currentSession]);
+
+  useEffect(() => {
+    chatHistoryRef.current = chatHistory;
+  }, [chatHistory]);
 
   // Helper function to check if token is expired
   const isTokenExpired = useCallback((token: string): boolean => {
@@ -84,21 +89,13 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     setIsRoomCreating(false);
   }, [setCurrentSession, setChatHistory, setIsRoomCreating]);
 
-  // Helper function to try token refresh and reconnect
-  const tryRefreshAndReconnect = useCallback(async (): Promise<boolean> => {
+  // Helper function to try token refresh
+  const tryRefreshToken = useCallback(async (): Promise<boolean> => {
     try {
       console.log('Attempting to refresh token...');
       const newToken = await refreshToken();
       if (newToken) {
-        console.log('Token refreshed successfully, reconnecting WebSocket...');
-        setTimeout(() => {
-          // Use a simple function call instead of connectWebSocket to avoid circular dependency
-          if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
-          }
-          // The parent component will handle reconnection
-        }, 500);
+        console.log('Token refreshed successfully');
         return true;
       }
     } catch (error) {
@@ -121,7 +118,15 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     
     if (isTokenExpired(token)) {
       console.log('Token expired, attempting refresh...');
-      tryRefreshAndReconnect();
+      tryRefreshToken().then((success) => {
+        if (success) {
+          // Close existing connection and let parent handle reconnection
+          if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+          }
+        }
+      });
       return;
     }
     
@@ -239,7 +244,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         console.log('WebSocket connection failed (code 1006)', { reason: event.reason });
         if (token && isTokenExpired(token)) {
           console.log('Connection failed due to expired token, attempting refresh...');
-          tryRefreshAndReconnect();
+          tryRefreshToken();
         } else {
           setTimeout(() => {
             console.log('Attempting to reconnect...');
@@ -256,7 +261,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         });
       }
     };
-  }, [token, currentSession, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, handleRoomCreated, abortStreaming, addToast, tryRefreshAndReconnect]);
+  }, [token, currentSession, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken]);
 
   // Cleanup WebSocket on unmount
   useEffect(() => {
@@ -275,6 +280,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     handleRoomCreated,
     abortStreaming,
     isTokenExpired,
-    tryRefreshAndReconnect
+    tryRefreshToken
   };
 }; 
