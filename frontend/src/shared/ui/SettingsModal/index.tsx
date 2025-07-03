@@ -40,8 +40,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     setCollectionsLoading(true);
     try {
       const loadedCollections = await api.get<Collection[]>('/collections/');
-      setCollections(loadedCollections);
-      console.log(`Successfully loaded ${loadedCollections.length} collections`);
+              setCollections(loadedCollections);
     } catch (error: any) {
       console.warn('Failed to load collections:', error);
       setCollections([]);

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { FiChevronDown, FiUser, FiCpu, FiCheck, FiRefreshCw, FiSettings, FiStar } from 'react-icons/fi';
-import useAgentStore, { type AgentConfig } from '../../stores/agentStore';
-import useUIStore from '../../stores/uiStore';
+import { useAgentStore, useUIStore } from '../../stores';
+import type { AgentConfig } from '../../stores/agentStore';
 
 const AgentSelector: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);

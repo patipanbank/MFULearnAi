@@ -1,5 +1,5 @@
 import React from 'react';
-import useUIStore from '../../stores/uiStore';
+import { useUIStore } from '../../stores';
 
 const Loading: React.FC = () => {
   const { isLoading } = useUIStore();

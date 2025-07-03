@@ -92,11 +92,8 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   // Handle send message with room creation logic
   const handleSendMessage = () => {
     if (!message.trim()) {
-      console.log('[INPUT] Empty message, skip');
       return;
     }
-
-    console.log('[INPUT] handleSendMessage fired', { isInChatRoom, hasMessages, disabled });
 
     // Under the new lazy-room-create flow, front-end no longer generates a
     // temporary chatId.  Instead, ChatPage will send a `create_room` event and

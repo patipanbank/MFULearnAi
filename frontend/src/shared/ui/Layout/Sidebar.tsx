@@ -1,20 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  FiMenu, 
-  FiSearch,
-  FiPlus, 
+  FiSearch, 
+  FiUser, 
   FiSettings,
-  FiSliders,
-  FiUser,
+  FiMenu,
+  FiPlus,
   FiDatabase,
+  FiSliders,
   FiBookmark,
   FiTrash2
 } from 'react-icons/fi';
+import { useLayoutStore, useUIStore, useChatStore } from '../../stores';
 import { cn, formatDate } from '../../lib/utils';
-import useLayoutStore from '../../stores/layoutStore';
-import useUIStore from '../../stores/uiStore';
-import { useChatStore } from '../../stores/chatStore';
 import PreferencesModal from '../PreferencesModal';
 
 // Add custom icon styles
@@ -116,7 +114,8 @@ const Sidebar: React.FC = () => {
           setPreferencesModalOpen(true);
           break;
         default:
-          console.log(`Open ${item.id} modal`);
+          // Handle other modals if needed
+          break;
       }
     }
   };

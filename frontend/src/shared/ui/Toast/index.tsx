@@ -1,6 +1,6 @@
 import React from 'react';
 import { FiX, FiCheck, FiAlertTriangle, FiInfo, FiAlertCircle } from 'react-icons/fi';
-import { useUIStore } from '../../stores/uiStore';
+import { useUIStore } from '../../stores';
 
 const Toast: React.FC = () => {
   const { toasts, removeToast } = useUIStore();
