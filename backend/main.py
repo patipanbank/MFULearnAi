@@ -13,8 +13,10 @@ from routes import (
     collection as collection_router,
     chat as chat_router,
     agents as agents_router,
-    upload as upload_router
+    upload as upload_router,
+    bedrock as bedrock_router
 )
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI()
 
@@ -86,6 +88,10 @@ app.include_router(collection_router.router, prefix="/api/collections")
 app.include_router(chat_router.router, prefix="/api/chat")
 app.include_router(agents_router.router, prefix="/api/agents")
 app.include_router(upload_router.router, prefix="/api")
+app.include_router(bedrock_router.router, prefix="/api/bedrock")
+
+# Expose Prometheus metrics
+Instrumentator().instrument(app).expose(app, include_in_schema=False, endpoint="/metrics")
 
 # WebSocket routes are already included in chat_router with /api prefix
 # The nginx /ws location proxy_pass will handle the routing

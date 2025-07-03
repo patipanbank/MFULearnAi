@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  bedrock-api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bedrock-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - PORT=8000
+      - LOG_LEVEL=info
+      
+      # AWS Configuration
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_BEDROCK_MODEL_ID=${AWS_BEDROCK_MODEL_ID:-anthropic.claude-3-5-sonnet-20240620-v1:0}
+      
+      # API Gateway Configuration
+      - API_KEYS=${API_KEYS}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      
+      # Logging Configuration
+      - LOG_REQUESTS=${LOG_REQUESTS:-true}
+      - LOG_RESPONSES=${LOG_RESPONSES:-false}
+      
+      # Optional: Redis for distributed rate limiting
+      - REDIS_URL=${REDIS_URL:-}
+      
+      # Optional: MongoDB for usage tracking
+      - MONGODB_URI=${MONGODB_URI:-}
+      
+    networks:
+      - bedrock-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Redis for distributed rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: bedrock-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - bedrock-network
+    profiles:
+      - with-redis
+
+  # Optional: MongoDB for usage tracking
+  mongodb:
+    image: mongo:7
+    container_name: bedrock-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-password}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - bedrock-network
+    profiles:
+      - with-mongodb
+
+  # Optional: Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: bedrock-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - bedrock-api-gateway
+    networks:
+      - bedrock-network
+    profiles:
+      - with-nginx
+
+networks:
+  bedrock-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local 

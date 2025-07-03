@@ -151,11 +151,66 @@ services:
       - mfulearnai
     restart: unless-stopped
 
+  bedrock-gateway:
+    build:
+      context: ./bedrock-api-gateway
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - mfulearnai
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - mfulearnai
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.45
+    container_name: mongodb_exporter
+    environment:
+      - MONGODB_URI=mongodb://root:1234@db:27017/admin?authSource=admin
+    networks:
+      - mfulearnai
+    ports:
+      - "9216:9216"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.0.15
+    container_name: grafana
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=changeme123
+      - GF_INSTALL_PLUGINS=grafana-mongodb-datasource
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./monitoring/provisioning/:/etc/grafana/provisioning/
+    networks:
+      - mfulearnai
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
 volumes:
   data:
   redis:
   chroma:
   minio-data:
+  grafana-storage:
 
 networks:
   mfulearnai:
