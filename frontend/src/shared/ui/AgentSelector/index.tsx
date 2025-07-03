@@ -15,7 +15,7 @@ const AgentSelector: React.FC = () => {
 
   // เรียก useAgentStore แค่ครั้งเดียว
   const agentStore = useAgentStore(state => state);
-  const agents = agentStore.agents;
+  const agents = agentStore.agents || [];
   const selectedAgent = agentStore.selectedAgent;
   const isLoadingAgents = agentStore.isLoadingAgents;
   const selectAgent = agentStore.selectAgent;
@@ -47,7 +47,7 @@ const AgentSelector: React.FC = () => {
       }
     };
     loadAgents();
-  }, []); // Empty dependency array to run only once
+  }, [fetchAgents]); // Add fetchAgents as dependency
 
   const handleAgentSelect = (agent: AgentConfig | null) => {
     try {
@@ -90,6 +90,16 @@ const AgentSelector: React.FC = () => {
         >
           Retry
         </button>
+      </div>
+    );
+  }
+
+  // Safety check for undefined state
+  if (!agentStore || !uiStore) {
+    return (
+      <div className="flex items-center space-x-2 px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+        <FiUser className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+        <span className="text-sm text-yellow-600 dark:text-yellow-400">Loading stores...</span>
       </div>
     );
   }
