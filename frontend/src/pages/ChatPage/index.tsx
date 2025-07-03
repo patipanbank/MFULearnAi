@@ -4,7 +4,7 @@ import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../sha
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 
 const ChatPage: React.FC = React.memo(() => {
-  const { user } = useAuthStore();
+  const { user, refreshToken } = useAuthStore();
   const { 
     currentSession, 
     createNewChat,
@@ -29,7 +29,7 @@ const ChatPage: React.FC = React.memo(() => {
   // Local state
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<Array<{ url: string; mediaType: string }>>([]);
-  const [isConnectedToRoom] = useState(false);
+  const [isConnectedToRoom, setIsConnectedToRoom] = useState(false);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -164,7 +164,7 @@ const ChatPage: React.FC = React.memo(() => {
   }, []);
 
   // Memoize image upload handler
-  const handleImageUpload = useCallback(async () => {
+  const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     // Implementation will be added here
     console.log('Image upload logic would go here');
   }, []);
