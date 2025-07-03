@@ -98,7 +98,8 @@ interface AgentStore {
 
 const useAgentStore = create<AgentStore>()(
   devtools(
-    (set, get) => ({
+    persist(
+      (set, get) => ({
         // Initial State
         agents: [],
         selectedAgent: null,
@@ -305,7 +306,8 @@ const useAgentStore = create<AgentStore>()(
         // UI Actions
         setEditingAgent: (editing) => set({ isEditingAgent: editing }),
         setShowAgentModal: (show) => set({ showAgentModal: show }),
-      })
+      }),
+      { name: 'agent-store' }
     )
   )
 );
