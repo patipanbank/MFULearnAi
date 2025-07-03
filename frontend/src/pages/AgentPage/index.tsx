@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiSearch, FiFilter } from 'react-icons/fi';
 import { useAgentStore, useUIStore } from '../../shared/stores';
+import { useAgentActions } from '../../shared/stores/agentStore';
 import AgentCard from '../../shared/ui/AgentCard';
 import AgentTemplateCard from '../../shared/ui/AgentTemplateCard';
 import AgentModal from '../../shared/ui/AgentModal';
@@ -13,8 +14,6 @@ const AgentPage: React.FC = () => {
     agentTemplates,
     showAgentModal,
     isEditingAgent,
-    fetchAgents,
-    fetchTemplates,
     createAgent,
     deleteAgent,
     selectAgent,
@@ -22,6 +21,7 @@ const AgentPage: React.FC = () => {
     setShowAgentModal,
     setEditingAgent
   } = useAgentStore();
+  const { fetchAgents, fetchTemplates } = useAgentActions();
 
   const { addToast } = useUIStore();
 
@@ -34,7 +34,7 @@ const AgentPage: React.FC = () => {
   useEffect(() => {
     fetchAgents();
     fetchTemplates();
-  }, [fetchAgents, fetchTemplates]);
+  }, []);
 
   // Filter agents and templates
   const filteredAgents = agents.filter(agent => {

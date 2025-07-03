@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
+import { useAgentActions } from '../../shared/stores/agentStore';
 import type { ChatMessage } from '../../shared/stores/chatStore';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { api } from '../../shared/lib/api';
@@ -23,10 +24,8 @@ const ChatPage: React.FC = () => {
     isLoading
   } = useChatStore();
   
-  const { 
-    selectedAgent,
-    fetchAgents
-  } = useAgentStore();
+  const { selectedAgent } = useAgentStore();
+  const { fetchAgents } = useAgentActions();
   
   const { setLoading, addToast } = useUIStore();
   
@@ -79,9 +78,8 @@ const ChatPage: React.FC = () => {
         setLoading(false);
       }
     };
-    
     initializeData();
-  }, [fetchAgents, setLoading, addToast, setChatHistory, chatHistory]);
+  }, []);
 
   // Auto-reconnect when disconnected (but only if token is still valid)
   useEffect(() => {

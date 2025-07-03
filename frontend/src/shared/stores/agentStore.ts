@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 import { showSuccessToast, showErrorToast } from './uiStore';
+import { shallow } from 'zustand/shallow';
 
 // Types
 export interface AgentTool {
@@ -306,5 +307,13 @@ const useAgentStore = create<AgentStore>()(
     )
   )
 );
+
+// Custom hook for memoized actions
+export const useAgentActions = () => {
+  return useAgentStore((state) => ({
+    fetchAgents: state.fetchAgents,
+    fetchTemplates: state.fetchTemplates
+  }));
+};
 
 export default useAgentStore; 
