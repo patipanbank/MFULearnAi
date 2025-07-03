@@ -147,3 +147,37 @@ async def delete_documents_from_a_collection(
         return {"message": f"{len(document_ids)} documents deleted successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete documents: {e}") 
+
+@router.get("/analytics")
+async def get_collection_analytics(
+    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
+):
+    """Get analytics for all collections"""
+    try:
+        collections = await collection_service.get_all_collections()
+        
+        total_collections = len(collections)
+        total_documents = 0
+        total_size = 0
+        
+        # Get document counts and sizes from ChromaDB
+        for collection in collections:
+            try:
+                documents = await chroma_service.get_documents(collection.name, limit=1, offset=0)
+                total_documents += documents.get("total", 0)
+                
+                # Estimate size (rough calculation)
+                # Each document typically has metadata and embedding
+                # This is a simplified calculation
+                total_size += documents.get("total", 0) * 1024  # 1KB per document estimate
+            except Exception as e:
+                print(f"Error getting analytics for collection {collection.name}: {e}")
+                continue
+        
+        return {
+            "totalCollections": total_collections,
+            "totalDocuments": total_documents,
+            "totalSize": total_size
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics: {e}") 
