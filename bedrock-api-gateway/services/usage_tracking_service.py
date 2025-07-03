@@ -9,11 +9,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 import json
 
-# Add current directory to Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from config.config import settings
-from models.usage import UsageRecord, ApiKeyUsage, DailyUsageStats, SystemMetrics
+from .models import UsageRecord, ApiKeyUsage, DailyUsageStats, SystemMetrics
 
 logger = logging.getLogger(__name__)
 
