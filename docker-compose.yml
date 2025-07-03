@@ -163,7 +163,7 @@ services:
     networks:
       - mfulearnai
     ports:
-      - "8000:8000"
+      - "8001:8000"  # Changed to avoid conflict with ChromaDB
     restart: unless-stopped
 
   prometheus:
