@@ -1,7 +1,8 @@
 # pyright: ignore-all
 
 import os
-from pydantic import BaseSettings, Field as _PydanticField
+from pydantic_settings import BaseSettings
+from pydantic import Field as _PydanticField
 from typing import List, Optional, Any
 
 # ---- Type-checker shim ----
