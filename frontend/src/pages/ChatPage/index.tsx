@@ -18,7 +18,6 @@ const ChatPage: React.FC = () => {
     addMessage,
     wsStatus,
     isTyping,
-    chatHistory,
     setChatHistory,
     isLoading
   } = useChatStore();
