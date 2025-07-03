@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import AuthGuard from './providers/AuthGuard';
 import Layout from '../shared/ui/Layout';

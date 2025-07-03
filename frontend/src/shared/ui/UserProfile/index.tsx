@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { FiLogOut } from 'react-icons/fi';
 import useAuthStore from '../../../entities/user/store';
-import useUIStore from '../../stores/uiStore';
+import { useUIStore } from '../../stores/uiStore';
 
 const UserProfile: React.FC = React.memo(() => {
   const dropdownRef = useRef<HTMLDivElement>(null);

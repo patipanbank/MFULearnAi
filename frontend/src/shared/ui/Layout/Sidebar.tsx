@@ -1,19 +1,20 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  FiMenu, 
-  FiSearch,
-  FiPlus, 
+  FiHome, 
+  FiMessageSquare, 
+  FiSearch, 
+  FiBookOpen, 
+  FiUser, 
   FiSettings,
-  FiSliders,
-  FiUser,
-  FiDatabase,
-  FiBookmark,
-  FiTrash2
+  FiChevronLeft,
+  FiChevronRight,
+  FiLogOut
 } from 'react-icons/fi';
-import { cn, formatDate } from '../../lib/utils';
 import useLayoutStore from '../../stores/layoutStore';
-import useUIStore from '../../stores/uiStore';
+import { useUIStore } from '../../stores/uiStore';
+import { useAuthStore } from '../../stores';
+import { cn } from '../../lib/utils';
 import { useChatStore } from '../../stores/chatStore';
 import PreferencesModal from '../PreferencesModal';
 

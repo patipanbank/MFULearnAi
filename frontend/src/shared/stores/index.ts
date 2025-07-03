@@ -3,7 +3,7 @@ export { default as useAuthStore } from '../../entities/user/store';
 
 // Layout & UI Management  
 export { default as useLayoutStore } from './layoutStore';
-export { default as useUIStore } from './uiStore';
+export { useUIStore } from './uiStore';
 
 // Chat & Communication
 export { default as useChatStore } from './chatStore';
