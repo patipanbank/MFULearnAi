@@ -176,6 +176,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   // Actions
   createNewChat: () => {
+    // Check if we already have a valid new chat session
+    const state = get();
+    if (state.currentSession && 
+        state.currentSession.id.startsWith('chat_') && 
+        state.currentSession.messages.length === 0) {
+      console.log('ChatStore: Already have a valid new chat session, skipping creation');
+      return state.currentSession;
+    }
+    
     const newSession: ChatSession = {
       id: crypto.randomUUID ? crypto.randomUUID() : `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: 'New Chat',
@@ -185,6 +194,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       updatedAt: new Date()
     };
     
+    console.log('ChatStore: Creating new chat session:', newSession.id);
     set({ currentSession: newSession });
     return newSession;
   },
