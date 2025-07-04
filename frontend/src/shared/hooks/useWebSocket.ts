@@ -39,6 +39,20 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     currentSessionRef.current = currentSession;
   }, [currentSession]);
 
+  // แยก effect สำหรับการส่ง join_room
+  useEffect(() => {
+    if (currentSession && isInChatRoom && chatId && currentSession.id === chatId && currentSession.messages.length > 0) {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        // ตรวจสอบว่าได้ส่ง join_room แล้วหรือไม่
+        const hasJoined = useChatStore.getState().isConnectedToRoom;
+        if (!hasJoined) {
+          console.log('WebSocket: Sending join_room after session update');
+          wsRef.current.send(JSON.stringify({ type: 'join_room', chatId }));
+        }
+      }
+    }
+  }, [currentSession?.id, isInChatRoom, chatId]);
+
   useLayoutEffect(() => {
     chatHistoryRef.current = chatHistory;
   }, [chatHistory]);
@@ -106,13 +120,19 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
 
   // WebSocket connection management
   const connectWebSocket = useCallback(() => {
+    console.log('connectWebSocket called', { token: !!token, currentSession: !!currentSession, wsRef: !!wsRef.current });
+    
     if (
       !token ||
-      !currentSession ||
       (wsRef.current &&
         (wsRef.current.readyState === WebSocket.OPEN ||
          wsRef.current.readyState === WebSocket.CONNECTING))
     ) {
+      console.log('connectWebSocket: Skipping connection', { 
+        noToken: !token, 
+        wsOpen: wsRef.current?.readyState === WebSocket.OPEN,
+        wsConnecting: wsRef.current?.readyState === WebSocket.CONNECTING 
+      });
       return;
     }
     
@@ -130,32 +150,69 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       return;
     }
     
+    console.log('connectWebSocket: Starting connection to', config.wsUrl);
     setWsStatus('connecting');
+    setIsConnectedToRoom(false); // Reset connection state
     
     let wsUrl = `${config.wsUrl}?token=${token}`;
     if (window.location.hostname === 'localhost') {
       wsUrl = `ws://localhost/ws?token=${token}`;
     }
     
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    console.log('connectWebSocket: Final WebSocket URL', wsUrl);
+    
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('connectWebSocket: Failed to create WebSocket', error);
+      setWsStatus('error');
+      setIsConnectedToRoom(false);
+      addToast({
+        type: 'error',
+        title: 'Connection Error',
+        message: 'Failed to create WebSocket connection',
+        duration: 5000
+      });
+      return;
+    }
     
     ws.onopen = () => {
       console.log('WebSocket connected');
       setWsStatus('connected');
-      setIsConnectedToRoom(true);
+      setIsConnectedToRoom(false); // จะถูก set เป็น true เมื่อ join room สำเร็จ
       
       if (isInChatRoom && chatId) {
-        console.log('WebSocket: Joining room', chatId);
-        ws.send(JSON.stringify({ type: 'join_room', chatId }));
+        // ตรวจสอบว่า currentSession ถูกโหลดแล้วหรือไม่
+        const session = currentSessionRef.current;
+        if (session && session.id === chatId && session.messages.length > 0) {
+          console.log('WebSocket: Joining room', chatId);
+          ws.send(JSON.stringify({ type: 'join_room', chatId }));
+        } else {
+          console.log('WebSocket: Chat not loaded yet, waiting for loadChat to complete');
+        }
       }
       
       console.log('[CHAT] WebSocket OPEN – pending', pendingQueueRef.current.length);
-      pendingQueueRef.current.forEach((p) => {
-        console.log('WebSocket: Sending pending message', p);
-        ws.send(JSON.stringify(p));
-      });
+      // ส่ง pending messages ตามลำดับ
+      const pendingMessages = [...pendingQueueRef.current];
       pendingQueueRef.current = [];
+      
+      pendingMessages.forEach((p) => {
+        console.log('WebSocket: Sending pending message', p);
+        try {
+          // ตรวจสอบว่า message มี chatId หรือไม่
+          if (p.type === 'message' && !p.chatId && chatId) {
+            p.chatId = chatId;
+          }
+          ws.send(JSON.stringify(p));
+        } catch (error) {
+          console.error('WebSocket: Failed to send pending message', error);
+          // เก็บไว้ใน queue อีกครั้ง
+          pendingQueueRef.current.push(p);
+        }
+      });
     };
     
     ws.onmessage = (event) => {
@@ -181,6 +238,23 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
             };
             addMessage(assistantMsg);
           }
+        } else if (data.type === 'error') {
+          console.error('WebSocket: Server error', data.data);
+          addToast({
+            type: 'error',
+            title: 'Server Error',
+            message: data.data || 'An error occurred on the server',
+            duration: 5000
+          });
+          // อาจจะต้อง disconnect หรือ retry ตามประเภทของ error
+        } else if (data.type === 'accepted') {
+          console.log('WebSocket: Message accepted by server', data.data);
+          // Message ถูก server รับแล้ว
+          // อาจจะเพิ่ม loading state หรือ confirmation ได้ที่นี่
+        } else if (data.type === 'room_joined') {
+          console.log('WebSocket: Successfully joined room', data.data.chatId);
+          setIsConnectedToRoom(true);
+          // อาจจะเพิ่มการแสดง toast หรือ update UI ได้ที่นี่
         } else if (data.type === 'room_created') {
           console.log('WebSocket: Room created', data.data.chatId);
           handleRoomCreated(data.data.chatId);
@@ -216,14 +290,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
               isStreaming: false
             });
           }
-        } else if (data.type === 'error') {
-          console.error('WebSocket error:', data.data);
-          addToast({
-            type: 'error',
-            title: 'Chat Error',
-            message: data.data
-          });
-          abortStreaming('ERROR');
         } else {
           console.debug('WS unhandled event', data);
         }
@@ -245,35 +311,24 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       });
     };
 
-    ws.onclose = async (event) => {
-      console.warn('WebSocket closed', event);
-      if (wsRef.current === ws) {
-        wsRef.current = null;
-      }
+    ws.onclose = (event) => {
+      console.log('WebSocket closed', event.code, event.reason);
       setWsStatus('disconnected');
-      setIsConnectedToRoom(false);
+      setIsConnectedToRoom(false); // Reset connection state
       
       if (event.code === 1000) {
-        console.log('WebSocket closed normally');
+        console.log('WebSocket: Normal closure');
       } else if (event.code === 1006) {
-        console.log('WebSocket connection failed (code 1006)', { reason: event.reason });
-        if (token && isTokenExpired(token)) {
-          console.log('Connection failed due to expired token, attempting refresh...');
-          tryRefreshToken();
-        } else {
-          setTimeout(() => {
-            console.log('Attempting to reconnect...');
-            // The parent component will handle reconnection
-          }, 3000);
-        }
+        console.log('WebSocket: Abnormal closure - attempting reconnect');
+        // Abnormal closure - attempt reconnect
+        setTimeout(() => {
+          if (token && !isTokenExpired(token)) {
+            console.log('WebSocket: Attempting reconnect after abnormal closure');
+            connectWebSocket();
+          }
+        }, 1000);
       } else {
-        console.log(`WebSocket closed with code ${event.code}:`, event.reason);
-        addToast({
-          type: 'warning',
-          title: 'Connection Lost',
-          message: 'Connection to chat service lost. Attempting to reconnect...',
-          duration: 5000
-        });
+        console.log('WebSocket: Closure with code', event.code, event.reason);
       }
     };
   }, [token, currentSession, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken, handleRoomCreated]);
@@ -287,6 +342,32 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     };
   }, []);
 
+  const sendMessage = useCallback((message: string, images?: Array<{ url: string; mediaType: string }>) => {
+    console.log('sendMessage called', { message: message.substring(0, 50) + '...', images: images?.length || 0, chatId });
+    
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.log('sendMessage: WebSocket not connected, queuing message');
+      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId });
+      return;
+    }
+    
+    try {
+      const payload = { type: 'message', text: message, images, chatId };
+      console.log('sendMessage: Sending payload', payload);
+      wsRef.current.send(JSON.stringify(payload));
+    } catch (error) {
+      console.error('sendMessage: Failed to send message', error);
+      // เก็บไว้ใน queue เพื่อส่งใหม่เมื่อ reconnect
+      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId });
+      addToast({
+        type: 'error',
+        title: 'Send Failed',
+        message: 'Failed to send message. Will retry when connection is restored.',
+        duration: 3000
+      });
+    }
+  }, [addToast, chatId]);
+
   return {
     wsRef,
     pendingFirstRef,
@@ -294,6 +375,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     connectWebSocket,
     abortStreaming,
     isTokenExpired,
-    tryRefreshToken
+    tryRefreshToken,
+    sendMessage
   };
 }; 

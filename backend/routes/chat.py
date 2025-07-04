@@ -169,7 +169,28 @@ async def websocket_endpoint(websocket: WebSocket):
             if not session_id or len(session_id) != 24:
                 await websocket.close(code=1007, reason="Invalid chatId for join_room")
                 return
+            
+            # ตรวจสอบว่า chat มีอยู่จริงหรือไม่
+            chat = await chat_history_service.get_chat_by_id(session_id)
+            if not chat:
+                await websocket.send_text(json.dumps({"type": "error", "data": "Chat not found"}))
+                await websocket.close(code=1007, reason="Chat not found")
+                return
+            
+            # ตรวจสอบว่า user มีสิทธิ์เข้าถึง chat นี้หรือไม่
+            if str(chat.userId) != str(user_id):
+                await websocket.send_text(json.dumps({"type": "error", "data": "Not authorized to access this chat"}))
+                await websocket.close(code=1008, reason="Not authorized")
+                return
+            
             await ws_manager.connect(str(session_id), websocket)
+            
+            # ส่ง confirmation ว่า join room สำเร็จ
+            await websocket.send_text(json.dumps({
+                "type": "room_joined", 
+                "data": {"chatId": session_id}
+            }))
+            
             # Proceed directly to the main loop to wait for user messages
         
         # --- Flow 2: Client is creating a new room ---
@@ -309,12 +330,26 @@ async def websocket_endpoint(websocket: WebSocket):
                 incoming_session_id = incoming.get("chatId") or incoming.get("session_id", session_id)
 
                 # Guard against placeholder or invalid ids (e.g., "chat_123...")
-                if len(incoming_session_id) != 24:
-                    # Ignore invalid session_id; keep using current valid one
-                    incoming_session_id = session_id
+                if not incoming_session_id or len(incoming_session_id) != 24:
+                    # Send error if no valid session_id provided
+                    await websocket.send_text(json.dumps({"type": "error", "data": "Invalid or missing chatId"}))
+                    continue
 
                 # If session changed, join new room in manager
                 if incoming_session_id != session_id:
+                    # ตรวจสอบว่า chat ใหม่มีอยู่จริงและ user มีสิทธิ์เข้าถึง
+                    try:
+                        new_chat = await chat_history_service.get_chat_by_id(incoming_session_id)
+                        if not new_chat:
+                            await websocket.send_text(json.dumps({"type": "error", "data": "Chat not found"}))
+                            continue
+                        if str(new_chat.userId) != str(user_id):
+                            await websocket.send_text(json.dumps({"type": "error", "data": "Not authorized to access this chat"}))
+                            continue
+                    except Exception as e:
+                        await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to validate chat: {str(e)}"}))
+                        continue
+                    
                     # Leave previous room
                     ws_manager.disconnect(str(session_id), websocket)
                     session_id = incoming_session_id

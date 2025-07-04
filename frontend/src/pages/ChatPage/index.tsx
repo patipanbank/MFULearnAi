@@ -43,7 +43,8 @@ const ChatPage: React.FC = () => {
     pendingQueueRef,
     connectWebSocket,
     isTokenExpired,
-    tryRefreshToken
+    tryRefreshToken,
+    sendMessage: wsSendMessage
   } = useWebSocket({ chatId, isInChatRoom });
 
   // Chat navigation is handled by useChatNavigation hook
@@ -74,12 +75,15 @@ const ChatPage: React.FC = () => {
   // Initialize data on mount
   useEffect(() => {
     const initializeData = async () => {
+      console.log('ChatPage: Initializing data...');
       setLoading(true, 'Loading agents...');
       try {
         await fetchAgents();
+        console.log('ChatPage: Agents loaded successfully');
         // Filter chat history only once on mount, not on every chatHistory change
         const currentChatHistory = useChatStore.getState().chatHistory;
         setChatHistory(currentChatHistory.filter((c) => c.id && c.id.length === 24));
+        console.log('ChatPage: Chat history filtered');
       } catch (error) {
         console.error('Failed to initialize data:', error);
         addToast({
@@ -156,6 +160,28 @@ const ChatPage: React.FC = () => {
 
     console.log('ChatPage: Sending message', { message: message.trim(), agentId: selectedAgent.id, isInChatRoom, chatId });
 
+    // ตรวจสอบ WebSocket connection
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.log('ChatPage: WebSocket not ready, attempting to connect...');
+      connectWebSocket();
+      
+      // รอสักครู่แล้วลองใหม่
+      setTimeout(() => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          console.log('ChatPage: WebSocket connected, retrying send...');
+          sendMessage();
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Connection Error',
+            message: 'Unable to connect to chat service. Please try again.',
+            duration: 5000
+          });
+        }
+      }, 1000);
+      return;
+    }
+
     // Add user message immediately for local rendering
     const userTimestamp = new Date();
     userTimestamp.setHours(userTimestamp.getHours() - 7);
@@ -185,22 +211,8 @@ const ChatPage: React.FC = () => {
     // Check if we're in a chat room
     if (isInChatRoom && chatId && chatId.length === 24) {
       console.log('ChatPage: Sending to existing room', chatId);
-      // Send to existing room
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const payload = {
-          ...messagePayload,
-          chatId: chatId
-        };
-        console.log('ChatPage: WebSocket ready, sending message', payload);
-        wsRef.current.send(JSON.stringify(payload));
-      } else {
-        console.log('ChatPage: WebSocket not ready, queuing message');
-        // Queue message if WebSocket not ready
-        pendingQueueRef.current.push({
-          ...messagePayload,
-          chatId: chatId
-        });
-      }
+      // ใช้ sendMessage function ที่ปรับปรุงแล้ว
+      wsSendMessage(message.trim(), images);
     } else {
       console.log('ChatPage: Creating new room');
       // Create new room
@@ -235,7 +247,7 @@ const ChatPage: React.FC = () => {
         };
       }
     }
-  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, pendingQueueRef, pendingFirstRef, addToast]);
+  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, pendingQueueRef, pendingFirstRef, addToast, connectWebSocket, wsSendMessage]);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
