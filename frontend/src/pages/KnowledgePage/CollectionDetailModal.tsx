@@ -99,7 +99,10 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
       formData.append('collectionName', collection.name);
       
       await api.post('/training/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
       });
       setSelectedFile(null);
       addToast({

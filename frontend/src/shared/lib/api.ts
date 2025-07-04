@@ -26,7 +26,10 @@ apiClient.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().token;
     if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // Don't override existing Authorization header
+      if (!config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
