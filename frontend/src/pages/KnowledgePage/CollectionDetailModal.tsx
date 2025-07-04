@@ -31,7 +31,6 @@ interface CollectionDetailModalProps {
 
 const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collection, isOpen, onClose }) => {
   const [docs, setDocs] = useState<CollectionDocument[]>([]);
-  const [filteredDocs, setFilteredDocs] = useState<CollectionDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -48,19 +47,6 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
       fetchDocs();
     }
   }, [isOpen, collection]);
-
-  // Filter documents based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredDocs(docs);
-    } else {
-      const filtered = docs.filter(doc => 
-        doc.metadata?.source?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.document?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredDocs(filtered);
-    }
-  }, [searchQuery, docs]);
 
   const fetchDocs = async () => {
     if (!collection) return;
