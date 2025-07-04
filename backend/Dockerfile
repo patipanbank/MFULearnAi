@@ -38,4 +38,4 @@ ENV WORKERS=4
 
 # คำสั่งสำหรับรัน application
 # gunicorn จะ fork UvicornWorker หลายตัวซึ่งรองรับ WebSocket ได้
-CMD ["bash", "-c", "gunicorn --worker-class uvicorn.workers.UvicornWorker -w ${WORKERS} -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:5000 main:app"] 
+CMD ["bash", "-c", "gunicorn --worker-class uvicorn.workers.UvicornWorker -w ${WORKERS} -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:5000 --log-level debug --access-logfile - --error-logfile - main:app"] 

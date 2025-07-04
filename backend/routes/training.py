@@ -19,6 +19,7 @@ async def upload_file_for_training(
     collectionName: str = Form(...),
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
+    print(f"Upload request received: file={file.filename}, modelId={modelId}, collectionName={collectionName}")
     """
     Handles file uploads for training.
     Extracts text, creates embeddings, and stores them.
