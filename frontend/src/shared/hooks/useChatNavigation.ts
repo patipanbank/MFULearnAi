@@ -14,7 +14,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
   const currentSession = useChatStore((state) => state.currentSession);
   const loadChat = useChatStore((state) => state.loadChat);
   const createNewChat = useChatStore((state) => state.createNewChat);
-  const setCurrentSession = useChatStore((state) => state.setCurrentSession);
+  // Note: setCurrentSession is no longer used since we removed the session ID update effect
   const isConnectedToRoom = useChatStore((state) => state.isConnectedToRoom);
   const addToast = useUIStore((state) => state.addToast);
 

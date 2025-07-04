@@ -200,13 +200,7 @@ const ChatPage: React.FC = () => {
     setMessage('');
     setImages([]);
 
-    // Prepare message payload
-    const messagePayload = {
-      type: 'message',
-      text: message.trim(),
-      images: images,
-      agent_id: selectedAgent.id
-    };
+    // Note: messagePayload is no longer used since we use wsSendMessage function
 
     // Check if we're in a chat room
     if (isInChatRoom && chatId && chatId.length === 24) {
