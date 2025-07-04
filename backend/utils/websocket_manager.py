@@ -5,7 +5,6 @@ import json
 import os
 import redis
 from threading import Thread
-from utils.redis_memory_manager import memory_manager
 
 class WebSocketManager:
     """ตัวจัดการ mapping session_id -> set[WebSocket]"""
@@ -28,15 +27,14 @@ class WebSocketManager:
         """Background worker to listen for Redis messages"""
         try:
             print("🔍 Starting Redis listener for chat channels...")
-            # Subscribe to all chat channels using memory manager pattern
-            self.pubsub.psubscribe(f"{memory_manager.PUBSUB_PREFIX}:*")
-            print(f"✅ Redis listener subscribed to {memory_manager.PUBSUB_PREFIX}:* channels")
+            # Subscribe to all chat channels
+            self.pubsub.psubscribe("chat:*")
+            print("✅ Redis listener subscribed to chat:* channels")
             
             for message in self.pubsub.listen():
                 if message["type"] == "pmessage":
                     channel = message["channel"].decode()
-                    # Extract session_id from channel name
-                    session_id = channel.replace(f"{memory_manager.PUBSUB_PREFIX}:", "")
+                    session_id = channel.replace("chat:", "")
                     data = message["data"].decode()
                     
                     print(f"📨 Received Redis message for session {session_id}: {data[:100]}...")

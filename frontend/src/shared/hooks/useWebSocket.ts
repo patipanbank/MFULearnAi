@@ -122,7 +122,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const connectWebSocket = useCallback(() => {
     console.log('connectWebSocket called', { token: !!token, currentSession: !!currentSession, wsRef: !!wsRef.current });
     
-    // Prevent multiple connection attempts
     if (
       !token ||
       (wsRef.current &&
@@ -135,13 +134,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         wsConnecting: wsRef.current?.readyState === WebSocket.CONNECTING 
       });
       return;
-    }
-    
-    // Close existing connection if any
-    if (wsRef.current) {
-      console.log('connectWebSocket: Closing existing connection');
-      wsRef.current.close();
-      wsRef.current = null;
     }
     
     if (isTokenExpired(token)) {

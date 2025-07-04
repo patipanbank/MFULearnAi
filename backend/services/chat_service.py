@@ -24,7 +24,6 @@ from langchain_core.tools import Tool
 # Services
 from services.usage_service import usage_service
 from models.chat import ImagePayload
-from utils.redis_memory_manager import memory_manager
 
 class ChatService:
     async def chat(
@@ -101,27 +100,14 @@ class ChatService:
             # ------------------------------------------------------------------
             # 5) Memory – wrap with message history
             # ------------------------------------------------------------------
-            # Use centralized memory manager
-            memory_config = memory_manager.get_langchain_memory_config(user_id, session_id)
-            
-            # Create or update session in memory manager
-            await memory_manager.create_session(
-                user_id, 
-                session_id, 
-                metadata={
-                    "model_id": model_id,
-                    "agent_id": getattr(agent_executor, 'agent_id', None),
-                    "collection_names": collection_names
-                }
-            )
-            
+            from config.config import settings
+            redis_url = settings.REDIS_URL
+            if not redis_url:
+                raise ValueError("REDIS_URL must be configured for chat history support.")
+
             agent_with_history = RunnableWithMessageHistory(
                 cast(Any, agent_executor),
-                lambda s_id: RedisChatMessageHistory(
-                    memory_config["session_id"], 
-                    url=memory_config["url"], 
-                    ttl=memory_config["ttl"]
-                ),
+                lambda s_id: RedisChatMessageHistory(s_id, url=redis_url),
                 input_messages_key="input",
                 history_messages_key="chat_history",
             )
