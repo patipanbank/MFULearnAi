@@ -39,7 +39,7 @@ class TrainingService:
         documents_to_add = [
             {
                 "id": str(uuid.uuid4()),
-                "text": chunk,
+                "document": chunk,
                 "metadata": {
                     "source_type": content_type,
                     "source": source_name,
