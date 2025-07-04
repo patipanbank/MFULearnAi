@@ -318,14 +318,24 @@ def web_search(query: str) -> str:
     try:
         # Try DuckDuckGo first (more reliable for web search)
         result = web_search_duckduckgo(query)
-        if result and "No specific results found" not in result:
+        
+        # Check if DuckDuckGo returned valid results
+        if result and "No specific results found" not in result and "API returned status" not in result:
             return result
         
-        # If DuckDuckGo fails, try Hugging Face API
-        return web_search_huggingface(query)
+        # If DuckDuckGo fails completely, try Hugging Face API as last resort
+        print(f"🔄 DuckDuckGo failed, trying Hugging Face API for: {query}")
+        huggingface_result = web_search_huggingface(query)
+        
+        # If Hugging Face also fails, return a helpful message
+        if "Error:" in huggingface_result or "API returned status" in huggingface_result:
+            return f"Sorry, I couldn't find information about '{query}' through web search. Please try rephrasing your question or ask something else."
+        
+        return huggingface_result
             
     except Exception as e:
-        return f"Error performing web search: {str(e)}"
+        print(f"❌ Error in web_search: {e}")
+        return f"Sorry, I encountered an error while searching for '{query}'. Please try again later."
 
 def web_search_huggingface(query: str) -> str:
     """Web search using Hugging Face API"""
@@ -336,7 +346,10 @@ def web_search_huggingface(query: str) -> str:
         # Get API key from settings
         api_key = settings.HUGGINGFACE_API_KEY
         if not api_key:
+            print("⚠️ HUGGINGFACE_API_KEY not configured in settings")
             return "Error: HUGGINGFACE_API_KEY not configured"
+        
+        print(f"🔍 Using Hugging Face API with key: {api_key[:10]}...")
         
         # Use Hugging Face Inference API with a text generation model
         headers = {
@@ -374,6 +387,8 @@ def web_search_huggingface(query: str) -> str:
                 return f"Search for '{query}' - Response: {str(result)}"
         elif response.status_code == 503:
             return f"Search for '{query}' - Hugging Face model is loading. Please try again later."
+        elif response.status_code == 401:
+            return f"Search for '{query}' - Hugging Face API key is invalid or expired."
         else:
             return f"Search for '{query}' - Hugging Face API returned status {response.status_code}."
             
@@ -388,6 +403,8 @@ def web_search_duckduckgo(query: str) -> str:
     """Web search using DuckDuckGo API"""
     try:
         import requests
+        
+        print(f"🔍 Using DuckDuckGo API for: {query}")
         
         # Use DuckDuckGo Instant Answer API (free, no API key required)
         search_url = "https://api.duckduckgo.com/"
@@ -432,13 +449,17 @@ def web_search_duckduckgo(query: str) -> str:
             else:
                 return f"No specific results found for '{query}'. Try rephrasing your search query."
         else:
+            print(f"⚠️ DuckDuckGo API returned status {response.status_code}")
             return f"Web search for '{query}' - DuckDuckGo API returned status {response.status_code}. Please try again."
             
     except requests.exceptions.Timeout:
+        print(f"⚠️ DuckDuckGo request timed out")
         return f"Web search for '{query}' - DuckDuckGo request timed out. Please try again."
     except requests.exceptions.RequestException as e:
+        print(f"⚠️ DuckDuckGo network error: {e}")
         return f"Web search for '{query}' - DuckDuckGo network error: {str(e)}"
     except Exception as e:
+        print(f"⚠️ DuckDuckGo error: {e}")
         return f"Error with DuckDuckGo API: {str(e)}"
 
 def calculate(expression: str) -> str:
