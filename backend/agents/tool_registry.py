@@ -489,7 +489,7 @@ def calculate(expression: str) -> str:
     except Exception as e:
         return f"Error calculating: {str(e)}"
 
-def get_current_date() -> str:
+def get_current_date(query: str = "") -> str:
     """Get current date and time"""
     try:
         from datetime import datetime

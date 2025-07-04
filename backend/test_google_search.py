@@ -42,5 +42,30 @@ def test_web_search_api():
         import traceback
         traceback.print_exc()
 
+def test_current_date():
+    """Test current_date function fix"""
+    print("\n" + "="*60)
+    print("TESTING CURRENT DATE FUNCTION")
+    print("="*60)
+    
+    try:
+        from agents.tool_registry import get_current_date
+        
+        # Test with no parameter
+        result1 = get_current_date()
+        print(f"✅ No parameter: {result1}")
+        
+        # Test with parameter (should work now)
+        result2 = get_current_date("current date")
+        print(f"✅ With parameter: {result2}")
+        
+        print("✅ Current date function fixed successfully!")
+        
+    except Exception as e:
+        print(f"❌ Error testing current_date: {e}")
+        import traceback
+        traceback.print_exc()
+
 if __name__ == "__main__":
-    test_web_search_api() 
+    test_web_search_api()
+    test_current_date() 
