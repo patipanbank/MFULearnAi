@@ -119,15 +119,25 @@ async def get_documents_in_collection(
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
-    collection = await collection_service.get_collection_by_id(collection_id)
-    if not collection:
-        raise HTTPException(status_code=404, detail="Collection not found")
-        
-    if not collection_service.can_user_access_collection(current_user, collection):
-        raise HTTPException(status_code=403, detail="Not authorized to view documents in this collection")
+    try:
+        collection = await collection_service.get_collection_by_id(collection_id)
+        if not collection:
+            raise HTTPException(status_code=404, detail="Collection not found")
+            
+        if not collection_service.can_user_access_collection(current_user, collection):
+            raise HTTPException(status_code=403, detail="Not authorized to view documents in this collection")
 
-    documents = await chroma_service.get_documents(collection.name, limit=limit, offset=offset)
-    return documents
+        result = await chroma_service.get_documents(collection.name, limit=limit, offset=offset)
+        if not result:
+            return []
+        
+        # Return the documents array from the result
+        return result.get("documents", [])
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting documents for collection {collection_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get documents: {str(e)}")
 
 @router.delete("/{collection_id}/documents")
 async def delete_documents_from_a_collection(

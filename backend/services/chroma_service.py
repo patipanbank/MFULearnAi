@@ -11,6 +11,8 @@ class ChromaService:
         if not settings.CHROMA_URL:
             raise ValueError("CHROMA_URL is not set in the environment variables.")
             
+        print(f"Initializing ChromaDB with URL: {settings.CHROMA_URL}")
+        
         # CHROMA_URL might be like "http://localhost:8000"
         # The client needs host and port separately.
         try:
@@ -18,24 +20,30 @@ class ChromaService:
             host = url_parts[1].replace('//', '')
             port = int(url_parts[2])
             
+            print(f"Connecting to ChromaDB at {host}:{port}")
             self.client = chromadb.HttpClient(host=host, port=port)
             
             # Using a default embedding function for now, but the actual embeddings
             # will be provided by TitanService.
             self.default_ef = embedding_functions.DefaultEmbeddingFunction()
-            print("ChromaDB client initialized.")
+            print("ChromaDB client initialized successfully.")
 
         except (IndexError, ValueError) as e:
+            print(f"Invalid CHROMA_URL format: {settings.CHROMA_URL}")
             raise ValueError(f"Invalid CHROMA_URL format: {settings.CHROMA_URL}. Expected format: http://hostname:port. Error: {e}")
         except Exception as e:
+            print(f"Failed to initialize ChromaDB client: {e}")
             raise RuntimeError(f"Failed to initialize ChromaDB client: {e}")
 
     async def _get_collection(self, name: str):
         if not self.client:
             raise ConnectionError("ChromaDB client is not initialized.")
         try:
+            print(f"Getting or creating collection: {name}")
             # This is a synchronous call, run it in a thread
-            return await asyncio.to_thread(self.client.get_or_create_collection, name=name)
+            collection = await asyncio.to_thread(self.client.get_or_create_collection, name=name)
+            print(f"Successfully got collection: {name}")
+            return collection
         except Exception as e:
             print(f"Error getting or creating collection '{name}': {e}")
             raise
@@ -128,27 +136,32 @@ class ChromaService:
             raise
 
     async def get_documents(self, collection_name: str, limit: int = 100, offset: int = 0):
-        collection = await self._get_collection(collection_name)
-        if not collection:
+        try:
+            collection = await self._get_collection(collection_name)
+            if not collection:
+                print(f"Collection '{collection_name}' not found")
+                return {"documents": [], "total": 0}
+
+            total_count = await asyncio.to_thread(collection.count)
+            
+            results = await asyncio.to_thread(collection.get, limit=limit, offset=offset, include=["metadatas", "documents"])
+            
+            # The result 'ids' corresponds to the documents and metadatas
+            # We'll zip them together to return a list of document objects
+            docs = []
+            if results and results.get('ids'):
+                 for i, doc_id in enumerate(results['ids']):
+                    doc_data = {
+                        "id": doc_id,
+                        "document": results['documents'][i] if results['documents'] and i < len(results['documents']) else None,
+                        "metadata": results['metadatas'][i] if results['metadatas'] and i < len(results['metadatas']) else None
+                    }
+                    docs.append(doc_data)
+
+            return {"documents": docs, "total": total_count}
+        except Exception as e:
+            print(f"Error getting documents from collection '{collection_name}': {e}")
             return {"documents": [], "total": 0}
-
-        total_count = await asyncio.to_thread(collection.count)
-        
-        results = await asyncio.to_thread(collection.get, limit=limit, offset=offset, include=["metadatas", "documents"])
-        
-        # The result 'ids' corresponds to the documents and metadatas
-        # We'll zip them together to return a list of document objects
-        docs = []
-        if results and results.get('ids'):
-             for i, doc_id in enumerate(results['ids']):
-                doc_data = {
-                    "id": doc_id,
-                    "document": results['documents'][i] if results['documents'] and i < len(results['documents']) else None,
-                    "metadata": results['metadatas'][i] if results['metadatas'] and i < len(results['metadatas']) else None
-                }
-                docs.append(doc_data)
-
-        return {"documents": docs, "total": total_count}
 
     async def delete_documents(self, collection_name: str, document_ids: List[str]):
         if not document_ids:
