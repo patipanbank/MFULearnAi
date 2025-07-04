@@ -215,6 +215,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 user_id=user_id, name=data.get("name", "New Chat"), agent_id=agent_id, model_id=model_id,
             )
             session_id = new_chat.id
+            
+            # Clear any existing Redis memory for this session to ensure fresh start
+            if session_id:
+                await chat_service.clear_chat_memory(session_id)
+            
             await websocket.send_text(json.dumps({"type": "room_created", "data": {"chatId": session_id}}))
             await ws_manager.connect(str(session_id), websocket)
             # Proceed directly to the main loop to wait for the first message content
@@ -304,6 +309,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
                     session_id = new_chat.id
 
+                    # Clear any existing Redis memory for this session to ensure fresh start
+                    if session_id:
+                        await chat_service.clear_chat_memory(session_id)
+
                     # Update context variables for subsequent messages
                     agent_id = cr_agent_id or agent_id
                     model_id = cr_model_id or model_id
@@ -353,6 +362,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Leave previous room
                     ws_manager.disconnect(str(session_id), websocket)
                     session_id = incoming_session_id
+                    
+                    # Clear Redis memory when switching to a different chat session
+                    if session_id:
+                        await chat_service.clear_chat_memory(session_id)
+                    
                     await ws_manager.connect(str(session_id), websocket)
 
                 new_images_data = incoming.get("images", [])
@@ -374,6 +388,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         temperature = agent.temperature
                         max_tokens = agent.maxTokens
                         agent_id = new_agent_id
+                        
+                        # Clear Redis memory when switching to a different agent
+                        if session_id:
+                            await chat_service.clear_chat_memory(session_id)
                     except Exception as e:
                         await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to load agent: {str(e)}"}))
                         continue
@@ -459,6 +477,9 @@ async def delete_chat(chat_id: str, current_user: User = Depends(get_current_use
     if not success:
         raise HTTPException(status_code=500, detail="Failed to delete chat")
     
+    # Clear Redis memory for the deleted chat
+    await chat_service.clear_chat_memory(chat_id)
+    
     return {"message": "Chat deleted successfully"}
 
 @router.post("/update-name", response_model=ChatHistoryModel)
@@ -493,4 +514,32 @@ async def pin_chat(
     updated_chat = await chat_history_service.update_chat_pin_status(chat_id, req.isPinned)
     if not updated_chat:
         raise HTTPException(status_code=500, detail="Failed to update chat pin status")
-    return updated_chat 
+    return updated_chat
+
+@router.post("/{chat_id}/clear-memory")
+async def clear_chat_memory(
+    chat_id: str,
+    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
+):
+    """
+    Clear Redis memory for a specific chat session.
+    """
+    chat = await chat_history_service.get_chat_by_id(chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if str(chat.userId) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to clear memory for this chat")
+    
+    await chat_service.clear_chat_memory(chat_id)
+    return {"message": "Chat memory cleared successfully"}
+
+@router.get("/memory/stats")
+async def get_memory_stats(
+    current_user: User = Depends(get_current_user_with_roles([UserRole.ADMIN, UserRole.SUPER_ADMIN]))
+):
+    """
+    Get memory usage statistics (admin only).
+    """
+    from agents.tool_registry import get_memory_stats
+    stats = get_memory_stats()
+    return stats 

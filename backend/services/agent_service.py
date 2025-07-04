@@ -38,7 +38,7 @@ class AgentService:
                 "description": "Expert in programming languages, debugging, and code review",
                 "category": "Development",
                 "icon": "💻",
-                "systemPrompt": "You are an expert programming assistant. Help users with coding questions, debugging, code review, and software development best practices. Provide clear, practical solutions with examples.",
+                "systemPrompt": "You are an expert programming assistant. Help users with coding questions, debugging, code review, and software development best practices. Provide clear, practical solutions with examples. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.",
                 "recommendedTools": ["web_search", "calculator"],
                 "recommendedCollections": ["programming-docs", "api-documentation"],
                 "tags": ["programming", "coding", "development"]
@@ -49,7 +49,7 @@ class AgentService:
                 "description": "Specialized in academic subjects and research assistance",
                 "category": "Education",
                 "icon": "🎓",
-                "systemPrompt": "You are an academic tutor. Provide clear explanations, help students understand complex concepts, and assist with research. Use evidence-based information and cite sources when appropriate.",
+                "systemPrompt": "You are an academic tutor. Provide clear explanations, help students understand complex concepts, and assist with research. Use evidence-based information and cite sources when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.",
                 "recommendedTools": ["web_search"],
                 "recommendedCollections": ["academic-papers", "textbooks", "research-data"],
                 "tags": ["education", "academic", "research"]
@@ -60,7 +60,7 @@ class AgentService:
                 "description": "Professional writing and content creation support",
                 "category": "Content",
                 "icon": "✍️",
-                "systemPrompt": "You are a professional writing assistant. Help users with content creation, editing, proofreading, and improving writing style. Provide constructive feedback and suggestions.",
+                "systemPrompt": "You are a professional writing assistant. Help users with content creation, editing, proofreading, and improving writing style. Provide constructive feedback and suggestions. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.",
                 "recommendedTools": ["web_search"],
                 "recommendedCollections": ["writing-guides", "style-manuals"],
                 "tags": ["writing", "content", "editing"]
@@ -98,7 +98,7 @@ class AgentService:
                     id='000000000000000000000001',
                     name='General Assistant',
                     description='A helpful AI assistant for general questions and tasks',
-                    systemPrompt='You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.',
+                    systemPrompt='You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions. Always focus on answering the current user\'s question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.',
                     modelId='anthropic.claude-3-5-sonnet-20240620-v1:0',
                     collectionNames=[],
                     tools=[],

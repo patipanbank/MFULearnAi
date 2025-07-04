@@ -26,6 +26,41 @@ from services.usage_service import usage_service
 from models.chat import ImagePayload
 
 class ChatService:
+    
+    async def clear_chat_memory(self, session_id: str) -> None:
+        """Clear both Redis chat memory and memory tool for a specific session"""
+        try:
+            # Clear Redis memory
+            from config.config import settings
+            redis_url = settings.REDIS_URL
+            if redis_url:
+                history = RedisChatMessageHistory(session_id, url=redis_url)
+                history.clear()
+                logging.info(f"🧹 Cleared Redis memory for session {session_id}")
+            
+            # Clear memory tool
+            from agents.tool_registry import clear_chat_memory as clear_memory_tool
+            clear_memory_tool(session_id)
+            logging.info(f"🧹 Cleared memory tool for session {session_id}")
+            
+        except Exception as e:
+            logging.error(f"Failed to clear memory for session {session_id}: {e}")
+    
+    def _should_use_memory_tool(self, message_count: int) -> bool:
+        """Decide whether to use memory tool based on message count"""
+        # Use memory tool when there are more than 10 messages
+        return message_count > 10
+    
+    def _should_use_redis_memory(self, message_count: int) -> bool:
+        """Decide whether to use Redis memory based on message count"""
+        # Always use Redis memory for recent conversations (last 10 messages)
+        return True
+    
+    def _should_embed_messages(self, message_count: int) -> bool:
+        """Decide whether to embed messages (every 10 messages)"""
+        # Embed messages every 10 messages (10, 20, 30, etc.)
+        return message_count % 10 == 0
+    
     async def chat(
         self,
         session_id: str,
@@ -51,9 +86,12 @@ class ChatService:
             )
 
             # ------------------------------------------------------------------
-            # 2) Tools – static registry + dynamic retrieval tools
+            # 2) Tools – static registry + dynamic retrieval tools + memory tool
             # ------------------------------------------------------------------
-            tools: list[Tool] = list(TOOL_REGISTRY.values())
+            from agents.tool_registry import get_tools_for_session, add_chat_memory
+            
+            # Get tools including memory tool for this session
+            tools = get_tools_for_session(session_id)
 
             from services.chroma_service import chroma_service  # local import to avoid cycles
 
@@ -86,7 +124,9 @@ class ChatService:
             # 3) Prompt
             # ------------------------------------------------------------------
             default_system_prompt = (
-                "You are a helpful assistant. You have access to a number of tools and must use them when appropriate."
+                "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. "
+                "Always focus on answering the current user's question. Use chat history as context to provide better responses, "
+                "but do not repeat or respond to previous questions in the history."
             )
             final_system_prompt = system_prompt if system_prompt else default_system_prompt
 
@@ -98,19 +138,104 @@ class ChatService:
             agent_executor = create_agent(llm, tools, prompt)
 
             # ------------------------------------------------------------------
-            # 5) Memory – wrap with message history
+            # 5) Memory – hybrid approach: Redis for recent, Embedding tool for long-term
             # ------------------------------------------------------------------
             from config.config import settings
             redis_url = settings.REDIS_URL
             if not redis_url:
                 raise ValueError("REDIS_URL must be configured for chat history support.")
 
-            agent_with_history = RunnableWithMessageHistory(
-                cast(Any, agent_executor),
-                lambda s_id: RedisChatMessageHistory(s_id, url=redis_url),
-                input_messages_key="input",
-                history_messages_key="chat_history",
-            )
+            # Create Redis chat message history with better configuration
+            def create_redis_history(session_id: str) -> RedisChatMessageHistory:
+                """Create Redis chat message history with proper configuration"""
+                if not redis_url:
+                    raise ValueError("REDIS_URL is not configured")
+                history = RedisChatMessageHistory(session_id, url=redis_url)
+                # Set TTL to prevent memory leaks (24 hours)
+                history.redis_client.expire(f"message_store:{session_id}", 86400)
+                return history
+
+            # Smart memory management: hybrid approach with periodic embedding
+            try:
+                from services.chat_history_service import chat_history_service
+                chat_history = await chat_history_service.get_chat_by_id(session_id)
+                message_count = len(chat_history.messages) if chat_history and chat_history.messages else 0
+                
+                # Check if Redis memory exists and is not expired
+                redis_memory_exists = False
+                try:
+                    from config.config import settings
+                    redis_url = settings.REDIS_URL
+                    if redis_url:
+                        history = RedisChatMessageHistory(session_id, url=redis_url)
+                        # Try to get messages to check if Redis memory exists
+                        messages = history.messages
+                        redis_memory_exists = len(messages) > 0
+                        print(f"🔍 Redis memory check: {len(messages)} messages found")
+                except Exception as e:
+                    print(f"⚠️ Redis memory check failed: {e}")
+                
+                # Always use Redis memory for recent conversations
+                agent_with_history = RunnableWithMessageHistory(
+                    cast(Any, agent_executor),
+                    create_redis_history,
+                    input_messages_key="input",
+                    history_messages_key="chat_history",
+                )
+                
+                # If Redis memory is empty but we have messages, restore recent context
+                if not redis_memory_exists and chat_history and chat_history.messages:
+                    print(f"🔄 Redis memory empty, restoring recent context for session {session_id}")
+                    
+                    # Get last 10 messages to restore Redis memory
+                    recent_messages = chat_history.messages[-10:] if len(chat_history.messages) >= 10 else chat_history.messages
+                    
+                    # Restore Redis memory with recent messages
+                    try:
+                        if redis_url:
+                            history = RedisChatMessageHistory(session_id, url=redis_url)
+                            for msg in recent_messages:
+                                if msg.role == "user":
+                                    history.add_user_message(msg.content)
+                                elif msg.role == "assistant":
+                                    history.add_ai_message(msg.content)
+                            print(f"💾 Restored {len(recent_messages)} messages to Redis memory")
+                    except Exception as e:
+                        print(f"❌ Failed to restore Redis memory: {e}")
+                
+                # Check if we should embed messages (every 10 messages)
+                if self._should_embed_messages(message_count) and chat_history and chat_history.messages:
+                    print(f"🔄 Embedding messages for session {session_id} (message count: {message_count})")
+                    
+                    # Convert messages to format expected by memory tool
+                    messages_for_memory = []
+                    for msg in chat_history.messages:
+                        messages_for_memory.append({
+                            'id': msg.id,
+                            'role': msg.role,
+                            'content': msg.content,
+                            'timestamp': msg.timestamp.isoformat() if msg.timestamp else None
+                        })
+                    
+                    # Add to memory tool
+                    add_chat_memory(session_id, messages_for_memory)
+                    print(f"📚 Embedded {len(messages_for_memory)} messages to memory tool for session {session_id}")
+                
+                # Use memory tool if available (for long conversations)
+                if self._should_use_memory_tool(message_count):
+                    print(f"🔍 Memory tool available for session {session_id} ({message_count} messages)")
+                else:
+                    print(f"💾 Using Redis memory only for session {session_id} ({message_count} messages)")
+                    
+            except Exception as e:
+                print(f"⚠️ Failed to setup smart memory management: {e}")
+                # Fallback to Redis memory
+                agent_with_history = RunnableWithMessageHistory(
+                    cast(Any, agent_executor),
+                    create_redis_history,
+                    input_messages_key="input",
+                    history_messages_key="chat_history",
+                )
 
             # ------------------------------------------------------------------
             # 6) Output parsing – convert LangChain Messages to raw string for UI
