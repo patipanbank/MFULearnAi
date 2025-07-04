@@ -54,7 +54,7 @@ async def get_public_collections(
         # ใช้ method ที่มีอยู่แล้วแต่ filter เฉพาะที่ public
         collections = await collection_service.get_all_collections()
         # Filter เฉพาะ public collections
-        public_collections = [c for c in collections if c.permission == "public"]
+        public_collections = [c for c in collections if c.permission == "PUBLIC"]
         return public_collections
     except Exception as e:
         # Return empty list instead of error to prevent resource exhaustion

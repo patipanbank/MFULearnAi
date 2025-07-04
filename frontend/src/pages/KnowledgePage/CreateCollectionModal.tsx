@@ -20,7 +20,6 @@ interface CreateCollectionModalProps {
 const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, onClose, onCreated }) => {
   const [name, setName] = useState('');
   const [permission, setPermission] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
-  const [modelId, setModelId] = useState('anthropic.claude-3-5-sonnet-20240620-v1:0');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToast } = useUIStore();
 
@@ -73,7 +72,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
       const newCol = await api.post<Collection>('/collections/', { 
         name: trimmedName,
         permission: permission,
-        modelId: modelId
+        modelId: 'amazon.titan-embed-text-v1'  // Use Titan embedding model
       });
       onCreated(newCol);
       addToast({
@@ -126,23 +125,12 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
 
         <label className="block text-sm font-medium text-primary mb-2">Permission</label>
         <select
-          className="input w-full mb-4"
+          className="input w-full mb-6"
           value={permission}
           onChange={(e) => setPermission(e.target.value as 'PUBLIC' | 'PRIVATE')}
         >
           <option value="PRIVATE">Private - Only you can access</option>
           <option value="PUBLIC">Public - Anyone can access</option>
-        </select>
-
-        <label className="block text-sm font-medium text-primary mb-2">Embedding Model</label>
-        <select
-          className="input w-full mb-6"
-          value={modelId}
-          onChange={(e) => setModelId(e.target.value)}
-        >
-          <option value="anthropic.claude-3-5-sonnet-20240620-v1:0">Claude 3.5 Sonnet (Recommended)</option>
-          <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku</option>
-          <option value="amazon.titan-embed-text-v1">Titan Embeddings</option>
         </select>
 
         <button

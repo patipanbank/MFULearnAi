@@ -95,7 +95,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('modelId', 'anthropic.claude-3-5-sonnet-20240620-v1:0');
+      formData.append('modelId', 'amazon.titan-embed-text-v1');  // Use Titan embedding model
       formData.append('collectionName', collection.name);
       
       await api.post('/training/upload', formData, {

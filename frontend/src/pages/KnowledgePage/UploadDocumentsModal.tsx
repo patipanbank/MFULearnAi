@@ -33,7 +33,6 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
 }) => {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [modelId, setModelId] = useState('anthropic.claude-3-5-sonnet-20240620-v1:0');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useUIStore();
 
@@ -65,7 +64,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('modelId', modelId);
+        formData.append('modelId', 'amazon.titan-embed-text-v1');  // Use Titan embedding model
         formData.append('collectionName', collection.name);
 
         const response = await api.post('/training/upload', formData, {
@@ -151,25 +150,6 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
         <p className="text-secondary mb-6">
           Upload documents to {collection?.name || 'selected collection'}
         </p>
-
-        {/* Model Selection */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-primary mb-2">
-            Embedding Model
-          </label>
-          <select
-            value={modelId}
-            onChange={(e) => setModelId(e.target.value)}
-            className="input w-full"
-          >
-            <option value="anthropic.claude-3-5-sonnet-20240620-v1:0">
-              Claude 3.5 Sonnet (Recommended)
-            </option>
-            <option value="anthropic.claude-3-haiku-20240307-v1:0">
-              Claude 3 Haiku (Fast)
-            </option>
-          </select>
-        </div>
 
         {/* File Upload Area */}
         <div className="mb-6">
