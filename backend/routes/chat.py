@@ -358,6 +358,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 new_images_data = incoming.get("images", [])
                 new_agent_id = incoming.get("agent_id") or incoming.get("agentId", agent_id)
 
+                print(f"🤖 Processing message with agent_id: {new_agent_id}, current agent_id: {agent_id}")
+
                 # If agent changed, reload its config
                 if new_agent_id and new_agent_id != agent_id:
                     try:
@@ -404,7 +406,18 @@ async def websocket_endpoint(websocket: WebSocket):
                     "agent_id": agent_id,
                 }
 
-                generate_answer.delay(task_payload)
+                print(f"📋 Final task payload: {task_payload}")
+
+                print(f"🚀 Dispatching Celery task for session {session_id}")
+                print(f"📋 Task payload: {task_payload}")
+                
+                try:
+                    result = generate_answer.delay(task_payload)
+                    print(f"✅ Celery task dispatched successfully, task_id: {result.id}")
+                except Exception as e:
+                    print(f"❌ Failed to dispatch Celery task: {e}")
+                    await websocket.send_text(json.dumps({"type": "error", "data": f"Failed to process message: {str(e)}"}))
+                    continue
 
                 # Immediate ack so UI knows message accepted
                 await websocket.send_text(json.dumps({"type": "accepted", "data": {"chatId": session_id}}))

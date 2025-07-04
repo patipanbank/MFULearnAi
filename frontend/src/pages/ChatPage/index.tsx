@@ -206,7 +206,7 @@ const ChatPage: React.FC = () => {
     if (isInChatRoom && chatId && chatId.length === 24) {
       console.log('ChatPage: Sending to existing room', chatId);
       // ใช้ sendMessage function ที่ปรับปรุงแล้ว
-      wsSendMessage(message.trim(), images);
+      wsSendMessage(message.trim(), images, selectedAgent?.id);
     } else {
       console.log('ChatPage: Creating new room');
       // Create new room

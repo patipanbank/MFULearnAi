@@ -199,20 +199,27 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       const pendingMessages = [...pendingQueueRef.current];
       pendingQueueRef.current = [];
       
-      pendingMessages.forEach((p) => {
-        console.log('WebSocket: Sending pending message', p);
-        try {
-          // ตรวจสอบว่า message มี chatId หรือไม่
-          if (p.type === 'message' && !p.chatId && chatId) {
-            p.chatId = chatId;
-          }
-          ws.send(JSON.stringify(p));
-        } catch (error) {
-          console.error('WebSocket: Failed to send pending message', error);
-          // เก็บไว้ใน queue อีกครั้ง
-          pendingQueueRef.current.push(p);
-        }
-      });
+                pendingMessages.forEach((p) => {
+            console.log('WebSocket: Sending pending message', p);
+            try {
+              // ตรวจสอบว่า message มี chatId หรือไม่
+              if (p.type === 'message' && !p.chatId && chatId) {
+                p.chatId = chatId;
+              }
+              // ตรวจสอบว่า message มี agent_id หรือไม่
+              if (p.type === 'message' && !p.agent_id) {
+                const currentSession = currentSessionRef.current;
+                if (currentSession?.agentId) {
+                  p.agent_id = currentSession.agentId;
+                }
+              }
+              ws.send(JSON.stringify(p));
+            } catch (error) {
+              console.error('WebSocket: Failed to send pending message', error);
+              // เก็บไว้ใน queue อีกครั้ง
+              pendingQueueRef.current.push(p);
+            }
+          });
     };
     
     ws.onmessage = (event) => {
@@ -342,23 +349,23 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     };
   }, []);
 
-  const sendMessage = useCallback((message: string, images?: Array<{ url: string; mediaType: string }>) => {
-    console.log('sendMessage called', { message: message.substring(0, 50) + '...', images: images?.length || 0, chatId });
+  const sendMessage = useCallback((message: string, images?: Array<{ url: string; mediaType: string }>, agentId?: string) => {
+    console.log('sendMessage called', { message: message.substring(0, 50) + '...', images: images?.length || 0, chatId, agentId });
     
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.log('sendMessage: WebSocket not connected, queuing message');
-      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId });
+      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId, agent_id: agentId });
       return;
     }
     
     try {
-      const payload = { type: 'message', text: message, images, chatId };
+      const payload = { type: 'message', text: message, images, chatId, agent_id: agentId };
       console.log('sendMessage: Sending payload', payload);
       wsRef.current.send(JSON.stringify(payload));
     } catch (error) {
       console.error('sendMessage: Failed to send message', error);
       // เก็บไว้ใน queue เพื่อส่งใหม่เมื่อ reconnect
-      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId });
+      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId, agent_id: agentId });
       addToast({
         type: 'error',
         title: 'Send Failed',

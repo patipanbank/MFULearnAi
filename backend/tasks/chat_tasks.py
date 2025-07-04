@@ -19,6 +19,10 @@ def generate_answer(payload: Dict[str, Any]):
     collection_names, images, system_prompt, temperature, max_tokens, agent_id (optional)
     """
     session_id: str = payload["session_id"]
+    print(f"🎯 Celery task started for session {session_id}")
+    print(f"📝 Message: {payload.get('message', 'No message')}")
+    print(f"🤖 Agent ID: {payload.get('agent_id', 'No agent')}")
+    print(f"🔧 Model ID: {payload.get('model_id', 'No model')}")
 
     # helper to run async generator inside sync Celery task
     async def _run() -> None:
@@ -74,9 +78,11 @@ def generate_answer(payload: Dict[str, Any]):
                 try:
                     import os, redis, json  # type: ignore
                     redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-                    redis_client.publish(f"chat:{session_id}", json.dumps({"type": "chunk", "data": buffer[-1]}))
+                    message = json.dumps({"type": "chunk", "data": buffer[-1]})
+                    redis_client.publish(f"chat:{session_id}", message)
+                    print(f"📤 Published chunk to Redis: chat:{session_id}")
                 except Exception as pub_err:
-                    print(f"Redis publish error: {pub_err}")
+                    print(f"❌ Redis publish error: {pub_err}")
             elif data["type"] == "end":
                 final_text = "".join(buffer)
                 await chat_history_service.add_message_to_chat(
@@ -95,9 +101,11 @@ def generate_answer(payload: Dict[str, Any]):
                 try:
                     import os, redis, json  # type: ignore
                     redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-                    redis_client.publish(f"chat:{session_id}", json.dumps({"type": "end"}))
+                    message = json.dumps({"type": "end"})
+                    redis_client.publish(f"chat:{session_id}", message)
+                    print(f"🏁 Published end event to Redis: chat:{session_id}")
                 except Exception as pub_err:
-                    print(f"Redis publish error: {pub_err}")
+                    print(f"❌ Redis publish error: {pub_err}")
 
     # รัน coroutine บน event loop เดียวกับที่ Mongo เชื่อมอยู่เพื่อหลีกเลี่ยงปัญหา "attached to a different loop"
     try:
