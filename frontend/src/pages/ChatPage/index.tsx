@@ -121,8 +121,10 @@ const ChatPage: React.FC = () => {
 
   // Handle room creation (when first message is sent)
   const handleRoomCreatedWithNavigate = useCallback((roomId: string) => {
-    handleRoomCreated(roomId, navigate);
-  }, [handleRoomCreated, navigate]);
+    console.log('Room created, navigating to:', `/chat/${roomId}`);
+    // ใช้ navigate function โดยตรง
+    navigate(`/chat/${roomId}`);
+  }, [navigate]);
 
   // Send message function
   const sendMessage = useCallback(async () => {

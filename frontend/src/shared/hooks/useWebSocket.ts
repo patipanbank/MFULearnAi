@@ -69,9 +69,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   }, [updateMessage]);
 
   // Handle room creation
-  const handleRoomCreated = useCallback((roomId: string, navigate: (path: string) => void) => {
+  const handleRoomCreated = useCallback((roomId: string) => {
     console.log('Creating new chat room:', roomId);
-    navigate(`/chat/${roomId}`);
 
     const session = currentSessionRef.current;
     if (session) {
@@ -180,7 +179,12 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
             addMessage(assistantMsg);
           }
         } else if (data.type === 'room_created') {
-          handleRoomCreated(data.data.chatId, () => {});
+          handleRoomCreated(data.data.chatId);
+          
+          // Redirect ไปยัง chatId ที่ถูกต้อง
+          window.location.href = `/chat/${data.data.chatId}`;
+          
+          // ส่งข้อความแรกหลังจาก redirect
           if (pendingFirstRef.current) {
             const { text, images: pImages, agentId: pAgentId } = pendingFirstRef.current;
             const msgPayload = {
@@ -190,7 +194,10 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
               images: pImages,
               agent_id: pAgentId
             };
-            wsRef.current?.send(JSON.stringify(msgPayload));
+            // ใช้ setTimeout เพื่อให้ redirect ทำงานก่อน
+            setTimeout(() => {
+              wsRef.current?.send(JSON.stringify(msgPayload));
+            }, 100);
             pendingFirstRef.current = null;
           }
         } else if (data.type === 'end') {
@@ -262,7 +269,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         });
       }
     };
-  }, [token, currentSession, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken]);
+  }, [token, currentSession, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken, handleRoomCreated]);
 
   // Cleanup WebSocket on unmount
   useEffect(() => {
