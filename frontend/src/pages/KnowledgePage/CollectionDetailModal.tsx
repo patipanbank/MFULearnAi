@@ -123,15 +123,40 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     }
   };
 
+  // Group documents by source (filename)
+  const groupedDocs = React.useMemo(() => {
+    const groups: { [source: string]: CollectionDocument[] } = {};
+    docs.forEach((doc) => {
+      const source = doc.metadata?.source || 'Unknown Document';
+      if (!groups[source]) groups[source] = [];
+      groups[source].push(doc);
+    });
+    return groups;
+  }, [docs]);
+
+  // For search
+  const groupedFilteredDocs = React.useMemo(() => {
+    if (!searchQuery.trim()) return groupedDocs;
+    const filtered: { [source: string]: CollectionDocument[] } = {};
+    Object.entries(groupedDocs).forEach(([source, docs]) => {
+      if (
+        source.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        docs.some((doc) => doc.document?.toLowerCase().includes(searchQuery.toLowerCase()))
+      ) {
+        filtered[source] = docs;
+      }
+    });
+    return filtered;
+  }, [groupedDocs, searchQuery]);
+
   const handlePreview = async (doc: CollectionDocument) => {
     setSelectedDoc(doc);
     setIsLoadingPreview(true);
-    
     try {
-      // For now, we'll show the document text directly
-      // In a real implementation, you might want to fetch the full document content
-      const content = doc.document || 'No content available';
-      setPreviewContent(content);
+      // Find all docs with the same source
+      const allChunks = docs.filter((d) => d.metadata?.source === doc.metadata?.source);
+      const content = allChunks.map((d) => d.document || '').join('\n---\n');
+      setPreviewContent(content || 'No content available');
     } catch (error) {
       console.error('Failed to load preview:', error);
       setPreviewContent('Failed to load document preview.');
@@ -140,12 +165,13 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     }
   };
 
-  const handleDeleteDocument = async (docId: string) => {
+  // Update handleDeleteDocument to accept array
+  const handleDeleteDocument = async (docIds: string[] | string) => {
     if (!collection) return;
-    
+    const ids = Array.isArray(docIds) ? docIds : [docIds];
     try {
       await api.delete(`/collections/${collection.id}/documents`, {
-        data: { document_ids: [docId] }
+        data: { document_ids: ids }
       });
       addToast({
         type: 'success',
@@ -242,7 +268,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
           {/* Documents List */}
           <div className="w-1/2 pr-4 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-primary">Documents ({filteredDocs.length})</h3>
+              <h3 className="text-lg font-semibold text-primary">Documents ({Object.keys(groupedFilteredDocs).length})</h3>
             </div>
 
             {isLoadingDocs ? (
@@ -250,33 +276,34 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 <span className="ml-3 text-secondary">Loading documents...</span>
               </div>
-            ) : filteredDocs.length === 0 ? (
+            ) : Object.keys(groupedFilteredDocs).length === 0 ? (
               <div className="text-center py-12 text-muted text-sm">
                 {searchQuery ? 'No documents match your search' : 'No documents uploaded yet'}
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredDocs.map((doc) => (
+                {Object.entries(groupedFilteredDocs).map(([source, docs]) => (
                   <div
-                    key={doc.id}
+                    key={source}
                     className={`p-4 rounded-lg card card-hover cursor-pointer transition-colors ${
-                      selectedDoc?.id === doc.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''
+                      selectedDoc && selectedDoc.metadata?.source === source ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''
                     }`}
-                    onClick={() => handlePreview(doc)}
+                    onClick={() => handlePreview(docs[0])}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3 flex-1 min-w-0">
-                        {getFileIcon(doc.metadata?.source_type)}
+                        {getFileIcon(docs[0].metadata?.source_type)}
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-primary truncate">
-                            {doc.metadata?.source || 'Unknown Document'}
+                            {source}
                           </h4>
                           <p className="text-sm text-muted mt-1">
-                            {doc.document ? truncateText(doc.document, 80) : 'No content preview'}
+                            {docs[0].document ? truncateText(docs[0].document, 80) : 'No content preview'}
                           </p>
                           <div className="flex items-center space-x-4 mt-2 text-xs text-muted">
-                            <span>Type: {doc.metadata?.source_type || 'unknown'}</span>
-                            <span>By: {doc.metadata?.uploadedBy || 'unknown'}</span>
+                            <span>Type: {docs[0].metadata?.source_type || 'unknown'}</span>
+                            <span>By: {docs[0].metadata?.uploadedBy || 'unknown'}</span>
+                            <span>Chunks: {docs.length}</span>
                           </div>
                         </div>
                       </div>
@@ -284,7 +311,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePreview(doc);
+                            handlePreview(docs[0]);
                           }}
                           className="btn-ghost p-1"
                           title="Preview"
@@ -292,9 +319,10 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
                           <FiEye className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            handleDeleteDocument(doc.id);
+                            // Delete all chunks for this file
+                            await handleDeleteDocument(docs.map((d) => d.id));
                           }}
                           className="btn-ghost p-1 text-red-600 hover:text-red-700"
                           title="Delete"
