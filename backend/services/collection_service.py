@@ -121,6 +121,26 @@ class CollectionService:
             print(f"Error deleting collection: {e}")
             return False
 
+    async def get_user_collections(self, user: User) -> List[Collection]:
+        """Get collections visible to the user: PUBLIC, DEPARTMENT (same), PRIVATE (owner)"""
+        try:
+            query = {
+                "$or": [
+                    {"permission": "PUBLIC"},
+                    {"permission": "DEPARTMENT", "department": user.department},
+                    {"permission": "PRIVATE", "createdBy": user.username}
+                ]
+            }
+            collections_cursor = self.collections_collection.find(query)
+            collections = []
+            async for collection_doc in collections_cursor:
+                collection_doc["id"] = str(collection_doc.pop("_id"))
+                collections.append(Collection(**collection_doc))
+            return collections
+        except Exception as e:
+            print(f"Error getting user collections: {e}")
+            return []
+
     def can_user_access_collection(self, user: User, collection: Collection) -> bool:
         """Check if user can access collection"""
         # Public collections can be accessed by anyone

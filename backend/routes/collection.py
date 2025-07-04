@@ -41,8 +41,7 @@ class CollectionResponse(BaseModel):
 async def get_all_collections(
     current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
-    collections = await collection_service.get_all_collections()
-    # TODO: In a real app, you might filter this list based on user permissions
+    collections = await collection_service.get_user_collections(current_user)
     return collections
 
 @router.get("/public", response_model=List[CollectionResponse])

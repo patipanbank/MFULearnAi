@@ -12,6 +12,7 @@ class Collection(BaseModel):
     name: str
     permission: CollectionPermission
     createdBy: str
+    department: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.utcnow)
     updatedAt: datetime = Field(default_factory=datetime.utcnow)
 
@@ -21,6 +22,7 @@ class Collection(BaseModel):
             "example": {
                 "name": "My Document Collection",
                 "permission": "PRIVATE",
-                "createdBy": "user123"
+                "createdBy": "user123",
+                "department": "IT"
             }
         } 
