@@ -146,11 +146,13 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       setIsConnectedToRoom(true);
       
       if (isInChatRoom && chatId) {
+        console.log('WebSocket: Joining room', chatId);
         ws.send(JSON.stringify({ type: 'join_room', chatId }));
       }
       
       console.log('[CHAT] WebSocket OPEN – pending', pendingQueueRef.current.length);
       pendingQueueRef.current.forEach((p) => {
+        console.log('WebSocket: Sending pending message', p);
         ws.send(JSON.stringify(p));
       });
       pendingQueueRef.current = [];
@@ -159,6 +161,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('WebSocket: Received message', data);
         
         if (data.type === 'chunk') {
           const session = currentSessionRef.current;
@@ -179,12 +182,10 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
             addMessage(assistantMsg);
           }
         } else if (data.type === 'room_created') {
+          console.log('WebSocket: Room created', data.data.chatId);
           handleRoomCreated(data.data.chatId);
           
-          // Redirect ไปยัง chatId ที่ถูกต้อง
-          window.location.href = `/chat/${data.data.chatId}`;
-          
-          // ส่งข้อความแรกหลังจาก redirect
+          // ส่งข้อความแรกทันทีก่อน redirect
           if (pendingFirstRef.current) {
             const { text, images: pImages, agentId: pAgentId } = pendingFirstRef.current;
             const msgPayload = {
@@ -194,13 +195,19 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
               images: pImages,
               agent_id: pAgentId
             };
-            // ใช้ setTimeout เพื่อให้ redirect ทำงานก่อน
-            setTimeout(() => {
-              wsRef.current?.send(JSON.stringify(msgPayload));
-            }, 100);
+            console.log('WebSocket: Sending first message', msgPayload);
+            // ส่งข้อความทันที
+            wsRef.current?.send(JSON.stringify(msgPayload));
             pendingFirstRef.current = null;
           }
+          
+          // ใช้ setTimeout เพื่อให้ข้อความถูกส่งก่อน redirect
+          setTimeout(() => {
+            // ใช้ window.location.href เพื่อให้ redirect ทำงานถูกต้อง
+            window.location.href = `/chat/${data.data.chatId}`;
+          }, 200);
         } else if (data.type === 'end') {
+          console.log('WebSocket: Message ended');
           const session = currentSessionRef.current;
           const lastMessage = session?.messages[session.messages.length - 1];
           if (lastMessage && lastMessage.role === 'assistant') {

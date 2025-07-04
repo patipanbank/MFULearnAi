@@ -57,6 +57,20 @@ const ChatPage: React.FC = () => {
     messagesEndRef
   } = useChatInput();
 
+  // Debug function to test WebSocket connection
+  const debugWebSocket = useCallback(() => {
+    console.log('=== WebSocket Debug Info ===');
+    console.log('WebSocket ref:', wsRef.current);
+    console.log('WebSocket readyState:', wsRef.current?.readyState);
+    console.log('Is in chat room:', isInChatRoom);
+    console.log('Chat ID:', chatId);
+    console.log('Current session:', currentSession);
+    console.log('Selected agent:', selectedAgent);
+    console.log('Pending queue:', pendingQueueRef.current);
+    console.log('Pending first:', pendingFirstRef.current);
+    console.log('===========================');
+  }, [wsRef, isInChatRoom, chatId, currentSession, selectedAgent, pendingQueueRef, pendingFirstRef]);
+
   // Initialize data on mount
   useEffect(() => {
     const initializeData = async () => {
@@ -140,6 +154,8 @@ const ChatPage: React.FC = () => {
       return;
     }
 
+    console.log('ChatPage: Sending message', { message: message.trim(), agentId: selectedAgent.id, isInChatRoom, chatId });
+
     // Add user message immediately for local rendering
     const userTimestamp = new Date();
     userTimestamp.setHours(userTimestamp.getHours() - 7);
@@ -168,13 +184,17 @@ const ChatPage: React.FC = () => {
 
     // Check if we're in a chat room
     if (isInChatRoom && chatId && chatId.length === 24) {
+      console.log('ChatPage: Sending to existing room', chatId);
       // Send to existing room
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
+        const payload = {
           ...messagePayload,
           chatId: chatId
-        }));
+        };
+        console.log('ChatPage: WebSocket ready, sending message', payload);
+        wsRef.current.send(JSON.stringify(payload));
       } else {
+        console.log('ChatPage: WebSocket not ready, queuing message');
         // Queue message if WebSocket not ready
         pendingQueueRef.current.push({
           ...messagePayload,
@@ -182,6 +202,7 @@ const ChatPage: React.FC = () => {
         });
       }
     } else {
+      console.log('ChatPage: Creating new room');
       // Create new room
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         // Store first message for when room is created
@@ -192,11 +213,14 @@ const ChatPage: React.FC = () => {
         };
 
         // Send create room request
-        wsRef.current.send(JSON.stringify({
+        const createRoomPayload = {
           type: 'create_room',
           agent_id: selectedAgent.id
-        }));
+        };
+        console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
+        wsRef.current.send(JSON.stringify(createRoomPayload));
       } else {
+        console.log('ChatPage: WebSocket not ready, queuing create room request');
         // Queue create room request
         pendingQueueRef.current.push({
           type: 'create_room',
@@ -416,6 +440,15 @@ const ChatPage: React.FC = () => {
         {/* Input Area - Fixed at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="px-4 pb-6">
+            {/* Debug button - only show in development */}
+            {import.meta.env.DEV && (
+              <button
+                onClick={debugWebSocket}
+                className="mb-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+              >
+                Debug WebSocket
+              </button>
+            )}
             <ResponsiveChatInput
               message={message}
               onMessageChange={setMessage}

@@ -18,25 +18,34 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
 
   // Combined effect for chat navigation logic
   useEffect(() => {
+    console.log('ChatNavigation: URL changed', { chatId, isInChatRoom, currentSessionId: currentSession?.id });
+    
     // Handle chat loading when URL changes
     if (isInChatRoom && chatId) {
       if (currentSession && currentSession.id === chatId) {
-        if (!isConnectedToRoom) connectWebSocket();
+        console.log('ChatNavigation: Same chat, connecting WebSocket if needed');
+        if (!isConnectedToRoom) {
+          console.log('ChatNavigation: Connecting WebSocket...');
+          connectWebSocket();
+        }
         return; // already loaded
       }
 
       // Use a separate function to avoid async in useEffect
       const handleChatLoad = async () => {
+        console.log('ChatNavigation: Loading chat', chatId);
         try {
           const ok = await loadChat(chatId);
           if (ok) {
+            console.log('ChatNavigation: Chat loaded successfully, connecting WebSocket');
             connectWebSocket();
           } else {
+            console.log('ChatNavigation: Chat not found, redirecting to /chat');
             navigate('/chat');
             createNewChat();
           }
         } catch (error) {
-          console.error('Failed to load chat:', error);
+          console.error('ChatNavigation: Failed to load chat:', error);
           navigate('/chat');
           createNewChat();
         }
@@ -45,6 +54,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
       handleChatLoad();
     } else {
       // Handle new chat creation
+      console.log('ChatNavigation: Creating new chat');
       if (!currentSession || !currentSession.id.startsWith('chat_')) {
         createNewChat();
       }
