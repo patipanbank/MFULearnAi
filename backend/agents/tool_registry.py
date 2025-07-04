@@ -314,12 +314,132 @@ def create_memory_tool(session_id: str) -> List[Tool]:
 
 # Existing tools
 def web_search(query: str) -> str:
-    """Search the web for current information"""
+    """Search the web for current information using DuckDuckGo API with Hugging Face fallback"""
     try:
-        # For now, return a placeholder since web_scraper_service doesn't have a search method
-        return f"Web search for '{query}' - This feature is not yet implemented."
+        # Try DuckDuckGo first (more reliable for web search)
+        result = web_search_duckduckgo(query)
+        if result and "No specific results found" not in result:
+            return result
+        
+        # If DuckDuckGo fails, try Hugging Face API
+        return web_search_huggingface(query)
+            
     except Exception as e:
         return f"Error performing web search: {str(e)}"
+
+def web_search_huggingface(query: str) -> str:
+    """Web search using Hugging Face API"""
+    try:
+        import requests
+        from config.config import settings
+        
+        # Get API key from settings
+        api_key = settings.HUGGINGFACE_API_KEY
+        if not api_key:
+            return "Error: HUGGINGFACE_API_KEY not configured"
+        
+        # Use Hugging Face Inference API with a text generation model
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Use a model that's good for information retrieval and summarization
+        model_url = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+        
+        # Create a prompt that asks for information about the query
+        prompt = f"Answer this question with current information: {query}"
+        
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "max_length": 300,
+                "do_sample": False,
+                "temperature": 0.7,
+                "return_full_text": False
+            }
+        }
+        
+        response = requests.post(model_url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                generated_text = result[0].get('generated_text', '')
+                if generated_text:
+                    return f"Information about '{query}': {generated_text}"
+                else:
+                    return f"Search for '{query}' - Model response: {str(result[0])}"
+            else:
+                return f"Search for '{query}' - Response: {str(result)}"
+        elif response.status_code == 503:
+            return f"Search for '{query}' - Hugging Face model is loading. Please try again later."
+        else:
+            return f"Search for '{query}' - Hugging Face API returned status {response.status_code}."
+            
+    except requests.exceptions.Timeout:
+        return f"Search for '{query}' - Hugging Face API request timed out."
+    except requests.exceptions.RequestException as e:
+        return f"Search for '{query}' - Hugging Face API network error: {str(e)}"
+    except Exception as e:
+        return f"Error with Hugging Face API: {str(e)}"
+
+def web_search_duckduckgo(query: str) -> str:
+    """Web search using DuckDuckGo API"""
+    try:
+        import requests
+        
+        # Use DuckDuckGo Instant Answer API (free, no API key required)
+        search_url = "https://api.duckduckgo.com/"
+        
+        params = {
+            'q': query,
+            'format': 'json',
+            'no_html': '1',
+            'skip_disambig': '1'
+        }
+        
+        response = requests.get(search_url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Extract relevant information
+            results = []
+            
+            # Get abstract (summary)
+            if data.get('Abstract'):
+                results.append(f"Summary: {data['Abstract']}")
+                if data.get('AbstractURL'):
+                    results.append(f"Source: {data['AbstractURL']}")
+            
+            # Get related topics
+            if data.get('RelatedTopics') and len(data['RelatedTopics']) > 0:
+                topics = data['RelatedTopics'][:3]  # Limit to 3 topics
+                topic_texts = []
+                for topic in topics:
+                    if isinstance(topic, dict) and topic.get('Text'):
+                        topic_texts.append(topic['Text'])
+                if topic_texts:
+                    results.append(f"Related topics: {'; '.join(topic_texts)}")
+            
+            # Get answer if available
+            if data.get('Answer'):
+                results.append(f"Direct answer: {data['Answer']}")
+            
+            if results:
+                return f"Web search results for '{query}':\n" + "\n".join(results)
+            else:
+                return f"No specific results found for '{query}'. Try rephrasing your search query."
+        else:
+            return f"Web search for '{query}' - DuckDuckGo API returned status {response.status_code}. Please try again."
+            
+    except requests.exceptions.Timeout:
+        return f"Web search for '{query}' - DuckDuckGo request timed out. Please try again."
+    except requests.exceptions.RequestException as e:
+        return f"Web search for '{query}' - DuckDuckGo network error: {str(e)}"
+    except Exception as e:
+        return f"Error with DuckDuckGo API: {str(e)}"
 
 def calculate(expression: str) -> str:
     """Calculate mathematical expressions"""
