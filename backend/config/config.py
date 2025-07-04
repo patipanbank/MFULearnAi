@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     OLLAMA_API_URL: Optional[str] = None
     HUGGINGFACE_API_KEY: Optional[str] = None
     
+    # Google Search API
+    GOOGLE_API_KEY: Optional[str] = None
+    GOOGLE_CSE_ID: Optional[str] = None
+    
     # CORS - ใช้ environment variables ตาม APP_ENV
     ALLOWED_ORIGINS: Optional[str] = None
 

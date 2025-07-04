@@ -314,93 +314,110 @@ def create_memory_tool(session_id: str) -> List[Tool]:
 
 # Existing tools
 def web_search(query: str) -> str:
-    """Search the web for current information using DuckDuckGo API with Hugging Face fallback"""
+    """Search the web for current information using DuckDuckGo API with Google Search fallback"""
     try:
-        # Try DuckDuckGo first (more reliable for web search)
+        # Try DuckDuckGo first (free, no API key required)
         result = web_search_duckduckgo(query)
         
-        # Check if DuckDuckGo returned valid results
+        # If DuckDuckGo returns valid results, use them
         if result and "No specific results found" not in result and "API returned status" not in result:
             return result
         
-        # If DuckDuckGo fails completely, try Hugging Face API as last resort
-        print(f"🔄 DuckDuckGo failed, trying Hugging Face API for: {query}")
-        huggingface_result = web_search_huggingface(query)
+        # If DuckDuckGo fails, try Google Search as fallback
+        print(f"🔄 DuckDuckGo failed, trying Google Search fallback for: {query}")
+        result = web_search_google(query)
         
-        # If Hugging Face also fails, return a helpful message
-        if "Error:" in huggingface_result or "API returned status" in huggingface_result:
-            return f"Sorry, I couldn't find information about '{query}' through web search. Please try rephrasing your question or ask something else."
+        # If Google Search returns valid results, use them
+        if result and "not configured" not in result and "API error" not in result and "API returned status" not in result:
+            return result
         
-        return huggingface_result
+        # If both fail, return a helpful message
+        return f"Sorry, I couldn't find specific information about '{query}' through web search. Please try rephrasing your question or ask something else."
             
     except Exception as e:
         print(f"❌ Error in web_search: {e}")
         return f"Sorry, I encountered an error while searching for '{query}'. Please try again later."
 
-def web_search_huggingface(query: str) -> str:
-    """Web search using Hugging Face API"""
+def web_search_google(query: str) -> str:
+    """Web search using Google Custom Search API"""
     try:
         import requests
         from config.config import settings
         
-        # Get API key from settings
-        api_key = settings.HUGGINGFACE_API_KEY
-        if not api_key:
-            print("⚠️ HUGGINGFACE_API_KEY not configured in settings")
-            return "Error: HUGGINGFACE_API_KEY not configured"
+        print(f"🔍 Using Google Search API for: {query}")
         
-        print(f"🔍 Using Hugging Face API with key: {api_key[:10]}...")
+        # Check if API key and CSE ID are configured
+        if not settings.GOOGLE_API_KEY:
+            return f"Web search for '{query}' - Google API key not configured. Please configure GOOGLE_API_KEY in environment."
         
-        # Use Hugging Face Inference API with a text generation model
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+        if not settings.GOOGLE_CSE_ID:
+            return f"Web search for '{query}' - Google CSE ID not configured. Please configure GOOGLE_CSE_ID in environment."
+        
+        # Google Custom Search JSON API
+        search_url = "https://www.googleapis.com/customsearch/v1"
+        
+        params = {
+            'key': settings.GOOGLE_API_KEY,
+            'cx': settings.GOOGLE_CSE_ID,
+            'q': query,
+            'num': 5  # Number of results (max 10)
         }
         
-        # Use a model that's good for information retrieval and summarization
-        model_url = "https://api-inference.huggingface.co/models/google/flan-t5-large"
-        
-        # Create a prompt that asks for information about the query
-        prompt = f"Answer this question with current information: {query}"
-        
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "max_length": 300,
-                "do_sample": False,
-                "temperature": 0.7,
-                "return_full_text": False
-            }
-        }
-        
-        response = requests.post(model_url, headers=headers, json=payload, timeout=30)
+        response = requests.get(search_url, params=params, timeout=15)
         
         if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, list) and len(result) > 0:
-                generated_text = result[0].get('generated_text', '')
-                if generated_text:
-                    return f"Information about '{query}': {generated_text}"
-                else:
-                    return f"Search for '{query}' - Model response: {str(result[0])}"
+            data = response.json()
+            
+            # Extract search results
+            results = []
+            
+            if 'items' in data and data['items']:
+                for i, item in enumerate(data['items'][:3], 1):  # Limit to 3 results
+                    title = item.get('title', 'No title')
+                    snippet = item.get('snippet', 'No description')
+                    link = item.get('link', 'No link')
+                    
+                    results.append(f"{i}. {title}")
+                    results.append(f"   {snippet}")
+                    results.append(f"   Source: {link}")
+                    results.append("")  # Empty line for spacing
+                
+                # Add search info
+                search_info = data.get('searchInformation', {})
+                total_results = search_info.get('formattedTotalResults', 'Unknown')
+                search_time = search_info.get('formattedSearchTime', 'Unknown')
+                results.insert(0, f"Found {total_results} results in {search_time} seconds")
+                results.insert(1, "")  # Empty line
+                
+                return f"Web search results for '{query}':\n" + "\n".join(results)
             else:
-                return f"Search for '{query}' - Response: {str(result)}"
-        elif response.status_code == 503:
-            return f"Search for '{query}' - Hugging Face model is loading. Please try again later."
-        elif response.status_code == 401:
-            return f"Search for '{query}' - Hugging Face API key is invalid or expired."
+                return f"No specific results found for '{query}'. Try rephrasing your search query."
         else:
-            return f"Search for '{query}' - Hugging Face API returned status {response.status_code}."
+            print(f"⚠️ Google Search API returned status {response.status_code}")
+            error_detail = ""
+            try:
+                error_data = response.json()
+                error_detail = error_data.get('error', {}).get('message', '')
+            except:
+                pass
+            
+            if error_detail:
+                return f"Web search for '{query}' - Google API error: {error_detail}"
+            else:
+                return f"Web search for '{query}' - Google API returned status {response.status_code}. Please try again."
             
     except requests.exceptions.Timeout:
-        return f"Search for '{query}' - Hugging Face API request timed out."
+        print(f"⚠️ Google Search request timed out")
+        return f"Web search for '{query}' - Google Search request timed out. Please try again."
     except requests.exceptions.RequestException as e:
-        return f"Search for '{query}' - Hugging Face API network error: {str(e)}"
+        print(f"⚠️ Google Search network error: {e}")
+        return f"Web search for '{query}' - Google Search network error: {str(e)}"
     except Exception as e:
-        return f"Error with Hugging Face API: {str(e)}"
+        print(f"⚠️ Google Search error: {e}")
+        return f"Error with Google Search API: {str(e)}"
 
 def web_search_duckduckgo(query: str) -> str:
-    """Web search using DuckDuckGo API"""
+    """Web search using DuckDuckGo API (fallback)"""
     try:
         import requests
         
@@ -418,7 +435,8 @@ def web_search_duckduckgo(query: str) -> str:
         
         response = requests.get(search_url, params=params, timeout=10)
         
-        if response.status_code == 200:
+        # DuckDuckGo sometimes returns 202 (Accepted) which is also valid
+        if response.status_code in [200, 202]:
             data = response.json()
             
             # Extract relevant information
@@ -471,6 +489,31 @@ def calculate(expression: str) -> str:
     except Exception as e:
         return f"Error calculating: {str(e)}"
 
+def get_current_date() -> str:
+    """Get current date and time"""
+    try:
+        from datetime import datetime
+        import pytz
+        
+        # Get current time in Thailand timezone
+        thailand_tz = pytz.timezone('Asia/Bangkok')
+        current_time = datetime.now(thailand_tz)
+        
+        # Format the date and time
+        date_str = current_time.strftime("%A, %B %d, %Y")
+        time_str = current_time.strftime("%H:%M:%S")
+        
+        return f"Current date and time in Thailand: {date_str} at {time_str} (UTC+7)"
+    except ImportError:
+        # Fallback if pytz is not available
+        from datetime import datetime
+        current_time = datetime.now()
+        date_str = current_time.strftime("%A, %B %d, %Y")
+        time_str = current_time.strftime("%H:%M:%S")
+        return f"Current date and time: {date_str} at {time_str}"
+    except Exception as e:
+        return f"Error getting current date: {str(e)}"
+
 # Tool registry
 TOOL_REGISTRY: Dict[str, Tool] = {
     "web_search": Tool(
@@ -482,6 +525,11 @@ TOOL_REGISTRY: Dict[str, Tool] = {
         name="calculator",
         description="Calculate mathematical expressions. Use this for any mathematical calculations.",
         func=calculate
+    ),
+    "current_date": Tool(
+        name="current_date",
+        description="Get the current date and time. Use this when someone asks about the current date, time, or what day it is today.",
+        func=get_current_date
     )
 }
 
