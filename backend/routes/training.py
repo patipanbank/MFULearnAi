@@ -44,8 +44,10 @@ async def upload_file_for_training(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         # Log the error for debugging
+        import traceback
         print(f"Error during file upload processing: {e}")
-        raise HTTPException(status_code=500, detail="Error processing upload.")
+        print(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error processing upload: {str(e)}")
 
 class ScrapeRequest(BaseModel):
     url: HttpUrl
