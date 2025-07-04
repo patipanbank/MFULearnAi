@@ -11,7 +11,6 @@ class TrainingAction(str, Enum):
     DELETE_COLLECTION = 'delete_collection'
 
 class TrainingHistory(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
     userId: str
     username: str
     collectionName: str

@@ -20,10 +20,12 @@ class TrainingHistoryService:
         if details:
             history_data["details"] = details
 
-        # Let Pydantic handle the defaults for id and timestamp
+        # Let Pydantic handle the defaults for timestamp
         history_entry = TrainingHistory(**history_data)
         
-        await db.get_collection("training_history").insert_one(history_entry.model_dump(by_alias=True))
+        # Convert to dict and let MongoDB generate _id automatically
+        history_dict = history_entry.model_dump()
+        await db.get_collection("training_history").insert_one(history_dict)
 
     async def get_history_by_collection(self, collection_name: str, limit: int = 100):
         db = get_database()
