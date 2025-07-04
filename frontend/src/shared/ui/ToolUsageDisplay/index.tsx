@@ -45,7 +45,7 @@ export const ToolUsageDisplay: React.FC<ToolUsageDisplayProps> = ({ toolUsage })
                 </div>
                 {usage.tool_input && (
                   <div className="text-xs text-gray-500 mt-1">
-                    ค้นหา: "{usage.tool_input}"
+                    ค้นหา: "{usage.tool_input.length > 50 ? usage.tool_input.substring(0, 50) + '...' : usage.tool_input}"
                   </div>
                 )}
               </div>

@@ -200,9 +200,14 @@ class ChatService:
                 
                 elif kind == "on_tool_start":
                     # Handle tool start - show which tool is being used
-                    tool_name = event["data"].get("name", "Unknown Tool")
-                    tool_input = event["data"].get("input", "")
+                    tool_data = event["data"]
+                    tool_name = tool_data.get("name", "Unknown Tool")
+                    tool_input = tool_data.get("input", "")
+                    
+                    # Log the full tool data for debugging
                     logging.info(f"🔧 Tool started: {tool_name}")
+                    logging.info(f"🔧 Tool data: {tool_data}")
+                    
                     yield json.dumps({
                         "type": "tool_start", 
                         "data": {

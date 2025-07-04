@@ -293,10 +293,18 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           const lastMessage = session?.messages[session.messages.length - 1];
           if (lastMessage && lastMessage.role === 'assistant') {
             // เพิ่ม tool usage ลงใน message
+            let toolInput = '';
+            if (typeof data.data.tool_input === 'string') {
+              toolInput = data.data.tool_input;
+            } else if (typeof data.data.tool_input === 'object') {
+              // ถ้า tool_input เป็น object ให้แปลงเป็น string
+              toolInput = JSON.stringify(data.data.tool_input);
+            }
+            
             const toolInfo = {
               type: 'tool_start' as const,
               tool_name: data.data.tool_name as string,
-              tool_input: data.data.tool_input as string,
+              tool_input: toolInput,
               timestamp: new Date()
             };
             updateMessage(lastMessage.id, {
