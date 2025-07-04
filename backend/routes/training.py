@@ -6,7 +6,6 @@ from middleware.role_guard import get_current_user_with_roles
 from models.user import User, UserRole
 
 router = APIRouter(
-    prefix="/training",
     tags=["Training"]
 )
 
