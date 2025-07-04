@@ -3,6 +3,7 @@
 import axios from 'axios';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { useAuthStore } from '../../entities/user/store';
+import { config } from '../../config/config';
 
 /**
  * Creates a configured instance of Axios.
@@ -10,7 +11,7 @@ import { useAuthStore } from '../../entities/user/store';
  * add the JWT token to authorization headers.
  */
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: config.apiUrl,
   timeout: 15000, // 15 seconds
   headers: {
     'Content-Type': 'application/json',
