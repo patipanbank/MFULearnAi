@@ -14,89 +14,13 @@ interface ToolUsageDisplayProps {
 }
 
 export const ToolUsageDisplay: React.FC<ToolUsageDisplayProps> = ({ toolUsage }) => {
-  if (!toolUsage || toolUsage.length === 0) {
-    return null;
-  }
-
-  const getToolIcon = (toolName: string) => {
-    if (toolName.includes('search_')) {
-      return '🔍';
-    }
-    return '🔧';
-  };
-
-  const getToolDisplayName = (toolName: string) => {
-    if (toolName.startsWith('search_')) {
-      return `ค้นหาข้อมูลจาก ${toolName.replace('search_', '')}`;
-    }
-    return toolName;
-  };
-
+  // แสดงเฉพาะตอนมี tool_start และยังไม่มี tool_result/tool_error
+  const isActive = toolUsage.some(u => u.type === 'tool_start') &&
+    !toolUsage.some(u => u.type === 'tool_result' || u.type === 'tool_error');
+  if (!isActive) return null;
   return (
-    <div className="mt-2 space-y-2">
-      {toolUsage.map((usage, index) => (
-        <div key={index} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
-          {usage.type === 'tool_start' && (
-            <div className="flex items-center space-x-2">
-              <span className="text-lg">{getToolIcon(usage.tool_name)}</span>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">
-                  {getToolDisplayName(usage.tool_name)}
-                </div>
-                {usage.tool_input && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    ค้นหา: "{usage.tool_input.length > 50 ? usage.tool_input.substring(0, 50) + '...' : usage.tool_input}"
-                  </div>
-                )}
-              </div>
-              <div className="text-xs text-gray-400">
-                {usage.timestamp.toLocaleTimeString()}
-              </div>
-            </div>
-          )}
-          
-          {usage.type === 'tool_result' && (
-            <div className="flex items-start space-x-2">
-              <span className="text-lg">✅</span>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">
-                  ผลลัพธ์จาก {getToolDisplayName(usage.tool_name)}
-                </div>
-                {usage.output && (
-                  <div className="text-xs text-gray-600 mt-1 bg-white p-2 rounded border">
-                    {usage.output.length > 200 
-                      ? `${usage.output.substring(0, 200)}...` 
-                      : usage.output
-                    }
-                  </div>
-                )}
-              </div>
-              <div className="text-xs text-gray-400">
-                {usage.timestamp.toLocaleTimeString()}
-              </div>
-            </div>
-          )}
-          
-          {usage.type === 'tool_error' && (
-            <div className="flex items-center space-x-2">
-              <span className="text-lg">❌</span>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-red-700">
-                  เกิดข้อผิดพลาดใน {getToolDisplayName(usage.tool_name)}
-                </div>
-                {usage.error && (
-                  <div className="text-xs text-red-600 mt-1">
-                    {usage.error}
-                  </div>
-                )}
-              </div>
-              <div className="text-xs text-gray-400">
-                {usage.timestamp.toLocaleTimeString()}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
+    <div className="mt-1 text-blue-600 flex items-center text-sm">
+      <span className="mr-1">🔍</span> กำลังใช้เครื่องมือค้นหาข้อมูล...
     </div>
   );
 }; 
