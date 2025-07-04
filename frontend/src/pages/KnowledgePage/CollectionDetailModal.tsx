@@ -145,7 +145,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     
     try {
       await api.delete(`/collections/${collection.id}/documents`, {
-        data: [docId]
+        data: { document_ids: [docId] }
       });
       addToast({
         type: 'success',
