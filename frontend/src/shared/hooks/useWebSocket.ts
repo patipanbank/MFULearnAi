@@ -294,9 +294,9 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           if (lastMessage && lastMessage.role === 'assistant') {
             // เพิ่ม tool usage ลงใน message
             const toolInfo = {
-              type: 'tool_start',
-              tool_name: data.data.tool_name,
-              tool_input: data.data.tool_input,
+              type: 'tool_start' as const,
+              tool_name: data.data.tool_name as string,
+              tool_input: data.data.tool_input as string,
               timestamp: new Date()
             };
             updateMessage(lastMessage.id, {
@@ -310,9 +310,9 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           if (lastMessage && lastMessage.role === 'assistant') {
             // อัพเดท tool result
             const toolInfo = {
-              type: 'tool_result',
-              tool_name: data.data.tool_name,
-              output: data.data.output,
+              type: 'tool_result' as const,
+              tool_name: data.data.tool_name as string,
+              output: data.data.output as string,
               timestamp: new Date()
             };
             updateMessage(lastMessage.id, {
@@ -326,9 +326,9 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           if (lastMessage && lastMessage.role === 'assistant') {
             // เพิ่ม tool error
             const toolInfo = {
-              type: 'tool_error',
-              tool_name: data.data.tool_name,
-              error: data.data.error,
+              type: 'tool_error' as const,
+              tool_name: data.data.tool_name as string,
+              error: data.data.error as string,
               timestamp: new Date()
             };
             updateMessage(lastMessage.id, {
