@@ -210,6 +210,8 @@ class ChromaService:
             import boto3
             from botocore.config import Config
 
+            print(f"🔍 Creating vector store for collection: {collection_name}")
+
             # สร้าง embeddings (เหมือนที่ agent_factory ใช้)
             boto3_config = Config(read_timeout=900, retries={"max_attempts": 3, "mode": "standard"})
             bedrock_client = boto3.client(
@@ -228,6 +230,28 @@ class ChromaService:
                 collection_name=collection_name,
                 embedding_function=embeddings,
             )
+
+            # ตรวจสอบจำนวน documents ใน collection
+            try:
+                collection = self.client.get_collection(name=collection_name)
+                count = collection.count()
+                print(f"📊 Collection '{collection_name}' has {count} documents")
+                
+                if count == 0:
+                    print(f"⚠️ Collection '{collection_name}' is empty!")
+                else:
+                    # แสดงตัวอย่าง documents
+                    results = collection.get(limit=3, include=["documents", "metadatas"])
+                    print(f"📄 Sample documents in '{collection_name}':")
+                    documents = results.get('documents', [])
+                    if documents:
+                        for i, doc in enumerate(documents[:2]):
+                            print(f"  {i+1}. {doc[:100]}...")
+                    else:
+                        print("  No documents found")
+                        
+            except Exception as e:
+                print(f"❌ Error checking collection '{collection_name}': {e}")
 
             return vector_store
         except Exception as e:

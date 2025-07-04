@@ -287,6 +287,54 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
             // ใช้ window.location.href เพื่อให้ redirect ทำงานถูกต้อง
             window.location.href = `/chat/${data.data.chatId}`;
           }, 200);
+        } else if (data.type === 'tool_start') {
+          console.log('WebSocket: Tool started', data.data);
+          const session = currentSessionRef.current;
+          const lastMessage = session?.messages[session.messages.length - 1];
+          if (lastMessage && lastMessage.role === 'assistant') {
+            // เพิ่ม tool usage ลงใน message
+            const toolInfo = {
+              type: 'tool_start',
+              tool_name: data.data.tool_name,
+              tool_input: data.data.tool_input,
+              timestamp: new Date()
+            };
+            updateMessage(lastMessage.id, {
+              toolUsage: [...(lastMessage.toolUsage || []), toolInfo]
+            });
+          }
+        } else if (data.type === 'tool_result') {
+          console.log('WebSocket: Tool result', data.data);
+          const session = currentSessionRef.current;
+          const lastMessage = session?.messages[session.messages.length - 1];
+          if (lastMessage && lastMessage.role === 'assistant') {
+            // อัพเดท tool result
+            const toolInfo = {
+              type: 'tool_result',
+              tool_name: data.data.tool_name,
+              output: data.data.output,
+              timestamp: new Date()
+            };
+            updateMessage(lastMessage.id, {
+              toolUsage: [...(lastMessage.toolUsage || []), toolInfo]
+            });
+          }
+        } else if (data.type === 'tool_error') {
+          console.log('WebSocket: Tool error', data.data);
+          const session = currentSessionRef.current;
+          const lastMessage = session?.messages[session.messages.length - 1];
+          if (lastMessage && lastMessage.role === 'assistant') {
+            // เพิ่ม tool error
+            const toolInfo = {
+              type: 'tool_error',
+              tool_name: data.data.tool_name,
+              error: data.data.error,
+              timestamp: new Date()
+            };
+            updateMessage(lastMessage.id, {
+              toolUsage: [...(lastMessage.toolUsage || []), toolInfo]
+            });
+          }
         } else if (data.type === 'end') {
           console.log('WebSocket: Message ended');
           const session = currentSessionRef.current;

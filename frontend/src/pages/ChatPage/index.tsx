@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
 import type { ChatMessage } from '../../shared/stores/chatStore';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
+import { ToolUsageDisplay } from '../../shared/ui/ToolUsageDisplay';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
@@ -393,6 +394,11 @@ const ChatPage: React.FC = () => {
                       <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
                     )}
                   </div>
+                  
+                  {/* Tool Usage Display */}
+                  {msg.toolUsage && msg.toolUsage.length > 0 && (
+                    <ToolUsageDisplay toolUsage={msg.toolUsage} />
+                  )}
                 </div>
               </div>
               {msg.role === 'user' && (

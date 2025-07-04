@@ -9,6 +9,14 @@ export interface ChatMessage {
   images?: Array<{ url: string; mediaType: string }>;
   isStreaming?: boolean;
   isComplete?: boolean;
+  toolUsage?: Array<{
+    type: 'tool_start' | 'tool_result' | 'tool_error';
+    tool_name: string;
+    tool_input?: string;
+    output?: string;
+    error?: string;
+    timestamp: Date;
+  }>;
 }
 
 export interface ChatSession {

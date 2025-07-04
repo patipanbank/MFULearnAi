@@ -197,13 +197,47 @@ class ChatService:
                     if llm_chunk_text:
                         content_received = True
                         yield json.dumps({"type": "chunk", "data": llm_chunk_text})
+                
+                elif kind == "on_tool_start":
+                    # Handle tool start - show which tool is being used
+                    tool_name = event["data"].get("name", "Unknown Tool")
+                    tool_input = event["data"].get("input", "")
+                    logging.info(f"🔧 Tool started: {tool_name}")
+                    yield json.dumps({
+                        "type": "tool_start", 
+                        "data": {
+                            "tool_name": tool_name,
+                            "tool_input": tool_input
+                        }
+                    })
                         
                 elif kind == "on_tool_end":
                     # Handle tool execution results
+                    tool_name = event["data"].get("name", "Unknown Tool")
                     tool_output = event["data"].get("output")
+                    logging.info(f"✅ Tool completed: {tool_name}")
                     if tool_output:
                         content_received = True
-                        yield json.dumps({"type": "tool_result", "data": str(tool_output)})
+                        yield json.dumps({
+                            "type": "tool_result", 
+                            "data": {
+                                "tool_name": tool_name,
+                                "output": str(tool_output)
+                            }
+                        })
+                
+                elif kind == "on_tool_error":
+                    # Handle tool errors
+                    tool_name = event["data"].get("name", "Unknown Tool")
+                    error = event["data"].get("error", "Unknown error")
+                    logging.error(f"❌ Tool error: {tool_name} - {error}")
+                    yield json.dumps({
+                        "type": "tool_error", 
+                        "data": {
+                            "tool_name": tool_name,
+                            "error": str(error)
+                        }
+                    })
                 
                 elif kind == "on_chain_end":
                     # Capture usage statistics and (optionally) fallback answer, but **do not** emit it here.
