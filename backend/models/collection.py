@@ -6,6 +6,7 @@ from enum import Enum
 class CollectionPermission(str, Enum):
     PUBLIC = 'PUBLIC'
     PRIVATE = 'PRIVATE'
+    DEPARTMENT = 'DEPARTMENT'
 
 class Collection(BaseModel):
     id: Optional[str] = Field(None, alias="_id")

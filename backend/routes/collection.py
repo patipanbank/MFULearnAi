@@ -86,7 +86,7 @@ async def update_existing_collection(
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
     
-    if not collection_service.can_user_access_collection(current_user, collection):
+    if not collection_service.can_user_modify_collection(current_user, collection):
         raise HTTPException(status_code=403, detail="Not authorized to update this collection")
 
     updates = collection_data.model_dump(exclude_unset=True)
@@ -97,13 +97,13 @@ async def update_existing_collection(
 @router.delete("/{collection_id}", status_code=204)
 async def delete_existing_collection(
     collection_id: str,
-    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN]))
+    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
     collection = await collection_service.get_collection_by_id(collection_id)
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
         
-    if not collection_service.can_user_access_collection(current_user, collection):
+    if not collection_service.can_user_modify_collection(current_user, collection):
         raise HTTPException(status_code=403, detail="Not authorized to delete this collection")
         
     try:
@@ -142,13 +142,13 @@ async def get_documents_in_collection(
 async def delete_documents_from_a_collection(
     collection_id: str,
     document_ids: List[str] = Body(..., embed=True),
-    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN]))
+    current_user: User = Depends(get_current_user_with_roles([UserRole.STAFFS, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STUDENTS]))
 ):
     collection = await collection_service.get_collection_by_id(collection_id)
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    if not collection_service.can_user_access_collection(current_user, collection):
+    if not collection_service.can_user_modify_collection(current_user, collection):
         raise HTTPException(status_code=403, detail="Not authorized to delete documents from this collection")
         
     try:

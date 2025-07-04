@@ -76,6 +76,7 @@ class CollectionService:
                 "name": name,
                 "permission": permission,  # Remove .value since permission is already a string
                 "createdBy": created_by.username,
+                "department": created_by.department,
                 "createdAt": datetime.utcnow().isoformat()
             }
             
@@ -142,7 +143,7 @@ class CollectionService:
             return []
 
     def can_user_access_collection(self, user: User, collection: Collection) -> bool:
-        """Check if user can access collection"""
+        """Check if user can access collection (read access)"""
         # Public collections can be accessed by anyone
         if collection.permission == "PUBLIC":
             return True
@@ -154,7 +155,32 @@ class CollectionService:
         # Department collections can be accessed by same department users
         if collection.permission == "DEPARTMENT":
             return (collection.createdBy == user.username or 
-                   user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN])
+                   user.department == collection.department)
+        
+        # Admin and Super Admin can access all collections
+        if user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+            return True
+        
+        # Default to no access
+        return False
+
+    def can_user_modify_collection(self, user: User, collection: Collection) -> bool:
+        """Check if user can modify collection (write/delete access)"""
+        # Private collections can only be modified by creator
+        if collection.permission == "PRIVATE":
+            return collection.createdBy == user.username
+        
+        # Public collections can only be modified by Admin and Super Admin
+        if collection.permission == "PUBLIC":
+            return user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN]
+        
+        # Department collections can only be modified by creator
+        if collection.permission == "DEPARTMENT":
+            return collection.createdBy == user.username
+        
+        # Admin and Super Admin can modify all collections
+        if user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+            return True
         
         # Default to no access
         return False
