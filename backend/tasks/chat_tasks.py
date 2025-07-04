@@ -9,6 +9,7 @@ from celery_app import celery
 from services.chat_service import chat_service
 from services.chat_history_service import chat_history_service
 from models.chat import ChatMessage
+from utils.redis_memory_manager import memory_manager
 
 
 @celery.task(name="generate_answer")
@@ -76,22 +77,19 @@ def generate_answer(payload: Dict[str, Any]):
 
                 # publish to redis for streaming
                 try:
-                    import os, redis, json  # type: ignore
-                    redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-                    message = json.dumps({"type": "chunk", "data": buffer[-1]})
-                    redis_client.publish(f"chat:{session_id}", message)
-                    print(f"📤 Published chunk to Redis: chat:{session_id}")
+                    await memory_manager.publish_message(session_id, {
+                        "type": "chunk", 
+                        "data": buffer[-1]
+                    })
+                    print(f"📤 Published chunk to Redis: {session_id}")
                 except Exception as pub_err:
                     print(f"❌ Redis publish error: {pub_err}")
             
             elif data["type"] in ["tool_start", "tool_result", "tool_error"]:
                 # Forward tool events directly to Redis
                 try:
-                    import os, redis, json  # type: ignore
-                    redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-                    message = json.dumps(data)
-                    redis_client.publish(f"chat:{session_id}", message)
-                    print(f"🔧 Published {data['type']} to Redis: chat:{session_id}")
+                    await memory_manager.publish_message(session_id, data)
+                    print(f"🔧 Published {data['type']} to Redis: {session_id}")
                 except Exception as pub_err:
                     print(f"❌ Redis publish error: {pub_err}")
             
@@ -111,11 +109,8 @@ def generate_answer(payload: Dict[str, Any]):
 
                 # publish end event
                 try:
-                    import os, redis, json  # type: ignore
-                    redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-                    message = json.dumps({"type": "end"})
-                    redis_client.publish(f"chat:{session_id}", message)
-                    print(f"🏁 Published end event to Redis: chat:{session_id}")
+                    await memory_manager.publish_message(session_id, {"type": "end"})
+                    print(f"🏁 Published end event to Redis: {session_id}")
                 except Exception as pub_err:
                     print(f"❌ Redis publish error: {pub_err}")
 

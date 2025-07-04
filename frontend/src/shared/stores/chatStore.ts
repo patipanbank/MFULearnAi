@@ -177,7 +177,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Actions
   createNewChat: () => {
     const newSession: ChatSession = {
-      id: `chat_${Date.now()}`,
+      id: crypto.randomUUID ? crypto.randomUUID() : `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: 'New Chat',
       messages: [],
       agentId: '',

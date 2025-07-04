@@ -4,6 +4,7 @@ from models.chat import Chat, ChatMessage
 from bson import ObjectId
 from typing import List, Optional
 from bson.errors import InvalidId
+from utils.redis_memory_manager import memory_manager
 
 class ChatHistoryService:
     async def get_chat_history_for_user(self, user_id: str) -> List[Chat]:
@@ -82,6 +83,19 @@ class ChatHistoryService:
     async def delete_chat(self, chat_id: str) -> bool:
         db = get_database()
         result = await db.get_collection("chats").delete_one({"_id": ObjectId(chat_id)})
+        
+        # Clean up Redis memory using memory manager
+        if result.deleted_count > 0:
+            try:
+                # Get chat info to find user_id
+                chat = await self.get_chat_by_id(chat_id)
+                if chat:
+                    # Delete session from memory manager
+                    await memory_manager.delete_session(chat.userId, chat_id)
+                    print(f"🧹 Cleaned up Redis memory for chat {chat_id}")
+            except Exception as e:
+                print(f"⚠️ Failed to cleanup Redis memory for chat {chat_id}: {e}")
+        
         return result.deleted_count > 0
 
     async def update_chat_agent(self, chat_id: str, agent_id: str) -> Optional[Chat]:
