@@ -19,6 +19,8 @@ interface CreateCollectionModalProps {
 
 const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, onClose, onCreated }) => {
   const [name, setName] = useState('');
+  const [permission, setPermission] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
+  const [modelId, setModelId] = useState('anthropic.claude-3-5-sonnet-20240620-v1:0');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToast } = useUIStore();
 
@@ -33,9 +35,46 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
       });
       return;
     }
+    
+    const trimmedName = name.trim();
+    
+    // Frontend validation
+    if (trimmedName.length < 3) {
+      addToast({
+        type: 'warning',
+        title: 'Name Too Short',
+        message: 'Collection name must be at least 3 characters long.'
+      });
+      return;
+    }
+    
+    if (trimmedName.length > 100) {
+      addToast({
+        type: 'warning',
+        title: 'Name Too Long',
+        message: 'Collection name cannot exceed 100 characters.'
+      });
+      return;
+    }
+    
+    // Check for invalid characters
+    const nameRegex = /^[a-zA-Z0-9\s\-_]+$/;
+    if (!nameRegex.test(trimmedName)) {
+      addToast({
+        type: 'warning',
+        title: 'Invalid Characters',
+        message: 'Collection name can only contain letters, numbers, spaces, hyphens, and underscores.'
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
-      const newCol = await api.post<Collection>('/collections/', { name: name.trim() });
+      const newCol = await api.post<Collection>('/collections/', { 
+        name: trimmedName,
+        permission: permission,
+        modelId: modelId
+      });
       onCreated(newCol);
       addToast({
         type: 'success',
@@ -43,13 +82,23 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
         message: `Created "${newCol.name}" successfully.`
       });
       setName('');
+      setPermission('PRIVATE');
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create collection', err);
+      
+      // Extract error message from response
+      let errorMessage = 'Unable to create collection.';
+      if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       addToast({
         type: 'error',
         title: 'Creation Failed',
-        message: 'Unable to create collection.'
+        message: errorMessage
       });
     } finally {
       setIsSubmitting(false);
@@ -69,11 +118,32 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
         <label className="block text-sm font-medium text-primary mb-2">Collection Name</label>
         <input
           type="text"
-          className="input w-full mb-6"
-          placeholder="Enter collection name (English letters, numbers, - _)"
+          className="input w-full mb-4"
+          placeholder="Enter collection name (3-100 characters, letters, numbers, spaces, - _)"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
+
+        <label className="block text-sm font-medium text-primary mb-2">Permission</label>
+        <select
+          className="input w-full mb-4"
+          value={permission}
+          onChange={(e) => setPermission(e.target.value as 'PUBLIC' | 'PRIVATE')}
+        >
+          <option value="PRIVATE">Private - Only you can access</option>
+          <option value="PUBLIC">Public - Anyone can access</option>
+        </select>
+
+        <label className="block text-sm font-medium text-primary mb-2">Embedding Model</label>
+        <select
+          className="input w-full mb-6"
+          value={modelId}
+          onChange={(e) => setModelId(e.target.value)}
+        >
+          <option value="anthropic.claude-3-5-sonnet-20240620-v1:0">Claude 3.5 Sonnet (Recommended)</option>
+          <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku</option>
+          <option value="amazon.titan-embed-text-v1">Titan Embeddings</option>
+        </select>
 
         <button
           onClick={handleSubmit}

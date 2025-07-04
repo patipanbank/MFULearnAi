@@ -50,10 +50,31 @@ class CollectionService:
     async def create_collection(self, name: str, permission: CollectionPermission, created_by: User, model_id: Optional[str] = None) -> Collection:
         """Create a new collection"""
         try:
+            # Validate collection name
+            if not name or not name.strip():
+                raise ValueError("Collection name cannot be empty")
+            
+            name = name.strip()
+            if len(name) < 3:
+                raise ValueError("Collection name must be at least 3 characters long")
+            
+            if len(name) > 100:
+                raise ValueError("Collection name cannot exceed 100 characters")
+            
+            # Check for invalid characters (only allow alphanumeric, spaces, hyphens, underscores)
+            import re
+            if not re.match(r'^[a-zA-Z0-9\s\-_]+$', name):
+                raise ValueError("Collection name can only contain letters, numbers, spaces, hyphens, and underscores")
+            
+            # Check for duplicate name
+            existing_collection = await self.collections_collection.find_one({"name": name})
+            if existing_collection:
+                raise ValueError(f"Collection with name '{name}' already exists")
+            
             collection_doc = {
                 "_id": ObjectId(),
                 "name": name,
-                "permission": permission.value,
+                "permission": permission,  # Remove .value since permission is already a string
                 "createdBy": created_by.username,
                 "createdAt": datetime.utcnow().isoformat()
             }
