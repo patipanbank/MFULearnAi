@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores';
 import { useUIStore } from '../stores';
 
@@ -10,7 +9,6 @@ interface UseChatNavigationOptions {
 }
 
 export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: UseChatNavigationOptions) => {
-  const navigate = useNavigate();
   const currentSession = useChatStore((state) => state.currentSession);
   const loadChat = useChatStore((state) => state.loadChat);
   const createNewChat = useChatStore((state) => state.createNewChat);
