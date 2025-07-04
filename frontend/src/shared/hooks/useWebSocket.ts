@@ -285,7 +285,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     pendingFirstRef,
     pendingQueueRef,
     connectWebSocket,
-    handleRoomCreated,
     abortStreaming,
     isTokenExpired,
     tryRefreshToken
