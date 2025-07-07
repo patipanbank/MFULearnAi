@@ -7,7 +7,12 @@
   "scripts": {
     "start": "node dist/main.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
-    "build": "rimraf dist && tsc -p tsconfig.build.json"
+    "build": "rimraf dist && tsc -p tsconfig.build.json",
+    "env:create": "cp .env.example .env",
+    "env:validate": "node -e \"require('dotenv').config(); console.log('Environment variables loaded successfully')\"",
+    "health:check": "curl -f http://localhost:5000/health || echo 'Health check failed'",
+    "docs:open": "open http://localhost:5000/docs",
+    "migrate:from-fastapi": "./migrate-to-nestjs.sh"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.842.0",
