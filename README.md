@@ -47,4 +47,31 @@ A comprehensive AI learning platform for Mae Fah Luang University.
 - Reduced memory usage and improved performance
 - No duplicate embedding of messages
 
+## Backend Architecture
+
+### **Python Backend (FastAPI)**
+- **Location**: `backend/`
+- **Status**: Production-ready
+- **Features**: Basic AI chat, memory system, agent tools
+- **Technology**: FastAPI, Celery, Redis, MongoDB
+
+### **Node.js Backend (NestJS)**
+- **Location**: `backend-node/`
+- **Status**: Phase 1 Complete, Phase 2 Complete
+- **Features**: Advanced WebSocket, Agent orchestration, Type safety
+- **Technology**: NestJS, Socket.IO, BullMQ, TypeScript
+- **Progress**: 
+  - ✅ **Phase 1**: Core systems (23 modules implemented)
+  - ✅ **Phase 2**: Advanced features (WebSocket, Agent orchestration, Vector embeddings)
+  - ⏳ **Phase 3**: Performance & scalability
+
+### **Migration Status**
+- **Core Functionality**: ✅ Completed
+- **WebSocket Features**: ✅ Implemented
+- **Agent Orchestration**: ✅ Implemented
+- **Type Safety**: ✅ Completed (Zod validation implemented)
+- **Token-by-Token Streaming**: ✅ Completed (Real-time AI response streaming)
+- **Error Handling Enhancement**: ✅ Completed (Global exception handling, retry, circuit breaker)
+- **Vector Embeddings**: ✅ Completed (Semantic search, similarity matching, intelligent caching)
+
 ## Features 
