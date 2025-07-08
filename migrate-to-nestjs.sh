@@ -224,4 +224,4 @@ case $choice in
 esac
 
 echo ""
-log_info "🎉 NestJS backend is ready for use!" 
+log_info "🎉 NestJS backend is ready for use!"
