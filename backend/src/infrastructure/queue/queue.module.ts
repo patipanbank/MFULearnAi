@@ -17,9 +17,28 @@ import { MemoryService } from '../../services/memory.service';
     {
       provide: 'BULL_QUEUE',
       useFactory: () => {
+        // Check if REDIS_URL is provided (for docker-compose or production)
+        const redisUrl = process.env.REDIS_URL;
+        if (redisUrl) {
+          return new Queue('default', {
+            connection: {
+              url: redisUrl,
+            },
+          });
+        }
+        
+        // Fall back to individual environment variables
+        const host = process.env.REDIS_HOST || 'localhost';
+        const port = parseInt(process.env.REDIS_PORT || '6379');
+        const password = process.env.REDIS_PASSWORD;
+        const db = parseInt(process.env.REDIS_DB || '0');
+        
         return new Queue('default', {
           connection: {
-            url: process.env.REDIS_URL || 'redis://localhost:6379',
+            host,
+            port,
+            password,
+            db,
           },
         });
       },

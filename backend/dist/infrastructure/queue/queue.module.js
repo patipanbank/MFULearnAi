@@ -29,9 +29,24 @@ exports.QueueModule = QueueModule = __decorate([
             {
                 provide: 'BULL_QUEUE',
                 useFactory: () => {
+                    const redisUrl = process.env.REDIS_URL;
+                    if (redisUrl) {
+                        return new bullmq_1.Queue('default', {
+                            connection: {
+                                url: redisUrl,
+                            },
+                        });
+                    }
+                    const host = process.env.REDIS_HOST || 'localhost';
+                    const port = parseInt(process.env.REDIS_PORT || '6379');
+                    const password = process.env.REDIS_PASSWORD;
+                    const db = parseInt(process.env.REDIS_DB || '0');
                     return new bullmq_1.Queue('default', {
                         connection: {
-                            url: process.env.REDIS_URL || 'redis://localhost:6379',
+                            host,
+                            port,
+                            password,
+                            db,
                         },
                     });
                 },

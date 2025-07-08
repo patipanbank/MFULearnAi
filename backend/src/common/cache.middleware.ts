@@ -30,7 +30,24 @@ export class CacheMiddleware implements NestMiddleware {
   };
 
   constructor() {
-    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+    // Check if REDIS_URL is provided (for docker-compose or production)
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl) {
+      this.redis = new Redis(redisUrl);
+    } else {
+      // Fall back to individual environment variables
+      const host = process.env.REDIS_HOST || 'localhost';
+      const port = parseInt(process.env.REDIS_PORT || '6379');
+      const password = process.env.REDIS_PASSWORD;
+      const db = parseInt(process.env.REDIS_DB || '0');
+      
+      this.redis = new Redis({
+        host,
+        port,
+        password,
+        db,
+      });
+    }
   }
 
   use(req: Request, res: Response, next: NextFunction) {

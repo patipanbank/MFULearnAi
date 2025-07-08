@@ -34,6 +34,7 @@ services:
       # Override specific values that need to be different in Docker
       - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
       - CHROMA_URL=http://chroma:8000
+      - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - S3_ENDPOINT=http://minio:9000

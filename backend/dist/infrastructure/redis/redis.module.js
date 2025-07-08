@@ -19,8 +19,20 @@ exports.RedisModule = RedisModule = __decorate([
             {
                 provide: 'REDIS_CLIENT',
                 useFactory: () => {
-                    const url = process.env.REDIS_URL || 'redis://localhost:6379';
-                    return new ioredis_1.default(url);
+                    const redisUrl = process.env.REDIS_URL;
+                    if (redisUrl) {
+                        return new ioredis_1.default(redisUrl);
+                    }
+                    const host = process.env.REDIS_HOST || 'localhost';
+                    const port = parseInt(process.env.REDIS_PORT || '6379');
+                    const password = process.env.REDIS_PASSWORD;
+                    const db = parseInt(process.env.REDIS_DB || '0');
+                    return new ioredis_1.default({
+                        host,
+                        port,
+                        password,
+                        db,
+                    });
                 },
             },
         ],

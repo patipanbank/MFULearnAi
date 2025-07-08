@@ -21,7 +21,22 @@ let CacheMiddleware = CacheMiddleware_1 = class CacheMiddleware {
             compress: true,
             varyBy: ['accept', 'accept-encoding']
         };
-        this.redis = new ioredis_1.default(process.env.REDIS_URL || 'redis://localhost:6379');
+        const redisUrl = process.env.REDIS_URL;
+        if (redisUrl) {
+            this.redis = new ioredis_1.default(redisUrl);
+        }
+        else {
+            const host = process.env.REDIS_HOST || 'localhost';
+            const port = parseInt(process.env.REDIS_PORT || '6379');
+            const password = process.env.REDIS_PASSWORD;
+            const db = parseInt(process.env.REDIS_DB || '0');
+            this.redis = new ioredis_1.default({
+                host,
+                port,
+                password,
+                db,
+            });
+        }
     }
     use(req, res, next) {
         this.applyCache(req, res, next, this.defaultConfig);
