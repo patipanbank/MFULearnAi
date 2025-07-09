@@ -1,11 +1,11 @@
 import React from 'react';
-import { config } from '../../config/config';
+import { authApi } from '../../shared/lib/api';
 import { FiBookOpen, FiMessageCircle, FiZap, FiGlobe } from 'react-icons/fi';
 
 const LoginPage: React.FC = () => {
 
   const handleMFUSSOLogin = () => {
-    window.location.href = `${config.apiUrl}/api/v1/auth/login/saml`;
+    authApi.saml.login();
   };
 
   const handleAdminLogin = () => {

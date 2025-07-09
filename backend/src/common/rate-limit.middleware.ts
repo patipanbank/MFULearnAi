@@ -228,6 +228,18 @@ export class RateLimitPresets {
   }
 
   /**
+   * Strict authentication endpoints - for login/register
+   */
+  static strictAuth() {
+    return RateLimitMiddleware.create({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      maxRequests: 3,           // 3 attempts per window (very strict)
+      keyGenerator: (req) => `strict_auth:${req.ip}`,
+      message: 'Too many authentication attempts. Please try again in 15 minutes.'
+    });
+  }
+
+  /**
    * SAML authentication endpoints - more lenient for SSO flows
    */
   static saml() {
@@ -236,6 +248,18 @@ export class RateLimitPresets {
       maxRequests: 20,          // 20 attempts per window (more lenient for SAML redirects)
       keyGenerator: (req) => `saml:${req.ip}`,
       message: 'Too many SAML authentication attempts. Please try again in 15 minutes.'
+    });
+  }
+
+  /**
+   * Monitoring endpoints - very lenient for Prometheus/monitoring tools
+   */
+  static monitoring() {
+    return RateLimitMiddleware.create({
+      windowMs: 60 * 1000,  // 1 minute
+      maxRequests: 600,     // 600 requests per minute (very lenient for monitoring)
+      keyGenerator: (req) => `monitoring:${req.ip}`,
+      message: 'Monitoring rate limit exceeded.'
     });
   }
 

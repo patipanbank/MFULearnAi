@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '../../../shared/types';
-import { api } from '../../../shared/lib/api';
-import { config } from '../../../config/config';
+import { api, authApi } from '../../../shared/lib/api';
 
 interface AuthState {
   token: string | null;
@@ -99,7 +98,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
       
       // Then redirect current tab to SAML logout
-      window.location.href = `${config.apiUrl}/api/v1/auth/logout/saml`;
+      authApi.saml.logout();
     },
   };
 

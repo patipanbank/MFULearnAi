@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { config } from '../../config/config';
+import { authApi, apiUtils } from '../../shared/lib/api';
 import { FiEye, FiEyeOff, FiLock, FiUser, FiShield, FiArrowLeft } from 'react-icons/fi';
 
 const AdminLoginPage: React.FC = () => {
@@ -20,24 +19,18 @@ const AdminLoginPage: React.FC = () => {
     setIsUsernameError(false);
     
     try {
-      const response = await axios.post(`${config.apiUrl}/api/v1/auth/login`, {
-        username,
-        password
-      });
+      const response: any = await authApi.login({ username, password });
 
-      localStorage.setItem('auth_token', response.data.token);
-      localStorage.setItem('user_data', JSON.stringify(response.data.user));
+      localStorage.setItem('auth_token', response.token || response.accessToken);
+      localStorage.setItem('user_data', JSON.stringify(response.user));
       
       navigate('/chat'); // Redirect to chat instead of mfuchatbot
     } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.data?.detail) {
-        if (error.response.data.detail.toLowerCase().includes('not found')) {
-          setIsUsernameError(true);
-        } else {
-            setIsPasswordError(true);
-        }
+      const errorMessage = apiUtils.getErrorMessage(error);
+      if (errorMessage.toLowerCase().includes('not found')) {
+        setIsUsernameError(true);
       } else {
-        setIsPasswordError(true); // Generic error
+        setIsPasswordError(true);
       }
     } finally {
       setIsLoading(false);
