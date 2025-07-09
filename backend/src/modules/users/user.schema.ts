@@ -1,5 +1,5 @@
 import { Schema, Document } from 'mongoose';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 export interface UserDocument extends Document {
   username: string;
