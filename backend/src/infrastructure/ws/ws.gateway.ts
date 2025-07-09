@@ -58,7 +58,7 @@ interface SendMessageData {
   type?: 'user' | 'system';
 }
 
-@WebSocketGateway({ 
+@WebSocketGateway({
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true
