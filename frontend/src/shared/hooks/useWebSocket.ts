@@ -153,7 +153,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     setIsConnectedToRoom(false); // Reset connection state
     
     // Use Socket.IO baseURL (default /socket.io/)
-    const baseUrl = config.wsUrl.replace('/api/v1', '').replace('/api', '');
+    const baseUrl = config.wsUrl.replace('/ws', '').replace('/api/v1', '').replace('/api', '');
     console.log('connectWebSocket: Socket.IO base URL', baseUrl);
     
     let socket: Socket;
