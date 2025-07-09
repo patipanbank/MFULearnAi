@@ -152,7 +152,59 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   }
 
   @UseGuards(JwtWsGuard)
-  @SubscribeMessage('join-room')
+  @SubscribeMessage('create_room')
+  async handleCreateRoom(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
+    try {
+      const { agent_id, text, images } = data;
+      const userId = client.data.userId;
+      const username = client.data.username;
+
+      // Generate a new chat ID (MongoDB ObjectId format)
+      const chatId = `${Date.now().toString(36)}${Math.random().toString(36).substr(2, 9)}`;
+      
+      this.logger.log(`🆕 Creating new room: ${chatId} for user ${username} with agent ${agent_id}`);
+      
+      // Join the new room
+      await client.join(`chat:${chatId}`);
+      
+      // Emit room created event
+      client.emit('room_created', {
+        chatId,
+        agentId: agent_id,
+        userId,
+        username,
+        message: `Successfully created chat room: ${chatId}`,
+        timestamp: new Date()
+      });
+
+      // If there's an initial message, handle it
+      if (text) {
+        // Create initial message
+        const initialMessage = {
+          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          chatId,
+          userId,
+          username,
+          content: text,
+          timestamp: new Date(),
+          type: 'user' as const,
+          images: images || []
+        };
+
+        // Emit the initial message to the room
+        this.server.to(`chat:${chatId}`).emit('message', initialMessage);
+        
+        this.logger.log(`📨 Initial message sent to room ${chatId}: ${text.substring(0, 50)}...`);
+      }
+
+    } catch (error) {
+      this.logger.error(`Failed to create room: ${error}`);
+      client.emit('error', { message: 'Failed to create chat room' });
+    }
+  }
+
+  @UseGuards(JwtWsGuard)
+  @SubscribeMessage('join_room')
   @UsePipes(new ZodValidationPipe(joinRoomSchema))
   async handleJoinRoom(@MessageBody() data: JoinRoomDto, @ConnectedSocket() client: Socket) {
     try {
@@ -171,7 +223,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
       this.logger.log(`🔗 User ${username} joined chat room: ${chatId}`);
       
       // Emit success response
-      client.emit('joined-room', {
+      client.emit('room_joined', {
         chatId,
         message: `Successfully joined chat: ${chatId}`
       });
@@ -191,7 +243,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   }
 
   @UseGuards(JwtWsGuard)
-  @SubscribeMessage('leave-room')
+  @SubscribeMessage('leave_room')
   @UsePipes(new ZodValidationPipe(leaveRoomSchema))
   async handleLeaveRoom(@MessageBody() data: LeaveRoomDto, @ConnectedSocket() client: Socket) {
     try {
@@ -230,7 +282,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   }
 
   @UseGuards(JwtWsGuard)
-  @SubscribeMessage('send-message')
+  @SubscribeMessage('message')
   @UsePipes(new ZodValidationPipe(wsMessageSchema))
   async handleSendMessage(@MessageBody() data: WsMessageDto, @ConnectedSocket() client: Socket) {
     try {
@@ -273,7 +325,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   }
 
   @UseGuards(JwtWsGuard)
-  @SubscribeMessage('typing-start')
+  @SubscribeMessage('typing_start')
   @UsePipes(new ZodValidationPipe(typingStartSchema))
   async handleTypingStart(@MessageBody() data: TypingStartDto, @ConnectedSocket() client: Socket) {
     const { chatId } = data;
@@ -292,7 +344,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   }
 
   @UseGuards(JwtWsGuard)
-  @SubscribeMessage('typing-stop')
+  @SubscribeMessage('typing_stop')
   @UsePipes(new ZodValidationPipe(typingStopSchema))
   async handleTypingStop(@MessageBody() data: TypingStopDto, @ConnectedSocket() client: Socket) {
     const { chatId } = data;
@@ -340,7 +392,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
 
   // Streaming event handlers
   @UseGuards(JwtWsGuard)
-  @SubscribeMessage('subscribe-stream')
+  @SubscribeMessage('subscribe_stream')
   @UsePipes(new ZodValidationPipe(wsStreamSubscribeSchema))
   async handleSubscribeStream(@MessageBody() data: WsStreamSubscribeDto, @ConnectedSocket() client: Socket) {
     try {
@@ -373,7 +425,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   }
 
   @UseGuards(JwtWsGuard)
-  @SubscribeMessage('unsubscribe-stream')
+  @SubscribeMessage('unsubscribe_stream')
   @UsePipes(new ZodValidationPipe(wsStreamUnsubscribeSchema))
   async handleUnsubscribeStream(@MessageBody() data: WsStreamUnsubscribeDto, @ConnectedSocket() client: Socket) {
     try {
