@@ -228,6 +228,18 @@ export class RateLimitPresets {
   }
 
   /**
+   * SAML authentication endpoints - more lenient for SSO flows
+   */
+  static saml() {
+    return RateLimitMiddleware.create({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      maxRequests: 20,          // 20 attempts per window (more lenient for SAML redirects)
+      keyGenerator: (req) => `saml:${req.ip}`,
+      message: 'Too many SAML authentication attempts. Please try again in 15 minutes.'
+    });
+  }
+
+  /**
    * Health check endpoints - very lenient
    */
   static health() {

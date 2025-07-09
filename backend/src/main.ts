@@ -32,6 +32,12 @@ async function bootstrap() {
   app.use('/health', CachePresets.shortTerm());
   
   // Rate Limiting (third priority)
+  // SAML endpoints need more lenient rate limiting due to redirects
+  app.use('/api/auth/login/saml', RateLimitPresets.saml());
+  app.use('/api/auth/saml', RateLimitPresets.saml());
+  app.use('/api/auth/logout/saml', RateLimitPresets.saml());
+  app.use('/api/auth/metadata', RateLimitPresets.saml());
+  // Other auth endpoints use strict rate limiting
   app.use('/api/auth', RateLimitPresets.auth());
   app.use('/api/chat', RateLimitPresets.chat());
   app.use('/api/upload', RateLimitPresets.upload());
