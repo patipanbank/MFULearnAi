@@ -16,7 +16,13 @@ export class ChromaService {
   constructor() {
     const url = process.env.CHROMA_URL || 'http://localhost:8000';
     this.logger.debug(`Connecting to ChromaDB at ${url}`);
-    this.client = new ChromaClient({ path: url });
+    
+    // Parse URL to extract host and port for new ChromaDB client
+    const parsedUrl = new URL(url);
+    this.client = new ChromaClient({ 
+      host: parsedUrl.hostname,
+      port: parseInt(parsedUrl.port) || (parsedUrl.protocol === 'https:' ? 443 : 80)
+    });
   }
 
   private async getCollection(name: string) {

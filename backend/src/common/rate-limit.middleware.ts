@@ -81,7 +81,7 @@ export class RateLimitMiddleware implements NestMiddleware {
           'X-RateLimit-Window': config.windowMs.toString()
         });
 
-        throw new HttpException(
+        const rateLimitError = new HttpException(
           {
             statusCode: config.statusCode,
             message: config.message,
@@ -90,6 +90,8 @@ export class RateLimitMiddleware implements NestMiddleware {
           },
           config.statusCode || HttpStatus.TOO_MANY_REQUESTS
         );
+        
+        return next(rateLimitError);
       }
 
       // Set rate limit headers
@@ -108,7 +110,7 @@ export class RateLimitMiddleware implements NestMiddleware {
       next();
     } catch (error) {
       if (error instanceof HttpException) {
-        throw error;
+        return next(error);
       }
 
       this.logger.error('Rate limit error:', error);
