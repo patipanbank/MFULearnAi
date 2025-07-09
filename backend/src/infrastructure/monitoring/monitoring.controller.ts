@@ -1,9 +1,11 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { PerformanceService } from './performance.service';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../modules/auth/jwt.guard';
 import { RolesGuard } from '../../modules/auth/roles.guard';
 import { Roles } from '../../modules/auth/roles.decorator';
+import { PerformanceService } from './performance.service';
 
+@ApiTags('Monitoring')
 @Controller('admin/monitoring')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('Admin', 'SuperAdmin')
@@ -35,13 +37,13 @@ export class MonitoringController {
   }
 
   /**
-   * Get performance report
+   * Get detailed monitoring report
    */
   @Get('report')
-  async getPerformanceReport() {
+  async getMonitoringReport() {
     const report = await this.performanceService.getPerformanceReport();
     return {
-      message: 'Performance report generated successfully',
+      message: 'Monitoring report retrieved successfully',
       data: report
     };
   }
@@ -91,18 +93,14 @@ export class MonitoringController {
   }
 
   /**
-   * Get performance alerts
+   * Get alerts
    */
   @Get('alerts')
   async getAlerts() {
     const alerts = this.performanceService.getPerformanceAlerts();
     return {
-      message: 'Performance alerts retrieved successfully',
-      data: {
-        alerts,
-        count: alerts.length,
-        hasAlerts: alerts.length > 0
-      }
+      message: 'Alerts retrieved successfully',
+      data: alerts
     };
   }
 
@@ -111,43 +109,19 @@ export class MonitoringController {
    */
   @Get('dashboard')
   async getDashboard() {
-    const [performance, requests, report, alerts] = await Promise.all([
+    const [performance, requests, report] = await Promise.all([
       this.performanceService.getSystemPerformance(),
       this.performanceService.getRequestMetrics(),
-      this.performanceService.getPerformanceReport(),
-      this.performanceService.getPerformanceAlerts()
+      this.performanceService.getPerformanceReport()
     ]);
 
-    // Get recent metrics for charts
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const cpuMetrics = this.performanceService.getMetrics('cpu_usage', oneHourAgo);
-    const memoryMetrics = this.performanceService.getMetrics('memory_usage_percent', oneHourAgo);
-    const responseTimeMetrics = this.performanceService.getMetrics('http_request_duration', oneHourAgo);
-
     return {
-      message: 'Monitoring dashboard data retrieved successfully',
+      message: 'Dashboard data retrieved successfully',
       data: {
         overview: {
           performance,
           requests,
-          alerts: {
-            items: alerts,
-            count: alerts.length
-          }
-        },
-        charts: {
-          cpu: cpuMetrics.map(m => ({
-            timestamp: m.timestamp,
-            value: m.value
-          })),
-          memory: memoryMetrics.map(m => ({
-            timestamp: m.timestamp,
-            value: m.value
-          })),
-          responseTime: responseTimeMetrics.map(m => ({
-            timestamp: m.timestamp,
-            value: m.value
-          }))
+          alerts: report.alerts
         },
         summary: {
           totalMetrics: report.topMetrics.length,
@@ -157,4 +131,6 @@ export class MonitoringController {
       }
     };
   }
-} 
+}
+
+ 
