@@ -232,15 +232,17 @@ export const authApi = {
   me: () =>
     api.get(API_ENDPOINTS.auth.me),
     
-  saml: {
+    saml: {
     login: () => {
-      // Redirect to SAML login (external redirect)
-      window.location.href = `${API_CONFIG.baseURL}${API_ENDPOINTS.auth.saml.login}`;
+      // Redirect to SAML login (external redirect, no versioning)
+      const baseUrl = import.meta.env.VITE_API_URL?.replace('/v1', '') || 'https://mfulearnai.mfu.ac.th/api';
+      window.location.href = `${baseUrl}${API_ENDPOINTS.auth.saml.login}`;
     },
-    
+
     logout: () => {
-      // Redirect to SAML logout (external redirect)
-      window.location.href = `${API_CONFIG.baseURL}${API_ENDPOINTS.auth.saml.logout}`;
+      // Redirect to SAML logout (external redirect, no versioning)
+      const baseUrl = import.meta.env.VITE_API_URL?.replace('/v1', '') || 'https://mfulearnai.mfu.ac.th/api';
+      window.location.href = `${baseUrl}${API_ENDPOINTS.auth.saml.logout}`;
     },
   },
 } as const;
