@@ -54,15 +54,18 @@ export class SamlController {
       const samlUser = req.user;
       console.log('SAML callback received user:', samlUser);
       
-      if (!samlUser || !samlUser.nameID) {
+      // Extract nameID from various possible locations
+      const nameID = samlUser?.id || samlUser?.nameID || samlUser?.attributes?.nameID;
+      
+      if (!samlUser || !nameID) {
         console.error('SAML callback: Missing user or nameID');
         return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=saml_auth_failed`);
       }
 
       // Find or create user
-      let user = await this.userService.findByUsername(samlUser.nameID);
+      let user = await this.userService.findByUsername(nameID);
       if (!user) {
-        user = await this.userService.createUser(samlUser.nameID, samlUser.nameID);
+        user = await this.userService.createUser(nameID, nameID);
         console.log('Created new user from SAML:', user);
       }
 
