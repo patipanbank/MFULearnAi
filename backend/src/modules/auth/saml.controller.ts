@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Request, UseGuards, Response } from '@nestjs/common';
+import { Controller, Post, Body, Get, Request, UseGuards, Response, VERSION_NEUTRAL } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../users/user.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -16,7 +16,10 @@ import { SamlStrategy } from './saml.strategy';
  * - POST/GET /api/auth/saml/callback - Handle SAML authentication callback
  * - GET /api/auth/metadata - Get SAML metadata
  */
-@Controller('auth')
+@Controller({
+  path: 'auth',
+  version: VERSION_NEUTRAL
+})
 export class SamlController {
   constructor(
     private readonly userService: UserService,
