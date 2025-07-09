@@ -40,11 +40,7 @@ const ChatPage: React.FC = () => {
   // Custom hooks
   const {
     wsRef,
-    pendingFirstRef,
-    pendingQueueRef,
     connectWebSocket,
-    isTokenExpired,
-    tryRefreshToken,
     sendMessage: wsSendMessage
   } = useWebSocket({ chatId, isInChatRoom });
 
@@ -59,19 +55,17 @@ const ChatPage: React.FC = () => {
     messagesEndRef
   } = useChatInput();
 
-  // Debug function to test WebSocket connection
+  // Debug function to test Socket.IO connection
   const debugWebSocket = useCallback(() => {
-    console.log('=== WebSocket Debug Info ===');
-    console.log('WebSocket ref:', wsRef.current);
-    console.log('WebSocket readyState:', wsRef.current?.readyState);
+    console.log('=== Socket.IO Debug Info ===');
+    console.log('Socket.IO ref:', wsRef.current);
+    console.log('Socket.IO connected:', wsRef.current?.connected);
     console.log('Is in chat room:', isInChatRoom);
     console.log('Chat ID:', chatId);
     console.log('Current session:', currentSession);
     console.log('Selected agent:', selectedAgent);
-    console.log('Pending queue:', pendingQueueRef.current);
-    console.log('Pending first:', pendingFirstRef.current);
     console.log('===========================');
-  }, [wsRef, isInChatRoom, chatId, currentSession, selectedAgent, pendingQueueRef, pendingFirstRef]);
+  }, [wsRef, isInChatRoom, chatId, currentSession, selectedAgent]);
 
   // Initialize data on mount
   useEffect(() => {
@@ -99,27 +93,12 @@ const ChatPage: React.FC = () => {
     initializeData();
   }, [fetchAgents, setChatHistory, setLoading, addToast]);
 
-  // Auto-reconnect when disconnected (but only if token is still valid)
+  // Auto-reconnect when disconnected
   useEffect(() => {
     let reconnectTimer: number;
     
     const handleReconnect = async () => {
       if (wsStatus === 'disconnected' && token && currentSession && isInChatRoom) {
-        // Check if token is still valid before attempting reconnect
-        if (isTokenExpired(token)) {
-          console.log('Token expired, attempting refresh...');
-          const refreshSuccess = await tryRefreshToken();
-          if (!refreshSuccess) {
-            addToast({
-              type: 'warning',
-              title: 'Session Expired',
-              message: 'Your session has expired. Please log in again to continue chatting.',
-              duration: 0
-            });
-            return;
-          }
-        }
-        
         // Try to reconnect after 3 seconds
         reconnectTimer = window.setTimeout(() => {
           console.log('Attempting to reconnect...');
@@ -135,7 +114,7 @@ const ChatPage: React.FC = () => {
         window.clearTimeout(reconnectTimer);
       }
     };
-  }, [wsStatus, token, currentSession, isInChatRoom, isTokenExpired, addToast, connectWebSocket, tryRefreshToken]);
+  }, [wsStatus, token, currentSession, isInChatRoom, addToast, connectWebSocket]);
 
   // Handle room creation (when first message is sent)
   const handleRoomCreatedWithNavigate = useCallback((roomId: string) => {
@@ -161,15 +140,15 @@ const ChatPage: React.FC = () => {
 
     console.log('ChatPage: Sending message', { message: message.trim(), agentId: selectedAgent.id, isInChatRoom, chatId });
 
-    // ตรวจสอบ WebSocket connection
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      console.log('ChatPage: WebSocket not ready, attempting to connect...');
+    // ตรวจสอบ Socket.IO connection
+    if (!wsRef.current || !wsRef.current.connected) {
+      console.log('ChatPage: Socket.IO not ready, attempting to connect...');
       connectWebSocket();
       
       // รอสักครู่แล้วลองใหม่
       setTimeout(() => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          console.log('ChatPage: WebSocket connected, retrying send...');
+        if (wsRef.current && wsRef.current.connected) {
+          console.log('ChatPage: Socket.IO connected, retrying send...');
           sendMessage();
         } else {
           addToast({
@@ -201,8 +180,6 @@ const ChatPage: React.FC = () => {
     setMessage('');
     setImages([]);
 
-    // Note: messagePayload is no longer used since we use wsSendMessage function
-
     // Check if we're in a chat room
     if (isInChatRoom && chatId && chatId.length === 24) {
       console.log('ChatPage: Sending to existing room', chatId);
@@ -211,38 +188,41 @@ const ChatPage: React.FC = () => {
     } else {
       console.log('ChatPage: Creating new room');
       // Create new room
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        // Store first message for when room is created
-        pendingFirstRef.current = {
-          text: message.trim(),
-          images: images,
-          agentId: selectedAgent.id
-        };
-
+      if (wsRef.current && wsRef.current.connected) {
         // Send create room request
         const createRoomPayload = {
-          type: 'create_room',
-          agent_id: selectedAgent.id
-        };
-        console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
-        wsRef.current.send(JSON.stringify(createRoomPayload));
-      } else {
-        console.log('ChatPage: WebSocket not ready, queuing create room request');
-        // Queue create room request
-        pendingQueueRef.current.push({
-          type: 'create_room',
-          agent_id: selectedAgent.id
-        });
-        
-        // Store first message for when room is created
-        pendingFirstRef.current = {
+          agent_id: selectedAgent.id,
           text: message.trim(),
-          images: images,
-          agentId: selectedAgent.id
+          images: images
         };
+        console.log('ChatPage: Socket.IO ready, creating room', createRoomPayload);
+        wsRef.current.emit('create_room', createRoomPayload);
+      } else {
+        console.log('ChatPage: Socket.IO not ready, retrying...');
+        connectWebSocket();
+        
+        // รอสักครู่แล้วลองใหม่
+        setTimeout(() => {
+          if (wsRef.current && wsRef.current.connected) {
+            const createRoomPayload = {
+              agent_id: selectedAgent.id,
+              text: message.trim(),
+              images: images
+            };
+            console.log('ChatPage: Socket.IO connected, creating room', createRoomPayload);
+            wsRef.current.emit('create_room', createRoomPayload);
+          } else {
+            addToast({
+              type: 'error',
+              title: 'Connection Error',
+              message: 'Unable to connect to chat service. Please try again.',
+              duration: 5000
+            });
+          }
+        }, 1000);
       }
     }
-  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, pendingQueueRef, pendingFirstRef, addToast, connectWebSocket, wsSendMessage]);
+  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, connectWebSocket, wsSendMessage, addToast]);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
