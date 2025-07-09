@@ -31,7 +31,7 @@ class TrainingService:
         if not chunks:
             return 0
 
-        embeddings = await bedrock_service.create_batch_text_embeddings(chunks)
+        embeddings = await bedrock_service.create_batch_text_embeddings(chunks, model_id)
         if not embeddings or len(embeddings) != len(chunks):
             print(f"Error: Mismatch between number of chunks ({len(chunks)}) and embeddings ({len(embeddings) if embeddings else 0}) for source {source_name}")
             return 0

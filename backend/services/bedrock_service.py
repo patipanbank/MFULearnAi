@@ -55,11 +55,29 @@ class BedrockService:
             # Depending on desired behavior, you might return an empty list or re-raise
             return []
 
-    async def create_batch_text_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def create_batch_text_embeddings(self, texts: List[str], model_id: str = "amazon.titan-embed-text-v1") -> List[List[float]]:
         """Creates embeddings for a batch of texts concurrently."""
-        tasks = [self.create_text_embedding(text) for text in texts]
+        # Validate model_id and log usage
+        print(f"Creating batch embeddings for {len(texts)} texts using model: {model_id}")
+        
+        # Create tasks with specific model_id
+        tasks = [self.create_text_embedding_with_model(text, model_id) for text in texts]
         embeddings = await asyncio.gather(*tasks)
+        
+        print(f"Successfully generated {len(embeddings)} embeddings using {model_id}")
         return embeddings
+
+    async def create_text_embedding_with_model(self, text: str, model_id: str = "amazon.titan-embed-text-v1") -> List[float]:
+        """Creates an embedding for a given text using specified model."""
+        body = {"inputText": text}
+        try:
+            response = await self._invoke_model_async(model_id, body, "text embedding")
+            response_body = json.loads(response['body'].read())
+            return response_body['embedding']
+        except Exception as e:
+            logger.error(f"Failed to create text embedding with model {model_id}: {e}")
+            # Return empty list on error to maintain consistency
+            return []
 
     async def create_image_embedding(self, image_base64: str, text: Optional[str] = None) -> List[float]:
         """Creates an embedding for a given image (and optional text) using Titan Multimodal Embeddings."""
