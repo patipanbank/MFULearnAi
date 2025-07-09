@@ -15,6 +15,9 @@ import { GracefulShutdownService } from './common/services/graceful-shutdown.ser
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Set global prefix for all API routes
+  app.setGlobalPrefix('api');
+  
   // Enable API Versioning
   app.enableVersioning({
     type: VersioningType.URI,
