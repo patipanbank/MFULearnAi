@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Request, UseGuards, Response } from '@nestjs/common';
+import { Controller, Post, Body, Get, Request, UseGuards, Response, Version } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../users/user.service';
 import { JwtAuthGuard } from './jwt.guard';
@@ -14,7 +14,10 @@ import {
   RefreshTokenDto 
 } from '../../common/schemas';
 
-@Controller('auth')
+@Controller({
+  path: 'auth',
+  version: '1'
+})
 export class AuthController {
   constructor(
     private readonly userService: UserService,

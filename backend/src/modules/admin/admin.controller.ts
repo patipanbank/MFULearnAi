@@ -7,7 +7,10 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { SystemPromptService } from '../system-prompt/system-prompt.service';
 
-@Controller('admins')
+@Controller({
+  path: 'admins',
+  version: '1'
+})
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SuperAdmin')
 export class AdminController {

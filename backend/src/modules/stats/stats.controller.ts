@@ -4,7 +4,10 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
-@Controller('stats')
+@Controller({
+  path: 'stats',
+  version: '1'
+})
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}

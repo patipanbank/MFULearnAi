@@ -4,7 +4,10 @@ import { JwtAuthGuard } from '../../modules/auth/jwt.guard';
 import { RolesGuard } from '../../modules/auth/roles.guard';
 import { Roles } from '../../modules/auth/roles.decorator';
 
-@Controller('admin/queue')
+@Controller({
+  path: 'admin/queue',
+  version: '1'
+})
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('Admin', 'SuperAdmin')
 export class QueueController {

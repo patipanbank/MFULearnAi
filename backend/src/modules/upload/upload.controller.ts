@@ -3,11 +3,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 
-@Controller()
+@Controller({
+  path: 'upload',
+  version: '1'
+})
 export class UploadController {
   constructor(private readonly storageService: StorageService) {}
 
-  @Post('upload')
+  @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {

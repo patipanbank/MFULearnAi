@@ -6,7 +6,10 @@ import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { streamingAgentExecutionRequestSchema, StreamingAgentExecutionRequest } from '../../common/schemas';
 
 @UseGuards(JwtAuthGuard)
-@Controller('agents')
+@Controller({
+  path: 'agents',
+  version: '1'
+})
 export class AgentController {
   constructor(
     private readonly agentService: AgentService,

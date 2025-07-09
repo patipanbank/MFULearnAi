@@ -7,7 +7,10 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CollectionPermission } from './collection-permission.enum';
 import { DocumentManagementService } from '../../services/document-management.service';
 
-@Controller('collections')
+@Controller({
+  path: 'collections',
+  version: '1'
+})
 export class CollectionController {
   constructor(
     private readonly collectionService: CollectionService,

@@ -18,12 +18,12 @@ function samlConfig(): SamlConfig {
   return {
     issuer: process.env.SAML_SP_ENTITY_ID as string,
     entryPoint: process.env.SAML_IDP_SSO_URL as string,
-    callbackUrl: `${baseUrl}/api/auth/saml/callback`,
+    callbackUrl: `${baseUrl}/api/v1/auth/saml/callback`,
     logoutUrl: process.env.SAML_IDP_SLO_URL as string,
     cert,
     identifierFormat: null,
     disableRequestedAuthnContext: true,
-    logoutCallbackUrl: `${baseUrl}/api/auth/logout/saml/callback`,
+    logoutCallbackUrl: `${baseUrl}/api/v1/auth/logout/saml/callback`,
     // security options similar to python config strict mode
     signatureAlgorithm: 'sha256',
     digestAlgorithm: 'sha256',

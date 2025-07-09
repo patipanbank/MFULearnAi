@@ -6,7 +6,10 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
-@Controller('departments')
+@Controller({
+  path: 'departments',
+  version: '1'
+})
 export class DepartmentController {
   constructor(private readonly deptService: DepartmentService) {}
 

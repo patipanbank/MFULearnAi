@@ -6,7 +6,10 @@ import { Roles } from '../../modules/auth/roles.decorator';
 import { PerformanceService } from './performance.service';
 
 @ApiTags('Monitoring')
-@Controller('admin/monitoring')
+@Controller({
+  path: 'admin/monitoring',
+  version: '1'
+})
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('Admin', 'SuperAdmin')
 export class MonitoringController {

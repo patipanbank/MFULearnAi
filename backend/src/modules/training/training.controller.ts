@@ -4,7 +4,10 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { TrainingService } from './training.service';
 import axios from 'axios';
 
-@Controller('training')
+@Controller({
+  path: 'training',
+  version: '1'
+})
 @UseGuards(JwtAuthGuard)
 export class TrainingController {
   constructor(private readonly trainingService: TrainingService) {}

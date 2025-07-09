@@ -37,7 +37,10 @@ import {
   EmbeddingAnalyticsException,
 } from '../../common/exceptions/app-exceptions';
 
-@Controller('embeddings')
+@Controller({
+  path: 'embeddings',
+  version: '1'
+})
 export class EmbeddingsController {
   constructor(
     private readonly embeddingService: EmbeddingService,

@@ -4,7 +4,10 @@ import { MemoryService } from '../../services/memory.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
 @UseGuards(JwtAuthGuard)
-@Controller('chats')
+@Controller({
+  path: 'chats',
+  version: '1'
+})
 export class ChatController {
   constructor(
     private readonly chatService: ChatService,
