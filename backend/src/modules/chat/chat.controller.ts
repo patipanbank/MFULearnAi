@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller({
-  path: 'chats',
+  path: 'chat',
   version: '1'
 })
 export class ChatController {
@@ -17,6 +17,16 @@ export class ChatController {
   @Get()
   async list(@Request() req) {
     return this.chatService.findAllByUser(req.user.userId);
+  }
+
+  @Get('history')
+  async getHistory(@Request() req) {
+    return this.chatService.findAllByUser(req.user.userId);
+  }
+
+  @Get('history/:id')
+  async getChatHistory(@Param('id') chatId: string, @Request() req) {
+    return this.chatService.getChatById(chatId);
   }
 
   @Post()
