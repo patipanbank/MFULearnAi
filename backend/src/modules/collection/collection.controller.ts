@@ -31,6 +31,35 @@ export class CollectionController {
     return all.filter((c) => c.permission === CollectionPermission.PUBLIC);
   }
 
+  // Get analytics data
+  @Get('analytics')
+  @UseGuards(JwtAuthGuard)
+  async getAnalytics(@Request() req) {
+    const collections = await this.collectionService.getUserCollections(req.user);
+    
+    // Calculate basic statistics
+    let totalDocuments = 0;
+    let totalSize = 0;
+    
+    // For now, return basic stats - can be enhanced later with real document counts
+    for (const collection of collections) {
+      try {
+        const documents = await this.documentManagementService.getDocuments(collection.id, 1000);
+        totalDocuments += documents.length;
+        // totalSize can be calculated if document service provides size info
+      } catch (error) {
+        // Skip collections that can't be accessed
+        continue;
+      }
+    }
+
+    return {
+      totalCollections: collections.length,
+      totalDocuments,
+      totalSize // Mock value for now
+    };
+  }
+
   // Create collection
   @Post()
   @UseGuards(JwtAuthGuard)
