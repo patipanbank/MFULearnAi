@@ -48,8 +48,8 @@ function samlConfig(): SamlConfig {
     logoutUrl: process.env.SAML_IDP_SLO_URL as string,
     
     // Callback URLs - These must match ADFS configuration
-    callbackUrl: `${baseUrl}/api/v1/auth/saml/callback`,
-    logoutCallbackUrl: `${baseUrl}/api/v1/auth/logout/saml/callback`,
+    callbackUrl: `${baseUrl}/api/auth/saml/callback`,
+    logoutCallbackUrl: `${baseUrl}/api/auth/logout/saml/callback`,
     
     // Security Configuration
     identifierFormat: null,

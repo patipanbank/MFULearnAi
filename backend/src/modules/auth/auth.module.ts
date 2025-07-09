@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtStrategy } from './jwt.strategy';
 import { AuthController } from './auth.controller';
+import { SamlController } from './saml.controller';
 import { UserModule } from '../users/user.module';
 import { SamlStrategy } from './saml.strategy';
 import { RefreshTokenSchema } from './refresh-token.schema';
@@ -21,7 +22,7 @@ import { RefreshTokenService } from './refresh-token.service';
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, SamlController],
   providers: [JwtStrategy, SamlStrategy, RefreshTokenService],
   exports: [JwtModule, PassportModule, UserModule, SamlStrategy],
 })
