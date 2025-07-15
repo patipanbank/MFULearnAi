@@ -105,6 +105,12 @@ const ChatPage: React.FC = () => {
     
     const handleReconnect = async () => {
       if (wsStatus === 'disconnected' && token && currentSession && isInChatRoom) {
+        // Don't reconnect if we're already connecting
+        const currentWsStatus = useChatStore.getState().wsStatus;
+        if (currentWsStatus === 'connecting') {
+          console.log('Auto-reconnect: Already connecting, skipping');
+          return;
+        }
         // Check if token is still valid before attempting reconnect
         if (isTokenExpired(token)) {
           console.log('Token expired, attempting refresh...');
@@ -164,7 +170,11 @@ const ChatPage: React.FC = () => {
     // ตรวจสอบ WebSocket connection
     if (!wsRef.current || !wsRef.current.connected) {
       console.log('ChatPage: WebSocket not ready, attempting to connect...');
-      connectWebSocket();
+      // Check if already connecting
+      const currentWsStatus = useChatStore.getState().wsStatus;
+      if (currentWsStatus !== 'connecting') {
+        connectWebSocket();
+      }
       
       // รอสักครู่แล้วลองใหม่
       setTimeout(() => {

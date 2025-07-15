@@ -30,6 +30,11 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const { addToast } = useUIStore();
   const token = useAuthStore((state) => state.token);
 
+  // Update currentSessionRef when currentSession changes
+  useEffect(() => {
+    currentSessionRef.current = currentSession;
+  }, [currentSession]);
+
   // Token validation
   const isTokenExpired = useCallback((token: string) => {
     try {
@@ -80,13 +85,18 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const connectWebSocket = useCallback(() => {
     console.log('connectWebSocket called', { token: !!token, currentSession: !!currentSession, wsRef: !!wsRef.current });
     
+    // Get current wsStatus to check if already connecting
+    const currentWsStatus = useChatStore.getState().wsStatus;
+    
     if (
       !token ||
-      (wsRef.current && wsRef.current.connected)
+      (wsRef.current && wsRef.current.connected) ||
+      currentWsStatus === 'connecting'
     ) {
       console.log('connectWebSocket: Skipping connection', { 
         noToken: !token, 
-        wsConnected: wsRef.current?.connected
+        wsConnected: wsRef.current?.connected,
+        wsStatus: currentWsStatus
       });
       return;
     }
@@ -363,14 +373,16 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     }
   }, [token, currentSession, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken, handleRoomCreated]);
 
-  // Cleanup WebSocket on unmount
+  // Cleanup WebSocket on unmount or chat change
   useEffect(() => {
     return () => {
       if (wsRef.current) {
+        console.log('useWebSocket: Cleaning up WebSocket connection');
         wsRef.current.disconnect();
+        wsRef.current = null;
       }
     };
-  }, []);
+  }, [chatId]); // Re-run when chatId changes to ensure proper cleanup
 
   const sendMessage = useCallback((message: string, images?: Array<{ url: string; mediaType: string }>, agentId?: string) => {
     console.log('sendMessage called', { message: message.substring(0, 50) + '...', images: images?.length || 0, chatId, agentId });

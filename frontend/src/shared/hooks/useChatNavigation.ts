@@ -14,8 +14,8 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
   const currentSession = useChatStore((state) => state.currentSession);
   const loadChat = useChatStore((state) => state.loadChat);
   const createNewChat = useChatStore((state) => state.createNewChat);
-  // Note: setCurrentSession is no longer used since we removed the session ID update effect
   const isConnectedToRoom = useChatStore((state) => state.isConnectedToRoom);
+  const wsStatus = useChatStore((state) => state.wsStatus);
   const addToast = useUIStore((state) => state.addToast);
 
   // Combined effect for chat navigation logic
@@ -26,7 +26,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
     if (isInChatRoom && chatId) {
       if (currentSession && currentSession.id === chatId) {
         console.log('ChatNavigation: Same chat, connecting WebSocket if needed');
-        if (!isConnectedToRoom) {
+        if (!isConnectedToRoom && wsStatus !== 'connecting') {
           console.log('ChatNavigation: Connecting WebSocket...');
           connectWebSocket();
         }
@@ -40,7 +40,9 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
           const ok = await loadChat(chatId);
           if (ok) {
             console.log('ChatNavigation: Chat loaded successfully, connecting WebSocket');
-            connectWebSocket();
+            if (wsStatus !== 'connecting') {
+              connectWebSocket();
+            }
             
             // ส่ง join_room หลังจากโหลด chat สำเร็จ
             setTimeout(() => {
@@ -58,9 +60,6 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
               message: 'The requested chat could not be found. It may have been deleted or you may not have permission to access it.',
               duration: 5000
             });
-            // แสดง error แทนการ redirect
-            // navigate('/chat');
-            // createNewChat();
           }
         } catch (error) {
           console.error('ChatNavigation: Failed to load chat:', error);
@@ -70,9 +69,6 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
             message: 'An error occurred while loading the chat. Please try again.',
             duration: 5000
           });
-          // แสดง error แทนการ redirect
-          // navigate('/chat');
-          // createNewChat();
         }
       };
       
@@ -82,28 +78,22 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
       console.log('ChatNavigation: Creating new chat');
       if (!currentSession || !currentSession.id.startsWith('chat_')) {
         createNewChat();
-        // เชื่อมต่อ WebSocket หลังจากสร้าง new chat
+        // เชื่อมต่อ WebSocket หลังจากสร้าง new chat - เพิ่ม guard เพื่อป้องกันการเชื่อมต่อซ้ำ
         setTimeout(() => {
           console.log('ChatNavigation: Connecting WebSocket for new chat');
-          connectWebSocket();
+          if (wsStatus !== 'connecting') {
+            connectWebSocket();
+          }
         }, 100);
       } else {
-        // ถ้ามี currentSession แล้ว ให้เชื่อมต่อ WebSocket
+        // ถ้ามี currentSession แล้ว ให้เชื่อมต่อ WebSocket - เพิ่ม guard เพื่อป้องกันการเชื่อมต่อซ้ำ
         console.log('ChatNavigation: Existing chat session, connecting WebSocket');
-        connectWebSocket();
+        if (wsStatus !== 'connecting') {
+          connectWebSocket();
+        }
       }
     }
-  }, [chatId, isInChatRoom, currentSession, loadChat, connectWebSocket, navigate, createNewChat, isConnectedToRoom, addToast]);
-
-  // Effect for session ID update - ลบออกเพราะไม่ควรอัปเดต ID โดยไม่โหลดข้อมูลจริง
-  // useEffect(() => {
-  //   if (isInChatRoom && chatId && currentSession && currentSession.id !== chatId) {
-  //     setCurrentSession({
-  //       ...currentSession,
-  //       id: chatId,
-  //     });
-  //   }
-  // }, [chatId, isInChatRoom, currentSession, setCurrentSession]);
+  }, [chatId, isInChatRoom, currentSession, loadChat, connectWebSocket, navigate, createNewChat, isConnectedToRoom, wsStatus, addToast]);
 
   return {
     // These functions are now handled by the useEffect above
