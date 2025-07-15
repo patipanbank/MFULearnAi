@@ -2,10 +2,15 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ConfigService } from './config/config.service';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+
+  // Configure body parsing for SAML responses
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({ limit: '10mb' }));
 
   // Set global prefix for all routes
   app.setGlobalPrefix('api');

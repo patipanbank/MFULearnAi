@@ -56,6 +56,9 @@ export class AuthController {
   async samlCallback(@Request() req, @Res() res: Response) {
     try {
       this.logger.log(`SAML callback received - Method: ${req.method}`);
+      this.logger.log(`Content-Type: ${req.headers['content-type']}`);
+      this.logger.log(`Body type: ${typeof req.body}`);
+      this.logger.log(`Body keys: ${Object.keys(req.body || {})}`);
       
       const result = await this.samlService.processCallback(req);
       
