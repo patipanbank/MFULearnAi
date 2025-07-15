@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores';
 import { useUIStore } from '../stores';
@@ -17,18 +17,40 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
   const isConnectedToRoom = useChatStore((state) => state.isConnectedToRoom);
   const wsStatus = useChatStore((state) => state.wsStatus);
   const addToast = useUIStore((state) => state.addToast);
+  
+  // Track the last processed navigation to prevent duplicates
+  const lastProcessedRef = useRef<{ chatId?: string; isInChatRoom: boolean; sessionId?: string } | null>(null);
+
+  // Memoize the connectWebSocket call to prevent unnecessary re-renders
+  const memoizedConnectWebSocket = useCallback(() => {
+    if (wsStatus !== 'connecting') {
+      connectWebSocket();
+    }
+  }, [connectWebSocket, wsStatus]);
 
   // Combined effect for chat navigation logic
   useEffect(() => {
-    console.log('ChatNavigation: URL changed', { chatId, isInChatRoom, currentSessionId: currentSession?.id });
+    const currentNavigation = { chatId, isInChatRoom, sessionId: currentSession?.id };
+    
+    // Check if we've already processed this exact navigation
+    if (lastProcessedRef.current && 
+        lastProcessedRef.current.chatId === currentNavigation.chatId &&
+        lastProcessedRef.current.isInChatRoom === currentNavigation.isInChatRoom &&
+        lastProcessedRef.current.sessionId === currentNavigation.sessionId) {
+      console.log('ChatNavigation: Skipping duplicate navigation', currentNavigation);
+      return;
+    }
+    
+    console.log('ChatNavigation: URL changed', currentNavigation);
+    lastProcessedRef.current = currentNavigation;
     
     // Handle chat loading when URL changes
     if (isInChatRoom && chatId) {
       if (currentSession && currentSession.id === chatId) {
         console.log('ChatNavigation: Same chat, connecting WebSocket if needed');
-        if (!isConnectedToRoom && wsStatus !== 'connecting') {
+        if (!isConnectedToRoom) {
           console.log('ChatNavigation: Connecting WebSocket...');
-          connectWebSocket();
+          memoizedConnectWebSocket();
         }
         return; // already loaded
       }
@@ -40,9 +62,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
           const ok = await loadChat(chatId);
           if (ok) {
             console.log('ChatNavigation: Chat loaded successfully, connecting WebSocket');
-            if (wsStatus !== 'connecting') {
-              connectWebSocket();
-            }
+            memoizedConnectWebSocket();
             
             // ส่ง join_room หลังจากโหลด chat สำเร็จ
             setTimeout(() => {
@@ -81,19 +101,15 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
         // เชื่อมต่อ WebSocket หลังจากสร้าง new chat - เพิ่ม guard เพื่อป้องกันการเชื่อมต่อซ้ำ
         setTimeout(() => {
           console.log('ChatNavigation: Connecting WebSocket for new chat');
-          if (wsStatus !== 'connecting') {
-            connectWebSocket();
-          }
+          memoizedConnectWebSocket();
         }, 100);
       } else {
         // ถ้ามี currentSession แล้ว ให้เชื่อมต่อ WebSocket - เพิ่ม guard เพื่อป้องกันการเชื่อมต่อซ้ำ
         console.log('ChatNavigation: Existing chat session, connecting WebSocket');
-        if (wsStatus !== 'connecting') {
-          connectWebSocket();
-        }
+        memoizedConnectWebSocket();
       }
     }
-  }, [chatId, isInChatRoom, currentSession, loadChat, connectWebSocket, navigate, createNewChat, isConnectedToRoom, wsStatus, addToast]);
+  }, [chatId, isInChatRoom, currentSession, loadChat, memoizedConnectWebSocket, navigate, createNewChat, isConnectedToRoom, addToast]);
 
   return {
     // These functions are now handled by the useEffect above
