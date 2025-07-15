@@ -243,4 +243,108 @@ export class CollectionController {
       );
     }
   }
+
+  @Get('public')
+  async getPublicCollections(): Promise<any> {
+    try {
+      const collections = await this.collectionService.getPublicCollections();
+
+      return {
+        success: true,
+        data: collections,
+        message: 'Public collections retrieved successfully',
+      };
+    } catch (error) {
+      throw new HttpException(
+        `Failed to get public collections: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('analytics')
+  async getCollectionAnalytics(@Request() req: any): Promise<any> {
+    try {
+      const user = req.user;
+      const analytics = await this.collectionService.getCollectionAnalytics(user);
+
+      return {
+        success: true,
+        data: analytics,
+        message: 'Collection analytics retrieved successfully',
+      };
+    } catch (error) {
+      throw new HttpException(
+        `Failed to get collection analytics: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get(':id/documents')
+  async getCollectionDocuments(@Param('id') id: string, @Request() req: any): Promise<any> {
+    try {
+      const user = req.user;
+      const collection = await this.collectionService.getCollectionById(id);
+
+      if (!collection) {
+        throw new HttpException('Collection not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (!this.collectionService.canUserAccessCollection(user, collection)) {
+        throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+      }
+
+      const documents = await this.collectionService.getCollectionDocuments(id);
+
+      return {
+        success: true,
+        data: documents,
+        message: 'Collection documents retrieved successfully',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to get collection documents: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Delete(':id/documents')
+  async deleteCollectionDocuments(
+    @Param('id') id: string,
+    @Body() body: { documentIds: string[] },
+    @Request() req: any,
+  ): Promise<any> {
+    try {
+      const user = req.user;
+      const collection = await this.collectionService.getCollectionById(id);
+
+      if (!collection) {
+        throw new HttpException('Collection not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (!this.collectionService.canUserModifyCollection(user, collection)) {
+        throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+      }
+
+      await this.collectionService.deleteCollectionDocuments(id, body.documentIds);
+
+      return {
+        success: true,
+        message: 'Collection documents deleted successfully',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to delete collection documents: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 } 

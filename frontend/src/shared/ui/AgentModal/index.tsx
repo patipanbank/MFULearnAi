@@ -80,13 +80,13 @@ const AgentModal: React.FC<AgentModalProps> = ({
     setLoadingCollections(true);
     try {
       // First, try fetching the user's private and public collections
-      const loadedCollections = await api.get<CollectionOption[]>('/collections/');
+      const loadedCollections = await api.get<CollectionOption[]>('/collection/');
       setCollections(loadedCollections);
     } catch (error: any) {
       // If the first attempt fails with an authentication error, try the public endpoint
       if (error.response?.status === 401) {
         try {
-          const publicCollections = await api.get<CollectionOption[]>('/collections/public/');
+          const publicCollections = await api.get<CollectionOption[]>('/collection/public/');
           setCollections(publicCollections);
         } catch (publicError: any) {
           console.warn('Failed to load public collections as well:', publicError);

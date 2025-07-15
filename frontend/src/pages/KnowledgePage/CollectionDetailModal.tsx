@@ -52,7 +52,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     if (!collection) return;
     setIsLoadingDocs(true);
     try {
-      const response = await api.get<CollectionDocument[]>(`/collections/${collection.id}/documents`);
+      const response = await api.get<CollectionDocument[]>(`/collection/${collection.id}/documents`);
       setDocs(response || []);
     } catch (err) {
       console.error('Failed to fetch documents', err);

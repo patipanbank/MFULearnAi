@@ -8,6 +8,7 @@ import {
   Res,
   HttpStatus,
   HttpException,
+  Put,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
@@ -98,5 +99,47 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async refreshToken(@Request() req) {
     return this.authService.refreshToken(req.user);
+  }
+
+  @Get('user/settings')
+  @UseGuards(JwtAuthGuard)
+  async getUserSettings(@GetUser() user) {
+    // For now, return mock settings. In a real implementation, you would fetch from database
+    return {
+      preferences: {
+        theme: 'light',
+        language: 'en',
+        notifications: true,
+      },
+      profile: {
+        displayName: user.firstName + ' ' + user.lastName,
+        email: user.email,
+        avatar: null,
+      },
+      privacy: {
+        profileVisibility: 'public',
+        dataSharing: false,
+      },
+    };
+  }
+
+  @Put('user/settings')
+  @UseGuards(JwtAuthGuard)
+  async updateUserSettings(@GetUser() user, @Body() settings: any) {
+    // For now, just return success. In a real implementation, you would save to database
+    return {
+      success: true,
+      message: 'Settings updated successfully',
+    };
+  }
+
+  @Post('user/settings/reset')
+  @UseGuards(JwtAuthGuard)
+  async resetUserSettings(@GetUser() user) {
+    // For now, just return success. In a real implementation, you would reset to defaults
+    return {
+      success: true,
+      message: 'Settings reset successfully',
+    };
   }
 } 

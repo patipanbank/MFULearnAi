@@ -5,7 +5,7 @@ import { FiBookOpen, FiMessageCircle, FiZap, FiGlobe } from 'react-icons/fi';
 const LoginPage: React.FC = () => {
 
   const handleMFUSSOLogin = () => {
-    window.location.href = `${config.apiUrl}/api/auth/login/saml`;
+    window.location.href = `${config.apiUrl}/api/auth/saml/login`;
   };
 
   const handleAdminLogin = () => {

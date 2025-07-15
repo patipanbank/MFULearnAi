@@ -279,4 +279,49 @@ export class ChatController {
       );
     }
   }
+
+  @Post('save')
+  async saveChat(@Body() saveChatDto: any, @Request() req: any): Promise<any> {
+    try {
+      const userId = req.user.id;
+      const { chatId, messages, name } = saveChatDto;
+
+      let chat;
+      if (chatId) {
+        // Update existing chat
+        chat = await this.chatHistoryService.getChatById(chatId);
+        if (!chat) {
+          throw new HttpException('Chat not found', HttpStatus.NOT_FOUND);
+        }
+        if (chat.userId.toString() !== userId) {
+          throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+        }
+        chat = await this.chatHistoryService.updateChatName(chatId, name);
+      } else {
+        // Create new chat
+        chat = await this.chatHistoryService.createChat(
+          userId,
+          name || 'New Chat',
+          undefined,
+          undefined,
+        );
+      }
+
+      return {
+        success: true,
+        data: chat,
+        message: 'Chat saved successfully',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to save chat: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+
 } 

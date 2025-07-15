@@ -229,13 +229,70 @@ export class CollectionService {
 
   async getCollectionsByCreator(username: string): Promise<Collection[]> {
     try {
-      const collections = await this.collectionModel
-        .find({ createdBy: username })
-        .exec();
+      const collections = await this.collectionModel.find({ createdBy: username }).exec();
       return collections;
     } catch (error) {
       this.logger.error(`Error getting collections by creator: ${error}`);
       return [];
+    }
+  }
+
+  async getPublicCollections(): Promise<Collection[]> {
+    try {
+      const collections = await this.collectionModel.find({ permission: CollectionPermission.PUBLIC }).exec();
+      return collections;
+    } catch (error) {
+      this.logger.error(`Error getting public collections: ${error}`);
+      return [];
+    }
+  }
+
+  async getCollectionAnalytics(user: User): Promise<{
+    totalCollections: number;
+    totalDocuments: number;
+    totalSize: number;
+  }> {
+    try {
+      const userCollections = await this.getUserCollections(user);
+      const totalCollections = userCollections.length;
+      
+      // For now, return mock data. In a real implementation, you would query the actual documents
+      const totalDocuments = 0;
+      const totalSize = 0;
+
+      return {
+        totalCollections,
+        totalDocuments,
+        totalSize,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting collection analytics: ${error}`);
+      return {
+        totalCollections: 0,
+        totalDocuments: 0,
+        totalSize: 0,
+      };
+    }
+  }
+
+  async getCollectionDocuments(collectionId: string): Promise<any[]> {
+    try {
+      // For now, return empty array. In a real implementation, you would query the actual documents
+      // This would typically involve querying a document store or vector database
+      return [];
+    } catch (error) {
+      this.logger.error(`Error getting collection documents: ${error}`);
+      return [];
+    }
+  }
+
+  async deleteCollectionDocuments(collectionId: string, documentIds: string[]): Promise<void> {
+    try {
+      // For now, just log the deletion. In a real implementation, you would delete from the document store
+      this.logger.log(`Deleting documents ${documentIds.join(', ')} from collection ${collectionId}`);
+    } catch (error) {
+      this.logger.error(`Error deleting collection documents: ${error}`);
+      throw new Error(`Failed to delete collection documents: ${error.message}`);
     }
   }
 } 

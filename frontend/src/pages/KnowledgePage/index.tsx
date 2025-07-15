@@ -33,7 +33,7 @@ const KnowledgePage: React.FC = () => {
     setLoading(true);
     try {
       // Attempt to fetch user-accessible collections first
-      const userCollections = await api.get<Collection[]>('/collections/');
+      const userCollections = await api.get<Collection[]>('/collection/');
       setCollections(userCollections);
       
       // Fetch analytics
@@ -41,7 +41,7 @@ const KnowledgePage: React.FC = () => {
         totalCollections: number;
         totalDocuments: number;
         totalSize: number;
-      }>('/collections/analytics');
+      }>('/collection/analytics');
       setAnalytics(analyticsData);
     } catch (error) {
       console.error('Error fetching collections:', error);
