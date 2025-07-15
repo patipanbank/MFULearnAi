@@ -16,9 +16,12 @@ import { SAMLService } from './saml.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
+import { Logger } from '@nestjs/common';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly samlService: SAMLService,
@@ -27,13 +30,24 @@ export class AuthController {
   @Get('saml/login')
   async samlLogin(@Request() req, @Res() res: Response) {
     try {
+      // Validate SAML configuration first
+      const configValidation = this.samlService.validateConfiguration();
+      if (!configValidation.isValid) {
+        this.logger.error(`SAML configuration error: ${configValidation.errors.join(', ')}`);
+        return res.status(500).json({
+          error: 'SAML configuration is not properly set up',
+          details: configValidation.errors
+        });
+      }
+
       const loginUrl = await this.samlService.getLoginUrl();
       res.redirect(loginUrl);
     } catch (error) {
-      throw new HttpException(
-        'SAML login failed',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      this.logger.error(`SAML login failed: ${error.message}`);
+      return res.status(500).json({
+        error: 'SAML login failed',
+        message: error.message
+      });
     }
   }
 

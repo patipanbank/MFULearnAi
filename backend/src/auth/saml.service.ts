@@ -22,25 +22,25 @@ export class SAMLService {
     try {
       // Service Provider configuration
       const spOptions = {
-        entity_id: this.configService.get('SAML_ENTITY_ID') || 'http://localhost:3000',
+        entity_id: this.configService.get('SAML_SP_ENTITY_ID') || 'http://localhost:3000',
         private_key: this.configService.get('SAML_PRIVATE_KEY') || '',
         certificate: this.configService.get('SAML_CERTIFICATE') || '',
-        assert_endpoint: this.configService.get('SAML_ASSERT_ENDPOINT') || 'http://localhost:3000/auth/saml/callback',
+        assert_endpoint: this.configService.get('SAML_SP_ACS_URL') || 'http://localhost:3000/auth/saml/callback',
         force_authn: true,
         auth_context: {
           comparison: 'exact',
           class_refs: ['urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport']
         },
-        nameid_format: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+        nameid_format: this.configService.get('SAML_IDENTIFIER_FORMAT') || 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
         sign_get_request: false,
         allow_unencrypted_assertion: true
       };
 
       // Identity Provider configuration
       const idpOptions = {
-        sso_login_url: this.configService.get('SAML_SSO_LOGIN_URL') || '',
-        sso_logout_url: this.configService.get('SAML_SSO_LOGOUT_URL') || '',
-        certificates: [this.configService.get('SAML_IDP_CERTIFICATE') || ''],
+        sso_login_url: this.configService.get('SAML_IDP_SSO_URL') || '',
+        sso_logout_url: this.configService.get('SAML_IDP_SLO_URL') || '',
+        certificates: [this.configService.get('SAML_CERTIFICATE') || ''],
         force_authn: true,
         sign_get_request: false,
         allow_unencrypted_assertion: true
@@ -61,6 +61,14 @@ export class SAMLService {
    */
   async generateLoginRequest(): Promise<{ redirectUrl: string; requestId: string }> {
     try {
+      // Validate SAML configuration before proceeding
+      const configValidation = this.validateConfiguration();
+      if (!configValidation.isValid) {
+        const errorMessage = `SAML configuration is invalid: ${configValidation.errors.join(', ')}`;
+        this.logger.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+
       this.logger.log('🔐 Generating SAML login request');
 
       return new Promise((resolve, reject) => {
@@ -177,24 +185,20 @@ export class SAMLService {
     const errors: string[] = [];
 
     // Check required configuration
-    if (!this.configService.get('SAML_ENTITY_ID')) {
-      errors.push('SAML_ENTITY_ID is required');
+    if (!this.configService.get('SAML_SP_ENTITY_ID')) {
+      errors.push('SAML_SP_ENTITY_ID is required');
     }
 
-    if (!this.configService.get('SAML_SSO_LOGIN_URL')) {
-      errors.push('SAML_SSO_LOGIN_URL is required');
-    }
-
-    if (!this.configService.get('SAML_IDP_CERTIFICATE')) {
-      errors.push('SAML_IDP_CERTIFICATE is required');
-    }
-
-    if (!this.configService.get('SAML_PRIVATE_KEY')) {
-      errors.push('SAML_PRIVATE_KEY is required');
+    if (!this.configService.get('SAML_IDP_SSO_URL')) {
+      errors.push('SAML_IDP_SSO_URL is required');
     }
 
     if (!this.configService.get('SAML_CERTIFICATE')) {
       errors.push('SAML_CERTIFICATE is required');
+    }
+
+    if (!this.configService.get('SAML_PRIVATE_KEY')) {
+      errors.push('SAML_PRIVATE_KEY is required');
     }
 
     return {
@@ -209,7 +213,7 @@ export class SAMLService {
   async getMetadata(): Promise<string> {
     try {
       return new Promise((resolve, reject) => {
-        this.sp.create_metadata(this.configService.get('SAML_ENTITY_ID') || 'http://localhost:3000', (err, metadata) => {
+        this.sp.create_metadata(this.configService.get('SAML_SP_ENTITY_ID') || 'http://localhost:3000', (err, metadata) => {
           if (err) {
             reject(new Error(`Failed to generate metadata: ${err.message}`));
             return;
@@ -259,6 +263,14 @@ export class SAMLService {
    */
   async getLoginUrl(relayState?: string): Promise<string> {
     try {
+      // Validate SAML configuration before proceeding
+      const configValidation = this.validateConfiguration();
+      if (!configValidation.isValid) {
+        const errorMessage = `SAML configuration is invalid: ${configValidation.errors.join(', ')}`;
+        this.logger.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+
       const result = await this.generateLoginRequest();
       return result.redirectUrl;
     } catch (error) {

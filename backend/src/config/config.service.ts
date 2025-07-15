@@ -102,6 +102,10 @@ export class ConfigService {
     return this.configService.get<string>('SAML_CERTIFICATE') || '';
   }
 
+  get samlPrivateKey(): string {
+    return this.configService.get<string>('SAML_PRIVATE_KEY') || '';
+  }
+
   get samlIdentifierFormat(): string {
     return this.configService.get<string>('SAML_IDENTIFIER_FORMAT') || '';
   }
