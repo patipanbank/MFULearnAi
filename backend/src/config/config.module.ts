@@ -8,7 +8,7 @@ import { configValidationSchema } from './config.validation';
     NestConfigModule.forRoot({
       isGlobal: true,
       validationSchema: configValidationSchema,
-      envFilePath: ['.env', '../.env'],
+      envFilePath: ['../.env'],
     }),
   ],
   providers: [ConfigService],
