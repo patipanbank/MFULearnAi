@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Chat, ChatDocument } from '../models/chat.model';
 import { ChatMessage } from '../models/chat.model';
 
@@ -52,7 +52,10 @@ export class ChatHistoryService {
         updatedAt: new Date(),
       };
 
-      if (agentId) chatData.agentId = agentId;
+      if (agentId) {
+        // แปลง agentId เป็น ObjectId เสมอ
+        chatData.agentId = Types.ObjectId.isValid(agentId) ? new Types.ObjectId(agentId) : agentId;
+      }
       if (modelId) chatData.modelId = modelId;
       if (collectionNames) chatData.collectionNames = collectionNames;
       if (systemPrompt) chatData.systemPrompt = systemPrompt;
