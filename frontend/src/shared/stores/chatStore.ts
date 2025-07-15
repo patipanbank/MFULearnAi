@@ -192,7 +192,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Load a specific chat by ID
   loadChat: async (chatId: string): Promise<boolean> => {
     try {
-      const chat = await api.get<ChatSession>(`/chat/${chatId}`);
+      const response = await api.get<any>(`/chat/${chatId}`);
+      // รองรับทั้งกรณีที่ backend ส่ง { data: {...} } หรือส่ง object ตรงๆ
+      const chat = response.data ? response.data : response;
       const chatSession: ChatSession = {
         ...chat,
         id: chat.id,
