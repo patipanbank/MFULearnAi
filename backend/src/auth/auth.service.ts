@@ -113,16 +113,6 @@ export class AuthService {
     return this.login(user);
   }
 
-  async validateToken(token: string): Promise<any> {
-    try {
-      const payload = this.jwtService.verify(token);
-      const user = await this.getUserById(payload.sub);
-      return user;
-    } catch (error) {
-      return null;
-    }
-  }
-
   private async comparePasswords(plainPassword: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
   }

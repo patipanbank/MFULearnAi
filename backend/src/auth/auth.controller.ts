@@ -19,10 +19,6 @@ import { GetUser } from './decorators/get-user.decorator';
 
 @Controller('auth')
 export class AuthController {
-  private readonly loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
-  private readonly MAX_ATTEMPTS = 5;
-  private readonly ATTEMPT_WINDOW = 60000; // 1 minute
-
   constructor(
     private readonly authService: AuthService,
     private readonly samlService: SAMLService,
@@ -31,56 +27,9 @@ export class AuthController {
   @Get('saml/login')
   async samlLogin(@Request() req, @Res() res: Response) {
     try {
-      // Check if user already has a valid JWT token
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        try {
-          const token = authHeader.substring(7);
-          const user = await this.authService.validateToken(token);
-          if (user) {
-            // User is already authenticated, redirect to frontend
-            const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}`;
-            return res.redirect(redirectUrl);
-          }
-        } catch (error) {
-          // Token is invalid, continue with SAML login
-        }
-      }
-
-      // Rate limiting check
-      const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
-      const now = Date.now();
-      const attempts = this.loginAttempts.get(clientIp);
-
-      if (attempts) {
-        // Reset attempts if window has passed
-        if (now - attempts.lastAttempt > this.ATTEMPT_WINDOW) {
-          this.loginAttempts.set(clientIp, { count: 1, lastAttempt: now });
-        } else if (attempts.count >= this.MAX_ATTEMPTS) {
-          const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error?error=too_many_attempts&message=${encodeURIComponent('Too many login attempts. Please try again later.')}`;
-          return res.redirect(errorUrl);
-        } else {
-          attempts.count++;
-          attempts.lastAttempt = now;
-          this.loginAttempts.set(clientIp, attempts);
-        }
-      } else {
-        this.loginAttempts.set(clientIp, { count: 1, lastAttempt: now });
-      }
-
-      // Clean up old attempts (older than 5 minutes)
-      for (const [ip, attempt] of this.loginAttempts.entries()) {
-        if (now - attempt.lastAttempt > 300000) { // 5 minutes
-          this.loginAttempts.delete(ip);
-        }
-      }
-
       const loginUrl = await this.samlService.getLoginUrl();
       res.redirect(loginUrl);
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       throw new HttpException(
         'SAML login failed',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -101,13 +50,14 @@ export class AuthController {
         const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${token}`;
         res.redirect(redirectUrl);
       } else {
-        // Redirect to error page with error details
-        const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error?error=saml_failed&message=${encodeURIComponent(result.error || 'SAML authentication failed')}`;
-        res.redirect(errorUrl);
+        throw new HttpException(
+          'SAML authentication failed',
+          HttpStatus.UNAUTHORIZED,
+        );
       }
     } catch (error) {
       console.error('SAML callback error:', error);
-      const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error?error=saml_failed&message=${encodeURIComponent(error.message || 'SAML authentication failed')}`;
+      const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error`;
       res.redirect(errorUrl);
     }
   }
