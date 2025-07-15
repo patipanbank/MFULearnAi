@@ -139,10 +139,10 @@ export class AdminService {
       const userStats: UserStats[] = [];
 
       for (const user of users) {
-        const totalChats = await this.chatModel.countDocuments({ userId: user._id }).exec();
+        const totalChats = await this.chatModel.countDocuments({ userId: user.id }).exec();
         
         userStats.push({
-          userId: user._id.toString(),
+          userId: user.id,
           username: user.username,
           email: user.email,
           role: user.role,

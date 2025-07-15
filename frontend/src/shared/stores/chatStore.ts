@@ -67,7 +67,7 @@ interface ChatState {
   loadChat: (chatId: string) => Promise<boolean>;
   saveChat: () => Promise<void>;
   fetchChatHistory: (force?: boolean) => Promise<void>;
-  deleteChat: (chatId: string) => Promise<void>;
+  deleteChat: (chatId: string) => Promise<boolean>;
   pinChat: (chatId: string, pinned: boolean) => void;
   updateChatName: (chatId: string, name: string) => Promise<ChatSession>;
 }
@@ -191,12 +191,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Load a specific chat by ID
-  loadChat: async (chatId: string) => {
+  loadChat: async (chatId: string): Promise<boolean> => {
     try {
       const chat = await api.get<ChatSession>(`/chat/${chatId}`);
       const chatSession: ChatSession = {
         ...chat,
-        id: chat._id ?? chat.id,
+        id: chat.id,
         name: chat.name || 'New Chat',
         createdAt: new Date(chat.createdAt),
         updatedAt: new Date(chat.updatedAt),
@@ -207,8 +207,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         })
       };
       set({ currentSession: chatSession });
+      return true;
     } catch (error) {
       console.error('Failed to load chat:', error);
+      return false;
     }
   },
   
@@ -248,7 +250,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const chats = await api.get<ChatSession[]>('/chat/history');
       const chatSessions: ChatSession[] = chats
-        .filter((c: any) => c._id && c._id.length === 24)
+        .filter((c: any) => c.id && c.id.length === 24)
         .map((chat: any) => {
           // Find first user message if name is "New Chat"
           let chatName = chat.name || 'New Chat';
@@ -261,7 +263,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
           return {
             ...chat,
-            id: chat._id ?? chat.id,
+            id: chat.id,
             name: chatName,
             createdAt: new Date(chat.createdAt),
             updatedAt: new Date(chat.updatedAt),
@@ -279,7 +281,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Delete chat
-  deleteChat: async (chatId: string) => {
+  deleteChat: async (chatId: string): Promise<boolean> => {
     try {
       await api.delete(`/chat/${chatId}`);
       
@@ -287,8 +289,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         chatHistory: state.chatHistory.filter(chat => chat.id !== chatId),
         currentSession: state.currentSession?.id === chatId ? null : state.currentSession
       }));
+      return true;
     } catch (error) {
       console.error('Failed to delete chat:', error);
+      return false;
     }
   },
   
@@ -313,9 +317,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Update chat name
-  updateChatName: async (chatId: string, name: string) => {
+  updateChatName: async (chatId: string, name: string): Promise<ChatSession> => {
     try {
-      const updatedChat = await api.put(`/chat/${chatId}/name`, { name });
+      const updatedChat = await api.put<ChatSession>(`/chat/${chatId}/name`, { name });
       set((state) => ({
         chatHistory: state.chatHistory.map(chat =>
           chat.id === chatId ? { ...chat, name } : chat

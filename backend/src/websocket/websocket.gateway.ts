@@ -242,7 +242,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       );
 
       // Join the room
-      const chatId = chat.id || (chat as any)._id?.toString();
+      const chatId = chat.id;
       if (!chatId) {
         throw new Error('Chat ID not found');
       }

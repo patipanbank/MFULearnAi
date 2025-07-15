@@ -238,7 +238,7 @@ export class StatsService {
         totalMessages,
         averageMessagesPerChat: totalChats > 0 ? Math.round((totalMessages / totalChats) * 100) / 100 : 0,
         recentChats: recentChats.map((chat) => ({
-          id: chat._id,
+          id: chat.id,
           title: chat.title,
           lastActivity: (chat as any).updated,
         })),
@@ -427,7 +427,7 @@ export class StatsService {
           $lookup: {
             from: 'users',
             localField: 'userId',
-            foreignField: '_id',
+            foreignField: 'id',
             as: 'user',
           },
         },

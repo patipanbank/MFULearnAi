@@ -127,8 +127,8 @@ export class TrainingHistoryService {
     };
 
     results.forEach(result => {
-      if (result._id in breakdown) {
-        breakdown[result._id as TrainingAction] = result.count;
+      if (result.id in breakdown) {
+        breakdown[result.id as TrainingAction] = result.count;
       }
     });
 

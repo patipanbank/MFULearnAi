@@ -67,7 +67,7 @@ export class ChatService {
       
       // Cache chat in Redis
       await this.redisService.set(
-        `chat:${savedChat._id}`,
+        `chat:${savedChat.id}`,
         JSON.stringify(savedChat),
         3600 // 1 hour
       );
