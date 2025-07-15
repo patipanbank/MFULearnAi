@@ -248,7 +248,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
     try {
-      const chats = await api.get<ChatSession[]>('/chat/history');
+      const response = await api.get<any>('/chat/history');
+      const chats = response.data || []; // Access the data property from API response
       const chatSessions: ChatSession[] = chats
         .filter((c: any) => c.id && c.id.length === 24)
         .map((chat: any) => {

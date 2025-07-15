@@ -219,10 +219,10 @@ const ChatPage: React.FC = () => {
           agentId: selectedAgent.id
         };
 
-        // Send create room request
+        // Send create room request with valid agentId
         const createRoomPayload = {
           type: 'create_room',
-          agent_id: selectedAgent.id
+          agent_id: selectedAgent.id // Ensure this is not undefined
         };
         console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
         wsRef.current.emit('create_room', createRoomPayload);
@@ -231,7 +231,7 @@ const ChatPage: React.FC = () => {
         // Queue create room request
         pendingQueueRef.current.push({
           type: 'create_room',
-          agent_id: selectedAgent.id
+          agent_id: selectedAgent.id // Ensure this is not undefined
         });
         
         // Store first message for when room is created
@@ -453,7 +453,7 @@ const ChatPage: React.FC = () => {
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="px-4 pb-6">
             {/* Debug button - only show in development */}
-            {import.meta.env.DEV && (
+            {false && (
               <button
                 onClick={debugWebSocket}
                 className="mb-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
