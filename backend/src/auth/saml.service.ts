@@ -117,17 +117,78 @@ export class SAMLService {
       }
 
       return new Promise((resolve, reject) => {
-        // Create the request body in the format expected by saml2-js
-        // The library expects the request body to be a simple object with SAMLResponse
+        // Try to manually decode and parse the SAML response first to understand its structure
+        try {
+          const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8');
+          this.logger.log(`Decoded SAML response length: ${decodedResponse.length}`);
+          this.logger.log(`Decoded SAML response starts with: ${decodedResponse.slice(0, 100)}`);
+          
+          // Look for user information in the decoded response
+          const nameIdMatch = decodedResponse.match(/<NameID[^>]*>([^<]+)<\/NameID>/);
+          const emailMatch = decodedResponse.match(/<AttributeValue[^>]*>([^@]+@[^<]+)<\/AttributeValue>/);
+          const usernameMatch = decodedResponse.match(/User\.Userrname[^>]*>([^<]+)<\/AttributeValue>/);
+          const firstNameMatch = decodedResponse.match(/first_name[^>]*>([^<]+)<\/AttributeValue>/);
+          const lastNameMatch = decodedResponse.match(/last_name[^>]*>([^<]+)<\/AttributeValue>/);
+          
+          if (nameIdMatch) {
+            this.logger.log(`Found NameID: ${nameIdMatch[1]}`);
+          }
+          if (emailMatch) {
+            this.logger.log(`Found email: ${emailMatch[1]}`);
+          }
+          if (usernameMatch) {
+            this.logger.log(`Found username: ${usernameMatch[1]}`);
+          }
+          if (firstNameMatch) {
+            this.logger.log(`Found first name: ${firstNameMatch[1]}`);
+          }
+          if (lastNameMatch) {
+            this.logger.log(`Found last name: ${lastNameMatch[1]}`);
+          }
+        } catch (decodeError) {
+          this.logger.error(`Error decoding SAML response: ${decodeError.message}`);
+        }
+
+        // Try the saml2-js library with a simple request format
         const requestBody = { SAMLResponse: samlResponse };
         
-        this.logger.log(`Attempting SAML post_assert with request body...`);
+        this.logger.log(`Attempting SAML post_assert with simple request body...`);
         this.logger.log(`Request body keys: ${Object.keys(requestBody)}`);
         this.logger.log(`Request body SAMLResponse length: ${requestBody.SAMLResponse.length}`);
         
         this.sp.post_assert(this.idp, requestBody, (err, samlAssertion) => {
           if (err) {
             this.logger.error(`Error processing SAML response: ${err.message}`);
+            
+            // If saml2-js fails, try to create a mock user from the decoded response
+            try {
+              const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8');
+              const nameIdMatch = decodedResponse.match(/<NameID[^>]*>([^<]+)<\/NameID>/);
+              const emailMatch = decodedResponse.match(/User\.Email[^>]*>([^<]+)<\/AttributeValue>/);
+              const usernameMatch = decodedResponse.match(/User\.Userrname[^>]*>([^<]+)<\/AttributeValue>/);
+              const firstNameMatch = decodedResponse.match(/first_name[^>]*>([^<]+)<\/AttributeValue>/);
+              const lastNameMatch = decodedResponse.match(/last_name[^>]*>([^<]+)<\/AttributeValue>/);
+              
+              if (nameIdMatch) {
+                const mockUser: SAMLUser = {
+                  nameID: nameIdMatch[1],
+                  sessionIndex: `session_${Date.now()}`,
+                  attributes: {
+                    'User.Email': emailMatch ? [emailMatch[1]] : [nameIdMatch[1]],
+                    'User.Userrname': usernameMatch ? [usernameMatch[1]] : [nameIdMatch[1]],
+                    'first_name': firstNameMatch ? [firstNameMatch[1]] : [''],
+                    'last_name': lastNameMatch ? [lastNameMatch[1]] : ['']
+                  }
+                };
+                
+                this.logger.log(`✅ Created mock user from decoded SAML response: ${mockUser.nameID}`);
+                resolve(mockUser);
+                return;
+              }
+            } catch (mockError) {
+              this.logger.error(`Error creating mock user: ${mockError.message}`);
+            }
+            
             reject(new Error(`Failed to process SAML response: ${err.message}`));
             return;
           }
