@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { WebSocketGateway } from './websocket.gateway';
 import { WebSocketService } from './websocket.service';
-import { RedisPubSubService } from '../redis/redis-pubsub.service';
+import { RedisModule } from '../redis/redis.module';
 import { ChatModule } from '../chat/chat.module';
 import { AgentModule } from '../agent/agent.module';
 import { TaskModule } from '../tasks/task.module';
@@ -10,6 +10,7 @@ import { ConfigModule } from '../config/config.module';
 
 @Module({
   imports: [
+    RedisModule,
     ChatModule,
     AgentModule,
     TaskModule,
@@ -20,12 +21,10 @@ import { ConfigModule } from '../config/config.module';
   providers: [
     WebSocketGateway,
     WebSocketService,
-    RedisPubSubService,
   ],
   exports: [
     WebSocketGateway,
     WebSocketService,
-    RedisPubSubService,
   ],
 })
 export class WebSocketModule {} 
