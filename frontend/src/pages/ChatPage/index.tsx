@@ -47,7 +47,7 @@ const ChatPage: React.FC = () => {
     isTokenExpired,
     tryRefreshToken,
     sendMessage: wsSendMessage
-  } = useWebSocket({ chatId, isInChatRoom });
+  } = useWebSocket({ chatId, isInChatRoom, isChatContext: true });
 
   // Chat navigation is handled by useChatNavigation hook
   useChatNavigation({ chatId, isInChatRoom, connectWebSocket });
