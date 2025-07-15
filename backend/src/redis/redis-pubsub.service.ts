@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { Server, Socket } from 'socket.io';
+import { ConfigService } from '../config/config.service';
 
 export interface ChatMessage {
   sessionId: string;
@@ -20,13 +21,15 @@ export class RedisPubSubService {
   private socketServer: Server;
   private isListening = false;
 
-  constructor() {
+  constructor(private configService: ConfigService) {
     this.initializeRedis();
   }
 
   private async initializeRedis() {
     try {
-      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      // Use ConfigService instead of process.env directly
+      const redisUrl = this.configService.get<string>('REDIS_URL') || 
+                      `redis://${this.configService.redisHost}:${this.configService.redisPort}`;
       
       // Separate Redis instances for pub/sub (best practice)
       this.subscriber = new Redis(redisUrl);
