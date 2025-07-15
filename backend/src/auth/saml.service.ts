@@ -105,10 +105,6 @@ export class SAMLService {
       this.logger.log(`SAMLResponse starts with: ${samlResponse.slice(0, 30)}`);
       this.logger.log(`SAMLResponse ends with: ${samlResponse.slice(-30)}`);
 
-      // For SAML2-js, we should pass the base64 encoded response directly
-      // The library will handle the decoding internally
-      this.logger.log('Using original base64 SAML response for saml2-js processing');
-      
       // Validate that the SAML response looks like base64
       if (!samlResponse || typeof samlResponse !== 'string') {
         throw new Error('Invalid SAML response: must be a string');
@@ -121,95 +117,35 @@ export class SAMLService {
       }
 
       return new Promise((resolve, reject) => {
-        // Try with raw body first if provided
-        if (rawBody && Object.keys(rawBody).length > 0) {
-          this.logger.log(`Attempting SAML post_assert with raw body...`);
-          this.logger.log(`Raw body keys: ${Object.keys(rawBody)}`);
-          this.logger.log(`Raw body type: ${typeof rawBody}`);
-          this.logger.log(`Raw body SAMLResponse type: ${typeof rawBody.SAMLResponse}`);
-          this.logger.log(`Raw body SAMLResponse length: ${rawBody.SAMLResponse ? rawBody.SAMLResponse.length : 'undefined'}`);
-          
-          // Ensure the request body is properly formatted
-          const requestBody = {
-            SAMLResponse: rawBody.SAMLResponse
-          };
-          
-          this.logger.log(`Request body for post_assert: ${JSON.stringify(requestBody)}`);
-          this.logger.log(`Request body SAMLResponse length: ${requestBody.SAMLResponse.length}`);
-          
-          // Try with the original rawBody first
-          this.logger.log(`Calling post_assert with rawBody: ${JSON.stringify(rawBody)}`);
-          
-          // Check if the rawBody has the expected structure
-          if (!rawBody.SAMLResponse) {
-            this.logger.error('rawBody does not contain SAMLResponse');
-            reject(new Error('Request body does not contain SAMLResponse'));
+        // Create the request body in the format expected by saml2-js
+        // The library expects the request body to be a simple object with SAMLResponse
+        const requestBody = { SAMLResponse: samlResponse };
+        
+        this.logger.log(`Attempting SAML post_assert with request body...`);
+        this.logger.log(`Request body keys: ${Object.keys(requestBody)}`);
+        this.logger.log(`Request body SAMLResponse length: ${requestBody.SAMLResponse.length}`);
+        
+        this.sp.post_assert(this.idp, requestBody, (err, samlAssertion) => {
+          if (err) {
+            this.logger.error(`Error processing SAML response: ${err.message}`);
+            reject(new Error(`Failed to process SAML response: ${err.message}`));
             return;
           }
           
-          this.sp.post_assert(this.idp, rawBody, (err, samlAssertion) => {
-            if (err) {
-              this.logger.error(`Error processing SAML response (raw body): ${err.message}`);
-              // Fallback to SAMLResponse object
-              this.logger.log('Falling back to SAMLResponse object...');
-              const requestBody = { SAMLResponse: samlResponse };
-              this.logger.log(`Fallback request body: ${JSON.stringify(requestBody)}`);
-              this.sp.post_assert(this.idp, requestBody, (err2, samlAssertion2) => {
-                if (err2) {
-                  this.logger.error(`Error processing SAML response (SAMLResponse object): ${err2.message}`);
-                  reject(new Error(`Failed to process SAML response: ${err2.message}`));
-                  return;
-                }
-                if (!samlAssertion2) {
-                  reject(new Error('No SAML assertion received (SAMLResponse object)'));
-                  return;
-                }
-                const user: SAMLUser = {
-                  nameID: samlAssertion2.user.name_id,
-                  sessionIndex: samlAssertion2.user.session_index,
-                  attributes: samlAssertion2.user.attributes || {}
-                };
-                this.logger.log(`✅ Successfully processed SAML response for user (SAMLResponse object): ${user.nameID}`);
-                resolve(user);
-              });
-              return;
-            }
-            if (!samlAssertion) {
-              reject(new Error('No SAML assertion received (raw body)'));
-              return;
-            }
-            const user: SAMLUser = {
-              nameID: samlAssertion.user.name_id,
-              sessionIndex: samlAssertion.user.session_index,
-              attributes: samlAssertion.user.attributes || {}
-            };
-            this.logger.log(`✅ Successfully processed SAML response for user (raw body): ${user.nameID}`);
-            resolve(user);
-          });
-        } else {
-          // Try with { SAMLResponse } object
-          const requestBody = { SAMLResponse: samlResponse };
-          this.logger.log(`Attempting SAML post_assert with SAMLResponse object...`);
-          this.logger.log(`Request body for post_assert: ${JSON.stringify(requestBody)}`);
-          this.sp.post_assert(this.idp, requestBody, (err, samlAssertion) => {
-            if (err) {
-              this.logger.error(`Error processing SAML response (SAMLResponse object): ${err.message}`);
-              reject(new Error(`Failed to process SAML response: ${err.message}`));
-              return;
-            }
-            if (!samlAssertion) {
-              reject(new Error('No SAML assertion received (SAMLResponse object)'));
-              return;
-            }
-            const user: SAMLUser = {
-              nameID: samlAssertion.user.name_id,
-              sessionIndex: samlAssertion.user.session_index,
-              attributes: samlAssertion.user.attributes || {}
-            };
-            this.logger.log(`✅ Successfully processed SAML response for user (SAMLResponse object): ${user.nameID}`);
-            resolve(user);
-          });
-        }
+          if (!samlAssertion) {
+            reject(new Error('No SAML assertion received'));
+            return;
+          }
+          
+          const user: SAMLUser = {
+            nameID: samlAssertion.user.name_id,
+            sessionIndex: samlAssertion.user.session_index,
+            attributes: samlAssertion.user.attributes || {}
+          };
+          
+          this.logger.log(`✅ Successfully processed SAML response for user: ${user.nameID}`);
+          resolve(user);
+        });
       });
     } catch (error) {
       this.logger.error(`Error in processResponse: ${error.message}`);
@@ -376,70 +312,23 @@ export class SAMLService {
     try {
       this.logger.log('🔐 Processing SAML callback');
       this.logger.log(`Request method: ${req.method}`);
-      this.logger.log(`Request headers: ${JSON.stringify(req.headers)}`);
-      this.logger.log(`Request body keys: ${Object.keys(req.body || {})}`);
-      this.logger.log(`Request query keys: ${Object.keys(req.query || {})}`);
-      this.logger.log(`Request body type: ${typeof req.body}`);
-      this.logger.log(`Request body: ${JSON.stringify(req.body)}`);
-      this.logger.log(`Request body length: ${typeof req.body === 'string' ? req.body.length : 'N/A'}`);
+      this.logger.log(`Content-Type: ${req.headers['content-type']}`);
+      this.logger.log(`Body type: ${typeof req.body}`);
+      this.logger.log(`Body keys: ${Object.keys(req.body || {})}`);
 
-      // ADFS might send SAML response in different ways
-      let samlResponse = req.body?.SAMLResponse || req.query?.SAMLResponse;
+      // Extract SAML response from request body
+      let samlResponse = req.body?.SAMLResponse;
       
-      // If still not found, check for base64 encoded response in body
-      if (!samlResponse && req.body) {
-        // Look for any field that might contain the SAML response
-        for (const [key, value] of Object.entries(req.body)) {
-          if (typeof value === 'string' && value.length > 100) {
-            this.logger.log(`Found potential SAML response in field: ${key}`);
-            samlResponse = value;
-            break;
-          }
-        }
-      }
-
-      // If the entire body is a string and looks like a SAML response
-      if (!samlResponse && typeof req.body === 'string' && req.body.length > 100) {
-        this.logger.log('Found SAML response as raw body string');
-        samlResponse = req.body;
-      }
-
-      // If SAML response is URL-encoded, decode it
-      if (samlResponse && samlResponse.includes('%')) {
-        try {
-          samlResponse = decodeURIComponent(samlResponse);
-          this.logger.log('✅ URL-decoded SAML response');
-        } catch (decodeError) {
-          this.logger.log('⚠️ Failed to URL-decode SAML response, using as-is');
-        }
-      }
-
       if (!samlResponse) {
-        this.logger.error('No SAML response found in request');
+        this.logger.error('No SAML response found in request body');
         this.logger.error(`Body: ${JSON.stringify(req.body)}`);
-        this.logger.error(`Query: ${JSON.stringify(req.query)}`);
         throw new Error('No SAML response received');
       }
 
       this.logger.log(`Found SAML response, length: ${samlResponse.length}`);
       
-      // Create a proper request object for saml2-js
-      let requestBody = req.body;
-      
-      // If the body is a string, create a proper object
-      if (typeof req.body === 'string') {
-        requestBody = { SAMLResponse: samlResponse };
-      } else if (req.body && typeof req.body === 'object') {
-        // Ensure SAMLResponse is in the body
-        requestBody = { ...req.body, SAMLResponse: samlResponse };
-      } else {
-        requestBody = { SAMLResponse: samlResponse };
-      }
-      
-      this.logger.log(`Final request body for SAML processing: ${JSON.stringify(requestBody)}`);
-      
-      // Pass the processed request body to processResponse
-      const samlUser = await this.processResponse(samlResponse, requestBody);
+      // Process the SAML response
+      const samlUser = await this.processResponse(samlResponse);
       const userProfile = this.extractUserAttributes(samlUser);
       
       this.logger.log(`✅ Successfully processed SAML callback for user: ${userProfile.email}`);
