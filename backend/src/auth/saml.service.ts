@@ -92,15 +92,42 @@ export class SAMLService {
   /**
    * Process SAML response
    */
-  async processResponse(samlResponse: string): Promise<SAMLUser> {
+  async processResponse(samlResponse: string, rawBody?: any): Promise<SAMLUser> {
     try {
       this.logger.log('🔐 Processing SAML response');
+      this.logger.log(`SAMLResponse length: ${samlResponse.length}`);
+      this.logger.log(`SAMLResponse starts with: ${samlResponse.slice(0, 30)}`);
+      this.logger.log(`SAMLResponse ends with: ${samlResponse.slice(-30)}`);
 
+      // Try with { SAMLResponse } first
       return new Promise((resolve, reject) => {
         this.sp.post_assert(this.idp, { SAMLResponse: samlResponse }, (err, samlAssertion) => {
           if (err) {
-            this.logger.error(`Error processing SAML response: ${err.message}`);
-            reject(new Error(`Failed to process SAML response: ${err.message}`));
+            this.logger.error(`Error processing SAML response (object): ${err.message}`);
+            // Fallback: try with raw body if provided
+            if (rawBody) {
+              this.logger.log('Retrying SAML post_assert with raw body...');
+              this.sp.post_assert(this.idp, rawBody, (err2, samlAssertion2) => {
+                if (err2) {
+                  this.logger.error(`Error processing SAML response (raw body): ${err2.message}`);
+                  reject(new Error(`Failed to process SAML response: ${err2.message}`));
+                  return;
+                }
+                if (!samlAssertion2) {
+                  reject(new Error('No SAML assertion received (raw body)'));
+                  return;
+                }
+                const user: SAMLUser = {
+                  nameID: samlAssertion2.user.name_id,
+                  sessionIndex: samlAssertion2.user.session_index,
+                  attributes: samlAssertion2.user.attributes || {}
+                };
+                this.logger.log(`✅ Successfully processed SAML response for user (raw body): ${user.nameID}`);
+                resolve(user);
+              });
+            } else {
+              reject(new Error(`Failed to process SAML response: ${err.message}`));
+            }
             return;
           }
 
@@ -312,7 +339,8 @@ export class SAMLService {
 
       this.logger.log(`Found SAML response, length: ${samlResponse.length}`);
       
-      const samlUser = await this.processResponse(samlResponse);
+      // Pass both the SAMLResponse and the raw body for fallback
+      const samlUser = await this.processResponse(samlResponse, req.body);
       const userProfile = this.extractUserAttributes(samlUser);
       
       this.logger.log(`✅ Successfully processed SAML callback for user: ${userProfile.email}`);
