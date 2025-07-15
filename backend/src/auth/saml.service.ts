@@ -23,7 +23,7 @@ export class SAMLService {
       // Service Provider configuration
       const spOptions = {
         entity_id: this.configService.get('SAML_SP_ENTITY_ID') || 'http://localhost:3000',
-        private_key: this.configService.get('SAML_PRIVATE_KEY') || '',
+        private_key: this.configService.get('SAML_PRIVATE_KEY') || undefined,
         certificate: this.configService.get('SAML_CERTIFICATE') || '',
         assert_endpoint: this.configService.get('SAML_SP_ACS_URL') || 'http://localhost:3000/auth/saml/callback',
         force_authn: true,
@@ -197,9 +197,7 @@ export class SAMLService {
       errors.push('SAML_CERTIFICATE is required');
     }
 
-    if (!this.configService.get('SAML_PRIVATE_KEY')) {
-      errors.push('SAML_PRIVATE_KEY is required');
-    }
+    // Note: SAML_PRIVATE_KEY is optional for ADFS configurations
 
     return {
       isValid: errors.length === 0,

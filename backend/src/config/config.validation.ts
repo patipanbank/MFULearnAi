@@ -65,11 +65,7 @@ export const configValidationSchema = Joi.object({
     then: Joi.required(),
     otherwise: Joi.optional()
   }),
-  SAML_PRIVATE_KEY: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.required(),
-    otherwise: Joi.optional()
-  }),
+  SAML_PRIVATE_KEY: Joi.string().optional(),
   SAML_IDENTIFIER_FORMAT: Joi.string().optional(),
 
   // Google OAuth
