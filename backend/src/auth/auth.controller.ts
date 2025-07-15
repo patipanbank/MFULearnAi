@@ -52,8 +52,11 @@ export class AuthController {
   }
 
   @Post('saml/callback')
+  @Get('saml/callback')
   async samlCallback(@Request() req, @Res() res: Response) {
     try {
+      this.logger.log(`SAML callback received - Method: ${req.method}`);
+      
       const result = await this.samlService.processCallback(req);
       
       if (result.success) {
@@ -62,16 +65,18 @@ export class AuthController {
         
         // Redirect to frontend with token
         const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${token}`;
+        this.logger.log(`Redirecting to: ${redirectUrl}`);
         res.redirect(redirectUrl);
       } else {
-        throw new HttpException(
-          'SAML authentication failed',
-          HttpStatus.UNAUTHORIZED,
-        );
+        this.logger.error(`SAML authentication failed: ${result.error}`);
+        const errorMessage = result.error || 'SAML authentication failed';
+        const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error?message=${encodeURIComponent(errorMessage)}`;
+        res.redirect(errorUrl);
       }
     } catch (error) {
-      console.error('SAML callback error:', error);
-      const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error`;
+      this.logger.error('SAML callback error:', error);
+      const errorMessage = error.message || 'Unknown error occurred';
+      const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error?message=${encodeURIComponent(errorMessage)}`;
       res.redirect(errorUrl);
     }
   }

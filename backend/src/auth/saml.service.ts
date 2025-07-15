@@ -282,13 +282,40 @@ export class SAMLService {
    */
   async processCallback(req: any): Promise<{ success: boolean; user?: any; error?: string }> {
     try {
-      const samlResponse = req.body.SAMLResponse;
+      this.logger.log('🔐 Processing SAML callback');
+      this.logger.log(`Request method: ${req.method}`);
+      this.logger.log(`Request headers: ${JSON.stringify(req.headers)}`);
+      this.logger.log(`Request body keys: ${Object.keys(req.body || {})}`);
+      this.logger.log(`Request query keys: ${Object.keys(req.query || {})}`);
+
+      // ADFS might send SAML response in different ways
+      let samlResponse = req.body?.SAMLResponse || req.query?.SAMLResponse || req.body?.SAMLResponse;
+      
+      // If still not found, check for base64 encoded response in body
+      if (!samlResponse && req.body) {
+        // Look for any field that might contain the SAML response
+        for (const [key, value] of Object.entries(req.body)) {
+          if (typeof value === 'string' && value.length > 100) {
+            this.logger.log(`Found potential SAML response in field: ${key}`);
+            samlResponse = value;
+            break;
+          }
+        }
+      }
+
       if (!samlResponse) {
+        this.logger.error('No SAML response found in request');
+        this.logger.error(`Body: ${JSON.stringify(req.body)}`);
+        this.logger.error(`Query: ${JSON.stringify(req.query)}`);
         throw new Error('No SAML response received');
       }
 
+      this.logger.log(`Found SAML response, length: ${samlResponse.length}`);
+      
       const samlUser = await this.processResponse(samlResponse);
       const userProfile = this.extractUserAttributes(samlUser);
+      
+      this.logger.log(`✅ Successfully processed SAML callback for user: ${userProfile.email}`);
       
       return {
         success: true,
