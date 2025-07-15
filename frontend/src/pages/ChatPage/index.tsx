@@ -22,6 +22,7 @@ const ChatPage: React.FC = () => {
   const isTyping = useChatStore((state) => state.isTyping);
   const setChatHistory = useChatStore((state) => state.setChatHistory);
   const isLoading = useChatStore((state) => state.isLoading);
+  const isRoomCreating = useChatStore((state) => state.isRoomCreating);
   
   const selectedAgent = useAgentStore((state) => state.selectedAgent);
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
@@ -147,6 +148,18 @@ const ChatPage: React.FC = () => {
       }
     };
   }, [wsStatus, token, currentSession, isInChatRoom, isTokenExpired, addToast, connectWebSocket, tryRefreshToken]);
+
+  // เพิ่ม guard/block navigation เฉพาะกรณีแชทใหม่
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!chatId && (isRoomCreating || (wsRef.current && wsRef.current.connected && pendingQueueRef.current.length > 0))) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [chatId, isRoomCreating]);
 
   // Handle room creation (when first message is sent)
   const handleRoomCreatedWithNavigate = useCallback((roomId: string) => {

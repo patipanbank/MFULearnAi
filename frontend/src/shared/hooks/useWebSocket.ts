@@ -8,9 +8,10 @@ import { useAuthStore } from '../../entities/user/store';
 interface UseWebSocketOptions {
   chatId?: string;
   isInChatRoom: boolean;
+  isChatContext: boolean; // <--- เพิ่ม flag นี้
 }
 
-export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
+export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSocketOptions) => {
   const wsRef = useRef<Socket | null>(null);
   const pendingQueueRef = useRef<any[]>([]);
   const pendingFirstRef = useRef<{ text: string; images?: any[]; agentId?: string } | null>(null);
@@ -409,16 +410,23 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     }
   }, [chatId]);
 
-  // Cleanup WebSocket on unmount or chat change
+  // Cleanup WebSocket เฉพาะตอนออกจาก chat context หรือ unmount จริง ๆ
   useEffect(() => {
+    if (!isChatContext) {
+      if (wsRef.current) {
+        console.log('useWebSocket: Cleaning up WebSocket connection (leave chat context)');
+        wsRef.current.disconnect();
+        wsRef.current = null;
+      }
+    }
     return () => {
       if (wsRef.current) {
-        console.log('useWebSocket: Cleaning up WebSocket connection');
+        console.log('useWebSocket: Cleaning up WebSocket connection (unmount)');
         wsRef.current.disconnect();
         wsRef.current = null;
       }
     };
-  }, [chatId]); // Re-run when chatId changes to ensure proper cleanup
+  }, [isChatContext]);
 
   const sendMessage = useCallback((message: string, images?: Array<{ url: string; mediaType: string }>, agentId?: string) => {
     console.log('sendMessage called', { message: message.substring(0, 50) + '...', images: images?.length || 0, chatId, agentId });
