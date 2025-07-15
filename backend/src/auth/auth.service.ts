@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../models/user.model';
 import { ConfigService } from '../config/config.service';
+import { UserService, SAMLUserProfile } from './user.service';
 import * as bcrypt from 'bcryptjs';
 
 export interface JwtPayload {
@@ -24,6 +25,7 @@ export class AuthService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private userService: UserService,
   ) {}
 
   async validateUser(username: string, password: string): Promise<any> {
@@ -99,6 +101,10 @@ export class AuthService {
     }
     const user = new this.userModel(userData);
     return user.save();
+  }
+
+  async findOrCreateSAMLUser(profile: SAMLUserProfile): Promise<User> {
+    return this.userService.findOrCreateSAMLUser(profile);
   }
 
   async updateUser(userId: string, updateData: Partial<User>): Promise<User | null> {

@@ -63,8 +63,11 @@ export class AuthController {
       const result = await this.samlService.processCallback(req);
       
       if (result.success) {
+        // Find or create user from SAML profile
+        const user = await this.authService.findOrCreateSAMLUser(result.user);
+        
         // Create JWT token
-        const token = await this.authService.createJwtToken(result.user);
+        const token = await this.authService.createJwtToken(user);
         
         // Redirect to frontend with token
         const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${token}`;

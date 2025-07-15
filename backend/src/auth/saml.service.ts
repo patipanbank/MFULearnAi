@@ -116,85 +116,71 @@ export class SAMLService {
         this.logger.warn('SAML response does not look like valid base64');
       }
 
-      return new Promise((resolve, reject) => {
-        // Try to manually decode and parse the SAML response first to understand its structure
-        try {
-          const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8');
-          this.logger.log(`Decoded SAML response length: ${decodedResponse.length}`);
-          this.logger.log(`Decoded SAML response starts with: ${decodedResponse.slice(0, 100)}`);
-          
-          // Look for user information in the decoded response
-          const nameIdMatch = decodedResponse.match(/<NameID[^>]*>([^<]+)<\/NameID>/);
-          const emailMatch = decodedResponse.match(/<AttributeValue[^>]*>([^@]+@[^<]+)<\/AttributeValue>/);
-          const usernameMatch = decodedResponse.match(/User\.Userrname[^>]*>([^<]+)<\/AttributeValue>/);
-          const firstNameMatch = decodedResponse.match(/first_name[^>]*>([^<]+)<\/AttributeValue>/);
-          const lastNameMatch = decodedResponse.match(/last_name[^>]*>([^<]+)<\/AttributeValue>/);
-          
-          if (nameIdMatch) {
-            this.logger.log(`Found NameID: ${nameIdMatch[1]}`);
-          }
-          if (emailMatch) {
-            this.logger.log(`Found email: ${emailMatch[1]}`);
-          }
-          if (usernameMatch) {
-            this.logger.log(`Found username: ${usernameMatch[1]}`);
-          }
-          if (firstNameMatch) {
-            this.logger.log(`Found first name: ${firstNameMatch[1]}`);
-          }
-          if (lastNameMatch) {
-            this.logger.log(`Found last name: ${lastNameMatch[1]}`);
-          }
-        } catch (decodeError) {
-          this.logger.error(`Error decoding SAML response: ${decodeError.message}`);
+      // Decode and parse SAML response manually (similar to backendfast approach)
+      try {
+        const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8');
+        this.logger.log(`Decoded SAML response length: ${decodedResponse.length}`);
+        this.logger.log(`Decoded SAML response starts with: ${decodedResponse.slice(0, 200)}`);
+        
+        // Extract user information using regex patterns (similar to backendfast)
+        const nameIdMatch = decodedResponse.match(/<NameID[^>]*>([^<]+)<\/NameID>/);
+        const emailMatch = decodedResponse.match(/User\.Email[^>]*>([^<]+)<\/AttributeValue>/);
+        const usernameMatch = decodedResponse.match(/User\.Userrname[^>]*>([^<]+)<\/AttributeValue>/);
+        const firstNameMatch = decodedResponse.match(/first_name[^>]*>([^<]+)<\/AttributeValue>/);
+        const lastNameMatch = decodedResponse.match(/last_name[^>]*>([^<]+)<\/AttributeValue>/);
+        const departmentMatch = decodedResponse.match(/depart_name[^>]*>([^<]+)<\/AttributeValue>/);
+        const groupsMatch = decodedResponse.match(/http:\/\/schemas\.xmlsoap\.org\/claims\/Group[^>]*>([^<]+)<\/AttributeValue>/g);
+        
+        this.logger.log(`Found NameID: ${nameIdMatch ? nameIdMatch[1] : 'Not found'}`);
+        this.logger.log(`Found email: ${emailMatch ? emailMatch[1] : 'Not found'}`);
+        this.logger.log(`Found username: ${usernameMatch ? usernameMatch[1] : 'Not found'}`);
+        this.logger.log(`Found first name: ${firstNameMatch ? firstNameMatch[1] : 'Not found'}`);
+        this.logger.log(`Found last name: ${lastNameMatch ? lastNameMatch[1] : 'Not found'}`);
+        this.logger.log(`Found department: ${departmentMatch ? departmentMatch[1] : 'Not found'}`);
+        
+        if (groupsMatch) {
+          this.logger.log(`Found groups: ${groupsMatch.map(match => match.match(/>([^<]+)</)?.[1]).join(', ')}`);
         }
+        
+        // Create user object from extracted data (similar to backendfast approach)
+        if (nameIdMatch) {
+          const user: SAMLUser = {
+            nameID: nameIdMatch[1],
+            sessionIndex: `session_${Date.now()}`,
+            attributes: {
+              'User.Email': emailMatch ? [emailMatch[1]] : [nameIdMatch[1]],
+              'User.Userrname': usernameMatch ? [usernameMatch[1]] : [nameIdMatch[1]],
+              'first_name': firstNameMatch ? [firstNameMatch[1]] : [''],
+              'last_name': lastNameMatch ? [lastNameMatch[1]] : [''],
+              'depart_name': departmentMatch ? [departmentMatch[1]] : [''],
+              'http://schemas.xmlsoap.org/claims/Group': groupsMatch ? 
+                groupsMatch.map(match => match.match(/>([^<]+)</)?.[1]).filter((item): item is string => Boolean(item)) : []
+            }
+          };
+          
+          this.logger.log(`✅ Successfully extracted user from SAML response: ${user.nameID}`);
+          return user;
+        }
+        
+      } catch (decodeError) {
+        this.logger.error(`Error decoding SAML response: ${decodeError.message}`);
+      }
 
-        // Try the saml2-js library with a simple request format
+      // Fallback: Try saml2-js library (though it's likely to fail)
+      return new Promise((resolve, reject) => {
         const requestBody = { SAMLResponse: samlResponse };
         
-        this.logger.log(`Attempting SAML post_assert with simple request body...`);
-        this.logger.log(`Request body keys: ${Object.keys(requestBody)}`);
-        this.logger.log(`Request body SAMLResponse length: ${requestBody.SAMLResponse.length}`);
+        this.logger.log(`Attempting SAML post_assert with saml2-js library...`);
         
         this.sp.post_assert(this.idp, requestBody, (err, samlAssertion) => {
           if (err) {
-            this.logger.error(`Error processing SAML response: ${err.message}`);
-            
-            // If saml2-js fails, try to create a mock user from the decoded response
-            try {
-              const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8');
-              const nameIdMatch = decodedResponse.match(/<NameID[^>]*>([^<]+)<\/NameID>/);
-              const emailMatch = decodedResponse.match(/User\.Email[^>]*>([^<]+)<\/AttributeValue>/);
-              const usernameMatch = decodedResponse.match(/User\.Userrname[^>]*>([^<]+)<\/AttributeValue>/);
-              const firstNameMatch = decodedResponse.match(/first_name[^>]*>([^<]+)<\/AttributeValue>/);
-              const lastNameMatch = decodedResponse.match(/last_name[^>]*>([^<]+)<\/AttributeValue>/);
-              
-              if (nameIdMatch) {
-                const mockUser: SAMLUser = {
-                  nameID: nameIdMatch[1],
-                  sessionIndex: `session_${Date.now()}`,
-                  attributes: {
-                    'User.Email': emailMatch ? [emailMatch[1]] : [nameIdMatch[1]],
-                    'User.Userrname': usernameMatch ? [usernameMatch[1]] : [nameIdMatch[1]],
-                    'first_name': firstNameMatch ? [firstNameMatch[1]] : [''],
-                    'last_name': lastNameMatch ? [lastNameMatch[1]] : ['']
-                  }
-                };
-                
-                this.logger.log(`✅ Created mock user from decoded SAML response: ${mockUser.nameID}`);
-                resolve(mockUser);
-                return;
-              }
-            } catch (mockError) {
-              this.logger.error(`Error creating mock user: ${mockError.message}`);
-            }
-            
+            this.logger.error(`saml2-js library failed: ${err.message}`);
             reject(new Error(`Failed to process SAML response: ${err.message}`));
             return;
           }
           
           if (!samlAssertion) {
-            reject(new Error('No SAML assertion received'));
+            reject(new Error('No SAML assertion received from saml2-js'));
             return;
           }
           
@@ -204,7 +190,7 @@ export class SAMLService {
             attributes: samlAssertion.user.attributes || {}
           };
           
-          this.logger.log(`✅ Successfully processed SAML response for user: ${user.nameID}`);
+          this.logger.log(`✅ Successfully processed SAML response with saml2-js: ${user.nameID}`);
           resolve(user);
         });
       });
@@ -323,16 +309,20 @@ export class SAMLService {
     firstName: string;
     lastName: string;
     displayName: string;
+    department?: string;
+    groups?: string[];
   } {
     const attributes = samlUser.attributes;
 
     return {
-      email: this.getAttributeValue(attributes, 'email', 'mail', 'Email') || samlUser.nameID,
-      username: this.getAttributeValue(attributes, 'username', 'User.Userrname', 'uid') || samlUser.nameID,
-      firstName: this.getAttributeValue(attributes, 'firstName', 'givenName', 'User.FirstName') || '',
-      lastName: this.getAttributeValue(attributes, 'lastName', 'sn', 'User.LastName') || '',
+      email: this.getAttributeValue(attributes, 'User.Email', 'email', 'mail', 'Email') || samlUser.nameID,
+      username: this.getAttributeValue(attributes, 'User.Userrname', 'username', 'uid') || samlUser.nameID,
+      firstName: this.getAttributeValue(attributes, 'first_name', 'firstName', 'givenName', 'User.FirstName') || '',
+      lastName: this.getAttributeValue(attributes, 'last_name', 'lastName', 'sn', 'User.LastName') || '',
       displayName: this.getAttributeValue(attributes, 'displayName', 'cn', 'User.DisplayName') || 
-                  `${this.getAttributeValue(attributes, 'firstName', 'givenName', 'User.FirstName') || ''} ${this.getAttributeValue(attributes, 'lastName', 'sn', 'User.LastName') || ''}`.trim()
+                  `${this.getAttributeValue(attributes, 'first_name', 'firstName', 'givenName', 'User.FirstName') || ''} ${this.getAttributeValue(attributes, 'last_name', 'lastName', 'sn', 'User.LastName') || ''}`.trim(),
+      department: this.getAttributeValue(attributes, 'depart_name', 'department', 'organizationalUnit'),
+      groups: attributes['http://schemas.xmlsoap.org/claims/Group'] || []
     };
   }
 
@@ -396,7 +386,15 @@ export class SAMLService {
       
       return {
         success: true,
-        user: userProfile,
+        user: {
+          nameID: samlUser.nameID,
+          username: userProfile.username,
+          email: userProfile.email,
+          firstName: userProfile.firstName,
+          lastName: userProfile.lastName,
+          department: userProfile.department,
+          groups: userProfile.groups,
+        },
       };
     } catch (error) {
       this.logger.error(`SAML callback processing error: ${error.message}`);
