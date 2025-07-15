@@ -122,8 +122,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       // Make API call in background
       if (state.currentSession.id && state.currentSession.id.length === 24) {
-        api.post('/chat/update-name', {
-          chat_id: state.currentSession.id,
+        api.put(`/chat/${state.currentSession.id}/name`, {
           name: updatedName
         }).catch((e) => {
           console.error('Failed to update chat name:', e);

@@ -189,20 +189,36 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         console.log('WebSocket disconnected:', reason);
         setWsStatus('disconnected');
         setIsConnectedToRoom(false);
-        
         if (reason === 'io server disconnect') {
-          // Server disconnected us, try to reconnect
           socket.connect();
         } else if (reason === 'io client disconnect') {
           // Client disconnected, don't reconnect
         } else {
-          // Unexpected disconnect, try to reconnect
-          setTimeout(() => {
-            if (token && !isTokenExpired(token)) {
-              console.log('WebSocket: Attempting reconnect after unexpected disconnect');
-              connectWebSocket();
-            }
-          }, 1000);
+          // Unexpected disconnect, try to reconnect with retry limit and backoff
+          if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+            const delay = BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttemptsRef.current);
+            reconnectAttemptsRef.current++;
+            console.warn(`WebSocket: Attempting reconnect #${reconnectAttemptsRef.current} in ${delay}ms`);
+            addToast({
+              type: 'warning',
+              title: 'Reconnecting...',
+              message: `Connection lost. Attempting to reconnect (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`,
+              duration: 4000
+            });
+            reconnectTimeoutRef.current = setTimeout(() => {
+              if (token && !isTokenExpired(token)) {
+                connectWebSocket();
+              }
+            }, delay);
+          } else {
+            console.error('WebSocket: Max reconnect attempts reached. Giving up.');
+            addToast({
+              type: 'error',
+              title: 'Connection Failed',
+              message: 'Unable to reconnect to chat service. Please refresh the page or check your connection.',
+              duration: 10000
+            });
+          }
         }
       });
 
@@ -221,7 +237,9 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
 
       socket.on('chunk', (data) => {
         const session = currentSessionRef.current;
-        const lastMessage = session?.messages[session.messages.length - 1];
+        // ตรวจสอบ session id ก่อนอัปเดต
+        if (!session || (data.chatId && session.id !== data.chatId)) return;
+        const lastMessage = session.messages[session.messages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
           updateMessage(lastMessage.id, {
             content: lastMessage.content + data.data
@@ -286,8 +304,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       });
 
       socket.on('tool_start', (data) => {
-        console.log('WebSocket: Tool started', data);
         const session = currentSessionRef.current;
+        if (!session || (data.chatId && session.id !== data.chatId)) return;
         const lastMessage = session?.messages[session.messages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
           // เพิ่ม tool usage ลงใน message
@@ -312,8 +330,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       });
 
       socket.on('tool_result', (data) => {
-        console.log('WebSocket: Tool result', data);
         const session = currentSessionRef.current;
+        if (!session || (data.chatId && session.id !== data.chatId)) return;
         const lastMessage = session?.messages[session.messages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
           // อัพเดท tool result
@@ -330,8 +348,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       });
 
       socket.on('tool_error', (data) => {
-        console.log('WebSocket: Tool error', data);
         const session = currentSessionRef.current;
+        if (!session || (data.chatId && session.id !== data.chatId)) return;
         const lastMessage = session?.messages[session.messages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
           // เพิ่ม tool error
@@ -348,8 +366,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       });
 
       socket.on('end', () => {
-        console.log('WebSocket: Message ended');
         const session = currentSessionRef.current;
+        if (!session) return;
         const lastMessage = session?.messages[session.messages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
           updateMessage(lastMessage.id, {
@@ -372,6 +390,24 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       return;
     }
   }, [token, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken, handleRoomCreated]); // ลบ currentSession ออกจาก dependency
+
+  // --- RECONNECT STATE ---
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const MAX_RECONNECT_ATTEMPTS = 5;
+  const BASE_RECONNECT_DELAY = 1000; // 1s
+
+  // --- CLEAR QUEUE ON CHAT CHANGE ---
+  useEffect(() => {
+    // เมื่อ chatId เปลี่ยน ให้ clear queue ที่เกี่ยวข้องกับห้องเก่า
+    pendingQueueRef.current = [];
+    pendingFirstRef.current = null;
+    reconnectAttemptsRef.current = 0;
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+  }, [chatId]);
 
   // Cleanup WebSocket on unmount or chat change
   useEffect(() => {
