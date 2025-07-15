@@ -2,13 +2,11 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AgentController } from './agent.controller';
 import { AgentService } from './agent.service';
-import { Agent, AgentSchema } from '../models/agent.model';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Agent.name, schema: AgentSchema },
-    ]),
+    DatabaseModule, // Import DatabaseModule to get access to all models
   ],
   controllers: [AgentController],
   providers: [AgentService],

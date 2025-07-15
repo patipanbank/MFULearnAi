@@ -62,7 +62,6 @@ export class Collection {
 export const CollectionSchema = SchemaFactory.createForClass(Collection);
 
 // Create indexes for better performance
-CollectionSchema.index({ name: 1 });
 CollectionSchema.index({ permission: 1 });
 CollectionSchema.index({ createdBy: 1 });
 CollectionSchema.index({ createdAt: -1 });

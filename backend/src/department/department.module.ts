@@ -2,13 +2,11 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DepartmentController } from './department.controller';
 import { DepartmentService } from './department.service';
-import { Department, DepartmentSchema } from '../models/department.model';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Department.name, schema: DepartmentSchema },
-    ]),
+    DatabaseModule, // Import DatabaseModule to get access to all models
   ],
   controllers: [DepartmentController],
   providers: [DepartmentService],

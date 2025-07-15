@@ -5,8 +5,7 @@ import { ChatService } from './chat.service';
 import { ChatHistoryService } from './chat-history.service';
 import { ChatMemoryService } from './chat-memory.service';
 import { MemoryToolService } from './memory-tool.service';
-import { Chat, ChatSchema } from '../models/chat.model';
-import { User, UserSchema } from '../models/user.model';
+import { DatabaseModule } from '../database/database.module';
 import { RedisModule } from '../redis/redis.module';
 import { VectorMemoryModule } from '../memory/vector-memory.module';
 import { LangChainModule } from '../langchain/langchain.module';
@@ -16,10 +15,7 @@ import { ConfigModule } from '../config/config.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Chat.name, schema: ChatSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    DatabaseModule, // Import DatabaseModule to get access to all models
     RedisModule,
     VectorMemoryModule,
     forwardRef(() => LangChainModule),

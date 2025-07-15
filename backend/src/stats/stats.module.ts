@@ -2,15 +2,11 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { StatsController } from './stats.controller';
 import { StatsService } from './stats.service';
-import { Chat, ChatSchema } from '../models/chat.model';
-import { User, UserSchema } from '../models/user.model';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Chat.name, schema: ChatSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    DatabaseModule, // Import DatabaseModule to get access to all models
   ],
   controllers: [StatsController],
   providers: [StatsService],
