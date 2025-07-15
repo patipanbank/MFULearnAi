@@ -75,7 +75,7 @@ export class ChatHistoryService {
 
       const chat = new this.chatModel(chatData);
       const savedChat = await chat.save();
-      return savedChat;
+      return savedChat.toJSON();
     } catch (error) {
       throw new Error(`Failed to create chat: ${error.message}`);
     }
