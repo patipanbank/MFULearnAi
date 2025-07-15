@@ -41,6 +41,7 @@ export class ChatHistoryService {
       const chatData = {
         userId,
         name,
+        title: name || 'New Chat', // Ensure required 'title' field is set
         messages: [],
         isPinned: false,
         createdAt: new Date(),
