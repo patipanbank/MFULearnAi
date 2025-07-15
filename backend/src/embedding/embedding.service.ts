@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { BedrockService } from '../bedrock/bedrock.service';
-import { ChromaService } from '../services/chroma.service';
+import { ChromaService } from '../collection/chroma.service';
 
 export interface CreateEmbeddingDto {
   text: string;
@@ -76,7 +76,7 @@ export class EmbeddingService {
       // Query ChromaDB
       const results = await this.chromaService.queryCollection(
         collectionName,
-        [queryEmbedding],
+        queryEmbedding,
         nResults,
       );
 
