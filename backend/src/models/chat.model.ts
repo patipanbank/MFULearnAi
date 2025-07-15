@@ -80,6 +80,12 @@ export class Chat {
   @Prop()
   systemPrompt?: string;
 
+  @Prop({ default: 0.7 })
+  temperature?: number;
+
+  @Prop({ default: 4000 })
+  maxTokens?: number;
+
   @Prop({ default: Date.now })
   created: Date;
 

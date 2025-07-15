@@ -151,10 +151,10 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       const { chatId } = data;
       const userId = client.data.userId;
 
-      console.log(`🔗 User ${userId} joining room: ${chatId}`);
+      console.log(`🔗 User ${userId} attempting to join room: ${chatId}`);
 
       // Validate chatId format (24-char hex string)
-      if (!chatId || chatId.length !== 24) {
+      if (!chatId || typeof chatId !== 'string' || chatId.length !== 24 || !/^[a-fA-F0-9]{24}$/.test(chatId)) {
         client.emit('error', { 
           type: 'error', 
           data: 'Invalid chatId for join_room' 
@@ -162,7 +162,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         return;
       }
 
-      // Check if chat exists and user has access
+      // Check if chat exists
       const chat = await this.chatHistoryService.getChatById(chatId);
       if (!chat) {
         client.emit('error', { 
@@ -172,7 +172,8 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         return;
       }
 
-      if (chat.userId !== userId) {
+      // Check if user is authorized (owner of chat)
+      if (chat.userId.toString() !== userId) {
         client.emit('error', { 
           type: 'error', 
           data: 'Not authorized to access this chat' 
@@ -180,10 +181,10 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         return;
       }
 
-      // Join the room
+      // Join the room (Socket.IO)
       await client.join(chatId);
       await this.webSocketService.joinRoom(client, chatId);
-      
+
       // Connect to Redis PubSub for this session
       await this.redisPubSubService.connect(chatId, client);
 
@@ -215,8 +216,8 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       const modelId = data.model_id || data.modelId;
       const collectionNames = data.collection_names || data.collectionNames || [];
       const systemPrompt = data.system_prompt || data.systemPrompt;
-      const temperature = data.temperature || 0.7;
-      const maxTokens = data.max_tokens || data.maxTokens || 4000;
+      const temperature = typeof data.temperature === 'number' ? data.temperature : 0.7;
+      const maxTokens = typeof data.max_tokens === 'number' ? data.max_tokens : (typeof data.maxTokens === 'number' ? data.maxTokens : 4000);
 
       console.log(`🏗️ User ${userId} creating room with agent: ${agentId}`);
 
@@ -232,13 +233,17 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         }
       }
 
-      // Create new chat
+      // Create new chat (support all fields)
       const chatName = agentId ? `Chat with ${agentId}` : 'New Chat';
       const chat = await this.chatHistoryService.createChat(
         userId,
         chatName,
         agentId,
-        modelId
+        modelId,
+        collectionNames,
+        systemPrompt,
+        temperature,
+        maxTokens
       );
 
       // Join the room
@@ -299,6 +304,23 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         return;
       }
 
+      // ตรวจสอบ chat และสิทธิ์
+      const chat = await this.chatHistoryService.getChatById(chatId);
+      if (!chat) {
+        client.emit('error', { 
+          type: 'error', 
+          data: 'Chat not found' 
+        });
+        return;
+      }
+      if (chat.userId.toString() !== userId) {
+        client.emit('error', { 
+          type: 'error', 
+          data: 'Not authorized to send message in this chat' 
+        });
+        return;
+      }
+
       console.log(`💬 User ${userId} sending message in chat: ${chatId}`);
 
       // Add user message to chat
@@ -320,17 +342,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         data: { messageId: userMessage.id, content: message } 
       });
 
-      // Get chat context for AI response
-      const chat = await this.chatHistoryService.getChatById(chatId);
-      if (!chat) {
-        client.emit('error', { 
-          type: 'error', 
-          data: 'Chat not found' 
-        });
-        return;
-      }
-
-      // Prepare AI response request
+      // Prepare AI response request (ใช้ค่าจาก chat context จริง)
       const aiRequest = {
         sessionId: chatId,
         userId,
@@ -339,8 +351,8 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         collectionNames: chat.collectionNames || [],
         agentId: chat.agentId ? chat.agentId.toString() : undefined,
         systemPrompt: chat.systemPrompt,
-        temperature: 0.7,
-        maxTokens: 4000,
+        temperature: typeof chat.temperature === 'number' ? chat.temperature : 0.7,
+        maxTokens: typeof chat.maxTokens === 'number' ? chat.maxTokens : 4000,
         images: images || [],
       };
 
@@ -368,6 +380,23 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       const chatId = rooms.find(room => room !== client.id);
 
       if (chatId) {
+        // ตรวจสอบ chat และสิทธิ์
+        const chat = await this.chatHistoryService.getChatById(chatId);
+        if (!chat) {
+          client.emit('error', { 
+            type: 'error', 
+            data: 'Chat not found' 
+          });
+          return;
+        }
+        if (chat.userId.toString() !== userId) {
+          client.emit('error', { 
+            type: 'error', 
+            data: 'Not authorized to leave this chat' 
+          });
+          return;
+        }
+
         await client.leave(chatId);
         await this.webSocketService.leaveRoom(client, chatId);
         
@@ -384,6 +413,10 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
     } catch (error) {
       console.log(`❌ Leave room error: ${error.message}`);
+      client.emit('error', { 
+        type: 'error', 
+        data: `Failed to leave room: ${error.message}` 
+      });
     }
   }
 } 

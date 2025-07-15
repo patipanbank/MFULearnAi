@@ -36,24 +36,28 @@ export class ChatHistoryService {
     name: string,
     agentId?: string,
     modelId?: string,
+    collectionNames?: string[],
+    systemPrompt?: string,
+    temperature?: number,
+    maxTokens?: number,
   ): Promise<Chat> {
     try {
-      const chatData = {
+      const chatData: any = {
         userId,
         name,
-        title: name || 'New Chat', // Ensure required 'title' field is set
+        title: name || 'New Chat',
         messages: [],
         isPinned: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      // Prefer agentId over modelId
-      if (agentId) {
-        chatData['agentId'] = agentId;
-      } else if (modelId) {
-        chatData['modelId'] = modelId;
-      }
+      if (agentId) chatData.agentId = agentId;
+      if (modelId) chatData.modelId = modelId;
+      if (collectionNames) chatData.collectionNames = collectionNames;
+      if (systemPrompt) chatData.systemPrompt = systemPrompt;
+      if (typeof temperature === 'number') chatData.temperature = temperature;
+      if (typeof maxTokens === 'number') chatData.maxTokens = maxTokens;
 
       const chat = new this.chatModel(chatData);
       const savedChat = await chat.save();
