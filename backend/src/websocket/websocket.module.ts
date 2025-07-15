@@ -7,6 +7,7 @@ import { AgentModule } from '../agent/agent.module';
 import { TaskModule } from '../tasks/task.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '../config/config.module';
+import { ConfigService } from '../config/config.service';
 
 @Module({
   imports: [
@@ -14,8 +15,17 @@ import { ConfigModule } from '../config/config.module';
     ChatModule,
     AgentModule,
     TaskModule,
-    JwtModule,
     ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.jwtSecret,
+        signOptions: {
+          expiresIn: configService.jwtExpiresIn,
+        },
+      }),
+      inject: [ConfigService],
+    }),
   ],
   controllers: [],
   providers: [
