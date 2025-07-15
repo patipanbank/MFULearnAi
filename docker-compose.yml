@@ -40,6 +40,8 @@ services:
       - S3_SECRET_KEY=minioadmin123
       - S3_BUCKET=uploads
       # All other environment variables will be loaded from .env file
+    ports:
+      - "5000:5000"  # Expose backend port for debugging
     depends_on:
       - chroma
       - db
@@ -47,6 +49,12 @@ services:
     networks:
       - mfulearnai
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -132,8 +140,12 @@ services:
     networks:
       - mfulearnai
     restart: unless-stopped
-    command: >
-      celery -A celery_app.celery worker -l info --concurrency=4
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   minio:
     image: minio/minio
