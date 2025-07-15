@@ -20,6 +20,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
   
   // Track the last processed navigation to prevent duplicates
   const lastProcessedRef = useRef<{ chatId?: string; isInChatRoom: boolean; sessionId?: string } | null>(null);
+  const isInitializedRef = useRef(false);
 
   // Memoize the connectWebSocket call to prevent unnecessary re-renders
   const memoizedConnectWebSocket = useCallback(() => {
@@ -94,22 +95,26 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
       
       handleChatLoad();
     } else {
-      // Handle new chat creation
-      console.log('ChatNavigation: Creating new chat');
-      if (!currentSession || !currentSession.id.startsWith('chat_')) {
-        createNewChat();
-        // เชื่อมต่อ WebSocket หลังจากสร้าง new chat - เพิ่ม guard เพื่อป้องกันการเชื่อมต่อซ้ำ
-        setTimeout(() => {
-          console.log('ChatNavigation: Connecting WebSocket for new chat');
+      // Handle new chat creation - เพิ่ม guard เพื่อป้องกันการทำงานซ้ำ
+      if (!isInitializedRef.current) {
+        console.log('ChatNavigation: Creating new chat');
+        if (!currentSession || !currentSession.id.startsWith('chat_')) {
+          createNewChat();
+          isInitializedRef.current = true;
+        } else {
+          // ถ้ามี currentSession แล้ว ให้เชื่อมต่อ WebSocket
+          console.log('ChatNavigation: Existing chat session, connecting WebSocket');
           memoizedConnectWebSocket();
-        }, 100);
-      } else {
-        // ถ้ามี currentSession แล้ว ให้เชื่อมต่อ WebSocket - เพิ่ม guard เพื่อป้องกันการเชื่อมต่อซ้ำ
-        console.log('ChatNavigation: Existing chat session, connecting WebSocket');
-        memoizedConnectWebSocket();
+          isInitializedRef.current = true;
+        }
       }
     }
-  }, [chatId, isInChatRoom, currentSession, loadChat, memoizedConnectWebSocket, navigate, createNewChat, isConnectedToRoom, addToast]);
+  }, [chatId, isInChatRoom]); // ลบ currentSession ออกจาก dependency เพื่อป้องกันการทำงานซ้ำ
+
+  // Reset initialization flag when URL changes
+  useEffect(() => {
+    isInitializedRef.current = false;
+  }, [chatId, isInChatRoom]);
 
   return {
     // These functions are now handled by the useEffect above

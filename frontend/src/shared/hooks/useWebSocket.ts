@@ -126,19 +126,19 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     
     console.log('connectWebSocket: Final WebSocket URL', wsUrl);
     
-          try {
-        console.log('Creating Socket.IO connection with token:', token ? token.substring(0, 50) + '...' : 'None');
-        const socket = io(wsUrl, {
-          auth: {
-            token: token
-          },
-          transports: ['websocket', 'polling'],
-          upgrade: true,
-          rememberUpgrade: true,
-          timeout: 20000,
-          forceNew: true
-        });
-      
+    try {
+      console.log('Creating Socket.IO connection with token:', token ? token.substring(0, 50) + '...' : 'None');
+      const socket = io(wsUrl, {
+        auth: {
+          token: token
+        },
+        transports: ['websocket', 'polling'],
+        upgrade: true,
+        rememberUpgrade: true,
+        timeout: 20000,
+        forceNew: true
+      });
+    
       wsRef.current = socket;
       
       socket.on('connect', () => {
@@ -371,7 +371,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       });
       return;
     }
-  }, [token, currentSession, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken, handleRoomCreated]);
+  }, [token, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken, handleRoomCreated]); // ลบ currentSession ออกจาก dependency
 
   // Cleanup WebSocket on unmount or chat change
   useEffect(() => {

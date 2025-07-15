@@ -96,8 +96,13 @@ const ChatPage: React.FC = () => {
         setLoading(false);
       }
     };
-    initializeData();
-  }, [fetchAgents, setChatHistory, setLoading, addToast]);
+    
+    // เพิ่ม guard เพื่อให้ initialize เฉพาะครั้งแรก
+    const hasInitialized = useChatStore.getState().chatHistory.length > 0;
+    if (!hasInitialized) {
+      initializeData();
+    }
+  }, []); // ลบ dependencies ที่ไม่จำเป็น
 
   // Auto-reconnect when disconnected (but only if token is still valid)
   useEffect(() => {
