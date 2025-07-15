@@ -99,9 +99,27 @@ export class SAMLService {
       this.logger.log(`SAMLResponse starts with: ${samlResponse.slice(0, 30)}`);
       this.logger.log(`SAMLResponse ends with: ${samlResponse.slice(-30)}`);
 
+      // Check if SAMLResponse is base64 encoded and decode it
+      let decodedResponse = samlResponse;
+      try {
+        // Try to decode base64
+        const buffer = Buffer.from(samlResponse, 'base64');
+        const decoded = buffer.toString('utf8');
+        
+        // Check if decoded content looks like XML
+        if (decoded.includes('<?xml') || decoded.includes('<samlp:Response') || decoded.includes('<saml:Response')) {
+          this.logger.log('✅ Successfully decoded base64 SAMLResponse to XML');
+          decodedResponse = decoded;
+        } else {
+          this.logger.log('⚠️ Decoded content does not look like XML, using original response');
+        }
+      } catch (decodeError) {
+        this.logger.log('⚠️ Failed to decode as base64, using original response');
+      }
+
       // Try with { SAMLResponse } first
       return new Promise((resolve, reject) => {
-        this.sp.post_assert(this.idp, { SAMLResponse: samlResponse }, (err, samlAssertion) => {
+        this.sp.post_assert(this.idp, { SAMLResponse: decodedResponse }, (err, samlAssertion) => {
           if (err) {
             this.logger.error(`Error processing SAML response (object): ${err.message}`);
             // Fallback: try with raw body if provided
