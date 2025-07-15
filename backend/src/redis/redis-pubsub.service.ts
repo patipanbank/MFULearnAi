@@ -27,9 +27,8 @@ export class RedisPubSubService {
 
   private async initializeRedis() {
     try {
-      // Use ConfigService instead of process.env directly
-      const redisUrl = this.configService.get<string>('REDIS_URL') || 
-                      `redis://${this.configService.redisHost}:${this.configService.redisPort}`;
+      // Use ConfigService redisUrl method
+      const redisUrl = this.configService.redisUrl;
       
       // Separate Redis instances for pub/sub (best practice)
       this.subscriber = new Redis(redisUrl);

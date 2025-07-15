@@ -7,9 +7,7 @@ export class RedisService implements OnModuleDestroy {
   private redis: Redis;
 
   constructor(private configService: ConfigService) {
-    this.redis = new Redis({
-      host: this.configService.redisHost,
-      port: this.configService.redisPort,
+    this.redis = new Redis(this.configService.redisUrl, {
       lazyConnect: true,
     });
   }
@@ -61,10 +59,7 @@ export class RedisService implements OnModuleDestroy {
   }
 
   subscribe(channel: string, callback: (message: string) => void): void {
-    const subscriber = new Redis({
-      host: this.configService.redisHost,
-      port: this.configService.redisPort,
-    });
+    const subscriber = new Redis(this.configService.redisUrl);
     subscriber.subscribe(channel);
     subscriber.on('message', (receivedChannel, message) => {
       if (receivedChannel === channel) {

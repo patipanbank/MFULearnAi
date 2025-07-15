@@ -19,6 +19,10 @@ export class ConfigService {
     return parseInt(this.configService.get<string>('REDIS_PORT') || '6379', 10);
   }
 
+  get redisUrl(): string {
+    return this.configService.get<string>('REDIS_URL') || `redis://${this.redisHost}:${this.redisPort}`;
+  }
+
   // JWT Configuration
   get jwtSecret(): string {
     return this.configService.get<string>('JWT_SECRET') || 'your-secret-key';
