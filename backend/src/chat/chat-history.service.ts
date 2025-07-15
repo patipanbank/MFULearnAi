@@ -3,11 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Chat, ChatDocument } from '../models/chat.model';
 import { ChatMessage } from '../models/chat.model';
+// เพิ่ม import สำหรับ collection model
+import { Collection, CollectionDocument } from '../models/collection.model';
 
 @Injectable()
 export class ChatHistoryService {
   constructor(
     @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
+    @InjectModel('Collection') private collectionModel: Model<CollectionDocument>, // เพิ่ม collectionModel
   ) {}
 
   async getChatHistoryForUser(userId: string): Promise<Chat[]> {
@@ -43,7 +46,8 @@ export class ChatHistoryService {
   ): Promise<Chat> {
     try {
       const chatData: any = {
-        userId,
+        // robust: แปลง userId เป็น ObjectId เสมอ
+        userId: Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : userId,
         name,
         title: name || 'New Chat',
         messages: [],
@@ -53,14 +57,21 @@ export class ChatHistoryService {
       };
 
       if (agentId) {
-        // แปลง agentId เป็น ObjectId เสมอ
         chatData.agentId = Types.ObjectId.isValid(agentId) ? new Types.ObjectId(agentId) : agentId;
       }
       if (modelId) chatData.modelId = modelId;
-      if (collectionNames) chatData.collectionNames = collectionNames;
       if (systemPrompt) chatData.systemPrompt = systemPrompt;
       if (typeof temperature === 'number') chatData.temperature = temperature;
       if (typeof maxTokens === 'number') chatData.maxTokens = maxTokens;
+
+      // robust: validate collectionNames
+      if (collectionNames && collectionNames.length > 0) {
+        const collections = await this.collectionModel.find({ name: { $in: collectionNames } }).exec();
+        if (collections.length !== collectionNames.length) {
+          throw new Error('One or more collections not found');
+        }
+        chatData.collectionNames = collectionNames;
+      }
 
       const chat = new this.chatModel(chatData);
       const savedChat = await chat.save();
