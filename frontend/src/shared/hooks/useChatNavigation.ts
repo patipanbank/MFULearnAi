@@ -1,5 +1,4 @@
 import { useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores';
 import { useUIStore } from '../stores';
 
