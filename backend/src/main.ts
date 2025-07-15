@@ -7,6 +7,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
+
   app.enableCors({
     origin: configService.corsOrigin,
     credentials: true,
