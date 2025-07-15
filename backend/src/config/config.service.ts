@@ -21,7 +21,9 @@ export class ConfigService {
 
   // JWT Configuration
   get jwtSecret(): string {
-    return this.configService.get<string>('JWT_SECRET') || 'your-secret-key';
+    const secret = this.configService.get<string>('JWT_SECRET') || 'your-secret-key';
+    console.log('🔐 JWT_SECRET loaded:', secret ? 'YES' : 'NO', 'Length:', secret.length);
+    return secret;
   }
 
   get jwtExpiresIn(): string {
