@@ -26,9 +26,9 @@ export class SAMLService {
         private_key: this.configService.get('SAML_PRIVATE_KEY') || undefined,
         certificate: this.configService.get('SAML_CERTIFICATE') || '',
         assert_endpoint: this.configService.get('SAML_SP_ACS_URL') || 'http://localhost:3000/api/auth/saml/callback',
-        force_authn: true,
+        force_authn: false,
         auth_context: {
-          comparison: 'exact',
+          comparison: 'minimum',
           class_refs: ['urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport']
         },
         nameid_format: this.configService.get('SAML_IDENTIFIER_FORMAT') || 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
@@ -54,6 +54,8 @@ export class SAMLService {
       this.logger.log(`SP Assert Endpoint: ${spOptions.assert_endpoint}`);
       this.logger.log(`IDP SSO URL: ${idpOptions.sso_login_url}`);
       this.logger.log(`Certificate length: ${spOptions.certificate.length}`);
+      this.logger.log(`Certificate starts with: ${spOptions.certificate.substring(0, 50)}`);
+      this.logger.log(`Private key: ${spOptions.private_key ? 'Set' : 'Not set'}`);
     } catch (error) {
       this.logger.error(`❌ Failed to initialize SAML: ${error.message}`);
       throw new Error(`SAML initialization failed: ${error.message}`);
@@ -106,18 +108,52 @@ export class SAMLService {
       // For SAML2-js, we should pass the base64 encoded response directly
       // The library will handle the decoding internally
       this.logger.log('Using original base64 SAML response for saml2-js processing');
+      
+      // Validate that the SAML response looks like base64
+      if (!samlResponse || typeof samlResponse !== 'string') {
+        throw new Error('Invalid SAML response: must be a string');
+      }
+      
+      // Check if it looks like base64
+      const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+      if (!base64Regex.test(samlResponse)) {
+        this.logger.warn('SAML response does not look like valid base64');
+      }
 
       return new Promise((resolve, reject) => {
         // Try with raw body first if provided
         if (rawBody && Object.keys(rawBody).length > 0) {
           this.logger.log(`Attempting SAML post_assert with raw body...`);
           this.logger.log(`Raw body keys: ${Object.keys(rawBody)}`);
+          this.logger.log(`Raw body type: ${typeof rawBody}`);
+          this.logger.log(`Raw body SAMLResponse type: ${typeof rawBody.SAMLResponse}`);
+          this.logger.log(`Raw body SAMLResponse length: ${rawBody.SAMLResponse ? rawBody.SAMLResponse.length : 'undefined'}`);
+          
+          // Ensure the request body is properly formatted
+          const requestBody = {
+            SAMLResponse: rawBody.SAMLResponse
+          };
+          
+          this.logger.log(`Request body for post_assert: ${JSON.stringify(requestBody)}`);
+          this.logger.log(`Request body SAMLResponse length: ${requestBody.SAMLResponse.length}`);
+          
+          // Try with the original rawBody first
+          this.logger.log(`Calling post_assert with rawBody: ${JSON.stringify(rawBody)}`);
+          
+          // Check if the rawBody has the expected structure
+          if (!rawBody.SAMLResponse) {
+            this.logger.error('rawBody does not contain SAMLResponse');
+            reject(new Error('Request body does not contain SAMLResponse'));
+            return;
+          }
+          
           this.sp.post_assert(this.idp, rawBody, (err, samlAssertion) => {
             if (err) {
               this.logger.error(`Error processing SAML response (raw body): ${err.message}`);
               // Fallback to SAMLResponse object
               this.logger.log('Falling back to SAMLResponse object...');
               const requestBody = { SAMLResponse: samlResponse };
+              this.logger.log(`Fallback request body: ${JSON.stringify(requestBody)}`);
               this.sp.post_assert(this.idp, requestBody, (err2, samlAssertion2) => {
                 if (err2) {
                   this.logger.error(`Error processing SAML response (SAMLResponse object): ${err2.message}`);
