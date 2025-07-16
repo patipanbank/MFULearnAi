@@ -370,6 +370,87 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     }
   }
 
+  // เพิ่ม handler สำหรับ event 'message' (type: 'message') ที่ frontend ใช้
+  @SubscribeMessage('message')
+  async handleMessageEvent(
+    @MessageBody() data: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    // รองรับ payload: { type: 'message', text, images, chatId, agent_id }
+    try {
+      const userId = client.data.userId;
+      const chatId = typeof data.chatId === 'string' ? data.chatId : undefined;
+      const message = data.text;
+      const images = Array.isArray(data.images) ? data.images : [];
+      const agentId = typeof data.agent_id === 'string' ? data.agent_id : (typeof data.agentId === 'string' ? data.agentId : undefined);
+
+      // ถ้าไม่มี chatId ให้ตอบ error
+      if (!chatId) {
+        client.emit('error', {
+          type: 'error',
+          data: 'chatId is required for sending message',
+        });
+        return;
+      }
+
+      // ตรวจสอบ chat และสิทธิ์
+      const chat = await this.chatHistoryService.getChatById(chatId);
+      if (!chat) {
+        client.emit('error', {
+          type: 'error',
+          data: 'Chat not found',
+        });
+        return;
+      }
+      if (chat.userId.toString() !== userId) {
+        client.emit('error', {
+          type: 'error',
+          data: 'Not authorized to send message in this chat',
+        });
+        return;
+      }
+
+      // Add user message to chat
+      const userMessage = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        role: 'user' as const,
+        content: message,
+        timestamp: new Date(),
+        isStreaming: false,
+        isComplete: true,
+        metadata: { images },
+      };
+      await this.chatHistoryService.addMessageToChat(chatId, userMessage);
+
+      // ตอบกลับว่า message ถูก accepted
+      client.emit('accepted', {
+        type: 'accepted',
+        data: { messageId: userMessage.id, content: message },
+      });
+
+      // Prepare AI response request
+      const aiRequest = {
+        sessionId: chatId,
+        userId,
+        message,
+        modelId: typeof chat.modelId === 'string' ? chat.modelId : 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        collectionNames: Array.isArray(chat.collectionNames) ? chat.collectionNames : [],
+        agentId: typeof chat.agentId === 'string' ? chat.agentId : agentId,
+        systemPrompt: chat.systemPrompt,
+        temperature: typeof chat.temperature === 'number' ? chat.temperature : 0.7,
+        maxTokens: typeof chat.maxTokens === 'number' ? chat.maxTokens : 4000,
+        images: images,
+      };
+      await this.taskQueueService.addChatTask('generate_response', aiRequest);
+      // (ใน production อาจต้อง stream chunk กลับ client ด้วย)
+    } catch (error) {
+      client.emit('error', {
+        type: 'error',
+        data: `Failed to send message: ${error.message}`,
+      });
+    }
+  }
+
   @SubscribeMessage('leave_room')
   async handleLeaveRoom(
     @ConnectedSocket() client: Socket,
