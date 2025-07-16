@@ -283,19 +283,16 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
       socket.on('room_created', (data: any) => {
         console.log('WebSocket: Room created', data.data.chatId);
         handleRoomCreated(data.data.chatId);
-        
-        // ส่งข้อความแรกทันทีก่อน redirect
         if (pendingFirstRef.current) {
           const { text, images: pImages, agentId: pAgentId } = pendingFirstRef.current;
           const msgPayload = {
-            type: 'message',
+            type: 'send_message',
             chatId: data.data.chatId,
-            text,
+            message: text,
             images: pImages,
             agent_id: pAgentId
           };
           console.log('WebSocket: Sending first message', msgPayload);
-          // ส่งข้อความทันที
           wsRef.current?.emit('send_message', msgPayload);
           pendingFirstRef.current = null;
           // ตั้งค่าสำหรับ redirect หลัง message_sent
