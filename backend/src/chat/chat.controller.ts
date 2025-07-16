@@ -32,12 +32,7 @@ export class ChatController {
     try {
       const userId = req.user.id;
       const chats = await this.chatHistoryService.getChatHistoryForUser(userId);
-      
-      return {
-        success: true,
-        data: chats,
-        message: 'Chat history retrieved successfully',
-      };
+      return chats; // เปลี่ยนจาก return { success, data, message } เป็น return array ตรงๆ
     } catch (error) {
       throw new HttpException(
         `Failed to get chat history: ${error.message}`,
