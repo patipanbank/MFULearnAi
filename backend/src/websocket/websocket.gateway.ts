@@ -83,8 +83,6 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   async handleConnection(client: Socket) {
     try {
       this.logger.log(`🌐 WebSocket connection attempt from: ${client.id}`);
-      
-      // รองรับทั้ง Socket.IO (auth) และ WebSocket ปกติ (query string)
       let token: string | undefined = undefined;
       if (client.handshake.auth && client.handshake.auth.token) {
         token = client.handshake.auth.token as string;
@@ -92,25 +90,21 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         token = client.handshake.query.token;
       }
       this.logger.log(`🎫 Token received: ${token ? token.substring(0, 50) + '...' : 'None'}`);
-
       if (!token) {
         this.logger.warn('❌ No token provided in auth object');
+        client.emit('error', { type: 'error', data: 'No token provided' });
         client.disconnect(true);
         return;
       }
-
-      // Validate JWT token
       try {
         const payload = this.jwtService.verify(token);
         const userId = payload.sub;
-        
         if (!userId) {
           this.logger.warn('❌ No user_id in token payload');
+          client.emit('error', { type: 'error', data: 'No user_id in token payload' });
           client.disconnect(true);
           return;
         }
-
-        // Store user info in socket
         client.data.userId = userId;
         client.data.userInfo = {
           id: userId,
@@ -118,26 +112,18 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
           role: payload.role,
           department: payload.department,
         };
-
-        // Register with WebSocket service
         await this.webSocketService.handleConnection(client, userId, client.data.userInfo);
-        
         this.logger.log(`✅ WebSocket authenticated for user: ${userId}`);
-        
-        // Send connection confirmation
-        client.emit('connected', { 
-          type: 'connected', 
-          data: { userId, message: 'WebSocket connected successfully' } 
-        });
-
+        client.emit('connected', { type: 'connected', data: { userId, message: 'WebSocket connected successfully' } });
       } catch (error) {
         this.logger.error(`❌ JWT validation error: ${error.message}`);
+        client.emit('error', { type: 'error', data: `JWT validation error: ${error.message}` });
         client.disconnect(true);
         return;
       }
-
     } catch (error) {
       this.logger.error(`❌ Connection error: ${error.message}`);
+      client.emit('error', { type: 'error', data: `Connection error: ${error.message}` });
       client.disconnect(true);
     }
   }
@@ -228,48 +214,57 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       const systemPrompt = data.system_prompt || data.systemPrompt;
       const temperature = typeof data.temperature === 'number' ? data.temperature : 0.7;
       const maxTokens = typeof data.max_tokens === 'number' ? data.max_tokens : (typeof data.maxTokens === 'number' ? data.maxTokens : 4000);
-
       // Validate agent exists if provided
       if (agentId) {
-        const agent = await this.agentService.getAgentById(agentId, userId);
+        let agent: any = null;
+        try {
+          agent = await this.agentService.getAgentById(agentId, userId);
+        } catch (err) {
+          this.logger.error(`[WS] create_room: Error fetching agent: ${err.message}`);
+          client.emit('error', { type: 'error', data: `Error fetching agent: ${err.message}` });
+          return;
+        }
         if (!agent) {
-          this.logger.warn(`[WS] create_room: Agent not found or access denied (agentId=${agentId})`);
-          client.emit('error', { 
-            type: 'error', 
-            data: 'Agent not found or access denied' 
-          });
+          this.logger.warn(`[WS] create_room: Agent not found or access denied (agentId=${agentId}, userId=${userId})`);
+          client.emit('error', { type: 'error', data: `Agent not found or access denied (agentId=${agentId}, userId=${userId})` });
           return;
         }
       }
-
       // Create new chat (support all fields)
-      const chatName = agentId ? `Chat with ${agentId}` : 'New Chat';
-      const chat = await this.chatHistoryService.createChat(
-        userId,
-        chatName,
-        agentId,
-        modelId,
-        collectionNames,
-        systemPrompt,
-        temperature,
-        maxTokens
-      );
-
+      let chat: any = null;
+      try {
+        const chatName = agentId ? `Chat with ${agentId}` : 'New Chat';
+        chat = await this.chatHistoryService.createChat(
+          userId,
+          chatName,
+          agentId,
+          modelId,
+          collectionNames,
+          systemPrompt,
+          temperature,
+          maxTokens
+        );
+      } catch (err) {
+        this.logger.error(`[WS] create_room: Error creating chat: ${err.message}`);
+        client.emit('error', { type: 'error', data: `Error creating chat: ${err.message}` });
+        return;
+      }
       // Join the room
       const chatId = chat.id;
       if (!chatId) {
-        this.logger.error(`[WS] create_room: Chat ID not found after createChat`);
-        client.emit('error', { 
-          type: 'error', 
-          data: 'Failed to create chat: Chat ID not found' 
-        });
+        this.logger.error(`[WS] create_room: Chat ID not found after createChat (userId=${userId}, agentId=${agentId})`);
+        client.emit('error', { type: 'error', data: `Failed to create chat: Chat ID not found (userId=${userId}, agentId=${agentId})` });
         return;
       }
-      await client.join(chatId);
-      await this.webSocketService.joinRoom(client, chatId);
-      await this.redisPubSubService.connect(chatId, client);
-
-      // Send confirmation
+      try {
+        await client.join(chatId);
+        await this.webSocketService.joinRoom(client, chatId);
+        await this.redisPubSubService.connect(chatId, client);
+      } catch (err) {
+        this.logger.error(`[WS] create_room: Error joining room: ${err.message}`);
+        client.emit('error', { type: 'error', data: `Error joining room: ${err.message}` });
+        return;
+      }
       client.emit('room_created', { 
         type: 'room_created', 
         data: { 
@@ -283,15 +278,10 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
           maxTokens,
         } 
       });
-
       this.logger.log(`[WS] Room created: chatId=${chatId} for userId=${userId}`);
-
     } catch (error) {
-      this.logger.error(`[WS] create_room error: ${error.message}`, error.stack);
-      client.emit('error', { 
-        type: 'error', 
-        data: `Failed to create room: ${error.message}` 
-      });
+      this.logger.error(`[WS] create_room error: ${error.message}`);
+      client.emit('error', { type: 'error', data: `Failed to create room: ${error.message}` });
     }
   }
 
