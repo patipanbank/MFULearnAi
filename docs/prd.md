@@ -1,70 +1,158 @@
-# MFULearnAi Brownfield Enhancement PRD
+# Brownfield Enhancement PRD
 
 ## 1. Intro Project Analysis and Context
 
 ### Existing Project Overview
-- **Analysis Source:** IDE-based fresh analysis
-- **Current Project State:**
-  - Modular monolith, event-driven, real-time architecture
-  - Frontend: React 19 + TypeScript + Zustand + Tailwind CSS
-  - Backend: NestJS 10 + TypeScript, REST + WebSocket APIs
-  - AI/LLM: AWS Bedrock, ChromaDB for vector search, agent tool integration
-  - Data: MongoDB, Redis, MinIO (S3-compatible)
-  - Deployment: Docker Compose, Nginx API gateway, on-premises or university-managed VMs/servers
-  - Security: SAML SSO, JWT, role/department-based access
+- **Analysis Source:** User-provided information (ไม่มีเอกสารเทคนิคเดิม)
+- **Current Project State:**  
+  ระบบมีเพียงส่วน auth ที่ยังใช้งานได้ ส่วนอื่น ๆ (เช่น websocket) ใช้งานไม่ได้และยังไม่ได้ทดสอบระบบอื่น ๆ
 
 ### Available Documentation Analysis
-- Using existing project analysis from architecture.md
-- Key documents: architecture.md
+- ไม่มีเอกสารเทคนิคหรือสรุปโครงสร้างระบบเดิม
 
 ### Enhancement Scope Definition
-- **Enhancement Type:** Major Feature Modification, Performance/Scalability Improvements, Technology Stack Upgrade
-- **Enhancement Description:**
-  - Modernize and optimize the system by upgrading the tech stack, refactoring major features, and improving performance/scalability, while keeping the auth system unchanged.
-- **Impact Assessment:** Significant Impact (substantial existing code changes)
+- **Enhancement Type:**  
+  - เพิ่มฟีเจอร์ใหม่  
+  - ปรับปรุงฟีเจอร์หลักครั้งใหญ่  
+  - เชื่อมต่อกับระบบใหม่  
+  - ปรับปรุงประสิทธิภาพ/ขยายขนาดระบบ  
+  - ปรับปรุง UI/UX ครั้งใหญ่  
+  - อัปเกรดเทคโนโลยี  
+  - แก้ไขบั๊ก/เสถียรภาพ
+
+- **Enhancement Description:**  
+  ต้องการปรับปรุงระบบทั้งหมด (ยกเว้น auth) เพื่อให้รองรับผู้ใช้มากขึ้น เพิ่มความเร็ว และปรับปรุงประสบการณ์ผู้ใช้
+
+- **Impact Assessment:**  
+  กระทบโครงสร้างหลัก (ต้องเปลี่ยนแปลงสถาปัตยกรรม)
 
 ### Goals and Background Context
-- **Goals:**
-  - Deliver a scalable, maintainable, and secure platform for Mae Fah Luang University
-  - Support SAML SSO, real-time chat, agent management, and knowledge base
-  - Enable efficient handling of increased user load
-- **Background Context:**
-  - The system is being migrated from FastAPI to a modern, modular NestJS backend and React frontend. The authentication system will remain unchanged to preserve existing integrations and security protocols.
+- **Goals:**  
+  - ระบบรองรับผู้ใช้จำนวนมากขึ้น  
+  - ระบบมีความเร็วและประสิทธิภาพดีขึ้น  
+  - ประสบการณ์ผู้ใช้ดีขึ้น
 
-### Change Log
-| Change | Date | Version | Description | Author |
-|--------|------|---------|-------------|--------|
-| Initial PRD draft | {{date}} | 0.1 | Created initial PRD from template | John (PM) |
+- **Background Context:**  
+  ระบบเดิมมีปัญหาเรื่องโครงสร้างและรากฐานที่ไม่ดี ทำให้ระบบส่วนใหญ่ไม่สามารถใช้งานได้ มีเพียง auth ที่ยังทำงานได้ จึงต้องการปรับปรุงใหม่เกือบทั้งหมด
 
 ---
 
 ## 2. Requirements
 
 ### Functional Requirements (FR)
-1. FR1: The system must be rebuilt using the latest versions of React, NestJS, and TypeScript, maintaining all current core features except authentication.
-2. FR2: The new architecture must support real-time chat, agent management, knowledge base, and document upload functionalities.
-3. FR3: The system must integrate with AWS Bedrock for AI/LLM features and ChromaDB for vector search.
-4. FR4: The backend must expose REST and WebSocket APIs for all major modules.
-5. FR5: The system must support SAML SSO and JWT for authentication, preserving the existing auth system and its integrations.
-6. FR6: The deployment must use Docker Compose and support on-premises or university-managed infrastructure.
+- FR1: ระบบต้องสามารถรองรับผู้ใช้จำนวนมากขึ้นโดยไม่เกิดปัญหาคอขวด
+- FR2: ระบบต้องมีความเร็วในการตอบสนองที่ดีขึ้นในทุกฟีเจอร์หลัก
+- FR3: ระบบต้องปรับปรุง UI/UX ให้ใช้งานง่ายและทันสมัย
+- FR4: ระบบต้องสามารถเชื่อมต่อกับระบบใหม่หรือบริการภายนอกได้ (ถ้ามีในอนาคต)
+- FR5: ระบบ auth เดิมต้องยังคงทำงานได้ตามปกติ
 
 ### Non-Functional Requirements (NFR)
-1. NFR1: The system must be scalable to support increased user load without significant performance degradation.
-2. NFR2: The codebase must be modular, maintainable, and follow modern best practices for both frontend and backend.
-3. NFR3: The system must maintain or improve current security standards, especially for user data and authentication.
-4. NFR4: The system must be compatible with university-managed infrastructure and self-hosted services.
-5. NFR5: The system must include comprehensive logging, monitoring, and automated testing (unit, integration, E2E).
+- NFR1: ระบบใหม่ต้องมีเสถียรภาพสูงและรองรับการขยายตัวในอนาคต
+- NFR2: การปรับปรุงต้องไม่ทำให้ auth เดิมเสียหายหรือใช้งานไม่ได้
+- NFR3: ระบบต้องมีความปลอดภัยตามมาตรฐานเดิมหรือดีกว่าเดิม
+- NFR4: ระบบต้องสามารถดูแลรักษาและพัฒนาเพิ่มเติมได้ง่าย
 
 ### Compatibility Requirements (CR)
-1. CR1: Existing API compatibility must be maintained for the authentication system.
-2. CR2: Database schema changes must not break existing user or authentication data.
-3. CR3: UI/UX consistency must be preserved where possible, with improvements documented.
-4. CR4: Integration compatibility with AWS Bedrock, ChromaDB, and university-managed services must be ensured.
+- CR1: ต้องคงความเข้ากันได้กับ API เดิมที่ auth ใช้งานอยู่
+- CR2: ต้องคงความเข้ากันได้กับโครงสร้างฐานข้อมูลเดิมในส่วน auth
+- CR3: UI/UX ใหม่ต้องสอดคล้องกับประสบการณ์ผู้ใช้เดิมในส่วน auth
+- CR4: การเชื่อมต่อกับระบบภายนอก (ถ้ามี) ต้องไม่กระทบ auth เดิม
 
 ---
 
-## 3. Epic and Story Structure
-*To be completed: Will be structured based on validated requirements and project analysis.*
+## 3. Technical Constraints and Integration Requirements
 
-## 4. Technical Constraints and Integration Requirements
-*To be completed: Will detail tech stack, integration, code organization, deployment, and risk assessment.* 
+### Existing Technology Stack
+- **Languages:** (ยังไม่ระบุ)
+- **Frameworks:** (ยังไม่ระบุ)
+- **Database:** (ยังไม่ระบุ)
+- **Infrastructure:** (ยังไม่ระบุ)
+- **External Dependencies:** ใช้เครื่องมือเดิมทั้งหมด (ยังไม่ระบุชื่อเฉพาะ)
+
+> *หมายเหตุ: เนื่องจากยังไม่มีข้อมูลเทคโนโลยีเดิมที่ชัดเจน จึงแนะนำให้สำรวจและบันทึกเทคโนโลยีที่ใช้อยู่จริงก่อนเริ่มพัฒนา*
+
+### Integration Approach
+- **Database Integration Strategy:** ต้องคงโครงสร้างฐานข้อมูลเดิมในส่วน auth และออกแบบฐานข้อมูลใหม่สำหรับส่วนอื่น ๆ ให้สามารถขยายและดูแลรักษาได้ง่าย
+- **API Integration Strategy:** API เดิมที่ auth ใช้งานต้องไม่เปลี่ยนแปลง ส่วนอื่น ๆ สามารถออกแบบใหม่ได้ตามความเหมาะสม
+- **Frontend Integration Strategy:** UI/UX ใหม่ต้องสอดคล้องกับ auth เดิม และสามารถขยายเพิ่มเติมได้ในอนาคต
+- **Testing Integration Strategy:** ต้องมีการทดสอบ regression กับ auth เดิม และทดสอบฟีเจอร์ใหม่อย่างครบถ้วน
+
+### Code Organization and Standards
+- **File Structure Approach:** ออกแบบโครงสร้างไฟล์ใหม่ให้เหมาะสมกับการขยายระบบในอนาคต
+- **Naming Conventions:** ใช้มาตรฐานเดิม (ถ้ามี) หรือกำหนดใหม่ให้สอดคล้องกันทั้งระบบ
+- **Coding Standards:** กำหนดมาตรฐานการเขียนโค้ดที่ชัดเจนเพื่อความง่ายในการดูแลรักษา
+- **Documentation Standards:** จัดทำเอกสารประกอบโค้ดและ API อย่างครบถ้วน
+
+### Deployment and Operations
+- **Build Process Integration:** ปรับปรุงกระบวนการ build/deploy ให้รองรับระบบใหม่และสามารถ rollback ได้หากเกิดปัญหา
+- **Deployment Strategy:** วางแผนการ deploy แบบ incremental เพื่อลดความเสี่ยง
+- **Monitoring and Logging:** เพิ่มระบบ monitoring/logging เพื่อช่วยติดตามปัญหาและประสิทธิภาพ
+- **Configuration Management:** แยก config ออกจากโค้ดและจัดการอย่างเป็นระบบ
+
+### Risk Assessment and Mitigation
+- **Technical Risks:** โครงสร้างเดิมไม่ดี อาจมีปัญหาในการ migrate ข้อมูลหรือเชื่อมต่อกับ auth เดิม
+- **Integration Risks:** การเปลี่ยนแปลงอาจกระทบ auth เดิมหากไม่ทดสอบอย่างรอบคอบ
+- **Deployment Risks:** หาก deploy ระบบใหม่แล้วเกิดปัญหา อาจกระทบผู้ใช้ทั้งหมด
+- **Mitigation Strategies:**  
+  - ทดสอบ regression กับ auth เดิมทุกครั้ง  
+  - วางแผน rollback ที่ชัดเจน  
+  - ทำ staging environment สำหรับทดสอบก่อนขึ้น production
+
+---
+
+## 4. Epic and Story Structure
+
+**Epic Structure Decision:**
+ใช้ Single Epic ที่ครอบคลุมการปรับปรุงระบบทั้งหมด (ยกเว้น auth) เพื่อควบคุมความเสี่ยงและตรวจสอบผลกระทบต่อ auth ได้อย่างใกล้ชิด
+
+**Rationale:**
+- การเปลี่ยนแปลงมีผลกระทบต่อระบบหลักทั้งหมด  
+- ต้องการควบคุมความเสี่ยงและทดสอบความเข้ากันได้กับ auth เดิม  
+- การแบ่งเป็นหลาย epic อาจทำให้การควบคุมความเสี่ยงและการทดสอบ regression ซับซ้อนเกินไป
+
+---
+
+## 5. Epic Details: ระบบใหม่ (ยกเว้น auth)
+
+**Epic:** ปรับปรุงและยกเครื่องระบบทั้งหมด (ยกเว้น auth) เพื่อรองรับผู้ใช้จำนวนมากขึ้น เพิ่มความเร็ว และปรับปรุงประสบการณ์ผู้ใช้
+
+### ลำดับงานย่อย (Story) ที่แนะนำ
+1. **วิเคราะห์และออกแบบสถาปัตยกรรมใหม่**
+   - ศึกษาและวางแผนโครงสร้างระบบใหม่
+   - กำหนดมาตรฐานเทคโนโลยีและแนวทางการพัฒนา
+   - วางแผนการเชื่อมต่อกับ auth เดิม
+
+2. **สร้างโครงสร้างพื้นฐานระบบ (Core System Foundation)**
+   - สร้างโครงสร้างไฟล์และโมดูลหลัก
+   - วางระบบฐานข้อมูลใหม่ (ยกเว้น auth)
+   - เตรียมระบบสำหรับการขยายในอนาคต
+
+3. **พัฒนาและทดสอบระบบ websocket ใหม่**
+   - ออกแบบและพัฒนา websocket ให้รองรับการใช้งานจริง
+   - ทดสอบการเชื่อมต่อและประสิทธิภาพ
+
+4. **พัฒนา/ปรับปรุงฟีเจอร์หลักอื่น ๆ**
+   - พัฒนาแต่ละฟีเจอร์หลักที่ต้องการ (เช่น chat, collection, embedding ฯลฯ)
+   - ทดสอบการทำงานร่วมกับระบบ auth เดิม
+
+5. **ปรับปรุง UI/UX**
+   - ออกแบบและพัฒนา UI/UX ใหม่ให้ทันสมัยและใช้งานง่าย
+   - ทดสอบกับผู้ใช้จริง (User Testing)
+
+6. **เพิ่มระบบ Monitoring, Logging และ Deployment**
+   - ติดตั้งระบบ monitoring/logging
+   - วางแผน deployment และ rollback
+
+7. **ทดสอบ regression กับ auth เดิม**
+   - ทดสอบการทำงานร่วมกับ auth เดิมอย่างละเอียด
+   - แก้ไขปัญหาความเข้ากันได้ (compatibility)
+
+8. **เตรียมเอกสารและคู่มือการใช้งาน**
+   - จัดทำเอกสารประกอบระบบใหม่
+   - คู่มือสำหรับผู้ใช้และผู้ดูแลระบบ
+
+9. **วางแผนและดำเนินการ rollout**
+   - วางแผนการเปิดใช้งานระบบใหม่แบบ incremental
+   - เตรียมแผน rollback หากเกิดปัญหา
+
+> หมายเหตุ: ทุก story ต้องมีการทดสอบ regression กับ auth เดิม และมีแผน rollback เพื่อลดความเสี่ยงต่อระบบเดิม 

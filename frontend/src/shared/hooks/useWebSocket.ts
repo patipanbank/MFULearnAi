@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { config } from '../../config/config';
 import { useChatStore, type ChatMessage } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 import { useAuthStore } from '../../entities/user/store';
+import { useNavigate } from 'react-router-dom';
 
 interface UseWebSocketOptions {
   chatId?: string;
@@ -16,6 +17,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
   const pendingQueueRef = useRef<any[]>([]);
   const pendingFirstRef = useRef<{ text: string; images?: any[]; agentId?: string } | null>(null);
   const currentSessionRef = useRef<any>(null);
+  const redirectChatIdRef = useRef<string | null>(null);
   
   const {
     currentSession,
@@ -29,7 +31,8 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
   } = useChatStore();
   
   const { addToast } = useUIStore();
-  const token = useAuthStore((state) => state.token);
+  const token = useAuthStore((state: any) => state.token);
+  const navigate = useNavigate();
 
   // Update currentSessionRef when currentSession changes
   useEffect(() => {
@@ -46,11 +49,11 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
     }
   }, []);
 
-  const tryRefreshToken = useCallback(async () => {
+  const tryRefreshToken = useCallback(async (): Promise<boolean> => {
     try {
       const newToken = await useAuthStore.getState().refreshToken();
       return newToken !== null;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to refresh token:', error);
       return false;
     }
@@ -104,7 +107,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
     
     if (isTokenExpired(token)) {
       console.log('Token expired, attempting refresh...');
-      tryRefreshToken().then((success) => {
+      tryRefreshToken().then((success: boolean) => {
         if (success) {
           // Close existing connection and let parent handle reconnection
           if (wsRef.current) {
@@ -186,7 +189,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         });
       });
 
-      socket.on('disconnect', (reason) => {
+      socket.on('disconnect', (reason: string) => {
         console.log('WebSocket disconnected:', reason);
         setWsStatus('disconnected');
         setIsConnectedToRoom(false);
@@ -223,7 +226,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         }
       });
 
-      socket.on('connect_error', (error) => {
+      socket.on('connect_error', (error: any) => {
         console.error('WebSocket connection error:', error);
         setWsStatus('error');
         setIsConnectedToRoom(false);
@@ -236,7 +239,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         });
       });
 
-      socket.on('chunk', (data) => {
+      socket.on('chunk', (data: any) => {
         const session = currentSessionRef.current;
         // ตรวจสอบ session id ก่อนอัปเดต
         if (!session || (data.chatId && session.id !== data.chatId)) return;
@@ -258,7 +261,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         }
       });
 
-      socket.on('error', (data) => {
+      socket.on('error', (data: any) => {
         console.error('WebSocket: Server error', data);
         addToast({
           type: 'error',
@@ -268,16 +271,16 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         });
       });
 
-      socket.on('accepted', (data) => {
+      socket.on('accepted', (data: any) => {
         console.log('WebSocket: Message accepted by server', data);
       });
 
-      socket.on('room_joined', (data) => {
+      socket.on('room_joined', (data: any) => {
         console.log('WebSocket: Successfully joined room', data.data.chatId);
         setIsConnectedToRoom(true);
       });
 
-      socket.on('room_created', (data) => {
+      socket.on('room_created', (data: any) => {
         console.log('WebSocket: Room created', data.data.chatId);
         handleRoomCreated(data.data.chatId);
         
@@ -295,16 +298,25 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
           // ส่งข้อความทันที
           wsRef.current?.emit('send_message', msgPayload);
           pendingFirstRef.current = null;
+          // ตั้งค่าสำหรับ redirect หลัง message_sent
+          redirectChatIdRef.current = data.data.chatId;
+        } else {
+          // ถ้าไม่มีข้อความแรก รอ redirect หลังจากนี้ (เช่นกรณีสร้างห้องเปล่า)
+          redirectChatIdRef.current = data.data.chatId;
         }
-        
-        // ใช้ setTimeout เพื่อให้ข้อความถูกส่งก่อน redirect
-        setTimeout(() => {
-          // ใช้ window.location.href เพื่อให้ redirect ทำงานถูกต้อง
-          window.location.href = `/chat/${data.data.chatId}`;
-        }, 200);
       });
 
-      socket.on('tool_start', (data) => {
+      socket.on('message_sent', (data: any) => {
+        // ถ้าเป็นการส่งข้อความแรกหลังสร้างห้องใหม่ ให้ redirect ด้วย navigate
+        if (redirectChatIdRef.current) {
+          const chatIdToGo = redirectChatIdRef.current;
+          redirectChatIdRef.current = null;
+          // ใช้ navigate แทน window.location.href เพื่อไม่ refresh หน้า
+          navigate(`/chat/${chatIdToGo}`);
+        }
+      });
+
+      socket.on('tool_start', (data: any) => {
         const session = currentSessionRef.current;
         if (!session || (data.chatId && session.id !== data.chatId)) return;
         const lastMessage = session?.messages[session.messages.length - 1];
@@ -330,7 +342,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         }
       });
 
-      socket.on('tool_result', (data) => {
+      socket.on('tool_result', (data: any) => {
         const session = currentSessionRef.current;
         if (!session || (data.chatId && session.id !== data.chatId)) return;
         const lastMessage = session?.messages[session.messages.length - 1];
@@ -348,7 +360,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         }
       });
 
-      socket.on('tool_error', (data) => {
+      socket.on('tool_error', (data: any) => {
         const session = currentSessionRef.current;
         if (!session || (data.chatId && session.id !== data.chatId)) return;
         const lastMessage = session?.messages[session.messages.length - 1];
@@ -390,7 +402,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
       });
       return;
     }
-  }, [token, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken, handleRoomCreated]); // ลบ currentSession ออกจาก dependency
+  }, [token, isTokenExpired, setWsStatus, setIsConnectedToRoom, isInChatRoom, chatId, updateMessage, addMessage, setCurrentSession, setChatHistory, setIsRoomCreating, abortStreaming, addToast, tryRefreshToken, handleRoomCreated, navigate]); // ลบ currentSession ออกจาก dependency
 
   // --- RECONNECT STATE ---
   const reconnectAttemptsRef = useRef(0);
