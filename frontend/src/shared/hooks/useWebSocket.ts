@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { config } from '../../config/config';
 import { useChatStore, type ChatMessage } from '../stores/chatStore';
@@ -271,8 +271,8 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         });
       });
 
-      socket.on('accepted', (data: any) => {
-        console.log('WebSocket: Message accepted by server', data);
+      socket.on('accepted', () => {
+        // Message accepted by server (no-op)
       });
 
       socket.on('room_joined', (data: any) => {
