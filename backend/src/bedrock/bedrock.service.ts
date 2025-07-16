@@ -172,14 +172,17 @@ export class BedrockService {
       : [];
 
     // ToolConfiguration must always have tools property
-    const sdkToolConfig: ToolConfiguration = toolConfig && toolConfig.tools ? toolConfig as ToolConfiguration : { tools: [] };
+    let sdkToolConfig: ToolConfiguration | undefined = undefined;
+    if (toolConfig && Array.isArray(toolConfig.tools) && toolConfig.tools.length > 0) {
+      sdkToolConfig = toolConfig as ToolConfiguration;
+    } // ถ้าไม่มี tools หรือเป็น array ว่าง จะไม่ส่ง toolConfig
 
     try {
       const command = new ConverseStreamCommand({
         modelId,
         messages: sdkMessages,
         system: systemMessages,
-        toolConfig: sdkToolConfig,
+        ...(sdkToolConfig ? { toolConfig: sdkToolConfig } : {}),
         inferenceConfig,
       });
 

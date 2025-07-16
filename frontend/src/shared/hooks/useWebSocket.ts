@@ -278,6 +278,17 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
       socket.on('room_joined', (data: any) => {
         console.log('WebSocket: Successfully joined room', data.data.chatId);
         setIsConnectedToRoom(true);
+        // flush queue ส่ง message ที่ค้างไว้
+        const pendingMessages = [...pendingQueueRef.current];
+        pendingQueueRef.current = [];
+        pendingMessages.forEach((p) => {
+          try {
+            wsRef.current?.emit('send_message', p);
+          } catch (error) {
+            console.error('WebSocket: Failed to send pending message after join', error);
+            pendingQueueRef.current.push(p);
+          }
+        });
       });
 
       socket.on('room_created', (data: any) => {
@@ -441,20 +452,37 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
     console.log('sendMessage called', { message: message.substring(0, 50) + '...', images: images?.length || 0, chatId, agentId });
     
     if (!wsRef.current || !wsRef.current.connected) {
-      console.log('sendMessage: WebSocket not connected, queuing message');
-      pendingQueueRef.current.push({ type: 'send_message', message, images, chatId, agent_id: agentId });
+      // ถ้า websocket ยังไม่เชื่อมต่อ ให้ queue message ไว้ก่อน
+      pendingQueueRef.current.push({
+        type: 'message',
+        chatId,
+        message,
+        images,
+        agent_id: agentId
+      });
       return;
     }
-    
-    try {
-      const payload = { type: 'send_message', message, images, chatId, agent_id: agentId };
-      console.log('sendMessage: Sending payload', payload);
-      wsRef.current.emit('send_message', payload);
-    } catch (error) {
-      console.error('WebSocket: Failed to send pending message', error);
-      // เก็บไว้ใน queue อีกครั้ง
-      pendingQueueRef.current.push({ type: 'send_message', message, images, chatId, agent_id: agentId });
+    // เช็คว่า join room สำเร็จหรือยัง
+    const isRoomJoined = useChatStore.getState().isConnectedToRoom;
+    if (!isRoomJoined) {
+      // ถ้ายัง join room ไม่สำเร็จ ให้ queue message ไว้ก่อน
+      pendingQueueRef.current.push({
+        type: 'message',
+        chatId,
+        message,
+        images,
+        agent_id: agentId
+      });
+      return;
     }
+    // ถ้าเชื่อมต่อและ join room แล้ว ส่ง message ได้เลย
+    wsRef.current.emit('send_message', {
+      type: 'message',
+      chatId,
+      message,
+      images,
+      agent_id: agentId
+    });
   }, [chatId]);
 
   return {
