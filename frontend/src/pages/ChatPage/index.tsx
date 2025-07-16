@@ -164,9 +164,16 @@ const ChatPage: React.FC = () => {
   // Handle room creation (when first message is sent)
   const handleRoomCreatedWithNavigate = useCallback((roomId: string) => {
     console.log('Room created, navigating to:', `/chat/${roomId}`);
-    // ใช้ navigate function โดยตรง
+    // ถ้ายังไม่ได้เลือก agent ให้เลือก agent ตัวแรกอัตโนมัติ
+    if (!selectedAgent) {
+      const agents = useAgentStore.getState().agents;
+      if (agents && agents.length > 0) {
+        useAgentStore.getState().setSelectedAgent(agents[0]);
+        console.log('Auto-select agent:', agents[0]);
+      }
+    }
     navigate(`/chat/${roomId}`);
-  }, [navigate]);
+  }, [navigate, selectedAgent]);
 
   // Send message function
   const sendMessage = useCallback(async () => {
@@ -337,6 +344,9 @@ const ChatPage: React.FC = () => {
     const lastInitial = user.lastName?.charAt(0) || '';
     return (firstInitial + lastInitial).toUpperCase() || 'U';
   }, [user]);
+
+  // Debug log in render
+  console.log('RENDER: user', user, 'selectedAgent', selectedAgent, 'isLoading', isLoading, 'chatId', chatId, 'currentSession', currentSession);
 
   if (isLoading) {
     return <Loading />;
