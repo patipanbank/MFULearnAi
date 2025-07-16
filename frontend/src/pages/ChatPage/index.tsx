@@ -173,6 +173,10 @@ const ChatPage: React.FC = () => {
       }
     }
     navigate(`/chat/${roomId}`);
+    // เพิ่มการโหลดแชทหลัง navigate เพื่อ sync ข้อความ
+    setTimeout(() => {
+      useChatStore.getState().loadChat(roomId);
+    }, 300);
   }, [navigate, selectedAgent]);
 
   // Send message function
