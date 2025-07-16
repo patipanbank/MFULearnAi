@@ -381,6 +381,8 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @MessageBody() data: any,
     @ConnectedSocket() client: Socket,
   ) {
+    // เพิ่ม log สำหรับ debug
+    this.logger.log(`[WS] handleMessageEvent: userId=${client.data.userId}, data=${JSON.stringify(data)}`);
     // รองรับ payload: { type: 'message', text, images, chatId, agent_id }
     try {
       const userId = client.data.userId;
@@ -391,6 +393,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
       // ถ้าไม่มี chatId ให้ตอบ error
       if (!chatId) {
+        this.logger.warn(`[WS] handleMessageEvent: missing chatId, data=${JSON.stringify(data)}`);
         client.emit('error', {
           type: 'error',
           data: 'chatId is required for sending message',
@@ -401,6 +404,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       // ตรวจสอบ chat และสิทธิ์
       const chat = await this.chatHistoryService.getChatById(chatId);
       if (!chat) {
+        this.logger.warn(`[WS] handleMessageEvent: chat not found, chatId=${chatId}`);
         client.emit('error', {
           type: 'error',
           data: 'Chat not found',
@@ -408,6 +412,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         return;
       }
       if (chat.userId.toString() !== userId) {
+        this.logger.warn(`[WS] handleMessageEvent: not authorized, chatId=${chatId}, userId=${userId}`);
         client.emit('error', {
           type: 'error',
           data: 'Not authorized to send message in this chat',
@@ -449,6 +454,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       await this.taskQueueService.addChatTask('generate_response', aiRequest);
       // (ใน production อาจต้อง stream chunk กลับ client ด้วย)
     } catch (error) {
+      this.logger.error(`[WS] handleMessageEvent: error=${error.message}, data=${JSON.stringify(data)}`);
       client.emit('error', {
         type: 'error',
         data: `Failed to send message: ${error.message}`,
