@@ -207,6 +207,8 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @MessageBody() data: CreateRoomMessage,
     @ConnectedSocket() client: Socket,
   ) {
+    // เพิ่ม log สำหรับ debug
+    this.logger.log(`[WS] handleCreateRoom: userId=${client.data.userId}, data=${JSON.stringify(data)}`);
     try {
       const userId = client.data.userId;
       this.logger.log(`[WS] create_room: userId=${userId}, data=${JSON.stringify(data)}`);
@@ -282,8 +284,11 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       });
       this.logger.log(`[WS] Room created: chatId=${chatId} for userId=${userId}`);
     } catch (error) {
-      this.logger.error(`[WS] create_room error: ${error.message}`);
-      client.emit('error', { type: 'error', data: `Failed to create room: ${error.message}` });
+      this.logger.error(`[WS] handleCreateRoom: error=${error.message}, data=${JSON.stringify(data)}`);
+      client.emit('error', {
+        type: 'error',
+        data: `Failed to create room: ${error.message}`,
+      });
     }
   }
 
