@@ -306,7 +306,7 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
         }
       });
 
-      socket.on('message_sent', (data: any) => {
+      socket.on('message_sent', () => {
         // ถ้าเป็นการส่งข้อความแรกหลังสร้างห้องใหม่ ให้ redirect ด้วย navigate
         if (redirectChatIdRef.current) {
           const chatIdToGo = redirectChatIdRef.current;
