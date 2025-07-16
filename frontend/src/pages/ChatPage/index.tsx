@@ -199,7 +199,7 @@ const ChatPage: React.FC = () => {
     // ตรวจสอบ WebSocket connection
     if (!wsRef.current || !wsRef.current.connected) {
       console.log('ChatPage: WebSocket not ready, attempting to connect...');
-      // Check if already connecting
+      // Check if 
       const currentWsStatus = useChatStore.getState().wsStatus;
       if (currentWsStatus !== 'connecting') {
         connectWebSocket();
@@ -222,6 +222,46 @@ const ChatPage: React.FC = () => {
       return;
     }
 
+    // ถ้ายังไม่มี chatId (แชทใหม่) ให้สร้างห้องก่อน
+    if (!chatId) {
+      // ป้องกันการส่งซ้ำ
+      if (isRoomCreating) return;
+      useChatStore.getState().setIsRoomCreating(true);
+      // ส่ง create_room event ไป backend
+      const agentId = selectedAgent.id;
+      const modelId = selectedAgent.modelId || undefined;
+      wsRef.current.emit('create_room', {
+        agentId,
+        modelId,
+      });
+      // รอ event room_created แล้วค่อย navigate ไปห้องใหม่และส่งข้อความแรก
+      wsRef.current.once('room_created', (data: any) => {
+        const newChatId = data?.data?.chatId;
+        if (newChatId) {
+          useChatStore.getState().setIsRoomCreating(false);
+          handleRoomCreatedWithNavigate(newChatId);
+          // รอให้ join room และโหลดแชทเสร็จ แล้วค่อยส่งข้อความแรก
+          setTimeout(() => {
+            // ส่งข้อความแรกเข้าแชทใหม่
+            wsSendMessage({
+              type: 'send_message',
+              message: message.trim(),
+              images,
+            });
+          }, 500);
+        } else {
+          useChatStore.getState().setIsRoomCreating(false);
+          addToast({
+            type: 'error',
+            title: 'Room Creation Failed',
+            message: 'Failed to create chat room. Please try again.',
+            duration: 5000
+          });
+        }
+      });
+      return;
+    }
+
     // Add user message immediately for local rendering
     const userTimestamp = new Date();
     userTimestamp.setHours(userTimestamp.getHours() - 7);
@@ -240,48 +280,13 @@ const ChatPage: React.FC = () => {
     setMessage('');
     setImages([]);
 
-    // Note: messagePayload is no longer used since we use wsSendMessage function
-
-    // Check if we're in a chat room
-    if (isInChatRoom && chatId && chatId.length === 24) {
-      console.log('ChatPage: Sending to existing room', chatId);
-      // ใช้ sendMessage function ที่ปรับปรุงแล้ว
-      wsSendMessage(message.trim(), images, selectedAgent?.id);
-    } else {
-      console.log('ChatPage: Creating new room');
-      // Create new room
-      if (wsRef.current && wsRef.current.connected) {
-        // Store first message for when room is created
-        pendingFirstRef.current = {
-          text: message.trim(),
-          images: images,
-          agentId: selectedAgent.id
-        };
-
-        // Send create room request with valid agentId
-        const createRoomPayload = {
-          type: 'create_room',
-          agent_id: selectedAgent.id // Ensure this is not undefined
-        };
-        console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
-        wsRef.current.emit('create_room', createRoomPayload);
-      } else {
-        console.log('ChatPage: WebSocket not ready, queuing create room request');
-        // Queue create room request
-        pendingQueueRef.current.push({
-          type: 'create_room',
-          agent_id: selectedAgent.id // Ensure this is not undefined
-        });
-        
-        // Store first message for when room is created
-        pendingFirstRef.current = {
-          text: message.trim(),
-          images: images,
-          agentId: selectedAgent.id
-        };
-      }
-    }
-  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, pendingQueueRef, pendingFirstRef, addToast, connectWebSocket, wsSendMessage]);
+    // ส่งข้อความผ่าน WebSocket
+    wsSendMessage({
+      type: 'send_message',
+      message: message.trim(),
+      images,
+    });
+  }, [message, selectedAgent, isInChatRoom, chatId, wsRef, wsSendMessage, addMessage, setMessage, setImages, addToast, connectWebSocket, isRoomCreating, handleRoomCreatedWithNavigate]);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
