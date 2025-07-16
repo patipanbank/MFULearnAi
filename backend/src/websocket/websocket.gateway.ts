@@ -153,8 +153,9 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @ConnectedSocket() client: Socket,
   ) {
     try {
-      const { chatId } = data;
       const userId = client.data.userId;
+      console.log(`[WS] join_room: userId=${userId}, data=`, data);
+      const { chatId } = data;
 
       console.log(`🔗 User ${userId} attempting to join room: ${chatId}`);
 
@@ -217,6 +218,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {
     try {
       const userId = client.data.userId;
+      console.log(`[WS] create_room: userId=${userId}, data=`, data);
       const agentId = data.agent_id || data.agentId;
       const modelId = data.model_id || data.modelId;
       const collectionNames = data.collection_names || data.collectionNames || [];
@@ -295,6 +297,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {
     try {
       const userId = client.data.userId;
+      console.log(`[WS] send_message: userId=${userId}, data=`, data);
       const { message, images } = data;
 
       // Get chat ID from room
