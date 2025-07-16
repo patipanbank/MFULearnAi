@@ -22,7 +22,6 @@ const ChatPage: React.FC = () => {
   const isTyping = useChatStore((state) => state.isTyping);
   const setChatHistory = useChatStore((state) => state.setChatHistory);
   const isLoading = useChatStore((state) => state.isLoading);
-  const isRoomCreating = useChatStore((state) => state.isRoomCreating);
   
   const selectedAgent = useAgentStore((state) => state.selectedAgent);
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
@@ -47,7 +46,7 @@ const ChatPage: React.FC = () => {
     isTokenExpired,
     tryRefreshToken,
     sendMessage: wsSendMessage
-  } = useWebSocket({ chatId, isInChatRoom, isChatContext: true });
+  } = useWebSocket({ chatId, isInChatRoom });
 
   // Chat navigation is handled by useChatNavigation hook
   useChatNavigation({ chatId, isInChatRoom, connectWebSocket });
@@ -64,7 +63,7 @@ const ChatPage: React.FC = () => {
   const debugWebSocket = useCallback(() => {
     console.log('=== WebSocket Debug Info ===');
     console.log('WebSocket ref:', wsRef.current);
-    console.log('WebSocket connected:', wsRef.current?.connected);
+    console.log('WebSocket readyState:', wsRef.current?.readyState);
     console.log('Is in chat room:', isInChatRoom);
     console.log('Chat ID:', chatId);
     console.log('Current session:', currentSession);
@@ -97,13 +96,8 @@ const ChatPage: React.FC = () => {
         setLoading(false);
       }
     };
-    
-    // เพิ่ม guard เพื่อให้ initialize เฉพาะครั้งแรก
-    const hasInitialized = useChatStore.getState().chatHistory.length > 0;
-    if (!hasInitialized) {
-      initializeData();
-    }
-  }, []); // ลบ dependencies ที่ไม่จำเป็น
+    initializeData();
+  }, [fetchAgents, setChatHistory, setLoading, addToast]);
 
   // Auto-reconnect when disconnected (but only if token is still valid)
   useEffect(() => {
@@ -111,12 +105,6 @@ const ChatPage: React.FC = () => {
     
     const handleReconnect = async () => {
       if (wsStatus === 'disconnected' && token && currentSession && isInChatRoom) {
-        // Don't reconnect if we're already connecting
-        const currentWsStatus = useChatStore.getState().wsStatus;
-        if (currentWsStatus === 'connecting') {
-          console.log('Auto-reconnect: Already connecting, skipping');
-          return;
-        }
         // Check if token is still valid before attempting reconnect
         if (isTokenExpired(token)) {
           console.log('Token expired, attempting refresh...');
@@ -149,35 +137,12 @@ const ChatPage: React.FC = () => {
     };
   }, [wsStatus, token, currentSession, isInChatRoom, isTokenExpired, addToast, connectWebSocket, tryRefreshToken]);
 
-  // เพิ่ม guard/block navigation เฉพาะกรณีแชทใหม่
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!chatId && (isRoomCreating || (wsRef.current && wsRef.current.connected && pendingQueueRef.current.length > 0))) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [chatId, isRoomCreating]);
-
   // Handle room creation (when first message is sent)
   const handleRoomCreatedWithNavigate = useCallback((roomId: string) => {
     console.log('Room created, navigating to:', `/chat/${roomId}`);
-    // ถ้ายังไม่ได้เลือก agent ให้เลือก agent ตัวแรกอัตโนมัติ
-    if (!selectedAgent) {
-      const agents = useAgentStore.getState().agents;
-      if (agents && agents.length > 0) {
-        useAgentStore.getState().selectAgent(agents[0]);
-        console.log('Auto-select agent:', agents[0]);
-      }
-    }
+    // ใช้ navigate function โดยตรง
     navigate(`/chat/${roomId}`);
-    // เพิ่มการโหลดแชทหลัง navigate เพื่อ sync ข้อความ
-    setTimeout(() => {
-      useChatStore.getState().loadChat(roomId);
-    }, 300);
-  }, [navigate, selectedAgent]);
+  }, [navigate]);
 
   // Send message function
   const sendMessage = useCallback(async () => {
@@ -197,17 +162,13 @@ const ChatPage: React.FC = () => {
     console.log('ChatPage: Sending message', { message: message.trim(), agentId: selectedAgent.id, isInChatRoom, chatId });
 
     // ตรวจสอบ WebSocket connection
-    if (!wsRef.current || !wsRef.current.connected) {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.log('ChatPage: WebSocket not ready, attempting to connect...');
-      // Check if 
-      const currentWsStatus = useChatStore.getState().wsStatus;
-      if (currentWsStatus !== 'connecting') {
-        connectWebSocket();
-      }
+      connectWebSocket();
       
       // รอสักครู่แล้วลองใหม่
       setTimeout(() => {
-        if (wsRef.current && wsRef.current.connected) {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           console.log('ChatPage: WebSocket connected, retrying send...');
           sendMessage();
         } else {
@@ -219,42 +180,6 @@ const ChatPage: React.FC = () => {
           });
         }
       }, 1000);
-      return;
-    }
-
-    // ถ้ายังไม่มี chatId (แชทใหม่) ให้สร้างห้องก่อน
-    if (!chatId) {
-      // ป้องกันการส่งซ้ำ
-      if (isRoomCreating) return;
-      useChatStore.getState().setIsRoomCreating(true);
-      // ส่ง create_room event ไป backend
-      const agentId = selectedAgent.id;
-      const modelId = selectedAgent.modelId || undefined;
-      wsRef.current.emit('create_room', {
-        agentId,
-        modelId,
-      });
-      // รอ event room_created แล้วค่อย navigate ไปห้องใหม่และส่งข้อความแรก
-      wsRef.current.once('room_created', (data: any) => {
-        const newChatId = data?.data?.chatId;
-        if (newChatId) {
-          useChatStore.getState().setIsRoomCreating(false);
-          handleRoomCreatedWithNavigate(newChatId);
-          // รอให้ join room และโหลดแชทเสร็จ แล้วค่อยส่งข้อความแรก
-          setTimeout(() => {
-            // ส่งข้อความแรกเข้าแชทใหม่
-            wsSendMessage(message.trim(), images, selectedAgent.id);
-          }, 500);
-        } else {
-          useChatStore.getState().setIsRoomCreating(false);
-          addToast({
-            type: 'error',
-            title: 'Room Creation Failed',
-            message: 'Failed to create chat room. Please try again.',
-            duration: 5000
-          });
-        }
-      });
       return;
     }
 
@@ -276,9 +201,48 @@ const ChatPage: React.FC = () => {
     setMessage('');
     setImages([]);
 
-    // ส่งข้อความผ่าน WebSocket
-    wsSendMessage(message.trim(), images, selectedAgent.id);
-  }, [message, selectedAgent, isInChatRoom, chatId, wsRef, wsSendMessage, addMessage, setMessage, setImages, addToast, connectWebSocket, isRoomCreating, handleRoomCreatedWithNavigate]);
+    // Note: messagePayload is no longer used since we use wsSendMessage function
+
+    // Check if we're in a chat room
+    if (isInChatRoom && chatId && chatId.length === 24) {
+      console.log('ChatPage: Sending to existing room', chatId);
+      // ใช้ sendMessage function ที่ปรับปรุงแล้ว
+      wsSendMessage(message.trim(), images, selectedAgent?.id);
+    } else {
+      console.log('ChatPage: Creating new room');
+      // Create new room
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        // Store first message for when room is created
+        pendingFirstRef.current = {
+          text: message.trim(),
+          images: images,
+          agentId: selectedAgent.id
+        };
+
+        // Send create room request
+        const createRoomPayload = {
+          type: 'create_room',
+          agent_id: selectedAgent.id
+        };
+        console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
+        wsRef.current.send(JSON.stringify(createRoomPayload));
+      } else {
+        console.log('ChatPage: WebSocket not ready, queuing create room request');
+        // Queue create room request
+        pendingQueueRef.current.push({
+          type: 'create_room',
+          agent_id: selectedAgent.id
+        });
+        
+        // Store first message for when room is created
+        pendingFirstRef.current = {
+          text: message.trim(),
+          images: images,
+          agentId: selectedAgent.id
+        };
+      }
+    }
+  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, pendingQueueRef, pendingFirstRef, addToast, connectWebSocket, wsSendMessage]);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,9 +309,6 @@ const ChatPage: React.FC = () => {
     const lastInitial = user.lastName?.charAt(0) || '';
     return (firstInitial + lastInitial).toUpperCase() || 'U';
   }, [user]);
-
-  // Debug log in render
-  console.log('RENDER: user', user, 'selectedAgent', selectedAgent, 'isLoading', isLoading, 'chatId', chatId, 'currentSession', currentSession);
 
   if (isLoading) {
     return <Loading />;
@@ -492,7 +453,7 @@ const ChatPage: React.FC = () => {
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="px-4 pb-6">
             {/* Debug button - only show in development */}
-            {false && (
+            {import.meta.env.DEV && (
               <button
                 onClick={debugWebSocket}
                 className="mb-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"

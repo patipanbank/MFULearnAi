@@ -67,9 +67,8 @@ interface ChatState {
   loadChat: (chatId: string) => Promise<boolean>;
   saveChat: () => Promise<void>;
   fetchChatHistory: (force?: boolean) => Promise<void>;
-  deleteChat: (chatId: string) => Promise<boolean>;
+  deleteChat: (chatId: string) => Promise<void>;
   pinChat: (chatId: string, pinned: boolean) => void;
-  updateChatName: (chatId: string, name: string) => Promise<ChatSession>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -122,7 +121,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       // Make API call in background
       if (state.currentSession.id && state.currentSession.id.length === 24) {
-        api.put(`/chat/${state.currentSession.id}/name`, {
+        api.post('/chat/update-name', {
+          chat_id: state.currentSession.id,
           name: updatedName
         }).catch((e) => {
           console.error('Failed to update chat name:', e);
@@ -189,16 +189,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return newSession;
   },
   
-  // Load a specific chat by ID
-  loadChat: async (chatId: string): Promise<boolean> => {
+  loadChat: async (chatId: string) => {
+    set({ isLoading: true });
     try {
-      const response = await api.get<any>(`/chat/${chatId}`);
-      // รองรับทั้งกรณีที่ backend ส่ง { data: {...} } หรือส่ง object ตรงๆ
-      const chat = response.data ? response.data : response;
+      const chat = await api.get<ChatSession>(`/chat/history/${chatId}`);
+      // Convert date strings back to Date objects
       const chatSession: ChatSession = {
         ...chat,
-        id: chat.id,
-        name: chat.name || 'New Chat',
+        id: (chat as any)._id ?? chat.id,
+        name: chat.name || 'New Chat', // Ensure we have a name
         createdAt: new Date(chat.createdAt),
         updatedAt: new Date(chat.updatedAt),
         messages: (chat.messages ?? []).map((msg: any) => {
@@ -207,11 +206,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
           return { ...msg, timestamp: ts };
         })
       };
+
+      // If chat has no name but has messages, use first user message as name
+      if (chatSession.name === 'New Chat' && chatSession.messages.length > 0) {
+        const firstUserMessage = chatSession.messages.find(msg => msg.role === 'user');
+        if (firstUserMessage) {
+          chatSession.name = firstUserMessage.content.slice(0, 20);
+        }
+      }
+
       set({ currentSession: chatSession });
+
+      // Also update the chat in history
+      set((state) => ({
+        chatHistory: state.chatHistory.map(chat =>
+          chat.id === chatId ? chatSession : chat
+        )
+      }));
+
       return true;
     } catch (error) {
       console.error('Failed to load chat:', error);
       return false;
+    } finally {
+      set({ isLoading: false });
     }
   },
   
@@ -249,10 +267,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
     try {
-      const response = await api.get<any>('/chat/history');
-      const chats = response.data || []; // Access the data property from API response
+      const chats = await api.get<ChatSession[]>('/chat/history');
       const chatSessions: ChatSession[] = chats
-        .filter((c: any) => c.id && c.id.length === 24)
+        .filter((c: any) => c._id && c._id.length === 24)
         .map((chat: any) => {
           // Find first user message if name is "New Chat"
           let chatName = chat.name || 'New Chat';
@@ -265,7 +282,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
           return {
             ...chat,
-            id: chat.id,
+            id: chat._id ?? chat.id,
             name: chatName,
             createdAt: new Date(chat.createdAt),
             updatedAt: new Date(chat.updatedAt),
@@ -283,7 +300,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Delete chat
-  deleteChat: async (chatId: string): Promise<boolean> => {
+  deleteChat: async (chatId: string) => {
     try {
       await api.delete(`/chat/${chatId}`);
       
@@ -291,10 +308,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         chatHistory: state.chatHistory.filter(chat => chat.id !== chatId),
         currentSession: state.currentSession?.id === chatId ? null : state.currentSession
       }));
-      return true;
     } catch (error) {
       console.error('Failed to delete chat:', error);
-      return false;
     }
   },
   
@@ -315,25 +330,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     } catch (error) {
       console.error('Failed to pin chat:', error);
-    }
-  },
-
-  // Update chat name
-  updateChatName: async (chatId: string, name: string): Promise<ChatSession> => {
-    try {
-      const updatedChat = await api.put<ChatSession>(`/chat/${chatId}/name`, { name });
-      set((state) => ({
-        chatHistory: state.chatHistory.map(chat =>
-          chat.id === chatId ? { ...chat, name } : chat
-        ),
-        currentSession: state.currentSession?.id === chatId
-          ? { ...state.currentSession, name }
-          : state.currentSession
-      }));
-      return updatedChat;
-    } catch (error) {
-      console.error('Failed to update chat name:', error);
-      throw error;
     }
   }
 }));

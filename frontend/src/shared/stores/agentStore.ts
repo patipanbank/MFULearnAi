@@ -164,17 +164,7 @@ const useAgentStore = create<AgentStore>()(
           
           set({ isLoadingAgents: true });
           try {
-            const response = await api.get<any>('/agents/');
-            // รองรับทั้งกรณีที่ backend ส่ง { data: [...] } หรือส่ง array ตรงๆ
-            let agents: AgentConfig[] = [];
-            if (Array.isArray(response)) {
-              agents = response;
-            } else if (response && Array.isArray(response.data)) {
-              agents = response.data;
-            } else {
-              // fallback: ถ้า response ผิด format
-              agents = [];
-            }
+            const agents = await api.get<AgentConfig[]>('/agents/');
             set(state => {
               const newState: Partial<AgentStore> = { agents, isLoadingAgents: false };
               // Only set selectedAgent if none is currently selected

@@ -1,4 +1,5 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores';
 import { useUIStore } from '../stores';
 
@@ -9,39 +10,17 @@ interface UseChatNavigationOptions {
 }
 
 export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: UseChatNavigationOptions) => {
+  const navigate = useNavigate();
   const currentSession = useChatStore((state) => state.currentSession);
   const loadChat = useChatStore((state) => state.loadChat);
   const createNewChat = useChatStore((state) => state.createNewChat);
+  // Note: setCurrentSession is no longer used since we removed the session ID update effect
   const isConnectedToRoom = useChatStore((state) => state.isConnectedToRoom);
-  const wsStatus = useChatStore((state) => state.wsStatus);
   const addToast = useUIStore((state) => state.addToast);
-  
-  // Track the last processed navigation to prevent duplicates
-  const lastProcessedRef = useRef<{ chatId?: string; isInChatRoom: boolean; sessionId?: string } | null>(null);
-  const isInitializedRef = useRef(false);
-
-  // Memoize the connectWebSocket call to prevent unnecessary re-renders
-  const memoizedConnectWebSocket = useCallback(() => {
-    if (wsStatus !== 'connecting') {
-      connectWebSocket();
-    }
-  }, [connectWebSocket, wsStatus]);
 
   // Combined effect for chat navigation logic
   useEffect(() => {
-    const currentNavigation = { chatId, isInChatRoom, sessionId: currentSession?.id };
-    
-    // Check if we've already processed this exact navigation
-    if (lastProcessedRef.current && 
-        lastProcessedRef.current.chatId === currentNavigation.chatId &&
-        lastProcessedRef.current.isInChatRoom === currentNavigation.isInChatRoom &&
-        lastProcessedRef.current.sessionId === currentNavigation.sessionId) {
-      console.log('ChatNavigation: Skipping duplicate navigation', currentNavigation);
-      return;
-    }
-    
-    console.log('ChatNavigation: URL changed', currentNavigation);
-    lastProcessedRef.current = currentNavigation;
+    console.log('ChatNavigation: URL changed', { chatId, isInChatRoom, currentSessionId: currentSession?.id });
     
     // Handle chat loading when URL changes
     if (isInChatRoom && chatId) {
@@ -49,7 +28,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
         console.log('ChatNavigation: Same chat, connecting WebSocket if needed');
         if (!isConnectedToRoom) {
           console.log('ChatNavigation: Connecting WebSocket...');
-          memoizedConnectWebSocket();
+          connectWebSocket();
         }
         return; // already loaded
       }
@@ -61,7 +40,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
           const ok = await loadChat(chatId);
           if (ok) {
             console.log('ChatNavigation: Chat loaded successfully, connecting WebSocket');
-            memoizedConnectWebSocket();
+            connectWebSocket();
             
             // ส่ง join_room หลังจากโหลด chat สำเร็จ
             setTimeout(() => {
@@ -79,6 +58,9 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
               message: 'The requested chat could not be found. It may have been deleted or you may not have permission to access it.',
               duration: 5000
             });
+            // แสดง error แทนการ redirect
+            // navigate('/chat');
+            // createNewChat();
           }
         } catch (error) {
           console.error('ChatNavigation: Failed to load chat:', error);
@@ -88,31 +70,40 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
             message: 'An error occurred while loading the chat. Please try again.',
             duration: 5000
           });
+          // แสดง error แทนการ redirect
+          // navigate('/chat');
+          // createNewChat();
         }
       };
       
       handleChatLoad();
     } else {
-      // Handle new chat creation - เพิ่ม guard เพื่อป้องกันการทำงานซ้ำ
-      if (!isInitializedRef.current) {
-        console.log('ChatNavigation: Creating new chat');
-        if (!currentSession || !currentSession.id.startsWith('chat_')) {
-          createNewChat();
-          isInitializedRef.current = true;
-        } else {
-          // ถ้ามี currentSession แล้ว ให้เชื่อมต่อ WebSocket
-          console.log('ChatNavigation: Existing chat session, connecting WebSocket');
-          memoizedConnectWebSocket();
-          isInitializedRef.current = true;
-        }
+      // Handle new chat creation
+      console.log('ChatNavigation: Creating new chat');
+      if (!currentSession || !currentSession.id.startsWith('chat_')) {
+        createNewChat();
+        // เชื่อมต่อ WebSocket หลังจากสร้าง new chat
+        setTimeout(() => {
+          console.log('ChatNavigation: Connecting WebSocket for new chat');
+          connectWebSocket();
+        }, 100);
+      } else {
+        // ถ้ามี currentSession แล้ว ให้เชื่อมต่อ WebSocket
+        console.log('ChatNavigation: Existing chat session, connecting WebSocket');
+        connectWebSocket();
       }
     }
-  }, [chatId, isInChatRoom]); // ลบ currentSession ออกจาก dependency เพื่อป้องกันการทำงานซ้ำ
+  }, [chatId, isInChatRoom, currentSession, loadChat, connectWebSocket, navigate, createNewChat, isConnectedToRoom, addToast]);
 
-  // Reset initialization flag when URL changes
-  useEffect(() => {
-    isInitializedRef.current = false;
-  }, [chatId, isInChatRoom]);
+  // Effect for session ID update - ลบออกเพราะไม่ควรอัปเดต ID โดยไม่โหลดข้อมูลจริง
+  // useEffect(() => {
+  //   if (isInChatRoom && chatId && currentSession && currentSession.id !== chatId) {
+  //     setCurrentSession({
+  //       ...currentSession,
+  //       id: chatId,
+  //     });
+  //   }
+  // }, [chatId, isInChatRoom, currentSession, setCurrentSession]);
 
   return {
     // These functions are now handled by the useEffect above
