@@ -25,12 +25,7 @@ export class AgentController {
   async getAllAgents(@Request() req: any): Promise<any> {
     try {
       const agents = await this.agentService.getAllAgents();
-      
-      return {
-        success: true,
-        data: agents,
-        message: 'Agents retrieved successfully',
-      };
+      return agents; // เปลี่ยนจาก return { success, data, message } เป็น return array ตรงๆ
     } catch (error) {
       throw new HttpException(
         `Failed to get agents: ${error.message}`,
@@ -43,12 +38,7 @@ export class AgentController {
   async getPublicAgents(): Promise<any> {
     try {
       const agents = await this.agentService.getPublicAgents();
-      
-      return {
-        success: true,
-        data: agents,
-        message: 'Public agents retrieved successfully',
-      };
+      return agents; // เปลี่ยนจาก return { success, data, message } เป็น return array ตรงๆ
     } catch (error) {
       throw new HttpException(
         `Failed to get public agents: ${error.message}`,
@@ -62,12 +52,7 @@ export class AgentController {
     try {
       const userId = req.user.id;
       const agents = await this.agentService.getAgentsByUserId(userId);
-      
-      return {
-        success: true,
-        data: agents,
-        message: 'User agents retrieved successfully',
-      };
+      return agents; // เปลี่ยนจาก return { success, data, message } เป็น return array ตรงๆ
     } catch (error) {
       throw new HttpException(
         `Failed to get user agents: ${error.message}`,
