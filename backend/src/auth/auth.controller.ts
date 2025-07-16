@@ -167,4 +167,9 @@ export class AuthController {
       message: 'Settings reset successfully',
     };
   }
+
+  @Get('login/saml')
+  async loginSamlAlias(@Request() req, @Res() res: Response) {
+    return this.samlLogin(req, res);
+  }
 } 
