@@ -77,12 +77,12 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   afterInit(server: Server) {
     // Initialize Redis PubSub service with Socket.IO server
     this.redisPubSubService.setSocketServer(server);
-    console.log('🔌 WebSocket Gateway initialized with Redis PubSub service');
+    this.logger.log('🔌 WebSocket Gateway initialized with Redis PubSub service');
   }
 
   async handleConnection(client: Socket) {
     try {
-      console.log(`🌐 WebSocket connection attempt from: ${client.id}`);
+      this.logger.log(`🌐 WebSocket connection attempt from: ${client.id}`);
       
       // รองรับทั้ง Socket.IO (auth) และ WebSocket ปกติ (query string)
       let token: string | undefined = undefined;
@@ -91,10 +91,10 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       } else if (client.handshake.query && typeof client.handshake.query.token === 'string') {
         token = client.handshake.query.token;
       }
-      console.log(`🎫 Token received: ${token ? token.substring(0, 50) + '...' : 'None'}`);
+      this.logger.log(`🎫 Token received: ${token ? token.substring(0, 50) + '...' : 'None'}`);
 
       if (!token) {
-        console.log('❌ No token provided in auth object');
+        this.logger.warn('❌ No token provided in auth object');
         client.disconnect(true);
         return;
       }
@@ -105,7 +105,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         const userId = payload.sub;
         
         if (!userId) {
-          console.log('❌ No user_id in token payload');
+          this.logger.warn('❌ No user_id in token payload');
           client.disconnect(true);
           return;
         }
@@ -122,7 +122,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         // Register with WebSocket service
         await this.webSocketService.handleConnection(client, userId, client.data.userInfo);
         
-        console.log(`✅ WebSocket authenticated for user: ${userId}`);
+        this.logger.log(`✅ WebSocket authenticated for user: ${userId}`);
         
         // Send connection confirmation
         client.emit('connected', { 
@@ -131,13 +131,13 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         });
 
       } catch (error) {
-        console.log(`❌ JWT validation error: ${error.message}`);
+        this.logger.error(`❌ JWT validation error: ${error.message}`);
         client.disconnect(true);
         return;
       }
 
     } catch (error) {
-      console.log(`❌ Connection error: ${error.message}`);
+      this.logger.error(`❌ Connection error: ${error.message}`);
       client.disconnect(true);
     }
   }
@@ -145,8 +145,9 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   async handleDisconnect(client: Socket) {
     try {
       await this.webSocketService.handleDisconnection(client);
+      this.logger.log(`🔌 Disconnected: ${client.id}`);
     } catch (error) {
-      console.log(`❌ Disconnection error: ${error.message}`);
+      this.logger.error(`❌ Disconnection error: ${error.message}`);
     }
   }
 
@@ -157,10 +158,9 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {
     try {
       const userId = client.data.userId;
-      console.log(`[WS] join_room: userId=${userId}, data=`, data);
+      this.logger.log(`[WS] join_room: userId=${userId}, data=${JSON.stringify(data)}`);
       const { chatId } = data;
-
-      console.log(`🔗 User ${userId} attempting to join room: ${chatId}`);
+      this.logger.log(`🔗 User ${userId} attempting to join room: ${chatId}`);
 
       // Validate chatId format (24-char hex string)
       if (!chatId || typeof chatId !== 'string' || chatId.length !== 24 || !/^[a-fA-F0-9]{24}$/.test(chatId)) {
@@ -203,10 +203,10 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         data: { chatId } 
       });
 
-      console.log(`✅ User ${userId} joined room: ${chatId}`);
+      this.logger.log(`✅ User ${userId} joined room: ${chatId}`);
 
     } catch (error) {
-      console.log(`❌ Join room error: ${error.message}`);
+      this.logger.error(`❌ Join room error: ${error.message}`);
       client.emit('error', { 
         type: 'error', 
         data: `Failed to join room: ${error.message}` 
@@ -302,7 +302,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {
     try {
       const userId = client.data.userId;
-      console.log(`[WS] send_message: userId=${userId}, data=`, data);
+      this.logger.log(`[WS] send_message: userId=${userId}, data=${JSON.stringify(data)}`);
       const { message, images } = data;
 
       // Get chat ID from room
@@ -334,7 +334,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         return;
       }
 
-      console.log(`💬 User ${userId} sending message in chat: ${chatId}`);
+      this.logger.log(`💬 User ${userId} sending message in chat: ${chatId}`);
 
       // Add user message to chat
       const userMessage = {
@@ -372,10 +372,10 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       // Send to background task queue (like FastAPI Celery)
       await this.taskQueueService.addChatTask('generate_response', aiRequest);
 
-      console.log(`✅ Message queued for AI processing in chat: ${chatId}`);
+      this.logger.log(`✅ Message queued for AI processing in chat: ${chatId}`);
 
     } catch (error) {
-      console.log(`❌ Send message error: ${error.message}`);
+      this.logger.error(`❌ Send message error: ${error.message}`);
       client.emit('error', { 
         type: 'error', 
         data: `Failed to send message: ${error.message}` 
@@ -502,11 +502,11 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
           data: { chatId } 
         });
 
-        console.log(`👋 User ${userId} left room: ${chatId}`);
+        this.logger.log(`👋 User ${userId} left room: ${chatId}`);
       }
 
     } catch (error) {
-      console.log(`❌ Leave room error: ${error.message}`);
+      this.logger.error(`❌ Leave room error: ${error.message}`);
       client.emit('error', { 
         type: 'error', 
         data: `Failed to leave room: ${error.message}` 
