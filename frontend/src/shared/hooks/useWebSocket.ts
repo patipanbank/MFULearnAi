@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useAuthStore, useChatStore, useUIStore } from '../stores';
 import { config } from '../../config/config';
+import type { ChatMessage } from '../stores/chatStore';
 import { io, Socket } from 'socket.io-client';
 
 interface UseWebSocketOptions {
@@ -13,6 +14,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const refreshToken = useAuthStore((state) => state.refreshToken);
   
   const currentSession = useChatStore((state) => state.currentSession);
+  const addMessage = useChatStore((state) => state.addMessage);
   const updateMessage = useChatStore((state) => state.updateMessage);
   const setWsStatus = useChatStore((state) => state.setWsStatus);
   const setIsConnectedToRoom = useChatStore((state) => state.setIsConnectedToRoom);
@@ -80,6 +82,27 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       });
     }
   }, [updateMessage]);
+
+  // Handle room creation
+  const handleRoomCreated = useCallback((roomId: string) => {
+    console.log('Creating new chat room:', roomId);
+
+    const session = currentSessionRef.current;
+    if (session) {
+      setCurrentSession({
+        ...session,
+        id: roomId,
+      });
+
+      if (roomId.length === 24) {
+        setChatHistory([
+          { ...session, id: roomId },
+          ...chatHistoryRef.current.filter((chat: any) => chat.id !== session.id)
+        ]);
+      }
+    }
+    setIsRoomCreating(false);
+  }, [setCurrentSession, setChatHistory, setIsRoomCreating]);
 
   // Helper function to try token refresh
   const tryRefreshToken = useCallback(async (): Promise<boolean> => {

@@ -63,7 +63,7 @@ const ChatPage: React.FC = () => {
   const debugWebSocket = useCallback(() => {
     console.log('=== WebSocket Debug Info ===');
     console.log('WebSocket ref:', wsRef.current);
-    console.log('WebSocket connected:', wsRef.current?.connected);
+    console.log('WebSocket readyState:', wsRef.current?.readyState);
     console.log('Is in chat room:', isInChatRoom);
     console.log('Chat ID:', chatId);
     console.log('Current session:', currentSession);
@@ -162,13 +162,13 @@ const ChatPage: React.FC = () => {
     console.log('ChatPage: Sending message', { message: message.trim(), agentId: selectedAgent.id, isInChatRoom, chatId });
 
     // ตรวจสอบ WebSocket connection
-    if (!wsRef.current || !wsRef.current.connected) {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.log('ChatPage: WebSocket not ready, attempting to connect...');
       connectWebSocket();
       
       // รอสักครู่แล้วลองใหม่
       setTimeout(() => {
-        if (wsRef.current && wsRef.current.connected) {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           console.log('ChatPage: WebSocket connected, retrying send...');
           sendMessage();
         } else {
@@ -211,7 +211,7 @@ const ChatPage: React.FC = () => {
     } else {
       console.log('ChatPage: Creating new room');
       // Create new room
-      if (wsRef.current && wsRef.current.connected) {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         // Store first message for when room is created
         pendingFirstRef.current = {
           text: message.trim(),
