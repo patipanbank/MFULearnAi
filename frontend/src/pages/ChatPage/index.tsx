@@ -243,11 +243,7 @@ const ChatPage: React.FC = () => {
           // รอให้ join room และโหลดแชทเสร็จ แล้วค่อยส่งข้อความแรก
           setTimeout(() => {
             // ส่งข้อความแรกเข้าแชทใหม่
-            wsSendMessage({
-              type: 'send_message',
-              message: message.trim(),
-              images,
-            });
+            wsSendMessage(message.trim(), images, selectedAgent.id);
           }, 500);
         } else {
           useChatStore.getState().setIsRoomCreating(false);
@@ -281,11 +277,7 @@ const ChatPage: React.FC = () => {
     setImages([]);
 
     // ส่งข้อความผ่าน WebSocket
-    wsSendMessage({
-      type: 'send_message',
-      message: message.trim(),
-      images,
-    });
+    wsSendMessage(message.trim(), images, selectedAgent.id);
   }, [message, selectedAgent, isInChatRoom, chatId, wsRef, wsSendMessage, addMessage, setMessage, setImages, addToast, connectWebSocket, isRoomCreating, handleRoomCreatedWithNavigate]);
 
   // Handle image upload
