@@ -168,7 +168,7 @@ const ChatPage: React.FC = () => {
     if (!selectedAgent) {
       const agents = useAgentStore.getState().agents;
       if (agents && agents.length > 0) {
-        useAgentStore.getState().setSelectedAgent(agents[0]);
+        useAgentStore.getState().selectAgent(agents[0]);
         console.log('Auto-select agent:', agents[0]);
       }
     }
