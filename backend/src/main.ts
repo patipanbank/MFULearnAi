@@ -66,7 +66,8 @@ async function bootstrap() {
         ws.close(4003, 'User not found');
         return;
       }
-      ws.send(JSON.stringify({ type: 'connected', data: { userId: user.id, username: user.username } }));
+      const userObj = typeof user.toJSON === 'function' ? user.toJSON() : user;
+      ws.send(JSON.stringify({ type: 'connected', data: { userId: userObj.id, username: userObj.username } }));
       // ตัวอย่าง: handle message event
       ws.on('message', async (msg) => {
         try {
