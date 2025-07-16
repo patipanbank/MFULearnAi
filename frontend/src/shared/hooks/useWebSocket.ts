@@ -16,9 +16,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const updateMessage = useChatStore((state) => state.updateMessage);
   const setWsStatus = useChatStore((state) => state.setWsStatus);
   const setIsConnectedToRoom = useChatStore((state) => state.setIsConnectedToRoom);
-  const setIsRoomCreating = useChatStore((state) => state.setIsRoomCreating);
-  const setCurrentSession = useChatStore((state) => state.setCurrentSession);
-  const setChatHistory = useChatStore((state) => state.setChatHistory);
   const chatHistory = useChatStore((state) => state.chatHistory);
   
   const addToast = useUIStore((state) => state.addToast);
