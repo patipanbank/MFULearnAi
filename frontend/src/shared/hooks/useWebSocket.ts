@@ -442,26 +442,20 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
     
     if (!wsRef.current || !wsRef.current.connected) {
       console.log('sendMessage: WebSocket not connected, queuing message');
-      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId, agent_id: agentId });
+      pendingQueueRef.current.push({ type: 'send_message', message, images, chatId, agent_id: agentId });
       return;
     }
     
     try {
-      const payload = { type: 'message', text: message, images, chatId, agent_id: agentId };
+      const payload = { type: 'send_message', message, images, chatId, agent_id: agentId };
       console.log('sendMessage: Sending payload', payload);
       wsRef.current.emit('send_message', payload);
     } catch (error) {
-      console.error('sendMessage: Failed to send message', error);
-      // เก็บไว้ใน queue เพื่อส่งใหม่เมื่อ reconnect
-      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId, agent_id: agentId });
-      addToast({
-        type: 'error',
-        title: 'Send Failed',
-        message: 'Failed to send message. Will retry when connection is restored.',
-        duration: 3000
-      });
+      console.error('WebSocket: Failed to send pending message', error);
+      // เก็บไว้ใน queue อีกครั้ง
+      pendingQueueRef.current.push({ type: 'send_message', message, images, chatId, agent_id: agentId });
     }
-  }, [addToast, chatId]);
+  }, [chatId]);
 
   return {
     wsRef,
