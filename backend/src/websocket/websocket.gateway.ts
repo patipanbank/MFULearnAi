@@ -17,6 +17,7 @@ import { ChatHistoryService } from '../chat/chat-history.service';
 import { AgentService } from '../agent/agent.service';
 import { TaskQueueService } from '../tasks/task-queue.service';
 import { RedisPubSubService } from '../redis/redis-pubsub.service';
+import { Logger } from '@nestjs/common';
 
 interface ChatMessage {
   type: string;
@@ -59,6 +60,8 @@ interface SendMessageMessage {
 export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer()
   server: Server;
+
+  private readonly logger = new Logger('WebSocketGateway');
 
   constructor(
     private jwtService: JwtService,
@@ -218,7 +221,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {
     try {
       const userId = client.data.userId;
-      console.log(`[WS] create_room: userId=${userId}, data=`, data);
+      this.logger.log(`[WS] create_room: userId=${userId}, data=${JSON.stringify(data)}`);
       const agentId = data.agent_id || data.agentId;
       const modelId = data.model_id || data.modelId;
       const collectionNames = data.collection_names || data.collectionNames || [];
@@ -226,12 +229,11 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       const temperature = typeof data.temperature === 'number' ? data.temperature : 0.7;
       const maxTokens = typeof data.max_tokens === 'number' ? data.max_tokens : (typeof data.maxTokens === 'number' ? data.maxTokens : 4000);
 
-      console.log(`🏗️ User ${userId} creating room with agent: ${agentId}`);
-
       // Validate agent exists if provided
       if (agentId) {
         const agent = await this.agentService.getAgentById(agentId, userId);
         if (!agent) {
+          this.logger.warn(`[WS] create_room: Agent not found or access denied (agentId=${agentId})`);
           client.emit('error', { 
             type: 'error', 
             data: 'Agent not found or access denied' 
@@ -256,12 +258,15 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       // Join the room
       const chatId = chat.id;
       if (!chatId) {
-        throw new Error('Chat ID not found');
+        this.logger.error(`[WS] create_room: Chat ID not found after createChat`);
+        client.emit('error', { 
+          type: 'error', 
+          data: 'Failed to create chat: Chat ID not found' 
+        });
+        return;
       }
       await client.join(chatId);
       await this.webSocketService.joinRoom(client, chatId);
-      
-      // Connect to Redis PubSub for this session
       await this.redisPubSubService.connect(chatId, client);
 
       // Send confirmation
@@ -279,10 +284,10 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         } 
       });
 
-      console.log(`✅ Room created: ${chatId} for user: ${userId}`);
+      this.logger.log(`[WS] Room created: chatId=${chatId} for userId=${userId}`);
 
     } catch (error) {
-      console.log(`❌ Create room error: ${error.message}`);
+      this.logger.error(`[WS] create_room error: ${error.message}`, error.stack);
       client.emit('error', { 
         type: 'error', 
         data: `Failed to create room: ${error.message}` 
