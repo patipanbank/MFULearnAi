@@ -34,7 +34,7 @@ export class ConfigService {
 
   // Application Configuration
   get port(): number {
-    return parseInt(this.configService.get<string>('PORT') || '3001', 10);
+    return parseInt(this.configService.get<string>('PORT') || '5000', 10);
   }
 
   get nodeEnv(): string {

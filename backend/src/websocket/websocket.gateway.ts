@@ -81,8 +81,13 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     try {
       console.log(`🌐 WebSocket connection attempt from: ${client.id}`);
       
-      // Extract token from auth object (Socket.IO v4+)
-      const token = client.handshake.auth?.token as string;
+      // รองรับทั้ง Socket.IO (auth) และ WebSocket ปกติ (query string)
+      let token: string | undefined = undefined;
+      if (client.handshake.auth && client.handshake.auth.token) {
+        token = client.handshake.auth.token as string;
+      } else if (client.handshake.query && typeof client.handshake.query.token === 'string') {
+        token = client.handshake.query.token;
+      }
       console.log(`🎫 Token received: ${token ? token.substring(0, 50) + '...' : 'None'}`);
 
       if (!token) {
