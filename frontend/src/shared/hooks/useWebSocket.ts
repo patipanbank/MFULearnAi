@@ -289,6 +289,20 @@ export const useWebSocket = ({ chatId, isInChatRoom, isChatContext }: UseWebSock
             pendingQueueRef.current.push(p);
           }
         });
+        // ถ้ามีข้อความแรกที่รอส่งหลังสร้างห้องใหม่ ให้ส่งทันที
+        if (pendingFirstRef.current) {
+          const { text, images: pImages, agentId: pAgentId } = pendingFirstRef.current;
+          const msgPayload = {
+            type: 'send_message',
+            chatId: data.data.chatId,
+            message: text,
+            images: pImages,
+            agent_id: pAgentId
+          };
+          console.log('WebSocket: Sending first message after join', msgPayload);
+          wsRef.current?.emit('send_message', msgPayload);
+          pendingFirstRef.current = null;
+        }
       });
 
       socket.on('room_created', (data: any) => {
