@@ -72,12 +72,14 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     private agentService: AgentService,
     private taskQueueService: TaskQueueService,
     private redisPubSubService: RedisPubSubService,
-  ) {}
+  ) {
+    this.logger.log('WebSocketGateway constructed');
+  }
 
   afterInit(server: Server) {
     // Initialize Redis PubSub service with Socket.IO server
     this.redisPubSubService.setSocketServer(server);
-    this.logger.log('🔌 WebSocket Gateway initialized with Redis PubSub service');
+    this.logger.log('🔌 WebSocket Gateway initialized with Redis PubSub service (afterInit)');
   }
 
   async handleConnection(client: Socket) {
