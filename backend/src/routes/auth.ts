@@ -104,6 +104,9 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
         []
       );
 
+      // Ensure groups is always an array
+      const groupsArray = Array.isArray(groups) ? groups : [groups].filter(Boolean);
+
       if (!username) {
         console.log('❌ Username not found in SAML attributes');
         return res.redirect(`${config.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
@@ -116,7 +119,7 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
       console.log(`   First Name: ${firstName}`);
       console.log(`   Last Name: ${lastName}`);
       console.log(`   Department: ${department}`);
-      console.log(`   Groups: ${JSON.stringify(groups)}`);
+      console.log(`   Groups: ${JSON.stringify(groupsArray)}`);
 
       // === สร้าง user profile และ save ลง DB ===
       const userProfile = {
@@ -126,7 +129,153 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
         firstName,
         lastName,
         department,
-        groups: Array.isArray(groups) ? groups : [groups].filter(Boolean),
+        groups: groupsArray,
+      };
+      
+      console.log(`\n👤 Mapped Profile: ${JSON.stringify(userProfile, null, 2)}`);
+      
+      // ใช้ userService จริง
+      const user = await userService.find_or_create_saml_user(userProfile);
+      console.log(`👤 Created/Found User: ${user.username} (${user.email})`);
+      
+      // === สร้าง JWT payload ===
+      const tokenPayload = {
+        sub: user._id,
+        nameID: user.nameID,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        department: user.department,
+        groups: user.groups,
+        role: user.role,
+        exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 วัน
+      };
+      const token = jwt.sign(tokenPayload, config.JWT_SECRET, { algorithm: config.JWT_ALGORITHM as jwt.Algorithm });
+      
+      const redirect_url = `${config.FRONTEND_URL}/auth/callback?token=${token}`;
+      console.log(`🔄 Redirecting to: ${redirect_url}`);
+      return res.redirect(redirect_url);
+    } catch (e: any) {
+      console.log(`❌ Error processing SAML attributes: ${e}`);
+      return res.redirect(`${config.FRONTEND_URL}/login?error=token_creation&reason=${encodeURIComponent(e.message)}`);
+    }
+  })(req, res, next);
+});
+
+// SAML Callback GET route (for compatibility)
+router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate('saml', async (err: any, profile: any, info: any) => {
+    if (err || !profile) {
+      console.log('❌ SAML Authentication failed:', err);
+      return res.redirect(`${config.FRONTEND_URL}/login?error=auth_failed&reason=${encodeURIComponent(err?.message || 'No profile')}`);
+    }
+
+    console.log('\n' + '='.repeat(80));
+    console.log('🔍 COMPLETE SAML DATA ANALYSIS (GET)');
+    console.log('='.repeat(80));
+    
+    // 1. Basic SAML info
+    console.log(`📋 NameID: ${profile.nameID}`);
+    console.log(`📋 NameID Format: ${profile.nameIDFormat}`);
+    console.log(`📋 Session Index: ${profile.sessionIndex}`);
+    
+    // 2. Get all attributes
+    const samlAttributes = profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims'] || profile.attributes || {};
+    console.log(`\n📊 Total Attributes Found: ${Object.keys(samlAttributes).length}`);
+    console.log('📊 All SAML Attributes:');
+    for (const [key, value] of Object.entries(samlAttributes)) {
+      console.log(`   🔑 ${key}: ${JSON.stringify(value)}`);
+    }
+    
+    // 3. Raw profile analysis
+    console.log('\n📄 Raw Profile Object:');
+    console.log(JSON.stringify(profile, null, 2));
+    
+    console.log('='.repeat(80));
+    console.log('🔍 END SAML DATA ANALYSIS (GET)');
+    console.log('='.repeat(80) + '\n');
+
+    try {
+      // === Enhanced SAML attributes mapping เหมือน Python ===
+      console.log('\n🔍 Raw SAML Attributes:');
+      for (const [key, value] of Object.entries(samlAttributes)) {
+        console.log(`   ${key}: ${JSON.stringify(value)}`);
+      }
+
+      const getAttr = (keyArr: string[], fallback?: any) => {
+        for (const key of keyArr) {
+          if (samlAttributes[key] && Array.isArray(samlAttributes[key]) && samlAttributes[key][0]) {
+            return samlAttributes[key][0];
+          }
+          if (samlAttributes[key] && !Array.isArray(samlAttributes[key])) {
+            return samlAttributes[key];
+          }
+        }
+        return fallback;
+      };
+
+      // Try different common SAML attribute formats, including the one with typo
+      const username = (
+        getAttr(['User.Userrname']) ||  // Note: This is the actual attribute name with typo
+        getAttr(['User.Username']) ||
+        getAttr(['username']) ||
+        getAttr(['uid'])
+      );
+      const email = (
+        getAttr(['User.Email']) ||
+        getAttr(['email']) ||
+        getAttr(['mail'])
+      );
+      const firstName = (
+        getAttr(['first_name']) ||
+        getAttr(['firstname']) ||
+        getAttr(['givenName'])
+      );
+      const lastName = (
+        getAttr(['last_name']) ||
+        getAttr(['lastname']) ||
+        getAttr(['sn'])
+      );
+      const department = (
+        getAttr(['depart_name']) ||
+        getAttr(['department']) ||
+        getAttr(['organizationalUnit'])
+      );
+      const groups = (
+        getAttr(['http://schemas.xmlsoap.org/claims/Group']) ||
+        getAttr(['groups']) ||
+        getAttr(['Groups']) ||  // Add this as it's in the actual response
+        getAttr(['memberOf']) ||
+        []
+      );
+
+      // Ensure groups is always an array
+      const groupsArray = Array.isArray(groups) ? groups : [groups].filter(Boolean);
+
+      if (!username) {
+        console.log('❌ Username not found in SAML attributes');
+        return res.redirect(`${config.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
+      }
+
+      // Print mapped values for debugging
+      console.log('\n🔍 Mapped Values:');
+      console.log(`   Username: ${username}`);
+      console.log(`   Email: ${email}`);
+      console.log(`   First Name: ${firstName}`);
+      console.log(`   Last Name: ${lastName}`);
+      console.log(`   Department: ${department}`);
+      console.log(`   Groups: ${JSON.stringify(groupsArray)}`);
+
+      // === สร้าง user profile และ save ลง DB ===
+      const userProfile = {
+        nameID: profile.nameID,
+        username,
+        email,
+        firstName,
+        lastName,
+        department,
+        groups: groupsArray,
       };
       
       console.log(`\n👤 Mapped Profile: ${JSON.stringify(userProfile, null, 2)}`);
@@ -174,7 +323,42 @@ router.get('/metadata', (req: Request, res: Response) => {
 
 // SAML Logout (redirect/logout SAML)
 router.get('/logout/saml', (req: Request, res: Response) => {
+  const { name_id, session_index } = req.query;
+  console.log(`SAML logout requested - name_id: ${name_id}, session_index: ${session_index}`);
+  
+  // For now, redirect to simple logout
+  // TODO: Implement proper SAML SLO when needed
   return res.redirect(`${config.FRONTEND_URL}/login?logged_out=true`);
+});
+
+// SAML Logout Manual Return
+router.get('/logout/saml/manual', (req: Request, res: Response) => {
+  console.log('Manual return from SAML logout');
+  return res.redirect(`${config.FRONTEND_URL}/login?saml_logged_out=true&manual=true`);
+});
+
+// SAML Logout Callback
+router.post('/logout/saml/callback', (req: Request, res: Response) => {
+  console.log('SAML logout callback received (POST)');
+  return res.redirect(`${config.FRONTEND_URL}/login?saml_logged_out=true`);
+});
+
+router.get('/logout/saml/callback', (req: Request, res: Response) => {
+  console.log('SAML logout callback received (GET)');
+  const { SAMLResponse, SAMLRequest, RelayState } = req.query;
+  
+  console.log(`GET request - SAMLResponse: ${SAMLResponse ? 'present' : 'not present'}`);
+  console.log(`GET request - SAMLRequest: ${SAMLRequest ? 'present' : 'not present'}`);
+  console.log(`GET request - RelayState: ${RelayState}`);
+  
+  // If no SAML data, just redirect to login
+  if (!SAMLResponse && !SAMLRequest) {
+    console.log('No SAML data in GET request, redirecting to login');
+    return res.redirect(`${config.FRONTEND_URL}/login?saml_logged_out=true`);
+  }
+  
+  // For now, assume logout succeeded
+  return res.redirect(`${config.FRONTEND_URL}/login?saml_logged_out=true`);
 });
 
 // Admin Login (JWT) - เหมือน FastAPI /admin/login
