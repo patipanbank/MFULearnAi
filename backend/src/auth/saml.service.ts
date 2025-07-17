@@ -116,18 +116,13 @@ export class SAMLService {
         this.logger.warn('SAML response does not look like valid base64');
       }
 
-      // Decode and parse SAML response manually to see raw data
+      // Decode and parse SAML response manually (similar to backendfast approach)
       try {
         const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8');
         this.logger.log(`Decoded SAML response length: ${decodedResponse.length}`);
         this.logger.log(`Decoded SAML response starts with: ${decodedResponse.slice(0, 200)}`);
         
-        // Log the complete decoded response for debugging
-        this.logger.log('=== COMPLETE DECODED SAML RESPONSE ===');
-        this.logger.log(decodedResponse);
-        this.logger.log('=== END DECODED SAML RESPONSE ===');
-        
-        // Extract all possible attributes using regex patterns
+        // Extract user information using regex patterns (similar to backendfast)
         const nameIdMatch = decodedResponse.match(/<NameID[^>]*>([^<]+)<\/NameID>/);
         const emailMatch = decodedResponse.match(/User\.Email[^>]*>([^<]+)<\/AttributeValue>/);
         const usernameMatch = decodedResponse.match(/User\.Userrname[^>]*>([^<]+)<\/AttributeValue>/);
@@ -136,8 +131,6 @@ export class SAMLService {
         const departmentMatch = decodedResponse.match(/depart_name[^>]*>([^<]+)<\/AttributeValue>/);
         const groupsMatch = decodedResponse.match(/http:\/\/schemas\.xmlsoap\.org\/claims\/Group[^>]*>([^<]+)<\/AttributeValue>/g);
         
-        // Log all found attributes
-        this.logger.log('=== EXTRACTED ATTRIBUTES ===');
         this.logger.log(`Found NameID: ${nameIdMatch ? nameIdMatch[1] : 'Not found'}`);
         this.logger.log(`Found email: ${emailMatch ? emailMatch[1] : 'Not found'}`);
         this.logger.log(`Found username: ${usernameMatch ? usernameMatch[1] : 'Not found'}`);
@@ -149,26 +142,7 @@ export class SAMLService {
           this.logger.log(`Found groups: ${groupsMatch.map(match => match.match(/>([^<]+)</)?.[1]).join(', ')}`);
         }
         
-        // Try to find all Attribute elements to see what's available
-        const allAttributes = decodedResponse.match(/<saml:Attribute[^>]*Name=(^"]*)"[^>]*>([\s\S]*?)<\/saml:Attribute>/g);
-        if (allAttributes) {
-          this.logger.log('=== ALL SAML ATTRIBUTES FOUND ===');
-          allAttributes.forEach((attr, index) => {
-            this.logger.log(`Attribute ${index + 1}: ${attr}`);
-          });
-        }
-        
-        // Try to find all AttributeValue elements
-        const allAttributeValues = decodedResponse.match(/<saml:AttributeValue[^>]*>([^<]+)<\/saml:AttributeValue>/g);
-        if (allAttributeValues) {
-          this.logger.log('=== ALL ATTRIBUTE VALUES FOUND ===');
-          allAttributeValues.forEach((value, index) => {
-            this.logger.log(`Value ${index + 1}: ${value}`);
-          });
-        }
-        
-        // For now, just return a basic user object with raw data
-        // We'll implement proper mapping logic later
+        // Create user object from extracted data (similar to backendfast approach)
         if (nameIdMatch) {
           const user: SAMLUser = {
             nameID: nameIdMatch[1],
@@ -185,7 +159,6 @@ export class SAMLService {
           };
           
           this.logger.log(`✅ Successfully extracted user from SAML response: ${user.nameID}`);
-          this.logger.log(`User attributes: ${JSON.stringify(user.attributes, null, 2)}`);
           return user;
         }
         
@@ -218,7 +191,6 @@ export class SAMLService {
           };
           
           this.logger.log(`✅ Successfully processed SAML response with saml2-js: ${user.nameID}`);
-          this.logger.log(`User attributes from saml2-js: ${JSON.stringify(user.attributes, null, 2)}`);
           resolve(user);
         });
       });
@@ -409,21 +381,6 @@ export class SAMLService {
       this.logger.log(`Content-Type: ${req.headers['content-type']}`);
       this.logger.log(`Body type: ${typeof req.body}`);
       this.logger.log(`Body keys: ${Object.keys(req.body || {})}`);
-
-      // Log all request headers for debugging
-      this.logger.log('=== REQUEST HEADERS ===');
-      Object.keys(req.headers).forEach(key => this.logger.log(`${key}: ${req.headers[key]}`));
-
-      // Log complete request body for debugging
-      this.logger.log('=== COMPLETE REQUEST BODY ===');
-      this.logger.log(JSON.stringify(req.body, null, 2));
-      this.logger.log('=== END REQUEST BODY ===');
-
-      // Log query parameters if any
-      if (req.query && Object.keys(req.query).length > 0) {
-        this.logger.log('=== QUERY PARAMETERS ===');
-        this.logger.log(JSON.stringify(req.query, null, 2));
-      }
 
       // Extract SAML response from request body
       let samlResponse = req.body?.SAMLResponse;

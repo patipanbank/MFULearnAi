@@ -60,15 +60,6 @@ export class AuthController {
       this.logger.log(`Body type: ${typeof req.body}`);
       this.logger.log(`Body keys: ${Object.keys(req.body || {})}`);
       
-      // Log complete request for debugging
-      this.logger.log('=== AUTH CONTROLLER - COMPLETE REQUEST ===');
-      this.logger.log(`Method: ${req.method}`);
-      this.logger.log(`URL: ${req.url}`);
-      this.logger.log(`Headers: ${JSON.stringify(req.headers, null,2)}`);
-      this.logger.log(`Body: ${JSON.stringify(req.body, null,2)}`);
-      this.logger.log(`Query: ${JSON.stringify(req.query, null, 2)}`);
-      this.logger.log('=== END AUTH CONTROLLER REQUEST ===');
-      
       const result = await this.samlService.processCallback(req);
       
       if (result.success) {
