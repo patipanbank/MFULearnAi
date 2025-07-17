@@ -73,7 +73,7 @@ export class ChatService {
 
   public async processMessage(chatId: string, userId: string, content: string, images?: Array<{ url: string; mediaType: string }>): Promise<void> {
     try {
-      // Add user message
+      // Add user message first (like in legacy)
       const userMessage = await this.addMessage(chatId, {
         role: 'user',
         content,
@@ -105,14 +105,8 @@ export class ChatService {
         }
       }
 
-      // Create assistant message with placeholder content
-      const assistantMessage = await this.addMessage(chatId, {
-        role: 'assistant',
-        content: 'กำลังประมวลผล...'
-      });
-
-      // Process with AI agent using legacy-style processing
-      await this.processWithAILegacy(chatId, assistantMessage.id, content, images, {
+      // Process with AI agent using legacy-style processing (no placeholder message)
+      await this.processWithAILegacy(chatId, content, images, {
         modelId,
         collectionNames,
         systemPrompt,
@@ -149,7 +143,7 @@ export class ChatService {
     }
   }
 
-  private async processWithAILegacy(chatId: string, messageId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
+  private async processWithAILegacy(chatId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
     modelId?: string | null;
     collectionNames?: string[];
     systemPrompt?: string | null;
@@ -164,8 +158,8 @@ export class ChatService {
       // Generate response based on configuration
       const response = this.generateResponse(userMessage, images, config);
       
-      // Stream response
-      await this.streamResponse(chatId, messageId, response);
+      // Create assistant message and stream response
+      await this.streamResponseLegacy(chatId, response);
 
       // Calculate tokens and update usage
       const inputTokens = Math.floor(userMessage.length / 4);
@@ -181,7 +175,6 @@ export class ChatService {
         wsManager.broadcastToSession(chatId, JSON.stringify({
           type: 'end',
           data: {
-            messageId,
             sessionId: chatId,
             inputTokens,
             outputTokens
@@ -216,6 +209,42 @@ export class ChatService {
       // Update message content in database
       await ChatModel.updateOne(
         { _id: chatId, 'messages.id': messageId },
+        { 
+          $set: { 
+            'messages.$.content': fullContent,
+            updatedAt: new Date()
+          }
+        }
+      );
+      
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'chunk',
+          data: chunk
+        }));
+      }
+
+      await this.delay(100);
+    }
+  }
+
+  private async streamResponseLegacy(chatId: string, response: string): Promise<void> {
+    const words = response.split(' ');
+    let fullContent = '';
+    
+    // Create assistant message first (like in legacy)
+    const assistantMessage = await this.addMessage(chatId, {
+      role: 'assistant',
+      content: ''
+    });
+    
+    for (let i = 0; i < words.length; i++) {
+      const chunk = (i > 0 ? ' ' : '') + words[i];
+      fullContent += chunk;
+      
+      // Update message content in database
+      await ChatModel.updateOne(
+        { _id: chatId, 'messages.id': assistantMessage.id },
         { 
           $set: { 
             'messages.$.content': fullContent,

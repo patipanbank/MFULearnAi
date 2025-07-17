@@ -340,14 +340,7 @@ export class WebSocketService {
       data: { chatId }
     }));
 
-    // Add user message to chat history first (like in legacy)
-    await chatService.addMessage(chatId, {
-      role: 'user',
-      content: message,
-      images
-    });
-
-    // Process message with chat service
+    // Process message with chat service (user message will be added inside)
     await chatService.processMessage(chatId, user.id, message, images);
 
     console.log(`💬 User ${user.id} sent message in room ${chatId}`);
