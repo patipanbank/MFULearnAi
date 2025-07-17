@@ -10,11 +10,13 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { DatabaseModule } from '../database/database.module';
 import { ConfigModule } from '../config/config.module';
 import { ConfigService } from '../config/config.service';
+import { DepartmentModule } from '../department/department.module';
 
 @Module({
   imports: [
     ConfigModule,
     DatabaseModule,
+    DepartmentModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

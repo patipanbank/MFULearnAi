@@ -441,7 +441,7 @@ export class TrainingService {
     try {
       const history = await this.trainingHistoryModel
         .find({ userId })
-        .sort({ createdAt: -1 })
+        .sort({ created: -1 })
         .limit(limit)
         .exec();
 

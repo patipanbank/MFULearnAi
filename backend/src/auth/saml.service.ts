@@ -314,15 +314,30 @@ export class SAMLService {
   } {
     const attributes = samlUser.attributes;
 
+    // Try different common SAML attribute formats, including the one with typo (like backendfast)
+    const username = this.getAttributeValue(attributes, 'User.Userrname', 'User.Username', 'username', 'uid') || samlUser.nameID;
+    const email = this.getAttributeValue(attributes, 'User.Email', 'email', 'mail', 'Email') || samlUser.nameID;
+    const firstName = this.getAttributeValue(attributes, 'first_name', 'firstname', 'givenName', 'firstName') || '';
+    const lastName = this.getAttributeValue(attributes, 'last_name', 'lastname', 'sn', 'lastName') || '';
+    const department = this.getAttributeValue(attributes, 'depart_name', 'department', 'organizationalUnit', 'departName') || '';
+    
+    // Extract groups with multiple fallback options (like backendfast)
+    const groups = (
+      attributes['http://schemas.xmlsoap.org/claims/Group'] ||
+      attributes['groups'] ||
+      attributes['Groups'] ||
+      attributes['memberOf'] ||
+      []
+    );
+
     return {
-      email: this.getAttributeValue(attributes, 'User.Email', 'email', 'mail', 'Email') || samlUser.nameID,
-      username: this.getAttributeValue(attributes, 'User.Userrname', 'username', 'uid') || samlUser.nameID,
-      firstName: this.getAttributeValue(attributes, 'first_name', 'firstName', 'givenName', 'User.FirstName') || '',
-      lastName: this.getAttributeValue(attributes, 'last_name', 'lastName', 'sn', 'User.LastName') || '',
-      displayName: this.getAttributeValue(attributes, 'displayName', 'cn', 'User.DisplayName') || 
-                  `${this.getAttributeValue(attributes, 'first_name', 'firstName', 'givenName', 'User.FirstName') || ''} ${this.getAttributeValue(attributes, 'last_name', 'lastName', 'sn', 'User.LastName') || ''}`.trim(),
-      department: this.getAttributeValue(attributes, 'depart_name', 'department', 'organizationalUnit'),
-      groups: attributes['http://schemas.xmlsoap.org/claims/Group'] || []
+      email,
+      username,
+      firstName,
+      lastName,
+      displayName: `${firstName} ${lastName}`.trim() || username,
+      department,
+      groups
     };
   }
 

@@ -60,14 +60,14 @@ export class StatsService {
       const dailyStats = await this.chatModel.aggregate([
         {
           $match: {
-            createdAt: { $gte: start, $lte: end },
+            created: { $gte: start, $lte: end },
             isActive: true,
           },
         },
         {
           $group: {
             _id: {
-              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+              $dateToString: { format: '%Y-%m-%d', date: '$created' },
             },
             uniqueUsers: { $addToSet: '$userId' },
             totalChats: { $sum: 1 },
@@ -151,14 +151,14 @@ export class StatsService {
       // Helper function to get stats for a period
       const getStatsForPeriod = async (startDate: Date, endDate: Date) => {
         const chats = await this.chatModel.countDocuments({
-          createdAt: { $gte: startDate, $lt: endDate },
+          created: { $gte: startDate, $lt: endDate },
           isActive: true,
         });
 
         const messagesResult = await this.chatModel.aggregate([
           {
             $match: {
-              createdAt: { $gte: startDate, $lt: endDate },
+              created: { $gte: startDate, $lt: endDate },
               isActive: true,
             },
           },
@@ -175,7 +175,7 @@ export class StatsService {
         const usersResult = await this.chatModel.aggregate([
           {
             $match: {
-              createdAt: { $gte: startDate, $lt: endDate },
+              created: { $gte: startDate, $lt: endDate },
               isActive: true,
             },
           },
@@ -257,12 +257,12 @@ export class StatsService {
       // Get recent activity (last 24 hours)
       const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recentChats = await this.chatModel.countDocuments({
-        createdAt: { $gte: last24Hours },
+        created: { $gte: last24Hours },
         isActive: true,
       });
 
       const recentUsers = await this.chatModel.aggregate([
-        { $match: { createdAt: { $gte: last24Hours }, isActive: true } },
+        { $match: { created: { $gte: last24Hours }, isActive: true } },
         { $group: { _id: '$userId' } },
         { $count: 'users' },
       ]);
@@ -327,11 +327,11 @@ export class StatsService {
     try {
       // Real token usage data from database
       const tokenUsage = await this.chatModel.aggregate([
-        { $match: { createdAt: { $gte: start, $lte: end }, isActive: true } },
+        { $match: { created: { $gte: start, $lte: end }, isActive: true } },
         {
           $group: {
             _id: {
-              date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+              date: { $dateToString: { format: '%Y-%m-%d', date: '$created' } },
               model: '$model',
             },
             total_tokens: { $sum: '$totalTokens' },
@@ -374,7 +374,7 @@ export class StatsService {
   private async getModelUsageAnalytics(start: Date, end: Date): Promise<any> {
     try {
       const modelUsage = await this.chatModel.aggregate([
-        { $match: { createdAt: { $gte: start, $lte: end }, isActive: true } },
+        { $match: { created: { $gte: start, $lte: end }, isActive: true } },
         {
           $group: {
             _id: '$model',
@@ -422,7 +422,7 @@ export class StatsService {
   private async getDepartmentAnalytics(start: Date, end: Date): Promise<any> {
     try {
       const departmentUsage = await this.chatModel.aggregate([
-        { $match: { createdAt: { $gte: start, $lte: end }, isActive: true } },
+        { $match: { created: { $gte: start, $lte: end }, isActive: true } },
         {
           $lookup: {
             from: 'users',
@@ -477,7 +477,7 @@ export class StatsService {
     try {
       // Real performance metrics from database
       const chats = await this.chatModel.find({ 
-        createdAt: { $gte: start, $lte: end }, 
+        created: { $gte: start, $lte: end }, 
         isActive: true 
       }).exec();
 
@@ -515,12 +515,12 @@ export class StatsService {
   private async getUsageTrends(start: Date, end: Date): Promise<any> {
     try {
       const trends = await this.chatModel.aggregate([
-        { $match: { createdAt: { $gte: start, $lte: end }, isActive: true } },
+        { $match: { created: { $gte: start, $lte: end }, isActive: true } },
         {
           $group: {
             _id: {
-              date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-              hour: { $hour: '$createdAt' },
+              date: { $dateToString: { format: '%Y-%m-%d', date: '$created' } },
+              hour: { $hour: '$created' },
             },
             chat_count: { $sum: 1 },
             message_count: { $sum: { $size: '$messages' } },

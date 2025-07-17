@@ -11,7 +11,7 @@ export enum UserRole {
 export type UserDocument = User & Document;
 
 @Schema({
-  timestamps: true,
+  timestamps: false, // Disable automatic timestamps to use custom created/updated fields
   toJSON: {
     virtuals: true,
     transform: function(doc: any, ret: any) {

@@ -79,7 +79,10 @@ export class AuthService {
       groups: user.groups,
     };
 
-    return this.jwtService.sign(payload);
+    // Add expiration like backendfast (7 days)
+    const expiresIn = '7d';
+    
+    return this.jwtService.sign(payload, { expiresIn });
   }
 
   async getUserById(userId: string): Promise<User | null> {

@@ -69,20 +69,25 @@ export class AuthController {
         // Create JWT token
         const token = await this.authService.createJwtToken(user);
         
-        // Redirect to frontend with token
-        const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${token}`;
+        // Redirect to frontend with token (like backendfast)
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const redirectUrl = `${frontendUrl}/auth/callback?token=${token}`;
         this.logger.log(`Redirecting to: ${redirectUrl}`);
         res.redirect(redirectUrl);
       } else {
         this.logger.error(`SAML authentication failed: ${result.error}`);
         const errorMessage = result.error || 'SAML authentication failed';
-        const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error?message=${encodeURIComponent(errorMessage)}`;
+        // Use error handling like backendfast
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const errorUrl = `${frontendUrl}/login?error=auth_failed&reason=${encodeURIComponent(errorMessage)}`;
         res.redirect(errorUrl);
       }
     } catch (error) {
       this.logger.error('SAML callback error:', error);
       const errorMessage = error.message || 'Unknown error occurred';
-      const errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/error?message=${encodeURIComponent(errorMessage)}`;
+      // Use error handling like backendfast
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const errorUrl = `${frontendUrl}/login?error=profile_mapping&reason=${encodeURIComponent(errorMessage)}`;
       res.redirect(errorUrl);
     }
   }

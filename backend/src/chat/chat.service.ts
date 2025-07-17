@@ -180,7 +180,7 @@ export class ChatService {
       const [chats, total] = await Promise.all([
         this.chatModel
           .find(filter)
-          .sort({ updatedAt: -1 })
+          .sort({ updated: -1 })
           .skip(skip)
           .limit(limit)
           .populate('userId', 'username email role')

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../models/user.model';
+import { DepartmentService } from '../department/department.service';
 
 export interface SAMLUserProfile {
   nameID: string;
@@ -19,11 +20,25 @@ export class UserService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private departmentService: DepartmentService,
   ) {}
 
   async findOrCreateSAMLUser(profile: SAMLUserProfile): Promise<User> {
     try {
       this.logger.log(`Looking for existing user with nameID: ${profile.nameID}`);
+      
+      // Handle department like backendfast
+      let departmentName = '';
+      if (profile.department) {
+        try {
+          const department = await this.departmentService.ensureDepartmentExists(profile.department);
+          departmentName = department.name;
+          this.logger.log(`✅ Department ensured: ${departmentName}`);
+        } catch (error) {
+          this.logger.warn(`⚠️ Failed to ensure department: ${error.message}`);
+          departmentName = profile.department.toLowerCase();
+        }
+      }
       
       // Try to find user by nameID first
       let user = await this.userModel.findOne({ nameID: profile.nameID }).exec();
@@ -36,19 +51,19 @@ export class UserService {
       
       if (!user) {
         this.logger.log(`User not found, creating new user: ${profile.username}`);
-        // Create new user
+        // Create new user with schema like backendfast
         const userData = {
           nameID: profile.nameID,
           username: profile.username,
           email: profile.email,
           firstName: profile.firstName || '',
           lastName: profile.lastName || '',
-          department: profile.department || '',
+          department: departmentName,
           groups: profile.groups || [],
           role: this.determineUserRole(profile.groups || []),
           isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          created: new Date(),
+          updated: new Date(),
         };
         
         user = new this.userModel(userData);
@@ -56,16 +71,16 @@ export class UserService {
         this.logger.log(`✅ Created new SAML user: ${user.username}`);
       } else {
         this.logger.log(`Found existing user: ${user.username}`);
-        // Update existing user with latest SAML data
+        // Update existing user with latest SAML data (like backendfast)
         const updateData = {
           nameID: profile.nameID,
           email: profile.email,
           firstName: profile.firstName || user.firstName,
           lastName: profile.lastName || user.lastName,
-          department: profile.department || user.department,
+          department: departmentName || user.department,
           groups: profile.groups || user.groups,
           role: this.determineUserRole(profile.groups || user.groups || []),
-          updatedAt: new Date(),
+          updated: new Date(),
         };
         
         const updatedUser = await this.userModel.findByIdAndUpdate(
@@ -90,19 +105,19 @@ export class UserService {
   }
 
   private determineUserRole(groups: string[]): string {
-    // Map SAML groups to user roles
-    if (groups.includes('Students')) {
+    // Map SAML group SIDs to user roles (like backendfast)
+    // The original backendfast code has a specific group ID for students
+    const isStudent = groups.some(g => g === 'S-1-5-21-893890582-1041674030-1199480097-43779');
+    
+    if (isStudent) {
       return 'STUDENTS';
-    } else if (groups.includes('Staffs')) {
-      return 'STAFFS';
-    } else if (groups.includes('Admin')) {
-      return 'ADMIN';
-    } else if (groups.includes('Super Admin')) {
-      return 'SUPER_ADMIN';
     }
     
-    // Default role
-    return 'STUDENTS';
+    // Add more SID mappings as needed
+    // Example: if (groups.some(g => g === 'S-1-5-21-893890582-1041674030-1199480097-513')) return 'STAFFS';
+    
+    // Default role (like backendfast) - STAFFS for non-student SIDs
+    return 'STAFFS';
   }
 
   async findUserByNameID(nameID: string): Promise<User | null> {

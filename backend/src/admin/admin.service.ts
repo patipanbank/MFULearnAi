@@ -81,7 +81,7 @@ export class AdminService {
 
   async getAllUsers(): Promise<User[]> {
     try {
-      const users = await this.userModel.find({}).sort({ createdAt: -1 }).exec();
+      const users = await this.userModel.find({}).sort({ created: -1 }).exec();
       return users;
     } catch (error) {
       this.logger.error(`Error getting all users: ${error}`);
