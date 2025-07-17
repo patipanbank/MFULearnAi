@@ -21,27 +21,103 @@ router.get('/login/saml', passport.authenticate('saml', { failureRedirect: '/log
 router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) => {
   passport.authenticate('saml', async (err: any, profile: any, info: any) => {
     if (err || !profile) {
+      console.log('❌ SAML Authentication failed:', err);
       return res.redirect(`${config.FRONTEND_URL}/login?error=auth_failed&reason=${encodeURIComponent(err?.message || 'No profile')}`);
     }
+
+    console.log('\n' + '='.repeat(80));
+    console.log('🔍 COMPLETE SAML DATA ANALYSIS');
+    console.log('='.repeat(80));
+    
+    // 1. Basic SAML info
+    console.log(`📋 NameID: ${profile.nameID}`);
+    console.log(`📋 NameID Format: ${profile.nameIDFormat}`);
+    console.log(`📋 Session Index: ${profile.sessionIndex}`);
+    
+    // 2. Get all attributes
+    const samlAttributes = profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims'] || profile.attributes || {};
+    console.log(`\n📊 Total Attributes Found: ${Object.keys(samlAttributes).length}`);
+    console.log('📊 All SAML Attributes:');
+    for (const [key, value] of Object.entries(samlAttributes)) {
+      console.log(`   🔑 ${key}: ${JSON.stringify(value)}`);
+    }
+    
+    // 3. Raw profile analysis
+    console.log('\n📄 Raw Profile Object:');
+    console.log(JSON.stringify(profile, null, 2));
+    
+    console.log('='.repeat(80));
+    console.log('🔍 END SAML DATA ANALYSIS');
+    console.log('='.repeat(80) + '\n');
+
     try {
-      // === Mapping SAML attributes เหมือน Python ===
-      const samlAttributes = profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims'] || profile.attributes || {};
+      // === Enhanced SAML attributes mapping เหมือน Python ===
+      console.log('\n🔍 Raw SAML Attributes:');
+      for (const [key, value] of Object.entries(samlAttributes)) {
+        console.log(`   ${key}: ${JSON.stringify(value)}`);
+      }
+
       const getAttr = (keyArr: string[], fallback?: any) => {
         for (const key of keyArr) {
-          if (samlAttributes[key] && samlAttributes[key][0]) return samlAttributes[key][0];
+          if (samlAttributes[key] && Array.isArray(samlAttributes[key]) && samlAttributes[key][0]) {
+            return samlAttributes[key][0];
+          }
+          if (samlAttributes[key] && !Array.isArray(samlAttributes[key])) {
+            return samlAttributes[key];
+          }
         }
         return fallback;
       };
-      const username = getAttr(['User.Userrname', 'User.Username', 'username', 'uid']);
-      const email = getAttr(['User.Email', 'email', 'mail']);
-      const firstName = getAttr(['first_name', 'firstname', 'givenName']);
-      const lastName = getAttr(['last_name', 'lastname', 'sn']);
-      const department = getAttr(['depart_name', 'department', 'organizationalUnit']);
-      const groups = getAttr(['http://schemas.xmlsoap.org/claims/Group', 'groups', 'Groups', 'memberOf'], []);
+
+      // Try different common SAML attribute formats, including the one with typo
+      const username = (
+        getAttr(['User.Userrname']) ||  // Note: This is the actual attribute name with typo
+        getAttr(['User.Username']) ||
+        getAttr(['username']) ||
+        getAttr(['uid'])
+      );
+      const email = (
+        getAttr(['User.Email']) ||
+        getAttr(['email']) ||
+        getAttr(['mail'])
+      );
+      const firstName = (
+        getAttr(['first_name']) ||
+        getAttr(['firstname']) ||
+        getAttr(['givenName'])
+      );
+      const lastName = (
+        getAttr(['last_name']) ||
+        getAttr(['lastname']) ||
+        getAttr(['sn'])
+      );
+      const department = (
+        getAttr(['depart_name']) ||
+        getAttr(['department']) ||
+        getAttr(['organizationalUnit'])
+      );
+      const groups = (
+        getAttr(['http://schemas.xmlsoap.org/claims/Group']) ||
+        getAttr(['groups']) ||
+        getAttr(['Groups']) ||  // Add this as it's in the actual response
+        getAttr(['memberOf']) ||
+        []
+      );
+
       if (!username) {
+        console.log('❌ Username not found in SAML attributes');
         return res.redirect(`${config.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
       }
-      
+
+      // Print mapped values for debugging
+      console.log('\n🔍 Mapped Values:');
+      console.log(`   Username: ${username}`);
+      console.log(`   Email: ${email}`);
+      console.log(`   First Name: ${firstName}`);
+      console.log(`   Last Name: ${lastName}`);
+      console.log(`   Department: ${department}`);
+      console.log(`   Groups: ${JSON.stringify(groups)}`);
+
       // === สร้าง user profile และ save ลง DB ===
       const userProfile = {
         nameID: profile.nameID,
@@ -50,11 +126,14 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
         firstName,
         lastName,
         department,
-        groups,
+        groups: Array.isArray(groups) ? groups : [groups].filter(Boolean),
       };
+      
+      console.log(`\n👤 Mapped Profile: ${JSON.stringify(userProfile, null, 2)}`);
       
       // ใช้ userService จริง
       const user = await userService.find_or_create_saml_user(userProfile);
+      console.log(`👤 Created/Found User: ${user.username} (${user.email})`);
       
       // === สร้าง JWT payload ===
       const tokenPayload = {
@@ -70,9 +149,12 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
         exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 วัน
       };
       const token = jwt.sign(tokenPayload, config.JWT_SECRET, { algorithm: config.JWT_ALGORITHM as jwt.Algorithm });
-      // === Redirect ===
-      return res.redirect(`${config.FRONTEND_URL}/auth/callback?token=${token}`);
+      
+      const redirect_url = `${config.FRONTEND_URL}/auth/callback?token=${token}`;
+      console.log(`🔄 Redirecting to: ${redirect_url}`);
+      return res.redirect(redirect_url);
     } catch (e: any) {
+      console.log(`❌ Error processing SAML attributes: ${e}`);
       return res.redirect(`${config.FRONTEND_URL}/login?error=token_creation&reason=${encodeURIComponent(e.message)}`);
     }
   })(req, res, next);
