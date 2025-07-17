@@ -28,7 +28,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use('/auth', authRouter);
+app.use('/api/auth', authRouter);
 
 app.get('/', (req, res) => {
   res.send('MFULearnAi Node.js Backend');
