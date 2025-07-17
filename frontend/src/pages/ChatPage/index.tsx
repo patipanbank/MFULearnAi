@@ -45,8 +45,7 @@ const ChatPage: React.FC = () => {
     connectWebSocket,
     isTokenExpired,
     tryRefreshToken,
-    sendMessage: wsSendMessage,
-    createRoom
+    sendMessage: wsSendMessage
   } = useWebSocket({ chatId, isInChatRoom });
 
   // Chat navigation is handled by useChatNavigation hook
@@ -211,16 +210,50 @@ const ChatPage: React.FC = () => {
       wsSendMessage(message.trim(), images, selectedAgent?.id);
     } else {
       console.log('ChatPage: Creating new room');
-      // Store first message for when room is created
-      pendingFirstRef.current = {
-        text: message.trim(),
-        images: images,
-        agentId: selectedAgent.id
-      };
-      // Create new room using the createRoom function
-      createRoom(selectedAgent.id);
+      // Create new room
+      if (wsRef.current && wsRef.current.connected) {
+        // Store first message for when room is created
+        pendingFirstRef.current = {
+          text: message.trim(),
+          images: images,
+          agentId: selectedAgent.id
+        };
+
+        // Send create room request
+        const createRoomPayload = {
+          type: 'create_room',
+          agent_id: selectedAgent.id
+        };
+        console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
+        try {
+          wsRef.current.send(JSON.stringify(createRoomPayload));
+          console.log('ChatPage: create_room request sent successfully');
+        } catch (error) {
+          console.error('ChatPage: Failed to send create_room request:', error);
+          addToast({
+            type: 'error',
+            title: 'Connection Error',
+            message: 'Failed to create chat room. Please try again.',
+            duration: 5000
+          });
+        }
+      } else {
+        console.log('ChatPage: WebSocket not ready, queuing create room request');
+        // Queue create room request
+        pendingQueueRef.current.push({
+          type: 'create_room',
+          agent_id: selectedAgent.id
+        });
+        
+        // Store first message for when room is created
+        pendingFirstRef.current = {
+          text: message.trim(),
+          images: images,
+          agentId: selectedAgent.id
+        };
+      }
     }
-  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, pendingQueueRef, pendingFirstRef, addToast, connectWebSocket, wsSendMessage, createRoom]);
+  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, pendingQueueRef, pendingFirstRef, addToast, connectWebSocket, wsSendMessage]);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
