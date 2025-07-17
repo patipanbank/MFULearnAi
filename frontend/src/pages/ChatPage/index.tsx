@@ -1,20 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuthStore, useChatStore, useAgentStore, useUIStore } from '../../shared/stores';
-import { useChatInput } from '../../shared/hooks/useChatInput';
-import { useChatNavigation } from '../../shared/hooks/useChatNavigation';
-import { useWebSocket } from '../../shared/hooks/useWebSocket';
-import { useDepartment } from '../../shared/hooks/useDepartment';
-import Loading from '../../shared/ui/Loading';
-import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
-import AgentSelector from '../../shared/ui/AgentSelector';
-import AgentExecutionStatus from '../../shared/ui/AgentExecutionStatus';
-import ToolUsageDisplay from '../../shared/ui/ToolUsageDisplay';
-import UserProfile from '../../shared/ui/UserProfile';
-import { api } from '../../shared/lib/api';
+import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
 import type { ChatMessage } from '../../shared/stores/chatStore';
+import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
+import { ToolUsageDisplay } from '../../shared/ui/ToolUsageDisplay';
+import { api } from '../../shared/lib/api';
+import Loading from '../../shared/ui/Loading';
 import dindinAvatar from '../../assets/dindin.png';
 import dindinNp from '../../assets/dindin_np.PNG';
+import { useWebSocket } from '../../shared/hooks/useWebSocket';
+import { useChatNavigation } from '../../shared/hooks/useChatNavigation';
+import { useChatInput } from '../../shared/hooks/useChatInput';
 
 const ChatPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -166,14 +162,14 @@ const ChatPage: React.FC = () => {
     console.log('ChatPage: Sending message', { message: message.trim(), agentId: selectedAgent.id, isInChatRoom, chatId });
 
     // ตรวจสอบ WebSocket connection
-    if (!wsRef.current || !wsRef.current.connected) {
-      console.log('ChatPage: Socket.IO not ready, attempting to connect...');
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.log('ChatPage: WebSocket not ready, attempting to connect...');
       connectWebSocket();
       
       // รอสักครู่แล้วลองใหม่
       setTimeout(() => {
-        if (wsRef.current && wsRef.current.connected) {
-          console.log('ChatPage: Socket.IO connected, retrying send...');
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          console.log('ChatPage: WebSocket connected, retrying send...');
           sendMessage();
         } else {
           addToast({
@@ -215,7 +211,7 @@ const ChatPage: React.FC = () => {
     } else {
       console.log('ChatPage: Creating new room');
       // Create new room
-      if (wsRef.current && wsRef.current.connected) {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         // Store first message for when room is created
         pendingFirstRef.current = {
           text: message.trim(),
@@ -229,20 +225,7 @@ const ChatPage: React.FC = () => {
           agent_id: selectedAgent.id
         };
         console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
-        console.log('ChatPage: WebSocket state before send:', wsRef.current?.readyState);
-        console.log('ChatPage: WebSocket URL:',wsRef.current?.url);
-        try {
-          wsRef.current.send(JSON.stringify(createRoomPayload));
-          console.log('ChatPage: create_room request sent successfully');
-        } catch (error) {
-          console.error('ChatPage: Failed to send create_room request:', error);
-          addToast({
-            type: 'error',
-            title: 'Connection Error',
-            message: 'Failed to create chat room. Please try again.',
-            duration: 5000
-          });
-        }
+        wsRef.current.send(JSON.stringify(createRoomPayload));
       } else {
         console.log('ChatPage: WebSocket not ready, queuing create room request');
         // Queue create room request
