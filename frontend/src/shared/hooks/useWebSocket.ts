@@ -398,6 +398,18 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const sendMessage = useCallback((message: string, images?: Array<{ url: string; mediaType: string }>, agentId?: string) => {
     console.log('sendMessage called', { message: message.substring(0, 50) + '...', images: images?.length || 0, chatId, agentId });
     
+    // ตรวจสอบว่ามี chatId หรือไม่
+    if (!chatId) {
+      console.error('sendMessage: No chatId provided');
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Chat ID is required to send message',
+        duration: 3000
+      });
+      return;
+    }
+    
     if (!wsRef.current || !wsRef.current.connected) {
       console.log('sendMessage: Socket.IO not connected, queuing message');
       pendingQueueRef.current.push({ type: 'message', text: message, images, chatId, agent_id: agentId });
@@ -421,6 +433,31 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     }
   }, [addToast, chatId]);
 
+  const createRoom = useCallback((agentId: string) => {
+    console.log('createRoom called', { agentId });
+    
+    if (!wsRef.current || !wsRef.current.connected) {
+      console.log('createRoom: Socket.IO not connected, queuing create room request');
+      pendingQueueRef.current.push({ type: 'create_room', agent_id: agentId });
+      return;
+    }
+    
+    try {
+      const payload = { type: 'create_room', agent_id: agentId };
+      console.log('createRoom: Sending payload', payload);
+      wsRef.current.emit('create_room', payload);
+    } catch (error) {
+      console.error('createRoom: Failed to send create room request', error);
+      pendingQueueRef.current.push({ type: 'create_room', agent_id: agentId });
+      addToast({
+        type: 'error',
+        title: 'Create Room Failed',
+        message: 'Failed to create chat room. Will retry when connection is restored.',
+        duration: 3000
+      });
+    }
+  }, [addToast]);
+
   return {
     wsRef,
     pendingFirstRef,
@@ -429,6 +466,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     abortStreaming,
     isTokenExpired,
     tryRefreshToken,
-    sendMessage
+    sendMessage,
+    createRoom
   };
 }; 
