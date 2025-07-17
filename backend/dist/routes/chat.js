@@ -24,6 +24,23 @@ router.get('/', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
+router.get('/history', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const chats = await chatService_1.chatService.getUserChats(userId);
+        return res.json({
+            success: true,
+            data: chats
+        });
+    }
+    catch (error) {
+        console.error('❌ Error getting chat history:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get chat history'
+        });
+    }
+});
 router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;

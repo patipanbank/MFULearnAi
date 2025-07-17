@@ -34,7 +34,7 @@ app.use(passport_1.default.session());
 const apiRouter = express_1.default.Router();
 apiRouter.use('/auth', auth_1.default);
 apiRouter.use('/chat', chat_1.default);
-apiRouter.use('/agent', agent_1.default);
+apiRouter.use('/agents', agent_1.default);
 app.use('/api', apiRouter);
 app.get('/', (req, res) => {
     res.send('MFULearnAi Node.js Backend');

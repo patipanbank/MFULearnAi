@@ -42,7 +42,7 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/chat', chatRouter);
 
 // Mount agent routes under API router
-apiRouter.use('/agent', agentRouter);
+apiRouter.use('/agents', agentRouter);
 
 // Mount API router under /api prefix
 app.use('/api', apiRouter);

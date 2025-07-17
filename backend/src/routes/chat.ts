@@ -23,6 +23,25 @@ router.get('/', authenticateJWT, async (req: any, res) => {
   }
 });
 
+// Get chat history (special route)
+router.get('/history', authenticateJWT, async (req: any, res) => {
+  try {
+    const userId = req.user.id;
+    const chats = await chatService.getUserChats(userId);
+    
+    return res.json({
+      success: true,
+      data: chats
+    });
+  } catch (error) {
+    console.error('❌ Error getting chat history:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get chat history'
+    });
+  }
+});
+
 // Get a specific chat by ID
 router.get('/:chatId', authenticateJWT, async (req: any, res) => {
   try {
