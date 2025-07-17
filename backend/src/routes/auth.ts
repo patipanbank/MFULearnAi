@@ -97,7 +97,7 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
         getAttr(['organizationalUnit'])
       );
       
-      // ปรับปรุง groups mapping ให้ถูกต้อง
+      // ปรับปรุง groups mapping ให้ตรงกับ backend-legacy
       let groups = [];
       const groupsAttr = getAttr(['Groups']); // ใช้ Groups string attribute
       const groupSids = getAttr(['http://schemas.xmlsoap.org/claims/Group']); // ใช้ Group SIDs array
@@ -105,18 +105,16 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
       console.log(`🔍 Groups mapping - Groups attr: ${JSON.stringify(groupsAttr)}`);
       console.log(`🔍 Groups mapping - Group SIDs: ${JSON.stringify(groupSids)}`);
       
-      if (groupsAttr) {
-        // ถ้ามี Groups string ให้ใช้เป็นหลัก
-        groups = [groupsAttr];
-        console.log(`🔍 Groups mapping - Using Groups string: ${groupsAttr}`);
-      } else if (groupSids && Array.isArray(groupSids)) {
-        // ถ้าไม่มี Groups string ให้ใช้ Group SIDs
+      // ใช้ Group SIDs เป็นหลัก เหมือน backend-legacy
+      if (groupSids && Array.isArray(groupSids)) {
         groups = groupSids;
         console.log(`🔍 Groups mapping - Using Group SIDs array: ${JSON.stringify(groupSids)}`);
       } else if (groupSids && !Array.isArray(groupSids)) {
-        // ถ้า Group SIDs ไม่ใช่ array
         groups = [groupSids];
         console.log(`🔍 Groups mapping - Using Group SIDs single: ${groupSids}`);
+      } else {
+        groups = [];
+        console.log(`🔍 Groups mapping - No Group SIDs found`);
       }
 
       // Ensure groups is always an array
@@ -145,7 +143,7 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
         firstName,
         lastName,
         department,
-        groups: groupsArray,
+        groups: groupsArray, // เก็บ SID array
       };
       
       console.log(`\n👤 Mapped Profile: ${JSON.stringify(userProfile, null, 2)}`);
@@ -259,7 +257,7 @@ router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) =
         getAttr(['organizationalUnit'])
       );
       
-      // ปรับปรุง groups mapping ให้ถูกต้อง
+      // ปรับปรุง groups mapping ให้ตรงกับ backend-legacy
       let groups = [];
       const groupsAttr = getAttr(['Groups']); // ใช้ Groups string attribute
       const groupSids = getAttr(['http://schemas.xmlsoap.org/claims/Group']); // ใช้ Group SIDs array
@@ -267,18 +265,16 @@ router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) =
       console.log(`🔍 Groups mapping - Groups attr: ${JSON.stringify(groupsAttr)}`);
       console.log(`🔍 Groups mapping - Group SIDs: ${JSON.stringify(groupSids)}`);
       
-      if (groupsAttr) {
-        // ถ้ามี Groups string ให้ใช้เป็นหลัก
-        groups = [groupsAttr];
-        console.log(`🔍 Groups mapping - Using Groups string: ${groupsAttr}`);
-      } else if (groupSids && Array.isArray(groupSids)) {
-        // ถ้าไม่มี Groups string ให้ใช้ Group SIDs
+      // ใช้ Group SIDs เป็นหลัก เหมือน backend-legacy
+      if (groupSids && Array.isArray(groupSids)) {
         groups = groupSids;
         console.log(`🔍 Groups mapping - Using Group SIDs array: ${JSON.stringify(groupSids)}`);
       } else if (groupSids && !Array.isArray(groupSids)) {
-        // ถ้า Group SIDs ไม่ใช่ array
         groups = [groupSids];
         console.log(`🔍 Groups mapping - Using Group SIDs single: ${groupSids}`);
+      } else {
+        groups = [];
+        console.log(`🔍 Groups mapping - No Group SIDs found`);
       }
 
       // Ensure groups is always an array
@@ -307,7 +303,7 @@ router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) =
         firstName,
         lastName,
         department,
-        groups: groupsArray,
+        groups: groupsArray, // เก็บ SID array
       };
       
       console.log(`\n👤 Mapped Profile: ${JSON.stringify(userProfile, null, 2)}`);
