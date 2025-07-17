@@ -60,6 +60,10 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
       const getAttr = (keyArr: string[], fallback?: any) => {
         for (const key of keyArr) {
           if (samlAttributes[key] && Array.isArray(samlAttributes[key]) && samlAttributes[key][0]) {
+            // สำหรับ Group SIDs ให้ส่งคืน array ทั้งหมด
+            if (key === 'http://schemas.xmlsoap.org/claims/Group') {
+              return samlAttributes[key];
+            }
             return samlAttributes[key][0];
           }
           if (samlAttributes[key] && !Array.isArray(samlAttributes[key])) {
@@ -220,6 +224,10 @@ router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) =
       const getAttr = (keyArr: string[], fallback?: any) => {
         for (const key of keyArr) {
           if (samlAttributes[key] && Array.isArray(samlAttributes[key]) && samlAttributes[key][0]) {
+            // สำหรับ Group SIDs ให้ส่งคืน array ทั้งหมด
+            if (key === 'http://schemas.xmlsoap.org/claims/Group') {
+              return samlAttributes[key];
+            }
             return samlAttributes[key][0];
           }
           if (samlAttributes[key] && !Array.isArray(samlAttributes[key])) {
