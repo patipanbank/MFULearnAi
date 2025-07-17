@@ -1,12 +1,16 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore, useChatStore, useAgentStore, useUIStore } from '../../shared/stores';
 import { useChatInput } from '../../shared/hooks/useChatInput';
 import { useChatNavigation } from '../../shared/hooks/useChatNavigation';
 import { useWebSocket } from '../../shared/hooks/useWebSocket';
+import { useDepartment } from '../../shared/hooks/useDepartment';
 import Loading from '../../shared/ui/Loading';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
-import { ToolUsageDisplay } from '../../shared/ui/ToolUsageDisplay';
+import AgentSelector from '../../shared/ui/AgentSelector';
+import AgentExecutionStatus from '../../shared/ui/AgentExecutionStatus';
+import ToolUsageDisplay from '../../shared/ui/ToolUsageDisplay';
+import UserProfile from '../../shared/ui/UserProfile';
 import { api } from '../../shared/lib/api';
 import type { ChatMessage } from '../../shared/stores/chatStore';
 import dindinAvatar from '../../assets/dindin.png';
@@ -63,7 +67,7 @@ const ChatPage: React.FC = () => {
   const debugWebSocket = useCallback(() => {
     console.log('=== WebSocket Debug Info ===');
     console.log('WebSocket ref:', wsRef.current);
-    console.log('WebSocket connected:', wsRef.current?.connected);
+    console.log('WebSocket readyState:', wsRef.current?.readyState);
     console.log('Is in chat room:', isInChatRoom);
     console.log('Chat ID:', chatId);
     console.log('Current session:', currentSession);
@@ -225,6 +229,8 @@ const ChatPage: React.FC = () => {
           agent_id: selectedAgent.id
         };
         console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
+        console.log('ChatPage: WebSocket state before send:', wsRef.current?.readyState);
+        console.log('ChatPage: WebSocket URL:',wsRef.current?.url);
         try {
           wsRef.current.send(JSON.stringify(createRoomPayload));
           console.log('ChatPage: create_room request sent successfully');
