@@ -132,8 +132,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     if (window.location.hostname === 'localhost') {
       wsUrl = `http://localhost:3000/ws`;
     } else if (window.location.hostname === 'mfulearnai.mfu.ac.th') {
-      // ใช้ ws:// แทน https:// เพราะ nginx ยังไม่ได้เปิด SSL
-      wsUrl = `ws://mfulearnai.mfu.ac.th/ws`;
+      wsUrl = `https://mfulearnai.mfu.ac.th/ws`;
     }
     
     console.log('connectWebSocket: Final Socket.IO URL', wsUrl);
