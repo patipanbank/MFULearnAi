@@ -10,13 +10,13 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     const userId = req.user.id;
     const chats = await chatService.getUserChats(userId);
     
-    res.json({
+    return res.json({
       success: true,
       data: chats
     });
   } catch (error) {
     console.error('❌ Error getting user chats:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get chat history'
     });
@@ -38,13 +38,13 @@ router.get('/:chatId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: chat
     });
   } catch (error) {
     console.error('❌ Error getting chat:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get chat'
     });
@@ -59,13 +59,13 @@ router.post('/', authenticateJWT, async (req: any, res) => {
     
     const chat = await chatService.createChat(userId, name || 'New Chat', agentId);
     
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: chat
     });
   } catch (error) {
     console.error('❌ Error creating chat:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create chat'
     });
@@ -95,13 +95,13 @@ router.put('/:chatId/name', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: chat
     });
   } catch (error) {
     console.error('❌ Error updating chat name:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to update chat name'
     });
@@ -123,13 +123,13 @@ router.delete('/:chatId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       message: 'Chat deleted successfully'
     });
   } catch (error) {
     console.error('❌ Error deleting chat:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to delete chat'
     });
@@ -149,13 +149,13 @@ router.get('/stats/overview', authenticateJWT, async (req: any, res) => {
     
     const stats = chatService.getStats();
     
-    res.json({
+    return res.json({
       success: true,
       data: stats
     });
   } catch (error) {
     console.error('❌ Error getting chat stats:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get chat statistics'
     });

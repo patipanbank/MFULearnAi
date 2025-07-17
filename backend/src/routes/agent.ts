@@ -10,13 +10,13 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     const userId = req.user.id;
     const agents = await agentService.getAllAgents(userId);
     
-    res.json({
+    return res.json({
       success: true,
       data: agents
     });
   } catch (error) {
     console.error('❌ Error getting agents:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get agents'
     });
@@ -36,13 +36,13 @@ router.get('/:agentId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: agent
     });
   } catch (error) {
     console.error('❌ Error getting agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get agent'
     });
@@ -60,13 +60,13 @@ router.post('/', authenticateJWT, async (req: any, res) => {
     
     const agent = await agentService.createAgent(agentData);
     
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: agent
     });
   } catch (error) {
     console.error('❌ Error creating agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create agent'
     });
@@ -105,13 +105,13 @@ router.put('/:agentId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: agent
     });
   } catch (error) {
     console.error('❌ Error updating agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to update agent'
     });
@@ -149,13 +149,13 @@ router.delete('/:agentId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       message: 'Agent deleted successfully'
     });
   } catch (error) {
     console.error('❌ Error deleting agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to delete agent'
     });
@@ -167,13 +167,13 @@ router.get('/templates/all', authenticateJWT, async (req: any, res) => {
   try {
     const templates = await agentService.getAgentTemplates();
     
-    res.json({
+    return res.json({
       success: true,
       data: templates
     });
   } catch (error) {
     console.error('❌ Error getting agent templates:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get agent templates'
     });
@@ -192,13 +192,13 @@ router.post('/templates/:templateId', authenticateJWT, async (req: any, res) => 
     
     const agent = await agentService.createAgentFromTemplate(templateId, customizations);
     
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: agent
     });
   } catch (error) {
     console.error('❌ Error creating agent from template:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create agent from template'
     });
@@ -212,13 +212,13 @@ router.get('/search/:query', authenticateJWT, async (req: any, res) => {
     const userId = req.user.id;
     const agents = await agentService.searchAgents(query, userId);
     
-    res.json({
+    return res.json({
       success: true,
       data: agents
     });
   } catch (error) {
     console.error('❌ Error searching agents:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to search agents'
     });
@@ -231,13 +231,13 @@ router.get('/popular/:limit?', authenticateJWT, async (req: any, res) => {
     const limit = req.params.limit ? parseInt(req.params.limit) : 10;
     const agents = await agentService.getPopularAgents(limit);
     
-    res.json({
+    return res.json({
       success: true,
       data: agents
     });
   } catch (error) {
     console.error('❌ Error getting popular agents:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get popular agents'
     });
@@ -259,13 +259,13 @@ router.post('/:agentId/rate', authenticateJWT, async (req: any, res) => {
     
     await agentService.updateAgentRating(agentId, rating);
     
-    res.json({
+    return res.json({
       success: true,
       message: 'Rating updated successfully'
     });
   } catch (error) {
     console.error('❌ Error rating agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to rate agent'
     });

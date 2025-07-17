@@ -68,8 +68,11 @@ class UserService {
             groups = [groups];
         }
         const map_group_to_role = (user_groups) => {
+            console.log(`🔍 Role mapping - Input groups: ${JSON.stringify(user_groups)}`);
             const is_student = user_groups.some(g => g === 'S-1-5-21-893890582-1041674030-1199480097-43779');
-            return is_student ? user_1.UserRole.STUDENTS : user_1.UserRole.STAFFS;
+            const role = is_student ? user_1.UserRole.STUDENTS : user_1.UserRole.STAFFS;
+            console.log(`🔍 Role mapping - is_student: ${is_student}, result: ${role}`);
+            return role;
         };
         const user_data_to_update = {
             nameID: profile.nameID,
