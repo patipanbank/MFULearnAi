@@ -157,8 +157,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     let wsUrl = `${config.wsUrl}?token=${token}`;
     if (window.location.hostname === 'localhost') {
       wsUrl = `ws://localhost/ws?token=${token}`;
-    } else if (window.location.hostname === 'mfulearnai.mfu.ac.th') {
-      wsUrl = `wss://mfulearnai.mfu.ac.th/ws?token=${token}`;
     }
     
     console.log('connectWebSocket: Final WebSocket URL', wsUrl);

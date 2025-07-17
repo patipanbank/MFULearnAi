@@ -43,7 +43,7 @@ export class ConfigService {
 
   // CORS Configuration
   get corsOrigin(): string {
-    return this.configService.get<string>('CORS_ORIGIN') || 'https://mfulearnai.mfu.ac.th';
+    return this.configService.get<string>('CORS_ORIGIN') || 'http://localhost:3000';
   }
 
   // AWS Configuration
