@@ -24,7 +24,22 @@ class ChatService {
         return chat;
     }
     async getChat(chatId, userId) {
-        return await chat_1.ChatModel.findOne({ _id: chatId, userId });
+        console.log(`🔍 Looking for chat: ${chatId} for user: ${userId}`);
+        const chat = await chat_1.ChatModel.findOne({ _id: chatId, userId });
+        if (chat) {
+            console.log(`✅ Found chat: ${chatId}`);
+        }
+        else {
+            console.log(`❌ Chat not found: ${chatId}`);
+            const chatWithoutUser = await chat_1.ChatModel.findById(chatId);
+            if (chatWithoutUser) {
+                console.log(`⚠️ Chat exists but belongs to user: ${chatWithoutUser.userId}`);
+            }
+            else {
+                console.log(`❌ Chat doesn't exist in database: ${chatId}`);
+            }
+        }
+        return chat;
     }
     async addMessage(chatId, message) {
         const chat = await chat_1.ChatModel.findById(chatId);

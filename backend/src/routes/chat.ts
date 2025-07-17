@@ -44,8 +44,11 @@ router.get('/history/:sessionId', authenticateJWT, async (req: any, res) => {
     const { sessionId } = req.params;
     const userId = req.user.id;
     
+    console.log(`📥 GET /history/${sessionId} for user: ${userId}`);
+    
     // Validate sessionId format (should be 24 character hex string)
     if (!sessionId || sessionId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(sessionId)) {
+      console.log(`❌ Invalid session ID format: ${sessionId}`);
       return res.status(400).json({
         success: false,
         error: 'Invalid session ID format'
@@ -55,12 +58,14 @@ router.get('/history/:sessionId', authenticateJWT, async (req: any, res) => {
     const chat = await chatService.getChat(sessionId, userId);
     
     if (!chat) {
+      console.log(`❌ Chat not found or access denied: ${sessionId}`);
       return res.status(404).json({
         success: false,
         error: 'Chat not found or access denied'
       });
     }
     
+    console.log(`✅ Returning chat: ${sessionId}`);
     // Return chat object directly for frontend compatibility
     return res.json(chat);
   } catch (error) {

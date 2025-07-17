@@ -25,7 +25,24 @@ export class ChatService {
   }
 
   public async getChat(chatId: string, userId: string): Promise<Chat | null> {
-    return await ChatModel.findOne({ _id: chatId, userId });
+    console.log(`🔍 Looking for chat: ${chatId} for user: ${userId}`);
+    
+    const chat = await ChatModel.findOne({ _id: chatId, userId });
+    
+    if (chat) {
+      console.log(`✅ Found chat: ${chatId}`);
+    } else {
+      console.log(`❌ Chat not found: ${chatId}`);
+      // Let's also check if the chat exists without user filter
+      const chatWithoutUser = await ChatModel.findById(chatId);
+      if (chatWithoutUser) {
+        console.log(`⚠️ Chat exists but belongs to user: ${chatWithoutUser.userId}`);
+      } else {
+        console.log(`❌ Chat doesn't exist in database: ${chatId}`);
+      }
+    }
+    
+    return chat;
   }
 
   public async addMessage(chatId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage> {
