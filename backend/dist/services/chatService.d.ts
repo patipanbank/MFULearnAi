@@ -11,6 +11,7 @@ export declare class ChatService {
     private processWithAI;
     private simulateAIProcessing;
     private simulateToolUsage;
+    private simulateToolExecution;
     private streamResponse;
     private generateResponse;
     private generateDetailedResponse;
@@ -19,6 +20,7 @@ export declare class ChatService {
     deleteChat(chatId: string, userId: string): Promise<boolean>;
     updateChatName(chatId: string, userId: string, name: string): Promise<Chat | null>;
     updateChatPinStatus(chatId: string, userId: string, isPinned: boolean): Promise<Chat | null>;
+    clearChatMemory(chatId: string): Promise<void>;
     getStats(): any;
 }
 export declare const chatService: ChatService;
