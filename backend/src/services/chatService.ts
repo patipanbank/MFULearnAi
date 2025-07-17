@@ -75,17 +75,7 @@ export class ChatService {
         images
       });
 
-      // Send user message to all clients in the session
-      // Only broadcast if there are active connections
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'user_message',
-          data: {
-            message: userMessage,
-            sessionId: chatId
-          }
-        }));
-      }
+
 
       // Get chat and agent info
       const chat = await ChatModel.findById(chatId);
@@ -118,20 +108,9 @@ export class ChatService {
     // Create assistant message with placeholder content
     const assistantMessage = await this.addMessage(chatId, {
       role: 'assistant',
-      content: 'กำลังประมวลผล...',
+      content: '',
       toolUsage: []
     });
-
-          // Send initial assistant message
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'assistant_start',
-          data: {
-            messageId: assistantMessage.id,
-            sessionId: chatId
-          }
-        }));
-      }
 
     // Get agent configuration if available
     let agentConfig = null;
