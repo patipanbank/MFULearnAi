@@ -226,9 +226,35 @@ router.get('/search/:query', authenticateJWT, async (req: any, res) => {
 });
 
 // Get popular agents
-router.get('/popular/:limit?', authenticateJWT, async (req: any, res) => {
+router.get('/popular', authenticateJWT, async (req: any, res) => {
   try {
-    const limit = req.params.limit ? parseInt(req.params.limit) : 10;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    const agents = await agentService.getPopularAgents(limit);
+    
+    return res.json({
+      success: true,
+      data: agents
+    });
+  } catch (error) {
+    console.error('❌ Error getting popular agents:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get popular agents'
+    });
+  }
+});
+
+// Get popular agents with limit parameter
+router.get('/popular/:limit', authenticateJWT, async (req: any, res) => {
+  try {
+    const limit = parseInt(req.params.limit);
+    if (isNaN(limit) || limit <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Limit must be a positive number'
+      });
+    }
+    
     const agents = await agentService.getPopularAgents(limit);
     
     return res.json({

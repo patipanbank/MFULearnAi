@@ -199,9 +199,32 @@ router.get('/search/:query', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.get('/popular/:limit?', auth_1.authenticateJWT, async (req, res) => {
+router.get('/popular', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const limit = req.params.limit ? parseInt(req.params.limit) : 10;
+        const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+        const agents = await agentService_1.agentService.getPopularAgents(limit);
+        return res.json({
+            success: true,
+            data: agents
+        });
+    }
+    catch (error) {
+        console.error('❌ Error getting popular agents:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get popular agents'
+        });
+    }
+});
+router.get('/popular/:limit', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const limit = parseInt(req.params.limit);
+        if (isNaN(limit) || limit <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Limit must be a positive number'
+            });
+        }
         const agents = await agentService_1.agentService.getPopularAgents(limit);
         return res.json({
             success: true,
