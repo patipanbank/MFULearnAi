@@ -5,7 +5,11 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import session from 'express-session';
 import passport from 'passport';
+import { createServer } from 'http';
 import authRouter from './routes/auth';
+import chatRouter from './routes/chat';
+import agentRouter from './routes/agent';
+import { WebSocketService } from './services/websocketService';
 import { connectDB } from './lib/mongodb';
 
 dotenv.config();
@@ -34,6 +38,12 @@ const apiRouter = express.Router();
 // Mount auth routes under API router
 apiRouter.use('/auth', authRouter);
 
+// Mount chat routes under API router
+apiRouter.use('/chat', chatRouter);
+
+// Mount agent routes under API router
+apiRouter.use('/agent', agentRouter);
+
 // Mount API router under /api prefix
 app.use('/api', apiRouter);
 
@@ -49,17 +59,43 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 const PORT = process.env.PORT || 3001;
 
+// Create HTTP server
+const server = createServer(app);
+
+// Initialize WebSocket service
+const wsService = new WebSocketService(server);
+
 // Connect to MongoDB and start server
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 WebSocket server available at ws://localhost:${PORT}/ws`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
 };
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  wsService.stop();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully...');
+  wsService.stop();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
 
 startServer(); 
