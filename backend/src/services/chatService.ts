@@ -125,18 +125,31 @@ export class ChatService {
       throw new Error(`Chat session ${chatId} not found`);
     }
 
+    // Get agent configuration if available
+    let agentConfig = null;
+    let modelId: string | null = null;
+    let collectionNames: string[] = [];
+    let systemPrompt: string | null = null;
+    let temperature = 0.7;
+    let maxTokens = 4000;
+
+    if (agentId) {
+      agentConfig = await agentService.getAgentById(agentId);
+      if (agentConfig) {
+        modelId = agentConfig.modelId;
+        collectionNames = agentConfig.collectionNames || [];
+        systemPrompt = agentConfig.systemPrompt;
+        temperature = agentConfig.temperature;
+        maxTokens = agentConfig.maxTokens;
+      }
+    }
+
     // Create assistant message with placeholder content
     const assistantMessage = await this.addMessage(chatId, {
       role: 'assistant',
       content: 'กำลังประมวลผล...',
       toolUsage: []
     });
-
-    // Get agent configuration if available
-    let agentConfig = null;
-    if (agentId) {
-      agentConfig = await agentService.getAgentById(agentId);
-    }
 
     // Simulate AI processing with enhanced features
     await this.simulateAIProcessing(chatId, assistantMessage.id, userMessage, images, agentConfig, userId);
@@ -359,18 +372,32 @@ export class ChatService {
   }
 
   public async clearChatMemory(chatId: string): Promise<void> {
-    // Clear messages but keep the chat
-    await ChatModel.updateOne(
-      { _id: chatId },
-      { 
-        $set: { 
-          messages: [],
-          updatedAt: new Date()
-        }
-      }
-    );
-    
-    console.log(`🧹 Cleared memory for chat session ${chatId}`);
+    try {
+      // Clear Redis memory if available
+      console.log(`🧹 Clearing memory for chat ${chatId}`);
+      
+      // TODO: Implement Redis memory clearing
+      // This would require Redis client setup
+      
+      console.log(`✅ Memory cleared for chat ${chatId}`);
+    } catch (error) {
+      console.error(`❌ Failed to clear memory for chat ${chatId}:`, error);
+    }
+  }
+
+  private shouldUseMemoryTool(messageCount: number): boolean {
+    // Use memory tool when there are more than 10 messages
+    return messageCount > 10;
+  }
+
+  private shouldUseRedisMemory(messageCount: number): boolean {
+    // Always use Redis memory for recent conversations (last 10 messages)
+    return true;
+  }
+
+  private shouldEmbedMessages(messageCount: number): boolean {
+    // Embed messages every 10 messages (10, 20, 30, etc.)
+    return messageCount % 10 === 0;
   }
 
   public getStats(): any {

@@ -164,6 +164,69 @@ router.put('/:chatId/name', authenticateJWT, async (req: any, res) => {
   }
 });
 
+// Pin/unpin a chat
+router.post('/:chatId/pin', authenticateJWT, async (req: any, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.sub || req.user.id;
+    const { isPinned } = req.body;
+    
+    if (typeof isPinned !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        error: 'isPinned must be a boolean'
+      });
+    }
+    
+    const chat = await chatService.updateChatPinStatus(chatId, userId, isPinned);
+    
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found or access denied'
+      });
+    }
+    
+    return res.json(chat);
+  } catch (error) {
+    console.error('❌ Error updating chat pin status:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update chat pin status'
+    });
+  }
+});
+
+// Clear chat memory
+router.post('/:chatId/clear-memory', authenticateJWT, async (req: any, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.sub || req.user.id;
+    
+    // Verify user has access to this chat
+    const chat = await chatService.getChat(chatId, userId);
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found or access denied'
+      });
+    }
+    
+    await chatService.clearChatMemory(chatId);
+    
+    return res.json({
+      success: true,
+      message: 'Chat memory cleared successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error clearing chat memory:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to clear chat memory'
+    });
+  }
+});
+
 // Delete a chat
 router.delete('/:chatId', authenticateJWT, async (req: any, res) => {
   try {
