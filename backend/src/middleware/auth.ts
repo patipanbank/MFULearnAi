@@ -22,9 +22,11 @@ export const authenticateJWT = (req: AuthenticatedRequest, res: Response, next: 
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET) as any;
+    console.log('🔐 JWT decoded:', JSON.stringify(decoded, null, 2));
     req.user = decoded;
     return next();
   } catch (error) {
+    console.error('❌ JWT verification failed:', error);
     return res.status(401).json({ detail: 'Invalid token' });
   }
 };
