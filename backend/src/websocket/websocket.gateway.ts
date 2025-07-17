@@ -80,15 +80,11 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     // Initialize Redis PubSub service with Socket.IO server
     this.redisPubSubService.setSocketServer(server);
     this.logger.log('🔌 WebSocket Gateway initialized with Redis PubSub service (afterInit)');
-    
-    // Debug: Log server info
-    this.logger.log(`🔌 WebSocket Server initialized with ${server.engine.clientsCount} clients`);
   }
 
   async handleConnection(client: Socket) {
     try {
       this.logger.log(`🌐 WebSocket connection attempt from: ${client.id}`);
-      this.logger.log(`🌐 Connection details: auth=${JSON.stringify(client.handshake.auth)}, query=${JSON.stringify(client.handshake.query)}`);
       let token: string | undefined = undefined;
       if (client.handshake.auth && client.handshake.auth.token) {
         token = client.handshake.auth.token as string;
@@ -120,7 +116,6 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         };
         await this.webSocketService.handleConnection(client, userId, client.data.userInfo);
         this.logger.log(`✅ WebSocket authenticated for user: ${userId}`);
-        this.logger.log(`✅ Client ${client.id} connected successfully`);
         client.emit('connected', { type: 'connected', data: { userId, message: 'WebSocket connected successfully' } });
       } catch (error) {
         this.logger.error(`❌ JWT validation error: ${error.message}`);
@@ -137,7 +132,6 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   async handleDisconnect(client: Socket) {
     try {
-      this.logger.log(`🔌 Disconnect attempt from: ${client.id}`);
       await this.webSocketService.handleDisconnection(client);
       this.logger.log(`🔌 Disconnected: ${client.id}`);
     } catch (error) {
@@ -214,7 +208,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @ConnectedSocket() client: Socket,
   ) {
     // เพิ่ม log สำหรับ debug
-    this.logger.log(`[WS] handleCreateRoom: START - userId=${client.data.userId}, data=${JSON.stringify(data)}`);
+    this.logger.log(`[WS] handleCreateRoom: userId=${client.data.userId}, data=${JSON.stringify(data)}`);
     try {
       const userId = client.data.userId;
       this.logger.log(`[WS] create_room: userId=${userId}, data=${JSON.stringify(data)}`);
@@ -393,7 +387,7 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @ConnectedSocket() client: Socket,
   ) {
     // เพิ่ม log สำหรับ debug
-    this.logger.log(`[WS] handleMessageEvent: START - userId=${client.data.userId}, data=${JSON.stringify(data)}`);
+    this.logger.log(`[WS] handleMessageEvent: userId=${client.data.userId}, data=${JSON.stringify(data)}`);
     // รองรับ payload: { type: 'message', text, images, chatId, agent_id }
     try {
       const userId = client.data.userId;
