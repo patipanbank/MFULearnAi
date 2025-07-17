@@ -10,10 +10,8 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     const userId = req.user.id;
     const chats = await chatService.getUserChats(userId);
     
-    return res.json({
-      success: true,
-      data: chats
-    });
+    // Return array directly for frontend compatibility
+    return res.json(chats);
   } catch (error) {
     console.error('❌ Error getting user chats:', error);
     return res.status(500).json({
@@ -29,10 +27,8 @@ router.get('/history', authenticateJWT, async (req: any, res) => {
     const userId = req.user.id;
     const chats = await chatService.getUserChats(userId);
     
-    return res.json({
-      success: true,
-      data: chats
-    });
+    // Return array directly for frontend compatibility
+    return res.json(chats);
   } catch (error) {
     console.error('❌ Error getting chat history:', error);
     return res.status(500).json({
@@ -57,10 +53,8 @@ router.get('/:chatId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
-      success: true,
-      data: chat
-    });
+    // Return chat object directly for frontend compatibility
+    return res.json(chat);
   } catch (error) {
     console.error('❌ Error getting chat:', error);
     return res.status(500).json({
@@ -78,10 +72,8 @@ router.post('/', authenticateJWT, async (req: any, res) => {
     
     const chat = await chatService.createChat(userId, name || 'New Chat', agentId);
     
-    return res.status(201).json({
-      success: true,
-      data: chat
-    });
+    // Return chat object directly for frontend compatibility
+    return res.status(201).json(chat);
   } catch (error) {
     console.error('❌ Error creating chat:', error);
     return res.status(500).json({
@@ -114,10 +106,8 @@ router.put('/:chatId/name', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
-      success: true,
-      data: chat
-    });
+    // Return chat object directly for frontend compatibility
+    return res.json(chat);
   } catch (error) {
     console.error('❌ Error updating chat name:', error);
     return res.status(500).json({

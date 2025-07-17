@@ -11,10 +11,7 @@ router.get('/', auth_1.authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.id;
         const chats = await chatService_1.chatService.getUserChats(userId);
-        return res.json({
-            success: true,
-            data: chats
-        });
+        return res.json(chats);
     }
     catch (error) {
         console.error('❌ Error getting user chats:', error);
@@ -28,10 +25,7 @@ router.get('/history', auth_1.authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.id;
         const chats = await chatService_1.chatService.getUserChats(userId);
-        return res.json({
-            success: true,
-            data: chats
-        });
+        return res.json(chats);
     }
     catch (error) {
         console.error('❌ Error getting chat history:', error);
@@ -52,10 +46,7 @@ router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
                 error: 'Chat not found or access denied'
             });
         }
-        return res.json({
-            success: true,
-            data: chat
-        });
+        return res.json(chat);
     }
     catch (error) {
         console.error('❌ Error getting chat:', error);
@@ -70,10 +61,7 @@ router.post('/', auth_1.authenticateJWT, async (req, res) => {
         const userId = req.user.id;
         const { name, agentId } = req.body;
         const chat = await chatService_1.chatService.createChat(userId, name || 'New Chat', agentId);
-        return res.status(201).json({
-            success: true,
-            data: chat
-        });
+        return res.status(201).json(chat);
     }
     catch (error) {
         console.error('❌ Error creating chat:', error);
@@ -101,10 +89,7 @@ router.put('/:chatId/name', auth_1.authenticateJWT, async (req, res) => {
                 error: 'Chat not found or access denied'
             });
         }
-        return res.json({
-            success: true,
-            data: chat
-        });
+        return res.json(chat);
     }
     catch (error) {
         console.error('❌ Error updating chat name:', error);
