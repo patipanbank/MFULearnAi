@@ -193,11 +193,7 @@ class ChatService {
             if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                 websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
                     type: 'chunk',
-                    data: {
-                        messageId,
-                        chunk,
-                        fullContent
-                    }
+                    data: chunk
                 }));
             }
             await this.delay(100);

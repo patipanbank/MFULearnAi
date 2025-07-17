@@ -230,15 +230,27 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         if (data.type === 'chunk') {
           const session = currentSessionRef.current;
           const lastMessage = session?.messages[session.messages.length - 1];
+          
+          // Handle both string and object chunk data
+          let chunkText = '';
+          if (typeof data.data === 'string') {
+            chunkText = data.data;
+          } else if (typeof data.data === 'object' && data.data !== null) {
+            // Handle object format from new backend
+            chunkText = data.data.chunk || data.data.fullContent || JSON.stringify(data.data);
+          } else {
+            chunkText = String(data.data);
+          }
+          
           if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
             updateMessage(lastMessage.id, {
-              content: lastMessage.content + data.data
+              content: lastMessage.content + chunkText
             });
           } else {
             const assistantMsg: ChatMessage = {
               id: Date.now().toString() + '_assistant',
               role: 'assistant',
-              content: data.data,
+              content: chunkText,
               timestamp: new Date(),
               isStreaming: true,
               isComplete: false

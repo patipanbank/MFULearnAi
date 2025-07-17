@@ -255,11 +255,7 @@ export class ChatService {
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
         wsManager.broadcastToSession(chatId, JSON.stringify({
           type: 'chunk',
-          data: {
-            messageId,
-            chunk,
-            fullContent
-          }
+          data: chunk
         }));
       }
 

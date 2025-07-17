@@ -9,7 +9,7 @@ const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 router.get('/', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.sub || req.user.id;
         const chats = await chatService_1.chatService.getUserChats(userId);
         return res.json(chats);
     }
@@ -23,7 +23,7 @@ router.get('/', auth_1.authenticateJWT, async (req, res) => {
 });
 router.get('/history', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.sub || req.user.id;
         const chats = await chatService_1.chatService.getUserChats(userId);
         return res.json(chats);
     }
@@ -38,7 +38,7 @@ router.get('/history', auth_1.authenticateJWT, async (req, res) => {
 router.get('/history/:sessionId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const userId = req.user.id;
+        const userId = req.user.sub || req.user.id;
         console.log(`📥 GET /history/${sessionId} for user: ${userId}`);
         if (!sessionId || sessionId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(sessionId)) {
             console.log(`❌ Invalid session ID format: ${sessionId}`);
@@ -69,7 +69,7 @@ router.get('/history/:sessionId', auth_1.authenticateJWT, async (req, res) => {
 router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
-        const userId = req.user.id;
+        const userId = req.user.sub || req.user.id;
         if (!chatId || chatId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(chatId)) {
             return res.status(400).json({
                 success: false,
@@ -95,7 +95,7 @@ router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
 });
 router.post('/', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.sub || req.user.id;
         const { name, agentId } = req.body;
         const chat = await chatService_1.chatService.createChat(userId, name || 'New Chat', agentId);
         return res.status(201).json(chat);
@@ -111,7 +111,7 @@ router.post('/', auth_1.authenticateJWT, async (req, res) => {
 router.put('/:chatId/name', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
-        const userId = req.user.id;
+        const userId = req.user.sub || req.user.id;
         const { name } = req.body;
         if (!name || typeof name !== 'string') {
             return res.status(400).json({
@@ -139,7 +139,7 @@ router.put('/:chatId/name', auth_1.authenticateJWT, async (req, res) => {
 router.delete('/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
-        const userId = req.user.id;
+        const userId = req.user.sub || req.user.id;
         const success = await chatService_1.chatService.deleteChat(chatId, userId);
         if (!success) {
             return res.status(404).json({

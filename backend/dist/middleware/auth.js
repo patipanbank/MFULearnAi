@@ -21,10 +21,12 @@ const authenticateJWT = (req, res, next) => {
     const token = authHeader.split(' ')[1];
     try {
         const decoded = jsonwebtoken_1.default.verify(token, config_1.default.JWT_SECRET);
+        console.log('🔐 JWT decoded:', JSON.stringify(decoded, null, 2));
         req.user = decoded;
         return next();
     }
     catch (error) {
+        console.error('❌ JWT verification failed:', error);
         return res.status(401).json({ detail: 'Invalid token' });
     }
 };
