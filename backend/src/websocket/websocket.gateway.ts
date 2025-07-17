@@ -81,8 +81,9 @@ export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.redisPubSubService.setSocketServer(server);
     this.logger.log('🔌 WebSocket Gateway initialized with Redis PubSub service (afterInit)');
     
-    // Debug: Log server info
-    this.logger.log(`🔌 WebSocket Server initialized with ${server.engine.clientsCount} clients`);
+    // Debug: Log server info - add null check for server.engine
+    const clientsCount = server.engine?.clientsCount || 0;
+    this.logger.log(`🔌 WebSocket Server initialized with ${clientsCount} clients`);
   }
 
   async handleConnection(client: Socket) {
