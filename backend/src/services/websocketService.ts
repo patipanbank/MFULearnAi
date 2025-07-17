@@ -301,7 +301,7 @@ export class WebSocketService {
       if (currentChatId) {
         wsManager.leaveSession(connectionId);
       }
-      currentChatId = incomingChatId;
+      currentChatId = incomingChatId as string;
       userSession.sessionId = currentChatId;
       wsManager.joinSession(connectionId, currentChatId);
     }
