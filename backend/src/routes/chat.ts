@@ -38,11 +38,19 @@ router.get('/history', authenticateJWT, async (req: any, res) => {
   }
 });
 
-// Get a specific chat by ID
+// Get a specific chat by ID (must come after /history route)
 router.get('/:chatId', authenticateJWT, async (req: any, res) => {
   try {
     const { chatId } = req.params;
     const userId = req.user.id;
+    
+    // Validate chatId format (should be 24 character hex string)
+    if (!chatId || chatId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(chatId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid chat ID format'
+      });
+    }
     
     const chat = await chatService.getChat(chatId, userId);
     

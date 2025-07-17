@@ -59,13 +59,16 @@ export class ChatService {
       });
 
       // Send user message to all clients in the session
-      wsManager.broadcastToSession(chatId, JSON.stringify({
-        type: 'user_message',
-        data: {
-          message: userMessage,
-          sessionId: chatId
-        }
-      }));
+      // Only broadcast if there are active connections
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'user_message',
+          data: {
+            message: userMessage,
+            sessionId: chatId
+          }
+        }));
+      }
 
       // Get chat and agent info
       const chat = await ChatModel.findById(chatId);
@@ -80,10 +83,12 @@ export class ChatService {
       console.error('❌ Error processing message:', error);
       
       // Send error to client
-      wsManager.broadcastToSession(chatId, JSON.stringify({
-        type: 'error',
-        data: 'Failed to process message'
-      }));
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'error',
+          data: 'Failed to process message'
+        }));
+      }
     }
   }
 
@@ -100,14 +105,16 @@ export class ChatService {
       toolUsage: []
     });
 
-    // Send initial assistant message
-    wsManager.broadcastToSession(chatId, JSON.stringify({
-      type: 'assistant_start',
-      data: {
-        messageId: assistantMessage.id,
-        sessionId: chatId
+          // Send initial assistant message
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'assistant_start',
+          data: {
+            messageId: assistantMessage.id,
+            sessionId: chatId
+          }
+        }));
       }
-    }));
 
     // Get agent configuration if available
     let agentConfig = null;
@@ -142,15 +149,17 @@ export class ChatService {
     }
 
     // Mark as complete
-    wsManager.broadcastToSession(chatId, JSON.stringify({
-      type: 'end',
-      data: {
-        messageId,
-        sessionId: chatId,
-        inputTokens,
-        outputTokens
-      }
-    }));
+    if (wsManager.getSessionConnectionCount(chatId) > 0) {
+      wsManager.broadcastToSession(chatId, JSON.stringify({
+        type: 'end',
+        data: {
+          messageId,
+          sessionId: chatId,
+          inputTokens,
+          outputTokens
+        }
+      }));
+    }
   }
 
   private async simulateToolUsage(chatId: string, messageId: string, userMessage: string, agentConfig?: any): Promise<string[]> {
@@ -177,28 +186,32 @@ export class ChatService {
 
   private async simulateToolExecution(chatId: string, messageId: string, toolName: string, input: string, output: string): Promise<void> {
     // Send tool start
-    wsManager.broadcastToSession(chatId, JSON.stringify({
-      type: 'tool_start',
-      data: {
-        messageId,
-        tool_name: toolName,
-        tool_input: input,
-        timestamp: new Date()
-      }
-    }));
+    if (wsManager.getSessionConnectionCount(chatId) > 0) {
+      wsManager.broadcastToSession(chatId, JSON.stringify({
+        type: 'tool_start',
+        data: {
+          messageId,
+          tool_name: toolName,
+          tool_input: input,
+          timestamp: new Date()
+        }
+      }));
+    }
 
     await this.delay(500);
 
     // Send tool result
-    wsManager.broadcastToSession(chatId, JSON.stringify({
-      type: 'tool_result',
-      data: {
-        messageId,
-        tool_name: toolName,
-        output: output,
-        timestamp: new Date()
-      }
-    }));
+    if (wsManager.getSessionConnectionCount(chatId) > 0) {
+      wsManager.broadcastToSession(chatId, JSON.stringify({
+        type: 'tool_result',
+        data: {
+          messageId,
+          tool_name: toolName,
+          output: output,
+          timestamp: new Date()
+        }
+      }));
+    }
 
     await this.delay(300);
   }
@@ -222,14 +235,16 @@ export class ChatService {
         }
       );
       
-      wsManager.broadcastToSession(chatId, JSON.stringify({
-        type: 'chunk',
-        data: {
-          messageId,
-          chunk,
-          fullContent
-        }
-      }));
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'chunk',
+          data: {
+            messageId,
+            chunk,
+            fullContent
+          }
+        }));
+      }
 
       await this.delay(100);
     }

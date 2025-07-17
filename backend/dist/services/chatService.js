@@ -49,13 +49,15 @@ class ChatService {
                 content,
                 images
             });
-            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                type: 'user_message',
-                data: {
-                    message: userMessage,
-                    sessionId: chatId
-                }
-            }));
+            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                    type: 'user_message',
+                    data: {
+                        message: userMessage,
+                        sessionId: chatId
+                    }
+                }));
+            }
             const chat = await chat_1.ChatModel.findById(chatId);
             if (!chat) {
                 throw new Error(`Chat session ${chatId} not found`);
@@ -64,10 +66,12 @@ class ChatService {
         }
         catch (error) {
             console.error('❌ Error processing message:', error);
-            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                type: 'error',
-                data: 'Failed to process message'
-            }));
+            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                    type: 'error',
+                    data: 'Failed to process message'
+                }));
+            }
         }
     }
     async processWithAI(chatId, userMessage, images, agentId, userId) {
@@ -80,13 +84,15 @@ class ChatService {
             content: 'กำลังประมวลผล...',
             toolUsage: []
         });
-        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-            type: 'assistant_start',
-            data: {
-                messageId: assistantMessage.id,
-                sessionId: chatId
-            }
-        }));
+        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'assistant_start',
+                data: {
+                    messageId: assistantMessage.id,
+                    sessionId: chatId
+                }
+            }));
+        }
         let agentConfig = null;
         if (agentId) {
             agentConfig = await agentService_1.agentService.getAgentById(agentId);
@@ -103,15 +109,17 @@ class ChatService {
         if (userId) {
             await usageService_1.usageService.updateUsage(userId, inputTokens, outputTokens);
         }
-        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-            type: 'end',
-            data: {
-                messageId,
-                sessionId: chatId,
-                inputTokens,
-                outputTokens
-            }
-        }));
+        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'end',
+                data: {
+                    messageId,
+                    sessionId: chatId,
+                    inputTokens,
+                    outputTokens
+                }
+            }));
+        }
     }
     async simulateToolUsage(chatId, messageId, userMessage, agentConfig) {
         const toolsUsed = [];
@@ -130,25 +138,29 @@ class ChatService {
         return toolsUsed;
     }
     async simulateToolExecution(chatId, messageId, toolName, input, output) {
-        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-            type: 'tool_start',
-            data: {
-                messageId,
-                tool_name: toolName,
-                tool_input: input,
-                timestamp: new Date()
-            }
-        }));
+        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'tool_start',
+                data: {
+                    messageId,
+                    tool_name: toolName,
+                    tool_input: input,
+                    timestamp: new Date()
+                }
+            }));
+        }
         await this.delay(500);
-        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-            type: 'tool_result',
-            data: {
-                messageId,
-                tool_name: toolName,
-                output: output,
-                timestamp: new Date()
-            }
-        }));
+        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'tool_result',
+                data: {
+                    messageId,
+                    tool_name: toolName,
+                    output: output,
+                    timestamp: new Date()
+                }
+            }));
+        }
         await this.delay(300);
     }
     async streamResponse(chatId, messageId, response) {
@@ -163,14 +175,16 @@ class ChatService {
                     updatedAt: new Date()
                 }
             });
-            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                type: 'chunk',
-                data: {
-                    messageId,
-                    chunk,
-                    fullContent
-                }
-            }));
+            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                    type: 'chunk',
+                    data: {
+                        messageId,
+                        chunk,
+                        fullContent
+                    }
+                }));
+            }
             await this.delay(100);
         }
     }

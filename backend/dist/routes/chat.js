@@ -39,6 +39,12 @@ router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const userId = req.user.id;
+        if (!chatId || chatId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(chatId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid chat ID format'
+            });
+        }
         const chat = await chatService_1.chatService.getChat(chatId, userId);
         if (!chat) {
             return res.status(404).json({
