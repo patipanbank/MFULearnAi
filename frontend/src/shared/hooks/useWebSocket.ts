@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useChatStore, useUIStore } from '../stores';
 import { config } from '../../config/config';
@@ -27,7 +27,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const pendingQueueRef = useRef<any[]>([]);
   const pendingFirstRef = useRef<{ text: string; images: any[]; agentId: string } | null>(null);
   const currentSessionRef = useRef(currentSession);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Update currentSessionRef when currentSession changes
   useEffect(() => {
