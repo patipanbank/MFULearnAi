@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument } from '../models/user.model';
+import { User, UserDocument, UserRole } from '../models/user.model';
 import { DepartmentService } from '../department/department.service';
 
 export interface SAMLUserProfile {
@@ -104,20 +104,17 @@ export class UserService {
     }
   }
 
-  private determineUserRole(groups: string[]): string {
+  private determineUserRole(groups: string[]): UserRole {
     // Map SAML group SIDs to user roles (like backendfast)
     // The original backendfast code has a specific group ID for students
     const isStudent = groups.some(g => g === 'S-1-5-21-893890582-1041674030-1199480097-43779');
-    
     if (isStudent) {
-      return 'STUDENTS';
+      return UserRole.STUDENTS;
     }
-    
     // Add more SID mappings as needed
-    // Example: if (groups.some(g => g === 'S-1-5-21-893890582-1041674030-1199480097-513')) return 'STAFFS';
-    
+    // Example: if (groups.some(g => g === 'S-1-5-21-893890582-1041674030-1199480097-513')) return UserRole.STAFFS;
     // Default role (like backendfast) - STAFFS for non-student SIDs
-    return 'STAFFS';
+    return UserRole.STAFFS;
   }
 
   async findUserByNameID(nameID: string): Promise<User | null> {
