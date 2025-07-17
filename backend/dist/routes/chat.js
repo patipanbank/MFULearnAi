@@ -35,6 +35,33 @@ router.get('/history', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
+router.get('/history/:sessionId', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const userId = req.user.id;
+        if (!sessionId || sessionId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(sessionId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid session ID format'
+            });
+        }
+        const chat = await chatService_1.chatService.getChat(sessionId, userId);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                error: 'Chat not found or access denied'
+            });
+        }
+        return res.json(chat);
+    }
+    catch (error) {
+        console.error('❌ Error getting chat history:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get chat history'
+        });
+    }
+});
 router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;

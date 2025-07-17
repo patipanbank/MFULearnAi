@@ -38,6 +38,40 @@ router.get('/history', authenticateJWT, async (req: any, res) => {
   }
 });
 
+// Get specific chat history by session ID (must come before /:chatId route)
+router.get('/history/:sessionId', authenticateJWT, async (req: any, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id;
+    
+    // Validate sessionId format (should be 24 character hex string)
+    if (!sessionId || sessionId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(sessionId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid session ID format'
+      });
+    }
+    
+    const chat = await chatService.getChat(sessionId, userId);
+    
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found or access denied'
+      });
+    }
+    
+    // Return chat object directly for frontend compatibility
+    return res.json(chat);
+  } catch (error) {
+    console.error('❌ Error getting chat history:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get chat history'
+    });
+  }
+});
+
 // Get a specific chat by ID (must come after /history route)
 router.get('/:chatId', authenticateJWT, async (req: any, res) => {
   try {
