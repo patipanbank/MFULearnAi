@@ -55,7 +55,7 @@ interface SendMessageMessage {
     origin: process.env.CORS_ORIGIN || 'https://mfulearnai.mfu.ac.th',
     credentials: true,
   },
-  // ลบ namespace:/ws' ออกเพื่อให้ใช้ root namespace
+  namespace: '/ws',
 })
 export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer()
