@@ -130,7 +130,39 @@ router.post('/', authenticateJWT, async (req: any, res) => {
   }
 });
 
-// Update chat name
+// Update chat name (legacy endpoint)
+router.post('/update-name', authenticateJWT, async (req: any, res) => {
+  try {
+    const { chat_id, name } = req.body;
+    const userId = req.user.sub || req.user.id;
+    
+    if (!chat_id || !name || typeof name !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'chat_id and name are required'
+      });
+    }
+    
+    const chat = await chatService.updateChatName(chat_id, userId, name);
+    
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found or access denied'
+      });
+    }
+    
+    return res.json(chat);
+  } catch (error) {
+    console.error('❌ Error updating chat name:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update chat name'
+    });
+  }
+});
+
+// Update chat name (new endpoint)
 router.put('/:chatId/name', authenticateJWT, async (req: any, res) => {
   try {
     const { chatId } = req.params;
@@ -153,7 +185,6 @@ router.put('/:chatId/name', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    // Return chat object directly for frontend compatibility
     return res.json(chat);
   } catch (error) {
     console.error('❌ Error updating chat name:', error);
@@ -251,6 +282,32 @@ router.delete('/:chatId', authenticateJWT, async (req: any, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to delete chat'
+    });
+  }
+});
+
+// Get memory statistics (admin only)
+router.get('/memory/stats', authenticateJWT, async (req: any, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+    
+    const stats = chatService.getStats();
+    
+    return res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('❌ Error getting memory stats:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get memory statistics'
     });
   }
 });

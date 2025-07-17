@@ -13,14 +13,6 @@ export interface ChatMessage {
   images?: ImagePayload[];
   isStreaming?: boolean;
   isComplete?: boolean;
-  toolUsage?: Array<{
-    type: 'tool_start' | 'tool_result' | 'tool_error';
-    tool_name: string;
-    tool_input?: string;
-    output?: string;
-    error?: string;
-    timestamp: Date;
-  }>;
 }
 
 export interface Chat extends Document {
@@ -40,18 +32,7 @@ const ImagePayloadSchema = new Schema<ImagePayload>({
   mediaType: { type: String, required: true }
 });
 
-const ToolUsageSchema = new Schema({
-  type: { 
-    type: String, 
-    enum: ['tool_start', 'tool_result', 'tool_error'], 
-    required: true 
-  },
-  tool_name: { type: String, required: true },
-  tool_input: String,
-  output: String,
-  error: String,
-  timestamp: { type: Date, default: Date.now }
-});
+
 
 const ChatMessageSchema = new Schema<ChatMessage>({
   id: { type: String, required: true },
@@ -74,8 +55,7 @@ const ChatMessageSchema = new Schema<ChatMessage>({
   timestamp: { type: Date, default: Date.now },
   images: [ImagePayloadSchema],
   isStreaming: Boolean,
-  isComplete: Boolean,
-  toolUsage: [ToolUsageSchema]
+  isComplete: Boolean
 });
 
 const ChatSchema = new Schema<Chat>({

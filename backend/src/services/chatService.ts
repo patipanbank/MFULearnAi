@@ -80,16 +80,46 @@ export class ChatService {
         images
       });
 
-
-
       // Get chat and agent info
       const chat = await ChatModel.findById(chatId);
       if (!chat) {
         throw new Error(`Chat session ${chatId} not found`);
       }
 
-      // Process with AI agent
-      await this.processWithAI(chatId, content, images, chat.agentId, userId);
+      // Get agent configuration if available
+      let agentConfig = null;
+      let modelId: string | null = null;
+      let collectionNames: string[] = [];
+      let systemPrompt: string | null = null;
+      let temperature = 0.7;
+      let maxTokens = 4000;
+
+      if (chat.agentId) {
+        agentConfig = await agentService.getAgentById(chat.agentId);
+        if (agentConfig) {
+          modelId = agentConfig.modelId;
+          collectionNames = agentConfig.collectionNames || [];
+          systemPrompt = agentConfig.systemPrompt;
+          temperature = agentConfig.temperature;
+          maxTokens = agentConfig.maxTokens;
+        }
+      }
+
+      // Create assistant message with placeholder content
+      const assistantMessage = await this.addMessage(chatId, {
+        role: 'assistant',
+        content: 'กำลังประมวลผล...'
+      });
+
+      // Process with AI agent using legacy-style processing
+      await this.processWithAILegacy(chatId, assistantMessage.id, content, images, {
+        modelId,
+        collectionNames,
+        systemPrompt,
+        temperature,
+        maxTokens,
+        agentId: chat.agentId
+      }, userId);
 
     } catch (error) {
       console.error('❌ Error processing message:', error);
@@ -119,131 +149,61 @@ export class ChatService {
     }
   }
 
-  private async processWithAI(chatId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, agentId?: string, userId?: string): Promise<void> {
-    const chat = await ChatModel.findById(chatId);
-    if (!chat) {
-      throw new Error(`Chat session ${chatId} not found`);
-    }
+  private async processWithAILegacy(chatId: string, messageId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
+    modelId?: string | null;
+    collectionNames?: string[];
+    systemPrompt?: string | null;
+    temperature?: number;
+    maxTokens?: number;
+    agentId?: string;
+  }, userId?: string): Promise<void> {
+    try {
+      // Simulate thinking time
+      await this.delay(1000);
 
-    // Get agent configuration if available
-    let agentConfig = null;
-    let modelId: string | null = null;
-    let collectionNames: string[] = [];
-    let systemPrompt: string | null = null;
-    let temperature = 0.7;
-    let maxTokens = 4000;
+      // Generate response based on configuration
+      const response = this.generateResponse(userMessage, images, config);
+      
+      // Stream response
+      await this.streamResponse(chatId, messageId, response);
 
-    if (agentId) {
-      agentConfig = await agentService.getAgentById(agentId);
-      if (agentConfig) {
-        modelId = agentConfig.modelId;
-        collectionNames = agentConfig.collectionNames || [];
-        systemPrompt = agentConfig.systemPrompt;
-        temperature = agentConfig.temperature;
-        maxTokens = agentConfig.maxTokens;
+      // Calculate tokens and update usage
+      const inputTokens = Math.floor(userMessage.length / 4);
+      const outputTokens = Math.floor(response.length / 4);
+      
+      // Update usage statistics if userId is available
+      if (userId) {
+        await usageService.updateUsage(userId, inputTokens, outputTokens);
+      }
+
+      // Mark as complete
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'end',
+          data: {
+            messageId,
+            sessionId: chatId,
+            inputTokens,
+            outputTokens
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('❌ Error in AI processing:', error);
+      
+      // Send error to client
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'error',
+          data: 'Failed to process AI response'
+        }));
       }
     }
-
-    // Create assistant message with placeholder content
-    const assistantMessage = await this.addMessage(chatId, {
-      role: 'assistant',
-      content: 'กำลังประมวลผล...',
-      toolUsage: []
-    });
-
-    // Simulate AI processing with enhanced features
-    await this.simulateAIProcessing(chatId, assistantMessage.id, userMessage, images, agentConfig, userId);
   }
 
-  private async simulateAIProcessing(chatId: string, messageId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, agentConfig?: any, userId?: string): Promise<void> {
-    // Simulate thinking time
-    await this.delay(1000);
 
-    // Simulate tool usage based on message content
-    const toolsUsed = await this.simulateToolUsage(chatId, messageId, userMessage, agentConfig);
 
-    // Generate response based on agent configuration
-    const response = this.generateResponse(userMessage, images, agentConfig, toolsUsed);
-    
-    // Stream response with enhanced features
-    await this.streamResponse(chatId, messageId, response);
 
-    // Calculate tokens and update usage
-    const inputTokens = Math.floor(userMessage.length / 4);
-    const outputTokens = Math.floor(response.length / 4);
-    
-    // Update usage statistics if userId is available
-    if (userId) {
-      await usageService.updateUsage(userId, inputTokens, outputTokens);
-    }
-
-    // Mark as complete
-    if (wsManager.getSessionConnectionCount(chatId) > 0) {
-      wsManager.broadcastToSession(chatId, JSON.stringify({
-        type: 'end',
-        data: {
-          messageId,
-          sessionId: chatId,
-          inputTokens,
-          outputTokens
-        }
-      }));
-    }
-  }
-
-  private async simulateToolUsage(chatId: string, messageId: string, userMessage: string, agentConfig?: any): Promise<string[]> {
-    const toolsUsed: string[] = [];
-    
-    // Simulate different tools based on message content
-    if (userMessage.toLowerCase().includes('search') || userMessage.toLowerCase().includes('find')) {
-      toolsUsed.push('web_search');
-      await this.simulateToolExecution(chatId, messageId, 'web_search', 'Searching for information...', 'Found relevant information about the topic.');
-    }
-    
-    if (userMessage.toLowerCase().includes('calculate') || userMessage.toLowerCase().includes('math')) {
-      toolsUsed.push('calculator');
-      await this.simulateToolExecution(chatId, messageId, 'calculator', 'Performing calculation...', 'Calculation completed successfully.');
-    }
-    
-    if (userMessage.toLowerCase().includes('knowledge') || userMessage.toLowerCase().includes('database')) {
-      toolsUsed.push('knowledge_base');
-      await this.simulateToolExecution(chatId, messageId, 'knowledge_base', 'Searching knowledge base...', 'Retrieved relevant information from knowledge base.');
-    }
-
-    return toolsUsed;
-  }
-
-  private async simulateToolExecution(chatId: string, messageId: string, toolName: string, input: string, output: string): Promise<void> {
-    // Send tool start
-    if (wsManager.getSessionConnectionCount(chatId) > 0) {
-      wsManager.broadcastToSession(chatId, JSON.stringify({
-        type: 'tool_start',
-        data: {
-          messageId,
-          tool_name: toolName,
-          tool_input: input,
-          timestamp: new Date()
-        }
-      }));
-    }
-
-    await this.delay(500);
-
-    // Send tool result
-    if (wsManager.getSessionConnectionCount(chatId) > 0) {
-      wsManager.broadcastToSession(chatId, JSON.stringify({
-        type: 'tool_result',
-        data: {
-          messageId,
-          tool_name: toolName,
-          output: output,
-          timestamp: new Date()
-        }
-      }));
-    }
-
-    await this.delay(300);
-  }
 
   private async streamResponse(chatId: string, messageId: string, response: string): Promise<void> {
     const words = response.split(' ');
@@ -275,16 +235,23 @@ export class ChatService {
     }
   }
 
-  private generateResponse(userMessage: string, images?: Array<{ url: string; mediaType: string }>, agentConfig?: any, toolsUsed?: string[]): string {
-    // Use agent-specific response if available
-    if (agentConfig?.systemPrompt) {
+  private generateResponse(userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
+    modelId?: string | null;
+    collectionNames?: string[];
+    systemPrompt?: string | null;
+    temperature?: number;
+    maxTokens?: number;
+    agentId?: string;
+  }): string {
+    // Use system prompt if available
+    if (config?.systemPrompt) {
       const responses = [
-        `ตามที่กำหนดในระบบ: ${agentConfig.systemPrompt}\n\nสำหรับคำถาม "${userMessage}" นี่คือคำตอบ:`,
-        `ตามแนวทางของ ${agentConfig.name || 'AI Assistant'}: ${agentConfig.systemPrompt}\n\nคำตอบสำหรับ "${userMessage}":`
+        `ตามที่กำหนดในระบบ: ${config.systemPrompt}\n\nสำหรับคำถาม "${userMessage}" นี่คือคำตอบ:`,
+        `ตามแนวทางของ AI Assistant: ${config.systemPrompt}\n\nคำตอบสำหรับ "${userMessage}":`
       ];
       
       const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-      return `${baseResponse} ${this.generateDetailedResponse(toolsUsed)}`;
+      return `${baseResponse} ${this.generateDetailedResponse()}`;
     }
 
     // Default responses
@@ -298,23 +265,18 @@ export class ChatService {
     const baseResponse = responses[Math.floor(Math.random() * responses.length)];
     
     if (images && images.length > 0) {
-      return `${baseResponse} ฉันเห็นว่าคุณได้แนบรูปภาพมาด้วย ฉันจะวิเคราะห์ทั้งข้อความและรูปภาพเพื่อให้คำตอบที่ครบถ้วนที่สุด. ${this.generateDetailedResponse(toolsUsed)}`;
+      return `${baseResponse} ฉันเห็นว่าคุณได้แนบรูปภาพมาด้วย ฉันจะวิเคราะห์ทั้งข้อความและรูปภาพเพื่อให้คำตอบที่ครบถ้วนที่สุด. ${this.generateDetailedResponse()}`;
     }
 
-    return `${baseResponse} ${this.generateDetailedResponse(toolsUsed)}`;
+    return `${baseResponse} ${this.generateDetailedResponse()}`;
   }
 
-  private generateDetailedResponse(toolsUsed?: string[]): string {
-    let toolInfo = '';
-    if (toolsUsed && toolsUsed.length > 0) {
-      toolInfo = `ฉันได้ใช้เครื่องมือ ${toolsUsed.join(', ')} เพื่อหาข้อมูลที่เกี่ยวข้อง. `;
-    }
-
+  private generateDetailedResponse(): string {
     const details = [
-      `${toolInfo}ข้อมูลนี้จะช่วยให้คุณเข้าใจแนวคิดได้ดีขึ้น และสามารถนำไปประยุกต์ใช้ในสถานการณ์จริงได้.`,
-      `${toolInfo}หากคุณต้องการข้อมูลเพิ่มเติมหรือมีคำถามอื่นๆ อย่าลังเลที่จะถามได้เลย.`,
-      `${toolInfo}ฉันหวังว่าคำตอบนี้จะช่วยให้คุณเข้าใจประเด็นนี้ได้ชัดเจนขึ้น.`,
-      `${toolInfo}หากมีส่วนไหนที่ยังไม่ชัดเจน กรุณาแจ้งให้ฉันทราบเพื่อที่ฉันจะได้อธิบายเพิ่มเติม.`
+      `ข้อมูลนี้จะช่วยให้คุณเข้าใจแนวคิดได้ดีขึ้น และสามารถนำไปประยุกต์ใช้ในสถานการณ์จริงได้.`,
+      `หากคุณต้องการข้อมูลเพิ่มเติมหรือมีคำถามอื่นๆ อย่าลังเลที่จะถามได้เลย.`,
+      `ฉันหวังว่าคำตอบนี้จะช่วยให้คุณเข้าใจประเด็นนี้ได้ชัดเจนขึ้น.`,
+      `หากมีส่วนไหนที่ยังไม่ชัดเจน กรุณาแจ้งให้ฉันทราบเพื่อที่ฉันจะได้อธิบายเพิ่มเติม.`
     ];
 
     return details[Math.floor(Math.random() * details.length)];

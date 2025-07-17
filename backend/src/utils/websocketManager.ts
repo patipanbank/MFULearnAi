@@ -88,6 +88,13 @@ export class WebSocketManager extends EventEmitter {
     console.log(`✅ User ${connection.userId} joined session ${sessionId}`);
   }
 
+  // Legacy method for backward compatibility
+  public connect(sessionId: string, ws: WebSocket): void {
+    // This method is for legacy compatibility
+    // In the new implementation, we use connectionId-based approach
+    console.log(`🔗 Legacy connect called for session ${sessionId}`);
+  }
+
   public leaveSession(connectionId: string): void {
     const connection = this.connections.get(connectionId);
     if (!connection || !connection.sessionId) {
@@ -162,6 +169,11 @@ export class WebSocketManager extends EventEmitter {
     });
 
     console.log(`📤 Broadcasted to ${sentCount} connections in session ${sessionId}`);
+  }
+
+  // Legacy method for backward compatibility
+  public broadcast(sessionId: string, message: string): void {
+    this.broadcastToSession(sessionId, message);
   }
 
   public broadcastToUser(userId: string, message: string): void {
