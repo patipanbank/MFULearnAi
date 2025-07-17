@@ -96,16 +96,32 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
         getAttr(['department']) ||
         getAttr(['organizationalUnit'])
       );
-      const groups = (
-        getAttr(['http://schemas.xmlsoap.org/claims/Group']) ||
-        getAttr(['groups']) ||
-        getAttr(['Groups']) ||  // Add this as it's in the actual response
-        getAttr(['memberOf']) ||
-        []
-      );
+      
+      // ปรับปรุง groups mapping ให้ถูกต้อง
+      let groups = [];
+      const groupsAttr = getAttr(['Groups']); // ใช้ Groups string attribute
+      const groupSids = getAttr(['http://schemas.xmlsoap.org/claims/Group']); // ใช้ Group SIDs array
+      
+      console.log(`🔍 Groups mapping - Groups attr: ${JSON.stringify(groupsAttr)}`);
+      console.log(`🔍 Groups mapping - Group SIDs: ${JSON.stringify(groupSids)}`);
+      
+      if (groupsAttr) {
+        // ถ้ามี Groups string ให้ใช้เป็นหลัก
+        groups = [groupsAttr];
+        console.log(`🔍 Groups mapping - Using Groups string: ${groupsAttr}`);
+      } else if (groupSids && Array.isArray(groupSids)) {
+        // ถ้าไม่มี Groups string ให้ใช้ Group SIDs
+        groups = groupSids;
+        console.log(`🔍 Groups mapping - Using Group SIDs array: ${JSON.stringify(groupSids)}`);
+      } else if (groupSids && !Array.isArray(groupSids)) {
+        // ถ้า Group SIDs ไม่ใช่ array
+        groups = [groupSids];
+        console.log(`🔍 Groups mapping - Using Group SIDs single: ${groupSids}`);
+      }
 
       // Ensure groups is always an array
       const groupsArray = Array.isArray(groups) ? groups : [groups].filter(Boolean);
+      console.log(`🔍 Groups mapping - Final groups array: ${JSON.stringify(groupsArray)}`);
 
       if (!username) {
         console.log('❌ Username not found in SAML attributes');
@@ -242,16 +258,32 @@ router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) =
         getAttr(['department']) ||
         getAttr(['organizationalUnit'])
       );
-      const groups = (
-        getAttr(['http://schemas.xmlsoap.org/claims/Group']) ||
-        getAttr(['groups']) ||
-        getAttr(['Groups']) ||  // Add this as it's in the actual response
-        getAttr(['memberOf']) ||
-        []
-      );
+      
+      // ปรับปรุง groups mapping ให้ถูกต้อง
+      let groups = [];
+      const groupsAttr = getAttr(['Groups']); // ใช้ Groups string attribute
+      const groupSids = getAttr(['http://schemas.xmlsoap.org/claims/Group']); // ใช้ Group SIDs array
+      
+      console.log(`🔍 Groups mapping - Groups attr: ${JSON.stringify(groupsAttr)}`);
+      console.log(`🔍 Groups mapping - Group SIDs: ${JSON.stringify(groupSids)}`);
+      
+      if (groupsAttr) {
+        // ถ้ามี Groups string ให้ใช้เป็นหลัก
+        groups = [groupsAttr];
+        console.log(`🔍 Groups mapping - Using Groups string: ${groupsAttr}`);
+      } else if (groupSids && Array.isArray(groupSids)) {
+        // ถ้าไม่มี Groups string ให้ใช้ Group SIDs
+        groups = groupSids;
+        console.log(`🔍 Groups mapping - Using Group SIDs array: ${JSON.stringify(groupSids)}`);
+      } else if (groupSids && !Array.isArray(groupSids)) {
+        // ถ้า Group SIDs ไม่ใช่ array
+        groups = [groupSids];
+        console.log(`🔍 Groups mapping - Using Group SIDs single: ${groupSids}`);
+      }
 
       // Ensure groups is always an array
       const groupsArray = Array.isArray(groups) ? groups : [groups].filter(Boolean);
+      console.log(`🔍 Groups mapping - Final groups array: ${JSON.stringify(groupsArray)}`);
 
       if (!username) {
         console.log('❌ Username not found in SAML attributes');

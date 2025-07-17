@@ -73,8 +73,35 @@ class UserService {
 
     // Role mapping logic เหมือน Python
     const map_group_to_role = (user_groups: string[]): UserRole => {
-      const is_student = user_groups.some(g => g === 'S-1-5-21-893890582-1041674030-1199480097-43779');
-      return is_student ? UserRole.STUDENTS : UserRole.STAFFS;
+      console.log(`🔍 Role mapping - Input groups: ${JSON.stringify(user_groups)}`);
+      
+      // ตรวจสอบ Groups string ก่อน
+      const hasStudentsGroup = user_groups.some(g => 
+        g === 'Students' || 
+        g.toLowerCase() === 'students' ||
+        g === 'S-1-5-21-893890582-1041674030-1199480097-43779' // SID สำหรับ Students
+      );
+      
+      const hasStaffGroup = user_groups.some(g => 
+        g === 'Staff' || 
+        g.toLowerCase() === 'staff' ||
+        g === 'Faculty' ||
+        g.toLowerCase() === 'faculty'
+      );
+      
+      console.log(`🔍 Role mapping - hasStudentsGroup: ${hasStudentsGroup}, hasStaffGroup: ${hasStaffGroup}`);
+      
+      if (hasStudentsGroup) {
+        console.log(`🔍 Role mapping - Result: STUDENTS`);
+        return UserRole.STUDENTS;
+      } else if (hasStaffGroup) {
+        console.log(`🔍 Role mapping - Result: STAFFS`);
+        return UserRole.STAFFS;
+      } else {
+        // Default เป็น STAFFS ถ้าไม่ตรงกับ Students
+        console.log(`🔍 Role mapping - Result: STAFFS (default)`);
+        return UserRole.STAFFS;
+      }
     };
 
     const user_data_to_update = {
