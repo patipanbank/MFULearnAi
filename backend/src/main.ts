@@ -21,7 +21,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   app.enableCors({
-    origin: configService.corsOrigin,
+    origin: configService.corsOrigin || 'https://mfulearnai.mfu.ac.th',
     credentials: true,
   });
 

@@ -52,7 +52,7 @@ interface SendMessageMessage {
 
 @NestWebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || 'https://mfulearnai.mfu.ac.th',
     credentials: true,
   },
   namespace: '/ws',
