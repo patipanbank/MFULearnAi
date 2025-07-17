@@ -51,6 +51,11 @@ export class ChatService {
       throw new Error(`Chat session ${chatId} not found`);
     }
 
+    // Ensure content is not empty
+    if (!message.content || message.content.trim() === '') {
+      message.content = 'กำลังประมวลผล...';
+    }
+
     const newMessage: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
       ...message,
@@ -89,6 +94,21 @@ export class ChatService {
     } catch (error) {
       console.error('❌ Error processing message:', error);
       
+      // Handle validation errors specifically
+      if (error instanceof Error && error.message.includes('validation failed')) {
+        console.error('Validation error details:', error);
+        
+        // Try to fix the validation issue by updating the message
+        try {
+          await ChatModel.updateOne(
+            { _id: chatId, 'messages.content': { $exists: false } },
+            { $set: { 'messages.$.content': 'กำลังประมวลผล...' } }
+          );
+        } catch (fixError) {
+          console.error('Failed to fix validation error:', fixError);
+        }
+      }
+      
       // Send error to client
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
         wsManager.broadcastToSession(chatId, JSON.stringify({
@@ -108,7 +128,7 @@ export class ChatService {
     // Create assistant message with placeholder content
     const assistantMessage = await this.addMessage(chatId, {
       role: 'assistant',
-      content: '',
+      content: 'กำลังประมวลผล...',
       toolUsage: []
     });
 

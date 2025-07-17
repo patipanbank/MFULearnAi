@@ -60,7 +60,17 @@ const ChatMessageSchema = new Schema<ChatMessage>({
     enum: ['user', 'assistant'], 
     required: true 
   },
-  content: { type: String, required: true },
+  content: { 
+    type: String, 
+    required: true,
+    default: 'กำลังประมวลผล...',
+    validate: {
+      validator: function(v: string) {
+        return v !== undefined && v !== null;
+      },
+      message: 'Content cannot be undefined or null'
+    }
+  },
   timestamp: { type: Date, default: Date.now },
   images: [ImagePayloadSchema],
   isStreaming: Boolean,
