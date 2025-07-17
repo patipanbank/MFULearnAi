@@ -93,10 +93,10 @@ export class ChatService {
       throw new Error(`Chat session ${chatId} not found`);
     }
 
-    // Create assistant message
+    // Create assistant message with placeholder content
     const assistantMessage = await this.addMessage(chatId, {
       role: 'assistant',
-      content: '',
+      content: 'กำลังประมวลผล...',
       toolUsage: []
     });
 
@@ -168,13 +168,30 @@ export class ChatService {
 
   private async streamResponse(chatId: string, messageId: string, response: string): Promise<void> {
     const words = response.split(' ');
+    let fullContent = '';
     
     for (let i = 0; i < words.length; i++) {
       const chunk = (i > 0 ? ' ' : '') + words[i];
+      fullContent += chunk;
+      
+      // Update message content in database
+      await ChatModel.updateOne(
+        { _id: chatId, 'messages.id': messageId },
+        { 
+          $set: { 
+            'messages.$.content': fullContent,
+            updatedAt: new Date()
+          }
+        }
+      );
       
       wsManager.broadcastToSession(chatId, JSON.stringify({
         type: 'chunk',
-        data: chunk
+        data: {
+          messageId,
+          chunk,
+          fullContent
+        }
       }));
 
       await this.delay(100);

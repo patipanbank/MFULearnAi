@@ -76,7 +76,7 @@ class ChatService {
         }
         const assistantMessage = await this.addMessage(chatId, {
             role: 'assistant',
-            content: '',
+            content: 'กำลังประมวลผล...',
             toolUsage: []
         });
         websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
@@ -127,11 +127,23 @@ class ChatService {
     }
     async streamResponse(chatId, messageId, response) {
         const words = response.split(' ');
+        let fullContent = '';
         for (let i = 0; i < words.length; i++) {
             const chunk = (i > 0 ? ' ' : '') + words[i];
+            fullContent += chunk;
+            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': messageId }, {
+                $set: {
+                    'messages.$.content': fullContent,
+                    updatedAt: new Date()
+                }
+            });
             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
                 type: 'chunk',
-                data: chunk
+                data: {
+                    messageId,
+                    chunk,
+                    fullContent
+                }
             }));
             await this.delay(100);
         }
