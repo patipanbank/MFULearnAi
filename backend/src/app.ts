@@ -28,14 +28,14 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Global API prefix
-app.use('/api', (req, res, next) => {
-  // Remove /api prefix from req.url for route matching
-  req.url = req.url.replace(/^\/api/, '');
-  next();
-});
+// Create API router with global prefix
+const apiRouter = express.Router();
 
-app.use('/auth', authRouter);
+// Mount auth routes under API router
+apiRouter.use('/auth', authRouter);
+
+// Mount API router under /api prefix
+app.use('/api', apiRouter);
 
 app.get('/', (req, res) => {
   res.send('MFULearnAi Node.js Backend');
