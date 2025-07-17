@@ -130,10 +130,10 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     
     let wsUrl = config.wsUrl;
     if (window.location.hostname === 'localhost') {
-      wsUrl = `http://localhost:3000/ws`;
+      wsUrl = `http://localhost:3000`;
     } else if (window.location.hostname === 'mfulearnai.mfu.ac.th') {
-      // ใช้ ws:// แทน https:// เพราะ nginx ยังไม่ได้เปิด SSL
-      wsUrl = `ws://mfulearnai.mfu.ac.th/ws`;
+      // ใช้ https:// สำหรับ production
+      wsUrl = `https://mfulearnai.mfu.ac.th`;
     }
     
     console.log('connectWebSocket: Final Socket.IO URL', wsUrl);
@@ -141,10 +141,10 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     let socket: Socket;
     try {
       socket = io(wsUrl, {
-        path: '/ws',    
+        path: '/socket.io',  // เปลี่ยนจาก '/wsเป็น '/socket.io'
         auth: { token },
         transports: ['websocket', 'polling'],
-        timeout: 200,
+        timeout: 20000,  // เพิ่ม timeout
         forceNew: true
       });
       wsRef.current = socket;
