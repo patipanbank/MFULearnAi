@@ -1,5 +1,5 @@
-import { Tool } from '@langchain/core/tools';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { Tool } from 'langchain/tools';
+import { DynamicStructuredTool, StructuredTool } from '@langchain/core/tools';
 import { createRetrieverTool as langchainCreateRetrieverTool } from 'langchain/tools/retriever';
 import { Embeddings } from '@langchain/core/embeddings';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
@@ -31,13 +31,11 @@ export function getToolsForSession(sessionId: string): Tool[] {
  * Create a memory tool for searching chat history
  */
 function createMemoryTool(sessionId: string): Tool {
-  return new DynamicStructuredTool({
-    name: 'search_chat_memory',
-    description: 'Search through previous conversation history to find relevant information. Use this when you need to reference what was discussed earlier.',
-    schema: z.object({
-      query: z.string().describe('The search query to find relevant information in chat history')
-    }),
-    func: async ({ query }: { query: string }) => {
+  class MemoryTool extends Tool {
+    name = 'search_chat_memory';
+    description = 'Search through previous conversation history to find relevant information. Use this when you need to reference what was discussed earlier.';
+    
+    async _call(input: string): Promise<string> {
       const memory = chatMemory.get(sessionId) || [];
       if (memory.length === 0) {
         return 'No previous conversation history available.';
@@ -45,7 +43,7 @@ function createMemoryTool(sessionId: string): Tool {
       
       // Simple search implementation
       const relevantMessages = memory.filter(msg => 
-        msg.content.toLowerCase().includes(query.toLowerCase())
+        msg.content.toLowerCase().includes(input.toLowerCase())
       );
       
       if (relevantMessages.length === 0) {
@@ -55,8 +53,10 @@ function createMemoryTool(sessionId: string): Tool {
       return relevantMessages
         .map(msg => `${msg.role}: ${msg.content}`)
         .join('\n');
-    },
-  }) as Tool;
+    }
+  }
+  
+  return new MemoryTool();
 }
 
 /**
@@ -102,7 +102,7 @@ export function createRetrieverTool(collectionName: string, vectorStore: Chroma)
     }
   );
   
-  return tool;
+  return tool as unknown as Tool;
 }
 
 /**

@@ -25,7 +25,7 @@ router.get('/job/:jobId', auth_1.authenticateJWT, async (req, res) => {
     }
     catch (error) {
         console.error('Error getting job status:', error);
-        res.status(500).json({ error: 'Failed to get job status' });
+        return res.status(500).json({ error: 'Failed to get job status' });
     }
 });
 router.post('/chat', auth_1.authenticateJWT, async (req, res) => {

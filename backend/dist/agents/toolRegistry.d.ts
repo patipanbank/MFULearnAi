@@ -1,4 +1,4 @@
-import { Tool } from '@langchain/core/tools';
+import { Tool } from 'langchain/tools';
 import { Embeddings } from '@langchain/core/embeddings';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 export declare function getToolsForSession(sessionId: string): Tool[];

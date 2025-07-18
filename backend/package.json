@@ -1,7 +1,7 @@
 {
   "scripts": {
     "dev": "ts-node src/app.ts",
-    "build": "node --max-old-space-size=4096 ./node_modules/.bin/tsc",
+    "build": "npx tsc",
     "start": "node dist/app.js",
     "worker": "ts-node src/workers/chatWorker.ts",
     "worker:agent": "ts-node src/workers/agentWorker.ts",

@@ -21,7 +21,7 @@ export class LangChainChatService {
       // Clear Redis memory
       const redisUrl = process.env.REDIS_URL;
       if (redisUrl) {
-        const history = new RedisChatMessageHistory(sessionId, { url: redisUrl });
+        const history = new RedisChatMessageHistory({ sessionId, client: redisUrl });
         await history.clear();
         console.log(`🧹 Cleared Redis memory for session ${sessionId}`);
       }
@@ -109,7 +109,7 @@ export class LangChainChatService {
 
       // Create Redis chat message history
       const createRedisHistory = (sessionId: string) => {
-        return new RedisChatMessageHistory(sessionId, { url: redisUrl });
+        return new RedisChatMessageHistory({ sessionId, client: redisUrl });
       };
 
       // Smart memory management
@@ -122,7 +122,7 @@ export class LangChainChatService {
         // Check if Redis memory exists
         let redisMemoryExists = false;
         try {
-          const history = new RedisChatMessageHistory(sessionId, { url: redisUrl });
+          const history = new RedisChatMessageHistory({ sessionId, client: redisUrl });
           const messages = await history.getMessages();
           redisMemoryExists = messages.length > 0;
           console.log(`🔍 Redis memory check: ${messages.length} messages found`);
@@ -145,7 +145,7 @@ export class LangChainChatService {
           const recentMessages = chatHistory.messages.slice(-10);
           
           try {
-            const history = new RedisChatMessageHistory(sessionId, { url: redisUrl });
+            const history = new RedisChatMessageHistory({ sessionId, client: redisUrl });
             for (const msg of recentMessages) {
               if (msg.role === "user") {
                 await history.addUserMessage(msg.content);

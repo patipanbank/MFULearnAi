@@ -6,7 +6,7 @@ exports.clearChatMemory = clearChatMemory;
 exports.getMemoryStats = getMemoryStats;
 exports.createRetrieverTool = createRetrieverTool;
 exports.getBedrockEmbeddings = getBedrockEmbeddings;
-const tools_1 = require("@langchain/core/tools");
+const tools_1 = require("langchain/tools");
 const retriever_1 = require("langchain/tools/retriever");
 const chatMemory = new Map();
 const TOOL_REGISTRY = [];
@@ -19,33 +19,27 @@ function getToolsForSession(sessionId) {
     return tools;
 }
 function createMemoryTool(sessionId) {
-    return new tools_1.DynamicStructuredTool({
-        name: 'search_chat_memory',
-        description: 'Search through previous conversation history to find relevant information. Use this when you need to reference what was discussed earlier.',
-        schema: {
-            type: 'object',
-            properties: {
-                query: {
-                    type: 'string',
-                    description: 'The search query to find relevant information in chat history'
-                }
-            },
-            required: ['query']
-        },
-        func: async ({ query }) => {
+    class MemoryTool extends tools_1.Tool {
+        constructor() {
+            super(...arguments);
+            this.name = 'search_chat_memory';
+            this.description = 'Search through previous conversation history to find relevant information. Use this when you need to reference what was discussed earlier.';
+        }
+        async _call(input) {
             const memory = chatMemory.get(sessionId) || [];
             if (memory.length === 0) {
                 return 'No previous conversation history available.';
             }
-            const relevantMessages = memory.filter(msg => msg.content.toLowerCase().includes(query.toLowerCase()));
+            const relevantMessages = memory.filter(msg => msg.content.toLowerCase().includes(input.toLowerCase()));
             if (relevantMessages.length === 0) {
                 return 'No relevant information found in conversation history.';
             }
             return relevantMessages
                 .map(msg => `${msg.role}: ${msg.content}`)
                 .join('\n');
-        },
-    });
+        }
+    }
+    return new MemoryTool();
 }
 function addChatMemory(sessionId, messages) {
     chatMemory.set(sessionId, messages);
@@ -66,10 +60,11 @@ function createRetrieverTool(collectionName, vectorStore) {
         searchType: 'similarity',
         k: 5,
     });
-    return (0, retriever_1.createRetrieverTool)(retriever, {
+    const tool = (0, retriever_1.createRetrieverTool)(retriever, {
         name: `search_${collectionName}`,
         description: `Search and retrieve information from the ${collectionName} knowledge base. Use this when you need specific information.`
     });
+    return tool;
 }
 function getBedrockEmbeddings() {
     return {

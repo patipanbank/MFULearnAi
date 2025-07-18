@@ -49,7 +49,7 @@ class LangChainChatService {
         try {
             const redisUrl = process.env.REDIS_URL;
             if (redisUrl) {
-                const history = new redis_1.RedisChatMessageHistory(sessionId, redisUrl);
+                const history = new redis_1.RedisChatMessageHistory({ sessionId, client: redisUrl });
                 await history.clear();
                 console.log(`🧹 Cleared Redis memory for session ${sessionId}`);
             }
@@ -85,7 +85,7 @@ class LangChainChatService {
                 throw new Error("REDIS_URL must be configured for chat history support.");
             }
             const createRedisHistory = (sessionId) => {
-                return new redis_1.RedisChatMessageHistory(sessionId, redisUrl);
+                return new redis_1.RedisChatMessageHistory({ sessionId, client: redisUrl });
             };
             let agentWithHistory;
             try {
@@ -93,7 +93,7 @@ class LangChainChatService {
                 const messageCount = chatHistory?.messages?.length || 0;
                 let redisMemoryExists = false;
                 try {
-                    const history = new redis_1.RedisChatMessageHistory(sessionId, redisUrl);
+                    const history = new redis_1.RedisChatMessageHistory({ sessionId, client: redisUrl });
                     const messages = await history.getMessages();
                     redisMemoryExists = messages.length > 0;
                     console.log(`🔍 Redis memory check: ${messages.length} messages found`);
@@ -111,7 +111,7 @@ class LangChainChatService {
                     console.log(`🔄 Redis memory empty, restoring recent context for session ${sessionId}`);
                     const recentMessages = chatHistory.messages.slice(-10);
                     try {
-                        const history = new redis_1.RedisChatMessageHistory(sessionId, redisUrl);
+                        const history = new redis_1.RedisChatMessageHistory({ sessionId, client: redisUrl });
                         for (const msg of recentMessages) {
                             if (msg.role === "user") {
                                 await history.addUserMessage(msg.content);
@@ -163,7 +163,10 @@ class LangChainChatService {
                 .pipe(extractOutput)
                 .pipe(new output_parsers_1.StringOutputParser());
             const agentInput = { input: message };
-            const config = { configurable: { session_id: sessionId } };
+            const config = {
+                configurable: { session_id: sessionId },
+                version: "v1"
+            };
             let inputTokens = 0;
             let outputTokens = 0;
             let contentReceived = false;
@@ -210,8 +213,9 @@ class LangChainChatService {
                     });
                 }
                 else if (kind === "on_tool_end") {
-                    const toolName = event.data?.name || "Unknown Tool";
-                    const toolOutput = event.data?.output;
+                    const toolData = event.data;
+                    const toolName = toolData?.name || "Unknown Tool";
+                    const toolOutput = toolData?.output;
                     console.log(`✅ Tool completed: ${toolName}`);
                     if (toolOutput) {
                         contentReceived = true;
@@ -225,8 +229,9 @@ class LangChainChatService {
                     }
                 }
                 else if (kind === "on_tool_error") {
-                    const toolName = event.data?.name || "Unknown Tool";
-                    const error = event.data?.error || "Unknown error";
+                    const toolData = event.data;
+                    const toolName = toolData?.name || "Unknown Tool";
+                    const error = toolData?.error || "Unknown error";
                     console.error(`❌ Tool error: ${toolName} - ${error}`);
                     yield JSON.stringify({
                         type: "tool_error",
