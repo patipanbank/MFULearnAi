@@ -21,7 +21,7 @@ export class LangChainChatService {
       // Clear Redis memory
       const redisUrl = process.env.REDIS_URL;
       if (redisUrl) {
-        const history = new RedisChatMessageHistory(sessionId, redisUrl);
+        const history = new RedisChatMessageHistory(sessionId, { url: redisUrl });
         await history.clear();
         console.log(`🧹 Cleared Redis memory for session ${sessionId}`);
       }
@@ -109,7 +109,7 @@ export class LangChainChatService {
 
       // Create Redis chat message history
       const createRedisHistory = (sessionId: string) => {
-        return new RedisChatMessageHistory(sessionId, redisUrl);
+        return new RedisChatMessageHistory(sessionId, { url: redisUrl });
       };
 
       // Smart memory management
@@ -122,7 +122,7 @@ export class LangChainChatService {
         // Check if Redis memory exists
         let redisMemoryExists = false;
         try {
-          const history = new RedisChatMessageHistory(sessionId, redisUrl);
+          const history = new RedisChatMessageHistory(sessionId, { url: redisUrl });
           const messages = await history.getMessages();
           redisMemoryExists = messages.length > 0;
           console.log(`🔍 Redis memory check: ${messages.length} messages found`);
@@ -209,7 +209,10 @@ export class LangChainChatService {
       const agentInput = { input: message };
       
       // Configuration for the session history
-      const config: RunnableConfig = { configurable: { session_id: sessionId } };
+      const config = { 
+        configurable: { session_id: sessionId },
+        version: "v1" as const
+      };
 
       // Stream the agent's response
       let inputTokens = 0;
@@ -247,7 +250,7 @@ export class LangChainChatService {
         }
         
         else if (kind === "on_tool_start") {
-          const toolData = event.data;
+          const toolData = event.data as any;
           const toolName = toolData?.name || "Unknown Tool";
           const toolInput = toolData?.input || "";
           
@@ -264,8 +267,9 @@ export class LangChainChatService {
         }
         
         else if (kind === "on_tool_end") {
-          const toolName = event.data?.name || "Unknown Tool";
-          const toolOutput = event.data?.output;
+          const toolData = event.data as any;
+          const toolName = toolData?.name || "Unknown Tool";
+          const toolOutput = toolData?.output;
           console.log(`✅ Tool completed: ${toolName}`);
           
           if (toolOutput) {
@@ -281,8 +285,9 @@ export class LangChainChatService {
         }
         
         else if (kind === "on_tool_error") {
-          const toolName = event.data?.name || "Unknown Tool";
-          const error = event.data?.error || "Unknown error";
+          const toolData = event.data as any;
+          const toolName = toolData?.name || "Unknown Tool";
+          const error = toolData?.error || "Unknown error";
           console.error(`❌ Tool error: ${toolName} - ${error}`);
           
           yield JSON.stringify({
