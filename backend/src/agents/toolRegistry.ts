@@ -31,7 +31,7 @@ export function getToolsForSession(sessionId: string): Tool[] {
  * Create a memory tool for searching chat history
  */
 function createMemoryTool(sessionId: string): Tool {
-  const tool = new DynamicStructuredTool({
+  return new DynamicStructuredTool({
     name: 'search_chat_memory',
     description: 'Search through previous conversation history to find relevant information. Use this when you need to reference what was discussed earlier.',
     schema: z.object({
@@ -56,9 +56,7 @@ function createMemoryTool(sessionId: string): Tool {
         .map(msg => `${msg.role}: ${msg.content}`)
         .join('\n');
     },
-  });
-  
-  return tool;
+  }) as Tool;
 }
 
 /**

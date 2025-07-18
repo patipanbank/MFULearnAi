@@ -131,14 +131,12 @@ export class LangChainChatService {
         }
         
         // Always use Redis memory for recent conversations
-        agentWithHistory = new RunnableWithMessageHistory(
-          agentExecutor,
-          {
-            getMessageHistory: createRedisHistory,
-            inputMessagesKey: "input",
-            historyMessagesKey: "chat_history",
-          }
-        );
+        agentWithHistory = new RunnableWithMessageHistory({
+          runnable: agentExecutor,
+          getMessageHistory: createRedisHistory,
+          inputMessagesKey: "input",
+          historyMessagesKey: "chat_history",
+        });
         
         // If Redis memory is empty but we have messages, restore recent context
         if (!redisMemoryExists && chatHistory?.messages) {
@@ -185,14 +183,12 @@ export class LangChainChatService {
       } catch (error) {
         console.log(`⚠️ Failed to setup smart memory management: ${error}`);
         // Fallback to Redis memory
-        agentWithHistory = new RunnableWithMessageHistory(
-          agentExecutor,
-          {
-            getMessageHistory: createRedisHistory,
-            inputMessagesKey: "input",
-            historyMessagesKey: "chat_history",
-          }
-        );
+        agentWithHistory = new RunnableWithMessageHistory({
+          runnable: agentExecutor,
+          getMessageHistory: createRedisHistory,
+          inputMessagesKey: "input",
+          historyMessagesKey: "chat_history",
+        });
       }
 
       // ------------------------------------------------------------------
