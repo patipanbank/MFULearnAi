@@ -7,73 +7,49 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const express_session_1 = __importDefault(require("express-session"));
-const passport_1 = __importDefault(require("passport"));
-const http_1 = require("http");
+const config_1 = require("./config/config");
+const mongodb_1 = require("./lib/mongodb");
+const http_1 = __importDefault(require("http"));
+const websocketService_1 = require("./services/websocketService");
 const auth_1 = __importDefault(require("./routes/auth"));
 const chat_1 = __importDefault(require("./routes/chat"));
 const agent_1 = __importDefault(require("./routes/agent"));
-const websocketService_1 = require("./services/websocketService");
-const mongodb_1 = require("./lib/mongodb");
-dotenv_1.default.config();
+const bedrock_1 = __importDefault(require("./routes/bedrock"));
+const queue_1 = __importDefault(require("./routes/queue"));
+require("./workers/chatWorker");
+require("./workers/agentWorker");
 const app = (0, express_1.default)();
-app.use(express_1.default.json());
-app.use(express_1.default.urlencoded({ extended: true }));
-app.use((0, cors_1.default)());
 app.use((0, helmet_1.default)());
-app.use((0, morgan_1.default)('dev'));
-app.use((0, express_session_1.default)({
-    secret: process.env.SESSION_SECRET || 'secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: false },
-}));
-app.use(passport_1.default.initialize());
-app.use(passport_1.default.session());
-const apiRouter = express_1.default.Router();
-apiRouter.use('/auth', auth_1.default);
-apiRouter.use('/chat', chat_1.default);
-apiRouter.use('/agents', agent_1.default);
-app.use('/api', apiRouter);
-app.get('/', (req, res) => {
-    res.send('MFULearnAi Node.js Backend');
+app.use((0, cors_1.default)());
+app.use((0, morgan_1.default)('combined'));
+app.use(express_1.default.json({ limit: '10mb' }));
+app.use(express_1.default.urlencoded({ extended: true }));
+app.use('/api/auth', auth_1.default);
+app.use('/api/chat', chat_1.default);
+app.use('/api/agents', agent_1.default);
+app.use('/api/bedrock', bedrock_1.default);
+app.use('/api/queue', queue_1.default);
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+    console.error('Error:', err);
+    res.status(500).json({ error: 'Internal server error' });
 });
-const PORT = process.env.PORT || 3001;
-const server = (0, http_1.createServer)(app);
-const wsService = new websocketService_1.WebSocketService(server);
 const startServer = async () => {
     try {
         await (0, mongodb_1.connectDB)();
-        server.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT}`);
-            console.log(`🌐 WebSocket server available at ws://localhost:${PORT}/ws`);
+        console.log('✅ Connected to MongoDB');
+        const server = http_1.default.createServer(app);
+        new websocketService_1.WebSocketService(server);
+        server.listen(config_1.config.port, () => {
+            console.log(`🚀 Server running on port ${config_1.config.port}`);
         });
     }
     catch (error) {
-        console.error('Failed to start server:', error);
+        console.error('❌ Failed to start server:', error);
         process.exit(1);
     }
 };
-process.on('SIGTERM', () => {
-    console.log('🛑 SIGTERM received, shutting down gracefully...');
-    wsService.stop();
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
-    });
-});
-process.on('SIGINT', () => {
-    console.log('🛑 SIGINT received, shutting down gracefully...');
-    wsService.stop();
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
-    });
-});
 startServer();
 //# sourceMappingURL=app.js.map

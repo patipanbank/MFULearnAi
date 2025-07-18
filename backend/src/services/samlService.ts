@@ -1,5 +1,5 @@
 import { Strategy as SamlStrategy, SamlConfig } from 'passport-saml';
-import config from '../config/config';
+import { config } from '../config/config';
 
 export function getSamlConfig(): SamlConfig {
   let cert = config.SAML_CERTIFICATE || '';

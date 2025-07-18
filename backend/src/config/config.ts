@@ -2,46 +2,39 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export interface Config {
-  PORT: number;
-  LOG_LEVEL: string;
-  MONGODB_URI: string;
-  REDIS_URL?: string;
-  JWT_SECRET: string;
-  JWT_ALGORITHM: string;
-  ACCESS_TOKEN_EXPIRE_MINUTES: number;
-  FRONTEND_URL?: string;
-  ALLOWED_ORIGINS?: string;
-  SAML_SP_ENTITY_ID?: string;
-  SAML_SP_ACS_URL?: string;
-  SAML_IDP_SSO_URL?: string;
-  SAML_IDP_SLO_URL?: string;
-  SAML_IDP_ENTITY_ID?: string;
-  SAML_CERTIFICATE?: string;
-  SAML_IDENTIFIER_FORMAT?: string;
-  APP_ENV: string;
+function getEnv(key: string, fallback?: string) {
+  // ถ้าเป็น production จะใช้ PROD_ prefix
+  if (process.env.APP_ENV === 'production') {
+    const prodKey = `PROD_${key}`;
+    if (process.env[prodKey]) return process.env[prodKey];
+  }
+  // fallback ไปที่ key ปกติ
+  return process.env[key] || fallback;
 }
 
-const APP_ENV = process.env.APP_ENV || 'development';
-
-const config: Config = {
-  PORT: parseInt(process.env.PORT || '3001'),
-  LOG_LEVEL: process.env.LOG_LEVEL || 'info',
-  MONGODB_URI: process.env.MONGODB_URI || '',
-  REDIS_URL: process.env.REDIS_URL,
-  JWT_SECRET: process.env.JWT_SECRET || 'dev',
+export const config = {
+  port: process.env.PORT || 3000,
+  mongoUri: getEnv('MONGO_URI', 'mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin'),
+  jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
+  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379/0',
+  FRONTEND_URL: getEnv('FRONTEND_URL', 'http://localhost:5173'),
+  ALLOWED_ORIGINS: getEnv('ALLOWED_ORIGINS', '*'),
+  JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key',
   JWT_ALGORITHM: process.env.JWT_ALGORITHM || 'HS256',
-  ACCESS_TOKEN_EXPIRE_MINUTES: parseInt(process.env.ACCESS_TOKEN_EXPIRE_MINUTES || '30'),
-  FRONTEND_URL: APP_ENV === 'development' ? process.env.DEV_FRONTEND_URL : process.env.PROD_FRONTEND_URL,
-  ALLOWED_ORIGINS: APP_ENV === 'development' ? process.env.DEV_ALLOWED_ORIGINS : process.env.PROD_ALLOWED_ORIGINS,
-  SAML_SP_ENTITY_ID: process.env.SAML_SP_ENTITY_ID,
-  SAML_SP_ACS_URL: process.env.SAML_SP_ACS_URL,
+  SAML_CERTIFICATE: process.env.SAML_CERTIFICATE,
   SAML_IDP_SSO_URL: process.env.SAML_IDP_SSO_URL,
   SAML_IDP_SLO_URL: process.env.SAML_IDP_SLO_URL,
-  SAML_IDP_ENTITY_ID: process.env.SAML_IDP_ENTITY_ID,
-  SAML_CERTIFICATE: process.env.SAML_CERTIFICATE,
+  SAML_SP_ENTITY_ID: process.env.SAML_SP_ENTITY_ID,
   SAML_IDENTIFIER_FORMAT: process.env.SAML_IDENTIFIER_FORMAT,
-  APP_ENV,
-};
-
-export default config; 
+  bedrock: {
+    region: process.env.AWS_REGION || 'us-east-1',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+  saml: {
+    entryPoint: process.env.SAML_ENTRY_POINT,
+    issuer: process.env.SAML_ISSUER,
+    cert: process.env.SAML_CERT,
+  },
+  appEnv: process.env.APP_ENV || 'development',
+}; 

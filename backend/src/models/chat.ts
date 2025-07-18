@@ -5,14 +5,26 @@ export interface ImagePayload {
   mediaType: string;
 }
 
+export interface ToolUsage {
+  type: 'tool_start' | 'tool_result' | 'tool_error';
+  tool_name: string;
+  tool_input?: string;
+  output?: string;
+  error?: string;
+  timestamp: Date;
+}
+
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
   images?: ImagePayload[];
   isStreaming?: boolean;
   isComplete?: boolean;
+  toolUsage?: ToolUsage[];
+  summary?: string;
+  vectorRef?: string;
 }
 
 export interface Chat extends Document {
@@ -34,11 +46,20 @@ const ImagePayloadSchema = new Schema<ImagePayload>({
 
 
 
+const ToolUsageSchema = new Schema<ToolUsage>({
+  type: { type: String, enum: ['tool_start', 'tool_result', 'tool_error'], required: true },
+  tool_name: { type: String, required: true },
+  tool_input: String,
+  output: String,
+  error: String,
+  timestamp: { type: Date, required: true }
+});
+
 const ChatMessageSchema = new Schema<ChatMessage>({
   id: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['user', 'assistant'], 
+    enum: ['user', 'assistant', 'system'], 
     required: true 
   },
   content: { 
@@ -55,7 +76,10 @@ const ChatMessageSchema = new Schema<ChatMessage>({
   timestamp: { type: Date, default: Date.now },
   images: [ImagePayloadSchema],
   isStreaming: Boolean,
-  isComplete: Boolean
+  isComplete: Boolean,
+  toolUsage: [ToolUsageSchema],
+  summary: { type: String },
+  vectorRef: { type: String }
 });
 
 const ChatSchema = new Schema<Chat>({
