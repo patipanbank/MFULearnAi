@@ -113,7 +113,7 @@ export class LangChainChatService {
       };
 
       // Smart memory management
-      let agentWithHistory: RunnableWithMessageHistory;
+      let agentWithHistory: RunnableWithMessageHistory<any, any>;
       
       try {
         const chatHistory = await ChatModel.findById(sessionId);

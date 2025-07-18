@@ -8,12 +8,8 @@ const connection = {
   password: new URL(config.redisUrl).password || undefined,
 };
 
-// Create queues
-export const chatQueue = new Queue('chat', { connection });
-export const agentQueue = new Queue('agent', { connection });
-
 // Queue configuration
-export const queueConfig = {
+const queueConfig = {
   defaultJobOptions: {
     removeOnComplete: 100,
     removeOnFail: 50,
