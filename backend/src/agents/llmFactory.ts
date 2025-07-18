@@ -1,4 +1,4 @@
-import { ChatBedrock } from '@langchain/aws/chat_models/bedrock';
+import { ChatBedrock } from '@langchain/aws';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 /**

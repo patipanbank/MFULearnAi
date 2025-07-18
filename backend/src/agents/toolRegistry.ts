@@ -1,4 +1,5 @@
 import { Tool } from '@langchain/core/tools';
+import { DynamicStructuredTool } from '@langchain/core/tools';
 import { createRetrieverTool as langchainCreateRetrieverTool } from 'langchain/tools/retriever';
 import { Embeddings } from '@langchain/core/embeddings';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
@@ -29,10 +30,20 @@ export function getToolsForSession(sessionId: string): Tool[] {
  * Create a memory tool for searching chat history
  */
 function createMemoryTool(sessionId: string): Tool {
-  return new Tool({
+  return new DynamicStructuredTool({
     name: 'search_chat_memory',
     description: 'Search through previous conversation history to find relevant information. Use this when you need to reference what was discussed earlier.',
-    func: async (input: string) => {
+    schema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The search query to find relevant information in chat history'
+        }
+      },
+      required: ['query']
+    },
+    func: async ({ query }: { query: string }) => {
       const memory = chatMemory.get(sessionId) || [];
       if (memory.length === 0) {
         return 'No previous conversation history available.';
@@ -40,7 +51,7 @@ function createMemoryTool(sessionId: string): Tool {
       
       // Simple search implementation
       const relevantMessages = memory.filter(msg => 
-        msg.content.toLowerCase().includes(input.toLowerCase())
+        msg.content.toLowerCase().includes(query.toLowerCase())
       );
       
       if (relevantMessages.length === 0) {
@@ -91,8 +102,10 @@ export function createRetrieverTool(collectionName: string, vectorStore: Chroma)
 
   return langchainCreateRetrieverTool(
     retriever,
-    `search_${collectionName}`,
-    `Search and retrieve information from the ${collectionName} knowledge base. Use this when you need specific information.`
+    {
+      name: `search_${collectionName}`,
+      description: `Search and retrieve information from the ${collectionName} knowledge base. Use this when you need specific information.`
+    }
   );
 }
 

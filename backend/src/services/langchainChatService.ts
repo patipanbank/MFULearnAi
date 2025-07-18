@@ -1,9 +1,8 @@
-import { AsyncGenerator } from '@langchain/core/utils/stream';
 import { AIMessage } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { RedisChatMessageHistory } from '@langchain/community/stores/message/redis';
-import { RunnableWithMessageHistory } from '@langchain/core/runnables/history';
-import { StrOutputParser } from '@langchain/core/output_parsers';
+import { RunnableWithMessageHistory } from '@langchain/core/runnables';
+import { StringOutputParser } from '@langchain/core/output_parsers';
 
 // Agent factories
 import { getLLM } from '../agents/llmFactory';
@@ -114,6 +113,8 @@ export class LangChainChatService {
       };
 
       // Smart memory management
+      let agentWithHistory: RunnableWithMessageHistory;
+      
       try {
         const chatHistory = await ChatModel.findById(sessionId);
         const messageCount = chatHistory?.messages?.length || 0;
@@ -130,7 +131,7 @@ export class LangChainChatService {
         }
         
         // Always use Redis memory for recent conversations
-        const agentWithHistory = new RunnableWithMessageHistory({
+        agentWithHistory = new RunnableWithMessageHistory({
           runnable: agentExecutor,
           getMessageHistory: createRedisHistory,
           inputMessagesKey: "input",
@@ -182,7 +183,7 @@ export class LangChainChatService {
       } catch (error) {
         console.log(`⚠️ Failed to setup smart memory management: ${error}`);
         // Fallback to Redis memory
-        const agentWithHistory = new RunnableWithMessageHistory({
+        agentWithHistory = new RunnableWithMessageHistory({
           runnable: agentExecutor,
           getMessageHistory: createRedisHistory,
           inputMessagesKey: "input",
@@ -202,7 +203,7 @@ export class LangChainChatService {
 
       const finalRunnable = agentWithHistory
         .pipe(extractOutput)
-        .pipe(new StrOutputParser());
+        .pipe(new StringOutputParser());
 
       // Prepare the input for the agent
       const agentInput = { input: message };
@@ -306,17 +307,21 @@ export class LangChainChatService {
             if (Array.isArray(contentPiece)) {
               for (const msg of contentPiece.reverse()) {
                 if (msg instanceof AIMessage && msg.content) {
-                  fallbackText = msg.content;
+                  fallbackText = typeof msg.content === 'string' ? msg.content : String(msg.content);
                   break;
                 }
               }
               if (!fallbackText) {
                 fallbackText = contentPiece
-                  .map(m => m.content || String(m))
+                  .map(m => {
+                    const content = m.content;
+                    return typeof content === 'string' ? content : String(content);
+                  })
                   .join('\n');
               }
             } else if (contentPiece?.content) {
-              fallbackText = contentPiece.content;
+              const content = contentPiece.content;
+              fallbackText = typeof content === 'string' ? content : String(content);
             } else {
               fallbackText = String(contentPiece);
             }

@@ -1,4 +1,4 @@
-import { Queue, Worker, QueueScheduler } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import { config } from '../config/config';
 
 // Redis connection configuration
@@ -11,9 +11,6 @@ const connection = {
 // Create queues
 export const chatQueue = new Queue('chat', { connection });
 export const agentQueue = new Queue('agent', { connection });
-
-// Create scheduler for delayed jobs
-export const scheduler = new QueueScheduler('chat', { connection });
 
 // Queue configuration
 export const queueConfig = {
@@ -28,8 +25,14 @@ export const queueConfig = {
   },
 };
 
-// Initialize queues with configuration
-chatQueue.setDefaultJobOptions(queueConfig.defaultJobOptions);
-agentQueue.setDefaultJobOptions(queueConfig.defaultJobOptions);
+// Create queues with configuration
+export const chatQueue = new Queue('chat', { 
+  connection,
+  defaultJobOptions: queueConfig.defaultJobOptions
+});
+export const agentQueue = new Queue('agent', { 
+  connection,
+  defaultJobOptions: queueConfig.defaultJobOptions
+});
 
 export { Queue, Worker }; 

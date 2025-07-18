@@ -25,7 +25,7 @@ router.get('/job/:jobId', authenticateJWT, async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
     
-    res.json(status);
+    return res.json(status);
   } catch (error) {
     console.error('Error getting job status:', error);
     res.status(500).json({ error: 'Failed to get job status' });
