@@ -1,4 +1,5 @@
 import { Tool } from '@langchain/core/tools';
+import { DynamicStructuredTool } from '@langchain/core/tools';
 import { createRetrieverTool as langchainCreateRetrieverTool } from 'langchain/tools/retriever';
 import { Embeddings } from '@langchain/core/embeddings';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
@@ -30,10 +31,13 @@ export function getToolsForSession(sessionId: string): Tool[] {
  * Create a memory tool for searching chat history
  */
 function createMemoryTool(sessionId: string): Tool {
-  return new Tool({
+  const tool = new DynamicStructuredTool({
     name: 'search_chat_memory',
     description: 'Search through previous conversation history to find relevant information. Use this when you need to reference what was discussed earlier.',
-    func: async (query: string) => {
+    schema: z.object({
+      query: z.string().describe('The search query to find relevant information in chat history')
+    }),
+    func: async ({ query }: { query: string }) => {
       const memory = chatMemory.get(sessionId) || [];
       if (memory.length === 0) {
         return 'No previous conversation history available.';
@@ -53,6 +57,8 @@ function createMemoryTool(sessionId: string): Tool {
         .join('\n');
     },
   });
+  
+  return tool as Tool;
 }
 
 /**
@@ -90,13 +96,15 @@ export function createRetrieverTool(collectionName: string, vectorStore: Chroma)
     k: 5,
   });
 
-  return langchainCreateRetrieverTool(
+  const tool = langchainCreateRetrieverTool(
     retriever,
     {
       name: `search_${collectionName}`,
       description: `Search and retrieve information from the ${collectionName} knowledge base. Use this when you need specific information.`
     }
   );
+  
+  return tool as Tool;
 }
 
 /**
