@@ -145,7 +145,7 @@ export class LangChainChatService {
           const recentMessages = chatHistory.messages.slice(-10);
           
           try {
-            const history = new RedisChatMessageHistory(sessionId, redisUrl);
+            const history = new RedisChatMessageHistory(sessionId, { url: redisUrl });
             for (const msg of recentMessages) {
               if (msg.role === "user") {
                 await history.addUserMessage(msg.content);

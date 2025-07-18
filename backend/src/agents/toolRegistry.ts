@@ -1,5 +1,4 @@
 import { Tool } from '@langchain/core/tools';
-import { DynamicStructuredTool } from '@langchain/core/tools';
 import { createRetrieverTool as langchainCreateRetrieverTool } from 'langchain/tools/retriever';
 import { Embeddings } from '@langchain/core/embeddings';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
@@ -31,13 +30,10 @@ export function getToolsForSession(sessionId: string): Tool[] {
  * Create a memory tool for searching chat history
  */
 function createMemoryTool(sessionId: string): Tool {
-  return new DynamicStructuredTool({
+  return new Tool({
     name: 'search_chat_memory',
     description: 'Search through previous conversation history to find relevant information. Use this when you need to reference what was discussed earlier.',
-    schema: z.object({
-      query: z.string().describe('The search query to find relevant information in chat history')
-    }),
-    func: async ({ query }: { query: string }) => {
+    func: async (query: string) => {
       const memory = chatMemory.get(sessionId) || [];
       if (memory.length === 0) {
         return 'No previous conversation history available.';
