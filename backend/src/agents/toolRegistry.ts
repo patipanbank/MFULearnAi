@@ -58,7 +58,7 @@ function createMemoryTool(sessionId: string): Tool {
     },
   });
   
-  return tool as Tool;
+  return tool;
 }
 
 /**
@@ -104,7 +104,7 @@ export function createRetrieverTool(collectionName: string, vectorStore: Chroma)
     }
   );
   
-  return tool as Tool;
+  return tool;
 }
 
 /**
