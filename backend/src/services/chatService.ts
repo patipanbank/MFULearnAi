@@ -83,6 +83,14 @@ export class ChatService {
         images
       });
 
+      // Send immediate acknowledgment to client (like in legacy)
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'accepted',
+          data: { chatId }
+        }));
+      }
+
       // Get chat and agent info
       const chat = await ChatModel.findById(chatId);
       if (!chat) {
@@ -396,11 +404,7 @@ export class ChatService {
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({
                 type: 'chunk',
-                data: {
-                  sessionId: chatId,
-                  messageId: assistantMessage.id,
-                  content: text
-                }
+                data: text
               }));
             }
           }
@@ -423,12 +427,7 @@ export class ChatService {
       // Mark as complete
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
         wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'end',
-          data: {
-            sessionId: chatId,
-            inputTokens,
-            outputTokens
-          }
+          type: 'end'
         }));
       }
 

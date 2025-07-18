@@ -334,13 +334,8 @@ export class WebSocketService {
 
     const chatId = currentChatId; // Type assertion after null check
 
-    // Send acceptance confirmation
-    wsManager.sendToConnection(connectionId, JSON.stringify({
-      type: 'accepted',
-      data: { chatId }
-    }));
-
     // Process message with chat service (user message will be added inside)
+    // The accepted message will be sent from chatService.processMessage
     await chatService.processMessage(chatId, user.id, message, images);
 
     console.log(`💬 User ${user.id} sent message in room ${chatId}`);
