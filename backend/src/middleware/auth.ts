@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import config from '../config/config';
+import { config } from '../config/config';
 
 export interface AuthenticatedRequest extends Request {
   user?: any;
@@ -21,7 +21,7 @@ export const authenticateJWT = (req: AuthenticatedRequest, res: Response, next: 
   }
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET) as any;
+    const decoded = jwt.verify(token, config.jwtSecret) as any;
     console.log('🔐 JWT decoded:', JSON.stringify(decoded, null, 2));
     req.user = decoded;
     return next();

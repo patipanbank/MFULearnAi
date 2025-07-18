@@ -5,6 +5,8 @@ import jwt from 'jsonwebtoken';
 import { wsManager } from '../utils/websocketManager';
 import { chatService } from './chatService';
 import { agentService } from './agentService';
+import { queueService } from './queueService';
+import { redisListener } from '../utils/redisListener';
 import { v4 as uuidv4 } from 'uuid';
 
 interface WebSocketMessage {
@@ -199,6 +201,12 @@ export class WebSocketService {
     
     wsManager.joinSession(connectionId, chatId);
     
+    // Subscribe to Redis for this chat session
+    redisListener.subscribeToChat(chatId, (message) => {
+      // Forward Redis messages to WebSocket client
+      wsManager.sendToConnection(connectionId, JSON.stringify(message));
+    });
+    
     // Send confirmation
     wsManager.sendToConnection(connectionId, JSON.stringify({
       type: 'room_joined',
@@ -334,14 +342,57 @@ export class WebSocketService {
 
     const chatId = currentChatId; // Type assertion after null check
 
-    // Process message with chat service (user message will be added inside)
-    // The accepted message will be sent from chatService.processMessage
-    await chatService.processMessage(chatId, user.id, message, images);
+    // Add user message to chat first
+    await chatService.addMessage(chatId, {
+      role: 'user',
+      content: message,
+      images
+    });
+
+    // Send immediate acknowledgment to client
+    wsManager.sendToConnection(connectionId, JSON.stringify({
+      type: 'accepted',
+      data: { chatId }
+    }));
+
+    // Dispatch background generation task to queue
+    const taskPayload = {
+      sessionId: chatId,
+      userId: user.id,
+      message,
+      modelId: userSession.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+      collectionNames: userSession.collectionNames || [],
+      images,
+      systemPrompt: userSession.systemPrompt || undefined,
+      temperature: userSession.temperature,
+      maxTokens: userSession.maxTokens,
+      agentId: userSession.agentId || undefined,
+    };
+
+    console.log(`🚀 Dispatching BullMQ task for session ${chatId}`);
+    console.log(`📋 Task payload:`, taskPayload);
+    
+    try {
+      const job = await queueService.addChatJob(taskPayload);
+      console.log(`✅ BullMQ task dispatched successfully, job_id: ${job.id}`);
+    } catch (error) {
+      console.error(`❌ Failed to dispatch BullMQ task: ${error}`);
+      wsManager.sendToConnection(connectionId, JSON.stringify({
+        type: 'error',
+        data: `Failed to process message: ${error}`
+      }));
+    }
 
     console.log(`💬 User ${user.id} sent message in room ${chatId}`);
   }
 
   private handleLeaveRoom(connectionId: string): void {
+    const userSession = this.userSessions.get(connectionId);
+    if (userSession?.sessionId) {
+      // Unsubscribe from Redis for this chat session
+      redisListener.unsubscribeFromChat(userSession.sessionId);
+    }
+    
     wsManager.leaveSession(connectionId);
     
     wsManager.sendToConnection(connectionId, JSON.stringify({

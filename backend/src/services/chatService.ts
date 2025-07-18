@@ -5,6 +5,7 @@ import { usageService } from './usageService';
 import { bedrockService, BedrockMessage } from './bedrockService';
 import { memoryService } from './memoryService';
 import { toolRegistryService } from './toolRegistryService';
+import { langchainChatService } from './langchainChatService';
 
 export class ChatService {
   constructor() {
@@ -116,13 +117,8 @@ export class ChatService {
         }
       }
 
-      // Add messages to memory if needed
-      if (memoryService.shouldEmbedMessages(chat.messages.length)) {
-        await memoryService.addChatMemory(chatId, chat.messages);
-      }
-
-      // Process with AI agent using enhanced processing
-      await this.processWithAIEnhanced(chatId, content, images, {
+      // Process with LangChain AI agent
+      await this.processWithLangChain(chatId, content, images, {
         modelId,
         collectionNames,
         systemPrompt,
@@ -159,7 +155,8 @@ export class ChatService {
     }
   }
 
-  private async processWithAILegacy(chatId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
+  // Process with LangChain AI agent
+  private async processWithLangChain(chatId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
     modelId?: string | null;
     collectionNames?: string[];
     systemPrompt?: string | null;
@@ -168,278 +165,107 @@ export class ChatService {
     agentId?: string;
   }, userId?: string): Promise<void> {
     try {
-      // Get chat history for context
-      const chat = await ChatModel.findById(chatId);
-      if (!chat) {
-        throw new Error(`Chat session ${chatId} not found`);
-      }
-
-      // Prepare messages for Bedrock
-      const messages: BedrockMessage[] = [];
-      
-      // Add system prompt if available
-      if (config?.systemPrompt) {
-        messages.push({
-          role: 'assistant',
-          content: [{ text: config.systemPrompt }]
-        });
-      }
-
-      // Add chat history (last 10 messages for context)
-      const recentMessages = chat.messages.slice(-10);
-      for (const msg of recentMessages) {
-        messages.push({
-          role: msg.role as 'user' | 'assistant',
-          content: [{ text: msg.content }]
-        });
-      }
-
-      // Add current user message
-      messages.push({
-        role: 'user',
-        content: [{ text: userMessage }]
+      // Create assistant message in database
+      const assistantMessage = await this.addMessage(chatId, {
+        role: 'assistant',
+        content: '',
+        images: [],
+        isStreaming: true,
+        isComplete: false
       });
 
-      // Use Bedrock for AI processing
-      const modelId = config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0';
-      const temperature = config?.temperature || 0.7;
+      let fullResponse = '';
 
-      // Stream response from Bedrock
-      await this.streamBedrockResponse(chatId, messages, modelId, temperature, userId);
-
-    } catch (error) {
-      console.error('❌ Error in AI processing:', error);
-      
-      // Send error to client
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'error',
-          data: 'Failed to process AI response'
-        }));
-      }
-    }
-  }
-
-  private async processWithAIEnhanced(chatId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
-    modelId?: string | null;
-    collectionNames?: string[];
-    systemPrompt?: string | null;
-    temperature?: number;
-    maxTokens?: number;
-    agentId?: string;
-  }, userId?: string): Promise<void> {
-    try {
-      // Get chat history for context
-      const chat = await ChatModel.findById(chatId);
-      if (!chat) {
-        throw new Error(`Chat session ${chatId} not found`);
-      }
-
-      // Prepare messages for Bedrock
-      const messages: BedrockMessage[] = [];
-      
-      // Add system prompt if available
-      if (config?.systemPrompt) {
-        messages.push({
-          role: 'assistant',
-          content: [{ text: config.systemPrompt }]
-        });
-      }
-
-      // Add memory context if available and needed
-      if (memoryService.shouldUseMemoryTool(chat.messages.length)) {
-        const memoryResults = await memoryService.searchChatMemory(chatId, userMessage, 3);
-        if (memoryResults.length > 0) {
-          const memoryContext = memoryResults
-            .map(result => `${result.role}: ${result.content}`)
-            .join('\n');
-          
-          messages.push({
-            role: 'assistant',
-            content: [{ text: `Previous relevant context:\n${memoryContext}\n\nNow, let me help you with your current question.` }]
-          });
-        }
-      }
-
-      // Add chat history (last 10 messages for context)
-      const recentMessages = chat.messages.slice(-10);
-      for (const msg of recentMessages) {
-        messages.push({
-          role: msg.role as 'user' | 'assistant',
-          content: [{ text: msg.content }]
-        });
-      }
-
-      // Add current user message
-      messages.push({
-        role: 'user',
-        content: [{ text: userMessage }]
-      });
-
-      // Use Bedrock for AI processing
-      const modelId = config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0';
-      const temperature = config?.temperature || 0.7;
-
-      // Stream response from Bedrock
-      await this.streamBedrockResponse(chatId, messages, modelId, temperature, userId);
-
-    } catch (error) {
-      console.error('❌ Error in AI processing:', error);
-      
-      // Send error to client
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'error',
-          data: 'Failed to process AI response'
-        }));
-      }
-    }
-  }
-
-
-
-
-
-  private async streamResponse(chatId: string, messageId: string, response: string): Promise<void> {
-    const words = response.split(' ');
-    let fullContent = '';
-    
-    for (let i = 0; i < words.length; i++) {
-      const chunk = (i > 0 ? ' ' : '') + words[i];
-      fullContent += chunk;
-      
-      // Update message content in database
-      await ChatModel.updateOne(
-        { _id: chatId, 'messages.id': messageId },
-        { 
-          $set: { 
-            'messages.$.content': fullContent,
-            updatedAt: new Date()
-          }
-        }
+      // Use LangChain chat service for advanced features
+      const chatStream = langchainChatService.chat(
+        chatId,
+        userId || '',
+        userMessage,
+        config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        config?.collectionNames || [],
+        images,
+        config?.systemPrompt || undefined,
+        config?.temperature || 0.7,
+        config?.maxTokens || 4000
       );
-      
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'chunk',
-          data: chunk
-        }));
-      }
 
-      await this.delay(100);
-    }
-  }
-
-  private async streamResponseLegacy(chatId: string, response: string): Promise<void> {
-    const words = response.split(' ');
-    let fullContent = '';
-    
-    // Create assistant message first (like in legacy)
-    const assistantMessage = await this.addMessage(chatId, {
-      role: 'assistant',
-      content: ''
-    });
-    
-    for (let i = 0; i < words.length; i++) {
-      const chunk = (i > 0 ? ' ' : '') + words[i];
-      fullContent += chunk;
-      
-      // Update message content in database
-      await ChatModel.updateOne(
-        { _id: chatId, 'messages.id': assistantMessage.id },
-        { 
-          $set: { 
-            'messages.$.content': fullContent,
-            updatedAt: new Date()
-          }
-        }
-      );
-      
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'chunk',
-          data: chunk
-        }));
-      }
-
-      await this.delay(100);
-    }
-  }
-
-  private async streamBedrockResponse(chatId: string, messages: BedrockMessage[], modelId: string, temperature: number, userId?: string): Promise<void> {
-    // Add assistant message to database
-    const assistantMessage = await this.addMessage(chatId, {
-      role: 'assistant',
-      content: '',
-      images: []
-    });
-
-    let fullResponse = '';
-    let inputTokens = 0;
-    let outputTokens = 0;
-
-    try {
-      // Stream response from Bedrock
-      const stream = bedrockService.converseStream(modelId, messages, '', undefined, temperature);
-
-      for await (const event of stream) {
-        if (event.error) {
-          throw new Error(event.error);
-        }
-
-        if (event.chunk?.bytes) {
-          const chunk = event.chunk.bytes;
-          const text = new TextDecoder().decode(chunk);
+      for await (const chunk of chatStream) {
+        try {
+          const data = JSON.parse(chunk);
           
-          if (text) {
-            fullResponse += text;
+          if (data.type === 'chunk') {
+            const chunkText = data.data;
+            fullResponse += chunkText;
             
             // Update message in database
             await ChatModel.updateOne(
               { _id: chatId, 'messages.id': assistantMessage.id },
-              { $set: { 'messages.$.content': fullResponse } }
+              { 
+                $set: { 
+                  'messages.$.content': fullResponse,
+                  'messages.$.isStreaming': true
+                } 
+              }
             );
-
+            
             // Send chunk to WebSocket clients
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({
                 type: 'chunk',
-                data: text
+                data: chunkText
               }));
             }
           }
-        }
-
-        // Track usage
-        if (event.usage?.inputTokens) {
-          inputTokens = event.usage.inputTokens;
-        }
-        if (event.usage?.outputTokens) {
-          outputTokens = event.usage.outputTokens;
+          
+          else if (data.type === 'tool_start') {
+            // Forward tool events to WebSocket clients
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify(data));
+            }
+          }
+          
+          else if (data.type === 'tool_result') {
+            // Forward tool events to WebSocket clients
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify(data));
+            }
+          }
+          
+          else if (data.type === 'tool_error') {
+            // Forward tool events to WebSocket clients
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify(data));
+            }
+          }
+          
+          else if (data.type === 'end') {
+            // Send end event to WebSocket clients
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify(data));
+            }
+          }
+          
+        } catch (error) {
+          console.error('Error parsing chunk:', error);
+          continue;
         }
       }
 
-      // Update usage statistics if userId is available
-      if (userId && (inputTokens > 0 || outputTokens > 0)) {
-        await usageService.updateUsage(userId, inputTokens, outputTokens);
-      }
-
-      // Mark as complete
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'end'
-        }));
-      }
-
-    } catch (error) {
-      console.error('❌ Error streaming Bedrock response:', error);
-      
-      // Update message with error
+      // Update final message in database
       await ChatModel.updateOne(
         { _id: chatId, 'messages.id': assistantMessage.id },
-        { $set: { 'messages.$.content': 'ขออภัย เกิดข้อผิดพลาดในการประมวลผล' } }
+        { 
+          $set: { 
+            'messages.$.content': fullResponse,
+            'messages.$.isStreaming': false,
+            'messages.$.isComplete': true
+          } 
+        }
       );
 
+    } catch (error) {
+      console.error('❌ Error in LangChain processing:', error);
+      
       // Send error to client
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
         wsManager.broadcastToSession(chatId, JSON.stringify({
@@ -450,56 +276,11 @@ export class ChatService {
     }
   }
 
-  private generateResponse(userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
-    modelId?: string | null;
-    collectionNames?: string[];
-    systemPrompt?: string | null;
-    temperature?: number;
-    maxTokens?: number;
-    agentId?: string;
-  }): string {
-    // Use system prompt if available
-    if (config?.systemPrompt) {
-      const responses = [
-        `ตามที่กำหนดในระบบ: ${config.systemPrompt}\n\nสำหรับคำถาม "${userMessage}" นี่คือคำตอบ:`,
-        `ตามแนวทางของ AI Assistant: ${config.systemPrompt}\n\nคำตอบสำหรับ "${userMessage}":`
-      ];
-      
-      const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-      return `${baseResponse} ${this.generateDetailedResponse()}`;
-    }
 
-    // Default responses
-    const responses = [
-      `ฉันเข้าใจคำถามของคุณเกี่ยวกับ "${userMessage}" แล้ว นี่คือคำตอบที่ครอบคลุม:`,
-      `ขอบคุณสำหรับคำถาม "${userMessage}" ฉันจะอธิบายให้คุณฟัง:`,
-      `สำหรับคำถาม "${userMessage}" นี่คือข้อมูลที่เกี่ยวข้อง:`,
-      `ฉันได้วิเคราะห์คำถาม "${userMessage}" ของคุณแล้ว และนี่คือสิ่งที่ฉันพบ:`
-    ];
 
-    const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-    
-    if (images && images.length > 0) {
-      return `${baseResponse} ฉันเห็นว่าคุณได้แนบรูปภาพมาด้วย ฉันจะวิเคราะห์ทั้งข้อความและรูปภาพเพื่อให้คำตอบที่ครบถ้วนที่สุด. ${this.generateDetailedResponse()}`;
-    }
 
-    return `${baseResponse} ${this.generateDetailedResponse()}`;
-  }
 
-  private generateDetailedResponse(): string {
-    const details = [
-      `ข้อมูลนี้จะช่วยให้คุณเข้าใจแนวคิดได้ดีขึ้น และสามารถนำไปประยุกต์ใช้ในสถานการณ์จริงได้.`,
-      `หากคุณต้องการข้อมูลเพิ่มเติมหรือมีคำถามอื่นๆ อย่าลังเลที่จะถามได้เลย.`,
-      `ฉันหวังว่าคำตอบนี้จะช่วยให้คุณเข้าใจประเด็นนี้ได้ชัดเจนขึ้น.`,
-      `หากมีส่วนไหนที่ยังไม่ชัดเจน กรุณาแจ้งให้ฉันทราบเพื่อที่ฉันจะได้อธิบายเพิ่มเติม.`
-    ];
-
-    return details[Math.floor(Math.random() * details.length)];
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  // Legacy streaming methods removed - now handled by LangChain
 
   public async getUserChats(userId: string): Promise<Chat[]> {
     const chats = await ChatModel.find({ userId })
@@ -552,7 +333,10 @@ export class ChatService {
     try {
       console.log(`🧹 Clearing memory for chat ${chatId}`);
       
-      // Clear memory service
+      // Clear LangChain memory (includes Redis and tool registry)
+      await langchainChatService.clearChatMemory(chatId);
+      
+      // Clear additional memory services
       memoryService.clearChatMemory(chatId);
       
       console.log(`✅ Memory cleared for chat ${chatId}`);
@@ -561,20 +345,8 @@ export class ChatService {
     }
   }
 
-  private shouldUseMemoryTool(messageCount: number): boolean {
-    // Use memory tool when there are more than 10 messages
-    return messageCount > 10;
-  }
-
-  private shouldUseRedisMemory(messageCount: number): boolean {
-    // Always use Redis memory for recent conversations (last 10 messages)
-    return true;
-  }
-
-  private shouldEmbedMessages(messageCount: number): boolean {
-    // Embed messages every 10 messages (10, 20, 30, etc.)
-    return messageCount % 10 === 0;
-  }
+  // Memory management methods are now handled by langchainChatService
+  // These methods are kept for backward compatibility but delegate to LangChain
 
   public getStats(): any {
     return {
