@@ -20,6 +20,10 @@ export interface Config {
   SAML_CERTIFICATE?: string;
   SAML_IDENTIFIER_FORMAT?: string;
   APP_ENV: string;
+  AWS_REGION?: string;
+  AWS_ACCESS_KEY_ID?: string;
+  AWS_SECRET_ACCESS_KEY?: string;
+  AWS_BEDROCK_MODEL_ID?: string;
 }
 
 const APP_ENV = process.env.APP_ENV || 'development';
@@ -42,6 +46,10 @@ const config: Config = {
   SAML_CERTIFICATE: process.env.SAML_CERTIFICATE,
   SAML_IDENTIFIER_FORMAT: process.env.SAML_IDENTIFIER_FORMAT,
   APP_ENV,
+  AWS_REGION: process.env.AWS_REGION,
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+  AWS_BEDROCK_MODEL_ID: process.env.AWS_BEDROCK_MODEL_ID,
 };
 
 export default config; 

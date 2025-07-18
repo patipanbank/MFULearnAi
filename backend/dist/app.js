@@ -14,6 +14,7 @@ const http_1 = require("http");
 const auth_1 = __importDefault(require("./routes/auth"));
 const chat_1 = __importDefault(require("./routes/chat"));
 const agent_1 = __importDefault(require("./routes/agent"));
+const bedrock_1 = __importDefault(require("./routes/bedrock"));
 const websocketService_1 = require("./services/websocketService");
 const mongodb_1 = require("./lib/mongodb");
 dotenv_1.default.config();
@@ -35,6 +36,7 @@ const apiRouter = express_1.default.Router();
 apiRouter.use('/auth', auth_1.default);
 apiRouter.use('/chat', chat_1.default);
 apiRouter.use('/agents', agent_1.default);
+apiRouter.use('/bedrock', bedrock_1.default);
 app.use('/api', apiRouter);
 app.get('/', (req, res) => {
     res.send('MFULearnAi Node.js Backend');

@@ -19,6 +19,8 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock": "^3.847.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.846.0",
     "@types/redis": "^4.0.10",
     "@types/socket.io": "^3.0.1",
     "@types/uuid": "^10.0.0",

@@ -2,6 +2,9 @@ import { ChatModel, Chat, ChatMessage } from '../models/chat';
 import { wsManager } from '../utils/websocketManager';
 import { agentService } from './agentService';
 import { usageService } from './usageService';
+import { bedrockService, BedrockMessage } from './bedrockService';
+import { memoryService } from './memoryService';
+import { toolRegistryService } from './toolRegistryService';
 
 export class ChatService {
   constructor() {
@@ -105,8 +108,13 @@ export class ChatService {
         }
       }
 
-      // Process with AI agent using legacy-style processing (no placeholder message)
-      await this.processWithAILegacy(chatId, content, images, {
+      // Add messages to memory if needed
+      if (memoryService.shouldEmbedMessages(chat.messages.length)) {
+        await memoryService.addChatMemory(chatId, chat.messages);
+      }
+
+      // Process with AI agent using enhanced processing
+      await this.processWithAIEnhanced(chatId, content, images, {
         modelId,
         collectionNames,
         systemPrompt,
@@ -152,35 +160,121 @@ export class ChatService {
     agentId?: string;
   }, userId?: string): Promise<void> {
     try {
-      // Simulate thinking time
-      await this.delay(1000);
-
-      // Generate response based on configuration
-      const response = this.generateResponse(userMessage, images, config);
-      
-      // Create assistant message and stream response
-      await this.streamResponseLegacy(chatId, response);
-
-      // Calculate tokens and update usage
-      const inputTokens = Math.floor(userMessage.length / 4);
-      const outputTokens = Math.floor(response.length / 4);
-      
-      // Update usage statistics if userId is available
-      if (userId) {
-        await usageService.updateUsage(userId, inputTokens, outputTokens);
+      // Get chat history for context
+      const chat = await ChatModel.findById(chatId);
+      if (!chat) {
+        throw new Error(`Chat session ${chatId} not found`);
       }
 
-      // Mark as complete
+      // Prepare messages for Bedrock
+      const messages: BedrockMessage[] = [];
+      
+      // Add system prompt if available
+      if (config?.systemPrompt) {
+        messages.push({
+          role: 'assistant',
+          content: [{ text: config.systemPrompt }]
+        });
+      }
+
+      // Add chat history (last 10 messages for context)
+      const recentMessages = chat.messages.slice(-10);
+      for (const msg of recentMessages) {
+        messages.push({
+          role: msg.role as 'user' | 'assistant',
+          content: [{ text: msg.content }]
+        });
+      }
+
+      // Add current user message
+      messages.push({
+        role: 'user',
+        content: [{ text: userMessage }]
+      });
+
+      // Use Bedrock for AI processing
+      const modelId = config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0';
+      const temperature = config?.temperature || 0.7;
+
+      // Stream response from Bedrock
+      await this.streamBedrockResponse(chatId, messages, modelId, temperature, userId);
+
+    } catch (error) {
+      console.error('❌ Error in AI processing:', error);
+      
+      // Send error to client
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
         wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'end',
-          data: {
-            sessionId: chatId,
-            inputTokens,
-            outputTokens
-          }
+          type: 'error',
+          data: 'Failed to process AI response'
         }));
       }
+    }
+  }
+
+  private async processWithAIEnhanced(chatId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
+    modelId?: string | null;
+    collectionNames?: string[];
+    systemPrompt?: string | null;
+    temperature?: number;
+    maxTokens?: number;
+    agentId?: string;
+  }, userId?: string): Promise<void> {
+    try {
+      // Get chat history for context
+      const chat = await ChatModel.findById(chatId);
+      if (!chat) {
+        throw new Error(`Chat session ${chatId} not found`);
+      }
+
+      // Prepare messages for Bedrock
+      const messages: BedrockMessage[] = [];
+      
+      // Add system prompt if available
+      if (config?.systemPrompt) {
+        messages.push({
+          role: 'assistant',
+          content: [{ text: config.systemPrompt }]
+        });
+      }
+
+      // Add memory context if available and needed
+      if (memoryService.shouldUseMemoryTool(chat.messages.length)) {
+        const memoryResults = await memoryService.searchChatMemory(chatId, userMessage, 3);
+        if (memoryResults.length > 0) {
+          const memoryContext = memoryResults
+            .map(result => `${result.role}: ${result.content}`)
+            .join('\n');
+          
+          messages.push({
+            role: 'assistant',
+            content: [{ text: `Previous relevant context:\n${memoryContext}\n\nNow, let me help you with your current question.` }]
+          });
+        }
+      }
+
+      // Add chat history (last 10 messages for context)
+      const recentMessages = chat.messages.slice(-10);
+      for (const msg of recentMessages) {
+        messages.push({
+          role: msg.role as 'user' | 'assistant',
+          content: [{ text: msg.content }]
+        });
+      }
+
+      // Add current user message
+      messages.push({
+        role: 'user',
+        content: [{ text: userMessage }]
+      });
+
+      // Use Bedrock for AI processing
+      const modelId = config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0';
+      const temperature = config?.temperature || 0.7;
+
+      // Stream response from Bedrock
+      await this.streamBedrockResponse(chatId, messages, modelId, temperature, userId);
+
     } catch (error) {
       console.error('❌ Error in AI processing:', error);
       
@@ -261,6 +355,99 @@ export class ChatService {
       }
 
       await this.delay(100);
+    }
+  }
+
+  private async streamBedrockResponse(chatId: string, messages: BedrockMessage[], modelId: string, temperature: number, userId?: string): Promise<void> {
+    // Add assistant message to database
+    const assistantMessage = await this.addMessage(chatId, {
+      role: 'assistant',
+      content: '',
+      images: []
+    });
+
+    let fullResponse = '';
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    try {
+      // Stream response from Bedrock
+      const stream = bedrockService.converseStream(modelId, messages, '', undefined, temperature);
+
+      for await (const event of stream) {
+        if (event.error) {
+          throw new Error(event.error);
+        }
+
+        if (event.chunk?.bytes) {
+          const chunk = event.chunk.bytes;
+          const text = new TextDecoder().decode(chunk);
+          
+          if (text) {
+            fullResponse += text;
+            
+            // Update message in database
+            await ChatModel.updateOne(
+              { _id: chatId, 'messages.id': assistantMessage.id },
+              { $set: { 'messages.$.content': fullResponse } }
+            );
+
+            // Send chunk to WebSocket clients
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'chunk',
+                data: {
+                  sessionId: chatId,
+                  messageId: assistantMessage.id,
+                  content: text
+                }
+              }));
+            }
+          }
+        }
+
+        // Track usage
+        if (event.usage?.inputTokens) {
+          inputTokens = event.usage.inputTokens;
+        }
+        if (event.usage?.outputTokens) {
+          outputTokens = event.usage.outputTokens;
+        }
+      }
+
+      // Update usage statistics if userId is available
+      if (userId && (inputTokens > 0 || outputTokens > 0)) {
+        await usageService.updateUsage(userId, inputTokens, outputTokens);
+      }
+
+      // Mark as complete
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'end',
+          data: {
+            sessionId: chatId,
+            inputTokens,
+            outputTokens
+          }
+        }));
+      }
+
+    } catch (error) {
+      console.error('❌ Error streaming Bedrock response:', error);
+      
+      // Update message with error
+      await ChatModel.updateOne(
+        { _id: chatId, 'messages.id': assistantMessage.id },
+        { $set: { 'messages.$.content': 'ขออภัย เกิดข้อผิดพลาดในการประมวลผล' } }
+      );
+
+      // Send error to client
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'error',
+          data: 'Failed to process AI response'
+        }));
+      }
     }
   }
 
@@ -364,11 +551,10 @@ export class ChatService {
 
   public async clearChatMemory(chatId: string): Promise<void> {
     try {
-      // Clear Redis memory if available
       console.log(`🧹 Clearing memory for chat ${chatId}`);
       
-      // TODO: Implement Redis memory clearing
-      // This would require Redis client setup
+      // Clear memory service
+      memoryService.clearChatMemory(chatId);
       
       console.log(`✅ Memory cleared for chat ${chatId}`);
     } catch (error) {

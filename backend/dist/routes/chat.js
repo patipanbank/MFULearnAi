@@ -108,6 +108,33 @@ router.post('/', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
+router.post('/update-name', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { chat_id, name } = req.body;
+        const userId = req.user.sub || req.user.id;
+        if (!chat_id || !name || typeof name !== 'string') {
+            return res.status(400).json({
+                success: false,
+                error: 'chat_id and name are required'
+            });
+        }
+        const chat = await chatService_1.chatService.updateChatName(chat_id, userId, name);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                error: 'Chat not found or access denied'
+            });
+        }
+        return res.json(chat);
+    }
+    catch (error) {
+        console.error('❌ Error updating chat name:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to update chat name'
+        });
+    }
+});
 router.put('/:chatId/name', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
@@ -136,6 +163,59 @@ router.put('/:chatId/name', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
+router.post('/:chatId/pin', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const userId = req.user.sub || req.user.id;
+        const { isPinned } = req.body;
+        if (typeof isPinned !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                error: 'isPinned must be a boolean'
+            });
+        }
+        const chat = await chatService_1.chatService.updateChatPinStatus(chatId, userId, isPinned);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                error: 'Chat not found or access denied'
+            });
+        }
+        return res.json(chat);
+    }
+    catch (error) {
+        console.error('❌ Error updating chat pin status:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to update chat pin status'
+        });
+    }
+});
+router.post('/:chatId/clear-memory', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const userId = req.user.sub || req.user.id;
+        const chat = await chatService_1.chatService.getChat(chatId, userId);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                error: 'Chat not found or access denied'
+            });
+        }
+        await chatService_1.chatService.clearChatMemory(chatId);
+        return res.json({
+            success: true,
+            message: 'Chat memory cleared successfully'
+        });
+    }
+    catch (error) {
+        console.error('❌ Error clearing chat memory:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to clear chat memory'
+        });
+    }
+});
 router.delete('/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
@@ -157,6 +237,28 @@ router.delete('/:chatId', auth_1.authenticateJWT, async (req, res) => {
         return res.status(500).json({
             success: false,
             error: 'Failed to delete chat'
+        });
+    }
+});
+router.get('/memory/stats', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        const stats = chatService_1.chatService.getStats();
+        return res.json({
+            success: true,
+            data: stats
+        });
+    }
+    catch (error) {
+        console.error('❌ Error getting memory stats:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get memory statistics'
         });
     }
 });

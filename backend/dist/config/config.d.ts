@@ -16,6 +16,10 @@ export interface Config {
     SAML_CERTIFICATE?: string;
     SAML_IDENTIFIER_FORMAT?: string;
     APP_ENV: string;
+    AWS_REGION?: string;
+    AWS_ACCESS_KEY_ID?: string;
+    AWS_SECRET_ACCESS_KEY?: string;
+    AWS_BEDROCK_MODEL_ID?: string;
 }
 declare const config: Config;
 export default config;

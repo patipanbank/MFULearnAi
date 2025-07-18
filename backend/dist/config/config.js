@@ -24,6 +24,10 @@ const config = {
     SAML_CERTIFICATE: process.env.SAML_CERTIFICATE,
     SAML_IDENTIFIER_FORMAT: process.env.SAML_IDENTIFIER_FORMAT,
     APP_ENV,
+    AWS_REGION: process.env.AWS_REGION,
+    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+    AWS_BEDROCK_MODEL_ID: process.env.AWS_BEDROCK_MODEL_ID,
 };
 exports.default = config;
 //# sourceMappingURL=config.js.map
