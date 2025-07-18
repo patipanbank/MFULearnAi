@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.disconnectDB = exports.getDatabase = exports.connectDB = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
-const config_1 = __importDefault(require("../config/config"));
+const config_1 = require("../config/config");
 let isConnected = false;
 const connectDB = async () => {
     if (isConnected) {
@@ -13,7 +13,7 @@ const connectDB = async () => {
         return;
     }
     try {
-        await mongoose_1.default.connect(config_1.default.MONGODB_URI);
+        await mongoose_1.default.connect(config_1.config.mongoUri);
         isConnected = true;
         console.log('MongoDB connected successfully');
     }

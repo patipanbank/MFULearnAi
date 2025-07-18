@@ -10,6 +10,8 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const websocketManager_1 = require("../utils/websocketManager");
 const chatService_1 = require("./chatService");
 const agentService_1 = require("./agentService");
+const queueService_1 = require("./queueService");
+const redisListener_1 = require("../utils/redisListener");
 const uuid_1 = require("uuid");
 class WebSocketService {
     constructor(server) {
@@ -139,6 +141,9 @@ class WebSocketService {
             userSession.agentId = chat.agentId || null;
         }
         websocketManager_1.wsManager.joinSession(connectionId, chatId);
+        redisListener_1.redisListener.subscribeToChat(chatId, (message) => {
+            websocketManager_1.wsManager.sendToConnection(connectionId, JSON.stringify(message));
+        });
         websocketManager_1.wsManager.sendToConnection(connectionId, JSON.stringify({
             type: 'room_joined',
             data: { chatId }
@@ -248,14 +253,47 @@ class WebSocketService {
             return;
         }
         const chatId = currentChatId;
+        await chatService_1.chatService.addMessage(chatId, {
+            role: 'user',
+            content: message,
+            images
+        });
         websocketManager_1.wsManager.sendToConnection(connectionId, JSON.stringify({
             type: 'accepted',
             data: { chatId }
         }));
-        await chatService_1.chatService.processMessage(chatId, user.id, message, images);
+        const taskPayload = {
+            sessionId: chatId,
+            userId: user.id,
+            message,
+            modelId: userSession.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+            collectionNames: userSession.collectionNames || [],
+            images,
+            systemPrompt: userSession.systemPrompt || undefined,
+            temperature: userSession.temperature,
+            maxTokens: userSession.maxTokens,
+            agentId: userSession.agentId || undefined,
+        };
+        console.log(`🚀 Dispatching BullMQ task for session ${chatId}`);
+        console.log(`📋 Task payload:`, taskPayload);
+        try {
+            const job = await queueService_1.queueService.addChatJob(taskPayload);
+            console.log(`✅ BullMQ task dispatched successfully, job_id: ${job.id}`);
+        }
+        catch (error) {
+            console.error(`❌ Failed to dispatch BullMQ task: ${error}`);
+            websocketManager_1.wsManager.sendToConnection(connectionId, JSON.stringify({
+                type: 'error',
+                data: `Failed to process message: ${error}`
+            }));
+        }
         console.log(`💬 User ${user.id} sent message in room ${chatId}`);
     }
     handleLeaveRoom(connectionId) {
+        const userSession = this.userSessions.get(connectionId);
+        if (userSession?.sessionId) {
+            redisListener_1.redisListener.unsubscribeFromChat(userSession.sessionId);
+        }
         websocketManager_1.wsManager.leaveSession(connectionId);
         websocketManager_1.wsManager.sendToConnection(connectionId, JSON.stringify({
             type: 'room_left',
