@@ -4,7 +4,7 @@ import { Strategy as SamlStrategy, Profile as SamlProfile } from 'passport-saml'
 import { getSamlConfig } from '../services/samlService';
 import { userService } from '../services/userService';
 import { authenticateJWT, requireAnyRole, requireAdminRole } from '../middleware/auth';
-import { config } from '../config/config';
+import config from '../config/config';
 import jwt from 'jsonwebtoken';
 
 const router = Router();

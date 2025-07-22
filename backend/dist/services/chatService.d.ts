@@ -8,7 +8,14 @@ export declare class ChatService {
         url: string;
         mediaType: string;
     }>): Promise<void>;
-    private processWithLangChain;
+    private processWithAI;
+    private simulateAIProcessing;
+    private simulateToolUsage;
+    private simulateToolExecution;
+    private streamResponse;
+    private generateResponse;
+    private generateDetailedResponse;
+    private delay;
     getUserChats(userId: string): Promise<Chat[]>;
     deleteChat(chatId: string, userId: string): Promise<boolean>;
     updateChatName(chatId: string, userId: string, name: string): Promise<Chat | null>;

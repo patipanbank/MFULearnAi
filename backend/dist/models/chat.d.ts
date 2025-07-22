@@ -3,14 +3,6 @@ export interface ImagePayload {
     url: string;
     mediaType: string;
 }
-export interface ToolUsage {
-    type: 'tool_start' | 'tool_result' | 'tool_error';
-    tool_name: string;
-    tool_input?: string;
-    output?: string;
-    error?: string;
-    timestamp: Date;
-}
 export interface ChatMessage {
     id: string;
     role: 'user' | 'assistant';
@@ -19,7 +11,14 @@ export interface ChatMessage {
     images?: ImagePayload[];
     isStreaming?: boolean;
     isComplete?: boolean;
-    toolUsage?: ToolUsage[];
+    toolUsage?: Array<{
+        type: 'tool_start' | 'tool_result' | 'tool_error';
+        tool_name: string;
+        tool_input?: string;
+        output?: string;
+        error?: string;
+        timestamp: Date;
+    }>;
 }
 export interface Chat extends Document {
     userId: string;

@@ -16,12 +16,10 @@ services:
   redis:
     image: redis:alpine
     container_name: mfulearnai_redis
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     ports:
       - "6379:6379"
     volumes:
       - redis:/data
-      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - mfulearnai
     restart: unless-stopped
@@ -116,7 +114,7 @@ services:
       - mfulearnai
     restart: unless-stopped
 
-  chat-worker:
+  worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -137,30 +135,8 @@ services:
     networks:
       - mfulearnai
     restart: unless-stopped
-    command: ["npm", "run", "worker"]
-
-  agent-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-    environment:
-      - MONGODB_URI=mongodb://root:1234@db:27017/mfu_chatbot?authSource=admin
-      - CHROMA_URL=http://chroma:8000
-      - REDIS_URL=redis://redis:6379
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minioadmin
-      - S3_SECRET_KEY=minioadmin123
-      - S3_BUCKET=uploads
-    depends_on:
-      - db
-      - redis
-      - chroma
-    networks:
-      - mfulearnai
-    restart: unless-stopped
-    command: ["npm", "run", "worker:agent"]
+    command: >
+      celery -A celery_app.celery worker -l info --concurrency=4
 
   minio:
     image: minio/minio

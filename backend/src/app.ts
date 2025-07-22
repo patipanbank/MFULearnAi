@@ -2,68 +2,100 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { config } from './config/config';
-import { connectDB } from './lib/mongodb';
-import http from 'http';
+import dotenv from 'dotenv';
+import session from 'express-session';
+import passport from 'passport';
+import { createServer } from 'http';
+import authRouter from './routes/auth';
+import chatRouter from './routes/chat';
+import agentRouter from './routes/agent';
 import { WebSocketService } from './services/websocketService';
+import { connectDB } from './lib/mongodb';
 
-// Import routes
-import authRoutes from './routes/auth';
-import chatRoutes from './routes/chat';
-import agentRoutes from './routes/agent';
-import bedrockRoutes from './routes/bedrock';
-import queueRoutes from './routes/queue';
-
-// Import workers
-import './workers/chatWorker';
-import './workers/agentWorker';
+dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(helmet());
-app.use(cors());
-app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(helmet());
+app.use(morgan('dev'));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false },
+}));
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/agents', agentRoutes);
-app.use('/api/bedrock', bedrockRoutes);
-app.use('/api/queue', queueRoutes);
+// Initialize passport
+app.use(passport.initialize());
+app.use(passport.session());
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+// Create API router with global prefix
+const apiRouter = express.Router();
+
+// Mount auth routes under API router
+apiRouter.use('/auth', authRouter);
+
+// Mount chat routes under API router
+apiRouter.use('/chat', chatRouter);
+
+// Mount agent routes under API router
+apiRouter.use('/agents', agentRouter);
+
+// Mount API router under /api prefix
+app.use('/api', apiRouter);
+
+app.get('/', (req, res) => {
+  res.send('MFULearnAi Node.js Backend');
 });
 
-// Error handling middleware
+// Error handler middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error(err.stack);
+  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
-// Start server
+const PORT = process.env.PORT || 3001;
+
+// Create HTTP server
+const server = createServer(app);
+
+// Initialize WebSocket service
+const wsService = new WebSocketService(server);
+
+// Connect to MongoDB and start server
 const startServer = async () => {
   try {
     await connectDB();
-    console.log('✅ Connected to MongoDB');
-
-    // สร้าง HTTP server จาก Express app
-    const server = http.createServer(app);
-
-    // สร้าง WebSocketService และผูกกับ server
-    new WebSocketService(server);
-
-    server.listen(config.port, () => {
-      console.log(`🚀 Server running on port ${config.port}`);
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 WebSocket server available at ws://localhost:${PORT}/ws`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 };
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  wsService.stop();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully...');
+  wsService.stop();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
 
 startServer(); 

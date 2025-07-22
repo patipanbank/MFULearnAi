@@ -30,15 +30,8 @@ RUN npm install --only=production
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Copy source files for workers (needed for ts-node)
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/tsconfig*.json ./
-
-# Install ts-node for running workers
-RUN npm install -g ts-node
-
 # Expose port
 EXPOSE 3001
 
-# Start the application (can be overridden for workers)
+# Start the application
 CMD ["npm", "start"] 

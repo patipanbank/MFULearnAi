@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { config } from '../config/config';
+import config from '../config/config';
 
 let isConnected = false;
 
@@ -10,9 +10,7 @@ export const connectDB = async (): Promise<void> => {
   }
 
   try {
-    const uri = config.mongoUri || '';
-    if (!uri) throw new Error('MongoDB URI is not defined');
-    await mongoose.connect(uri);
+    await mongoose.connect(config.MONGODB_URI);
     isConnected = true;
     console.log('MongoDB connected successfully');
   } catch (error) {

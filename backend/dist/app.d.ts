@@ -1,3 +1,2 @@
-import './workers/chatWorker';
-import './workers/agentWorker';
+export {};
 //# sourceMappingURL=app.d.ts.map

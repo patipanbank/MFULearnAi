@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireAdminRole = exports.requireAnyRole = exports.requireRoles = exports.authenticateJWT = exports.UserRole = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const config_1 = require("../config/config");
+const config_1 = __importDefault(require("../config/config"));
 var UserRole;
 (function (UserRole) {
     UserRole["ADMIN"] = "Admin";
@@ -20,8 +20,8 @@ const authenticateJWT = (req, res, next) => {
     }
     const token = authHeader.split(' ')[1];
     try {
-        const decoded = jsonwebtoken_1.default.verify(token, config_1.config.jwtSecret);
-        decoded.id = decoded.sub || decoded.userId;
+        const decoded = jsonwebtoken_1.default.verify(token, config_1.default.JWT_SECRET);
+        console.log('🔐 JWT decoded:', JSON.stringify(decoded, null, 2));
         req.user = decoded;
         return next();
     }

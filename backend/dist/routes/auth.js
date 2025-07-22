@@ -9,7 +9,7 @@ const passport_saml_1 = require("passport-saml");
 const samlService_1 = require("../services/samlService");
 const userService_1 = require("../services/userService");
 const auth_1 = require("../middleware/auth");
-const config_1 = require("../config/config");
+const config_1 = __importDefault(require("../config/config"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const router = (0, express_1.Router)();
 passport_1.default.use('saml', new passport_saml_1.Strategy((0, samlService_1.getSamlConfig)(), (profile, done) => {
@@ -20,7 +20,7 @@ router.post('/saml/callback', (req, res, next) => {
     passport_1.default.authenticate('saml', async (err, profile, info) => {
         if (err || !profile) {
             console.log('❌ SAML Authentication failed:', err);
-            return res.redirect(`${config_1.config.FRONTEND_URL}/login?error=auth_failed&reason=${encodeURIComponent(err?.message || 'No profile')}`);
+            return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=auth_failed&reason=${encodeURIComponent(err?.message || 'No profile')}`);
         }
         console.log('\n' + '='.repeat(80));
         console.log('🔍 COMPLETE SAML DATA ANALYSIS');
@@ -95,7 +95,7 @@ router.post('/saml/callback', (req, res, next) => {
             console.log(`🔍 Groups mapping - Final groups array: ${JSON.stringify(groupsArray)}`);
             if (!username) {
                 console.log('❌ Username not found in SAML attributes');
-                return res.redirect(`${config_1.config.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
+                return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
             }
             console.log('\n🔍 Mapped Values:');
             console.log(`   Username: ${username}`);
@@ -128,14 +128,14 @@ router.post('/saml/callback', (req, res, next) => {
                 role: user.role,
                 exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
             };
-            const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.JWT_SECRET, { algorithm: config_1.config.JWT_ALGORITHM });
-            const redirect_url = `${config_1.config.FRONTEND_URL}/auth/callback?token=${token}`;
+            const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.default.JWT_SECRET, { algorithm: config_1.default.JWT_ALGORITHM });
+            const redirect_url = `${config_1.default.FRONTEND_URL}/auth/callback?token=${token}`;
             console.log(`🔄 Redirecting to: ${redirect_url}`);
             return res.redirect(redirect_url);
         }
         catch (e) {
             console.log(`❌ Error processing SAML attributes: ${e}`);
-            return res.redirect(`${config_1.config.FRONTEND_URL}/login?error=token_creation&reason=${encodeURIComponent(e.message)}`);
+            return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=token_creation&reason=${encodeURIComponent(e.message)}`);
         }
     })(req, res, next);
 });
@@ -143,7 +143,7 @@ router.get('/saml/callback', (req, res, next) => {
     passport_1.default.authenticate('saml', async (err, profile, info) => {
         if (err || !profile) {
             console.log('❌ SAML Authentication failed:', err);
-            return res.redirect(`${config_1.config.FRONTEND_URL}/login?error=auth_failed&reason=${encodeURIComponent(err?.message || 'No profile')}`);
+            return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=auth_failed&reason=${encodeURIComponent(err?.message || 'No profile')}`);
         }
         console.log('\n' + '='.repeat(80));
         console.log('🔍 COMPLETE SAML DATA ANALYSIS (GET)');
@@ -218,7 +218,7 @@ router.get('/saml/callback', (req, res, next) => {
             console.log(`🔍 Groups mapping - Final groups array: ${JSON.stringify(groupsArray)}`);
             if (!username) {
                 console.log('❌ Username not found in SAML attributes');
-                return res.redirect(`${config_1.config.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
+                return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
             }
             console.log('\n🔍 Mapped Values:');
             console.log(`   Username: ${username}`);
@@ -251,21 +251,21 @@ router.get('/saml/callback', (req, res, next) => {
                 role: user.role,
                 exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
             };
-            const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.JWT_SECRET, { algorithm: config_1.config.JWT_ALGORITHM });
-            const redirect_url = `${config_1.config.FRONTEND_URL}/auth/callback?token=${token}`;
+            const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.default.JWT_SECRET, { algorithm: config_1.default.JWT_ALGORITHM });
+            const redirect_url = `${config_1.default.FRONTEND_URL}/auth/callback?token=${token}`;
             console.log(`🔄 Redirecting to: ${redirect_url}`);
             return res.redirect(redirect_url);
         }
         catch (e) {
             console.log(`❌ Error processing SAML attributes: ${e}`);
-            return res.redirect(`${config_1.config.FRONTEND_URL}/login?error=token_creation&reason=${encodeURIComponent(e.message)}`);
+            return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=token_creation&reason=${encodeURIComponent(e.message)}`);
         }
     })(req, res, next);
 });
 router.get('/metadata', (req, res) => {
     const samlStrategy = new passport_saml_1.Strategy((0, samlService_1.getSamlConfig)(), (() => { }));
     res.type('application/xml');
-    const cert = config_1.config.SAML_CERTIFICATE ? config_1.config.SAML_CERTIFICATE.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\n/g, '').trim() : undefined;
+    const cert = config_1.default.SAML_CERTIFICATE ? config_1.default.SAML_CERTIFICATE.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\n/g, '').trim() : undefined;
     if (cert) {
         res.send(samlStrategy.generateServiceProviderMetadata(cert));
     }
@@ -276,15 +276,15 @@ router.get('/metadata', (req, res) => {
 router.get('/logout/saml', (req, res) => {
     const { name_id, session_index } = req.query;
     console.log(`SAML logout requested - name_id: ${name_id}, session_index: ${session_index}`);
-    return res.redirect(`${config_1.config.FRONTEND_URL}/login?logged_out=true`);
+    return res.redirect(`${config_1.default.FRONTEND_URL}/login?logged_out=true`);
 });
 router.get('/logout/saml/manual', (req, res) => {
     console.log('Manual return from SAML logout');
-    return res.redirect(`${config_1.config.FRONTEND_URL}/login?saml_logged_out=true&manual=true`);
+    return res.redirect(`${config_1.default.FRONTEND_URL}/login?saml_logged_out=true&manual=true`);
 });
 router.post('/logout/saml/callback', (req, res) => {
     console.log('SAML logout callback received (POST)');
-    return res.redirect(`${config_1.config.FRONTEND_URL}/login?saml_logged_out=true`);
+    return res.redirect(`${config_1.default.FRONTEND_URL}/login?saml_logged_out=true`);
 });
 router.get('/logout/saml/callback', (req, res) => {
     console.log('SAML logout callback received (GET)');
@@ -294,9 +294,9 @@ router.get('/logout/saml/callback', (req, res) => {
     console.log(`GET request - RelayState: ${RelayState}`);
     if (!SAMLResponse && !SAMLRequest) {
         console.log('No SAML data in GET request, redirecting to login');
-        return res.redirect(`${config_1.config.FRONTEND_URL}/login?saml_logged_out=true`);
+        return res.redirect(`${config_1.default.FRONTEND_URL}/login?saml_logged_out=true`);
     }
-    return res.redirect(`${config_1.config.FRONTEND_URL}/login?saml_logged_out=true`);
+    return res.redirect(`${config_1.default.FRONTEND_URL}/login?saml_logged_out=true`);
 });
 router.post('/admin/login', async (req, res) => {
     const { username, password } = req.body;
@@ -320,7 +320,7 @@ router.post('/admin/login', async (req, res) => {
         role: user.role,
         exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
     };
-    const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.JWT_SECRET, { algorithm: config_1.config.JWT_ALGORITHM });
+    const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.default.JWT_SECRET, { algorithm: config_1.default.JWT_ALGORITHM });
     return res.json({ token, user: { ...user.toObject(), password: undefined } });
 });
 router.get('/me', auth_1.authenticateJWT, auth_1.requireAnyRole, (req, res) => {
@@ -341,11 +341,11 @@ router.post('/refresh', auth_1.authenticateJWT, auth_1.requireAnyRole, (req, res
         role: user.role,
         exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
     };
-    const newToken = jsonwebtoken_1.default.sign(newTokenPayload, config_1.config.JWT_SECRET, { algorithm: config_1.config.JWT_ALGORITHM });
+    const newToken = jsonwebtoken_1.default.sign(newTokenPayload, config_1.default.JWT_SECRET, { algorithm: config_1.default.JWT_ALGORITHM });
     return res.json({ token: newToken });
 });
 router.get('/logout', (req, res) => {
-    return res.redirect(`${config_1.config.FRONTEND_URL}/login?logged_out=true`);
+    return res.redirect(`${config_1.default.FRONTEND_URL}/login?logged_out=true`);
 });
 exports.default = router;
 //# sourceMappingURL=auth.js.map

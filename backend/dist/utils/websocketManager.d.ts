@@ -16,12 +16,10 @@ export declare class WebSocketManager extends EventEmitter {
     private initializeRedis;
     addConnection(connectionId: string, ws: WebSocket, userId: string): void;
     joinSession(connectionId: string, sessionId: string): void;
-    connect(sessionId: string, ws: WebSocket): void;
     leaveSession(connectionId: string): void;
     removeConnection(connectionId: string): void;
     sendToConnection(connectionId: string, message: string): boolean;
     broadcastToSession(sessionId: string, message: string): void;
-    broadcast(sessionId: string, message: string): void;
     broadcastToUser(userId: string, message: string): void;
     publishToRedis(channel: string, message: string): void;
     getConnectionCount(): number;
