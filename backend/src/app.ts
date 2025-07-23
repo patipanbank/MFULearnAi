@@ -5,6 +5,7 @@ import compression from 'compression';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { connectDB } from './lib/mongodb';
 import { connectRedis } from './lib/redis';
+import { WebSocketService } from './services/websocketService';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -83,10 +84,15 @@ const startServer = async () => {
     await connectRedis();
     
     const port = process.env.PORT || 3001;
-    app.listen(port, () => {
+    const server = app.listen(port, () => {
       console.log(`🚀 Server running on port ${port}`);
       console.log(`📊 Health check: http://localhost:${port}/health`);
     });
+
+    // Initialize WebSocket service
+    const wsService = new WebSocketService(server);
+    console.log('✅ WebSocket service initialized');
+
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
