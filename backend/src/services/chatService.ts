@@ -2,6 +2,11 @@ import { ChatModel, Chat, ChatMessage } from '../models/chat';
 import { wsManager } from '../utils/websocketManager';
 import { agentService } from './agentService';
 import { usageService } from './usageService';
+import { getLLM } from '../agent/llmFactory';
+import { toolRegistry, createMemoryTool, ToolFunction } from '../agent/toolRegistry';
+import { createPromptTemplate } from '../agent/promptFactory';
+import { createAgent } from '../agent/agentFactory';
+import { redis } from '../lib/redis';
 
 export class ChatService {
   constructor() {
@@ -155,22 +160,97 @@ export class ChatService {
       // Simulate thinking time
       await this.delay(1000);
 
-      // Generate response based on configuration
-      const response = this.generateResponse(userMessage, images, config);
-      
-      // Create assistant message and stream response
-      await this.streamResponseLegacy(chatId, response);
-
+      // === LangChain agent graph logic ===
+      const agentId = config?.agentId;
+      if (!agentId) throw new Error('No agentId');
+      // 1. เตรียม LLM instance
+      const llm = getLLM(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
+        temperature: config?.temperature,
+        maxTokens: config?.maxTokens
+      });
+      // 2. เตรียม tools (รวม memory tool)
+      const sessionTools = createMemoryTool(chatId);
+      // map ToolMeta เป็น ToolFunction
+      const allTools: { [name: string]: ToolFunction } = {};
+      for (const [k, v] of Object.entries(toolRegistry)) allTools[k] = v.func;
+      for (const [k, v] of Object.entries(sessionTools)) allTools[k] = v.func;
+      // 3. เตรียม prompt template
+      const promptTemplate = createPromptTemplate(config?.systemPrompt || '', true);
+      // 4. สร้าง agent executor
+      const agent = createAgent(llm, allTools, config?.systemPrompt || '');
+      // 5. วน loop agent graph (multi-turn)
+      let messages = [{ role: 'user', content: userMessage }];
+      let fullContent = '';
+      const assistantMessage = await this.addMessage(chatId, {
+        role: 'assistant',
+        content: ''
+      });
+      let turn = 0;
+      let done = false;
+      while (!done && turn < 5) { // ป้องกัน infinite loop
+        turn++;
+        // 5.1 สร้าง prompt
+        const prompt = promptTemplate(messages);
+        // 5.2 เรียก LLM แบบ streaming
+        let output = '';
+        let isToolCall = false;
+        let toolMatch: RegExpMatchArray | null = null;
+        let chunkBuffer = '';
+        try {
+          for await (const chunk of llm.stream(prompt)) {
+            chunkBuffer += chunk;
+            // ตรวจสอบ tool call แบบ streaming
+            toolMatch = chunkBuffer.match(/\[TOOL:([\w_]+)\](.*)/s);
+            if (toolMatch) {
+              isToolCall = true;
+              break; // หยุด stream เพื่อไปเรียก tool
+            }
+            // อัปเดตข้อความใน DB และ broadcast chunk
+            output += chunk;
+            fullContent += chunk;
+            await ChatModel.updateOne(
+              { _id: chatId, 'messages.id': assistantMessage.id },
+              { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } }
+            );
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'chunk',
+                data: chunk
+              }));
+            }
+          }
+        } catch (err) {
+          console.error('❌ Error during LLM streaming:', err);
+          break;
+        }
+        // 5.3 Parse output: ถ้ามี [TOOL:name] ให้เรียก tool นั้น
+        if (isToolCall && toolMatch) {
+          const toolName = toolMatch[1];
+          const toolInput = toolMatch[2]?.trim() || '';
+          if (allTools[toolName]) {
+            const toolResult = await allTools[toolName](toolInput, chatId);
+            messages.push({ role: 'tool', content: `[${toolName} result]: ${toolResult}` });
+            continue; // วน loop ส่งเข้า LLM ใหม่
+          } else {
+            messages.push({ role: 'assistant', content: `[Error: Tool ${toolName} not found]` });
+            done = true;
+            fullContent += `[Error: Tool ${toolName} not found]`;
+            break;
+          }
+        } else {
+          // ไม่มี tool call, ถือว่าเป็น final answer
+          messages.push({ role: 'assistant', content: output });
+          fullContent += output;
+          done = true;
+        }
+        // (streaming ไปแล้วใน loop)
+      }
       // Calculate tokens and update usage
       const inputTokens = Math.floor(userMessage.length / 4);
-      const outputTokens = Math.floor(response.length / 4);
-      
-      // Update usage statistics if userId is available
+      const outputTokens = Math.floor(fullContent.length / 4);
       if (userId) {
         await usageService.updateUsage(userId, inputTokens, outputTokens);
       }
-
-      // Mark as complete
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
         wsManager.broadcastToSession(chatId, JSON.stringify({
           type: 'end',
@@ -183,8 +263,6 @@ export class ChatService {
       }
     } catch (error) {
       console.error('❌ Error in AI processing:', error);
-      
-      // Send error to client
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
         wsManager.broadcastToSession(chatId, JSON.stringify({
           type: 'error',
@@ -364,15 +442,55 @@ export class ChatService {
 
   public async clearChatMemory(chatId: string): Promise<void> {
     try {
-      // Clear Redis memory if available
-      console.log(`🧹 Clearing memory for chat ${chatId}`);
-      
-      // TODO: Implement Redis memory clearing
-      // This would require Redis client setup
-      
+      // Clear Redis memory
+      await redis.del(`chat:history:${chatId}`);
+      // Clear memory tool (ถ้ามี)
+      if (typeof (global as any).clearChatMemoryTool === 'function') {
+        await (global as any).clearChatMemoryTool(chatId);
+      }
       console.log(`✅ Memory cleared for chat ${chatId}`);
     } catch (error) {
       console.error(`❌ Failed to clear memory for chat ${chatId}:`, error);
+    }
+  }
+
+  private async getRecentMessagesFromRedis(chatId: string): Promise<any[]> {
+    try {
+      const data = await redis.get(`chat:history:${chatId}`);
+      if (!data) return [];
+      return JSON.parse(data);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  private async setRecentMessagesToRedis(chatId: string, messages: any[]): Promise<void> {
+    try {
+      await redis.set(`chat:history:${chatId}`,
+        JSON.stringify(messages), 'EX', 86400 // TTL 24 ชม.
+      );
+    } catch (e) {
+      // fallback เงียบ ๆ
+    }
+  }
+
+  private async restoreRecentContextIfNeeded(chatId: string, allMessages: any[]): Promise<void> {
+    const redisMessages = await this.getRecentMessagesFromRedis(chatId);
+    if (!redisMessages || redisMessages.length === 0) {
+      // Restore recent 10 messages
+      const recent = allMessages.slice(-10);
+      await this.setRecentMessagesToRedis(chatId, recent);
+      console.log(`🔄 Restored recent context to Redis for chat ${chatId}`);
+    }
+  }
+
+  private async embedMessagesIfNeeded(chatId: string, allMessages: any[]): Promise<void> {
+    if (allMessages.length % 10 === 0 && allMessages.length > 0) {
+      // ฝัง embedding ทุก 10 ข้อความ (mock call memory tool)
+      if (typeof (global as any).addChatMemoryTool === 'function') {
+        await (global as any).addChatMemoryTool(chatId, allMessages);
+        console.log(`📚 Embedded ${allMessages.length} messages to memory tool for chat ${chatId}`);
+      }
     }
   }
 

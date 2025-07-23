@@ -9,6 +9,11 @@ import { createServer } from 'http';
 import authRouter from './routes/auth';
 import chatRouter from './routes/chat';
 import agentRouter from './routes/agent';
+import bedrockRouter from './routes/bedrock';
+import chromaRouter from './routes/chroma';
+import embeddingRouter from './routes/embedding';
+import uploadRouter from './routes/upload';
+import collectionRouter from './routes/collection';
 import { WebSocketService } from './services/websocketService';
 import { connectDB } from './lib/mongodb';
 
@@ -43,6 +48,21 @@ apiRouter.use('/chat', chatRouter);
 
 // Mount agent routes under API router
 apiRouter.use('/agents', agentRouter);
+
+// Mount bedrock routes under API router
+apiRouter.use('/bedrock', bedrockRouter);
+
+// Mount chroma routes under API router
+apiRouter.use('/chroma', chromaRouter);
+
+// Mount embedding routes under API router
+apiRouter.use('/embedding', embeddingRouter);
+
+// Mount upload routes under API router
+apiRouter.use('/upload', uploadRouter);
+
+// Mount collection routes under API router
+apiRouter.use('/collection', collectionRouter);
 
 // Mount API router under /api prefix
 app.use('/api', apiRouter);
