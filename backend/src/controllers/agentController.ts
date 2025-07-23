@@ -2,29 +2,18 @@ import { Request, Response } from 'express';
 import { agentService } from '../services/agentService';
 import { CreateAgentInput, UpdateAgentInput, AgentQuery } from '../validation/agentSchema';
 import { NotFoundError, ForbiddenError } from '../middleware/errorHandler';
+import { sanitizeAgents, sanitizeAgent } from '../utils/sanitize';
 
 export class AgentController {
   // Get all agents with filtering and pagination
   static async getAllAgents(req: Request, res: Response) {
-    const userId = req.user?.sub;
-    const query = req.query as AgentQuery;
+    const userId = (req.user as any)?.sub;
+    const query = req.query as unknown as AgentQuery;
     
     const agents = await agentService.getAllAgents(userId, query);
     
     // Sanitize agents before sending
-    const sanitizedAgents = agents.map(agent => {
-      const obj = agent.toObject ? agent.toObject() : agent;
-      return {
-        ...obj,
-        name: obj.name || '',
-        description: obj.description || '',
-        systemPrompt: obj.systemPrompt || '',
-        modelId: obj.modelId || '',
-        tags: Array.isArray(obj.tags) ? obj.tags : [],
-        collectionNames: Array.isArray(obj.collectionNames) ? obj.collectionNames : [],
-        tools: Array.isArray(obj.tools) ? obj.tools : []
-      };
-    });
+    const sanitizedAgents = sanitizeAgents(agents);
 
     return res.json({
       success: true,
@@ -48,17 +37,7 @@ export class AgentController {
     }
 
     // Sanitize agent before sending
-    const obj = agent.toObject ? agent.toObject() : agent;
-    const sanitizedAgent = {
-      ...obj,
-      name: obj.name || '',
-      description: obj.description || '',
-      systemPrompt: obj.systemPrompt || '',
-      modelId: obj.modelId || '',
-      tags: Array.isArray(obj.tags) ? obj.tags : [],
-      collectionNames: Array.isArray(obj.collectionNames) ? obj.collectionNames : [],
-      tools: Array.isArray(obj.tools) ? obj.tools : []
-    };
+    const sanitizedAgent = sanitizeAgent(agent);
 
     return res.json({
       success: true,
@@ -68,7 +47,7 @@ export class AgentController {
 
   // Create new agent
   static async createAgent(req: Request, res: Response) {
-    const userId = req.user?.sub;
+    const userId = (req.user as any)?.sub;
     if (!userId) {
       throw new ForbiddenError('User not authenticated');
     }
@@ -88,7 +67,7 @@ export class AgentController {
   // Update agent
   static async updateAgent(req: Request, res: Response) {
     const { agentId } = req.params;
-    const userId = req.user?.sub;
+    const userId = (req.user as any)?.sub;
     if (!userId) {
       throw new ForbiddenError('User not authenticated');
     }
@@ -120,7 +99,7 @@ export class AgentController {
   // Delete agent
   static async deleteAgent(req: Request, res: Response) {
     const { agentId } = req.params;
-    const userId = req.user?.sub;
+    const userId = (req.user as any)?.sub;
     if (!userId) {
       throw new ForbiddenError('User not authenticated');
     }
@@ -160,24 +139,12 @@ export class AgentController {
   // Search agents
   static async searchAgents(req: Request, res: Response) {
     const { query } = req.params;
-    const userId = req.user?.sub;
+    const userId = (req.user as any)?.sub;
     
     const agents = await agentService.searchAgents(query, userId);
     
     // Sanitize agents before sending
-    const sanitizedAgents = agents.map(agent => {
-      const obj = agent.toObject ? agent.toObject() : agent;
-      return {
-        ...obj,
-        name: obj.name || '',
-        description: obj.description || '',
-        systemPrompt: obj.systemPrompt || '',
-        modelId: obj.modelId || '',
-        tags: Array.isArray(obj.tags) ? obj.tags : [],
-        collectionNames: Array.isArray(obj.collectionNames) ? obj.collectionNames : [],
-        tools: Array.isArray(obj.tools) ? obj.tools : []
-      };
-    });
+    const sanitizedAgents = sanitizeAgents(agents);
 
     return res.json({
       success: true,
@@ -191,19 +158,7 @@ export class AgentController {
     const agents = await agentService.getPopularAgents(limit);
     
     // Sanitize agents before sending
-    const sanitizedAgents = agents.map(agent => {
-      const obj = agent.toObject ? agent.toObject() : agent;
-      return {
-        ...obj,
-        name: obj.name || '',
-        description: obj.description || '',
-        systemPrompt: obj.systemPrompt || '',
-        modelId: obj.modelId || '',
-        tags: Array.isArray(obj.tags) ? obj.tags : [],
-        collectionNames: Array.isArray(obj.collectionNames) ? obj.collectionNames : [],
-        tools: Array.isArray(obj.tools) ? obj.tools : []
-      };
-    });
+    const sanitizedAgents = sanitizeAgents(agents);
 
     return res.json({
       success: true,

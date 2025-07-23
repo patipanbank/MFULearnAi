@@ -3,6 +3,7 @@ import { AgentController } from '../controllers/agentController';
 import { authenticateJWT } from '../middleware/auth';
 import { validateBody, validateQuery } from '../middleware/validation';
 import { asyncHandler } from '../middleware/errorHandler';
+import { agentCreationLimiter } from '../middleware/rateLimit';
 import { 
   createAgentSchema, 
   updateAgentSchema, 
@@ -54,9 +55,10 @@ router.get('/:agentId',
   asyncHandler(AgentController.getAgentById)
 );
 
-// Create new agent
+// Create new agent (with rate limiting)
 router.post('/', 
   authenticateJWT, 
+  agentCreationLimiter,
   validateBody(createAgentSchema),
   asyncHandler(AgentController.createAgent)
 );
