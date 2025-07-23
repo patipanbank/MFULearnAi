@@ -8,8 +8,10 @@ const router = express.Router();
 router.get('/', authenticateJWT, async (req: any, res) => {
   try {
     const userId = req.user.id;
-    const agents = await agentService.getAllAgents(userId);
-    
+    let agents = await agentService.getAllAgents(userId);
+    if (!Array.isArray(agents)) {
+      agents = [];
+    }
     return res.json({
       success: true,
       data: agents
@@ -18,6 +20,7 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     console.error('❌ Error getting agents:', error);
     return res.status(500).json({
       success: false,
+      data: [], // always return array for data
       error: 'Failed to get agents'
     });
   }

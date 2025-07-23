@@ -255,7 +255,28 @@ export class ChatService {
           const toolName = toolMatch[1];
           const toolInput = toolMatch[2]?.trim() || '';
           if (allTools[toolName]) {
+            // Broadcast tool_start event
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'tool_start',
+                data: {
+                  tool_name: toolName,
+                  tool_input: toolInput
+                }
+              }));
+            }
+
             const toolResult = await allTools[toolName](toolInput, chatId);
+            // Broadcast tool_result event
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'tool_result',
+                data: {
+                  tool_name: toolName,
+                  output: toolResult
+                }
+              }));
+            }
             // เพิ่ม tool result message (user) ที่สมบูรณ์เข้า messages
             const toolResultMessage = await this.addMessage(chatId, {
               role: 'user',
