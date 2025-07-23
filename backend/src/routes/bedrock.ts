@@ -75,11 +75,14 @@ router.post('/generate-image', async (req: Request, res: Response) => {
   try {
     const image = await bedrockService.generateImage(body.prompt);
     if (!image) {
-      return res.status(500).json({ error: 'No image returned from Bedrock' });
+      res.status(500).json({ error: 'No image returned from Bedrock' });
+      return null;
     }
     res.json({ image });
+    return null;
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Unknown error' });
+    return null;
   }
 });
 
@@ -89,8 +92,10 @@ router.post('/text-embedding', async (req: Request, res: Response) => {
   try {
     const embedding = await bedrockService.createTextEmbedding(body.text);
     res.json({ embedding });
+    return null;
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Unknown error' });
+    return null;
   }
 });
 
@@ -100,8 +105,10 @@ router.post('/batch-text-embedding', async (req: Request, res: Response) => {
   try {
     const embeddings = await bedrockService.createBatchTextEmbeddings(body.texts);
     res.json({ embeddings });
+    return null;
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Unknown error' });
+    return null;
   }
 });
 
@@ -111,8 +118,10 @@ router.post('/image-embedding', async (req: Request, res: Response) => {
   try {
     const embedding = await bedrockService.createImageEmbedding(body.imageBase64, body.text);
     res.json({ embedding });
+    return null;
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Unknown error' });
+    return null;
   }
 });
 

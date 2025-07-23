@@ -58,11 +58,18 @@ router.put('/:collectionId', async (req: Request, res: Response) => {
   const user = req.user as IUser;
   const { collectionId } = req.params;
   const collection = await collectionService.getCollectionById(collectionId);
-  if (!collection) return res.status(404).json({ error: 'Collection not found' });
-  if (!collectionService.canUserModifyCollection(user, collection)) return res.status(403).json({ error: 'Not authorized' });
+  if (!collection) {
+    res.status(404).json({ error: 'Collection not found' });
+    return null;
+  }
+  if (!collectionService.canUserModifyCollection(user, collection)) {
+    res.status(403).json({ error: 'Not authorized' });
+    return null;
+  }
   const updates = req.body;
   const updated = await collectionService.updateCollection(collectionId, updates);
   res.json(updated);
+  return null;
 });
 
 // Delete collection
@@ -70,11 +77,22 @@ router.delete('/:collectionId', async (req: Request, res: Response) => {
   const user = req.user as IUser;
   const { collectionId } = req.params;
   const collection = await collectionService.getCollectionById(collectionId);
-  if (!collection) return res.status(404).json({ error: 'Collection not found' });
-  if (!collectionService.canUserModifyCollection(user, collection)) return res.status(403).json({ error: 'Not authorized' });
+  if (!collection) {
+    res.status(404).json({ error: 'Collection not found' });
+    return null;
+  }
+  if (!collectionService.canUserModifyCollection(user, collection)) {
+    res.status(403).json({ error: 'Not authorized' });
+    return null;
+  }
   const ok = await collectionService.deleteCollection(collectionId);
-  if (ok) res.status(204).send();
-  else res.status(500).json({ error: 'Delete failed' });
+  if (ok) {
+    res.status(204).send();
+    return null;
+  } else {
+    res.status(500).json({ error: 'Delete failed' });
+    return null;
+  }
 });
 
 export default router; 
