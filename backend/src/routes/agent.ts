@@ -7,7 +7,7 @@ const router = express.Router();
 // Get all agents (public + user's own)
 router.get('/', authenticateJWT, async (req: any, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
     let agents = await agentService.getAllAgents(userId);
     if (!Array.isArray(agents)) {
       agents = [];
@@ -57,7 +57,7 @@ router.get('/:agentId', authenticateJWT, async (req: any, res) => {
 // Create new agent
 router.post('/', authenticateJWT, async (req: any, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
     const agentData = {
       ...req.body,
       createdBy: userId
@@ -83,7 +83,7 @@ router.post('/', authenticateJWT, async (req: any, res) => {
 router.put('/:agentId', authenticateJWT, async (req: any, res) => {
   try {
     const { agentId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
     const updates = req.body;
     
     // Check if user owns this agent or if it's public
@@ -132,7 +132,7 @@ router.put('/:agentId', authenticateJWT, async (req: any, res) => {
 router.delete('/:agentId', authenticateJWT, async (req: any, res) => {
   try {
     const { agentId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
     
     // Check if user owns this agent
     const existingAgent = await agentService.getAgentById(agentId);
@@ -197,7 +197,7 @@ router.get('/templates/all', authenticateJWT, async (req: any, res) => {
 router.post('/templates/:templateId', authenticateJWT, async (req: any, res) => {
   try {
     const { templateId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
     const customizations = {
       ...req.body,
       createdBy: userId
@@ -223,7 +223,7 @@ router.post('/templates/:templateId', authenticateJWT, async (req: any, res) => 
 router.get('/search/:query', authenticateJWT, async (req: any, res) => {
   try {
     const { query } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
     let agents = await agentService.searchAgents(query, userId);
     if (!Array.isArray(agents)) {
       agents = [];
