@@ -35,6 +35,7 @@ router.get('/:agentId', authenticateJWT, async (req: any, res) => {
     if (!agent) {
       return res.status(404).json({
         success: false,
+        data: null,
         error: 'Agent not found'
       });
     }
@@ -47,6 +48,7 @@ router.get('/:agentId', authenticateJWT, async (req: any, res) => {
     console.error('❌ Error getting agent:', error);
     return res.status(500).json({
       success: false,
+      data: null,
       error: 'Failed to get agent'
     });
   }
@@ -71,6 +73,7 @@ router.post('/', authenticateJWT, async (req: any, res) => {
     console.error('❌ Error creating agent:', error);
     return res.status(500).json({
       success: false,
+      data: null,
       error: 'Failed to create agent'
     });
   }
@@ -88,6 +91,7 @@ router.put('/:agentId', authenticateJWT, async (req: any, res) => {
     if (!existingAgent) {
       return res.status(404).json({
         success: false,
+        data: null,
         error: 'Agent not found'
       });
     }
@@ -95,6 +99,7 @@ router.put('/:agentId', authenticateJWT, async (req: any, res) => {
     if (existingAgent.createdBy !== userId && !existingAgent.isPublic) {
       return res.status(403).json({
         success: false,
+        data: null,
         error: 'Access denied'
       });
     }
@@ -104,6 +109,7 @@ router.put('/:agentId', authenticateJWT, async (req: any, res) => {
     if (!agent) {
       return res.status(404).json({
         success: false,
+        data: null,
         error: 'Agent not found'
       });
     }
@@ -116,6 +122,7 @@ router.put('/:agentId', authenticateJWT, async (req: any, res) => {
     console.error('❌ Error updating agent:', error);
     return res.status(500).json({
       success: false,
+      data: null,
       error: 'Failed to update agent'
     });
   }
@@ -168,8 +175,10 @@ router.delete('/:agentId', authenticateJWT, async (req: any, res) => {
 // Get agent templates
 router.get('/templates/all', authenticateJWT, async (req: any, res) => {
   try {
-    const templates = await agentService.getAgentTemplates();
-    
+    let templates = await agentService.getAgentTemplates();
+    if (!Array.isArray(templates)) {
+      templates = [];
+    }
     return res.json({
       success: true,
       data: templates
@@ -178,6 +187,7 @@ router.get('/templates/all', authenticateJWT, async (req: any, res) => {
     console.error('❌ Error getting agent templates:', error);
     return res.status(500).json({
       success: false,
+      data: [],
       error: 'Failed to get agent templates'
     });
   }
@@ -203,6 +213,7 @@ router.post('/templates/:templateId', authenticateJWT, async (req: any, res) => 
     console.error('❌ Error creating agent from template:', error);
     return res.status(500).json({
       success: false,
+      data: null,
       error: 'Failed to create agent from template'
     });
   }
@@ -213,8 +224,10 @@ router.get('/search/:query', authenticateJWT, async (req: any, res) => {
   try {
     const { query } = req.params;
     const userId = req.user.id;
-    const agents = await agentService.searchAgents(query, userId);
-    
+    let agents = await agentService.searchAgents(query, userId);
+    if (!Array.isArray(agents)) {
+      agents = [];
+    }
     return res.json({
       success: true,
       data: agents
@@ -223,6 +236,7 @@ router.get('/search/:query', authenticateJWT, async (req: any, res) => {
     console.error('❌ Error searching agents:', error);
     return res.status(500).json({
       success: false,
+      data: [],
       error: 'Failed to search agents'
     });
   }
@@ -232,8 +246,10 @@ router.get('/search/:query', authenticateJWT, async (req: any, res) => {
 router.get('/popular', authenticateJWT, async (req: any, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-    const agents = await agentService.getPopularAgents(limit);
-    
+    let agents = await agentService.getPopularAgents(limit);
+    if (!Array.isArray(agents)) {
+      agents = [];
+    }
     return res.json({
       success: true,
       data: agents
@@ -242,6 +258,7 @@ router.get('/popular', authenticateJWT, async (req: any, res) => {
     console.error('❌ Error getting popular agents:', error);
     return res.status(500).json({
       success: false,
+      data: [],
       error: 'Failed to get popular agents'
     });
   }
@@ -254,12 +271,14 @@ router.get('/popular/:limit', authenticateJWT, async (req: any, res) => {
     if (isNaN(limit) || limit <= 0) {
       return res.status(400).json({
         success: false,
+        data: [],
         error: 'Limit must be a positive number'
       });
     }
-    
-    const agents = await agentService.getPopularAgents(limit);
-    
+    let agents = await agentService.getPopularAgents(limit);
+    if (!Array.isArray(agents)) {
+      agents = [];
+    }
     return res.json({
       success: true,
       data: agents
@@ -268,6 +287,7 @@ router.get('/popular/:limit', authenticateJWT, async (req: any, res) => {
     console.error('❌ Error getting popular agents:', error);
     return res.status(500).json({
       success: false,
+      data: [],
       error: 'Failed to get popular agents'
     });
   }
