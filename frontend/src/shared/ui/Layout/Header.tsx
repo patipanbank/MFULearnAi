@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu, FiUser } from 'react-icons/fi';
-import { useAuthStore, useUIStore, useLayoutStore, useChatStore } from '../../stores';
+import { useAuthStore, useUIStore, useLayoutStore, useChatStore, useAgentStore } from '../../stores';
 import AgentSelector from '../AgentSelector';
 import UserProfile from '../UserProfile';
 

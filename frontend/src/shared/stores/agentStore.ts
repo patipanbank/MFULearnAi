@@ -184,12 +184,13 @@ const useAgentStore = create<AgentStore>()(
             });
           } catch (error) {
             console.error('Failed to fetch agents:', error);
-            const defaultAgent = get().createDefaultAgent();
-            set({ 
-              agents: [defaultAgent],
-              selectedAgent: defaultAgent,
+            // Ensure agents is an empty array on error
+            set({
+              agents: [],
+              selectedAgent: null,
               isLoadingAgents: false
             });
+            showErrorToast('Error', 'Failed to load agents. Please refresh the page.');
           }
         },
 
