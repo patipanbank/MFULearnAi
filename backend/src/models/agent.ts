@@ -119,7 +119,7 @@ const AgentSchema = new Schema<Agent>({
   temperature: { type: Number, default: 0.7 },
   maxTokens: { type: Number, default: 4000 },
   isPublic: { type: Boolean, default: false },
-  tags: { type: [String], default: [] },
+  tags: { type: [String], default: [] }, // Ensure tags is an array of strings with a default empty array
   createdBy: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
