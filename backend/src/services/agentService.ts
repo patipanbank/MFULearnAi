@@ -48,7 +48,13 @@ export class AgentService {
       systemPrompt: 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions. Always focus on answering the current user\'s question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.',
       modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
       collectionNames: [],
-      tools: [],
+      tools: [
+        { id: uuidv4(), name: 'Web Search', description: 'Search the web for current information', type: AgentToolType.WEB_SEARCH, config: {}, enabled: true },
+        { id: uuidv4(), name: 'Calculator', description: 'Perform mathematical calculations', type: AgentToolType.CALCULATOR, config: {}, enabled: true },
+        { id: uuidv4(), name: 'Current Date', description: 'Get the current date and time', type: AgentToolType.CURRENT_DATE, config: {}, enabled: true },
+        { id: uuidv4(), name: 'Memory Search', description: 'Search through chat memory for relevant context', type: AgentToolType.MEMORY_SEARCH, config: {}, enabled: true },
+        { id: uuidv4(), name: 'Memory Embed', description: 'Embed new message into chat memory', type: AgentToolType.MEMORY_EMBED, config: {}, enabled: true }
+      ],
       temperature: 0.7,
       maxTokens: 4000,
       isPublic: true,
