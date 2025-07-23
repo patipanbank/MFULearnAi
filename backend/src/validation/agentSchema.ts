@@ -5,8 +5,8 @@ export const agentToolSchema = z.object({
   id: z.string().min(1, 'Tool ID is required'),
   name: z.string().min(1, 'Tool name is required'),
   description: z.string().default(''),
-  type: z.enum(['function', 'retriever', 'web_search', 'calculator', 'current_date', 'memory_search', 'memory_embed']),
-  config: z.record(z.any()).default({}),
+  type: z.enum(['function', 'retriever', 'web_search', 'calculator', 'current_date', 'memory_search', 'memory_embed'] as const),
+  config: z.record(z.string(), z.any()).default({}),
   enabled: z.boolean().default(true)
 });
 

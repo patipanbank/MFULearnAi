@@ -39,18 +39,6 @@ const ImagePayloadSchema = new mongoose_1.Schema({
     url: { type: String, required: true },
     mediaType: { type: String, required: true }
 });
-const ToolUsageSchema = new mongoose_1.Schema({
-    type: {
-        type: String,
-        enum: ['tool_start', 'tool_result', 'tool_error'],
-        required: true
-    },
-    tool_name: { type: String, required: true },
-    tool_input: String,
-    output: String,
-    error: String,
-    timestamp: { type: Date, default: Date.now }
-});
 const ChatMessageSchema = new mongoose_1.Schema({
     id: { type: String, required: true },
     role: {
@@ -58,12 +46,21 @@ const ChatMessageSchema = new mongoose_1.Schema({
         enum: ['user', 'assistant'],
         required: true
     },
-    content: { type: String, required: true },
+    content: {
+        type: String,
+        required: true,
+        default: 'กำลังประมวลผล...',
+        validate: {
+            validator: function (v) {
+                return v !== undefined && v !== null;
+            },
+            message: 'Content cannot be undefined or null'
+        }
+    },
     timestamp: { type: Date, default: Date.now },
     images: [ImagePayloadSchema],
     isStreaming: Boolean,
-    isComplete: Boolean,
-    toolUsage: [ToolUsageSchema]
+    isComplete: Boolean
 });
 const ChatSchema = new mongoose_1.Schema({
     userId: { type: String, required: true, index: true },

@@ -6,74 +6,82 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
-const morgan_1 = __importDefault(require("morgan"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const express_session_1 = __importDefault(require("express-session"));
-const passport_1 = __importDefault(require("passport"));
-const http_1 = require("http");
-const auth_1 = __importDefault(require("./routes/auth"));
-const chat_1 = __importDefault(require("./routes/chat"));
-const agent_1 = __importDefault(require("./routes/agent"));
-const websocketService_1 = require("./services/websocketService");
+const compression_1 = __importDefault(require("compression"));
+const errorHandler_1 = require("./middleware/errorHandler");
 const mongodb_1 = require("./lib/mongodb");
-dotenv_1.default.config();
+const redis_1 = require("./lib/redis");
+const auth_1 = __importDefault(require("./routes/auth"));
+const agent_1 = __importDefault(require("./routes/agent"));
+const chat_1 = __importDefault(require("./routes/chat"));
+const collection_1 = __importDefault(require("./routes/collection"));
+const chroma_1 = __importDefault(require("./routes/chroma"));
+const bedrock_1 = __importDefault(require("./routes/bedrock"));
+const embedding_1 = __importDefault(require("./routes/embedding"));
+const upload_1 = __importDefault(require("./routes/upload"));
 const app = (0, express_1.default)();
-app.use(express_1.default.json());
-app.use(express_1.default.urlencoded({ extended: true }));
-app.use((0, cors_1.default)());
-app.use((0, helmet_1.default)());
-app.use((0, morgan_1.default)('dev'));
-app.use((0, express_session_1.default)({
-    secret: process.env.SESSION_SECRET || 'secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: false },
+app.use((0, helmet_1.default)({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "https:"],
+        },
+    },
 }));
-app.use(passport_1.default.initialize());
-app.use(passport_1.default.session());
-const apiRouter = express_1.default.Router();
-apiRouter.use('/auth', auth_1.default);
-apiRouter.use('/chat', chat_1.default);
-apiRouter.use('/agents', agent_1.default);
-app.use('/api', apiRouter);
-app.get('/', (req, res) => {
-    res.send('MFULearnAi Node.js Backend');
+app.use((0, cors_1.default)({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use((0, compression_1.default)());
+app.use(express_1.default.json({ limit: '10mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
 });
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
 });
-const PORT = process.env.PORT || 3001;
-const server = (0, http_1.createServer)(app);
-const wsService = new websocketService_1.WebSocketService(server);
+app.use('/api/auth', auth_1.default);
+app.use('/api/agents', agent_1.default);
+app.use('/api/chat', chat_1.default);
+app.use('/api/collections', collection_1.default);
+app.use('/api/chroma', chroma_1.default);
+app.use('/api/bedrock', bedrock_1.default);
+app.use('/api/embedding', embedding_1.default);
+app.use('/api/upload', upload_1.default);
+app.use(errorHandler_1.notFoundHandler);
+app.use(errorHandler_1.errorHandler);
 const startServer = async () => {
     try {
         await (0, mongodb_1.connectDB)();
-        server.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT}`);
-            console.log(`🌐 WebSocket server available at ws://localhost:${PORT}/ws`);
+        await (0, redis_1.connectRedis)();
+        const port = process.env.PORT || 3001;
+        app.listen(port, () => {
+            console.log(`🚀 Server running on port ${port}`);
+            console.log(`📊 Health check: http://localhost:${port}/health`);
         });
     }
     catch (error) {
-        console.error('Failed to start server:', error);
+        console.error('❌ Failed to start server:', error);
         process.exit(1);
     }
 };
 process.on('SIGTERM', () => {
-    console.log('🛑 SIGTERM received, shutting down gracefully...');
-    wsService.stop();
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
-    });
+    console.log('🛑 SIGTERM received, shutting down gracefully');
+    process.exit(0);
 });
 process.on('SIGINT', () => {
-    console.log('🛑 SIGINT received, shutting down gracefully...');
-    wsService.stop();
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
-    });
+    console.log('🛑 SIGINT received, shutting down gracefully');
+    process.exit(0);
 });
 startServer();
+exports.default = app;
 //# sourceMappingURL=app.js.map

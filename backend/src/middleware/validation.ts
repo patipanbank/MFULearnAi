@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { ZodObject, ZodError } from 'zod';
 
 // Generic validation middleware
-export const validate = (schema: AnyZodObject) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+export const validate = (schema: ZodObject<any>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Validate request body, query, and params
       const validatedData = await schema.parseAsync({
@@ -14,23 +14,24 @@ export const validate = (schema: AnyZodObject) => {
 
       // Replace request data with validated data
       req.body = validatedData.body;
-      req.query = validatedData.query;
-      req.params = validatedData.params;
+      req.query = validatedData.query as any;
+      req.params = validatedData.params as any;
 
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Validation failed',
-          details: error.errors.map(err => ({
+          details: (error as any).errors.map((err: any) => ({
             field: err.path.join('.'),
             message: err.message
           }))
         });
+        return;
       }
       
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: 'Internal validation error'
       });
@@ -39,25 +40,26 @@ export const validate = (schema: AnyZodObject) => {
 };
 
 // Body-only validation middleware
-export const validateBody = (schema: AnyZodObject) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+export const validateBody = (schema: ZodObject<any>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const validatedBody = await schema.parseAsync(req.body);
       req.body = validatedBody;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid request body',
-          details: error.errors.map(err => ({
+          details: (error as any).errors.map((err: any) => ({
             field: err.path.join('.'),
             message: err.message
           }))
         });
+        return;
       }
       
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: 'Internal validation error'
       });
@@ -66,25 +68,26 @@ export const validateBody = (schema: AnyZodObject) => {
 };
 
 // Query-only validation middleware
-export const validateQuery = (schema: AnyZodObject) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+export const validateQuery = (schema: ZodObject<any>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const validatedQuery = await schema.parseAsync(req.query);
-      req.query = validatedQuery;
+      req.query = validatedQuery as any;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid query parameters',
-          details: error.errors.map(err => ({
+          details: (error as any).errors.map((err: any) => ({
             field: err.path.join('.'),
             message: err.message
           }))
         });
+        return;
       }
       
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: 'Internal validation error'
       });
