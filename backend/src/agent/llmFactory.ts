@@ -76,10 +76,10 @@ export class LLM {
     // ถ้าต้องการรองรับ native payload (Cohere, Mistral) ต้อง implement เพิ่ม
     const modelId = this.modelId;
     // เตรียม message format ตาม Bedrock Messages API
-    const messages = [
+    const messages: any[] = [
       {
-        role: 'user',
-        content: [{ text: prompt }],
+        role: 'user' as const,
+        content: [{ type: 'text', text: prompt }],
       },
     ];
     const inferenceConfig: any = {};
@@ -94,6 +94,9 @@ export class LLM {
     });
     // ส่ง request และอ่าน stream
     const response = await this.client.send(command);
+    if (!response.stream) {
+      return; // Early return if no stream is available
+    }
     for await (const item of response.stream) {
       if (item.contentBlockDelta) {
         const text = item.contentBlockDelta.delta?.text;

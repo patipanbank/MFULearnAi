@@ -31,12 +31,14 @@ router.get('/', async (req: Request, res: Response) => {
   const user = req.user as IUser;
   const collections = await collectionService.getUserCollections(user);
   res.json(collections);
+  return; // Explicitly return to satisfy TypeScript
 });
 
 // List public collections
 router.get('/public', async (req: Request, res: Response) => {
   const collections = await collectionService.getAllCollections();
   res.json(collections.filter(c => c.permission === CollectionPermission.PUBLIC));
+  return; // Explicitly return to satisfy TypeScript
 });
 
 // Create collection

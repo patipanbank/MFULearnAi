@@ -61,9 +61,11 @@ router.post('/converse-stream', async (req: Request, res: Response) => {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     }
     res.end();
+    return; // Explicitly return to satisfy TypeScript
   } catch (error: any) {
     res.write(`data: ${JSON.stringify({ error: error.message || 'Unknown error' })}\n\n`);
     res.end();
+    return; // Explicitly return to satisfy TypeScript
   }
 });
 
