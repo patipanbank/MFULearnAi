@@ -24,28 +24,36 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Rate limiter for agent creation
+// Rate limiter for agent creation - simplified to avoid IPv6 issues
 export const agentCreationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10, // limit each user to 10 agent creations per hour
-  keyGenerator: (req) => (req.user as any)?.sub || req.ip, // Use user ID if authenticated, otherwise IP
+  keyGenerator: (req) => {
+    const user = req.user as any;
+    return user?.sub || 'anonymous';
+  },
   message: {
     success: false,
     error: 'Too many agent creations, please try again later.'
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skipFailedRequests: true,
 });
 
-// Rate limiter for chat endpoints
+// Rate limiter for chat endpoints - simplified to avoid IPv6 issues
 export const chatLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 30, // limit each user to 30 chat messages per minute
-  keyGenerator: (req) => (req.user as any)?.sub || req.ip,
+  keyGenerator: (req) => {
+    const user = req.user as any;
+    return user?.sub || 'anonymous';
+  },
   message: {
     success: false,
     error: 'Too many chat messages, please slow down.'
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skipFailedRequests: true,
 }); 
