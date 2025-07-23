@@ -7,6 +7,7 @@ import { toolRegistry, createMemoryTool, ToolFunction } from '../agent/toolRegis
 import { createPromptTemplate } from '../agent/promptFactory';
 import { createAgent } from '../agent/agentFactory';
 import { redis } from '../lib/redis';
+import { memoryService } from './memoryService';
 
 export class ChatService {
   constructor() {
@@ -179,15 +180,43 @@ export class ChatService {
       // 4. สร้าง agent executor
       const agent = createAgent(llm, allTools, config?.systemPrompt || '');
       // 5. วน loop agent graph (multi-turn)
-      let messages = [{ role: 'user', content: userMessage }];
-      let fullContent = '';
+      // ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท
+      const chatFromDb = await ChatModel.findById(chatId);
+      if (!chatFromDb) {
+        throw new Error(`Chat session ${chatId} not found during AI processing`);
+      }
+      let messages: ChatMessage[] = chatFromDb.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        id: msg.id,
+        timestamp: msg.timestamp
+      }));
+      // ลบข้อความล่าสุดของผู้ใช้ที่เราเพิ่งเพิ่มไป (เพราะ agent จะประมวลผลจาก prompt ที่สร้างจาก messages นี้)
+      // และเราจะเพิ่มมันเข้าไปใหม่เมื่อ LLM ให้คำตอบ
+      const userMessageInDb = messages[messages.length - 1];
+      messages = messages.slice(0, messages.length - 1);
+      // เพิ่ม userMessageInDb กลับเข้า messages (user message ล่าสุด)
+      messages.push(userMessageInDb);
+
+      // เพิ่มข้อความผู้ใช้ล่าสุดเข้า Redis (recent history)
+      await memoryService.addRecentMessage(chatId, userMessageInDb);
+
+      // ตรวจสอบและฝังข้อความลง long-term memory (ChromaDB) ทุกๆ 10 ข้อความ
+      const currentMessageCount = chatFromDb.messages.length;
+      if (this.shouldEmbedMessages(currentMessageCount)) {
+        // Note: ให้ LLM เรียก tool memory_embed เพื่อสร้าง embeddings
+      }
+
+      // สร้าง assistant message และเพิ่มเข้า messages
       const assistantMessage = await this.addMessage(chatId, {
         role: 'assistant',
-        content: ''
+        content: '',
       });
+      messages.push(assistantMessage);
+      let fullContent = '';
       let turn = 0;
       let done = false;
-      while (!done && turn < 5) { // ป้องกัน infinite loop
+      while (!done && turn < 5) {
         turn++;
         // 5.1 สร้าง prompt
         const prompt = promptTemplate(messages);
@@ -199,13 +228,11 @@ export class ChatService {
         try {
           for await (const chunk of llm.stream(prompt)) {
             chunkBuffer += chunk;
-            // ตรวจสอบ tool call แบบ streaming
             toolMatch = chunkBuffer.match(/\[TOOL:([\w_]+)\](.*)/s);
             if (toolMatch) {
               isToolCall = true;
-              break; // หยุด stream เพื่อไปเรียก tool
+              break;
             }
-            // อัปเดตข้อความใน DB และ broadcast chunk
             output += chunk;
             fullContent += chunk;
             await ChatModel.updateOne(
@@ -229,21 +256,32 @@ export class ChatService {
           const toolInput = toolMatch[2]?.trim() || '';
           if (allTools[toolName]) {
             const toolResult = await allTools[toolName](toolInput, chatId);
-            messages.push({ role: 'tool', content: `[${toolName} result]: ${toolResult}` });
-            continue; // วน loop ส่งเข้า LLM ใหม่
+            // เพิ่ม tool result message (user) ที่สมบูรณ์เข้า messages
+            const toolResultMessage = await this.addMessage(chatId, {
+              role: 'user',
+              content: `[TOOL_RESULT:${toolName}] ${toolResult}`,
+            });
+            messages.push(toolResultMessage);
+            continue;
           } else {
-            messages.push({ role: 'assistant', content: `[Error: Tool ${toolName} not found]` });
+            messages.push({ ...assistantMessage, content: `[Error: Tool ${toolName} not found]` });
             done = true;
             fullContent += `[Error: Tool ${toolName} not found]`;
             break;
           }
         } else {
           // ไม่มี tool call, ถือว่าเป็น final answer
-          messages.push({ role: 'assistant', content: output });
+          messages.push({ ...assistantMessage, content: output });
           fullContent += output;
           done = true;
         }
-        // (streaming ไปแล้วใน loop)
+        // หลังจาก LLM ตอบกลับหรือ tool ทำงาน: อัปเดต Redis ด้วยข้อความล่าสุดของผู้ช่วย
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content) {
+          await memoryService.addRecentMessage(chatId, lastMessage);
+        } else if (lastMessage && lastMessage.role === 'user' && lastMessage.content && lastMessage.content.startsWith('[TOOL_RESULT:')) {
+          await memoryService.addRecentMessage(chatId, lastMessage);
+        }
       }
       // Calculate tokens and update usage
       const inputTokens = Math.floor(userMessage.length / 4);
