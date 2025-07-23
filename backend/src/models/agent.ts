@@ -4,7 +4,10 @@ export enum AgentToolType {
   FUNCTION = 'function',
   RETRIEVER = 'retriever',
   WEB_SEARCH = 'web_search',
-  CALCULATOR = 'calculator'
+  CALCULATOR = 'calculator',
+  CURRENT_DATE = 'current_date',
+  MEMORY_SEARCH = 'memory_search',
+  MEMORY_EMBED = 'memory_embed'
 }
 
 export enum AgentExecutionStatus {
