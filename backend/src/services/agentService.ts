@@ -6,19 +6,55 @@ export class AgentService {
     console.log('✅ Agent service initialized');
   }
 
-  public async getAllAgents(userId?: string): Promise<Agent[]> {
+  public async getAllAgents(userId?: string, query?: any): Promise<Agent[]> {
     try {
-      let query = {};
+      let mongoQuery: any = {};
+      
+      // Filter by user ownership and public status
       if (userId) {
-        query = {
+        mongoQuery = {
           $or: [
             { createdBy: userId },
             { isPublic: true }
           ]
         };
       }
+
+      // Add search filter if provided
+      if (query?.search) {
+        const searchRegex = new RegExp(query.search, 'i');
+        mongoQuery = {
+          ...mongoQuery,
+          $or: [
+            { name: searchRegex },
+            { description: searchRegex },
+            { tags: { $in: [searchRegex] } }
+          ]
+        };
+      }
+
+      // Add tags filter if provided
+      if (query?.tags) {
+        const tags = query.tags.split(',').map((tag: string) => tag.trim());
+        mongoQuery.tags = { $in: tags };
+      }
+
+      // Add public filter if provided
+      if (query?.isPublic !== undefined) {
+        mongoQuery.isPublic = query.isPublic;
+      }
+
+      // Apply pagination
+      const limit = query?.limit || 50;
+      const offset = query?.offset || 0;
       
-      const agents = await AgentModel.find(query).exec();
+      const agents = await AgentModel.find(mongoQuery)
+        .limit(limit)
+        .skip(offset)
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+        
       return agents;
     } catch (error) {
       console.error('Error fetching agents:', error);
