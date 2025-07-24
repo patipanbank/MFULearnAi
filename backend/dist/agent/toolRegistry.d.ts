@@ -1,5 +1,4 @@
-import { ToolFunction as ServiceToolFunction } from '../services/toolRegistry';
-export type ToolFunction = ServiceToolFunction;
+export type ToolFunction = (input: string, sessionId?: string, config?: any) => Promise<string>;
 export interface ToolMeta {
     name: string;
     description: string;

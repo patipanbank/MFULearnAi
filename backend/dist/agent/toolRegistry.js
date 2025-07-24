@@ -8,7 +8,6 @@ exports.createMemoryTool = createMemoryTool;
 exports.addChatMemory = addChatMemory;
 exports.clearChatMemory = clearChatMemory;
 exports.getMemoryStats = getMemoryStats;
-const toolRegistry_1 = require("../services/toolRegistry");
 const memoryService_1 = require("../services/memoryService");
 const axios_1 = __importDefault(require("axios"));
 exports.toolRegistry = {
@@ -77,13 +76,25 @@ exports.toolRegistry = {
     memory_search: {
         name: 'memory_search',
         description: 'Search through chat memory for relevant context.',
-        func: toolRegistry_1.toolRegistry.memory_search
+        func: async (input, sessionId) => {
+            if (!sessionId)
+                return 'No sessionId provided.';
+            const results = await memoryService_1.memoryService.searchMemory(sessionId, input);
+            if (!results.length)
+                return 'No relevant chat history found.';
+            return results.map((r, i) => `${i + 1}. ${r.role}: ${r.content}`).join('\n');
+        }
     },
     memory_embed: {
         name: 'memory_embed',
         description: 'Embed new message into chat memory.',
-        func: toolRegistry_1.toolRegistry.memory_embed
-    }
+        func: async (input, sessionId) => {
+            if (!sessionId)
+                return 'No sessionId provided.';
+            await memoryService_1.memoryService.embedMessage(sessionId, input);
+            return 'Message embedded into memory.';
+        }
+    },
 };
 function createMemoryTool(sessionId) {
     return {
@@ -109,10 +120,12 @@ function createMemoryTool(sessionId) {
         },
         [`full_context_${sessionId}`]: {
             name: `full_context_${sessionId}`,
-            description: 'Get full conversation context from memory (ChromaDB).',
+            description: 'Get full conversation context from memory (vectorstore).',
             func: async () => {
-                const all = await toolRegistry_1.toolRegistry.memory_search('', sessionId, { k: 100 });
-                return all || 'No context found in memory.';
+                const all = await memoryService_1.memoryService.getAllMessages(sessionId);
+                if (!all.length)
+                    return 'No context found in memory.';
+                return all.map((msg, i) => `${i + 1}. ${msg.role}: ${msg.content}`).join('\n');
             }
         },
         [`clear_memory_${sessionId}`]: {

@@ -5,6 +5,10 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const redisClient = createClient({ url: redisUrl });
 redisClient.connect().catch(console.error);
 
+function isArrayOfMemoryDocs(arr: any): arr is Array<{ document: string | null; metadata: any }> {
+  return Array.isArray(arr) && arr.every(item => typeof item === 'object' && 'document' in item);
+}
+
 export class MemoryService {
   // Redis: recent messages (last 10)
   async addRecentMessage(sessionId: string, message: any) {
@@ -62,11 +66,10 @@ export class MemoryService {
   // Get all messages from long-term memory (vectorstore)
   async getAllMessages(sessionId: string): Promise<any[]> {
     // TODO: ดึงทั้งหมดจาก chromaService
-    // สมมติ chromaService.getAllFromCollection คืน [{ document, metadata }]
-    if (!chromaService.getAllFromCollection) return [];
-    const results = await chromaService.getAllFromCollection(`chat_memory_${sessionId}`);
-    return (results || []).map((r: any) => ({
-      content: r.document,
+    // สมมติ chromaService.getAllFromCollection คืน Array<{ document: string, metadata: any }>
+    const results = await chromaService.getAllFromCollection(`chat_memory_${sessionId}`) as any;
+    return results.map((r: { document: string | null; metadata: any }) => ({
+      content: r.document ?? '',
       role: r.metadata?.role || 'user',
       timestamp: r.metadata?.timestamp || null
     }));

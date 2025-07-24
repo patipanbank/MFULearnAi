@@ -17,6 +17,11 @@ export interface AgentExecutor {
  * - วน loop: ส่ง prompt+history ให้ LLM → ถ้า LLM ตอบว่าให้ใช้ tool → execute tool → ส่งผลลัพธ์กลับเข้า LLM → repeat จนได้ final answer
  * - รองรับ event streaming (tool_start, tool_result, chunk, end) ผ่าน callback
  */
+/**
+ * createAgent (agentFactory): สร้าง AgentExecutor สำหรับ orchestrate LLM + tools + prompt (ไม่ใช่ data CRUD)
+ * - ใช้สำหรับ agent graph, tool calling, event streaming เท่านั้น
+ * - ไม่เกี่ยวกับ agentService.createAgent (data CRUD)
+ */
 export function createAgent(
   llm: LLM,
   tools: { [name: string]: ToolFunction },
@@ -47,9 +52,12 @@ export function createAgent(
           if (onEvent) onEvent({ type: 'tool_start', data: { tool_name: toolName, tool_input: toolInput } });
           const toolFn = tools[toolName];
           let toolResult = '';
+          // ดึง sessionId จาก options หรือ messages (เช่น messages[0].sessionId หรือ options?.sessionId)
+          const sessionId = (options as any)?.sessionId || (messages as any)?.sessionId || '';
+          const config = (options as any)?.config || undefined;
           if (toolFn) {
             try {
-              toolResult = await toolFn(toolInput);
+              toolResult = await toolFn(toolInput, sessionId, config);
               if (onEvent) onEvent({ type: 'tool_result', data: { tool_name: toolName, output: toolResult } });
             } catch (e) {
               toolResult = `Tool error: ${(e as Error).message}`;

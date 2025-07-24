@@ -4,7 +4,13 @@ export interface AgentExecutor {
     run: (messages: {
         role: string;
         content: string;
-    }[]) => Promise<string>;
+    }[], options?: {
+        onEvent?: (event: {
+            type: string;
+            data?: any;
+        }) => void;
+        maxSteps?: number;
+    }) => Promise<string>;
 }
 export declare function createAgent(llm: LLM, tools: {
     [name: string]: ToolFunction;

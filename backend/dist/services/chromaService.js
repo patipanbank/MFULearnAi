@@ -161,6 +161,27 @@ class ChromaService {
             throw e;
         }
     }
+    async getAllFromCollection(collectionName) {
+        try {
+            const collection = await this.getOrCreateCollection(collectionName);
+            const all = await collection.get();
+            const docs = [];
+            if (all && all.ids) {
+                for (let i = 0; i < all.ids.length; i++) {
+                    docs.push({
+                        id: all.ids[i],
+                        document: all.documents?.[i] ?? null,
+                        metadata: all.metadatas?.[i],
+                    });
+                }
+            }
+            return docs;
+        }
+        catch (e) {
+            console.error(`[ChromaService] Error getAllFromCollection:`, e);
+            return [];
+        }
+    }
     getVectorStore(collectionName) {
         console.log(`[ChromaService] getVectorStore is not implemented in this version.`);
         return null;

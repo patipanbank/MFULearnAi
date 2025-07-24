@@ -4,13 +4,11 @@ exports.chatService = exports.ChatService = void 0;
 const chat_1 = require("../models/chat");
 const websocketManager_1 = require("../utils/websocketManager");
 const agentService_1 = require("./agentService");
-const usageService_1 = require("./usageService");
 const llmFactory_1 = require("../agent/llmFactory");
 const toolRegistry_1 = require("../agent/toolRegistry");
 const promptFactory_1 = require("../agent/promptFactory");
 const agentFactory_1 = require("../agent/agentFactory");
 const redis_1 = require("../lib/redis");
-const memoryService_1 = require("./memoryService");
 class ChatService {
     constructor() {
         console.log('✅ Chat service initialized');
@@ -123,10 +121,6 @@ class ChatService {
     }
     async processWithAILegacy(chatId, userMessage, images, config, userId) {
         try {
-            await this.delay(1000);
-            const agentId = config?.agentId;
-            if (!agentId)
-                throw new Error('No agentId');
             const llm = (0, llmFactory_1.getLLM)(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
                 temperature: config?.temperature,
                 maxTokens: config?.maxTokens
@@ -140,133 +134,61 @@ class ChatService {
             const promptTemplate = (0, promptFactory_1.createPromptTemplate)(config?.systemPrompt || '', true);
             const agent = (0, agentFactory_1.createAgent)(llm, allTools, config?.systemPrompt || '');
             const chatFromDb = await chat_1.ChatModel.findById(chatId);
-            if (!chatFromDb) {
+            if (!chatFromDb)
                 throw new Error(`Chat session ${chatId} not found during AI processing`);
-            }
             let messages = chatFromDb.messages.map(msg => ({
                 role: msg.role,
                 content: msg.content,
                 id: msg.id,
                 timestamp: msg.timestamp
             }));
-            const userMessageInDb = messages[messages.length - 1];
-            messages = messages.slice(0, messages.length - 1);
-            messages.push(userMessageInDb);
-            await memoryService_1.memoryService.addRecentMessage(chatId, userMessageInDb);
-            const currentMessageCount = chatFromDb.messages.length;
-            if (this.shouldEmbedMessages(currentMessageCount)) {
+            if (!messages.length || messages[messages.length - 1].role !== 'user') {
+                const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
+                messages.push(userMsg);
             }
             const assistantMessage = await this.addMessage(chatId, {
                 role: 'assistant',
                 content: '',
             });
-            messages.push(assistantMessage);
             let fullContent = '';
-            let turn = 0;
-            let done = false;
-            while (!done && turn < 5) {
-                turn++;
-                const prompt = promptTemplate(messages);
-                let output = '';
-                let isToolCall = false;
-                let toolMatch = null;
-                let chunkBuffer = '';
-                try {
-                    for await (const chunk of llm.stream(prompt)) {
-                        chunkBuffer += chunk;
-                        toolMatch = chunkBuffer.match(/\[TOOL:([\w_]+)\](.*)/s);
-                        if (toolMatch) {
-                            isToolCall = true;
-                            break;
-                        }
-                        output += chunk;
-                        fullContent += chunk;
+            await agent.run(messages, {
+                onEvent: async (event) => {
+                    if (event.type === 'chunk') {
+                        fullContent += event.data;
                         await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessage.id }, { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } });
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'chunk',
-                                data: chunk
-                            }));
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
                         }
                     }
-                }
-                catch (err) {
-                    console.error('❌ Error during LLM streaming:', err);
-                    break;
-                }
-                if (isToolCall && toolMatch) {
-                    const toolName = toolMatch[1];
-                    const toolInput = toolMatch[2]?.trim() || '';
-                    if (allTools[toolName]) {
+                    else if (event.type === 'tool_start') {
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'tool_start',
-                                data: {
-                                    tool_name: toolName,
-                                    tool_input: toolInput
-                                }
-                            }));
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_start', data: event.data }));
                         }
-                        const toolResult = await allTools[toolName](toolInput, chatId);
+                    }
+                    else if (event.type === 'tool_result') {
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'tool_result',
-                                data: {
-                                    tool_name: toolName,
-                                    output: toolResult
-                                }
-                            }));
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_result', data: event.data }));
                         }
-                        const toolResultMessage = await this.addMessage(chatId, {
-                            role: 'user',
-                            content: `[TOOL_RESULT:${toolName}] ${toolResult}`,
-                        });
-                        messages.push(toolResultMessage);
-                        continue;
                     }
-                    else {
-                        messages.push({ ...assistantMessage, content: `[Error: Tool ${toolName} not found]` });
-                        done = true;
-                        fullContent += `[Error: Tool ${toolName} not found]`;
-                        break;
+                    else if (event.type === 'tool_error') {
+                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_error', data: event.data }));
+                        }
                     }
-                }
-                else {
-                    messages.push({ ...assistantMessage, content: output });
-                    fullContent += output;
-                    done = true;
-                }
-                const lastMessage = messages[messages.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content) {
-                    await memoryService_1.memoryService.addRecentMessage(chatId, lastMessage);
-                }
-                else if (lastMessage && lastMessage.role === 'user' && lastMessage.content && lastMessage.content.startsWith('[TOOL_RESULT:')) {
-                    await memoryService_1.memoryService.addRecentMessage(chatId, lastMessage);
-                }
-            }
-            const inputTokens = Math.floor(userMessage.length / 4);
-            const outputTokens = Math.floor(fullContent.length / 4);
-            if (userId) {
-                await usageService_1.usageService.updateUsage(userId, inputTokens, outputTokens);
-            }
-            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                    type: 'end',
-                    data: {
-                        sessionId: chatId,
-                        inputTokens,
-                        outputTokens
+                    else if (event.type === 'end') {
+                        await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessage.id }, { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } });
+                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'end', data: { answer: event.data.answer } }));
+                        }
                     }
-                }));
-            }
+                },
+                maxSteps: 5
+            });
         }
         catch (error) {
-            console.error('❌ Error in AI processing:', error);
+            console.error('❌ Error in processWithAILegacy:', error);
             if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                    type: 'error',
-                    data: 'Failed to process AI response'
-                }));
+                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
             }
         }
     }

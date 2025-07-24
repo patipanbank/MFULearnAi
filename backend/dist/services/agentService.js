@@ -3,6 +3,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.agentService = exports.AgentService = void 0;
 const agent_1 = require("../models/agent");
 const uuid_1 = require("uuid");
+function normalizeAgent(agent) {
+    const obj = (typeof agent.toObject === 'function') ? agent.toObject() : agent;
+    return {
+        id: obj.id || obj._id?.toString() || '',
+        name: typeof obj.name === 'string' ? obj.name : '',
+        description: typeof obj.description === 'string' ? obj.description : '',
+        systemPrompt: typeof obj.systemPrompt === 'string' ? obj.systemPrompt : '',
+        modelId: typeof obj.modelId === 'string' ? obj.modelId : '',
+        collectionNames: Array.isArray(obj.collectionNames) ? obj.collectionNames : [],
+        tools: Array.isArray(obj.tools) ? obj.tools : [],
+        temperature: typeof obj.temperature === 'number' ? obj.temperature : 0.7,
+        maxTokens: typeof obj.maxTokens === 'number' ? obj.maxTokens : 4000,
+        isPublic: typeof obj.isPublic === 'boolean' ? obj.isPublic : false,
+        tags: Array.isArray(obj.tags) ? obj.tags : [],
+        createdBy: typeof obj.createdBy === 'string' ? obj.createdBy : '',
+        createdAt: obj.createdAt ? new Date(obj.createdAt) : new Date(),
+        updatedAt: obj.updatedAt ? new Date(obj.updatedAt) : new Date(),
+        usageCount: typeof obj.usageCount === 'number' ? obj.usageCount : 0,
+        rating: typeof obj.rating === 'number' ? obj.rating : 0.0,
+    };
+}
 class AgentService {
     constructor() {
         console.log('✅ Agent service initialized');
@@ -18,8 +39,8 @@ class AgentService {
                     ]
                 };
             }
-            const agents = await agent_1.AgentModel.find(query).exec();
-            return agents;
+            const agents = await agent_1.AgentModel.find(query).lean().exec();
+            return agents.map(normalizeAgent);
         }
         catch (error) {
             console.error('Error fetching agents:', error);
@@ -29,10 +50,10 @@ class AgentService {
     async getAgentById(agentId) {
         try {
             if (agentId === '000000000000000000000001') {
-                return this.getDefaultAgent();
+                return normalizeAgent(this.getDefaultAgent());
             }
-            const agent = await agent_1.AgentModel.findById(agentId);
-            return agent;
+            const agent = await agent_1.AgentModel.findById(agentId).lean();
+            return agent ? normalizeAgent(agent) : null;
         }
         catch (error) {
             console.error(`Error fetching agent ${agentId}:`, error);
@@ -85,16 +106,16 @@ class AgentService {
             }
             const agent = new agent_1.AgentModel({
                 name: agentData.name,
-                description: agentData.description || '',
-                systemPrompt: agentData.systemPrompt || '',
-                modelId: agentData.modelId,
-                collectionNames: agentData.collectionNames || [],
-                tools: agentData.tools || [],
-                temperature: agentData.temperature || 0.7,
-                maxTokens: agentData.maxTokens || 4000,
-                isPublic: agentData.isPublic || false,
-                tags: agentData.tags || [],
-                createdBy: agentData.createdBy,
+                description: agentData.description ?? '',
+                systemPrompt: agentData.systemPrompt ?? '',
+                modelId: agentData.modelId ?? '',
+                collectionNames: agentData.collectionNames ?? [],
+                tools: agentData.tools ?? [],
+                temperature: agentData.temperature ?? 0.7,
+                maxTokens: agentData.maxTokens ?? 4000,
+                isPublic: agentData.isPublic ?? false,
+                tags: agentData.tags ?? [],
+                createdBy: agentData.createdBy ?? '',
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 usageCount: 0,
@@ -102,7 +123,7 @@ class AgentService {
             });
             await agent.save();
             console.log(`✅ Created agent: ${agent.name}`);
-            return agent;
+            return normalizeAgent(agent.toObject());
         }
         catch (error) {
             console.error('Error creating agent:', error);
@@ -146,11 +167,11 @@ class AgentService {
                 }
             }
             updates.updatedAt = new Date();
-            const agent = await agent_1.AgentModel.findByIdAndUpdate(agentId, { $set: updates }, { new: true });
+            const agent = await agent_1.AgentModel.findByIdAndUpdate(agentId, { $set: updates }, { new: true }).lean();
             if (agent) {
                 console.log(`✅ Updated agent: ${agent.name}`);
             }
-            return agent;
+            return agent ? normalizeAgent(agent) : null;
         }
         catch (error) {
             console.error(`Error updating agent ${agentId}:`, error);
@@ -237,7 +258,7 @@ class AgentService {
     }
     async createAgentFromTemplate(templateId, customizations) {
         try {
-            const template = await agent_1.AgentTemplateModel.findById(templateId);
+            const template = await agent_1.AgentTemplateModel.findById(templateId).lean();
             if (!template) {
                 throw new Error('Template not found');
             }
@@ -255,7 +276,8 @@ class AgentService {
                 tags: customizations.tags || template.tags,
                 createdBy: customizations.createdBy
             };
-            return await this.createAgent(agentData);
+            const agent = await this.createAgent(agentData);
+            return normalizeAgent(agent);
         }
         catch (error) {
             console.error('Error creating agent from template:', error);
@@ -306,8 +328,9 @@ class AgentService {
             const agents = await agent_1.AgentModel.find({ isPublic: true })
                 .sort({ usageCount: -1, rating: -1 })
                 .limit(limit)
+                .lean()
                 .exec();
-            return agents;
+            return agents.map(normalizeAgent);
         }
         catch (error) {
             console.error('Error fetching popular agents:', error);
@@ -329,8 +352,8 @@ class AgentService {
                     { isPublic: true }
                 ];
             }
-            const agents = await agent_1.AgentModel.find(filter).exec();
-            return agents;
+            const agents = await agent_1.AgentModel.find(filter).lean().exec();
+            return agents.map(normalizeAgent);
         }
         catch (error) {
             console.error('Error searching agents:', error);

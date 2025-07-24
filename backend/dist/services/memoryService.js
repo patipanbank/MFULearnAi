@@ -30,6 +30,29 @@ class MemoryService {
     async clearLongTermMemory(sessionId) {
         await chromaService_1.chromaService.deleteCollection(`chat_memory_${sessionId}`);
     }
+    async embedMessage(sessionId, message) {
+        const embedding = Array(768).fill(0);
+        await this.addLongTermMemory(sessionId, message, embedding, { role: 'user' });
+    }
+    async searchMemory(sessionId, query, k = 3) {
+        const queryEmbedding = Array(768).fill(0);
+        const results = await this.searchLongTermMemory(sessionId, queryEmbedding, k);
+        return (results || []).map((r) => ({
+            content: r.document,
+            role: r.metadata?.role || 'user',
+            timestamp: r.metadata?.timestamp || null
+        }));
+    }
+    async getAllMessages(sessionId) {
+        const results = await chromaService_1.chromaService.getAllFromCollection(`chat_memory_${sessionId}`);
+        if (!Array.isArray(results))
+            return [];
+        return results.map((r) => ({
+            content: r.document ?? '',
+            role: r.metadata?.role || 'user',
+            timestamp: r.metadata?.timestamp || null
+        }));
+    }
 }
 exports.MemoryService = MemoryService;
 exports.memoryService = new MemoryService();

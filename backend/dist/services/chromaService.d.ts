@@ -23,6 +23,10 @@ export declare class ChromaService {
     }>;
     deleteDocuments(collectionName: string, documentIds: string[]): Promise<void>;
     deleteDocumentsBySource(collectionName: string, sourceName: string): Promise<void>;
+    getAllFromCollection(collectionName: string): Promise<Array<{
+        document: string | null;
+        metadata: any;
+    }>>;
     getVectorStore(collectionName: string): null;
 }
 export declare const chromaService: ChromaService;

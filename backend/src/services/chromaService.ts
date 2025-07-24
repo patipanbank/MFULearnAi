@@ -163,7 +163,7 @@ export class ChromaService {
   }
 
   // ดึงข้อความทั้งหมดจาก collection (vectorstore)
-  async getAllFromCollection(collectionName: string) {
+  async getAllFromCollection(collectionName: string): Promise<Array<{ document: string | null; metadata: any }>> {
     try {
       const collection = await this.getOrCreateCollection(collectionName);
       const all = await collection.get();
@@ -172,7 +172,7 @@ export class ChromaService {
         for (let i = 0; i < all.ids.length; i++) {
           docs.push({
             id: all.ids[i],
-            document: all.documents?.[i],
+            document: all.documents?.[i] ?? null,
             metadata: all.metadatas?.[i],
           });
         }
