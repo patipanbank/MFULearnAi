@@ -12,18 +12,6 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     if (!Array.isArray(agents)) {
       agents = [];
     }
-    // Sanitize: ensure name, description, systemPrompt, modelId are not undefined
-    agents = agents.map(agent => {
-      const obj = agent.toObject ? agent.toObject() : agent;
-      return {
-        ...obj,
-        name: obj.name || '',
-        description: obj.description || '',
-        systemPrompt: obj.systemPrompt || '',
-        modelId: obj.modelId || '',
-        tags: Array.isArray(obj.tags) ? obj.tags : [],
-      };
-    });
     return res.json({
       success: true,
       data: agents
