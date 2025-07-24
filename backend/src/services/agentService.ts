@@ -2,23 +2,25 @@ import { AgentModel, AgentTemplateModel, Agent, AgentTemplate, AgentTool, AgentT
 import { v4 as uuidv4 } from 'uuid';
 
 function normalizeAgent(agent: any) {
+  // ถ้า agent เป็น Mongoose Document ให้แปลงเป็น plain object ก่อน
+  const obj = (typeof agent.toObject === 'function') ? agent.toObject() : agent;
   return {
-    id: agent.id || agent._id?.toString() || '',
-    name: agent.name ?? '',
-    description: agent.description ?? '',
-    systemPrompt: agent.systemPrompt ?? '',
-    modelId: agent.modelId ?? '',
-    collectionNames: Array.isArray(agent.collectionNames) ? agent.collectionNames : [],
-    tools: Array.isArray(agent.tools) ? agent.tools : [],
-    temperature: typeof agent.temperature === 'number' ? agent.temperature : 0.7,
-    maxTokens: typeof agent.maxTokens === 'number' ? agent.maxTokens : 4000,
-    isPublic: typeof agent.isPublic === 'boolean' ? agent.isPublic : false,
-    tags: Array.isArray(agent.tags) ? agent.tags : [],
-    createdBy: agent.createdBy ?? '',
-    createdAt: agent.createdAt ?? new Date(),
-    updatedAt: agent.updatedAt ?? new Date(),
-    usageCount: typeof agent.usageCount === 'number' ? agent.usageCount : 0,
-    rating: typeof agent.rating === 'number' ? agent.rating : 0.0,
+    id: obj.id || obj._id?.toString() || '',
+    name: typeof obj.name === 'string' ? obj.name : '',
+    description: typeof obj.description === 'string' ? obj.description : '',
+    systemPrompt: typeof obj.systemPrompt === 'string' ? obj.systemPrompt : '',
+    modelId: typeof obj.modelId === 'string' ? obj.modelId : '',
+    collectionNames: Array.isArray(obj.collectionNames) ? obj.collectionNames : [],
+    tools: Array.isArray(obj.tools) ? obj.tools : [],
+    temperature: typeof obj.temperature === 'number' ? obj.temperature : 0.7,
+    maxTokens: typeof obj.maxTokens === 'number' ? obj.maxTokens : 4000,
+    isPublic: typeof obj.isPublic === 'boolean' ? obj.isPublic : false,
+    tags: Array.isArray(obj.tags) ? obj.tags : [],
+    createdBy: typeof obj.createdBy === 'string' ? obj.createdBy : '',
+    createdAt: obj.createdAt ? new Date(obj.createdAt) : new Date(),
+    updatedAt: obj.updatedAt ? new Date(obj.updatedAt) : new Date(),
+    usageCount: typeof obj.usageCount === 'number' ? obj.usageCount : 0,
+    rating: typeof obj.rating === 'number' ? obj.rating : 0.0,
   };
 }
 
