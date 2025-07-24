@@ -158,12 +158,6 @@ export class ChatService {
     agentId?: string;
   }, userId?: string): Promise<void> {
     try {
-      // Simulate thinking time
-      await this.delay(1000);
-
-      // === LangChain agent graph logic ===
-      const agentId = config?.agentId;
-      if (!agentId) throw new Error('No agentId');
       // 1. เตรียม LLM instance
       const llm = getLLM(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
         temperature: config?.temperature,
@@ -171,162 +165,74 @@ export class ChatService {
       });
       // 2. เตรียม tools (รวม memory tool)
       const sessionTools = createMemoryTool(chatId);
-      // map ToolMeta เป็น ToolFunction
       const allTools: { [name: string]: ToolFunction } = {};
       for (const [k, v] of Object.entries(toolRegistry)) allTools[k] = v.func;
       for (const [k, v] of Object.entries(sessionTools)) allTools[k] = v.func;
       // 3. เตรียม prompt template
       const promptTemplate = createPromptTemplate(config?.systemPrompt || '', true);
-      // 4. สร้าง agent executor
+      // 4. สร้าง agent executor (ใหม่)
       const agent = createAgent(llm, allTools, config?.systemPrompt || '');
-      // 5. วน loop agent graph (multi-turn)
-      // ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท
+      // 5. ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท
       const chatFromDb = await ChatModel.findById(chatId);
-      if (!chatFromDb) {
-        throw new Error(`Chat session ${chatId} not found during AI processing`);
-      }
+      if (!chatFromDb) throw new Error(`Chat session ${chatId} not found during AI processing`);
       let messages: ChatMessage[] = chatFromDb.messages.map(msg => ({
         role: msg.role,
         content: msg.content,
         id: msg.id,
         timestamp: msg.timestamp
       }));
-      // ลบข้อความล่าสุดของผู้ใช้ที่เราเพิ่งเพิ่มไป (เพราะ agent จะประมวลผลจาก prompt ที่สร้างจาก messages นี้)
-      // และเราจะเพิ่มมันเข้าไปใหม่เมื่อ LLM ให้คำตอบ
-      const userMessageInDb = messages[messages.length - 1];
-      messages = messages.slice(0, messages.length - 1);
-      // เพิ่ม userMessageInDb กลับเข้า messages (user message ล่าสุด)
-      messages.push(userMessageInDb);
-
-      // เพิ่มข้อความผู้ใช้ล่าสุดเข้า Redis (recent history)
-      await memoryService.addRecentMessage(chatId, userMessageInDb);
-
-      // ตรวจสอบและฝังข้อความลง long-term memory (ChromaDB) ทุกๆ 10 ข้อความ
-      const currentMessageCount = chatFromDb.messages.length;
-      if (this.shouldEmbedMessages(currentMessageCount)) {
-        // Note: ให้ LLM เรียก tool memory_embed เพื่อสร้าง embeddings
+      // เพิ่ม user message ล่าสุด (ถ้ายังไม่มี)
+      if (!messages.length || messages[messages.length - 1].role !== 'user') {
+        const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
+        messages.push(userMsg);
       }
-
-      // สร้าง assistant message และเพิ่มเข้า messages
+      // เพิ่ม assistant message เปล่าไว้สำหรับอัปเดต
       const assistantMessage = await this.addMessage(chatId, {
         role: 'assistant',
         content: '',
       });
-      messages.push(assistantMessage);
+      // 6. เรียก agent.run พร้อม onEvent สำหรับ stream event
       let fullContent = '';
-      let turn = 0;
-      let done = false;
-      while (!done && turn < 5) {
-        turn++;
-        // 5.1 สร้าง prompt
-        const prompt = promptTemplate(messages);
-        // 5.2 เรียก LLM แบบ streaming
-        let output = '';
-        let isToolCall = false;
-        let toolMatch: RegExpMatchArray | null = null;
-        let chunkBuffer = '';
-        try {
-          for await (const chunk of llm.stream(prompt)) {
-            chunkBuffer += chunk;
-            toolMatch = chunkBuffer.match(/\[TOOL:([\w_]+)\](.*)/s);
-            if (toolMatch) {
-              isToolCall = true;
-              break;
-            }
-            output += chunk;
-            fullContent += chunk;
+      await agent.run(messages, {
+        onEvent: async (event) => {
+          if (event.type === 'chunk') {
+            fullContent += event.data;
             await ChatModel.updateOne(
               { _id: chatId, 'messages.id': assistantMessage.id },
               { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } }
             );
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({
-                type: 'chunk',
-                data: chunk
-              }));
+              wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
             }
-          }
-        } catch (err) {
-          console.error('❌ Error during LLM streaming:', err);
-          break;
-        }
-        // 5.3 Parse output: ถ้ามี [TOOL:name] ให้เรียก tool นั้น
-        if (isToolCall && toolMatch) {
-          const toolName = toolMatch[1];
-          const toolInput = toolMatch[2]?.trim() || '';
-          if (allTools[toolName]) {
-            // Broadcast tool_start event
+          } else if (event.type === 'tool_start') {
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({
-                type: 'tool_start',
-                data: {
-                  tool_name: toolName,
-                  tool_input: toolInput
-                }
-              }));
+              wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_start', data: event.data }));
             }
-
-            const toolResult = await allTools[toolName](toolInput, chatId);
-            // Broadcast tool_result event
+          } else if (event.type === 'tool_result') {
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({
-                type: 'tool_result',
-                data: {
-                  tool_name: toolName,
-                  output: toolResult
-                }
-              }));
+              wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_result', data: event.data }));
             }
-            // เพิ่ม tool result message (user) ที่สมบูรณ์เข้า messages
-            const toolResultMessage = await this.addMessage(chatId, {
-              role: 'user',
-              content: `[TOOL_RESULT:${toolName}] ${toolResult}`,
-            });
-            messages.push(toolResultMessage);
-            continue;
-          } else {
-            messages.push({ ...assistantMessage, content: `[Error: Tool ${toolName} not found]` });
-            done = true;
-            fullContent += `[Error: Tool ${toolName} not found]`;
-            break;
+          } else if (event.type === 'tool_error') {
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_error', data: event.data }));
+            }
+          } else if (event.type === 'end') {
+            // อัปเดต assistant message สุดท้าย
+            await ChatModel.updateOne(
+              { _id: chatId, 'messages.id': assistantMessage.id },
+              { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } }
+            );
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'end', data: { answer: event.data.answer } }));
+            }
           }
-        } else {
-          // ไม่มี tool call, ถือว่าเป็น final answer
-          messages.push({ ...assistantMessage, content: output });
-          fullContent += output;
-          done = true;
-        }
-        // หลังจาก LLM ตอบกลับหรือ tool ทำงาน: อัปเดต Redis ด้วยข้อความล่าสุดของผู้ช่วย
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content) {
-          await memoryService.addRecentMessage(chatId, lastMessage);
-        } else if (lastMessage && lastMessage.role === 'user' && lastMessage.content && lastMessage.content.startsWith('[TOOL_RESULT:')) {
-          await memoryService.addRecentMessage(chatId, lastMessage);
-        }
-      }
-      // Calculate tokens and update usage
-      const inputTokens = Math.floor(userMessage.length / 4);
-      const outputTokens = Math.floor(fullContent.length / 4);
-      if (userId) {
-        await usageService.updateUsage(userId, inputTokens, outputTokens);
-      }
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'end',
-          data: {
-            sessionId: chatId,
-            inputTokens,
-            outputTokens
-          }
-        }));
-      }
+        },
+        maxSteps: 5
+      });
     } catch (error) {
-      console.error('❌ Error in AI processing:', error);
+      console.error('❌ Error in processWithAILegacy:', error);
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'error',
-          data: 'Failed to process AI response'
-        }));
+        wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
       }
     }
   }

@@ -36,6 +36,41 @@ export class MemoryService {
   async clearLongTermMemory(sessionId: string) {
     await chromaService.deleteCollection(`chat_memory_${sessionId}`);
   }
+
+  // Embed message into long-term memory (vectorstore)
+  async embedMessage(sessionId: string, message: string) {
+    // TODO: ใช้ embedding model จริง (เช่น OpenAI, Bedrock, HuggingFace) แทน mock
+    // ตัวอย่าง: const embedding = await embeddingService.embed(message);
+    // ชั่วคราว: mock embedding เป็น array ศูนย์
+    const embedding = Array(768).fill(0);
+    await this.addLongTermMemory(sessionId, message, embedding, { role: 'user' });
+  }
+
+  // Search memory (vectorstore)
+  async searchMemory(sessionId: string, query: string, k: number = 3): Promise<any[]> {
+    // TODO: ใช้ embedding model จริง (เช่น OpenAI, Bedrock, HuggingFace) แทน mock
+    const queryEmbedding = Array(768).fill(0);
+    const results = await this.searchLongTermMemory(sessionId, queryEmbedding, k);
+    // สมมติ chromaService.queryCollection คืน [{ document, metadata }]
+    return (results || []).map((r: any) => ({
+      content: r.document,
+      role: r.metadata?.role || 'user',
+      timestamp: r.metadata?.timestamp || null
+    }));
+  }
+
+  // Get all messages from long-term memory (vectorstore)
+  async getAllMessages(sessionId: string): Promise<any[]> {
+    // TODO: ดึงทั้งหมดจาก chromaService
+    // สมมติ chromaService.getAllFromCollection คืน [{ document, metadata }]
+    if (!chromaService.getAllFromCollection) return [];
+    const results = await chromaService.getAllFromCollection(`chat_memory_${sessionId}`);
+    return (results || []).map((r: any) => ({
+      content: r.document,
+      role: r.metadata?.role || 'user',
+      timestamp: r.metadata?.timestamp || null
+    }));
+  }
 }
 
 export const memoryService = new MemoryService(); 

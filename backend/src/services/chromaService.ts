@@ -162,6 +162,28 @@ export class ChromaService {
     }
   }
 
+  // ดึงข้อความทั้งหมดจาก collection (vectorstore)
+  async getAllFromCollection(collectionName: string) {
+    try {
+      const collection = await this.getOrCreateCollection(collectionName);
+      const all = await collection.get();
+      const docs = [];
+      if (all && all.ids) {
+        for (let i = 0; i < all.ids.length; i++) {
+          docs.push({
+            id: all.ids[i],
+            document: all.documents?.[i],
+            metadata: all.metadatas?.[i],
+          });
+        }
+      }
+      return docs;
+    } catch (e) {
+      console.error(`[ChromaService] Error getAllFromCollection:`, e);
+      return [];
+    }
+  }
+
   // Placeholder for LangChain integration (option)
   getVectorStore(collectionName: string) {
     // Not implemented in JS version, but can be extended for LangChain/JS

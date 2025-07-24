@@ -2,7 +2,7 @@ import { toolRegistry as serviceToolRegistry, ToolFunction as ServiceToolFunctio
 import { memoryService } from '../services/memoryService';
 import axios from 'axios';
 
-export type ToolFunction = ServiceToolFunction;
+export type ToolFunction = (input: string, sessionId?: string, config?: any) => Promise<string>;
 
 export interface ToolMeta {
   name: string;
@@ -66,7 +66,7 @@ export const toolRegistry: Record<string, ToolMeta> = {
   current_date: {
     name: 'current_date',
     description: 'Get the current date and time. Use this when someone asks about the current date, time, or what day it is today.',
-    func: async (_input: string, _sessionId: string, config?: any) => {
+    func: async (_input: string, _sessionId?: string, config?: any) => {
       try {
         const tz = config?.timezone || 'Asia/Bangkok';
         const date = new Date().toLocaleString('th-TH', { timeZone: tz });
@@ -79,13 +79,33 @@ export const toolRegistry: Record<string, ToolMeta> = {
   memory_search: {
     name: 'memory_search',
     description: 'Search through chat memory for relevant context.',
-    func: serviceToolRegistry.memory_search
+    func: async (input: string, sessionId?: string) => {
+      if (!sessionId) return 'No sessionId provided.';
+      const results = await memoryService.searchMemory(sessionId, input);
+      if (!results.length) return 'No relevant chat history found.';
+      return results.map((r, i) => `${i + 1}. ${r.role}: ${r.content}`).join('\n');
+    }
   },
   memory_embed: {
     name: 'memory_embed',
     description: 'Embed new message into chat memory.',
-    func: serviceToolRegistry.memory_embed
-  }
+    func: async (input: string, sessionId?: string) => {
+      if (!sessionId) return 'No sessionId provided.';
+      await memoryService.embedMessage(sessionId, input);
+      return 'Message embedded into memory.';
+    }
+  },
+  // ตัวอย่าง dynamic knowledge base tool (search_collectionName)
+  // export function createKnowledgeBaseTool(collectionName: string): ToolMeta {
+  //   return {
+  //     name: `search_${collectionName}`,
+  //     description: `Search and retrieve information from the ${collectionName} knowledge base.`,
+  //     func: async (input: string) => {
+  //       // TODO: implement vectorstore search for this collection
+  //       return `Knowledge base search for ${collectionName} not implemented yet.`;
+  //     }
+  //   };
+  // }
 };
 
 // memory tool สำหรับ session (เหมือน legacy)
@@ -112,10 +132,11 @@ export function createMemoryTool(sessionId: string) {
     },
     [`full_context_${sessionId}`]: {
       name: `full_context_${sessionId}`,
-      description: 'Get full conversation context from memory (ChromaDB).',
+      description: 'Get full conversation context from memory (vectorstore).',
       func: async () => {
-        const all = await serviceToolRegistry.memory_search('', sessionId, { k: 100 });
-        return all || 'No context found in memory.';
+        const all = await memoryService.getAllMessages(sessionId);
+        if (!all.length) return 'No context found in memory.';
+        return all.map((msg, i) => `${i + 1}. ${msg.role}: ${msg.content}`).join('\n');
       }
     },
     [`clear_memory_${sessionId}`]: {

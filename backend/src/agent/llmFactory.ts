@@ -30,6 +30,7 @@ export class LLM {
    * Generate text from prompt using Bedrock LLM
    * - Supports model_kwargs (for model-specific params)
    * - Supports temperature, maxTokens, topP, topK, and any extra kwargs
+   * - TODO: รองรับ LLM อื่น (OpenAI, HuggingFace) ในอนาคต
    */
   async generate(prompt: string): Promise<string> {
     // Extract model-level keyword arguments
@@ -70,6 +71,7 @@ export class LLM {
    * Streaming generation using Bedrock streaming API (ConverseStreamCommand)
    * - รองรับเฉพาะ message-based model (Claude 3, Nova, Llama 3, ฯลฯ)
    * - ถ้า model ไม่รองรับ message-based ให้ throw error
+   * - TODO: รองรับ LLM อื่น (OpenAI, HuggingFace) ในอนาคต
    */
   async *stream(prompt: string): AsyncGenerator<string, void, unknown> {
     // ตัวอย่างนี้รองรับเฉพาะ message-based (Claude 3, Nova, Llama 3)
