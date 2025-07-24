@@ -33,21 +33,18 @@ export class LLM {
    * - TODO: รองรับ LLM อื่น (OpenAI, HuggingFace) ในอนาคต
    */
   async generate(prompt: string): Promise<string> {
-    // Extract model-level keyword arguments (whitelist only allowed keys, use snake_case)
+    // Extract model-level keyword arguments (legacy style, whitelist only allowed keys, use snake_case)
     const allowedParams: Record<string, string> = {
       temperature: 'temperature',
-      maxTokens: 'max_tokens',
       topP: 'top_p',
       topK: 'top_k',
     };
-    const model_kwargs: Record<string, any> = { ...this.options.model_kwargs };
+    const model_kwargs: Record<string, any> = {};
     for (const [camel, snake] of Object.entries(allowedParams)) {
       if (this.options[camel] !== undefined) {
         model_kwargs[snake] = this.options[camel];
       }
     }
-    // Remove any forbidden keys (legacy safety)
-    delete model_kwargs.maxTokens;
     // Build request body ตาม modelId
     let body: any = {};
     if (this.modelId.startsWith('anthropic.')) {
@@ -55,7 +52,6 @@ export class LLM {
       body = {
         prompt,
         max_tokens_to_sample: this.options.maxTokens ?? 4000,
-        temperature: this.options.temperature,
         ...model_kwargs,
       };
     } else if (this.modelId.startsWith('amazon.titan')) {
@@ -63,7 +59,6 @@ export class LLM {
       body = {
         inputText: prompt,
         maxTokenCount: this.options.maxTokens ?? 4000,
-        temperature: this.options.temperature,
         ...model_kwargs,
       };
     } else if (this.modelId.startsWith('meta.llama')) {
@@ -71,7 +66,6 @@ export class LLM {
       body = {
         prompt,
         max_gen_len: this.options.maxTokens ?? 4000,
-        temperature: this.options.temperature,
         ...model_kwargs,
       };
     } else {
@@ -79,7 +73,6 @@ export class LLM {
       body = {
         prompt,
         max_tokens: this.options.maxTokens ?? 4000,
-        temperature: this.options.temperature,
         ...model_kwargs,
       };
     }
