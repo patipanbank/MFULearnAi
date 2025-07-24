@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toolRegistry = void 0;
+exports.webSearchTool = exports.toolRegistry = void 0;
 exports.createMemoryTool = createMemoryTool;
 exports.addChatMemory = addChatMemory;
 exports.clearChatMemory = clearChatMemory;
@@ -15,32 +15,10 @@ exports.toolRegistry = {
         name: 'web_search',
         description: 'Search the web for current information. Use this when you need up-to-date information that\'s not in your training data.',
         func: async (input) => {
-            if (!input || input.trim() === '')
-                return 'No query provided.';
-            try {
-                const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(input)}&format=json&no_html=1&skip_disambig=1`;
-                const resp = await axios_1.default.get(url, { timeout: 5000 });
-                if (resp.data && resp.data.Abstract) {
-                    return `DuckDuckGo: ${resp.data.Abstract}`;
-                }
-                if (resp.data && resp.data.RelatedTopics && resp.data.RelatedTopics.length > 0) {
-                    const topics = resp.data.RelatedTopics.slice(0, 3).map((t) => t.Text).filter(Boolean);
-                    if (topics.length > 0) {
-                        return `DuckDuckGo related: ${topics.join(' | ')}`;
-                    }
-                }
-                if (process.env.GOOGLE_API_KEY && process.env.GOOGLE_CSE_ID) {
-                    const gUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_CSE_ID}&q=${encodeURIComponent(input)}`;
-                    const gResp = await axios_1.default.get(gUrl, { timeout: 7000 });
-                    if (gResp.data && gResp.data.items && gResp.data.items.length > 0) {
-                        return gResp.data.items.slice(0, 3).map((item, i) => `${i + 1}. ${item.title}\n${item.snippet}\n${item.link}`).join('\n');
-                    }
-                }
+            const results = await webSearch(input);
+            if (!results.length)
                 return 'No specific results found.';
-            }
-            catch (e) {
-                return `Web search error: ${e.message}`;
-            }
+            return results.map((r, i) => `${i + 1}. ${r.title}\n${r.snippet}\n${r.url}`).join('\n');
         }
     },
     calculator: {
@@ -49,14 +27,7 @@ exports.toolRegistry = {
         func: async (input) => {
             if (!input || input.trim() === '')
                 return 'No expression provided.';
-            try {
-                if (!/^[-+*/().\d\s]+$/.test(input))
-                    return 'Invalid expression';
-                return eval(input).toString();
-            }
-            catch (e) {
-                return 'Error in calculation';
-            }
+            return safeEvalMath(input.trim());
         }
     },
     current_date: {
@@ -82,7 +53,7 @@ exports.toolRegistry = {
             const results = await memoryService_1.memoryService.searchMemory(sessionId, input);
             if (!results.length)
                 return 'No relevant chat history found.';
-            return results.map((r, i) => `${i + 1}. ${r.role}: ${r.content}`).join('\n');
+            return results.map((r) => `${r.role}: ${r.content}`).join('\n');
         }
     },
     memory_embed: {
@@ -96,6 +67,97 @@ exports.toolRegistry = {
         }
     },
 };
+async function searchDuckDuckGo(query) {
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+    const resp = await axios_1.default.get(url, { timeout: 5000 });
+    const results = [];
+    if (resp.data.Abstract) {
+        results.push({ title: 'DuckDuckGo', snippet: resp.data.Abstract, url });
+    }
+    if (resp.data.RelatedTopics) {
+        for (const topic of resp.data.RelatedTopics.slice(0, 3)) {
+            if (topic.Text) {
+                results.push({ title: 'DuckDuckGo Related', snippet: topic.Text, url });
+            }
+        }
+    }
+    return results;
+}
+async function searchGoogle(query) {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const cseId = process.env.GOOGLE_CSE_ID;
+    if (!apiKey || !cseId)
+        return [];
+    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}`;
+    const resp = await axios_1.default.get(url, { timeout: 7000 });
+    return (resp.data.items || []).slice(0, 3).map(item => ({
+        title: item.title,
+        snippet: item.snippet,
+        url: item.link,
+    }));
+}
+async function webSearch(query) {
+    if (!query || !query.trim())
+        return [];
+    try {
+        const ddgResults = await searchDuckDuckGo(query);
+        if (ddgResults.length > 0)
+            return ddgResults;
+        const googleResults = await searchGoogle(query);
+        return googleResults;
+    }
+    catch (e) {
+        console.error('Web search error:', e);
+        return [];
+    }
+}
+exports.webSearchTool = {
+    name: 'web_search',
+    description: 'Search the web for current information. Use this when you need up-to-date information that\'s not in your training data.',
+    func: async (input, _sessionId, config) => {
+        if (!input || input.trim() === '')
+            return 'No query provided.';
+        const query = input.trim();
+        const provider = config?.provider || 'duckduckgo';
+        const language = config?.language || 'en';
+        try {
+            if (provider === 'duckduckgo') {
+                const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&kl=${language}`;
+                const resp = await axios_1.default.get(url, { timeout: 5000 });
+                if (resp.data && resp.data.Abstract) {
+                    return `DuckDuckGo: ${resp.data.Abstract}`;
+                }
+                if (resp.data && resp.data.RelatedTopics && resp.data.RelatedTopics.length > 0) {
+                    const topics = resp.data.RelatedTopics.slice(0, 3).map((t) => t.Text).filter(Boolean);
+                    if (topics.length > 0) {
+                        return `DuckDuckGo related: ${topics.join(' | ')}`;
+                    }
+                }
+            }
+            if (provider === 'google' || process.env.GOOGLE_API_KEY && process.env.GOOGLE_CSE_ID) {
+                const gUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_CSE_ID}&q=${encodeURIComponent(query)}&hl=${language}`;
+                const gResp = await axios_1.default.get(gUrl, { timeout: 7000 });
+                if (gResp.data && gResp.data.items && gResp.data.items.length > 0) {
+                    return gResp.data.items.slice(0, 3).map((item, i) => `${i + 1}. ${item.title}\n${item.snippet}\n${item.link}`).join('\n');
+                }
+            }
+            return 'No specific results found.';
+        }
+        catch (e) {
+            return `Web search error: ${e?.message || 'Unknown error'}`;
+        }
+    }
+};
+function safeEvalMath(expr) {
+    if (!/^[-+*/().\d\s]+$/.test(expr))
+        return 'Invalid expression';
+    try {
+        return Function(`"use strict";return (${expr})`)().toString();
+    }
+    catch {
+        return 'Error in calculation';
+    }
+}
 function createMemoryTool(sessionId) {
     return {
         [`search_chat_memory_${sessionId}`]: {

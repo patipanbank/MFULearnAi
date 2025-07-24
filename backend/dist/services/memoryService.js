@@ -6,6 +6,9 @@ const chromaService_1 = require("./chromaService");
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const redisClient = (0, redis_1.createClient)({ url: redisUrl });
 redisClient.connect().catch(console.error);
+function isArrayOfMemoryDocs(arr) {
+    return Array.isArray(arr) && arr.every(item => typeof item === 'object' && 'document' in item);
+}
 class MemoryService {
     async addRecentMessage(sessionId, message) {
         const key = `chat:recent:${sessionId}`;
@@ -45,9 +48,7 @@ class MemoryService {
     }
     async getAllMessages(sessionId) {
         const results = await chromaService_1.chromaService.getAllFromCollection(`chat_memory_${sessionId}`);
-        if (!Array.isArray(results))
-            return [];
-        return results.map((r) => ({
+        return (results || []).map((r) => ({
             content: r.document ?? '',
             role: r.metadata?.role || 'user',
             timestamp: r.metadata?.timestamp || null

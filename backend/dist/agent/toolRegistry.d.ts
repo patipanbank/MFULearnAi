@@ -5,6 +5,12 @@ export interface ToolMeta {
     func: ToolFunction;
 }
 export declare const toolRegistry: Record<string, ToolMeta>;
+export interface WebSearchResult {
+    title: string;
+    snippet: string;
+    url: string;
+}
+export declare const webSearchTool: ToolMeta;
 export declare function createMemoryTool(sessionId: string): {
     [x: string]: {
         name: string;
