@@ -8,6 +8,7 @@ export interface LLMOptions {
   topP?: number;
   topK?: number;
   model_kwargs?: Record<string, any>;
+  systemPrompt?: string; // Added for Claude
   [key: string]: any;
 }
 
@@ -49,8 +50,14 @@ export class LLM {
     let body: any = {};
     if (this.modelId.startsWith('anthropic.')) {
       // Claude (Anthropic)
+      // Format prompt: System: ...\n\nHuman: ...
+      let formattedPrompt = '';
+      if (this.options.systemPrompt) {
+        formattedPrompt += `System: ${this.options.systemPrompt}\n\n`;
+      }
+      formattedPrompt += `Human: ${prompt}`;
       body = {
-        prompt,
+        prompt: formattedPrompt,
         max_tokens_to_sample: this.options.maxTokens ?? 4000,
         ...model_kwargs,
       };
