@@ -46,7 +46,13 @@ class AgentService {
             systemPrompt: 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions. Always focus on answering the current user\'s question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.',
             modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
             collectionNames: [],
-            tools: [],
+            tools: [
+                { id: (0, uuid_1.v4)(), name: 'Web Search', description: 'Search the web for current information', type: agent_1.AgentToolType.WEB_SEARCH, config: {}, enabled: true },
+                { id: (0, uuid_1.v4)(), name: 'Calculator', description: 'Perform mathematical calculations', type: agent_1.AgentToolType.CALCULATOR, config: {}, enabled: true },
+                { id: (0, uuid_1.v4)(), name: 'Current Date', description: 'Get the current date and time', type: agent_1.AgentToolType.CURRENT_DATE, config: {}, enabled: true },
+                { id: (0, uuid_1.v4)(), name: 'Memory Search', description: 'Search through chat memory for relevant context', type: agent_1.AgentToolType.MEMORY_SEARCH, config: {}, enabled: true },
+                { id: (0, uuid_1.v4)(), name: 'Memory Embed', description: 'Embed new message into chat memory', type: agent_1.AgentToolType.MEMORY_EMBED, config: {}, enabled: true }
+            ],
             temperature: 0.7,
             maxTokens: 4000,
             isPublic: true,
@@ -60,6 +66,23 @@ class AgentService {
     }
     async createAgent(agentData) {
         try {
+            if (!agentData.name || typeof agentData.name !== 'string' || !agentData.name.trim()) {
+                throw new Error('Agent name cannot be empty');
+            }
+            const name = agentData.name.trim();
+            if (name.length < 3) {
+                throw new Error('Agent name must be at least 3 characters long');
+            }
+            if (name.length > 100) {
+                throw new Error('Agent name cannot exceed 100 characters');
+            }
+            if (!/^[a-zA-Z0-9\s\-_]+$/.test(name)) {
+                throw new Error('Agent name can only contain letters, numbers, spaces, hyphens, and underscores');
+            }
+            const existingAgent = await agent_1.AgentModel.findOne({ name: { $regex: `^${name}$`, $options: 'i' } }).exec();
+            if (existingAgent) {
+                throw new Error('Agent name already exists');
+            }
             const agent = new agent_1.AgentModel({
                 name: agentData.name,
                 description: agentData.description || '',
@@ -86,8 +109,42 @@ class AgentService {
             throw new Error(`Failed to create agent: ${error}`);
         }
     }
-    async updateAgent(agentId, updates) {
+    async updateAgent(agentId, updates, userId) {
         try {
+            if (userId) {
+                const existingAgent = await agent_1.AgentModel.findById(agentId);
+                if (!existingAgent) {
+                    throw new Error('Agent not found');
+                }
+                const userService = require('./userService');
+                const user = await userService.userService.get_user_by_id(userId);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+                const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
+                if (existingAgent.createdBy !== user.username && !isAdmin) {
+                    throw new Error('You can only update your own agents');
+                }
+            }
+            if (updates.name) {
+                const name = updates.name.trim();
+                if (!name) {
+                    throw new Error('Agent name cannot be empty');
+                }
+                if (name.length < 3) {
+                    throw new Error('Agent name must be at least 3 characters long');
+                }
+                if (name.length > 100) {
+                    throw new Error('Agent name cannot exceed 100 characters');
+                }
+                if (!/^[a-zA-Z0-9\s\-_]+$/.test(name)) {
+                    throw new Error('Agent name can only contain letters, numbers, spaces, hyphens, and underscores');
+                }
+                const existingAgent = await agent_1.AgentModel.findOne({ name: { $regex: `^${name}$`, $options: 'i' }, _id: { $ne: agentId } }).exec();
+                if (existingAgent) {
+                    throw new Error('Agent name already exists');
+                }
+            }
             updates.updatedAt = new Date();
             const agent = await agent_1.AgentModel.findByIdAndUpdate(agentId, { $set: updates }, { new: true });
             if (agent) {
@@ -100,8 +157,23 @@ class AgentService {
             return null;
         }
     }
-    async deleteAgent(agentId) {
+    async deleteAgent(agentId, userId) {
         try {
+            if (userId) {
+                const existingAgent = await agent_1.AgentModel.findById(agentId);
+                if (!existingAgent) {
+                    throw new Error('Agent not found');
+                }
+                const userService = require('./userService');
+                const user = await userService.userService.get_user_by_id(userId);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+                const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
+                if (existingAgent.createdBy !== user.username && !isAdmin) {
+                    throw new Error('You can only delete your own agents');
+                }
+            }
             const result = await agent_1.AgentModel.findByIdAndDelete(agentId);
             const success = !!result;
             if (success) {

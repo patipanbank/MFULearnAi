@@ -41,6 +41,9 @@ var AgentToolType;
     AgentToolType["RETRIEVER"] = "retriever";
     AgentToolType["WEB_SEARCH"] = "web_search";
     AgentToolType["CALCULATOR"] = "calculator";
+    AgentToolType["CURRENT_DATE"] = "current_date";
+    AgentToolType["MEMORY_SEARCH"] = "memory_search";
+    AgentToolType["MEMORY_EMBED"] = "memory_embed";
 })(AgentToolType || (exports.AgentToolType = AgentToolType = {}));
 var AgentExecutionStatus;
 (function (AgentExecutionStatus) {

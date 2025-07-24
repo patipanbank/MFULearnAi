@@ -5,8 +5,8 @@ export declare class AgentService {
     getAgentById(agentId: string): Promise<Agent | null>;
     private getDefaultAgent;
     createAgent(agentData: any): Promise<Agent>;
-    updateAgent(agentId: string, updates: any): Promise<Agent | null>;
-    deleteAgent(agentId: string): Promise<boolean>;
+    updateAgent(agentId: string, updates: any, userId?: string): Promise<Agent | null>;
+    deleteAgent(agentId: string, userId?: string): Promise<boolean>;
     getAgentTemplates(): Promise<AgentTemplate[]>;
     private getDefaultTemplates;
     createAgentFromTemplate(templateId: string, customizations: any): Promise<Agent>;
