@@ -55,16 +55,15 @@ export class LLM {
         { role: 'user', content: prompt }
       ];
       const system = this.options.systemPrompt ? [{ text: this.options.systemPrompt }] : [];
-      const inferenceConfig: any = {};
-      if (this.options.temperature !== undefined) inferenceConfig.temperature = this.options.temperature;
-      if (this.options.topP !== undefined) inferenceConfig.topP = this.options.topP;
-      if (this.options.maxTokens !== undefined) inferenceConfig.maxTokens = this.options.maxTokens;
-      // Add other allowed model_kwargs if needed
-      const body = {
+      const body: any = {
         messages,
         system,
-        inferenceConfig,
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: this.options.maxTokens ?? 1024,
       };
+      if (this.options.temperature !== undefined) body.temperature = this.options.temperature;
+      if (this.options.topP !== undefined) body.top_p = this.options.topP;
+      // Add other allowed model_kwargs if needed
       const command = new InvokeModelCommand({
         modelId: this.modelId,
         body: JSON.stringify(body),
@@ -73,7 +72,6 @@ export class LLM {
       });
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      // Claude 3.5/3.0 returns output in responseBody.content or similar
       if (responseBody.content) return responseBody.content;
       if (responseBody.completion) return responseBody.completion;
       return JSON.stringify(responseBody);
