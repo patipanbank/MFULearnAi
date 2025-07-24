@@ -55,7 +55,7 @@ export class LLM {
       if (this.options.systemPrompt) {
         formattedPrompt += `System: ${this.options.systemPrompt}\n\n`;
       }
-      formattedPrompt += `Human: ${prompt}`;
+      formattedPrompt += `Human: ${prompt}\n\nAssistant:`;
       body = {
         prompt: formattedPrompt,
         max_tokens_to_sample: this.options.maxTokens ?? 4000,
