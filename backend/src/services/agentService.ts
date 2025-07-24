@@ -69,6 +69,25 @@ export class AgentService {
 
   public async createAgent(agentData: any): Promise<Agent> {
     try {
+      // Validation ชื่อ agent
+      if (!agentData.name || typeof agentData.name !== 'string' || !agentData.name.trim()) {
+        throw new Error('Agent name cannot be empty');
+      }
+      const name = agentData.name.trim();
+      if (name.length < 3) {
+        throw new Error('Agent name must be at least 3 characters long');
+      }
+      if (name.length > 100) {
+        throw new Error('Agent name cannot exceed 100 characters');
+      }
+      if (!/^[a-zA-Z0-9\s\-_]+$/.test(name)) {
+        throw new Error('Agent name can only contain letters, numbers, spaces, hyphens, and underscores');
+      }
+      // Check if agent name already exists (case-insensitive)
+      const existingAgent = await AgentModel.findOne({ name: { $regex: `^${name}$`, $options: 'i' } }).exec();
+      if (existingAgent) {
+        throw new Error('Agent name already exists');
+      }
       const agent = new AgentModel({
         name: agentData.name,
         description: agentData.description || '',
@@ -96,8 +115,46 @@ export class AgentService {
     }
   }
 
-  public async updateAgent(agentId: string, updates: any): Promise<Agent | null> {
+  public async updateAgent(agentId: string, updates: any, userId?: string): Promise<Agent | null> {
     try {
+      // Check ownership/role if userId provided
+      if (userId) {
+        const existingAgent = await AgentModel.findById(agentId);
+        if (!existingAgent) {
+          throw new Error('Agent not found');
+        }
+        // ดึง user object
+        const userService = require('./userService');
+        const user = await userService.userService.get_user_by_id(userId);
+        if (!user) {
+          throw new Error('User not found');
+        }
+        const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
+        if (existingAgent.createdBy !== user.username && !isAdmin) {
+          throw new Error('You can only update your own agents');
+        }
+      }
+      // Validation ชื่อ agent
+      if (updates.name) {
+        const name = updates.name.trim();
+        if (!name) {
+          throw new Error('Agent name cannot be empty');
+        }
+        if (name.length < 3) {
+          throw new Error('Agent name must be at least 3 characters long');
+        }
+        if (name.length > 100) {
+          throw new Error('Agent name cannot exceed 100 characters');
+        }
+        if (!/^[a-zA-Z0-9\s\-_]+$/.test(name)) {
+          throw new Error('Agent name can only contain letters, numbers, spaces, hyphens, and underscores');
+        }
+        // Check if new name conflicts with existing agent (case-insensitive)
+        const existingAgent = await AgentModel.findOne({ name: { $regex: `^${name}$`, $options: 'i' }, _id: { $ne: agentId } }).exec();
+        if (existingAgent) {
+          throw new Error('Agent name already exists');
+        }
+      }
       updates.updatedAt = new Date();
       
       const agent = await AgentModel.findByIdAndUpdate(
@@ -117,8 +174,25 @@ export class AgentService {
     }
   }
 
-  public async deleteAgent(agentId: string): Promise<boolean> {
+  public async deleteAgent(agentId: string, userId?: string): Promise<boolean> {
     try {
+      // Check ownership/role if userId provided
+      if (userId) {
+        const existingAgent = await AgentModel.findById(agentId);
+        if (!existingAgent) {
+          throw new Error('Agent not found');
+        }
+        // ดึง user object
+        const userService = require('./userService');
+        const user = await userService.userService.get_user_by_id(userId);
+        if (!user) {
+          throw new Error('User not found');
+        }
+        const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
+        if (existingAgent.createdBy !== user.username && !isAdmin) {
+          throw new Error('You can only delete your own agents');
+        }
+      }
       const result = await AgentModel.findByIdAndDelete(agentId);
       const success = !!result;
       
