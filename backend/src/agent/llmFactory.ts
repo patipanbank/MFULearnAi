@@ -33,19 +33,20 @@ export class LLM {
    * - TODO: รองรับ LLM อื่น (OpenAI, HuggingFace) ในอนาคต
    */
   async generate(prompt: string): Promise<string> {
-    // Extract model-level keyword arguments
+    // Extract model-level keyword arguments (whitelist only allowed keys, use snake_case)
+    const allowedParams: Record<string, string> = {
+      temperature: 'temperature',
+      maxTokens: 'max_tokens',
+      topP: 'top_p',
+      topK: 'top_k',
+    };
     const model_kwargs: Record<string, any> = { ...this.options.model_kwargs };
-    for (const param of ['temperature', 'maxTokens', 'topP', 'topK']) {
-      if (this.options[param] !== undefined) {
-        model_kwargs[param] = this.options[param];
+    for (const [camel, snake] of Object.entries(allowedParams)) {
+      if (this.options[camel] !== undefined) {
+        model_kwargs[snake] = this.options[camel];
       }
     }
-    for (const key of Object.keys(this.options)) {
-      if (!['streaming', 'temperature', 'maxTokens', 'topP', 'topK', 'model_kwargs'].includes(key)) {
-        model_kwargs[key] = this.options[key];
-      }
-    }
-    // Remove maxTokens from model_kwargs to avoid extraneous key error
+    // Remove any forbidden keys (legacy safety)
     delete model_kwargs.maxTokens;
     // Build request body ตาม modelId
     let body: any = {};
