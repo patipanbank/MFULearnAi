@@ -1,114 +1,336 @@
 import express from 'express';
-import { AgentController } from '../controllers/agentController';
+import { agentService } from '../services/agentService';
 import { authenticateJWT } from '../middleware/auth';
-import { validateBody, validateQuery } from '../middleware/validation';
-import { asyncHandler } from '../middleware/errorHandler';
-import { 
-  createAgentSchema, 
-  updateAgentSchema, 
-  agentQuerySchema
-} from '../validation/agentSchema';
-import { z } from 'zod';
 
 const router = express.Router();
 
-// Validation schemas for different endpoints
-const agentIdSchema = z.object({
-  params: z.object({
-    agentId: z.string().min(1, 'Agent ID is required')
-  })
+// Get all agents (public + user's own)
+router.get('/', authenticateJWT, async (req: any, res) => {
+  try {
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
+    let agents = await agentService.getAllAgents(userId);
+    if (!Array.isArray(agents)) {
+      agents = [];
+    }
+    // Sanitize: ensure name, description, systemPrompt, modelId are not undefined
+    agents = agents.map(agent => {
+      const obj = agent.toObject ? agent.toObject() : agent;
+      return {
+        ...obj,
+        name: obj.name || '',
+        description: obj.description || '',
+        systemPrompt: obj.systemPrompt || '',
+        modelId: obj.modelId || '',
+        tags: Array.isArray(obj.tags) ? obj.tags : [],
+      };
+    });
+    return res.json({
+      success: true,
+      data: agents
+    });
+  } catch (error) {
+    console.error('❌ Error getting agents:', error);
+    return res.status(500).json({
+      success: false,
+      data: [], // always return array for data
+      error: 'Failed to get agents'
+    });
+  }
 });
-
-const agentIdWithLimitSchema = z.object({
-  params: z.object({
-    agentId: z.string().min(1, 'Agent ID is required'),
-    limit: z.string().optional()
-  })
-});
-
-const searchSchema = z.object({
-  params: z.object({
-    query: z.string().min(1, 'Search query is required')
-  })
-});
-
-const ratingSchema = z.object({
-  params: z.object({
-    agentId: z.string().min(1, 'Agent ID is required')
-  }),
-  body: z.object({
-    rating: z.number().min(0).max(5)
-  })
-});
-
-// Get all agents (public + user's own) with filtering and pagination
-router.get('/', 
-  authenticateJWT, 
-  validateQuery(agentQuerySchema),
-  asyncHandler(AgentController.getAllAgents)
-);
 
 // Get agent by ID
-router.get('/:agentId', 
-  authenticateJWT, 
-  asyncHandler(AgentController.getAgentById)
-);
+router.get('/:agentId', authenticateJWT, async (req: any, res) => {
+  try {
+    const { agentId } = req.params;
+    const agent = await agentService.getAgentById(agentId);
+    
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        error: 'Agent not found'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      data: agent
+    });
+  } catch (error) {
+    console.error('❌ Error getting agent:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      error: 'Failed to get agent'
+    });
+  }
+});
 
 // Create new agent
-router.post('/', 
-  authenticateJWT, 
-  validateBody(createAgentSchema),
-  asyncHandler(AgentController.createAgent)
-);
+router.post('/', authenticateJWT, async (req: any, res) => {
+  try {
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
+    const agentData = {
+      ...req.body,
+      createdBy: userId
+    };
+    
+    const agent = await agentService.createAgent(agentData);
+    
+    return res.status(201).json({
+      success: true,
+      data: agent
+    });
+  } catch (error) {
+    console.error('❌ Error creating agent:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      error: 'Failed to create agent'
+    });
+  }
+});
 
 // Update agent
-router.put('/:agentId', 
-  authenticateJWT, 
-  validateBody(updateAgentSchema),
-  asyncHandler(AgentController.updateAgent)
-);
+router.put('/:agentId', authenticateJWT, async (req: any, res) => {
+  try {
+    const { agentId } = req.params;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
+    const updates = req.body;
+    
+    // Check if user owns this agent or if it's public
+    const existingAgent = await agentService.getAgentById(agentId);
+    if (!existingAgent) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        error: 'Agent not found'
+      });
+    }
+    
+    if (existingAgent.createdBy !== userId && !existingAgent.isPublic) {
+      return res.status(403).json({
+        success: false,
+        data: null,
+        error: 'Access denied'
+      });
+    }
+    
+    const agent = await agentService.updateAgent(agentId, updates);
+    
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        error: 'Agent not found'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      data: agent
+    });
+  } catch (error) {
+    console.error('❌ Error updating agent:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      error: 'Failed to update agent'
+    });
+  }
+});
 
 // Delete agent
-router.delete('/:agentId', 
-  authenticateJWT, 
-  asyncHandler(AgentController.deleteAgent)
-);
+router.delete('/:agentId', authenticateJWT, async (req: any, res) => {
+  try {
+    const { agentId } = req.params;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
+    
+    // Check if user owns this agent
+    const existingAgent = await agentService.getAgentById(agentId);
+    if (!existingAgent) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found'
+      });
+    }
+    
+    if (existingAgent.createdBy !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+    
+    const success = await agentService.deleteAgent(agentId);
+    
+    if (!success) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      message: 'Agent deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error deleting agent:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete agent'
+    });
+  }
+});
 
 // Get agent templates
-router.get('/templates/all', 
-  authenticateJWT, 
-  asyncHandler(AgentController.getAgentTemplates)
-);
+router.get('/templates/all', authenticateJWT, async (req: any, res) => {
+  try {
+    let templates = await agentService.getAgentTemplates();
+    if (!Array.isArray(templates)) {
+      templates = [];
+    }
+    return res.json({
+      success: true,
+      data: templates
+    });
+  } catch (error) {
+    console.error('❌ Error getting agent templates:', error);
+    return res.status(500).json({
+      success: false,
+      data: [],
+      error: 'Failed to get agent templates'
+    });
+  }
+});
+
+// Create agent from template
+router.post('/templates/:templateId', authenticateJWT, async (req: any, res) => {
+  try {
+    const { templateId } = req.params;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
+    const customizations = {
+      ...req.body,
+      createdBy: userId
+    };
+    
+    const agent = await agentService.createAgentFromTemplate(templateId, customizations);
+    
+    return res.status(201).json({
+      success: true,
+      data: agent
+    });
+  } catch (error) {
+    console.error('❌ Error creating agent from template:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      error: 'Failed to create agent from template'
+    });
+  }
+});
 
 // Search agents
-router.get('/search/:query', 
-  authenticateJWT, 
-  asyncHandler(AgentController.searchAgents)
-);
+router.get('/search/:query', authenticateJWT, async (req: any, res) => {
+  try {
+    const { query } = req.params;
+    const userId = req.user.sub; // ใช้ req.user.sub แทน req.user.id
+    let agents = await agentService.searchAgents(query, userId);
+    if (!Array.isArray(agents)) {
+      agents = [];
+    }
+    return res.json({
+      success: true,
+      data: agents
+    });
+  } catch (error) {
+    console.error('❌ Error searching agents:', error);
+    return res.status(500).json({
+      success: false,
+      data: [],
+      error: 'Failed to search agents'
+    });
+  }
+});
 
-// Get popular agents (default limit 10)
-router.get('/popular', 
-  authenticateJWT, 
-  asyncHandler(AgentController.getPopularAgents)
-);
+// Get popular agents
+router.get('/popular', authenticateJWT, async (req: any, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    let agents = await agentService.getPopularAgents(limit);
+    if (!Array.isArray(agents)) {
+      agents = [];
+    }
+    return res.json({
+      success: true,
+      data: agents
+    });
+  } catch (error) {
+    console.error('❌ Error getting popular agents:', error);
+    return res.status(500).json({
+      success: false,
+      data: [],
+      error: 'Failed to get popular agents'
+    });
+  }
+});
 
-// Get popular agents with custom limit
-router.get('/popular/:limit', 
-  authenticateJWT, 
-  asyncHandler(AgentController.getPopularAgents)
-);
+// Get popular agents with limit parameter
+router.get('/popular/:limit', authenticateJWT, async (req: any, res) => {
+  try {
+    const limit = parseInt(req.params.limit);
+    if (isNaN(limit) || limit <= 0) {
+      return res.status(400).json({
+        success: false,
+        data: [],
+        error: 'Limit must be a positive number'
+      });
+    }
+    let agents = await agentService.getPopularAgents(limit);
+    if (!Array.isArray(agents)) {
+      agents = [];
+    }
+    return res.json({
+      success: true,
+      data: agents
+    });
+  } catch (error) {
+    console.error('❌ Error getting popular agents:', error);
+    return res.status(500).json({
+      success: false,
+      data: [],
+      error: 'Failed to get popular agents'
+    });
+  }
+});
 
-// Increment usage count
-router.post('/:agentId/usage', 
-  authenticateJWT, 
-  asyncHandler(AgentController.incrementUsageCount)
-);
-
-// Update agent rating
-router.post('/:agentId/rating', 
-  authenticateJWT, 
-  validateBody(z.object({ rating: z.number().min(0).max(5) })),
-  asyncHandler(AgentController.updateAgentRating)
-);
+// Rate an agent
+router.post('/:agentId/rate', authenticateJWT, async (req: any, res) => {
+  try {
+    const { agentId } = req.params;
+    const { rating } = req.body;
+    
+    if (typeof rating !== 'number' || rating < 0 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        error: 'Rating must be a number between 0 and 5'
+      });
+    }
+    
+    await agentService.updateAgentRating(agentId, rating);
+    
+    return res.json({
+      success: true,
+      message: 'Rating updated successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error rating agent:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to rate agent'
+    });
+  }
+});
 
 export default router; 
