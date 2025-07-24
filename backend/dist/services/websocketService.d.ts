@@ -1,7 +1,6 @@
 export declare class WebSocketService {
     private wss;
     private pingInterval;
-    private userSessions;
     constructor(server: any);
     private setupWebSocketServer;
     private handleConnection;

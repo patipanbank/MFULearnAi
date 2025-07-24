@@ -62,9 +62,6 @@ class WebSocketManager extends events_1.EventEmitter {
         this.sessionConnections.get(sessionId).add(connectionId);
         console.log(`✅ User ${connection.userId} joined session ${sessionId}`);
     }
-    connect(sessionId, ws) {
-        console.log(`🔗 Legacy connect called for session ${sessionId}`);
-    }
     leaveSession(connectionId) {
         const connection = this.connections.get(connectionId);
         if (!connection || !connection.sessionId) {
@@ -127,9 +124,6 @@ class WebSocketManager extends events_1.EventEmitter {
             this.removeConnection(connectionId);
         });
         console.log(`📤 Broadcasted to ${sentCount} connections in session ${sessionId}`);
-    }
-    broadcast(sessionId, message) {
-        this.broadcastToSession(sessionId, message);
     }
     broadcastToUser(userId, message) {
         let sentCount = 0;

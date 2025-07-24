@@ -4,48 +4,264 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const agentController_1 = require("../controllers/agentController");
+const agentService_1 = require("../services/agentService");
 const auth_1 = require("../middleware/auth");
-const validation_1 = require("../middleware/validation");
-const errorHandler_1 = require("../middleware/errorHandler");
-const rateLimit_1 = require("../middleware/rateLimit");
-const agentSchema_1 = require("../validation/agentSchema");
-const zod_1 = require("zod");
 const router = express_1.default.Router();
-const agentIdSchema = zod_1.z.object({
-    params: zod_1.z.object({
-        agentId: zod_1.z.string().min(1, 'Agent ID is required')
-    })
+router.get('/', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const agents = await agentService_1.agentService.getAllAgents(userId);
+        return res.json({
+            success: true,
+            data: agents
+        });
+    }
+    catch (error) {
+        console.error('❌ Error getting agents:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get agents'
+        });
+    }
 });
-const agentIdWithLimitSchema = zod_1.z.object({
-    params: zod_1.z.object({
-        agentId: zod_1.z.string().min(1, 'Agent ID is required'),
-        limit: zod_1.z.string().optional()
-    })
+router.get('/:agentId', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { agentId } = req.params;
+        const agent = await agentService_1.agentService.getAgentById(agentId);
+        if (!agent) {
+            return res.status(404).json({
+                success: false,
+                error: 'Agent not found'
+            });
+        }
+        return res.json({
+            success: true,
+            data: agent
+        });
+    }
+    catch (error) {
+        console.error('❌ Error getting agent:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get agent'
+        });
+    }
 });
-const searchSchema = zod_1.z.object({
-    params: zod_1.z.object({
-        query: zod_1.z.string().min(1, 'Search query is required')
-    })
+router.post('/', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const agentData = {
+            ...req.body,
+            createdBy: userId
+        };
+        const agent = await agentService_1.agentService.createAgent(agentData);
+        return res.status(201).json({
+            success: true,
+            data: agent
+        });
+    }
+    catch (error) {
+        console.error('❌ Error creating agent:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to create agent'
+        });
+    }
 });
-const ratingSchema = zod_1.z.object({
-    params: zod_1.z.object({
-        agentId: zod_1.z.string().min(1, 'Agent ID is required')
-    }),
-    body: zod_1.z.object({
-        rating: zod_1.z.number().min(0).max(5)
-    })
+router.put('/:agentId', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { agentId } = req.params;
+        const userId = req.user.id;
+        const updates = req.body;
+        const existingAgent = await agentService_1.agentService.getAgentById(agentId);
+        if (!existingAgent) {
+            return res.status(404).json({
+                success: false,
+                error: 'Agent not found'
+            });
+        }
+        if (existingAgent.createdBy !== userId && !existingAgent.isPublic) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        const agent = await agentService_1.agentService.updateAgent(agentId, updates);
+        if (!agent) {
+            return res.status(404).json({
+                success: false,
+                error: 'Agent not found'
+            });
+        }
+        return res.json({
+            success: true,
+            data: agent
+        });
+    }
+    catch (error) {
+        console.error('❌ Error updating agent:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to update agent'
+        });
+    }
 });
-router.get('/', auth_1.authenticateJWT, (0, validation_1.validateQuery)(agentSchema_1.agentQuerySchema), (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.getAllAgents));
-router.get('/:agentId', auth_1.authenticateJWT, (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.getAgentById));
-router.post('/', auth_1.authenticateJWT, rateLimit_1.agentCreationLimiter, (0, validation_1.validateBody)(agentSchema_1.createAgentSchema), (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.createAgent));
-router.put('/:agentId', auth_1.authenticateJWT, (0, validation_1.validateBody)(agentSchema_1.updateAgentSchema), (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.updateAgent));
-router.delete('/:agentId', auth_1.authenticateJWT, (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.deleteAgent));
-router.get('/templates/all', auth_1.authenticateJWT, (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.getAgentTemplates));
-router.get('/search/:query', auth_1.authenticateJWT, (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.searchAgents));
-router.get('/popular', auth_1.authenticateJWT, (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.getPopularAgents));
-router.get('/popular/:limit', auth_1.authenticateJWT, (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.getPopularAgents));
-router.post('/:agentId/usage', auth_1.authenticateJWT, (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.incrementUsageCount));
-router.post('/:agentId/rating', auth_1.authenticateJWT, (0, validation_1.validateBody)(zod_1.z.object({ rating: zod_1.z.number().min(0).max(5) })), (0, errorHandler_1.asyncHandler)(agentController_1.AgentController.updateAgentRating));
+router.delete('/:agentId', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { agentId } = req.params;
+        const userId = req.user.id;
+        const existingAgent = await agentService_1.agentService.getAgentById(agentId);
+        if (!existingAgent) {
+            return res.status(404).json({
+                success: false,
+                error: 'Agent not found'
+            });
+        }
+        if (existingAgent.createdBy !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        const success = await agentService_1.agentService.deleteAgent(agentId);
+        if (!success) {
+            return res.status(404).json({
+                success: false,
+                error: 'Agent not found'
+            });
+        }
+        return res.json({
+            success: true,
+            message: 'Agent deleted successfully'
+        });
+    }
+    catch (error) {
+        console.error('❌ Error deleting agent:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to delete agent'
+        });
+    }
+});
+router.get('/templates/all', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const templates = await agentService_1.agentService.getAgentTemplates();
+        return res.json({
+            success: true,
+            data: templates
+        });
+    }
+    catch (error) {
+        console.error('❌ Error getting agent templates:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get agent templates'
+        });
+    }
+});
+router.post('/templates/:templateId', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { templateId } = req.params;
+        const userId = req.user.id;
+        const customizations = {
+            ...req.body,
+            createdBy: userId
+        };
+        const agent = await agentService_1.agentService.createAgentFromTemplate(templateId, customizations);
+        return res.status(201).json({
+            success: true,
+            data: agent
+        });
+    }
+    catch (error) {
+        console.error('❌ Error creating agent from template:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to create agent from template'
+        });
+    }
+});
+router.get('/search/:query', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { query } = req.params;
+        const userId = req.user.id;
+        const agents = await agentService_1.agentService.searchAgents(query, userId);
+        return res.json({
+            success: true,
+            data: agents
+        });
+    }
+    catch (error) {
+        console.error('❌ Error searching agents:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to search agents'
+        });
+    }
+});
+router.get('/popular', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+        const agents = await agentService_1.agentService.getPopularAgents(limit);
+        return res.json({
+            success: true,
+            data: agents
+        });
+    }
+    catch (error) {
+        console.error('❌ Error getting popular agents:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get popular agents'
+        });
+    }
+});
+router.get('/popular/:limit', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const limit = parseInt(req.params.limit);
+        if (isNaN(limit) || limit <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Limit must be a positive number'
+            });
+        }
+        const agents = await agentService_1.agentService.getPopularAgents(limit);
+        return res.json({
+            success: true,
+            data: agents
+        });
+    }
+    catch (error) {
+        console.error('❌ Error getting popular agents:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get popular agents'
+        });
+    }
+});
+router.post('/:agentId/rate', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { agentId } = req.params;
+        const { rating } = req.body;
+        if (typeof rating !== 'number' || rating < 0 || rating > 5) {
+            return res.status(400).json({
+                success: false,
+                error: 'Rating must be a number between 0 and 5'
+            });
+        }
+        await agentService_1.agentService.updateAgentRating(agentId, rating);
+        return res.json({
+            success: true,
+            message: 'Rating updated successfully'
+        });
+    }
+    catch (error) {
+        console.error('❌ Error rating agent:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to rate agent'
+        });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=agent.js.map

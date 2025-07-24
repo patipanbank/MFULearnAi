@@ -8,9 +8,11 @@ export declare class ChatService {
         url: string;
         mediaType: string;
     }>): Promise<void>;
-    private processWithAILegacy;
+    private processWithAI;
+    private simulateAIProcessing;
+    private simulateToolUsage;
+    private simulateToolExecution;
     private streamResponse;
-    private streamResponseLegacy;
     private generateResponse;
     private generateDetailedResponse;
     private delay;
@@ -19,13 +21,6 @@ export declare class ChatService {
     updateChatName(chatId: string, userId: string, name: string): Promise<Chat | null>;
     updateChatPinStatus(chatId: string, userId: string, isPinned: boolean): Promise<Chat | null>;
     clearChatMemory(chatId: string): Promise<void>;
-    private getRecentMessagesFromRedis;
-    private setRecentMessagesToRedis;
-    private restoreRecentContextIfNeeded;
-    private embedMessagesIfNeeded;
-    private shouldUseMemoryTool;
-    private shouldUseRedisMemory;
-    private shouldEmbedMessages;
     getStats(): any;
 }
 export declare const chatService: ChatService;

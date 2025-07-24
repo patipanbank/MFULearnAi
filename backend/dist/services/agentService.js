@@ -7,43 +7,18 @@ class AgentService {
     constructor() {
         console.log('✅ Agent service initialized');
     }
-    async getAllAgents(userId, query) {
+    async getAllAgents(userId) {
         try {
-            let mongoQuery = {};
+            let query = {};
             if (userId) {
-                mongoQuery = {
+                query = {
                     $or: [
                         { createdBy: userId },
                         { isPublic: true }
                     ]
                 };
             }
-            if (query?.search) {
-                const searchRegex = new RegExp(query.search, 'i');
-                mongoQuery = {
-                    ...mongoQuery,
-                    $or: [
-                        { name: searchRegex },
-                        { description: searchRegex },
-                        { tags: { $in: [searchRegex] } }
-                    ]
-                };
-            }
-            if (query?.tags) {
-                const tags = query.tags.split(',').map((tag) => tag.trim());
-                mongoQuery.tags = { $in: tags };
-            }
-            if (query?.isPublic !== undefined) {
-                mongoQuery.isPublic = query.isPublic;
-            }
-            const limit = query?.limit || 50;
-            const offset = query?.offset || 0;
-            const agents = await agent_1.AgentModel.find(mongoQuery)
-                .limit(limit)
-                .skip(offset)
-                .sort({ createdAt: -1 })
-                .lean()
-                .exec();
+            const agents = await agent_1.AgentModel.find(query).exec();
             return agents;
         }
         catch (error) {
@@ -71,13 +46,7 @@ class AgentService {
             systemPrompt: 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions. Always focus on answering the current user\'s question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.',
             modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
             collectionNames: [],
-            tools: [
-                { id: (0, uuid_1.v4)(), name: 'Web Search', description: 'Search the web for current information', type: agent_1.AgentToolType.WEB_SEARCH, config: {}, enabled: true },
-                { id: (0, uuid_1.v4)(), name: 'Calculator', description: 'Perform mathematical calculations', type: agent_1.AgentToolType.CALCULATOR, config: {}, enabled: true },
-                { id: (0, uuid_1.v4)(), name: 'Current Date', description: 'Get the current date and time', type: agent_1.AgentToolType.CURRENT_DATE, config: {}, enabled: true },
-                { id: (0, uuid_1.v4)(), name: 'Memory Search', description: 'Search through chat memory for relevant context', type: agent_1.AgentToolType.MEMORY_SEARCH, config: {}, enabled: true },
-                { id: (0, uuid_1.v4)(), name: 'Memory Embed', description: 'Embed new message into chat memory', type: agent_1.AgentToolType.MEMORY_EMBED, config: {}, enabled: true }
-            ],
+            tools: [],
             temperature: 0.7,
             maxTokens: 4000,
             isPublic: true,

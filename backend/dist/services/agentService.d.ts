@@ -1,7 +1,7 @@
 import { Agent, AgentTemplate } from '../models/agent';
 export declare class AgentService {
     constructor();
-    getAllAgents(userId?: string, query?: any): Promise<Agent[]>;
+    getAllAgents(userId?: string): Promise<Agent[]>;
     getAgentById(agentId: string): Promise<Agent | null>;
     private getDefaultAgent;
     createAgent(agentData: any): Promise<Agent>;
