@@ -44,7 +44,7 @@ const ChatMessageSchema = new Schema<ChatMessage>({
   content: { 
     type: String, 
     required: true,
-    default: 'กำลังประมวลผล...',
+    default: '',
     validate: {
       validator: function(v: string) {
         return v !== undefined && v !== null;
