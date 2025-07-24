@@ -45,6 +45,8 @@ export class LLM {
         model_kwargs[key] = this.options[key];
       }
     }
+    // Remove maxTokens from model_kwargs to avoid extraneous key error
+    delete model_kwargs.maxTokens;
     // Build request body ตาม modelId
     let body: any = {};
     if (this.modelId.startsWith('anthropic.')) {
