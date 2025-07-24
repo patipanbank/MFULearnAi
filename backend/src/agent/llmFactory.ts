@@ -50,20 +50,27 @@ export class LLM {
     // Claude 3.5/3.0: Use Bedrock Messages API
     const isClaude35 = this.modelId.startsWith('anthropic.claude-3-5-') || this.modelId.startsWith('anthropic.claude-3-sonnet-20240229');
     if (isClaude35) {
-      // Messages API payload
+      // Messages API payload (Best Practice)
       const messages = [
-        { role: 'user', content: prompt }
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt }
+          ]
+        }
       ];
-      const system = this.options.systemPrompt ? [{ text: this.options.systemPrompt }] : [];
       const body: any = {
-        messages,
-        system,
         anthropic_version: 'bedrock-2023-05-31',
         max_tokens: this.options.maxTokens ?? 1024,
+        messages,
       };
+      if (this.options.systemPrompt) body.system = this.options.systemPrompt;
       if (this.options.temperature !== undefined) body.temperature = this.options.temperature;
       if (this.options.topP !== undefined) body.top_p = this.options.topP;
-      // Add other allowed model_kwargs if needed
+      if (this.options.topK !== undefined) body.top_k = this.options.topK;
+      if (this.options.tools !== undefined) body.tools = this.options.tools;
+      if (this.options.tool_choice !== undefined) body.tool_choice = this.options.tool_choice;
+      if (this.options.stop_sequences !== undefined) body.stop_sequences = this.options.stop_sequences;
       const command = new InvokeModelCommand({
         modelId: this.modelId,
         body: JSON.stringify(body),
@@ -72,8 +79,12 @@ export class LLM {
       });
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      if (responseBody.content) return responseBody.content;
-      if (responseBody.completion) return responseBody.completion;
+      // Claude 3.5/3.0: content is array of blocks, find first text block
+      if (Array.isArray(responseBody.content)) {
+        const textBlock = responseBody.content.find((c: any) => c.type === 'text' && typeof c.text === 'string');
+        if (textBlock) return textBlock.text;
+      }
+      if (responseBody.completion && typeof responseBody.completion === 'string') return responseBody.completion;
       return JSON.stringify(responseBody);
     }
 
