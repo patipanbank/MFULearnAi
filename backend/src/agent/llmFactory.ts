@@ -37,19 +37,49 @@ export class LLM {
     const model_kwargs: Record<string, any> = { ...this.options.model_kwargs };
     for (const param of ['temperature', 'maxTokens', 'topP', 'topK']) {
       if (this.options[param] !== undefined) {
-        // Map maxTokens -> maxTokenCount for Bedrock
-        if (param === 'maxTokens') model_kwargs['maxTokenCount'] = this.options[param];
-        else model_kwargs[param] = this.options[param];
+        model_kwargs[param] = this.options[param];
       }
     }
-    // Add any extra kwargs
     for (const key of Object.keys(this.options)) {
       if (!['streaming', 'temperature', 'maxTokens', 'topP', 'topK', 'model_kwargs'].includes(key)) {
         model_kwargs[key] = this.options[key];
       }
     }
-    // Build request body
-    const body: any = { inputText: prompt, ...model_kwargs };
+    // Build request body ตาม modelId
+    let body: any = {};
+    if (this.modelId.startsWith('anthropic.')) {
+      // Claude (Anthropic)
+      body = {
+        prompt,
+        max_tokens_to_sample: this.options.maxTokens ?? 4000,
+        temperature: this.options.temperature,
+        ...model_kwargs,
+      };
+    } else if (this.modelId.startsWith('amazon.titan')) {
+      // Titan
+      body = {
+        inputText: prompt,
+        maxTokenCount: this.options.maxTokens ?? 4000,
+        temperature: this.options.temperature,
+        ...model_kwargs,
+      };
+    } else if (this.modelId.startsWith('meta.llama')) {
+      // Llama
+      body = {
+        prompt,
+        max_gen_len: this.options.maxTokens ?? 4000,
+        temperature: this.options.temperature,
+        ...model_kwargs,
+      };
+    } else {
+      // Default (OpenAI, etc.)
+      body = {
+        prompt,
+        max_tokens: this.options.maxTokens ?? 4000,
+        temperature: this.options.temperature,
+        ...model_kwargs,
+      };
+    }
     const command = new InvokeModelCommand({
       modelId: this.modelId,
       body: JSON.stringify(body),
