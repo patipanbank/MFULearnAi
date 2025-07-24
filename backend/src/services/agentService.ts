@@ -1,6 +1,28 @@
 import { AgentModel, AgentTemplateModel, Agent, AgentTemplate, AgentTool, AgentToolType } from '../models/agent';
 import { v4 as uuidv4 } from 'uuid';
 
+function normalizeAgent(agent: any) {
+  return {
+    ...agent._doc ? agent._doc : agent,
+    name: agent.name || '',
+    description: agent.description || '',
+    systemPrompt: agent.systemPrompt || '',
+    modelId: agent.modelId || '',
+    collectionNames: Array.isArray(agent.collectionNames) ? agent.collectionNames : [],
+    tools: Array.isArray(agent.tools) ? agent.tools : [],
+    temperature: typeof agent.temperature === 'number' ? agent.temperature : 0.7,
+    maxTokens: typeof agent.maxTokens === 'number' ? agent.maxTokens : 4000,
+    isPublic: typeof agent.isPublic === 'boolean' ? agent.isPublic : false,
+    tags: Array.isArray(agent.tags) ? agent.tags : [],
+    createdBy: agent.createdBy || '',
+    createdAt: agent.createdAt || new Date(),
+    updatedAt: agent.updatedAt || new Date(),
+    usageCount: typeof agent.usageCount === 'number' ? agent.usageCount : 0,
+    rating: typeof agent.rating === 'number' ? agent.rating : 0.0,
+    id: agent.id || agent._id?.toString() || '',
+  };
+}
+
 export class AgentService {
   constructor() {
     console.log('✅ Agent service initialized');
@@ -19,7 +41,7 @@ export class AgentService {
       }
       
       const agents = await AgentModel.find(query).exec();
-      return agents;
+      return agents.map(normalizeAgent);
     } catch (error) {
       console.error('Error fetching agents:', error);
       return [];
@@ -30,11 +52,11 @@ export class AgentService {
     try {
       // Handle special case for default agent ID
       if (agentId === '000000000000000000000001') {
-        return this.getDefaultAgent();
+        return normalizeAgent(this.getDefaultAgent());
       }
       
       const agent = await AgentModel.findById(agentId);
-      return agent;
+      return agent ? normalizeAgent(agent) : null;
     } catch (error) {
       console.error(`Error fetching agent ${agentId}:`, error);
       return null;
@@ -108,7 +130,7 @@ export class AgentService {
 
       await agent.save();
       console.log(`✅ Created agent: ${agent.name}`);
-      return agent;
+      return normalizeAgent(agent);
     } catch (error) {
       console.error('Error creating agent:', error);
       throw new Error(`Failed to create agent: ${error}`);
@@ -167,7 +189,7 @@ export class AgentService {
         console.log(`✅ Updated agent: ${agent.name}`);
       }
       
-      return agent;
+      return agent ? normalizeAgent(agent) : null;
     } catch (error) {
       console.error(`Error updating agent ${agentId}:`, error);
       return null;
@@ -345,7 +367,7 @@ export class AgentService {
         .limit(limit)
         .exec();
       
-      return agents;
+      return agents.map(normalizeAgent);
     } catch (error) {
       console.error('Error fetching popular agents:', error);
       return [];
@@ -370,7 +392,7 @@ export class AgentService {
       }
 
       const agents = await AgentModel.find(filter).exec();
-      return agents;
+      return agents.map(normalizeAgent);
     } catch (error) {
       console.error('Error searching agents:', error);
       return [];
