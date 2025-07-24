@@ -3,23 +3,22 @@ import { v4 as uuidv4 } from 'uuid';
 
 function normalizeAgent(agent: any) {
   return {
-    ...agent._doc ? agent._doc : agent,
-    name: agent.name || '',
-    description: agent.description || '',
-    systemPrompt: agent.systemPrompt || '',
-    modelId: agent.modelId || '',
+    id: agent.id || agent._id?.toString() || '',
+    name: agent.name ?? '',
+    description: agent.description ?? '',
+    systemPrompt: agent.systemPrompt ?? '',
+    modelId: agent.modelId ?? '',
     collectionNames: Array.isArray(agent.collectionNames) ? agent.collectionNames : [],
     tools: Array.isArray(agent.tools) ? agent.tools : [],
     temperature: typeof agent.temperature === 'number' ? agent.temperature : 0.7,
     maxTokens: typeof agent.maxTokens === 'number' ? agent.maxTokens : 4000,
     isPublic: typeof agent.isPublic === 'boolean' ? agent.isPublic : false,
     tags: Array.isArray(agent.tags) ? agent.tags : [],
-    createdBy: agent.createdBy || '',
-    createdAt: agent.createdAt || new Date(),
-    updatedAt: agent.updatedAt || new Date(),
+    createdBy: agent.createdBy ?? '',
+    createdAt: agent.createdAt ?? new Date(),
+    updatedAt: agent.updatedAt ?? new Date(),
     usageCount: typeof agent.usageCount === 'number' ? agent.usageCount : 0,
     rating: typeof agent.rating === 'number' ? agent.rating : 0.0,
-    id: agent.id || agent._id?.toString() || '',
   };
 }
 
@@ -28,7 +27,7 @@ export class AgentService {
     console.log('✅ Agent service initialized');
   }
 
-  public async getAllAgents(userId?: string): Promise<Agent[]> {
+  public async getAllAgents(userId?: string): Promise<any[]> {
     try {
       let query = {};
       if (userId) {
@@ -39,8 +38,7 @@ export class AgentService {
           ]
         };
       }
-      
-      const agents = await AgentModel.find(query).exec();
+      const agents = await AgentModel.find(query).lean().exec();
       return agents.map(normalizeAgent);
     } catch (error) {
       console.error('Error fetching agents:', error);
@@ -48,14 +46,12 @@ export class AgentService {
     }
   }
 
-  public async getAgentById(agentId: string): Promise<Agent | null> {
+  public async getAgentById(agentId: string): Promise<any | null> {
     try {
-      // Handle special case for default agent ID
       if (agentId === '000000000000000000000001') {
         return normalizeAgent(this.getDefaultAgent());
       }
-      
-      const agent = await AgentModel.findById(agentId);
+      const agent = await AgentModel.findById(agentId).lean();
       return agent ? normalizeAgent(agent) : null;
     } catch (error) {
       console.error(`Error fetching agent ${agentId}:`, error);
@@ -89,7 +85,7 @@ export class AgentService {
     });
   }
 
-  public async createAgent(agentData: any): Promise<Agent> {
+  public async createAgent(agentData: any): Promise<any> {
     try {
       // Validation ชื่อ agent
       if (!agentData.name || typeof agentData.name !== 'string' || !agentData.name.trim()) {
@@ -112,16 +108,16 @@ export class AgentService {
       }
       const agent = new AgentModel({
         name: agentData.name,
-        description: agentData.description || '',
-        systemPrompt: agentData.systemPrompt || '',
-        modelId: agentData.modelId,
-        collectionNames: agentData.collectionNames || [],
-        tools: agentData.tools || [],
-        temperature: agentData.temperature || 0.7,
-        maxTokens: agentData.maxTokens || 4000,
-        isPublic: agentData.isPublic || false,
-        tags: agentData.tags || [],
-        createdBy: agentData.createdBy,
+        description: agentData.description ?? '',
+        systemPrompt: agentData.systemPrompt ?? '',
+        modelId: agentData.modelId ?? '',
+        collectionNames: agentData.collectionNames ?? [],
+        tools: agentData.tools ?? [],
+        temperature: agentData.temperature ?? 0.7,
+        maxTokens: agentData.maxTokens ?? 4000,
+        isPublic: agentData.isPublic ?? false,
+        tags: agentData.tags ?? [],
+        createdBy: agentData.createdBy ?? '',
         createdAt: new Date(),
         updatedAt: new Date(),
         usageCount: 0,
@@ -130,14 +126,14 @@ export class AgentService {
 
       await agent.save();
       console.log(`✅ Created agent: ${agent.name}`);
-      return normalizeAgent(agent);
+      return normalizeAgent(agent.toObject());
     } catch (error) {
       console.error('Error creating agent:', error);
       throw new Error(`Failed to create agent: ${error}`);
     }
   }
 
-  public async updateAgent(agentId: string, updates: any, userId?: string): Promise<Agent | null> {
+  public async updateAgent(agentId: string, updates: any, userId?: string): Promise<any | null> {
     try {
       // Check ownership/role if userId provided
       if (userId) {
@@ -183,7 +179,7 @@ export class AgentService {
         agentId,
         { $set: updates },
         { new: true }
-      );
+      ).lean();
       
       if (agent) {
         console.log(`✅ Updated agent: ${agent.name}`);
@@ -283,9 +279,9 @@ export class AgentService {
     ];
   }
 
-  public async createAgentFromTemplate(templateId: string, customizations: any): Promise<Agent> {
+  public async createAgentFromTemplate(templateId: string, customizations: any): Promise<any> {
     try {
-      const template = await AgentTemplateModel.findById(templateId);
+      const template = await AgentTemplateModel.findById(templateId).lean();
       if (!template) {
         throw new Error('Template not found');
       }
@@ -306,7 +302,8 @@ export class AgentService {
         createdBy: customizations.createdBy
       };
 
-      return await this.createAgent(agentData);
+      const agent = await this.createAgent(agentData);
+      return normalizeAgent(agent);
     } catch (error) {
       console.error('Error creating agent from template:', error);
       throw new Error(`Failed to create agent from template: ${error}`);
@@ -360,11 +357,12 @@ export class AgentService {
     }
   }
 
-  public async getPopularAgents(limit: number = 10): Promise<Agent[]> {
+  public async getPopularAgents(limit: number = 10): Promise<any[]> {
     try {
       const agents = await AgentModel.find({ isPublic: true })
         .sort({ usageCount: -1, rating: -1 })
         .limit(limit)
+        .lean()
         .exec();
       
       return agents.map(normalizeAgent);
@@ -374,7 +372,7 @@ export class AgentService {
     }
   }
 
-  public async searchAgents(query: string, userId?: string): Promise<Agent[]> {
+  public async searchAgents(query: string, userId?: string): Promise<any[]> {
     try {
       let filter: any = {
         $or: [
@@ -391,7 +389,7 @@ export class AgentService {
         ];
       }
 
-      const agents = await AgentModel.find(filter).exec();
+      const agents = await AgentModel.find(filter).lean().exec();
       return agents.map(normalizeAgent);
     } catch (error) {
       console.error('Error searching agents:', error);
