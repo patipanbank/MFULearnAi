@@ -46,11 +46,43 @@ export class LLM {
         model_kwargs[snake] = this.options[camel];
       }
     }
-    // Build request body ตาม modelId
+
+    // Claude 3.5/3.0: Use Bedrock Messages API
+    const isClaude35 = this.modelId.startsWith('anthropic.claude-3-5-') || this.modelId.startsWith('anthropic.claude-3-sonnet-20240229');
+    if (isClaude35) {
+      // Messages API payload
+      const messages = [
+        { role: 'user', content: prompt }
+      ];
+      const system = this.options.systemPrompt ? [{ text: this.options.systemPrompt }] : [];
+      const inferenceConfig: any = {};
+      if (this.options.temperature !== undefined) inferenceConfig.temperature = this.options.temperature;
+      if (this.options.topP !== undefined) inferenceConfig.topP = this.options.topP;
+      if (this.options.maxTokens !== undefined) inferenceConfig.maxTokens = this.options.maxTokens;
+      // Add other allowed model_kwargs if needed
+      const body = {
+        messages,
+        system,
+        inferenceConfig,
+      };
+      const command = new InvokeModelCommand({
+        modelId: this.modelId,
+        body: JSON.stringify(body),
+        contentType: 'application/json',
+        accept: 'application/json',
+      });
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      // Claude 3.5/3.0 returns output in responseBody.content or similar
+      if (responseBody.content) return responseBody.content;
+      if (responseBody.completion) return responseBody.completion;
+      return JSON.stringify(responseBody);
+    }
+
+    // Claude 2.x/รุ่นอื่น: ใช้ prompt string แบบเดิม
     let body: any = {};
     if (this.modelId.startsWith('anthropic.')) {
-      // Claude (Anthropic)
-      // Format prompt: System: ...\n\nHuman: ...
+      // Claude (Anthropic) รุ่นเก่า
       let formattedPrompt = '';
       if (this.options.systemPrompt) {
         formattedPrompt += `System: ${this.options.systemPrompt}\n\n`;
