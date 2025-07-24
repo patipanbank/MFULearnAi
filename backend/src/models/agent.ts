@@ -110,103 +110,21 @@ const AgentExecutionSchema = new Schema<AgentExecution>({
 });
 
 const AgentSchema = new Schema<Agent>({
-  name: { 
-    type: String, 
-    required: [true, 'Agent name is required'],
-    trim: true,
-    maxlength: [100, 'Agent name cannot exceed 100 characters'],
-    default: ''
-  },
-  description: { 
-    type: String, 
-    required: [true, 'Agent description is required'],
-    trim: true,
-    maxlength: [1000, 'Agent description cannot exceed 1000 characters'],
-    default: ''
-  },
-  systemPrompt: { 
-    type: String, 
-    required: [true, 'System prompt is required'],
-    trim: true,
-    maxlength: [10000, 'System prompt cannot exceed 10000 characters'],
-    default: ''
-  },
-  modelId: { 
-    type: String, 
-    required: [true, 'Model ID is required'],
-    trim: true,
-    default: ''
-  },
-  collectionNames: { 
-    type: [String], 
-    default: [],
-    validate: {
-      validator: function(v: string[]) {
-        return Array.isArray(v) && v.every(item => typeof item === 'string');
-      },
-      message: 'Collection names must be an array of strings'
-    }
-  },
-  tools: { 
-    type: [AgentToolSchema], 
-    default: [],
-    validate: {
-      validator: function(v: any[]) {
-        return Array.isArray(v);
-      },
-      message: 'Tools must be an array'
-    }
-  },
-  temperature: { 
-    type: Number, 
-    default: 0.7,
-    min: [0, 'Temperature must be at least 0'],
-    max: [2, 'Temperature cannot exceed 2']
-  },
-  maxTokens: { 
-    type: Number, 
-    default: 4000,
-    min: [1, 'Max tokens must be at least 1'],
-    max: [32000, 'Max tokens cannot exceed 32000']
-  },
-  isPublic: { 
-    type: Boolean, 
-    default: false 
-  },
-  tags: { 
-    type: [String], 
-    default: [],
-    validate: {
-      validator: function(v: string[]) {
-        return Array.isArray(v) && v.every(item => typeof item === 'string' && item.length <= 50);
-      },
-      message: 'Tags must be an array of strings, each no longer than 50 characters'
-    }
-  },
-  createdBy: { 
-    type: String, 
-    required: [true, 'Created by field is required'],
-    trim: true
-  },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
-  },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
-  },
-  usageCount: { 
-    type: Number, 
-    default: 0,
-    min: [0, 'Usage count cannot be negative']
-  },
-  rating: { 
-    type: Number, 
-    default: 0.0,
-    min: [0, 'Rating cannot be negative'],
-    max: [5, 'Rating cannot exceed 5']
-  }
+  name: { type: String, required: true },
+  description: { type: String, required: true },
+  systemPrompt: { type: String, required: true },
+  modelId: { type: String, required: true },
+  collectionNames: { type: [String], default: [] },
+  tools: { type: [AgentToolSchema], default: [] },
+  temperature: { type: Number, default: 0.7 },
+  maxTokens: { type: Number, default: 4000 },
+  isPublic: { type: Boolean, default: false },
+  tags: { type: [String], default: [] }, // Ensure tags is an array of strings with a default empty array
+  createdBy: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  usageCount: { type: Number, default: 0 },
+  rating: { type: Number, default: 0.0 }
 });
 
 const AgentTemplateSchema = new Schema<AgentTemplate>({
