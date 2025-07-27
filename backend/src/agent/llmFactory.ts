@@ -1,191 +1,46 @@
-import { BedrockRuntimeClient, InvokeModelCommand, ConverseStreamCommand } from '@aws-sdk/client-bedrock-runtime';
-import { fromEnv } from '@aws-sdk/credential-provider-env';
+import { BedrockChat } from "@langchain/community/chat_models/bedrock";
+import { ChatMessage } from "langchain/schema";
 
 export interface LLMOptions {
-  streaming?: boolean;
-  temperature?: number;
+  region?: string;
+  model?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  systemPrompt?: string;
   maxTokens?: number;
+  temperature?: number;
   topP?: number;
   topK?: number;
-  model_kwargs?: Record<string, any>;
-  systemPrompt?: string; // Added for Claude
-  [key: string]: any;
+  // ...อื่นๆ
 }
 
 export class LLM {
-  private client: BedrockRuntimeClient;
-  private modelId: string;
+  private chat: BedrockChat;
   private options: LLMOptions;
 
-  constructor(modelId: string, options: LLMOptions = {}) {
-    this.client = new BedrockRuntimeClient({
-      region: process.env.AWS_REGION,
-      credentials: fromEnv(),
-      maxAttempts: 3,
-    });
-    this.modelId = modelId;
+  constructor(options: LLMOptions) {
     this.options = options;
-  }
-
-  /**
-   * Generate text from prompt using Bedrock LLM
-   * - Supports model_kwargs (for model-specific params)
-   * - Supports temperature, maxTokens, topP, topK, and any extra kwargs
-   * - TODO: รองรับ LLM อื่น (OpenAI, HuggingFace) ในอนาคต
-   */
-  async generate(prompt: string): Promise<string> {
-    // Extract model-level keyword arguments (legacy style, whitelist only allowed keys, use snake_case)
-    const allowedParams: Record<string, string> = {
-      temperature: 'temperature',
-      topP: 'top_p',
-      topK: 'top_k',
-    };
-    const model_kwargs: Record<string, any> = {};
-    for (const [camel, snake] of Object.entries(allowedParams)) {
-      if (this.options[camel] !== undefined) {
-        model_kwargs[snake] = this.options[camel];
-      }
-    }
-
-    // Claude 3.5/3.0: Use Bedrock Messages API
-    const isClaude35 = this.modelId.startsWith('anthropic.claude-3-5-') || this.modelId.startsWith('anthropic.claude-3-sonnet-20240229');
-    if (isClaude35) {
-      // Messages API payload (Best Practice)
-      const messages = [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt }
-          ]
-        }
-      ];
-      const body: any = {
-        anthropic_version: 'bedrock-2023-05-31',
-        max_tokens: this.options.maxTokens ?? 1024,
-        messages,
-      };
-      if (this.options.systemPrompt) body.system = this.options.systemPrompt;
-      if (this.options.temperature !== undefined) body.temperature = this.options.temperature;
-      if (this.options.topP !== undefined) body.top_p = this.options.topP;
-      if (this.options.topK !== undefined) body.top_k = this.options.topK;
-      if (this.options.tools !== undefined) body.tools = this.options.tools;
-      if (this.options.tool_choice !== undefined) body.tool_choice = this.options.tool_choice;
-      if (this.options.stop_sequences !== undefined) body.stop_sequences = this.options.stop_sequences;
-      const command = new InvokeModelCommand({
-        modelId: this.modelId,
-        body: JSON.stringify(body),
-        contentType: 'application/json',
-        accept: 'application/json',
-      });
-      const response = await this.client.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      // Claude 3.5/3.0: content is array of blocks, find first text block
-      if (Array.isArray(responseBody.content)) {
-        const textBlock = responseBody.content.find((c: any) => c.type === 'text' && typeof c.text === 'string');
-        if (textBlock) return textBlock.text;
-      }
-      if (responseBody.completion && typeof responseBody.completion === 'string') return responseBody.completion;
-      return JSON.stringify(responseBody);
-    }
-
-    // Claude 2.x/รุ่นอื่น: ใช้ prompt string แบบเดิม
-    let body: any = {};
-    if (this.modelId.startsWith('anthropic.')) {
-      // Claude (Anthropic) รุ่นเก่า
-      let formattedPrompt = '';
-      if (this.options.systemPrompt) {
-        formattedPrompt += `System: ${this.options.systemPrompt}\n\n`;
-      }
-      formattedPrompt += `Human: ${prompt}\n\nAssistant:`;
-      body = {
-        prompt: formattedPrompt,
-        max_tokens_to_sample: this.options.maxTokens ?? 4000,
-        ...model_kwargs,
-      };
-    } else if (this.modelId.startsWith('amazon.titan')) {
-      // Titan
-      body = {
-        inputText: prompt,
-        maxTokenCount: this.options.maxTokens ?? 4000,
-        ...model_kwargs,
-      };
-    } else if (this.modelId.startsWith('meta.llama')) {
-      // Llama
-      body = {
-        prompt,
-        max_gen_len: this.options.maxTokens ?? 4000,
-        ...model_kwargs,
-      };
-    } else {
-      // Default (OpenAI, etc.)
-      body = {
-        prompt,
-        max_tokens: this.options.maxTokens ?? 4000,
-        ...model_kwargs,
-      };
-    }
-    const command = new InvokeModelCommand({
-      modelId: this.modelId,
-      body: JSON.stringify(body),
-      contentType: 'application/json',
-      accept: 'application/json',
-    });
-    const response = await this.client.send(command);
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    if (responseBody.results && responseBody.results[0]?.outputText) {
-      return responseBody.results[0].outputText;
-    }
-    if (responseBody.completion) {
-      return responseBody.completion;
-    }
-    return JSON.stringify(responseBody);
-  }
-
-  /**
-   * Streaming generation using Bedrock streaming API (ConverseStreamCommand)
-   * - รองรับเฉพาะ message-based model (Claude 3, Nova, Llama 3, ฯลฯ)
-   * - ถ้า model ไม่รองรับ message-based ให้ throw error
-   * - TODO: รองรับ LLM อื่น (OpenAI, HuggingFace) ในอนาคต
-   */
-  async *stream(prompt: string): AsyncGenerator<string, void, unknown> {
-    // ตัวอย่างนี้รองรับเฉพาะ message-based (Claude 3, Nova, Llama 3)
-    // ถ้าต้องการรองรับ native payload (Cohere, Mistral) ต้อง implement เพิ่ม
-    const modelId = this.modelId;
-    // เตรียม message format ตาม Bedrock Messages API
-    const messages: any[] = [
-      {
-        role: 'user' as const,
-        content: [{ type: 'text', text: prompt }],
+    this.chat = new BedrockChat({
+      region: options.region || process.env.AWS_REGION,
+      model: options.model,
+      credentials: {
+        accessKeyId: options.accessKeyId || process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: options.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY!,
       },
-    ];
-    const inferenceConfig: any = {};
-    if (this.options.maxTokens !== undefined) inferenceConfig.maxTokens = this.options.maxTokens;
-    if (this.options.temperature !== undefined) inferenceConfig.temperature = this.options.temperature;
-    if (this.options.topP !== undefined) inferenceConfig.topP = this.options.topP;
-    // สร้าง command
-    const command = new ConverseStreamCommand({
-      modelId,
-      messages,
-      inferenceConfig,
+      maxTokens: options.maxTokens,
+      temperature: options.temperature,
+      topP: options.topP,
+      topK: options.topK,
+      systemPrompt: options.systemPrompt,
     });
-    // ส่ง request และอ่าน stream
-    const response = await this.client.send(command);
-    if (!response.stream) {
-      return; // Early return if no stream is available
-    }
-    for await (const item of response.stream) {
-      if (item.contentBlockDelta) {
-        const text = item.contentBlockDelta.delta?.text;
-        if (text) yield text;
-      }
-    }
+  }
+
+  async generate(messages: ChatMessage[]): Promise<string> {
+    const response = await this.chat.invoke(messages);
+    return response.content;
   }
 }
 
-/**
- * getLLM: Return a Bedrock LLM instance for the requested modelId and options
- * - Compatible with backend-legacy/agents/llm_factory.py
- */
-export function getLLM(modelId: string, options: LLMOptions = {}): LLM {
-  return new LLM(modelId, options);
+export function getLLM(options: LLMOptions): LLM {
+  return new LLM(options);
 } 

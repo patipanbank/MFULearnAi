@@ -27,6 +27,24 @@ export function createAgent(
   tools: { [name: string]: ToolFunction },
   prompt: string
 ): AgentExecutor {
+  // Utility: Map system ChatMessage to LangChainJS ChatMessage
+  function toLangChainMessages(messages: { role: string; content: string; images?: any }[]): { role: string; content: string | any[] }[] {
+    return messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => {
+        // รองรับ multimodal (image) ในอนาคต
+        if (m.images && Array.isArray(m.images) && m.images.length > 0) {
+          return {
+            role: m.role,
+            content: [
+              ...m.images.map(img => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.url } })),
+              { type: 'text', text: m.content }
+            ]
+          };
+        }
+        return { role: m.role, content: m.content };
+      });
+  }
   return {
     async run(messages: { role: string; content: string }[], options?: { onEvent?: (event: { type: string; data?: any }) => void; maxSteps?: number }): Promise<string> {
       const onEvent = options?.onEvent;
@@ -35,14 +53,10 @@ export function createAgent(
       let scratchpad: string[] = [];
       let finalAnswer = '';
       for (let step = 0; step < maxSteps; step++) {
-        // 1. สร้าง fullPrompt (system + history + scratchpad)
-        const fullPrompt = [
-          prompt,
-          ...history.map(m => `${m.role}: ${m.content}`),
-          ...(scratchpad.length ? ['\nAgent scratchpad:', ...scratchpad] : [])
-        ].join('\n');
-        // 2. เรียก LLM
-        const llmResponse = await llm.generate(fullPrompt);
+        // 1. Map message history (user/assistant) เป็น LangChainJS format
+        const langchainHistory = toLangChainMessages(history);
+        // 2. เรียก LLM ด้วย message history array
+        const llmResponse = await llm.generate(langchainHistory);
         if (onEvent) onEvent({ type: 'chunk', data: llmResponse });
         // 3. ตรวจสอบว่า LLM ตอบว่าให้ใช้ tool หรือไม่ (เช่น [TOOL:tool_name] input)
         const toolMatch = llmResponse.match(/\[TOOL:(\w+)\](.*)/s);
@@ -52,7 +66,6 @@ export function createAgent(
           if (onEvent) onEvent({ type: 'tool_start', data: { tool_name: toolName, tool_input: toolInput } });
           const toolFn = tools[toolName];
           let toolResult = '';
-          // ดึง sessionId จาก options หรือ messages (เช่น messages[0].sessionId หรือ options?.sessionId)
           const sessionId = (options as any)?.sessionId || (messages as any)?.sessionId || '';
           const config = (options as any)?.config || undefined;
           if (toolFn) {
