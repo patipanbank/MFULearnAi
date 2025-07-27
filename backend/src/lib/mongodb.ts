@@ -1,32 +1,47 @@
 import mongoose from 'mongoose';
-import config from '../config/config';
 
-let isConnected = false;
-
-export const connectDB = async (): Promise<void> => {
-  if (isConnected) {
-    console.log('MongoDB already connected');
-    return;
-  }
-
+export async function connectDB(): Promise<void> {
   try {
-    await mongoose.connect(config.MONGODB_URI);
-    isConnected = true;
-    console.log('MongoDB connected successfully');
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/mfulearnai';
+    
+    await mongoose.connect(mongoUri, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      bufferCommands: false,
+      bufferMaxEntries: 0,
+    });
+
+    console.log('✅ Connected to MongoDB:', mongoUri);
+
+    mongoose.connection.on('error', (error) => {
+      console.error('❌ MongoDB connection error:', error);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.log('🔌 MongoDB disconnected');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('🔄 MongoDB reconnected');
+    });
+
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    console.error('❌ Failed to connect to MongoDB:', error);
+    throw error;
   }
-};
+}
 
-export const getDatabase = () => {
-  return mongoose.connection.db;
-};
-
-export const disconnectDB = async (): Promise<void> => {
-  if (isConnected) {
+export async function disconnectDB(): Promise<void> {
+  try {
     await mongoose.disconnect();
-    isConnected = false;
-    console.log('MongoDB disconnected');
+    console.log('✅ MongoDB disconnected');
+  } catch (error) {
+    console.error('❌ Error disconnecting from MongoDB:', error);
+    throw error;
   }
-}; 
+}
+
+export function getConnection(): mongoose.Connection {
+  return mongoose.connection;
+} 

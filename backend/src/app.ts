@@ -3,119 +3,123 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import session from 'express-session';
-import passport from 'passport';
-import { createServer } from 'http';
-import authRouter from './routes/auth';
-import chatRouter from './routes/chat';
-import agentRouter from './routes/agent';
-import bedrockRouter from './routes/bedrock';
-import chromaRouter from './routes/chroma';
-import embeddingRouter from './routes/embedding';
-import uploadRouter from './routes/upload';
-import collectionRouter from './routes/collection';
-import { WebSocketService } from './services/websocketService';
 import { connectDB } from './lib/mongodb';
+import { connectRedis } from './lib/redis';
+import { WebSocketService } from './services/websocketService';
+import { createRateLimiters } from './middleware/rateLimit';
+import logger from './utils/logger';
 
+// Import routes
+import authRoutes from './routes/auth';
+import agentRoutes from './routes/agent';
+import chatRoutes from './routes/chat';
+import collectionRoutes from './routes/collection';
+import embeddingRoutes from './routes/embedding';
+import uploadRoutes from './routes/upload';
+import bedrockRoutes from './routes/bedrock';
+import chromaRoutes from './routes/chroma';
+import analyticsRoutes from './routes/analytics';
+
+// Load environment variables
 dotenv.config();
 
 const app = express();
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-app.use(helmet());
-app.use(morgan('dev'));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false },
-}));
-
-// Initialize passport
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Create API router with global prefix
-const apiRouter = express.Router();
-
-// Mount auth routes under API router
-apiRouter.use('/auth', authRouter);
-
-// Mount chat routes under API router
-apiRouter.use('/chat', chatRouter);
-
-// Mount agent routes under API router
-apiRouter.use('/agents', agentRouter);
-
-// Mount bedrock routes under API router
-apiRouter.use('/bedrock', bedrockRouter);
-
-// Mount chroma routes under API router
-apiRouter.use('/chroma', chromaRouter);
-
-// Mount embedding routes under API router
-apiRouter.use('/embedding', embeddingRouter);
-
-// Mount upload routes under API router
-apiRouter.use('/upload', uploadRouter);
-
-// Mount collection routes under API router
-apiRouter.use('/collection', collectionRouter);
-
-// Mount API router under /api prefix
-app.use('/api', apiRouter);
-
-app.get('/', (req, res) => {
-  res.send('MFULearnAi Node.js Backend');
-});
-
-// Error handler middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
-});
-
 const PORT = process.env.PORT || 3001;
 
-// Create HTTP server
-const server = createServer(app);
+// Create rate limiters
+const rateLimiters = createRateLimiters();
 
-// Initialize WebSocket service
-const wsService = new WebSocketService(server);
+// Middleware
+app.use(helmet());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
+app.use(morgan('combined'));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Connect to MongoDB and start server
-const startServer = async () => {
+// Apply general rate limiting
+app.use(rateLimiters.general);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// API routes with specific rate limiting
+app.use('/api/auth', rateLimiters.auth, authRoutes);
+app.use('/api/agents', rateLimiters.agent, agentRoutes);
+app.use('/api/chat', rateLimiters.chat, chatRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/embeddings', embeddingRoutes);
+app.use('/api/upload', rateLimiters.upload, uploadRoutes);
+app.use('/api/bedrock', bedrockRoutes);
+app.use('/api/chroma', chromaRoutes);
+app.use('/api/analytics', analyticsRoutes);
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Unhandled error:', err);
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found'
+  });
+});
+
+// Initialize server
+const server = app.listen(PORT, async () => {
   try {
+    // Connect to MongoDB
     await connectDB();
-    server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 WebSocket server available at ws://localhost:${PORT}/ws`);
-    });
+    logger.info('Connected to MongoDB');
+
+    // Connect to Redis
+    await connectRedis();
+    logger.info('Connected to Redis');
+
+    // Initialize WebSocket service
+    const wsService = new WebSocketService(server);
+    logger.info('WebSocket service initialized');
+
+    logger.info(`Server running on port ${PORT}`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`Health check: http://localhost:${PORT}/health`);
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
-};
+});
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully...');
-  wsService.stop();
+  logger.info('SIGTERM received, shutting down gracefully');
   server.close(() => {
-    console.log('✅ Server closed');
+    logger.info('Server closed');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, shutting down gracefully...');
-  wsService.stop();
+  logger.info('SIGINT received, shutting down gracefully');
   server.close(() => {
-    console.log('✅ Server closed');
+    logger.info('Server closed');
     process.exit(0);
   });
 });
 
-startServer(); 
+export default app; 
