@@ -1,4 +1,4 @@
-import { ChatModel, ChatMessage } from '../models/chat';
+import { Chat, IChat } from '../models/chat';
 import { LangChainAgent, LangChainAgentConfig } from '../agent/langchainAgent';
 import { ChainFactory, ChainConfig } from '../agent/chainFactory';
 import { agentService } from './agentService';
@@ -13,9 +13,9 @@ export class ChatService {
     console.log('✅ Chat service initialized');
   }
 
-  async createChat(userId: string, agentId: string, name?: string): Promise<typeof ChatModel> {
+  async createChat(userId: string, name: string, agentId?: string, initialMessage?: string): Promise<IChat> {
     try {
-      const chat = new ChatModel({
+      const chat = new Chat({
         userId,
         agentId,
         name: name || `Chat with ${agentId}`,
@@ -32,37 +32,36 @@ export class ChatService {
     }
   }
 
-  async getChat(chatId: string): Promise<typeof ChatModel | null> {
+  async getChat(chatId: string): Promise<IChat | null> {
     try {
-      return await ChatModel.findById(chatId);
+      return await Chat.findById(chatId);
     } catch (error) {
       console.error('❌ Error getting chat:', error);
       return null;
     }
   }
 
-  async getUserChats(userId: string): Promise<typeof ChatModel[]> {
+  async getChatsByUser(userId: string): Promise<IChat[]> {
     try {
-      return await ChatModel.find({ userId }).sort({ updatedAt: -1 });
+      return await Chat.find({ userId }).sort({ updatedAt: -1 });
     } catch (error) {
       console.error('❌ Error getting user chats:', error);
       return [];
     }
   }
 
-  async updateChatName(chatId: string, name: string): Promise<boolean> {
+  async updateChatName(chatId: string, name: string): Promise<IChat | null> {
     try {
-      const result = await ChatModel.findByIdAndUpdate(chatId, { name });
-      return !!result;
+      return await Chat.findByIdAndUpdate(chatId, { name }, { new: true });
     } catch (error) {
       console.error('❌ Error updating chat name:', error);
-      return false;
+      return null;
     }
   }
 
   async updateChatPinStatus(chatId: string, isPinned: boolean): Promise<boolean> {
     try {
-      const result = await ChatModel.findByIdAndUpdate(chatId, { isPinned });
+      const result = await Chat.findByIdAndUpdate(chatId, { isPinned });
       return !!result;
     } catch (error) {
       console.error('❌ Error updating chat pin status:', error);
@@ -72,7 +71,7 @@ export class ChatService {
 
   async deleteChat(chatId: string): Promise<boolean> {
     try {
-      const result = await ChatModel.findByIdAndDelete(chatId);
+      const result = await Chat.findByIdAndDelete(chatId);
       
       // Clear instances
       this.agentInstances.delete(chatId);
@@ -92,10 +91,38 @@ export class ChatService {
       this.chainInstances.delete(chatId);
       
       // Clear messages in database
-      const result = await ChatModel.findByIdAndUpdate(chatId, { messages: [] });
+      const result = await Chat.findByIdAndUpdate(chatId, { messages: [] });
       return !!result;
     } catch (error) {
       console.error('❌ Error clearing chat memory:', error);
+      return false;
+    }
+  }
+
+  async getChatMessages(chatId: string, page: number = 1, limit: number = 50): Promise<any[]> {
+    try {
+      const chat = await this.getChat(chatId);
+      if (!chat) {
+        return [];
+      }
+
+      const messages = chat.messages || [];
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      
+      return messages.slice(startIndex, endIndex);
+    } catch (error) {
+      console.error('❌ Error getting chat messages:', error);
+      return [];
+    }
+  }
+
+  async clearChatMessages(chatId: string): Promise<boolean> {
+    try {
+      const result = await Chat.findByIdAndUpdate(chatId, { messages: [] });
+      return !!result;
+    } catch (error) {
+      console.error('❌ Error clearing chat messages:', error);
       return false;
     }
   }
@@ -113,9 +140,9 @@ export class ChatService {
       }
 
       // Add user message
-      const userMessage: ChatMessage = {
+      const userMessage = {
         id: Date.now().toString(),
-        role: 'user',
+        role: 'user' as const,
         content: message,
         timestamp: new Date(),
         images,
@@ -131,7 +158,7 @@ export class ChatService {
         data: userMessage
       }));
 
-      const agent = await agentService.getAgentById(chat.agentId);
+      const agent = await agentService.getAgentById(chat.agentId || '');
       if (!agent) {
         throw new Error('Agent not found');
       }
@@ -147,9 +174,9 @@ export class ChatService {
       }
 
       // Add assistant message
-      const assistantMessage: ChatMessage = {
+      const assistantMessage = {
         id: (Date.now() + 1).toString(),
-        role: 'assistant',
+        role: 'assistant' as const,
         content: response,
         timestamp: new Date(),
       };

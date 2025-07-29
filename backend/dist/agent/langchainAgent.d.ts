@@ -1,5 +1,5 @@
-import { ChatMessage } from "langchain/schema";
-import { Tool } from "langchain/tools";
+import { ChatMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import { DynamicTool } from "@langchain/core/tools";
 export interface LangChainAgentConfig {
     modelId: string;
     systemPrompt: string;
@@ -21,12 +21,13 @@ export declare class LangChainAgent {
     private createCollectionRetriever;
     private setupMemory;
     private createAgent;
-    processMessage(messages: ChatMessage[], onEvent?: (event: {
+    processMessage(messages: (ChatMessage | HumanMessage | AIMessage)[], onEvent?: (event: {
         type: string;
         data?: any;
     }) => void): Promise<string>;
+    private formatChatHistory;
     addToMemory(content: string, metadata?: any): Promise<void>;
     searchMemory(query: string, k?: number): Promise<any[]>;
-    getTools(): Tool[];
+    getTools(): DynamicTool[];
 }
 //# sourceMappingURL=langchainAgent.d.ts.map

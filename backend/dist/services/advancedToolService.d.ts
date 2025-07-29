@@ -1,4 +1,4 @@
-import { Tool } from "langchain/tools";
+import { DynamicTool } from "@langchain/core/tools";
 export interface AdvancedToolConfig {
     weatherApiKey?: string;
     translateApiKey?: string;
@@ -9,8 +9,8 @@ export declare class AdvancedToolService {
     private config;
     constructor(config?: AdvancedToolConfig);
     private initializeTools;
-    getTool(name: string): Tool | undefined;
-    getAllTools(): Tool[];
+    getTool(name: string): DynamicTool | undefined;
+    getAllTools(): DynamicTool[];
     getToolNames(): string[];
     private validatePath;
 }

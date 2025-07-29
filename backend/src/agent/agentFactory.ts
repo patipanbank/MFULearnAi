@@ -1,5 +1,6 @@
 import { LLM } from './llmFactory';
 import { ToolFunction } from '../services/toolRegistry';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 
 export interface AgentExecutor {
   run: (
@@ -28,21 +29,15 @@ export function createAgent(
   prompt: string
 ): AgentExecutor {
   // Utility: Map system ChatMessage to LangChainJS ChatMessage
-  function toLangChainMessages(messages: { role: string; content: string; images?: any }[]): { role: string; content: string | any[] }[] {
+  function toLangChainMessages(messages: { role: string; content: string; images?: any }[]): (HumanMessage | AIMessage)[] {
     return messages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => {
-        // รองรับ multimodal (image) ในอนาคต
-        if (m.images && Array.isArray(m.images) && m.images.length > 0) {
-          return {
-            role: m.role,
-            content: [
-              ...m.images.map(img => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.url } })),
-              { type: 'text', text: m.content }
-            ]
-          };
+        if (m.role === 'user') {
+          return new HumanMessage(m.content);
+        } else {
+          return new AIMessage(m.content);
         }
-        return { role: m.role, content: m.content };
       });
   }
   return {

@@ -1,104 +1,41 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const chatService_1 = require("../services/chatService");
+const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
-const router = express_1.default.Router();
+const chatService_1 = require("../services/chatService");
+const router = (0, express_1.Router)();
 router.get('/', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const userId = req.user.sub || req.user.id;
-        const chats = await chatService_1.chatService.getUserChats(userId);
-        return res.json(chats);
-    }
-    catch (error) {
-        console.error('❌ Error getting user chats:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get chat history'
+        const userId = req.user.id;
+        const chats = await chatService_1.chatService.getChatsByUser(userId);
+        return res.json({
+            success: true,
+            data: chats
         });
     }
-});
-router.get('/history', auth_1.authenticateJWT, async (req, res) => {
-    try {
-        const userId = req.user.sub || req.user.id;
-        const chats = await chatService_1.chatService.getUserChats(userId);
-        return res.json(chats);
-    }
     catch (error) {
-        console.error('❌ Error getting chat history:', error);
+        console.error('❌ Error getting chats:', error);
         return res.status(500).json({
             success: false,
-            error: 'Failed to get chat history'
-        });
-    }
-});
-router.get('/history/:sessionId', auth_1.authenticateJWT, async (req, res) => {
-    try {
-        const { sessionId } = req.params;
-        const userId = req.user.sub || req.user.id;
-        console.log(`📥 GET /history/${sessionId} for user: ${userId}`);
-        if (!sessionId || sessionId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(sessionId)) {
-            console.log(`❌ Invalid session ID format: ${sessionId}`);
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid session ID format'
-            });
-        }
-        const chat = await chatService_1.chatService.getChat(sessionId, userId);
-        if (!chat) {
-            console.log(`❌ Chat not found or access denied: ${sessionId}`);
-            return res.status(404).json({
-                success: false,
-                error: 'Chat not found or access denied'
-            });
-        }
-        console.log(`✅ Returning chat: ${sessionId}`);
-        return res.json(chat);
-    }
-    catch (error) {
-        console.error('❌ Error getting chat history:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get chat history'
-        });
-    }
-});
-router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
-    try {
-        const { chatId } = req.params;
-        const userId = req.user.sub || req.user.id;
-        if (!chatId || chatId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(chatId)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid chat ID format'
-            });
-        }
-        const chat = await chatService_1.chatService.getChat(chatId, userId);
-        if (!chat) {
-            return res.status(404).json({
-                success: false,
-                error: 'Chat not found or access denied'
-            });
-        }
-        return res.json(chat);
-    }
-    catch (error) {
-        console.error('❌ Error getting chat:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get chat'
+            error: 'Failed to get chats'
         });
     }
 });
 router.post('/', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const userId = req.user.sub || req.user.id;
-        const { name, agentId } = req.body;
-        const chat = await chatService_1.chatService.createChat(userId, name || 'New Chat', agentId);
-        return res.status(201).json(chat);
+        const { name, agentId, initialMessage } = req.body;
+        const userId = req.user.id;
+        if (!name) {
+            return res.status(400).json({
+                success: false,
+                error: 'Chat name is required'
+            });
+        }
+        const chat = await chatService_1.chatService.createChat(userId, name, agentId, initialMessage);
+        return res.status(201).json({
+            success: true,
+            data: chat
+        });
     }
     catch (error) {
         console.error('❌ Error creating chat:', error);
@@ -108,52 +45,103 @@ router.post('/', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.post('/update-name', auth_1.authenticateJWT, async (req, res) => {
+router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const { chat_id, name } = req.body;
-        const userId = req.user.sub || req.user.id;
-        if (!chat_id || !name || typeof name !== 'string') {
-            return res.status(400).json({
-                success: false,
-                error: 'chat_id and name are required'
-            });
-        }
-        const chat = await chatService_1.chatService.updateChatName(chat_id, userId, name);
+        const { chatId } = req.params;
+        const userId = req.user.id;
+        const chat = await chatService_1.chatService.getChat(chatId);
         if (!chat) {
             return res.status(404).json({
                 success: false,
-                error: 'Chat not found or access denied'
+                error: 'Chat not found'
             });
         }
-        return res.json(chat);
+        if (chat.userId?.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        return res.json({
+            success: true,
+            data: chat
+        });
     }
     catch (error) {
-        console.error('❌ Error updating chat name:', error);
+        console.error('❌ Error getting chat:', error);
         return res.status(500).json({
             success: false,
-            error: 'Failed to update chat name'
+            error: 'Failed to get chat'
+        });
+    }
+});
+router.post('/:chatId/messages', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const { message, images } = req.body;
+        const userId = req.user.id;
+        if (!message) {
+            return res.status(400).json({
+                success: false,
+                error: 'Message is required'
+            });
+        }
+        const chat = await chatService_1.chatService.getChat(chatId);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                error: 'Chat not found'
+            });
+        }
+        if (chat.userId?.toString() !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        await chatService_1.chatService.processMessage(chatId, userId, message, images);
+        return res.json({
+            success: true,
+            message: 'Message sent successfully'
+        });
+    }
+    catch (error) {
+        console.error('❌ Error sending message:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to send message'
         });
     }
 });
 router.put('/:chatId/name', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
-        const userId = req.user.sub || req.user.id;
         const { name } = req.body;
-        if (!name || typeof name !== 'string') {
+        const userId = req.user.id;
+        if (!name) {
             return res.status(400).json({
                 success: false,
                 error: 'Name is required'
             });
         }
-        const chat = await chatService_1.chatService.updateChatName(chatId, userId, name);
+        const chat = await chatService_1.chatService.getChat(chatId);
         if (!chat) {
             return res.status(404).json({
                 success: false,
-                error: 'Chat not found or access denied'
+                error: 'Chat not found'
             });
         }
-        return res.json(chat);
+        if (chat.userId?.toString() !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        const updatedChat = await chatService_1.chatService.updateChatName(chatId, name);
+        return res.json({
+            success: true,
+            data: updatedChat
+        });
     }
     catch (error) {
         console.error('❌ Error updating chat name:', error);
@@ -163,25 +151,41 @@ router.put('/:chatId/name', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.post('/:chatId/pin', auth_1.authenticateJWT, async (req, res) => {
+router.put('/:chatId/pin', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
-        const userId = req.user.sub || req.user.id;
         const { isPinned } = req.body;
+        const userId = req.user.id;
         if (typeof isPinned !== 'boolean') {
             return res.status(400).json({
                 success: false,
                 error: 'isPinned must be a boolean'
             });
         }
-        const chat = await chatService_1.chatService.updateChatPinStatus(chatId, userId, isPinned);
+        const chat = await chatService_1.chatService.getChat(chatId);
         if (!chat) {
             return res.status(404).json({
                 success: false,
-                error: 'Chat not found or access denied'
+                error: 'Chat not found'
             });
         }
-        return res.json(chat);
+        if (chat.userId?.toString() !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        const success = await chatService_1.chatService.updateChatPinStatus(chatId, isPinned);
+        if (!success) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to update chat pin status'
+            });
+        }
+        return res.json({
+            success: true,
+            message: 'Chat pin status updated successfully'
+        });
     }
     catch (error) {
         console.error('❌ Error updating chat pin status:', error);
@@ -191,42 +195,24 @@ router.post('/:chatId/pin', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.post('/:chatId/clear-memory', auth_1.authenticateJWT, async (req, res) => {
-    try {
-        const { chatId } = req.params;
-        const userId = req.user.sub || req.user.id;
-        const chat = await chatService_1.chatService.getChat(chatId, userId);
-        if (!chat) {
-            return res.status(404).json({
-                success: false,
-                error: 'Chat not found or access denied'
-            });
-        }
-        await chatService_1.chatService.clearChatMemory(chatId);
-        return res.json({
-            success: true,
-            message: 'Chat memory cleared successfully'
-        });
-    }
-    catch (error) {
-        console.error('❌ Error clearing chat memory:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to clear chat memory'
-        });
-    }
-});
 router.delete('/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
-        const userId = req.user.sub || req.user.id;
-        const success = await chatService_1.chatService.deleteChat(chatId, userId);
-        if (!success) {
+        const userId = req.user.id;
+        const chat = await chatService_1.chatService.getChat(chatId);
+        if (!chat) {
             return res.status(404).json({
                 success: false,
-                error: 'Chat not found or access denied'
+                error: 'Chat not found'
             });
         }
+        if (chat.userId?.toString() !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        await chatService_1.chatService.deleteChat(chatId);
         return res.json({
             success: true,
             message: 'Chat deleted successfully'
@@ -240,47 +226,103 @@ router.delete('/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.get('/memory/stats', auth_1.authenticateJWT, async (req, res) => {
+router.post('/:chatId/clear', auth_1.authenticateJWT, async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
+        const { chatId } = req.params;
+        const userId = req.user.id;
+        const chat = await chatService_1.chatService.getChat(chatId);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                error: 'Chat not found'
+            });
+        }
+        if (chat.userId?.toString() !== userId) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied'
             });
         }
-        const stats = chatService_1.chatService.getStats();
+        const success = await chatService_1.chatService.clearChatMemory(chatId);
+        if (!success) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to clear chat memory'
+            });
+        }
         return res.json({
             success: true,
-            data: stats
+            message: 'Chat memory cleared successfully'
         });
     }
     catch (error) {
-        console.error('❌ Error getting memory stats:', error);
+        console.error('❌ Error clearing chat memory:', error);
         return res.status(500).json({
             success: false,
-            error: 'Failed to get memory statistics'
+            error: 'Failed to clear chat memory'
         });
     }
 });
-router.get('/stats/overview', auth_1.authenticateJWT, async (req, res) => {
+router.get('/:chatId/messages', auth_1.authenticateJWT, async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
+        const { chatId } = req.params;
+        const { page = 1, limit = 50 } = req.query;
+        const userId = req.user.id;
+        const chat = await chatService_1.chatService.getChat(chatId);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                error: 'Chat not found'
+            });
+        }
+        if (chat.userId?.toString() !== userId) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied'
             });
         }
-        const stats = chatService_1.chatService.getStats();
+        const messages = await chatService_1.chatService.getChatMessages(chatId, parseInt(page), parseInt(limit));
         return res.json({
             success: true,
-            data: stats
+            data: messages
         });
     }
     catch (error) {
-        console.error('❌ Error getting chat stats:', error);
+        console.error('❌ Error getting chat messages:', error);
         return res.status(500).json({
             success: false,
-            error: 'Failed to get chat statistics'
+            error: 'Failed to get chat messages'
+        });
+    }
+});
+router.delete('/:chatId/messages', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const userId = req.user.id;
+        const chat = await chatService_1.chatService.getChat(chatId);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                error: 'Chat not found'
+            });
+        }
+        if (chat.userId?.toString() !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        await chatService_1.chatService.clearChatMessages(chatId);
+        return res.json({
+            success: true,
+            message: 'Chat messages cleared successfully'
+        });
+    }
+    catch (error) {
+        console.error('❌ Error clearing chat messages:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to clear chat messages'
         });
     }
 });

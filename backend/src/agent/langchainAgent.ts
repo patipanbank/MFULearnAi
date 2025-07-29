@@ -2,13 +2,14 @@ import { BedrockChat } from "@langchain/community/chat_models/bedrock";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { ChatMessage, HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import { ChatMessage, HumanMessage, AIMessage, SystemMessage, BaseMessage } from "@langchain/core/messages";
 import { DynamicTool } from "@langchain/core/tools";
 import { AgentExecutor, createOpenAIFunctionsAgent } from "langchain/agents";
 import { createRetrieverTool } from "langchain/tools/retriever";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { BedrockEmbeddings } from "@langchain/community/embeddings/bedrock";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { BaseRetriever } from "@langchain/core/retrievers";
 import { toolRegistry } from "../services/toolRegistry";
 import { chromaService } from "../services/chromaService";
 
@@ -99,12 +100,11 @@ export class LangChainAgent {
       try {
         const retriever = await this.createCollectionRetriever(collectionName);
         if (retriever) {
-          knowledgeTools.push(
-            createRetrieverTool(retriever, {
-              name: `knowledge_${collectionName}`,
-              description: `Search knowledge base: ${collectionName}`,
-            })
-          );
+          const retrieverTool = createRetrieverTool(retriever, {
+            name: `knowledge_${collectionName}`,
+            description: `Search knowledge base: ${collectionName}`,
+          });
+          knowledgeTools.push(retrieverTool as unknown as DynamicTool);
         }
       } catch (error) {
         console.warn(`Failed to create retriever for collection ${collectionName}:`, error);
@@ -114,10 +114,10 @@ export class LangChainAgent {
     this.tools = [...staticTools, ...memoryTools, ...knowledgeTools];
   }
 
-  private async createCollectionRetriever(collectionName: string) {
+  private async createCollectionRetriever(collectionName: string): Promise<BaseRetriever | null> {
     try {
       // สร้าง custom retriever สำหรับ ChromaDB
-      return {
+      const retriever = {
         getRelevantDocuments: async (query: string) => {
           const embeddings = new BedrockEmbeddings({
             region: process.env.AWS_REGION,
@@ -139,6 +139,8 @@ export class LangChainAgent {
           return [];
         }
       };
+      
+      return retriever as unknown as BaseRetriever;
     } catch (error) {
       console.error(`Error creating retriever for ${collectionName}:`, error);
       return null;
@@ -183,7 +185,7 @@ export class LangChainAgent {
   }
 
   async processMessage(
-    messages: ChatMessage[],
+    messages: (ChatMessage | HumanMessage | AIMessage)[],
     onEvent?: (event: { type: string; data?: any }) => void
   ): Promise<string> {
     if (!this.agentExecutor) {
@@ -193,39 +195,63 @@ export class LangChainAgent {
     try {
       // แยก user message ออกมา
       const userMessage = messages[messages.length - 1];
-      if (userMessage instanceof HumanMessage) {
-        // เพิ่ม user message ลงใน memory
-        if (this.memoryStore) {
-          await this.memoryStore.addDocuments([{
-            pageContent: userMessage.content,
-            metadata: { type: "user", timestamp: new Date().toISOString() }
-          }]);
-        }
-
-        // เรียกใช้ agent
-        const result = await this.agentExecutor.invoke({
-          input: userMessage.content,
-          chat_history: messages.slice(0, -1), // ไม่รวม user message ล่าสุด
-        });
-
-        const response = result.output;
-
-        // เพิ่ม assistant response ลงใน memory
-        if (this.memoryStore) {
-          await this.memoryStore.addDocuments([{
-            pageContent: response,
-            metadata: { type: "assistant", timestamp: new Date().toISOString() }
-          }]);
-        }
-
-        return response;
+      if (!(userMessage instanceof HumanMessage)) {
+        throw new Error("Last message must be from human");
       }
 
-      return "Invalid message format";
+      // Add to memory
+      if (this.memoryStore) {
+        const content = typeof userMessage.content === 'string' 
+          ? userMessage.content 
+          : JSON.stringify(userMessage.content);
+        
+        await this.memoryStore.addDocuments([{
+          pageContent: content,
+          metadata: { type: "user", timestamp: new Date().toISOString() }
+        }]);
+      }
+
+      // Prepare input
+      const input = typeof userMessage.content === 'string' 
+        ? userMessage.content 
+        : JSON.stringify(userMessage.content);
+
+      // Process with agent
+      const result = await this.agentExecutor.invoke({
+        input,
+        chat_history: this.formatChatHistory(messages.slice(0, -1))
+      });
+
+      // Add response to memory
+      if (this.memoryStore && result.output) {
+        await this.memoryStore.addDocuments([{
+          pageContent: result.output,
+          metadata: { type: "assistant", timestamp: new Date().toISOString() }
+        }]);
+      }
+
+      return result.output || "No response generated";
     } catch (error) {
       console.error("Error processing message:", error);
       throw error;
     }
+  }
+
+  private formatChatHistory(messages: (ChatMessage | HumanMessage | AIMessage)[]): (ChatMessage | HumanMessage | AIMessage)[] {
+    return messages.map(msg => {
+      if (msg instanceof HumanMessage) {
+        const content = typeof msg.content === 'string' 
+          ? msg.content 
+          : JSON.stringify(msg.content);
+        return new HumanMessage(content);
+      } else if (msg instanceof AIMessage) {
+        const content = typeof msg.content === 'string' 
+          ? msg.content 
+          : JSON.stringify(msg.content);
+        return new AIMessage(content);
+      }
+      return msg;
+    });
   }
 
   async addToMemory(content: string, metadata?: any): Promise<void> {

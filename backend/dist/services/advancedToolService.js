@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.advancedToolService = exports.AdvancedToolService = void 0;
 const axios_1 = __importDefault(require("axios"));
-const tools_1 = require("langchain/tools");
+const tools_1 = require("@langchain/core/tools");
 class AdvancedToolService {
     constructor(config = {}) {
         this.tools = new Map();
@@ -13,7 +13,7 @@ class AdvancedToolService {
         this.initializeTools();
     }
     initializeTools() {
-        this.tools.set('weather', new tools_1.Tool({
+        this.tools.set('weather', new tools_1.DynamicTool({
             name: 'weather',
             description: 'Get current weather information for a location',
             func: async (input) => {
@@ -31,7 +31,7 @@ class AdvancedToolService {
                 }
             },
         }));
-        this.tools.set('translate', new tools_1.Tool({
+        this.tools.set('translate', new tools_1.DynamicTool({
             name: 'translate',
             description: 'Translate text between languages',
             func: async (input) => {
@@ -46,7 +46,7 @@ class AdvancedToolService {
                 }
             },
         }));
-        this.tools.set('currency_converter', new tools_1.Tool({
+        this.tools.set('currency_converter', new tools_1.DynamicTool({
             name: 'currency_converter',
             description: 'Convert between different currencies',
             func: async (input) => {
@@ -73,7 +73,7 @@ class AdvancedToolService {
                 }
             },
         }));
-        this.tools.set('news_search', new tools_1.Tool({
+        this.tools.set('news_search', new tools_1.DynamicTool({
             name: 'news_search',
             description: 'Search for recent news articles',
             func: async (input) => {
@@ -93,7 +93,7 @@ class AdvancedToolService {
                 }
             },
         }));
-        this.tools.set('code_analysis', new tools_1.Tool({
+        this.tools.set('code_analysis', new tools_1.DynamicTool({
             name: 'code_analysis',
             description: 'Analyze and review code for potential issues',
             func: async (input) => {
@@ -119,7 +119,7 @@ class AdvancedToolService {
                 }
             },
         }));
-        this.tools.set('file_operations', new tools_1.Tool({
+        this.tools.set('file_operations', new tools_1.DynamicTool({
             name: 'file_operations',
             description: 'Perform safe file operations (read only)',
             func: async (input) => {
@@ -138,7 +138,7 @@ class AdvancedToolService {
                 }
             },
         }));
-        this.tools.set('database_query', new tools_1.Tool({
+        this.tools.set('database_query', new tools_1.DynamicTool({
             name: 'database_query',
             description: 'Query database for information (read-only)',
             func: async (input) => {

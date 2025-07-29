@@ -2,13 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LangChainAgent = void 0;
 const bedrock_1 = require("@langchain/community/chat_models/bedrock");
-const prompts_1 = require("langchain/prompts");
-const schema_1 = require("langchain/schema");
-const tools_1 = require("langchain/tools");
+const prompts_1 = require("@langchain/core/prompts");
+const messages_1 = require("@langchain/core/messages");
+const tools_1 = require("@langchain/core/tools");
 const agents_1 = require("langchain/agents");
 const retriever_1 = require("langchain/tools/retriever");
 const memory_1 = require("langchain/vectorstores/memory");
 const bedrock_2 = require("@langchain/community/embeddings/bedrock");
+const retrievers_1 = require("@langchain/core/retrievers");
 const toolRegistry_1 = require("../services/toolRegistry");
 const chromaService_1 = require("../services/chromaService");
 class LangChainAgent {
@@ -35,21 +36,21 @@ class LangChainAgent {
     }
     async setupTools() {
         const staticTools = [
-            new tools_1.Tool({
+            new tools_1.DynamicTool({
                 name: "calculator",
                 description: "Perform mathematical calculations",
                 func: async (input) => {
                     return toolRegistry_1.toolRegistry.calculator(input, this.config.sessionId);
                 },
             }),
-            new tools_1.Tool({
+            new tools_1.DynamicTool({
                 name: "current_date",
                 description: "Get the current date and time",
                 func: async (input) => {
                     return toolRegistry_1.toolRegistry.current_date(input, this.config.sessionId);
                 },
             }),
-            new tools_1.Tool({
+            new tools_1.DynamicTool({
                 name: "web_search",
                 description: "Search the web for current information",
                 func: async (input) => {
@@ -58,14 +59,14 @@ class LangChainAgent {
             }),
         ];
         const memoryTools = [
-            new tools_1.Tool({
+            new tools_1.DynamicTool({
                 name: "memory_search",
                 description: "Search through chat memory for relevant context",
                 func: async (input) => {
                     return toolRegistry_1.toolRegistry.memory_search(input, this.config.sessionId);
                 },
             }),
-            new tools_1.Tool({
+            new tools_1.DynamicTool({
                 name: "memory_embed",
                 description: "Embed new message into chat memory",
                 func: async (input) => {
@@ -78,10 +79,11 @@ class LangChainAgent {
             try {
                 const retriever = await this.createCollectionRetriever(collectionName);
                 if (retriever) {
-                    knowledgeTools.push((0, retriever_1.createRetrieverTool)(retriever, {
+                    const retrieverTool = (0, retriever_1.createRetrieverTool)(retriever, {
                         name: `knowledge_${collectionName}`,
                         description: `Search knowledge base: ${collectionName}`,
-                    }));
+                    });
+                    knowledgeTools.push(retrieverTool);
                 }
             }
             catch (error) {
@@ -92,7 +94,7 @@ class LangChainAgent {
     }
     async createCollectionRetriever(collectionName) {
         try {
-            return {
+            return new retrievers_1.BaseRetriever({
                 getRelevantDocuments: async (query) => {
                     const embeddings = new bedrock_2.BedrockEmbeddings({
                         region: process.env.AWS_REGION,
@@ -111,7 +113,7 @@ class LangChainAgent {
                     }
                     return [];
                 }
-            };
+            });
         }
         catch (error) {
             console.error(`Error creating retriever for ${collectionName}:`, error);
@@ -157,32 +159,54 @@ class LangChainAgent {
         }
         try {
             const userMessage = messages[messages.length - 1];
-            if (userMessage instanceof schema_1.HumanMessage) {
-                if (this.memoryStore) {
-                    await this.memoryStore.addDocuments([{
-                            pageContent: userMessage.content,
-                            metadata: { type: "user", timestamp: new Date().toISOString() }
-                        }]);
-                }
-                const result = await this.agentExecutor.invoke({
-                    input: userMessage.content,
-                    chat_history: messages.slice(0, -1),
-                });
-                const response = result.output;
-                if (this.memoryStore) {
-                    await this.memoryStore.addDocuments([{
-                            pageContent: response,
-                            metadata: { type: "assistant", timestamp: new Date().toISOString() }
-                        }]);
-                }
-                return response;
+            if (!(userMessage instanceof messages_1.HumanMessage)) {
+                throw new Error("Last message must be from human");
             }
-            return "Invalid message format";
+            if (this.memoryStore) {
+                const content = typeof userMessage.content === 'string'
+                    ? userMessage.content
+                    : JSON.stringify(userMessage.content);
+                await this.memoryStore.addDocuments([{
+                        pageContent: content,
+                        metadata: { type: "user", timestamp: new Date().toISOString() }
+                    }]);
+            }
+            const input = typeof userMessage.content === 'string'
+                ? userMessage.content
+                : JSON.stringify(userMessage.content);
+            const result = await this.agentExecutor.invoke({
+                input,
+                chat_history: this.formatChatHistory(messages.slice(0, -1))
+            });
+            if (this.memoryStore && result.output) {
+                await this.memoryStore.addDocuments([{
+                        pageContent: result.output,
+                        metadata: { type: "assistant", timestamp: new Date().toISOString() }
+                    }]);
+            }
+            return result.output || "No response generated";
         }
         catch (error) {
             console.error("Error processing message:", error);
             throw error;
         }
+    }
+    formatChatHistory(messages) {
+        return messages.map(msg => {
+            if (msg instanceof messages_1.HumanMessage) {
+                const content = typeof msg.content === 'string'
+                    ? msg.content
+                    : JSON.stringify(msg.content);
+                return new messages_1.HumanMessage(content);
+            }
+            else if (msg instanceof messages_1.AIMessage) {
+                const content = typeof msg.content === 'string'
+                    ? msg.content
+                    : JSON.stringify(msg.content);
+                return new messages_1.AIMessage(content);
+            }
+            return msg;
+        });
     }
     async addToMemory(content, metadata) {
         if (this.memoryStore) {

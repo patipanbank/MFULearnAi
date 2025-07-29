@@ -12,7 +12,7 @@ export interface ChatMessage {
     isStreaming?: boolean;
     isComplete?: boolean;
 }
-export interface Chat extends Document {
+export interface IChat extends Document {
     userId: string;
     name: string;
     messages: ChatMessage[];
@@ -23,7 +23,7 @@ export interface Chat extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const ChatModel: mongoose.Model<Chat, {}, {}, {}, mongoose.Document<unknown, {}, Chat, {}> & Chat & Required<{
+export declare const Chat: mongoose.Model<IChat, {}, {}, {}, mongoose.Document<unknown, {}, IChat, {}> & IChat & Required<{
     _id: unknown;
 }> & {
     __v: number;

@@ -128,7 +128,7 @@ class WebSocketService {
             this.sendError(connectionId, 'Invalid chatId for join_room');
             return;
         }
-        const chat = await chatService_1.chatService.getChat(chatId, user.id);
+        const chat = await chatService_1.chatService.getChat(chatId);
         if (!chat) {
             this.sendError(connectionId, 'Chat not found or access denied');
             return;
@@ -172,7 +172,7 @@ class WebSocketService {
         const chat = await chatService_1.chatService.createChat(user.id, name, agentId);
         const userSession = this.userSessions.get(connectionId);
         if (userSession) {
-            userSession.sessionId = chat.id;
+            userSession.sessionId = chat._id?.toString() || chat.id;
             userSession.agentId = agentId;
             userSession.modelId = modelId;
             userSession.collectionNames = collectionNames;
@@ -180,12 +180,13 @@ class WebSocketService {
             userSession.temperature = temperature;
             userSession.maxTokens = maxTokens;
         }
-        websocketManager_1.wsManager.joinSession(connectionId, chat.id);
+        const chatId = chat._id?.toString() || chat.id;
+        websocketManager_1.wsManager.joinSession(connectionId, chatId);
         websocketManager_1.wsManager.sendToConnection(connectionId, JSON.stringify({
             type: 'room_created',
-            data: { chatId: chat.id }
+            data: { chatId }
         }));
-        console.log(`✅ User ${user.id} created room ${chat.id}`);
+        console.log(`✅ User ${user.id} created room ${chatId}`);
     }
     async handleChatMessage(connectionId, data, user) {
         const userSession = this.userSessions.get(connectionId);
@@ -207,7 +208,7 @@ class WebSocketService {
                 return;
             }
             try {
-                const newChat = await chatService_1.chatService.getChat(incomingChatId, user.id);
+                const newChat = await chatService_1.chatService.getChat(incomingChatId);
                 if (!newChat) {
                     this.sendError(connectionId, 'Chat not found');
                     return;

@@ -241,7 +241,7 @@ export class WebSocketService {
     // Update user session state
     const userSession = this.userSessions.get(connectionId);
     if (userSession) {
-      userSession.sessionId = chat.id;
+      userSession.sessionId = chat._id?.toString() || chat.id;
       userSession.agentId = agentId;
       userSession.modelId = modelId;
       userSession.collectionNames = collectionNames;
@@ -250,15 +250,16 @@ export class WebSocketService {
       userSession.maxTokens = maxTokens;
     }
     
-    wsManager.joinSession(connectionId, chat.id);
+    const chatId = chat._id?.toString() || chat.id;
+    wsManager.joinSession(connectionId, chatId);
     
     // Send confirmation
     wsManager.sendToConnection(connectionId, JSON.stringify({
       type: 'room_created',
-      data: { chatId: chat.id }
+      data: { chatId }
     }));
 
-    console.log(`✅ User ${user.id} created room ${chat.id}`);
+    console.log(`✅ User ${user.id} created room ${chatId}`);
   }
 
   private async handleChatMessage(connectionId: string, data: WebSocketMessage, user: any): Promise<void> {

@@ -1,4 +1,5 @@
-import { ChatPromptTemplate, MessagesPlaceholder, PromptTemplate } from "@langchain/core/prompts";
+import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
+import { PromptTemplate } from "@langchain/core/prompts";
 import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 
 export interface PromptConfig {
@@ -17,10 +18,10 @@ export class PromptFactory {
   }
 
   createChatPrompt(): ChatPromptTemplate {
-    const messages = [];
+    const messages: any[] = [];
 
     // System message
-    messages.push(["system", this.config.systemPrompt]);
+    messages.push({ role: "system", content: this.config.systemPrompt });
 
     // Chat history (ถ้าเปิดใช้งาน)
     if (this.config.includeHistory) {
@@ -29,11 +30,11 @@ export class PromptFactory {
 
     // Context (ถ้าเปิดใช้งาน)
     if (this.config.includeContext) {
-      messages.push(["system", "Context: {context}"]);
+      messages.push({ role: "system", content: "Context: {context}" });
     }
 
     // Human input
-    messages.push(["human", "{input}"]);
+    messages.push({ role: "human", content: "{input}" });
 
     // Agent scratchpad (ถ้าเปิดใช้งาน tools)
     if (this.config.includeTools) {
@@ -45,28 +46,28 @@ export class PromptFactory {
 
   createAgentPrompt(): ChatPromptTemplate {
     return ChatPromptTemplate.fromMessages([
-      ["system", this.config.systemPrompt],
+      { role: "system", content: this.config.systemPrompt },
       new MessagesPlaceholder("chat_history"),
-      ["human", "{input}"],
+      { role: "human", content: "{input}" },
       new MessagesPlaceholder("agent_scratchpad"),
     ]);
   }
 
   createRAGPrompt(): ChatPromptTemplate {
     return ChatPromptTemplate.fromMessages([
-      ["system", this.config.systemPrompt],
-      ["system", "Use the following context to answer the question:\n{context}"],
+      { role: "system", content: this.config.systemPrompt },
+      { role: "system", content: "Use the following context to answer the question:\n{context}" },
       new MessagesPlaceholder("chat_history"),
-      ["human", "{input}"],
+      { role: "human", content: "{input}" },
     ]);
   }
 
   createToolPrompt(): ChatPromptTemplate {
     return ChatPromptTemplate.fromMessages([
-      ["system", this.config.systemPrompt],
-      ["system", "Available tools: {tools}"],
+      { role: "system", content: this.config.systemPrompt },
+      { role: "system", content: "Available tools: {tools}" },
       new MessagesPlaceholder("chat_history"),
-      ["human", "{input}"],
+      { role: "human", content: "{input}" },
       new MessagesPlaceholder("agent_scratchpad"),
     ]);
   }
@@ -132,16 +133,10 @@ Please be helpful, accurate, and concise in your responses.`;
 - Access knowledge bases
 - Remember conversation context
 
-When you need to use a tool, do so appropriately. Always explain what you're doing and provide helpful responses.`;
+Please use the available tools when appropriate to provide the best possible assistance.`;
   }
 
   static getRAGSystemPrompt(): string {
-    return `You are an AI assistant with access to a knowledge base. You can:
-- Search through documents and information
-- Provide accurate answers based on available knowledge
-- Cite sources when appropriate
-- Ask for clarification when needed
-
-Use the provided context to answer questions accurately and comprehensively.`;
+    return `You are an AI assistant with access to a knowledge base. Use the provided context to answer questions accurately and comprehensively. If the context doesn't contain enough information, say so rather than making up information.`;
   }
 } 

@@ -6,16 +6,16 @@ const langchainAgent_1 = require("../agent/langchainAgent");
 const chainFactory_1 = require("../agent/chainFactory");
 const agentService_1 = require("./agentService");
 const websocketManager_1 = require("../utils/websocketManager");
-const schema_1 = require("langchain/schema");
+const messages_1 = require("@langchain/core/messages");
 class ChatService {
     constructor() {
         this.agentInstances = new Map();
         this.chainInstances = new Map();
         console.log('✅ Chat service initialized');
     }
-    async createChat(userId, agentId, name) {
+    async createChat(userId, name, agentId, initialMessage) {
         try {
-            const chat = new chat_1.ChatModel({
+            const chat = new chat_1.Chat({
                 userId,
                 agentId,
                 name: name || `Chat with ${agentId}`,
@@ -33,16 +33,16 @@ class ChatService {
     }
     async getChat(chatId) {
         try {
-            return await chat_1.ChatModel.findById(chatId);
+            return await chat_1.Chat.findById(chatId);
         }
         catch (error) {
             console.error('❌ Error getting chat:', error);
             return null;
         }
     }
-    async getUserChats(userId) {
+    async getChatsByUser(userId) {
         try {
-            return await chat_1.ChatModel.find({ userId }).sort({ updatedAt: -1 });
+            return await chat_1.Chat.find({ userId }).sort({ updatedAt: -1 });
         }
         catch (error) {
             console.error('❌ Error getting user chats:', error);
@@ -51,17 +51,16 @@ class ChatService {
     }
     async updateChatName(chatId, name) {
         try {
-            const result = await chat_1.ChatModel.findByIdAndUpdate(chatId, { name });
-            return !!result;
+            return await chat_1.Chat.findByIdAndUpdate(chatId, { name }, { new: true });
         }
         catch (error) {
             console.error('❌ Error updating chat name:', error);
-            return false;
+            return null;
         }
     }
     async updateChatPinStatus(chatId, isPinned) {
         try {
-            const result = await chat_1.ChatModel.findByIdAndUpdate(chatId, { isPinned });
+            const result = await chat_1.Chat.findByIdAndUpdate(chatId, { isPinned });
             return !!result;
         }
         catch (error) {
@@ -71,7 +70,7 @@ class ChatService {
     }
     async deleteChat(chatId) {
         try {
-            const result = await chat_1.ChatModel.findByIdAndDelete(chatId);
+            const result = await chat_1.Chat.findByIdAndDelete(chatId);
             this.agentInstances.delete(chatId);
             this.chainInstances.delete(chatId);
             return !!result;
@@ -85,11 +84,37 @@ class ChatService {
         try {
             this.agentInstances.delete(chatId);
             this.chainInstances.delete(chatId);
-            const result = await chat_1.ChatModel.findByIdAndUpdate(chatId, { messages: [] });
+            const result = await chat_1.Chat.findByIdAndUpdate(chatId, { messages: [] });
             return !!result;
         }
         catch (error) {
             console.error('❌ Error clearing chat memory:', error);
+            return false;
+        }
+    }
+    async getChatMessages(chatId, page = 1, limit = 50) {
+        try {
+            const chat = await this.getChat(chatId);
+            if (!chat) {
+                return [];
+            }
+            const messages = chat.messages || [];
+            const startIndex = (page - 1) * limit;
+            const endIndex = startIndex + limit;
+            return messages.slice(startIndex, endIndex);
+        }
+        catch (error) {
+            console.error('❌ Error getting chat messages:', error);
+            return [];
+        }
+    }
+    async clearChatMessages(chatId) {
+        try {
+            const result = await chat_1.Chat.findByIdAndUpdate(chatId, { messages: [] });
+            return !!result;
+        }
+        catch (error) {
+            console.error('❌ Error clearing chat messages:', error);
             return false;
         }
     }
@@ -134,7 +159,7 @@ class ChatService {
             chat.messages.push(assistantMessage);
             chat.updatedAt = new Date();
             await chat.save();
-            await agentService_1.agentService.incrementUsage(agent.id, userId);
+            await agentService_1.agentService.incrementUsageCount(agent.id);
             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
                 type: 'assistant_message',
                 data: assistantMessage
@@ -162,7 +187,7 @@ class ChatService {
             this.agentInstances.set(chatId, agentInstance);
         }
         const messages = this.convertToLangChainMessages(agent.messages || []);
-        messages.push(new schema_1.HumanMessage(message));
+        messages.push(new messages_1.HumanMessage(message));
         return await agentInstance.processMessage(messages);
     }
     async processWithChain(chatId, agent, message, images) {
@@ -182,19 +207,19 @@ class ChatService {
             this.chainInstances.set(chatId, chainInstance);
         }
         const messages = this.convertToLangChainMessages(agent.messages || []);
-        messages.push(new schema_1.HumanMessage(message));
+        messages.push(new messages_1.HumanMessage(message));
         return await chainInstance.processMessage(messages);
     }
     convertToLangChainMessages(messages) {
         return messages.map(msg => {
             if (msg.role === 'user') {
-                return new schema_1.HumanMessage(msg.content);
+                return new messages_1.HumanMessage(msg.content);
             }
             else if (msg.role === 'assistant') {
-                return new schema_1.AIMessage(msg.content);
+                return new messages_1.AIMessage(msg.content);
             }
             else if (msg.role === 'system') {
-                return new schema_1.SystemMessage(msg.content);
+                return new messages_1.SystemMessage(msg.content);
             }
             return msg;
         });

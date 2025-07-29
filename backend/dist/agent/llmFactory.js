@@ -15,14 +15,13 @@ class LLM {
             },
             maxTokens: options.maxTokens,
             temperature: options.temperature,
-            topP: options.topP,
-            topK: options.topK,
             systemPrompt: options.systemPrompt,
         });
     }
     async generate(messages) {
         const response = await this.chat.invoke(messages);
-        return response.content;
+        const content = response.content;
+        return typeof content === 'string' ? content : JSON.stringify(content);
     }
 }
 exports.LLM = LLM;

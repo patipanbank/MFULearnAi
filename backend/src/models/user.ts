@@ -17,6 +17,8 @@ export interface IUser extends Document {
   department?: string;
   role: UserRole;
   groups: string[];
+  isActive?: boolean;
+  lastLogin?: Date;
   created: Date;
   updated: Date;
 }
@@ -35,6 +37,8 @@ const userSchema = new Schema<IUser>({
     default: UserRole.STUDENTS 
   },
   groups: { type: [String], default: [] },
+  isActive: { type: Boolean, default: true },
+  lastLogin: { type: Date },
   created: { type: Date, default: Date.now },
   updated: { type: Date, default: Date.now }
 });

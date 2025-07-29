@@ -33,33 +33,33 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.User = exports.UserRole = void 0;
+exports.Department = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-var UserRole;
-(function (UserRole) {
-    UserRole["ADMIN"] = "Admin";
-    UserRole["STAFFS"] = "Staffs";
-    UserRole["STUDENTS"] = "Students";
-    UserRole["SUPER_ADMIN"] = "SuperAdmin";
-})(UserRole || (exports.UserRole = UserRole = {}));
-const userSchema = new mongoose_1.Schema({
-    nameID: { type: String, required: true },
-    username: { type: String, required: true, unique: true },
-    password: { type: String },
-    email: { type: String, required: true },
-    firstName: { type: String },
-    lastName: { type: String },
-    department: { type: String },
-    role: {
+const departmentSchema = new mongoose_1.Schema({
+    name: {
         type: String,
-        enum: Object.values(UserRole),
-        default: UserRole.STUDENTS
+        required: true,
+        trim: true
     },
-    groups: { type: [String], default: [] },
-    isActive: { type: Boolean, default: true },
-    lastLogin: { type: Date },
-    created: { type: Date, default: Date.now },
-    updated: { type: Date, default: Date.now }
+    code: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true
+    },
+    description: {
+        type: String,
+        trim: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    }
+}, {
+    timestamps: true
 });
-exports.User = mongoose_1.default.model('User', userSchema);
-//# sourceMappingURL=user.js.map
+departmentSchema.index({ name: 1 });
+departmentSchema.index({ code: 1 });
+departmentSchema.index({ isActive: 1 });
+exports.Department = mongoose_1.default.model('Department', departmentSchema);
+//# sourceMappingURL=department.js.map

@@ -2,10 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChainFactory = void 0;
 const bedrock_1 = require("@langchain/community/chat_models/bedrock");
-const prompts_1 = require("langchain/prompts");
-const runnable_1 = require("langchain/schema/runnable");
-const output_parser_1 = require("langchain/schema/output_parser");
-const schema_1 = require("langchain/schema");
+const prompts_1 = require("@langchain/core/prompts");
+const runnables_1 = require("@langchain/core/runnables");
+const output_parsers_1 = require("@langchain/core/output_parsers");
+const messages_1 = require("@langchain/core/messages");
 const bedrock_2 = require("@langchain/community/embeddings/bedrock");
 const memory_1 = require("langchain/vectorstores/memory");
 const chromaService_1 = require("../services/chromaService");
@@ -47,10 +47,10 @@ class ChainFactory {
             ["system", this.config.systemPrompt],
             ["human", "{input}"],
         ]);
-        return runnable_1.RunnableSequence.from([
+        return runnables_1.RunnableSequence.from([
             prompt,
             this.llm,
-            new output_parser_1.StringOutputParser(),
+            new output_parsers_1.StringOutputParser(),
         ]);
     }
     createConversationalChain() {
@@ -59,10 +59,10 @@ class ChainFactory {
             new prompts_1.MessagesPlaceholder("chat_history"),
             ["human", "{input}"],
         ]);
-        return runnable_1.RunnableSequence.from([
+        return runnables_1.RunnableSequence.from([
             prompt,
             this.llm,
-            new output_parser_1.StringOutputParser(),
+            new output_parsers_1.StringOutputParser(),
         ]);
     }
     createRAGChain() {
@@ -72,7 +72,7 @@ class ChainFactory {
             new prompts_1.MessagesPlaceholder("chat_history"),
             ["human", "{input}"],
         ]);
-        return runnable_1.RunnableSequence.from([
+        return runnables_1.RunnableSequence.from([
             {
                 input: (input) => input.input,
                 chat_history: (input) => input.chat_history,
@@ -82,7 +82,7 @@ class ChainFactory {
             },
             prompt,
             this.llm,
-            new output_parser_1.StringOutputParser(),
+            new output_parsers_1.StringOutputParser(),
         ]);
     }
     async retrieveContext(query) {
@@ -120,15 +120,20 @@ class ChainFactory {
     async processMessage(messages, onEvent) {
         const chain = this.getChain();
         const userMessage = messages[messages.length - 1];
-        if (userMessage instanceof schema_1.HumanMessage) {
+        if (userMessage instanceof messages_1.HumanMessage) {
             if (this.memoryStore) {
+                const content = typeof userMessage.content === 'string'
+                    ? userMessage.content
+                    : JSON.stringify(userMessage.content);
                 await this.memoryStore.addDocuments([{
-                        pageContent: userMessage.content,
+                        pageContent: content,
                         metadata: { type: "user", timestamp: new Date().toISOString() }
                     }]);
             }
             const input = {
-                input: userMessage.content,
+                input: typeof userMessage.content === 'string'
+                    ? userMessage.content
+                    : JSON.stringify(userMessage.content),
                 chat_history: this.formatChatHistory(messages.slice(0, -1))
             };
             const response = await chain.invoke(input);
@@ -156,11 +161,17 @@ class ChainFactory {
     }
     formatChatHistory(messages) {
         return messages.map(msg => {
-            if (msg instanceof schema_1.HumanMessage) {
-                return new schema_1.HumanMessage(msg.content);
+            if (msg instanceof messages_1.HumanMessage) {
+                const content = typeof msg.content === 'string'
+                    ? msg.content
+                    : JSON.stringify(msg.content);
+                return new messages_1.HumanMessage(content);
             }
-            else if (msg instanceof schema_1.AIMessage) {
-                return new schema_1.AIMessage(msg.content);
+            else if (msg instanceof messages_1.AIMessage) {
+                const content = typeof msg.content === 'string'
+                    ? msg.content
+                    : JSON.stringify(msg.content);
+                return new messages_1.AIMessage(content);
             }
             return msg;
         });

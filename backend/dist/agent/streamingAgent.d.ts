@@ -1,5 +1,5 @@
-import { ChatMessage } from "@langchain/core/messages";
-import { Tool } from "@langchain/core/tools";
+import { ChatMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import { DynamicTool } from "@langchain/core/tools";
 export interface StreamingAgentConfig {
     modelId: string;
     systemPrompt: string;
@@ -21,12 +21,13 @@ export declare class StreamingAgent {
     private createCollectionRetriever;
     private setupMemory;
     private createAgent;
-    processMessageStream(messages: ChatMessage[], onEvent: (event: {
+    processMessageStream(messages: (ChatMessage | HumanMessage | AIMessage)[], onEvent: (event: {
         type: string;
         data?: any;
     }) => void): Promise<void>;
+    private formatChatHistory;
     addToMemory(content: string, metadata?: any): Promise<void>;
     searchMemory(query: string, k?: number): Promise<any[]>;
-    getTools(): Tool[];
+    getTools(): DynamicTool[];
 }
 //# sourceMappingURL=streamingAgent.d.ts.map
