@@ -3,36 +3,44 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.disconnectDB = exports.getDatabase = exports.connectDB = void 0;
+exports.connectDB = connectDB;
+exports.disconnectDB = disconnectDB;
+exports.getConnection = getConnection;
 const mongoose_1 = __importDefault(require("mongoose"));
-const config_1 = __importDefault(require("../config/config"));
-let isConnected = false;
-const connectDB = async () => {
-    if (isConnected) {
-        console.log('MongoDB already connected');
-        return;
-    }
+async function connectDB() {
     try {
-        await mongoose_1.default.connect(config_1.default.MONGODB_URI);
-        isConnected = true;
-        console.log('MongoDB connected successfully');
+        const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/mfulearnai';
+        await mongoose_1.default.connect(mongoUri, {
+            maxPoolSize: 10,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+        });
+        mongoose_1.default.connection.on('connected', () => {
+            console.log('✅ Connected to MongoDB');
+        });
+        mongoose_1.default.connection.on('error', (error) => {
+            console.error('❌ MongoDB connection error:', error);
+        });
+        mongoose_1.default.connection.on('disconnected', () => {
+            console.log('🔌 MongoDB disconnected');
+        });
     }
     catch (error) {
-        console.error('MongoDB connection error:', error);
-        process.exit(1);
+        console.error('❌ Failed to connect to MongoDB:', error);
+        throw error;
     }
-};
-exports.connectDB = connectDB;
-const getDatabase = () => {
-    return mongoose_1.default.connection.db;
-};
-exports.getDatabase = getDatabase;
-const disconnectDB = async () => {
-    if (isConnected) {
+}
+async function disconnectDB() {
+    try {
         await mongoose_1.default.disconnect();
-        isConnected = false;
-        console.log('MongoDB disconnected');
+        console.log('✅ Disconnected from MongoDB');
     }
-};
-exports.disconnectDB = disconnectDB;
+    catch (error) {
+        console.error('❌ Error disconnecting from MongoDB:', error);
+        throw error;
+    }
+}
+function getConnection() {
+    return mongoose_1.default.connection;
+}
 //# sourceMappingURL=mongodb.js.map

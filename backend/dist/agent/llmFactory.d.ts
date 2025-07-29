@@ -1,19 +1,20 @@
+import { ChatMessage } from "langchain/schema";
 export interface LLMOptions {
-    streaming?: boolean;
-    temperature?: number;
+    region?: string;
+    model?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    systemPrompt?: string;
     maxTokens?: number;
+    temperature?: number;
     topP?: number;
     topK?: number;
-    model_kwargs?: Record<string, any>;
-    [key: string]: any;
 }
 export declare class LLM {
-    private client;
-    private modelId;
+    private chat;
     private options;
-    constructor(modelId: string, options?: LLMOptions);
-    generate(prompt: string): Promise<string>;
-    stream(prompt: string): AsyncGenerator<string, void, unknown>;
+    constructor(options: LLMOptions);
+    generate(messages: ChatMessage[]): Promise<string>;
 }
-export declare function getLLM(modelId: string, options?: LLMOptions): LLM;
+export declare function getLLM(options: LLMOptions): LLM;
 //# sourceMappingURL=llmFactory.d.ts.map

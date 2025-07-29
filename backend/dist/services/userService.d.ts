@@ -5,11 +5,7 @@ declare class UserService {
     }> & {
         __v: number;
     }) | null>;
-    get_all_admins(): Promise<(mongoose.Document<unknown, {}, import("../models/user").IUser, {}> & import("../models/user").IUser & Required<{
-        _id: unknown;
-    }> & {
-        __v: number;
-    })[]>;
+    get_all_admins(): Promise<any>;
     find_admin_by_username(username: string): Promise<(mongoose.Document<unknown, {}, import("../models/user").IUser, {}> & import("../models/user").IUser & Required<{
         _id: unknown;
     }> & {

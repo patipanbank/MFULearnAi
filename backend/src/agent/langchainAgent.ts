@@ -3,7 +3,7 @@ import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatMessage, HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
-import { Tool } from "@langchain/core/tools";
+import { DynamicTool } from "@langchain/core/tools";
 import { AgentExecutor, createOpenAIFunctionsAgent } from "langchain/agents";
 import { createRetrieverTool } from "langchain/tools/retriever";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
@@ -25,7 +25,7 @@ export interface LangChainAgentConfig {
 export class LangChainAgent {
   private config: LangChainAgentConfig;
   private llm: BedrockChat;
-  private tools: Tool[] = [];
+  private tools: DynamicTool[] = [];
   private memoryStore: MemoryVectorStore | null = null;
   private agentExecutor: AgentExecutor | null = null;
 
@@ -52,21 +52,21 @@ export class LangChainAgent {
   private async setupTools(): Promise<void> {
     // Static tools
     const staticTools = [
-      new Tool({
+      new DynamicTool({
         name: "calculator",
         description: "Perform mathematical calculations",
         func: async (input: string) => {
           return toolRegistry.calculator(input, this.config.sessionId);
         },
       }),
-      new Tool({
+      new DynamicTool({
         name: "current_date",
         description: "Get the current date and time",
         func: async (input: string) => {
           return toolRegistry.current_date(input, this.config.sessionId);
         },
       }),
-      new Tool({
+      new DynamicTool({
         name: "web_search",
         description: "Search the web for current information",
         func: async (input: string) => {
@@ -77,14 +77,14 @@ export class LangChainAgent {
 
     // Memory tools
     const memoryTools = [
-      new Tool({
+      new DynamicTool({
         name: "memory_search",
         description: "Search through chat memory for relevant context",
         func: async (input: string) => {
           return toolRegistry.memory_search(input, this.config.sessionId);
         },
       }),
-      new Tool({
+      new DynamicTool({
         name: "memory_embed",
         description: "Embed new message into chat memory",
         func: async (input: string) => {
@@ -94,7 +94,7 @@ export class LangChainAgent {
     ];
 
     // Knowledge base tools
-    const knowledgeTools: Tool[] = [];
+    const knowledgeTools: DynamicTool[] = [];
     for (const collectionName of this.config.collectionNames) {
       try {
         const retriever = await this.createCollectionRetriever(collectionName);
@@ -178,7 +178,6 @@ export class LangChainAgent {
     this.agentExecutor = new AgentExecutor({
       agent,
       tools: this.tools,
-      verbose: true,
       maxIterations: 5,
     });
   }
@@ -252,7 +251,7 @@ export class LangChainAgent {
     }
   }
 
-  getTools(): Tool[] {
+  getTools(): DynamicTool[] {
     return this.tools;
   }
 } 

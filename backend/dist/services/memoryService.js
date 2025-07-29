@@ -48,7 +48,9 @@ class MemoryService {
     }
     async getAllMessages(sessionId) {
         const results = await chromaService_1.chromaService.getAllFromCollection(`chat_memory_${sessionId}`);
-        return (results || []).map((r) => ({
+        if (!Array.isArray(results))
+            return [];
+        return results.map((r) => ({
             content: r.document ?? '',
             role: r.metadata?.role || 'user',
             timestamp: r.metadata?.timestamp || null

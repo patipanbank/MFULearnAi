@@ -10,25 +10,20 @@ export async function connectRedis(): Promise<void> {
       retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
       lazyConnect: true,
-      keepAlive: 30000,
       connectTimeout: 10000,
       commandTimeout: 5000,
     });
 
     redis.on('connect', () => {
-      console.log('✅ Redis connected');
+      console.log('✅ Connected to Redis');
     });
 
     redis.on('error', (error) => {
-      console.error('❌ Redis error:', error);
+      console.error('❌ Redis connection error:', error);
     });
 
     redis.on('close', () => {
       console.log('🔌 Redis connection closed');
-    });
-
-    redis.on('reconnecting', () => {
-      console.log('🔄 Redis reconnecting...');
     });
 
     await redis.connect();

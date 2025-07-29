@@ -2,6 +2,22 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAgent = createAgent;
 function createAgent(llm, tools, prompt) {
+    function toLangChainMessages(messages) {
+        return messages
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map(m => {
+            if (m.images && Array.isArray(m.images) && m.images.length > 0) {
+                return {
+                    role: m.role,
+                    content: [
+                        ...m.images.map(img => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.url } })),
+                        { type: 'text', text: m.content }
+                    ]
+                };
+            }
+            return { role: m.role, content: m.content };
+        });
+    }
     return {
         async run(messages, options) {
             const onEvent = options?.onEvent;
@@ -10,12 +26,8 @@ function createAgent(llm, tools, prompt) {
             let scratchpad = [];
             let finalAnswer = '';
             for (let step = 0; step < maxSteps; step++) {
-                const fullPrompt = [
-                    prompt,
-                    ...history.map(m => `${m.role}: ${m.content}`),
-                    ...(scratchpad.length ? ['\nAgent scratchpad:', ...scratchpad] : [])
-                ].join('\n');
-                const llmResponse = await llm.generate(fullPrompt);
+                const langchainHistory = toLangChainMessages(history);
+                const llmResponse = await llm.generate(langchainHistory);
                 if (onEvent)
                     onEvent({ type: 'chunk', data: llmResponse });
                 const toolMatch = llmResponse.match(/\[TOOL:(\w+)\](.*)/s);

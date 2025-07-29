@@ -1,5 +1,24 @@
-export declare function createPromptTemplate(systemPrompt: string, useHistory?: boolean): (messages: {
-    role: string;
-    content: string;
-}[], scratchpad?: string[]) => string;
+import { ChatPromptTemplate, PromptTemplate } from "langchain/prompts";
+export interface PromptConfig {
+    systemPrompt: string;
+    includeHistory: boolean;
+    includeTools: boolean;
+    includeContext: boolean;
+    maxHistoryLength: number;
+}
+export declare class PromptFactory {
+    private config;
+    constructor(config: PromptConfig);
+    createChatPrompt(): ChatPromptTemplate;
+    createAgentPrompt(): ChatPromptTemplate;
+    createRAGPrompt(): ChatPromptTemplate;
+    createToolPrompt(): ChatPromptTemplate;
+    createSimplePrompt(): PromptTemplate;
+    formatChatHistory(messages: any[]): any[];
+    formatContext(context: string[]): string;
+    formatTools(tools: any[]): string;
+    static getDefaultSystemPrompt(): string;
+    static getAgentSystemPrompt(): string;
+    static getRAGSystemPrompt(): string;
+}
 //# sourceMappingURL=promptFactory.d.ts.map
