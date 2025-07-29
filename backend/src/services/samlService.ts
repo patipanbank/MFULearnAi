@@ -1,4 +1,4 @@
-import { Strategy as SamlStrategy, SamlConfig } from 'passport-saml';
+import { Strategy as SamlStrategy, SamlConfig } from '@node-saml/passport-saml';
 import config from '../config/config';
 
 export function getSamlConfig(): SamlConfig {
