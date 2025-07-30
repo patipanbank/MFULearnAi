@@ -94,15 +94,31 @@ class ChromaService {
     async queryCollection(collectionName, queryEmbeddings, nResults = 5) {
         try {
             const collection = await this.getOrCreateCollection(collectionName);
-            return await collection.query({
+            const result = await collection.query({
                 queryEmbeddings,
                 nResults,
                 include: ["metadatas", "documents", "distances"],
             });
+            if (result && result.documents) {
+                console.log(`[ChromaService] Query successful for '${collectionName}': found ${result.documents.flat().length} documents`);
+                return result;
+            }
+            else {
+                console.log(`[ChromaService] No results found for '${collectionName}'`);
+                return {
+                    documents: [],
+                    metadatas: [],
+                    distances: []
+                };
+            }
         }
         catch (e) {
-            console.error(`[ChromaService] Error queryCollection:`, e);
-            return null;
+            console.error(`[ChromaService] Error queryCollection for '${collectionName}':`, e);
+            return {
+                documents: [],
+                metadatas: [],
+                distances: []
+            };
         }
     }
     async getDocuments(collectionName, limit = 100, offset = 0) {
@@ -166,19 +182,23 @@ class ChromaService {
             const collection = await this.getOrCreateCollection(collectionName);
             const all = await collection.get();
             const docs = [];
-            if (all && all.ids) {
+            if (all && all.ids && all.ids.length > 0) {
                 for (let i = 0; i < all.ids.length; i++) {
                     docs.push({
                         id: all.ids[i],
                         document: all.documents?.[i] ?? null,
-                        metadata: all.metadatas?.[i],
+                        metadata: all.metadatas?.[i] || {},
                     });
                 }
+                console.log(`[ChromaService] Retrieved ${docs.length} documents from '${collectionName}'`);
+            }
+            else {
+                console.log(`[ChromaService] No documents found in '${collectionName}'`);
             }
             return docs;
         }
         catch (e) {
-            console.error(`[ChromaService] Error getAllFromCollection:`, e);
+            console.error(`[ChromaService] Error getAllFromCollection for '${collectionName}':`, e);
             return [];
         }
     }

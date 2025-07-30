@@ -176,9 +176,18 @@ class ChatService {
                 const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
                 messages.push(userMsg);
             }
+            const currentMessageCount = messages.length;
+            const useMemoryTool = this.shouldUseMemoryTool(currentMessageCount);
+            const useRedisMemory = this.shouldUseRedisMemory(currentMessageCount);
+            const shouldEmbed = this.shouldEmbedMessages(currentMessageCount);
+            console.log(`🧠 Memory Management: messageCount=${currentMessageCount}, useMemoryTool=${useMemoryTool}, useRedisMemory=${useRedisMemory}, shouldEmbed=${shouldEmbed}`);
+            if (useRedisMemory) {
+                console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
+                await memoryService_1.memoryService.setupHybridMemory(chatId, messages);
+            }
             console.log(`🤖 Starting agent.run with ${messages.length} messages`);
+            console.log(`🤖 Last message: ${messages[messages.length - 1].content.substring(0, 50)}...`);
             let fullContent = '';
-            let assistantMessageId = null;
             let inputTokens = 0;
             let outputTokens = 0;
             await agent.run(messages, {
@@ -186,25 +195,6 @@ class ChatService {
                     console.log(`🤖 Agent event: ${event.type}`, event.data);
                     if (event.type === 'chunk') {
                         fullContent += event.data;
-                        if (!assistantMessageId) {
-                            const assistantMessage = await this.addMessage(chatId, {
-                                role: 'assistant',
-                                content: fullContent,
-                            });
-                            assistantMessageId = assistantMessage.id;
-                            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                    type: 'assistant_created',
-                                    data: {
-                                        messageId: assistantMessage.id,
-                                        content: fullContent
-                                    }
-                                }));
-                            }
-                        }
-                        else {
-                            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessageId }, { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } });
-                        }
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
                         }
@@ -249,8 +239,18 @@ class ChatService {
                     }
                     else if (event.type === 'end') {
                         console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
-                        if (assistantMessageId) {
-                            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessageId }, { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } });
+                        const assistantMessage = await this.addMessage(chatId, {
+                            role: 'assistant',
+                            content: event.data.answer,
+                        });
+                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                type: 'assistant_created',
+                                data: {
+                                    messageId: assistantMessage.id,
+                                    content: event.data.answer
+                                }
+                            }));
                         }
                         if (event.data.inputTokens || event.data.outputTokens) {
                             inputTokens = event.data.inputTokens || 0;

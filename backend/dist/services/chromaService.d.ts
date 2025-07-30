@@ -12,7 +12,11 @@ export declare class ChromaService {
         metadata: any;
         id: string;
     }>): Promise<void>;
-    queryCollection(collectionName: string, queryEmbeddings: number[][], nResults?: number): Promise<import("chromadb").QueryResult<import("chromadb").Metadata> | null>;
+    queryCollection(collectionName: string, queryEmbeddings: number[][], nResults?: number): Promise<import("chromadb").QueryResult<import("chromadb").Metadata> | {
+        documents: never[];
+        metadatas: never[];
+        distances: never[];
+    }>;
     getDocuments(collectionName: string, limit?: number, offset?: number): Promise<{
         documents: {
             id: string;

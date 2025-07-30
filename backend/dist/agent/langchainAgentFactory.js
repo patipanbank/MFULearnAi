@@ -40,10 +40,11 @@ async function createLangChainAgent(config) {
                 const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);
                 let contentReceived = false;
                 let finalAnswer = '';
-                const stream = await agentExecutor.stream({
+                const agentInput = {
                     input: messages[messages.length - 1].content,
-                    maxIterations: maxSteps
-                }, {
+                    chat_history: messages.slice(0, -1)
+                };
+                const stream = await agentExecutor.stream(agentInput, {
                     callbacks: [
                         {
                             handleLLMStart: async (llm, prompts) => {

@@ -11,6 +11,7 @@ exports.clearChatMemory = clearChatMemory;
 exports.getMemoryStats = getMemoryStats;
 const memoryService_1 = require("../services/memoryService");
 const chromaService_1 = require("../services/chromaService");
+const embeddingService_1 = require("../services/embeddingService");
 const axios_1 = __importDefault(require("axios"));
 exports.toolRegistry = {
     web_search: {
@@ -258,14 +259,19 @@ function createRetrievalTools(collectionNames) {
             description: `Search and retrieve information from the ${collectionName} knowledge base. Use this when you need specific information.`,
             func: async (input) => {
                 try {
-                    const mockEmbedding = Array(768).fill(0);
-                    const results = await chromaService_1.chromaService.queryCollection(collectionName, [mockEmbedding], 5);
+                    const queryEmbedding = await embeddingService_1.embeddingService.embed(input);
+                    if (!queryEmbedding || queryEmbedding.length === 0) {
+                        console.warn(`⚠️ Failed to get embedding for search query in ${collectionName}`);
+                        return `Search in ${collectionName} is currently unavailable.`;
+                    }
+                    const results = await chromaService_1.chromaService.queryCollection(collectionName, [queryEmbedding], 5);
                     if (!results || !results.documents || results.documents.length === 0) {
                         return `No information found in ${collectionName} for: ${input}`;
                     }
                     return results.documents.flat().map((doc, i) => `${i + 1}. ${doc || 'No content'}\nSource: ${collectionName}`).join('\n\n');
                 }
                 catch (error) {
+                    console.error(`❌ Error searching ${collectionName}:`, error);
                     return `Search in ${collectionName} is currently unavailable.`;
                 }
             }

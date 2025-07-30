@@ -1,6 +1,7 @@
 import { toolRegistry as serviceToolRegistry, ToolFunction as ServiceToolFunction } from '../services/toolRegistry';
 import { memoryService } from '../services/memoryService';
 import { chromaService } from '../services/chromaService';
+import { embeddingService } from '../services/embeddingService';
 import axios from 'axios';
 
 export type ToolFunction = (input: string, sessionId?: string, config?: any) => Promise<string>;
@@ -322,9 +323,14 @@ export function createRetrievalTools(collectionNames: string[]) {
       description: `Search and retrieve information from the ${collectionName} knowledge base. Use this when you need specific information.`,
       func: async (input: string) => {
         try {
-          // Mock embedding for now - in production, use real embedding service
-          const mockEmbedding = Array(768).fill(0);
-          const results = await chromaService.queryCollection(collectionName, [mockEmbedding], 5);
+          // ใช้ embedding service จริง
+          const queryEmbedding = await embeddingService.embed(input);
+          if (!queryEmbedding || queryEmbedding.length === 0) {
+            console.warn(`⚠️ Failed to get embedding for search query in ${collectionName}`);
+            return `Search in ${collectionName} is currently unavailable.`;
+          }
+          
+          const results = await chromaService.queryCollection(collectionName, [queryEmbedding], 5);
           
           if (!results || !results.documents || results.documents.length === 0) {
             return `No information found in ${collectionName} for: ${input}`;
@@ -334,6 +340,7 @@ export function createRetrievalTools(collectionNames: string[]) {
             `${i + 1}. ${doc || 'No content'}\nSource: ${collectionName}`
           ).join('\n\n');
         } catch (error) {
+          console.error(`❌ Error searching ${collectionName}:`, error);
           return `Search in ${collectionName} is currently unavailable.`;
         }
       }

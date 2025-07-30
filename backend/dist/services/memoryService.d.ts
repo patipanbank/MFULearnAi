@@ -3,7 +3,11 @@ export declare class MemoryService {
     getRecentMessages(sessionId: string): Promise<any[]>;
     clearRecentMessages(sessionId: string): Promise<void>;
     addLongTermMemory(sessionId: string, document: string, embedding: number[], metadata?: any): Promise<void>;
-    searchLongTermMemory(sessionId: string, queryEmbedding: number[], k?: number): Promise<import("chromadb").QueryResult<import("chromadb").Metadata> | null>;
+    searchLongTermMemory(sessionId: string, queryEmbedding: number[], k?: number): Promise<import("chromadb").QueryResult<import("chromadb").Metadata> | {
+        documents: never[];
+        metadatas: never[];
+        distances: never[];
+    } | null>;
     clearLongTermMemory(sessionId: string): Promise<void>;
     embedMessage(sessionId: string, message: string): Promise<void>;
     searchMemory(sessionId: string, query: string, k?: number): Promise<any[]>;
