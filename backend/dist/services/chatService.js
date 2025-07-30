@@ -62,7 +62,11 @@ class ChatService {
         return newMessage;
     }
     async processMessage(chatId, userId, content, images) {
+        console.log(`🔧 processMessage called for chat ${chatId}, user ${userId}`);
+        console.log(`🔧 Content: ${content.substring(0, 50)}...`);
+        console.log(`🔧 Images: ${images?.length || 0}`);
         try {
+            console.log(`🔧 Adding user message to chat ${chatId}`);
             const userMessage = await this.addMessage(chatId, {
                 role: 'user',
                 content,
@@ -111,7 +115,11 @@ class ChatService {
         }
     }
     async processWithAILegacy(chatId, userMessage, images, config, userId) {
+        console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
+        console.log(`🤖 User message: ${userMessage.substring(0, 50)}...`);
+        console.log(`🤖 Config:`, config);
         try {
+            console.log(`🤖 Creating LLM instance with model ${config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0'}`);
             const llm = (0, llmFactory_1.getLLM)(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
                 temperature: config?.temperature,
                 maxTokens: config?.maxTokens
@@ -139,11 +147,13 @@ class ChatService {
             }
             const assistantMessage = await this.addMessage(chatId, {
                 role: 'assistant',
-                content: '',
+                content: 'กำลังคิด...',
             });
+            console.log(`🤖 Starting agent.run with ${messages.length} messages`);
             let fullContent = '';
             await agent.run(messages, {
                 onEvent: async (event) => {
+                    console.log(`🤖 Agent event: ${event.type}`, event.data);
                     if (event.type === 'chunk') {
                         fullContent += event.data;
                         await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessage.id }, { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } });
@@ -167,6 +177,7 @@ class ChatService {
                         }
                     }
                     else if (event.type === 'end') {
+                        console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
                         await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessage.id }, { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } });
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'end', data: { answer: event.data.answer } }));
@@ -209,7 +220,7 @@ class ChatService {
         let fullContent = '';
         const assistantMessage = await this.addMessage(chatId, {
             role: 'assistant',
-            content: ''
+            content: 'กำลังคิด...'
         });
         for (let i = 0; i < words.length; i++) {
             const chunk = (i > 0 ? ' ' : '') + words[i];

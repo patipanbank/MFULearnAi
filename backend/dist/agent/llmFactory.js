@@ -30,16 +30,21 @@ class LLM {
         });
     }
     async generate(prompt) {
+        console.log(`🤖 LLM.generate called with prompt length: ${prompt.length}`);
         if (!this.langchainModel) {
             throw new Error('LangChain model not initialized');
         }
         try {
             const messages = [];
             if (this.options.systemPrompt) {
+                console.log(`🤖 Adding system prompt: ${this.options.systemPrompt.substring(0, 50)}...`);
                 messages.push(new messages_1.SystemMessage(this.options.systemPrompt));
             }
+            console.log(`🤖 Adding user message: ${prompt.substring(0, 50)}...`);
             messages.push(new messages_1.HumanMessage(prompt));
+            console.log(`🤖 Calling LangChain model.invoke...`);
             const response = await this.langchainModel.invoke(messages);
+            console.log(`🤖 LangChain response received: ${response.content.substring(0, 100)}...`);
             return response.content;
         }
         catch (error) {

@@ -4,9 +4,12 @@ exports.createAgent = createAgent;
 function createAgent(llm, tools, prompt) {
     return {
         async run(messages, options) {
+            console.log(`🤖 Agent.run called with ${messages.length} messages`);
+            console.log(`🤖 Last message: ${messages[messages.length - 1]?.content.substring(0, 50)}...`);
             const onEvent = options?.onEvent;
             const maxSteps = options?.maxSteps ?? 5;
             try {
+                console.log(`🤖 Using LangChain LLM`);
                 return runWithLangChainLLM(llm, tools, prompt, messages, options);
             }
             catch (error) {
@@ -17,18 +20,24 @@ function createAgent(llm, tools, prompt) {
     };
 }
 async function runWithLangChainLLM(llm, tools, prompt, messages, options) {
+    console.log(`🤖 runWithLangChainLLM called with ${messages.length} messages`);
+    console.log(`🤖 Prompt: ${prompt.substring(0, 50)}...`);
     const onEvent = options?.onEvent;
     const maxSteps = options?.maxSteps ?? 5;
     let history = [...messages];
     let scratchpad = [];
     let finalAnswer = '';
     for (let step = 0; step < maxSteps; step++) {
+        console.log(`🤖 Step ${step + 1}/${maxSteps}`);
         const fullPrompt = [
             prompt,
             ...history.map(m => `${m.role}: ${m.content}`),
             ...(scratchpad.length ? ['\nAgent scratchpad:', ...scratchpad] : [])
         ].join('\n');
+        console.log(`🤖 Full prompt length: ${fullPrompt.length} characters`);
+        console.log(`🤖 Calling LLM.generate...`);
         const llmResponse = await llm.generate(fullPrompt);
+        console.log(`🤖 LLM response: ${llmResponse.substring(0, 100)}...`);
         if (onEvent)
             onEvent({ type: 'chunk', data: llmResponse });
         const toolMatch = llmResponse.match(/\[TOOL:(\w+)\](.*)/s);

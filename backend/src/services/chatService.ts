@@ -185,7 +185,7 @@ export class ChatService {
       // เพิ่ม assistant message เปล่าไว้สำหรับอัปเดต
       const assistantMessage = await this.addMessage(chatId, {
         role: 'assistant',
-        content: '',
+        content: 'กำลังคิด...',
       });
       // 6. เรียก agent.run พร้อม onEvent สำหรับ stream event
       console.log(`🤖 Starting agent.run with ${messages.length} messages`);
@@ -277,7 +277,7 @@ export class ChatService {
     // Create assistant message first (like in legacy)
     const assistantMessage = await this.addMessage(chatId, {
       role: 'assistant',
-      content: ''
+      content: 'กำลังคิด...'
     });
     
     for (let i = 0; i < words.length; i++) {

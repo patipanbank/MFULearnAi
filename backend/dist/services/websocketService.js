@@ -93,6 +93,7 @@ class WebSocketService {
         try {
             const data = JSON.parse(message);
             console.log(`📨 Received message from ${user.id}:`, data.type);
+            console.log(`📨 Message data:`, JSON.stringify(data, null, 2));
             switch (data.type) {
                 case 'ping':
                     this.handlePing(connectionId);
@@ -104,6 +105,7 @@ class WebSocketService {
                     await this.handleCreateRoom(connectionId, data, user);
                     break;
                 case 'message':
+                    console.log(`💬 Processing chat message from ${user.id}`);
                     await this.handleChatMessage(connectionId, data, user);
                     break;
                 case 'leave_room':
@@ -188,8 +190,11 @@ class WebSocketService {
         console.log(`✅ User ${user.id} created room ${chat.id}`);
     }
     async handleChatMessage(connectionId, data, user) {
+        console.log(`💬 handleChatMessage called for user ${user.id}`);
+        console.log(`💬 Message data:`, JSON.stringify(data, null, 2));
         const userSession = this.userSessions.get(connectionId);
         if (!userSession) {
+            console.log(`❌ Session not found for connection ${connectionId}`);
             this.sendError(connectionId, 'Session not found');
             return;
         }
@@ -197,7 +202,9 @@ class WebSocketService {
         const incomingChatId = data.chatId || data.session_id;
         const newAgentId = data.agent_id || data.agentId;
         const images = data.images || [];
+        console.log(`💬 Extracted data:`, { message: message?.substring(0, 50) + '...', incomingChatId, newAgentId, imagesCount: images.length });
         if (!message) {
+            console.log(`⚠️ Empty message received, ignoring`);
             return;
         }
         let currentChatId = userSession.sessionId;
@@ -248,10 +255,12 @@ class WebSocketService {
             return;
         }
         const chatId = currentChatId;
+        console.log(`💬 Sending acceptance confirmation for chat ${chatId}`);
         websocketManager_1.wsManager.sendToConnection(connectionId, JSON.stringify({
             type: 'accepted',
             data: { chatId }
         }));
+        console.log(`💬 Calling chatService.processMessage for chat ${chatId}`);
         await chatService_1.chatService.processMessage(chatId, user.id, message, images);
         console.log(`💬 User ${user.id} sent message in room ${chatId}`);
     }
