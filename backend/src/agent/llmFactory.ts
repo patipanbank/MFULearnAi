@@ -1,5 +1,7 @@
 import { BedrockRuntimeClient, InvokeModelCommand, ConverseStreamCommand } from '@aws-sdk/client-bedrock-runtime';
 import { fromEnv } from '@aws-sdk/credential-provider-env';
+import { ChatBedrockConverse } from '@langchain/aws';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
 export interface LLMOptions {
   streaming?: boolean;
@@ -16,6 +18,7 @@ export class LLM {
   private client: BedrockRuntimeClient;
   private modelId: string;
   private options: LLMOptions;
+  private langchainModel: ChatBedrockConverse | null = null;
 
   constructor(modelId: string, options: LLMOptions = {}) {
     this.client = new BedrockRuntimeClient({
@@ -25,15 +28,57 @@ export class LLM {
     });
     this.modelId = modelId;
     this.options = options;
+    
+    // สร้าง LangChain model instance
+    this.langchainModel = new ChatBedrockConverse({
+      model: modelId,
+      region: process.env.AWS_REGION,
+      credentials: fromEnv(),
+      temperature: options.temperature,
+      maxTokens: options.maxTokens,
+      topP: options.topP,
+      additionalModelRequestFields: options.topK || options.model_kwargs ? {
+        ...(options.topK && { top_k: options.topK }),
+        ...options.model_kwargs,
+      } : undefined,
+    });
   }
 
   /**
-   * Generate text from prompt using Bedrock LLM
-   * - Supports model_kwargs (for model-specific params)
-   * - Supports temperature, maxTokens, topP, topK, and any extra kwargs
-   * - TODO: รองรับ LLM อื่น (OpenAI, HuggingFace) ในอนาคต
+   * Generate text from prompt using LangChain Bedrock LLM
+   * - ใช้ LangChain ChatBedrock แทนการ implement เอง
+   * - รองรับ system prompt และ message format
    */
   async generate(prompt: string): Promise<string> {
+    if (!this.langchainModel) {
+      throw new Error('LangChain model not initialized');
+    }
+
+    try {
+      const messages = [];
+      
+      // เพิ่ม system message ถ้ามี
+      if (this.options.systemPrompt) {
+        messages.push(new SystemMessage(this.options.systemPrompt));
+      }
+      
+      // เพิ่ม user message
+      messages.push(new HumanMessage(prompt));
+      
+      // เรียก LangChain model
+      const response = await this.langchainModel.invoke(messages);
+      return response.content as string;
+    } catch (error) {
+      // Fallback ไปใช้ Bedrock API เดิมถ้า LangChain มีปัญหา
+      console.warn('LangChain failed, falling back to direct Bedrock API:', error);
+      return this.generateWithBedrockAPI(prompt);
+    }
+  }
+
+  /**
+   * Fallback method ใช้ Bedrock API โดยตรง (เหมือนเดิม)
+   */
+  private async generateWithBedrockAPI(prompt: string): Promise<string> {
     // Extract model-level keyword arguments (legacy style, whitelist only allowed keys, use snake_case)
     const allowedParams: Record<string, string> = {
       temperature: 'temperature',
@@ -142,12 +187,44 @@ export class LLM {
   }
 
   /**
-   * Streaming generation using Bedrock streaming API (ConverseStreamCommand)
-   * - รองรับเฉพาะ message-based model (Claude 3, Nova, Llama 3, ฯลฯ)
-   * - ถ้า model ไม่รองรับ message-based ให้ throw error
-   * - TODO: รองรับ LLM อื่น (OpenAI, HuggingFace) ในอนาคต
+   * Streaming generation using LangChain streaming
+   * - ใช้ LangChain streaming แทนการ implement เอง
    */
   async *stream(prompt: string): AsyncGenerator<string, void, unknown> {
+    if (!this.langchainModel) {
+      throw new Error('LangChain model not initialized');
+    }
+
+    try {
+      const messages = [];
+      
+      // เพิ่ม system message ถ้ามี
+      if (this.options.systemPrompt) {
+        messages.push(new SystemMessage(this.options.systemPrompt));
+      }
+      
+      // เพิ่ม user message
+      messages.push(new HumanMessage(prompt));
+      
+      // ใช้ LangChain streaming
+      const stream = await this.langchainModel.stream(messages);
+      
+      for await (const chunk of stream) {
+        if (chunk.content) {
+          yield chunk.content as string;
+        }
+      }
+    } catch (error) {
+      // Fallback ไปใช้ Bedrock streaming API เดิม
+      console.warn('LangChain streaming failed, falling back to direct Bedrock API:', error);
+      yield* this.streamWithBedrockAPI(prompt);
+    }
+  }
+
+  /**
+   * Fallback streaming method ใช้ Bedrock API โดยตรง (เหมือนเดิม)
+   */
+  private async *streamWithBedrockAPI(prompt: string): AsyncGenerator<string, void, unknown> {
     // ตัวอย่างนี้รองรับเฉพาะ message-based (Claude 3, Nova, Llama 3)
     // ถ้าต้องการรองรับ native payload (Cohere, Mistral) ต้อง implement เพิ่ม
     const modelId = this.modelId;
@@ -185,6 +262,7 @@ export class LLM {
 /**
  * getLLM: Return a Bedrock LLM instance for the requested modelId and options
  * - Compatible with backend-legacy/agents/llm_factory.py
+ * - ใช้ LangChain เป็นหลัก แต่มี fallback ไปใช้ Bedrock API โดยตรง
  */
 export function getLLM(modelId: string, options: LLMOptions = {}): LLM {
   return new LLM(modelId, options);

@@ -49,7 +49,7 @@ const ChatMessageSchema = new mongoose_1.Schema({
     content: {
         type: String,
         required: true,
-        default: 'กำลังประมวลผล...',
+        default: '',
         validate: {
             validator: function (v) {
                 return v !== undefined && v !== null;
