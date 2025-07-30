@@ -233,7 +233,6 @@ export class ChatService {
       // 10. เรียก agent.run พร้อม onEvent สำหรับ stream event
       console.log(`🤖 Starting agent.run with ${messages.length} messages`);
       let fullContent = '';
-      let assistantMessageId: string | null = null;
       let inputTokens = 0;
       let outputTokens = 0;
       
@@ -243,32 +242,7 @@ export class ChatService {
           if (event.type === 'chunk') {
             fullContent += event.data;
             
-            // สร้าง assistant message เมื่อได้รับ chunk แรก
-            if (!assistantMessageId) {
-              const assistantMessage = await this.addMessage(chatId, {
-                role: 'assistant',
-                content: fullContent,
-              });
-              assistantMessageId = assistantMessage.id;
-              
-              // ส่ง event แจ้ง frontend ว่าสร้าง assistant message ใหม่
-              if (wsManager.getSessionConnectionCount(chatId) > 0) {
-                wsManager.broadcastToSession(chatId, JSON.stringify({ 
-                  type: 'assistant_created', 
-                  data: { 
-                    messageId: assistantMessage.id,
-                    content: fullContent 
-                  } 
-                }));
-              }
-            } else {
-              // อัปเดต assistant message ที่มีอยู่
-              await ChatModel.updateOne(
-                { _id: chatId, 'messages.id': assistantMessageId },
-                { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } }
-              );
-            }
-            
+            // ส่ง streaming ไปยัง frontend แต่ไม่บันทึกลง database
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
             }
@@ -310,12 +284,21 @@ export class ChatService {
           } else if (event.type === 'end') {
             console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
             
-            // อัปเดต assistant message สุดท้าย
-            if (assistantMessageId) {
-              await ChatModel.updateOne(
-                { _id: chatId, 'messages.id': assistantMessageId },
-                { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } }
-              );
+            // บันทึก assistant message สุดท้ายหลังจากเสร็จแล้ว (เหมือน Legacy)
+            const assistantMessage = await this.addMessage(chatId, {
+              role: 'assistant',
+              content: event.data.answer,
+            });
+            
+            // ส่ง event แจ้ง frontend ว่าสร้าง assistant message ใหม่
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({ 
+                type: 'assistant_created', 
+                data: { 
+                  messageId: assistantMessage.id,
+                  content: event.data.answer 
+                } 
+              }));
             }
             
             // Update usage statistics
