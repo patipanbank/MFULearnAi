@@ -113,7 +113,7 @@ router.post('/messages/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.put('/name_update/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.put('/name/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const { name } = req.body;
@@ -151,7 +151,7 @@ router.put('/name_update/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.put('/pin_update/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.put('/pin/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const { isPinned } = req.body;
@@ -226,7 +226,7 @@ router.delete('/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.post('/clear_memory/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.post('/clear/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const userId = req.user.id;
@@ -263,7 +263,7 @@ router.post('/clear_memory/:chatId', auth_1.authenticateJWT, async (req, res) =>
         });
     }
 });
-router.get('/messages_get/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.get('/messages/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const { page = 1, limit = 50 } = req.query;
@@ -295,7 +295,7 @@ router.get('/messages_get/:chatId', auth_1.authenticateJWT, async (req, res) => 
         });
     }
 });
-router.delete('/messages_delete/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.delete('/messages/:chatId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const userId = req.user.id;
