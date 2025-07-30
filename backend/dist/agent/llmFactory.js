@@ -15,6 +15,7 @@ class LLM {
             },
             maxTokens: options.maxTokens,
             temperature: options.temperature,
+            systemPrompt: options.systemPrompt,
         });
     }
     async generate(messages) {

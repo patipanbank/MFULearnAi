@@ -9,6 +9,7 @@ const agents_1 = require("langchain/agents");
 const retriever_1 = require("langchain/tools/retriever");
 const memory_1 = require("langchain/vectorstores/memory");
 const bedrock_2 = require("@langchain/community/embeddings/bedrock");
+const retrievers_1 = require("@langchain/core/retrievers");
 const toolRegistry_1 = require("../services/toolRegistry");
 const chromaService_1 = require("../services/chromaService");
 class LangChainAgent {
@@ -93,7 +94,7 @@ class LangChainAgent {
     }
     async createCollectionRetriever(collectionName) {
         try {
-            const retriever = {
+            return new retrievers_1.BaseRetriever({
                 getRelevantDocuments: async (query) => {
                     const embeddings = new bedrock_2.BedrockEmbeddings({
                         region: process.env.AWS_REGION,
@@ -112,8 +113,7 @@ class LangChainAgent {
                     }
                     return [];
                 }
-            };
-            return retriever;
+            });
         }
         catch (error) {
             console.error(`Error creating retriever for ${collectionName}:`, error);

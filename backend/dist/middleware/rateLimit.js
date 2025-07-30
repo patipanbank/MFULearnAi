@@ -5,8 +5,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.adminBypass = exports.createUserRateLimiter = exports.createRateLimiters = void 0;
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+const rate_limit_redis_1 = __importDefault(require("rate-limit-redis"));
+const redis_1 = require("../lib/redis");
 const createRateLimiters = () => {
     const generalLimiter = (0, express_rate_limit_1.default)({
+        store: new rate_limit_redis_1.default({
+            sendCommand: async (...args) => {
+                const redis = (0, redis_1.getRedis)();
+                return await redis.call(...args);
+            },
+        }),
         windowMs: 15 * 60 * 1000,
         max: 100,
         message: {
@@ -17,6 +25,12 @@ const createRateLimiters = () => {
         legacyHeaders: false,
     });
     const authLimiter = (0, express_rate_limit_1.default)({
+        store: new rate_limit_redis_1.default({
+            sendCommand: async (...args) => {
+                const redis = (0, redis_1.getRedis)();
+                return await redis.call(...args);
+            },
+        }),
         windowMs: 15 * 60 * 1000,
         max: 5,
         message: {
@@ -27,6 +41,12 @@ const createRateLimiters = () => {
         legacyHeaders: false,
     });
     const chatLimiter = (0, express_rate_limit_1.default)({
+        store: new rate_limit_redis_1.default({
+            sendCommand: async (...args) => {
+                const redis = (0, redis_1.getRedis)();
+                return await redis.call(...args);
+            },
+        }),
         windowMs: 1 * 60 * 1000,
         max: 30,
         message: {
@@ -37,6 +57,12 @@ const createRateLimiters = () => {
         legacyHeaders: false,
     });
     const agentLimiter = (0, express_rate_limit_1.default)({
+        store: new rate_limit_redis_1.default({
+            sendCommand: async (...args) => {
+                const redis = (0, redis_1.getRedis)();
+                return await redis.call(...args);
+            },
+        }),
         windowMs: 60 * 60 * 1000,
         max: 10,
         message: {
@@ -47,6 +73,12 @@ const createRateLimiters = () => {
         legacyHeaders: false,
     });
     const uploadLimiter = (0, express_rate_limit_1.default)({
+        store: new rate_limit_redis_1.default({
+            sendCommand: async (...args) => {
+                const redis = (0, redis_1.getRedis)();
+                return await redis.call(...args);
+            },
+        }),
         windowMs: 60 * 60 * 1000,
         max: 20,
         message: {
@@ -57,6 +89,12 @@ const createRateLimiters = () => {
         legacyHeaders: false,
     });
     const wsLimiter = (0, express_rate_limit_1.default)({
+        store: new rate_limit_redis_1.default({
+            sendCommand: async (...args) => {
+                const redis = (0, redis_1.getRedis)();
+                return await redis.call(...args);
+            },
+        }),
         windowMs: 1 * 60 * 1000,
         max: 10,
         message: {
@@ -78,6 +116,13 @@ const createRateLimiters = () => {
 exports.createRateLimiters = createRateLimiters;
 const createUserRateLimiter = (windowMs, max) => {
     return (0, express_rate_limit_1.default)({
+        store: new rate_limit_redis_1.default({
+            sendCommand: async (...args) => {
+                const redis = (0, redis_1.getRedis)();
+                return await redis.call(...args);
+            },
+            prefix: 'user_rate_limit:',
+        }),
         windowMs,
         max,
         keyGenerator: (req) => {

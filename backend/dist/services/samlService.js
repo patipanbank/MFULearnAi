@@ -17,7 +17,6 @@ function getSamlConfig() {
         logoutUrl: config_1.default.SAML_IDP_SLO_URL,
         issuer: config_1.default.SAML_SP_ENTITY_ID,
         callbackUrl: `${baseUrl}/api/auth/saml/callback`,
-        idpCert: cert,
         identifierFormat: config_1.default.SAML_IDENTIFIER_FORMAT,
         disableRequestedAuthnContext: false,
         wantAssertionsSigned: true,
