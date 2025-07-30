@@ -50,17 +50,21 @@ export const useMessageHandler = () => {
           content: lastMessage.content + chunkText
         });
       } else {
-        // สร้าง assistant message หากยังไม่มี
-        const assistantMsg: ChatMessage = {
-          id: Date.now().toString() + '_assistant',
-          role: 'assistant',
-          content: chunkText,
-          timestamp: new Date(),
-          isStreaming: true,
-          isComplete: false
-        };
-        addMessage(assistantMsg);
+        // รอ backend สร้าง assistant message ให้ ไม่สร้างเอง
+        // Backend จะสร้าง message เมื่อได้รับ chunk แรก
+        console.log('Waiting for backend to create assistant message...');
       }
+    } else if (data.type === 'assistant_created') {
+      // Backend สร้าง assistant message ใหม่แล้ว
+      const assistantMsg: ChatMessage = {
+        id: data.data.messageId,
+        role: 'assistant',
+        content: data.data.content,
+        timestamp: new Date(),
+        isStreaming: true,
+        isComplete: false
+      };
+      addMessage(assistantMsg);
     } else if (data.type === 'room_created') {
       // Handle room creation
       setIsRoomCreating(false);

@@ -150,18 +150,33 @@ class ChatService {
                 const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
                 messages.push(userMsg);
             }
-            const assistantMessage = await this.addMessage(chatId, {
-                role: 'assistant',
-                content: '',
-            });
             console.log(`🤖 Starting agent.run with ${messages.length} messages`);
             let fullContent = '';
+            let assistantMessageId = null;
             await agent.run(messages, {
                 onEvent: async (event) => {
                     console.log(`🤖 Agent event: ${event.type}`, event.data);
                     if (event.type === 'chunk') {
                         fullContent += event.data;
-                        await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessage.id }, { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } });
+                        if (!assistantMessageId) {
+                            const assistantMessage = await this.addMessage(chatId, {
+                                role: 'assistant',
+                                content: fullContent,
+                            });
+                            assistantMessageId = assistantMessage.id;
+                            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                    type: 'assistant_created',
+                                    data: {
+                                        messageId: assistantMessage.id,
+                                        content: fullContent
+                                    }
+                                }));
+                            }
+                        }
+                        else {
+                            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessageId }, { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } });
+                        }
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
                         }
@@ -183,7 +198,9 @@ class ChatService {
                     }
                     else if (event.type === 'end') {
                         console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
-                        await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessage.id }, { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } });
+                        if (assistantMessageId) {
+                            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessageId }, { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } });
+                        }
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'end', data: { answer: event.data.answer } }));
                         }

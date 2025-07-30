@@ -205,6 +205,17 @@ export class ChatService {
                 content: fullContent,
               });
               assistantMessageId = assistantMessage.id;
+              
+              // ส่ง event แจ้ง frontend ว่าสร้าง assistant message ใหม่
+              if (wsManager.getSessionConnectionCount(chatId) > 0) {
+                wsManager.broadcastToSession(chatId, JSON.stringify({ 
+                  type: 'assistant_created', 
+                  data: { 
+                    messageId: assistantMessage.id,
+                    content: fullContent 
+                  } 
+                }));
+              }
             } else {
               // อัปเดต assistant message ที่มีอยู่
               await ChatModel.updateOne(
