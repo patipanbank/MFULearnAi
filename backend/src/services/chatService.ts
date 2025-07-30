@@ -187,23 +187,32 @@ export class ChatService {
         const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
         messages.push(userMsg);
       }
-      // เพิ่ม assistant message เปล่าไว้สำหรับอัปเดต
-      const assistantMessage = await this.addMessage(chatId, {
-        role: 'assistant',
-        content: '',
-      });
       // 6. เรียก agent.run พร้อม onEvent สำหรับ stream event
       console.log(`🤖 Starting agent.run with ${messages.length} messages`);
       let fullContent = '';
+      let assistantMessageId: string | null = null;
+      
       await agent.run(messages, {
         onEvent: async (event) => {
           console.log(`🤖 Agent event: ${event.type}`, event.data);
           if (event.type === 'chunk') {
             fullContent += event.data;
-            await ChatModel.updateOne(
-              { _id: chatId, 'messages.id': assistantMessage.id },
-              { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } }
-            );
+            
+            // สร้าง assistant message เมื่อได้รับ chunk แรก
+            if (!assistantMessageId) {
+              const assistantMessage = await this.addMessage(chatId, {
+                role: 'assistant',
+                content: fullContent,
+              });
+              assistantMessageId = assistantMessage.id;
+            } else {
+              // อัปเดต assistant message ที่มีอยู่
+              await ChatModel.updateOne(
+                { _id: chatId, 'messages.id': assistantMessageId },
+                { $set: { 'messages.$.content': fullContent, updatedAt: new Date() } }
+              );
+            }
+            
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
             }
@@ -221,11 +230,15 @@ export class ChatService {
             }
           } else if (event.type === 'end') {
             console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
+            
             // อัปเดต assistant message สุดท้าย
-            await ChatModel.updateOne(
-              { _id: chatId, 'messages.id': assistantMessage.id },
-              { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } }
-            );
+            if (assistantMessageId) {
+              await ChatModel.updateOne(
+                { _id: chatId, 'messages.id': assistantMessageId },
+                { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } }
+              );
+            }
+            
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'end', data: { answer: event.data.answer } }));
             }
