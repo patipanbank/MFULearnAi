@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import passport from 'passport';
-import { Strategy as SamlStrategy, Profile as SamlProfile } from '@node-saml/passport-saml';
+import { Strategy as SamlStrategy, Profile as SamlProfile } from 'passport-saml';
 import { getSamlConfig } from '../services/samlService';
 import { userService } from '../services/userService';
 import { authenticateJWT, requireAnyRole, requireAdminRole } from '../middleware/auth';
