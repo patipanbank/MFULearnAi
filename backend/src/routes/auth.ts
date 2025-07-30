@@ -34,10 +34,10 @@ passport.use('saml', new (SamlStrategy as any)(getSamlConfig(), (profile: any, d
 }));
 
 // SAML Login
-router.get('/login/saml', passport.authenticate('saml', { failureRedirect: '/login', failureFlash: true }));
+router.get('/login_saml', passport.authenticate('saml', { failureRedirect: '/login', failureFlash: true }));
 
 // SAML Callback (mapping, JWT, redirect, error handling)
-router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) => {
+router.post('/saml_callback', (req: Request, res: Response, next: NextFunction) => {
   (passport.authenticate as any)('saml', { failureRedirect: '/login', failureFlash: true }, async (err: any, profile: any, info: any) => {
     if (err) {
       console.error('❌ SAML authentication error:', err);
@@ -97,7 +97,7 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
 });
 
 // SAML Callback GET route (for compatibility)
-router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) => {
+router.get('/saml_callback', (req: Request, res: Response, next: NextFunction) => {
   (passport.authenticate as any)('saml', { failureRedirect: '/login', failureFlash: true }, async (err: any, profile: any, info: any) => {
     if (err) {
       console.error('❌ SAML authentication error:', err);
@@ -169,7 +169,7 @@ router.get('/metadata', (req: Request, res: Response) => {
 });
 
 // SAML Logout (redirect/logout SAML)
-router.get('/logout/saml', (req: Request, res: Response) => {
+router.get('/logout_saml', (req: Request, res: Response) => {
   const { name_id, session_index } = req.query;
   console.log(`SAML logout requested - name_id: ${name_id}, session_index: ${session_index}`);
   
@@ -179,18 +179,18 @@ router.get('/logout/saml', (req: Request, res: Response) => {
 });
 
 // SAML Logout Manual Return
-router.get('/logout/saml/manual', (req: Request, res: Response) => {
+router.get('/logout_saml_manual', (req: Request, res: Response) => {
   console.log('Manual return from SAML logout');
   return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?saml_logged_out=true&manual=true`);
 });
 
 // SAML Logout Callback
-router.post('/logout/saml/callback', (req: Request, res: Response) => {
+router.post('/logout_saml_callback', (req: Request, res: Response) => {
   console.log('SAML logout callback received (POST)');
   return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?saml_logged_out=true`);
 });
 
-router.get('/logout/saml/callback', (req: Request, res: Response) => {
+router.get('/logout_saml_callback', (req: Request, res: Response) => {
   console.log('SAML logout callback received (GET)');
   const { SAMLResponse, SAMLRequest, RelayState } = req.query;
   
@@ -209,7 +209,7 @@ router.get('/logout/saml/callback', (req: Request, res: Response) => {
 });
 
 // Admin login route
-router.post('/admin/login', async (req: Request, res: Response) => {
+router.post('/admin_login', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 

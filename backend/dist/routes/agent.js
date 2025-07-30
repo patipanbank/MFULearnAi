@@ -119,7 +119,7 @@ router.get('/templates/all', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.post('/templates/:templateId', auth_1.authenticateJWT, async (req, res) => {
+router.post('/templates_create/:templateId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { templateId } = req.params;
         const userId = req.user.sub || req.user.id;

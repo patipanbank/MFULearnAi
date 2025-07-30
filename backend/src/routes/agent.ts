@@ -132,7 +132,7 @@ router.get('/templates/all', authenticateJWT, async (req: any, res) => {
 });
 
 // Create agent from template
-router.post('/templates/:templateId', authenticateJWT, async (req: any, res) => {
+router.post('/templates_create/:templateId', authenticateJWT, async (req: any, res) => {
   try {
     const { templateId } = req.params;
     const userId = req.user.sub || req.user.id;
