@@ -50,6 +50,8 @@ export class LLM {
    * - รองรับ system prompt และ message format
    */
   async generate(prompt: string): Promise<string> {
+    console.log(`🤖 LLM.generate called with prompt length: ${prompt.length}`);
+    
     if (!this.langchainModel) {
       throw new Error('LangChain model not initialized');
     }
@@ -59,14 +61,18 @@ export class LLM {
       
       // เพิ่ม system message ถ้ามี
       if (this.options.systemPrompt) {
+        console.log(`🤖 Adding system prompt: ${this.options.systemPrompt.substring(0, 50)}...`);
         messages.push(new SystemMessage(this.options.systemPrompt));
       }
       
       // เพิ่ม user message
+      console.log(`🤖 Adding user message: ${prompt.substring(0, 50)}...`);
       messages.push(new HumanMessage(prompt));
       
       // เรียก LangChain model
+      console.log(`🤖 Calling LangChain model.invoke...`);
       const response = await this.langchainModel.invoke(messages);
+      console.log(`🤖 LangChain response received: ${(response.content as string).substring(0, 100)}...`);
       return response.content as string;
     } catch (error) {
       // Fallback ไปใช้ Bedrock API เดิมถ้า LangChain มีปัญหา

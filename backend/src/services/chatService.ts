@@ -74,8 +74,13 @@ export class ChatService {
   }
 
   public async processMessage(chatId: string, userId: string, content: string, images?: Array<{ url: string; mediaType: string }>): Promise<void> {
+    console.log(`🔧 processMessage called for chat ${chatId}, user ${userId}`);
+    console.log(`🔧 Content: ${content.substring(0, 50)}...`);
+    console.log(`🔧 Images: ${images?.length || 0}`);
+    
     try {
       // Add user message first (like in legacy)
+      console.log(`🔧 Adding user message to chat ${chatId}`);
       const userMessage = await this.addMessage(chatId, {
         role: 'user',
         content,
@@ -143,8 +148,13 @@ export class ChatService {
     maxTokens?: number;
     agentId?: string;
   }, userId?: string): Promise<void> {
+    console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
+    console.log(`🤖 User message: ${userMessage.substring(0, 50)}...`);
+    console.log(`🤖 Config:`, config);
+    
     try {
       // 1. เตรียม LLM instance
+      console.log(`🤖 Creating LLM instance with model ${config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0'}`);
       const llm = getLLM(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
         temperature: config?.temperature,
         maxTokens: config?.maxTokens
@@ -178,9 +188,11 @@ export class ChatService {
         content: '',
       });
       // 6. เรียก agent.run พร้อม onEvent สำหรับ stream event
+      console.log(`🤖 Starting agent.run with ${messages.length} messages`);
       let fullContent = '';
       await agent.run(messages, {
         onEvent: async (event) => {
+          console.log(`🤖 Agent event: ${event.type}`, event.data);
           if (event.type === 'chunk') {
             fullContent += event.data;
             await ChatModel.updateOne(
@@ -203,6 +215,7 @@ export class ChatService {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_error', data: event.data }));
             }
           } else if (event.type === 'end') {
+            console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
             // อัปเดต assistant message สุดท้าย
             await ChatModel.updateOne(
               { _id: chatId, 'messages.id': assistantMessage.id },

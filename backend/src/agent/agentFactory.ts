@@ -25,11 +25,15 @@ export function createAgent(
 ): AgentExecutor {
   return {
     async run(messages: { role: string; content: string }[], options?: { onEvent?: (event: { type: string; data?: any }) => void; maxSteps?: number }): Promise<string> {
+      console.log(`🤖 Agent.run called with ${messages.length} messages`);
+      console.log(`🤖 Last message: ${messages[messages.length - 1]?.content.substring(0, 50)}...`);
+      
       const onEvent = options?.onEvent;
       const maxSteps = options?.maxSteps ?? 5;
       
       try {
         // ใช้ LangChain LLM แต่ implement ReAct loop เอง
+        console.log(`🤖 Using LangChain LLM`);
         return runWithLangChainLLM(llm, tools, prompt, messages, options);
       } catch (error) {
         // Fallback ไปใช้ ReAct loop เดิม
@@ -50,6 +54,9 @@ async function runWithLangChainLLM(
   messages: { role: string; content: string }[],
   options?: { onEvent?: (event: { type: string; data?: any }) => void; maxSteps?: number }
 ): Promise<string> {
+  console.log(`🤖 runWithLangChainLLM called with ${messages.length} messages`);
+  console.log(`🤖 Prompt: ${prompt.substring(0, 50)}...`);
+  
   const onEvent = options?.onEvent;
   const maxSteps = options?.maxSteps ?? 5;
   let history = [...messages];
@@ -57,6 +64,8 @@ async function runWithLangChainLLM(
   let finalAnswer = '';
   
   for (let step = 0; step < maxSteps; step++) {
+    console.log(`🤖 Step ${step + 1}/${maxSteps}`);
+    
     // 1. สร้าง fullPrompt (system + history + scratchpad)
     const fullPrompt = [
       prompt,
@@ -64,8 +73,12 @@ async function runWithLangChainLLM(
       ...(scratchpad.length ? ['\nAgent scratchpad:', ...scratchpad] : [])
     ].join('\n');
     
+    console.log(`🤖 Full prompt length: ${fullPrompt.length} characters`);
+    
     // 2. เรียก LLM (ใช้ LangChain LLM ที่อยู่ใน llm instance)
+    console.log(`🤖 Calling LLM.generate...`);
     const llmResponse = await llm.generate(fullPrompt);
+    console.log(`🤖 LLM response: ${llmResponse.substring(0, 100)}...`);
     if (onEvent) onEvent({ type: 'chunk', data: llmResponse });
     
     // 3. ตรวจสอบว่า LLM ตอบว่าให้ใช้ tool หรือไม่ (เช่น [TOOL:tool_name] input)

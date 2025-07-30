@@ -139,6 +139,7 @@ export class WebSocketService {
     try {
       const data: WebSocketMessage = JSON.parse(message);
       console.log(`📨 Received message from ${user.id}:`, data.type);
+      console.log(`📨 Message data:`, JSON.stringify(data, null, 2));
 
       switch (data.type) {
         case 'ping':
@@ -154,6 +155,7 @@ export class WebSocketService {
           break;
 
         case 'message':
+          console.log(`💬 Processing chat message from ${user.id}`);
           await this.handleChatMessage(connectionId, data, user);
           break;
 
@@ -262,8 +264,12 @@ export class WebSocketService {
   }
 
   private async handleChatMessage(connectionId: string, data: WebSocketMessage, user: any): Promise<void> {
+    console.log(`💬 handleChatMessage called for user ${user.id}`);
+    console.log(`💬 Message data:`, JSON.stringify(data, null, 2));
+    
     const userSession = this.userSessions.get(connectionId);
     if (!userSession) {
+      console.log(`❌ Session not found for connection ${connectionId}`);
       this.sendError(connectionId, 'Session not found');
       return;
     }
@@ -273,7 +279,10 @@ export class WebSocketService {
     const newAgentId = data.agent_id || data.agentId;
     const images = data.images || [];
 
+    console.log(`💬 Extracted data:`, { message: message?.substring(0, 50) + '...', incomingChatId, newAgentId, imagesCount: images.length });
+
     if (!message) {
+      console.log(`⚠️ Empty message received, ignoring`);
       return; // Ignore empty messages
     }
 
@@ -335,12 +344,14 @@ export class WebSocketService {
     const chatId = currentChatId; // Type assertion after null check
 
     // Send acceptance confirmation
+    console.log(`💬 Sending acceptance confirmation for chat ${chatId}`);
     wsManager.sendToConnection(connectionId, JSON.stringify({
       type: 'accepted',
       data: { chatId }
     }));
 
     // Process message with chat service (user message will be added inside)
+    console.log(`💬 Calling chatService.processMessage for chat ${chatId}`);
     await chatService.processMessage(chatId, user.id, message, images);
 
     console.log(`💬 User ${user.id} sent message in room ${chatId}`);
