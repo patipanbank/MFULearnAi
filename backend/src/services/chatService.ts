@@ -145,11 +145,9 @@ export class ChatService {
   }, userId?: string): Promise<void> {
     try {
       // 1. เตรียม LLM instance
-      const llm = getLLM({
-        model: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+      const llm = getLLM(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
         temperature: config?.temperature,
-        maxTokens: config?.maxTokens,
-        systemPrompt: config?.systemPrompt || '',
+        maxTokens: config?.maxTokens
       });
       // 2. เตรียม tools (รวม memory tool)
       const sessionTools = createMemoryTool(chatId);
@@ -181,9 +179,7 @@ export class ChatService {
       });
       // 6. เรียก agent.run พร้อม onEvent สำหรับ stream event
       let fullContent = '';
-      // ส่งเฉพาะ user/assistant message array ให้ agent.run
-      const messageHistory = messages.filter(m => m.role === 'user' || m.role === 'assistant').map(m => ({ role: m.role, content: m.content }));
-      await agent.run(messageHistory, {
+      await agent.run(messages, {
         onEvent: async (event) => {
           if (event.type === 'chunk') {
             fullContent += event.data;
