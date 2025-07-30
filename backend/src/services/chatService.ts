@@ -214,7 +214,7 @@ export class ChatService {
         maxTokens: config?.maxTokens
       });
 
-      // 9. ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท
+      // 9. ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท (เหมือน Legacy)
       const chatFromDb = await ChatModel.findById(chatId);
       if (!chatFromDb) throw new Error(`Chat session ${chatId} not found during AI processing`);
       let messages: ChatMessage[] = chatFromDb.messages.map(msg => ({
@@ -230,8 +230,23 @@ export class ChatService {
         messages.push(userMsg);
       }
 
+      // ตรวจสอบ memory management (เหมือน Legacy)
+      const currentMessageCount = messages.length;
+      const useMemoryTool = this.shouldUseMemoryTool(currentMessageCount);
+      const useRedisMemory = this.shouldUseRedisMemory(currentMessageCount);
+      const shouldEmbed = this.shouldEmbedMessages(currentMessageCount);
+      
+      console.log(`🧠 Memory Management: messageCount=${currentMessageCount}, useMemoryTool=${useMemoryTool}, useRedisMemory=${useRedisMemory}, shouldEmbed=${shouldEmbed}`);
+      
+      // Setup hybrid memory management (เหมือน Legacy)
+      if (useRedisMemory) {
+        console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
+        await memoryService.setupHybridMemory(chatId, messages);
+      }
+
       // 10. เรียก agent.run พร้อม onEvent สำหรับ stream event
       console.log(`🤖 Starting agent.run with ${messages.length} messages`);
+      console.log(`🤖 Last message: ${messages[messages.length - 1].content.substring(0, 50)}...`);
       let fullContent = '';
       let inputTokens = 0;
       let outputTokens = 0;

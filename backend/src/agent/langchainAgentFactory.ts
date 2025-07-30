@@ -85,10 +85,13 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
         let contentReceived = false;
         let finalAnswer = '';
         
-        const stream = await agentExecutor.stream({
+        // สร้าง input พร้อม chat history (เหมือน Legacy)
+        const agentInput = {
           input: messages[messages.length - 1].content,
-          maxIterations: maxSteps
-        }, {
+          chat_history: messages.slice(0, -1) // ส่งประวัติการสนทนา
+        };
+        
+        const stream = await agentExecutor.stream(agentInput, {
           callbacks: [
             {
               handleLLMStart: async (llm, prompts) => {
