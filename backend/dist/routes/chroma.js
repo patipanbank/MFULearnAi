@@ -64,7 +64,7 @@ router.get('/collections/:name/documents', async (req, res) => {
         res.status(500).json({ error: error.message || 'Unknown error' });
     }
 });
-router.post('/collections/:name/delete_documents', async (req, res) => {
+router.post('/collections/:name/delete-documents', async (req, res) => {
     const { ids } = req.body;
     try {
         await chromaService_1.chromaService.deleteDocuments(req.params.name, ids);

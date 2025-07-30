@@ -68,7 +68,7 @@ router.get('/collections/:name/documents', async (req: Request, res: Response) =
 });
 
 // Delete documents by ids
-router.post('/collections/:name/delete_documents', async (req: Request, res: Response) => {
+router.post('/collections/:name/delete-documents', async (req: Request, res: Response) => {
   const { ids } = req.body;
   try {
     await chromaService.deleteDocuments(req.params.name, ids);

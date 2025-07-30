@@ -35,8 +35,8 @@ interface ImageEmbeddingRequest {
 
 // === Endpoints ===
 
-// POST /api/bedrock/converse_stream (mock streaming)
-router.post('/converse_stream', async (req: Request, res: Response) => {
+// POST /api/bedrock/converse-stream (mock streaming)
+router.post('/converse-stream', async (req: Request, res: Response) => {
   const body: ConverseStreamRequest = req.body;
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -69,8 +69,8 @@ router.post('/converse_stream', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/bedrock/generate_image
-router.post('/generate_image', async (req: Request, res: Response) => {
+// POST /api/bedrock/generate-image
+router.post('/generate-image', async (req: Request, res: Response) => {
   const body: ImageGenerationRequest = req.body;
   try {
     const image = await bedrockService.generateImage(body.prompt);
@@ -86,8 +86,8 @@ router.post('/generate_image', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/bedrock/text_embedding
-router.post('/text_embedding', async (req: Request, res: Response) => {
+// POST /api/bedrock/text-embedding
+router.post('/text-embedding', async (req: Request, res: Response) => {
   const body: TextEmbeddingRequest = req.body;
   try {
     const embedding = await bedrockService.createTextEmbedding(body.text);
@@ -99,8 +99,8 @@ router.post('/text_embedding', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/bedrock/batch_text_embedding
-router.post('/batch_text_embedding', async (req: Request, res: Response) => {
+// POST /api/bedrock/batch-text-embedding
+router.post('/batch-text-embedding', async (req: Request, res: Response) => {
   const body: BatchTextEmbeddingRequest = req.body;
   try {
     const embeddings = await bedrockService.createBatchTextEmbeddings(body.texts);
@@ -112,8 +112,8 @@ router.post('/batch_text_embedding', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/bedrock/image_embedding
-router.post('/image_embedding', async (req: Request, res: Response) => {
+// POST /api/bedrock/image-embedding
+router.post('/image-embedding', async (req: Request, res: Response) => {
   const body: ImageEmbeddingRequest = req.body;
   try {
     const embedding = await bedrockService.createImageEmbedding(body.imageBase64, body.text);
