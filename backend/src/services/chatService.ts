@@ -327,6 +327,7 @@ export class ChatService {
               }
             }
             
+            // ส่ง end event หลังจาก streaming เสร็จแล้ว
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ 
                 type: 'end', 

@@ -81,8 +81,11 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
         // แปลง messages เป็น LangChain format
         const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);
         
-        // เรียก agent executor พร้อม streaming
-        const result = await agentExecutor.invoke({
+        // เรียก agent executor พร้อม streaming แบบต่อเนื่อง
+        let contentReceived = false;
+        let finalAnswer = '';
+        
+        const stream = await agentExecutor.stream({
           input: messages[messages.length - 1].content,
           maxIterations: maxSteps
         }, {
@@ -90,10 +93,10 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
             {
               handleLLMStart: async (llm, prompts) => {
                 console.log(`🤖 LangChain LLM started`);
-                // ไม่ส่ง event เริ่มต้นเพื่อหลีกเลี่ยงข้อความซ้ำ
               },
               handleLLMNewToken: async (token) => {
                 console.log(`🤖 LangChain new token: ${token}`);
+                contentReceived = true;
                 if (onEvent) onEvent({ type: 'chunk', data: token });
               },
               handleLLMError: async (error) => {
@@ -105,11 +108,10 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
               },
               handleChainEnd: async (output) => {
                 console.log(`🔗 LangChain chain ended`);
-                // ไม่ส่ง event เพื่อหลีกเลี่ยงการซ้ำ
               },
               handleLLMEnd: async (output) => {
                 console.log(`🤖 LangChain LLM ended`);
-                const finalAnswer = output.generations[0][0].text;
+                finalAnswer = output.generations[0][0].text;
                 
                 // Check if there are tool calls
                 const generation = output.generations[0][0] as any;
@@ -119,8 +121,6 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
                     console.log(`🔧 Tool call: ${toolCall.name} with args: ${JSON.stringify(toolCall.args)}`);
                   }
                 }
-                
-                if (onEvent) onEvent({ type: 'end', data: { answer: finalAnswer } });
               },
               handleToolStart: async (tool) => {
                 console.log(`🔧 LangChain tool started: ${tool.name}`);
@@ -152,9 +152,19 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
           ]
         });
         
-        console.log(`🤖 LangChain Agent result: ${result.output.substring(0, 100)}...`);
+        // Collect the final result
+        for await (const chunk of stream) {
+          if (chunk.output) {
+            finalAnswer = chunk.output;
+          }
+        }
         
-        return result.output;
+        // Send end event with final answer
+        if (onEvent) onEvent({ type: 'end', data: { answer: finalAnswer } });
+        
+        console.log(`🤖 LangChain Agent result: ${finalAnswer.substring(0, 100)}...`);
+        
+        return finalAnswer;
       } catch (error) {
         console.error('❌ Error in LangChain Agent:', error);
         throw error;

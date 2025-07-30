@@ -38,7 +38,9 @@ async function createLangChainAgent(config) {
                     await setupHybridMemory(config.sessionId, messages);
                 }
                 const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);
-                const result = await agentExecutor.invoke({
+                let contentReceived = false;
+                let finalAnswer = '';
+                const stream = await agentExecutor.stream({
                     input: messages[messages.length - 1].content,
                     maxIterations: maxSteps
                 }, {
@@ -49,6 +51,7 @@ async function createLangChainAgent(config) {
                             },
                             handleLLMNewToken: async (token) => {
                                 console.log(`🤖 LangChain new token: ${token}`);
+                                contentReceived = true;
                                 if (onEvent)
                                     onEvent({ type: 'chunk', data: token });
                             },
@@ -65,7 +68,7 @@ async function createLangChainAgent(config) {
                             },
                             handleLLMEnd: async (output) => {
                                 console.log(`🤖 LangChain LLM ended`);
-                                const finalAnswer = output.generations[0][0].text;
+                                finalAnswer = output.generations[0][0].text;
                                 const generation = output.generations[0][0];
                                 if (generation.tool_calls && generation.tool_calls.length > 0) {
                                     console.log(`🔧 Found ${generation.tool_calls.length} tool calls`);
@@ -73,8 +76,6 @@ async function createLangChainAgent(config) {
                                         console.log(`🔧 Tool call: ${toolCall.name} with args: ${JSON.stringify(toolCall.args)}`);
                                     }
                                 }
-                                if (onEvent)
-                                    onEvent({ type: 'end', data: { answer: finalAnswer } });
                             },
                             handleToolStart: async (tool) => {
                                 console.log(`🔧 LangChain tool started: ${tool.name}`);
@@ -108,8 +109,15 @@ async function createLangChainAgent(config) {
                         }
                     ]
                 });
-                console.log(`🤖 LangChain Agent result: ${result.output.substring(0, 100)}...`);
-                return result.output;
+                for await (const chunk of stream) {
+                    if (chunk.output) {
+                        finalAnswer = chunk.output;
+                    }
+                }
+                if (onEvent)
+                    onEvent({ type: 'end', data: { answer: finalAnswer } });
+                console.log(`🤖 LangChain Agent result: ${finalAnswer.substring(0, 100)}...`);
+                return finalAnswer;
             }
             catch (error) {
                 console.error('❌ Error in LangChain Agent:', error);
