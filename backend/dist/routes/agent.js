@@ -106,7 +106,7 @@ router.delete('/:id', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.get('/templates/all', auth_1.authenticateJWT, async (req, res) => {
+router.get('/templates_all', auth_1.authenticateJWT, async (req, res) => {
     try {
         const templates = await agentService_1.agentService.getAgentTemplates();
         return res.json(templates);
@@ -186,7 +186,7 @@ router.get('/search/:query', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.get('/tools/available', auth_1.authenticateJWT, async (req, res) => {
+router.get('/tools_available', auth_1.authenticateJWT, async (req, res) => {
     try {
         const tools = advancedToolService_1.advancedToolService.getAllTools();
         const toolInfo = tools.map(tool => ({

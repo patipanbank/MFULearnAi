@@ -34,7 +34,7 @@ router.delete('/collections/:name', async (req: Request, res: Response) => {
 });
 
 // Add documents to a collection
-router.post('/collections/add/:name', async (req: Request, res: Response) => {
+router.post('/collections_add/:name', async (req: Request, res: Response) => {
   const { documents, embeddings, metadatas, ids } = req.body;
   try {
     const result = await chromaService.addToCollection(req.params.name, documents, embeddings, metadatas, ids);
@@ -45,7 +45,7 @@ router.post('/collections/add/:name', async (req: Request, res: Response) => {
 });
 
 // Query a collection
-router.post('/collections/query/:name', async (req: Request, res: Response) => {
+router.post('/collections_query/:name', async (req: Request, res: Response) => {
   const { queryEmbeddings, nResults } = req.body;
   try {
     const result = await chromaService.queryCollection(req.params.name, queryEmbeddings, nResults);
@@ -56,7 +56,7 @@ router.post('/collections/query/:name', async (req: Request, res: Response) => {
 });
 
 // Get documents from a collection
-router.get('/collections/documents/:name', async (req: Request, res: Response) => {
+router.get('/collections_documents/:name', async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 100;
   const offset = parseInt(req.query.offset as string) || 0;
   try {
@@ -68,7 +68,7 @@ router.get('/collections/documents/:name', async (req: Request, res: Response) =
 });
 
 // Delete documents by ids
-router.post('/collections/delete_documents/:name', async (req: Request, res: Response) => {
+router.post('/collections_delete_documents/:name', async (req: Request, res: Response) => {
   const { ids } = req.body;
   try {
     await chromaService.deleteDocuments(req.params.name, ids);

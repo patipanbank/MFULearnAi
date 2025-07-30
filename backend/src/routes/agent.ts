@@ -118,7 +118,7 @@ router.delete('/:id', authenticateJWT, async (req: any, res) => {
 });
 
 // Get agent templates
-router.get('/templates/all', authenticateJWT, async (req: any, res) => {
+router.get('/templates_all', authenticateJWT, async (req: any, res) => {
   try {
     const templates = await agentService.getAgentTemplates();
     return res.json(templates);
@@ -205,7 +205,7 @@ router.get('/search/:query', authenticateJWT, async (req: any, res) => {
 });
 
 // Get available tools
-router.get('/tools/available', authenticateJWT, async (req: any, res) => {
+router.get('/tools_available', authenticateJWT, async (req: any, res) => {
   try {
     const tools = advancedToolService.getAllTools();
     const toolInfo = tools.map(tool => ({
