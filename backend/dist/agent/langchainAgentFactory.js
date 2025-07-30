@@ -139,7 +139,7 @@ ${systemPrompt}
 You have access to various tools to help answer questions. When you need to use a tool, the system will automatically provide it for you.
 
 Please provide clear, helpful responses to user questions.`],
-        ["human", "{input}"]
+        ["human", "Question: {input}\nThought: {agent_scratchpad}"]
     ]);
     return template;
 }
