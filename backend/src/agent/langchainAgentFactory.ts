@@ -157,11 +157,27 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
     
     // เพิ่ม description ที่ชัดเจนสำหรับแต่ละ tool
     if (name === 'web_search') {
-      description = 'Search the web for current information. Use this tool when you need to find recent or up-to-date information about any topic.';
+      description = 'Search the web for current information. Use this tool when you need to find recent or up-to-date information about any topic. Input should be a search query.';
     } else if (name === 'calculator') {
-      description = 'Perform mathematical calculations. Use this tool when you need to solve math problems or perform calculations.';
-    } else if (name === 'memory') {
-      description = 'Access conversation memory and context. Use this tool to retrieve information from previous conversations.';
+      description = 'Perform mathematical calculations. Use this tool when you need to solve math problems or perform calculations. Input should be a mathematical expression.';
+    } else if (name === 'current_date') {
+      description = 'Get the current date and time. Use this tool when you need to know the current date or time.';
+    } else if (name === 'memory_search') {
+      description = 'Search through conversation memory to find relevant context from previous messages. Use this tool when you need to recall information from earlier in the conversation.';
+    } else if (name === 'memory_embed') {
+      description = 'Embed new information into conversation memory for future reference. Use this tool to store important information from the current conversation.';
+    } else if (name.startsWith('search_chat_memory_')) {
+      description = 'Search through the current chat session history to find relevant context. Use this tool to recall information from this specific conversation.';
+    } else if (name.startsWith('embed_chat_memory_')) {
+      description = 'Embed new message into chat memory for this session. Use this tool to store important information from the current conversation.';
+    } else if (name.startsWith('recent_context_')) {
+      description = 'Get recent context from memory (last 10 messages). Use this tool to get a summary of recent conversation history.';
+    } else if (name.startsWith('full_context_')) {
+      description = 'Get full conversation context from memory. Use this tool to get the complete conversation history.';
+    } else if (name.startsWith('clear_memory_')) {
+      description = 'Clear all chat memory for this session. Use this tool to reset the conversation memory.';
+    } else if (name.startsWith('memory_stats_')) {
+      description = 'Get memory usage statistics for this session. Use this tool to check memory usage.';
     }
     
     const langchainTool = new DynamicTool({
@@ -195,9 +211,21 @@ function createAgentPrompt(systemPrompt: string): ChatPromptTemplate {
 
 ${systemPrompt}
 
-You have access to tools to help answer questions. When you need to search for information, use the web_search tool. When you need to calculate something, use the calculator tool.
+You have access to the following tools:
+- web_search: Search the web for current information
+- calculator: Perform mathematical calculations
+- current_date: Get current date and time
+- memory_search: Search conversation memory
+- memory_embed: Store information in memory
+- Various session-specific memory tools
 
-IMPORTANT: If the user asks you to search for information, you MUST use the web_search tool. Do not try to answer without using the appropriate tool.
+IMPORTANT INSTRUCTIONS:
+1. If the user asks you to search for information, you MUST use the web_search tool
+2. If the user asks for calculations, use the calculator tool
+3. If you need to recall previous conversation context, use memory tools
+4. Always use the appropriate tool when needed - do not try to answer without tools
+5. When using web_search, provide the search query as input
+6. When using calculator, provide the mathematical expression as input
 
 Please provide clear, helpful responses to user questions.`],
     ["human", "Question: {input}\nThought: {agent_scratchpad}"]

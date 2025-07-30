@@ -152,7 +152,7 @@ class ChatService {
             }
             const assistantMessage = await this.addMessage(chatId, {
                 role: 'assistant',
-                content: 'กำลังประมวลผล...',
+                content: '',
             });
             console.log(`🤖 Starting agent.run with ${messages.length} messages`);
             let fullContent = '';

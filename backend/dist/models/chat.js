@@ -52,9 +52,9 @@ const ChatMessageSchema = new mongoose_1.Schema({
         default: '',
         validate: {
             validator: function (v) {
-                return v !== undefined && v !== null && v !== '';
+                return v !== undefined && v !== null;
             },
-            message: 'Content cannot be undefined, null, or empty'
+            message: 'Content cannot be undefined or null'
         }
     },
     timestamp: { type: Date, default: Date.now },
