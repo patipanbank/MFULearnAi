@@ -263,9 +263,9 @@ export class AnalyticsService {
       const redis = this.getRedis();
       const events = await redis.lrange(key, 0, -1);
       return events
-        .map(event => JSON.parse(event))
-        .filter(event => new Date(event.timestamp).getTime() > cutoff)
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        .map((event: any) => JSON.parse(event))
+        .filter((event: any) => new Date(event.timestamp).getTime() > cutoff)
+        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } catch (error) {
       logError(`Failed to get recent events for ${key}`, error);
       return [];
