@@ -211,20 +211,39 @@ class ChatService {
                     }
                     else if (event.type === 'tool_start') {
                         console.log(`🔧 Tool started: ${event.data.tool_name}`);
+                        console.log(`🔧 Tool input: ${event.data.tool_input}`);
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_start', data: event.data }));
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                type: 'tool_start',
+                                data: {
+                                    tool_name: event.data.tool_name,
+                                    tool_input: event.data.tool_input
+                                }
+                            }));
                         }
                     }
                     else if (event.type === 'tool_result') {
                         console.log(`🔧 Tool completed: ${event.data.tool_name} with result: ${event.data.output.substring(0, 100)}...`);
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_result', data: event.data }));
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                type: 'tool_result',
+                                data: {
+                                    tool_name: event.data.tool_name,
+                                    output: event.data.output
+                                }
+                            }));
                         }
                     }
                     else if (event.type === 'tool_error') {
                         console.error(`❌ Tool error: ${event.data.error}`);
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_error', data: event.data }));
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                type: 'tool_error',
+                                data: {
+                                    tool_name: event.data.tool_name,
+                                    error: event.data.error
+                                }
+                            }));
                         }
                     }
                     else if (event.type === 'end') {

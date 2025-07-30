@@ -17,7 +17,7 @@ async function createLangChainAgent(config) {
     });
     const langchainTools = convertToolsToLangChain(config.tools, config.sessionId);
     const prompt = createAgentPrompt(config.systemPrompt);
-    const agent = await (0, agents_1.createOpenAIFunctionsAgent)({
+    const agent = await (0, agents_1.createToolCallingAgent)({
         llm,
         tools: langchainTools,
         prompt
@@ -78,13 +78,26 @@ async function createLangChainAgent(config) {
                             },
                             handleToolStart: async (tool) => {
                                 console.log(`🔧 LangChain tool started: ${tool.name}`);
+                                console.log(`🔧 Tool data: ${JSON.stringify(tool)}`);
                                 if (onEvent)
-                                    onEvent({ type: 'tool_start', data: { tool_name: tool.name } });
+                                    onEvent({
+                                        type: 'tool_start',
+                                        data: {
+                                            tool_name: tool.name,
+                                            tool_input: tool.input || ''
+                                        }
+                                    });
                             },
                             handleToolEnd: async (output) => {
                                 console.log(`🔧 LangChain tool ended: ${output.name} with result: ${output.output}`);
                                 if (onEvent)
-                                    onEvent({ type: 'tool_result', data: { tool_name: output.name, output: output.output } });
+                                    onEvent({
+                                        type: 'tool_result',
+                                        data: {
+                                            tool_name: output.name,
+                                            output: output.output
+                                        }
+                                    });
                             },
                             handleToolError: async (error) => {
                                 console.error(`❌ LangChain tool error: ${error}`);
@@ -250,7 +263,7 @@ Available tools:
 - Various session-specific memory tools
 - Knowledge base search tools
 
-CRITICAL: You MUST use tools when appropriate. Do not just say you will use a tool - actually call the tool function.`;
+CRITICAL: You MUST use tools when appropriate. Do not just say you will use a tool - actually call the tool function. When the user asks for current information, you MUST use web_search to get the latest data.`;
     return prompts_1.ChatPromptTemplate.fromMessages([
         ["system", legacyPrompt],
         ["human", "Question: {input}\nThought: {agent_scratchpad}"]
