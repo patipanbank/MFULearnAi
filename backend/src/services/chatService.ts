@@ -273,14 +273,17 @@ export class ChatService {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
             }
           } else if (event.type === 'tool_start') {
+            console.log(`🔧 Tool started: ${event.data.tool_name}`);
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_start', data: event.data }));
             }
           } else if (event.type === 'tool_result') {
+            console.log(`🔧 Tool completed: ${event.data.tool_name} with result: ${event.data.output.substring(0, 100)}...`);
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_result', data: event.data }));
             }
           } else if (event.type === 'tool_error') {
+            console.error(`❌ Tool error: ${event.data.error}`);
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_error', data: event.data }));
             }

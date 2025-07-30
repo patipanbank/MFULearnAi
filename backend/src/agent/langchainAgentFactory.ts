@@ -33,6 +33,7 @@ export interface LangChainAgentExecutor {
  * สร้าง LangChain Agent ที่ใช้ LangChain Agent framework เต็มรูปแบบ
  * - เพิ่ม hybrid memory management (Redis + Vectorstore)
  * - รองรับ streaming events แบบ legacy
+ * - แก้ไขการเรียกใช้ tool จริงๆ
  */
 export async function createLangChainAgent(config: LangChainAgentConfig): Promise<LangChainAgentExecutor> {
   console.log(`🤖 Creating LangChain Agent with model: ${config.modelId}`);
@@ -60,7 +61,8 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
   const agentExecutor = AgentExecutor.fromAgentAndTools({
     agent,
     tools: langchainTools,
-    verbose: true
+    verbose: true,
+    maxIterations: 5
   });
   
   return {
@@ -81,7 +83,7 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
         
         // เรียก agent executor พร้อม streaming
         const result = await agentExecutor.invoke({
-          input: langchainMessages,
+          input: messages[messages.length - 1].content,
           maxIterations: maxSteps
         }, {
           callbacks: [
@@ -108,6 +110,16 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
               handleLLMEnd: async (output) => {
                 console.log(`🤖 LangChain LLM ended`);
                 const finalAnswer = output.generations[0][0].text;
+                
+                // Check if there are tool calls
+                const generation = output.generations[0][0] as any;
+                if (generation.tool_calls && generation.tool_calls.length > 0) {
+                  console.log(`🔧 Found ${generation.tool_calls.length} tool calls`);
+                  for (const toolCall of generation.tool_calls) {
+                    console.log(`🔧 Tool call: ${toolCall.name} with args: ${JSON.stringify(toolCall.args)}`);
+                  }
+                }
+                
                 if (onEvent) onEvent({ type: 'end', data: { answer: finalAnswer } });
               },
               handleToolStart: async (tool) => {
@@ -115,7 +127,7 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
                 if (onEvent) onEvent({ type: 'tool_start', data: { tool_name: tool.name } });
               },
               handleToolEnd: async (output) => {
-                console.log(`🔧 LangChain tool ended: ${output.name}`);
+                console.log(`🔧 LangChain tool ended: ${output.name} with result: ${output.output}`);
                 if (onEvent) onEvent({ type: 'tool_result', data: { tool_name: output.name, output: output.output } });
               },
               handleToolError: async (error) => {
@@ -269,7 +281,7 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
 }
 
 /**
- * สร้าง prompt template สำหรับ agent (เหมือน Legacy)
+ * สร้าง prompt template สำหรับ agent (เหมือน Legacy) - แก้ไขให้เรียกใช้ tool จริงๆ
  */
 function createAgentPrompt(systemPrompt: string): ChatPromptTemplate {
   const defaultPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
@@ -298,11 +310,11 @@ Available tools:
 - Various session-specific memory tools
 - Knowledge base search tools
 
-Please provide clear, helpful responses to user questions.`;
+CRITICAL: You MUST use tools when appropriate. Do not just say you will use a tool - actually call the tool function.`;
 
   return ChatPromptTemplate.fromMessages([
     ["system", legacyPrompt],
-    ["human", "Question: {input}\nThought: {agent_scratchpad}"]
+    ["human", "{input}"]
   ]);
 }
 
