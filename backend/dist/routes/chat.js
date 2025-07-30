@@ -75,7 +75,7 @@ router.get('/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.post('/messages/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.post('/:chatId/messages', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const { message, images } = req.body;
@@ -113,7 +113,7 @@ router.post('/messages/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.put('/name/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.put('/:chatId/name', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const { name } = req.body;
@@ -151,7 +151,7 @@ router.put('/name/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.put('/pin/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.put('/:chatId/pin', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const { isPinned } = req.body;
@@ -226,7 +226,7 @@ router.delete('/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.post('/clear/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.post('/:chatId/clear', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const userId = req.user.id;
@@ -263,7 +263,7 @@ router.post('/clear/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.get('/messages/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.get('/:chatId/messages', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const { page = 1, limit = 50 } = req.query;
@@ -295,7 +295,7 @@ router.get('/messages/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.delete('/messages/:chatId', auth_1.authenticateJWT, async (req, res) => {
+router.delete('/:chatId/messages', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { chatId } = req.params;
         const userId = req.user.id;

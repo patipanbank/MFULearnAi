@@ -87,7 +87,7 @@ router.get('/:chatId', authenticateJWT, async (req: any, res) => {
 });
 
 // Send message to chat
-router.post('/messages/:chatId', authenticateJWT, async (req: any, res) => {
+router.post('/:chatId/messages', authenticateJWT, async (req: any, res) => {
   try {
     const { chatId } = req.params;
     const { message, images } = req.body;
@@ -133,7 +133,7 @@ router.post('/messages/:chatId', authenticateJWT, async (req: any, res) => {
 });
 
 // Update chat name
-router.put('/name/:chatId', authenticateJWT, async (req: any, res) => {
+router.put('/:chatId/name', authenticateJWT, async (req: any, res) => {
   try {
     const { chatId } = req.params;
     const { name } = req.body;
@@ -178,7 +178,7 @@ router.put('/name/:chatId', authenticateJWT, async (req: any, res) => {
 });
 
 // Update chat pin status
-router.put('/pin/:chatId', authenticateJWT, async (req: any, res) => {
+router.put('/:chatId/pin', authenticateJWT, async (req: any, res) => {
   try {
     const { chatId } = req.params;
     const { isPinned } = req.body;
@@ -267,7 +267,7 @@ router.delete('/:chatId', authenticateJWT, async (req: any, res) => {
 });
 
 // Clear chat memory
-router.post('/clear/:chatId', authenticateJWT, async (req: any, res) => {
+router.post('/:chatId/clear', authenticateJWT, async (req: any, res) => {
   try {
     const { chatId } = req.params;
     const userId = req.user.id;
@@ -311,7 +311,7 @@ router.post('/clear/:chatId', authenticateJWT, async (req: any, res) => {
 });
 
 // Get chat messages
-router.get('/messages/:chatId', authenticateJWT, async (req: any, res) => {
+router.get('/:chatId/messages', authenticateJWT, async (req: any, res) => {
   try {
     const { chatId } = req.params;
     const { page = 1, limit = 50 } = req.query;
@@ -349,7 +349,7 @@ router.get('/messages/:chatId', authenticateJWT, async (req: any, res) => {
 });
 
 // Clear chat messages
-router.delete('/messages/:chatId', authenticateJWT, async (req: any, res) => {
+router.delete('/:chatId/messages', authenticateJWT, async (req: any, res) => {
   try {
     const { chatId } = req.params;
     const userId = req.user.id;

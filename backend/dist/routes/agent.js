@@ -226,7 +226,7 @@ router.get('/tools/:name', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.post('/test/:id', auth_1.authenticateJWT, async (req, res) => {
+router.post('/:id/test', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { id } = req.params;
         const { message } = req.body;
@@ -259,7 +259,7 @@ router.post('/test/:id', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.get('/stats/:id', auth_1.authenticateJWT, async (req, res) => {
+router.get('/:id/stats', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { id } = req.params;
         const agent = await agentService_1.agentService.getAgentById(id);

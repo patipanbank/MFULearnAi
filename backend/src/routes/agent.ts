@@ -250,7 +250,7 @@ router.get('/tools/:name', authenticateJWT, async (req: any, res) => {
 });
 
 // Test agent (for development/testing)
-router.post('/test/:id', authenticateJWT, async (req: any, res) => {
+router.post('/:id/test', authenticateJWT, async (req: any, res) => {
   try {
     const { id } = req.params;
     const { message } = req.body;
@@ -289,7 +289,7 @@ router.post('/test/:id', authenticateJWT, async (req: any, res) => {
 });
 
 // Get agent statistics
-router.get('/stats/:id', authenticateJWT, async (req: any, res) => {
+router.get('/:id/stats', authenticateJWT, async (req: any, res) => {
   try {
     const { id } = req.params;
     const agent = await agentService.getAgentById(id);
