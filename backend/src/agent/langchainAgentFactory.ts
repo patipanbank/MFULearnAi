@@ -47,6 +47,8 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
   // 2. แปลง tools เป็น LangChain Tools
   const langchainTools = convertToolsToLangChain(config.tools, config.sessionId);
   
+  console.log(`🔧 Available tools for agent: ${langchainTools.map(t => t.name).join(', ')}`);
+  
   // 3. สร้าง prompt template
   const prompt = createAgentPrompt(config.systemPrompt);
   
@@ -86,9 +88,13 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
         let finalAnswer = '';
         
         // สร้าง input พร้อม chat history (เหมือน Legacy)
+        const chatHistory = messages.slice(0, -1).map(msg => 
+          `${msg.role}: ${msg.content}`
+        ).join('\n');
+        
         const agentInput = {
           input: messages[messages.length - 1].content,
-          chat_history: messages.slice(0, -1) // ส่งประวัติการสนทนา
+          chat_history: chatHistory
         };
         
         const stream = await agentExecutor.stream(agentInput, {
@@ -246,6 +252,9 @@ function createLLM(modelId: string, config: { temperature?: number; maxTokens?: 
 function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessionId?: string): DynamicTool[] {
   const langchainTools: DynamicTool[] = [];
   
+  console.log(`🔧 Converting ${Object.keys(tools).length} tools to LangChain format`);
+  console.log(`🔧 Session ID: ${sessionId}`);
+  
   for (const [name, toolFn] of Object.entries(tools)) {
     let description = `Tool: ${name}`;
     
@@ -275,6 +284,8 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
     } else if (name.startsWith('search_')) {
       description = `Search and retrieve information from the knowledge base. Use this when you need specific information.`;
     }
+    
+    console.log(`🔧 Creating LangChain tool: ${name} - ${description.substring(0, 50)}...`);
     
     const langchainTool = new DynamicTool({
       name,
@@ -327,6 +338,7 @@ IMPORTANT INSTRUCTIONS:
 7. When using knowledge base search, provide the search query as input
 8. Use memory tools to maintain conversation context across long conversations
 9. Hybrid memory management: Redis for recent messages, Vectorstore for long-term storage
+10. IMPORTANT: If the user gives you a specific instruction (like "answer only with X"), you MUST follow that instruction exactly
 
 Available tools:
 - web_search: Search the web for current information
@@ -341,7 +353,7 @@ CRITICAL: You MUST use tools when appropriate. Do not just say you will use a to
 
   return ChatPromptTemplate.fromMessages([
     ["system", legacyPrompt],
-    ["human", "Question: {input}\nThought: {agent_scratchpad}"]
+    ["human", "Chat History: {chat_history}\nQuestion: {input}\nThought: {agent_scratchpad}"]
   ]);
 }
 

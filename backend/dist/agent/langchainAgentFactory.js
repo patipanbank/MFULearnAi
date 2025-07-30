@@ -16,6 +16,7 @@ async function createLangChainAgent(config) {
         maxTokens: config.maxTokens || 4000
     });
     const langchainTools = convertToolsToLangChain(config.tools, config.sessionId);
+    console.log(`🔧 Available tools for agent: ${langchainTools.map(t => t.name).join(', ')}`);
     const prompt = createAgentPrompt(config.systemPrompt);
     const agent = await (0, agents_1.createToolCallingAgent)({
         llm,
@@ -40,9 +41,10 @@ async function createLangChainAgent(config) {
                 const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);
                 let contentReceived = false;
                 let finalAnswer = '';
+                const chatHistory = messages.slice(0, -1).map(msg => `${msg.role}: ${msg.content}`).join('\n');
                 const agentInput = {
                     input: messages[messages.length - 1].content,
-                    chat_history: messages.slice(0, -1)
+                    chat_history: chatHistory
                 };
                 const stream = await agentExecutor.stream(agentInput, {
                     callbacks: [
@@ -179,6 +181,8 @@ function createLLM(modelId, config) {
 }
 function convertToolsToLangChain(tools, sessionId) {
     const langchainTools = [];
+    console.log(`🔧 Converting ${Object.keys(tools).length} tools to LangChain format`);
+    console.log(`🔧 Session ID: ${sessionId}`);
     for (const [name, toolFn] of Object.entries(tools)) {
         let description = `Tool: ${name}`;
         if (name === 'web_search') {
@@ -217,6 +221,7 @@ function convertToolsToLangChain(tools, sessionId) {
         else if (name.startsWith('search_')) {
             description = `Search and retrieve information from the knowledge base. Use this when you need specific information.`;
         }
+        console.log(`🔧 Creating LangChain tool: ${name} - ${description.substring(0, 50)}...`);
         const langchainTool = new tools_1.DynamicTool({
             name,
             description,
@@ -263,6 +268,7 @@ IMPORTANT INSTRUCTIONS:
 7. When using knowledge base search, provide the search query as input
 8. Use memory tools to maintain conversation context across long conversations
 9. Hybrid memory management: Redis for recent messages, Vectorstore for long-term storage
+10. IMPORTANT: If the user gives you a specific instruction (like "answer only with X"), you MUST follow that instruction exactly
 
 Available tools:
 - web_search: Search the web for current information
@@ -276,7 +282,7 @@ Available tools:
 CRITICAL: You MUST use tools when appropriate. Do not just say you will use a tool - actually call the tool function. When the user asks for current information, you MUST use web_search to get the latest data.`;
     return prompts_1.ChatPromptTemplate.fromMessages([
         ["system", legacyPrompt],
-        ["human", "Question: {input}\nThought: {agent_scratchpad}"]
+        ["human", "Chat History: {chat_history}\nQuestion: {input}\nThought: {agent_scratchpad}"]
     ]);
 }
 function convertMessagesToLangChain(messages, systemPrompt) {
