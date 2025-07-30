@@ -23,8 +23,8 @@ passport_1.default.use('saml', new passport_saml_1.Strategy((0, samlService_1.ge
 }, (profile, done) => {
     return done(null, profile || undefined);
 }));
-router.get('/login_saml', passport_1.default.authenticate('saml', { failureRedirect: '/login', failureFlash: true }));
-router.post('/saml_callback', (req, res, next) => {
+router.get('/login/saml', passport_1.default.authenticate('saml', { failureRedirect: '/login', failureFlash: true }));
+router.post('/saml/callback', (req, res, next) => {
     passport_1.default.authenticate('saml', { failureRedirect: '/login', failureFlash: true }, async (err, profile, info) => {
         if (err) {
             console.error('❌ SAML authentication error:', err);
@@ -72,7 +72,7 @@ router.post('/saml_callback', (req, res, next) => {
         }
     })(req, res, next);
 });
-router.get('/saml_callback', (req, res, next) => {
+router.get('/saml/callback', (req, res, next) => {
     passport_1.default.authenticate('saml', { failureRedirect: '/login', failureFlash: true }, async (err, profile, info) => {
         if (err) {
             console.error('❌ SAML authentication error:', err);
@@ -131,20 +131,20 @@ router.get('/metadata', (req, res) => {
         res.send(samlStrategy.generateServiceProviderMetadata(null));
     }
 });
-router.get('/logout_saml', (req, res) => {
+router.get('/logout/saml', (req, res) => {
     const { name_id, session_index } = req.query;
     console.log(`SAML logout requested - name_id: ${name_id}, session_index: ${session_index}`);
     return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?logged_out=true`);
 });
-router.get('/logout_saml_manual', (req, res) => {
+router.get('/logout/saml/manual', (req, res) => {
     console.log('Manual return from SAML logout');
     return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?saml_logged_out=true&manual=true`);
 });
-router.post('/logout_saml_callback', (req, res) => {
+router.post('/logout/saml/callback', (req, res) => {
     console.log('SAML logout callback received (POST)');
     return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?saml_logged_out=true`);
 });
-router.get('/logout_saml_callback', (req, res) => {
+router.get('/logout/saml/callback', (req, res) => {
     console.log('SAML logout callback received (GET)');
     const { SAMLResponse, SAMLRequest, RelayState } = req.query;
     console.log(`GET request - SAMLResponse: ${SAMLResponse ? 'present' : 'not present'}`);
@@ -156,7 +156,7 @@ router.get('/logout_saml_callback', (req, res) => {
     }
     return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?saml_logged_out=true`);
 });
-router.post('/admin_login', async (req, res) => {
+router.post('/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         if (!username || !password) {
