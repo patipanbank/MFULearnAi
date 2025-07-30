@@ -84,11 +84,11 @@ router.post('/saml/callback', (req: Request, res: Response, next: NextFunction) 
 
       // Redirect to frontend with token
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+      return res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
 
     } catch (error) {
       console.error('❌ Error processing SAML callback:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: 'Failed to process authentication'
       });
@@ -144,11 +144,11 @@ router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) =
 
       // Redirect to frontend with token
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+      return res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
 
     } catch (error) {
       console.error('❌ Error processing SAML callback:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: 'Failed to process authentication'
       });
@@ -158,7 +158,7 @@ router.get('/saml/callback', (req: Request, res: Response, next: NextFunction) =
 
 // SAML Metadata
 router.get('/metadata', (req: Request, res: Response) => {
-  const samlStrategy = new SamlStrategy(getSamlConfig(), (() => {}) as any);
+  const samlStrategy = new SamlStrategy(getSamlConfig(), (() => {}) as any, (() => {}) as any);
   res.type('application/xml');
   const cert = process.env.SAML_CERTIFICATE ? process.env.SAML_CERTIFICATE.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\n/g, '').trim() : undefined;
   if (cert) {

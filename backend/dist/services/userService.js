@@ -130,7 +130,7 @@ class UserService {
             return user;
         }
         catch (error) {
-            console.error('❌ Error in findOrCreateSamlUser:', error);
+            console.error('❌ Error in find_or_create_saml_user:', error);
             throw error;
         }
     }
@@ -139,7 +139,7 @@ class UserService {
             return await user_1.User.findOne({
                 username,
                 role: { $in: ['admin', 'superadmin'] }
-            });
+            }).exec();
         }
         catch (error) {
             console.error('❌ Error finding admin by username:', error);

@@ -4,7 +4,6 @@ export interface LLMOptions {
     model?: string;
     accessKeyId?: string;
     secretAccessKey?: string;
-    systemPrompt?: string;
     maxTokens?: number;
     temperature?: number;
 }

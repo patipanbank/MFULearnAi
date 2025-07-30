@@ -138,7 +138,7 @@ class ChatService {
                 type: 'user_message',
                 data: userMessage
             }));
-            const agent = await agentService_1.agentService.getAgentById(chat.agentId);
+            const agent = await agentService_1.agentService.getAgentById(chat.agentId || '');
             if (!agent) {
                 throw new Error('Agent not found');
             }
