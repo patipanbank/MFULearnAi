@@ -5,14 +5,8 @@ const redis_1 = require("../lib/redis");
 const logger_1 = require("../utils/logger");
 class AnalyticsService {
     constructor() {
-        this.redis = null;
+        this.redis = (0, redis_1.getRedis)();
         console.log('✅ Analytics service initialized');
-    }
-    getRedis() {
-        if (!this.redis) {
-            this.redis = (0, redis_1.getRedis)();
-        }
-        return this.redis;
     }
     async trackUserActivity(userId, action, metadata) {
         try {
@@ -22,11 +16,10 @@ class AnalyticsService {
                 metadata: { action, ...metadata },
                 timestamp: new Date()
             };
-            const redis = this.getRedis();
-            await redis.lpush('analytics:user_activity', JSON.stringify(event));
-            await redis.expire('analytics:user_activity', 86400 * 7);
-            await redis.sadd('analytics:active_users', userId);
-            await redis.expire('analytics:active_users', 3600);
+            await this.redis.lpush('analytics:user_activity', JSON.stringify(event));
+            await this.redis.expire('analytics:user_activity', 86400 * 7);
+            await this.redis.sadd('analytics:active_users', userId);
+            await this.redis.expire('analytics:active_users', 3600);
             (0, logger_1.logInfo)(`User activity tracked: ${action}`, { userId, action, metadata });
         }
         catch (error) {
@@ -43,11 +36,10 @@ class AnalyticsService {
                 metadata,
                 timestamp: new Date()
             };
-            const redis = this.getRedis();
-            await redis.lpush('analytics:agent_usage', JSON.stringify(event));
-            await redis.expire('analytics:agent_usage', 86400 * 30);
-            await redis.hincrby('analytics:agent_stats', agentId, 1);
-            await redis.expire('analytics:agent_stats', 86400 * 30);
+            await this.redis.lpush('analytics:agent_usage', JSON.stringify(event));
+            await this.redis.expire('analytics:agent_usage', 86400 * 30);
+            await this.redis.hincrby('analytics:agent_stats', agentId, 1);
+            await this.redis.expire('analytics:agent_stats', 86400 * 30);
             (0, logger_1.logAgentEvent)('usage', { agentId, userId, duration, metadata });
         }
         catch (error) {
@@ -64,11 +56,10 @@ class AnalyticsService {
                 metadata: { input, output },
                 timestamp: new Date()
             };
-            const redis = this.getRedis();
-            await redis.lpush('analytics:tool_usage', JSON.stringify(event));
-            await redis.expire('analytics:tool_usage', 86400 * 30);
-            await redis.hincrby('analytics:tool_stats', toolName, 1);
-            await redis.expire('analytics:tool_stats', 86400 * 30);
+            await this.redis.lpush('analytics:tool_usage', JSON.stringify(event));
+            await this.redis.expire('analytics:tool_usage', 86400 * 30);
+            await this.redis.hincrby('analytics:tool_stats', toolName, 1);
+            await this.redis.expire('analytics:tool_stats', 86400 * 30);
             (0, logger_1.logToolUsage)(toolName, input, output, duration);
         }
         catch (error) {
@@ -84,9 +75,8 @@ class AnalyticsService {
                 metadata: { eventType, ...metadata },
                 timestamp: new Date()
             };
-            const redis = this.getRedis();
-            await redis.lpush('analytics:chat_events', JSON.stringify(event));
-            await redis.expire('analytics:chat_events', 86400 * 7);
+            await this.redis.lpush('analytics:chat_events', JSON.stringify(event));
+            await this.redis.expire('analytics:chat_events', 86400 * 7);
             (0, logger_1.logInfo)(`Chat event tracked: ${eventType}`, { chatId, userId, eventType, metadata });
         }
         catch (error) {
@@ -101,9 +91,8 @@ class AnalyticsService {
                 metadata: { operation, ...metadata },
                 timestamp: new Date()
             };
-            const redis = this.getRedis();
-            await redis.lpush('analytics:performance', JSON.stringify(event));
-            await redis.expire('analytics:performance', 86400 * 7);
+            await this.redis.lpush('analytics:performance', JSON.stringify(event));
+            await this.redis.expire('analytics:performance', 86400 * 7);
             (0, logger_1.logPerformance)(operation, duration, metadata);
         }
         catch (error) {
@@ -135,10 +124,9 @@ class AnalyticsService {
             const toolUsage = await this.getRecentEvents('analytics:tool_usage', cutoff);
             const chatEvents = await this.getRecentEvents('analytics:chat_events', cutoff);
             const performance = await this.getRecentEvents('analytics:performance', cutoff);
-            const redis = this.getRedis();
-            const agentStats = await redis.hgetall('analytics:agent_stats');
-            const toolStats = await redis.hgetall('analytics:tool_stats');
-            const activeUsers = await redis.scard('analytics:active_users');
+            const agentStats = await this.redis.hgetall('analytics:agent_stats');
+            const toolStats = await this.redis.hgetall('analytics:tool_stats');
+            const activeUsers = await this.redis.scard('analytics:active_users');
             return {
                 timeRange,
                 events: {
@@ -185,10 +173,9 @@ class AnalyticsService {
             const averageResponseTime = totalDuration / totalRequests;
             const errorEvents = performanceEvents.filter(event => event.metadata?.error);
             const errorRate = (errorEvents.length / totalRequests) * 100;
-            const redis = this.getRedis();
-            const activeUsers = await redis.scard('analytics:active_users');
-            const agentStats = await redis.hgetall('analytics:agent_stats');
-            const toolStats = await redis.hgetall('analytics:tool_stats');
+            const activeUsers = await this.redis.scard('analytics:active_users');
+            const agentStats = await this.redis.hgetall('analytics:agent_stats');
+            const toolStats = await this.redis.hgetall('analytics:tool_stats');
             return {
                 totalRequests,
                 averageResponseTime,
@@ -205,11 +192,10 @@ class AnalyticsService {
     }
     async getRecentEvents(key, cutoff) {
         try {
-            const redis = this.getRedis();
-            const events = await redis.lrange(key, 0, -1);
+            const events = await this.redis.lrange(key, 0, -1);
             return events
-                .map((event) => JSON.parse(event))
-                .filter((event) => new Date(event.timestamp).getTime() > cutoff)
+                .map(event => JSON.parse(event))
+                .filter(event => new Date(event.timestamp).getTime() > cutoff)
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
         }
         catch (error) {
@@ -229,11 +215,10 @@ class AnalyticsService {
             for (const key of keys) {
                 const cutoff = Date.now() - (30 * 24 * 60 * 60 * 1000);
                 const events = await this.getRecentEvents(key, cutoff);
-                const redis = this.getRedis();
-                await redis.del(key);
+                await this.redis.del(key);
                 if (events.length > 0) {
-                    await redis.lpush(key, ...events.map(event => JSON.stringify(event)));
-                    await redis.expire(key, 86400 * 30);
+                    await this.redis.lpush(key, ...events.map(event => JSON.stringify(event)));
+                    await this.redis.expire(key, 86400 * 30);
                 }
             }
             (0, logger_1.logInfo)('Analytics data cleanup completed');

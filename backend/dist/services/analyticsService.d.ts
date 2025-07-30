@@ -19,7 +19,6 @@ export interface PerformanceMetrics {
 export declare class AnalyticsService {
     private redis;
     constructor();
-    private getRedis;
     trackUserActivity(userId: string, action: string, metadata?: any): Promise<void>;
     trackAgentUsage(agentId: string, userId: string, duration: number, metadata?: any): Promise<void>;
     trackToolUsage(toolName: string, userId: string, input: string, output: string, duration: number): Promise<void>;
