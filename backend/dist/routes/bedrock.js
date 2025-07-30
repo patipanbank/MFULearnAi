@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const bedrockService_1 = require("../services/bedrockService");
 const router = express_1.default.Router();
-router.post('/converse-stream', async (req, res) => {
+router.post('/converse_stream', async (req, res) => {
     const body = req.body;
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -30,7 +30,7 @@ router.post('/converse-stream', async (req, res) => {
         return;
     }
 });
-router.post('/generate-image', async (req, res) => {
+router.post('/generate_image', async (req, res) => {
     const body = req.body;
     try {
         const image = await bedrockService_1.bedrockService.generateImage(body.prompt);
@@ -46,7 +46,7 @@ router.post('/generate-image', async (req, res) => {
         return null;
     }
 });
-router.post('/text-embedding', async (req, res) => {
+router.post('/text_embedding', async (req, res) => {
     const body = req.body;
     try {
         const embedding = await bedrockService_1.bedrockService.createTextEmbedding(body.text);
@@ -58,7 +58,7 @@ router.post('/text-embedding', async (req, res) => {
         return null;
     }
 });
-router.post('/batch-text-embedding', async (req, res) => {
+router.post('/batch_text_embedding', async (req, res) => {
     const body = req.body;
     try {
         const embeddings = await bedrockService_1.bedrockService.createBatchTextEmbeddings(body.texts);
@@ -70,7 +70,7 @@ router.post('/batch-text-embedding', async (req, res) => {
         return null;
     }
 });
-router.post('/image-embedding', async (req, res) => {
+router.post('/image_embedding', async (req, res) => {
     const body = req.body;
     try {
         const embedding = await bedrockService_1.bedrockService.createImageEmbedding(body.imageBase64, body.text);

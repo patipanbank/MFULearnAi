@@ -67,7 +67,7 @@ router.get('/performance', authenticateJWT, requireAdmin, async (req: any, res) 
 });
 
 // Get user activity
-router.get('/user-activity', authenticateJWT, requireAdmin, async (req: any, res) => {
+router.get('/user_activity', authenticateJWT, requireAdmin, async (req: any, res) => {
   try {
     const timeRange = req.query.timeRange as '1h' | '24h' | '7d' | '30d' || '24h';
     const analytics = await analyticsService.getAnalytics(timeRange);
@@ -97,7 +97,7 @@ router.get('/user-activity', authenticateJWT, requireAdmin, async (req: any, res
 });
 
 // Get agent usage statistics
-router.get('/agent-usage', authenticateJWT, requireAdmin, async (req: any, res) => {
+router.get('/agent_usage', authenticateJWT, requireAdmin, async (req: any, res) => {
   try {
     const timeRange = req.query.timeRange as '1h' | '24h' | '7d' | '30d' || '24h';
     const analytics = await analyticsService.getAnalytics(timeRange);
@@ -127,7 +127,7 @@ router.get('/agent-usage', authenticateJWT, requireAdmin, async (req: any, res) 
 });
 
 // Get tool usage statistics
-router.get('/tool-usage', authenticateJWT, requireAdmin, async (req: any, res) => {
+router.get('/tool_usage', authenticateJWT, requireAdmin, async (req: any, res) => {
   try {
     const timeRange = req.query.timeRange as '1h' | '24h' | '7d' | '30d' || '24h';
     const analytics = await analyticsService.getAnalytics(timeRange);
@@ -157,7 +157,7 @@ router.get('/tool-usage', authenticateJWT, requireAdmin, async (req: any, res) =
 });
 
 // Get chat events
-router.get('/chat-events', authenticateJWT, requireAdmin, async (req: any, res) => {
+router.get('/chat_events', authenticateJWT, requireAdmin, async (req: any, res) => {
   try {
     const timeRange = req.query.timeRange as '1h' | '24h' | '7d' | '30d' || '24h';
     const analytics = await analyticsService.getAnalytics(timeRange);
