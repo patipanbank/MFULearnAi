@@ -260,8 +260,7 @@ export class AnalyticsService {
   // Get recent events from Redis
   private async getRecentEvents(key: string, cutoff: number): Promise<any[]> {
     try {
-      const redis = this.getRedis();
-      const events = await redis.lrange(key, 0, -1);
+      const events = await this.redis.lrange(key, 0, -1);
       return events
         .map(event => JSON.parse(event))
         .filter(event => new Date(event.timestamp).getTime() > cutoff)
@@ -290,13 +289,12 @@ export class AnalyticsService {
         const events = await this.getRecentEvents(key, cutoff);
         
         // Clear old data
-        const redis = this.getRedis();
-        await redis.del(key);
+        await this.redis.del(key);
         
         // Re-add recent events
         if (events.length > 0) {
-          await redis.lpush(key, ...events.map(event => JSON.stringify(event)));
-          await redis.expire(key, 86400 * 30);
+          await this.redis.lpush(key, ...events.map(event => JSON.stringify(event)));
+          await this.redis.expire(key, 86400 * 30);
         }
       }
 
