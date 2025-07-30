@@ -46,6 +46,11 @@ async function createLangChainAgent(config) {
                                 if (onEvent)
                                     onEvent({ type: 'chunk', data: token });
                             },
+                            handleLLMError: async (error) => {
+                                console.error(`❌ LangChain LLM error: ${error}`);
+                                if (onEvent)
+                                    onEvent({ type: 'error', data: { error: error.message } });
+                            },
                             handleLLMEnd: async (output) => {
                                 console.log(`🤖 LangChain LLM ended`);
                                 const finalAnswer = output.generations[0][0].text;

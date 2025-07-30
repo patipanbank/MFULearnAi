@@ -3,11 +3,12 @@ import { wsManager } from '../utils/websocketManager';
 import { agentService } from './agentService';
 import { usageService } from './usageService';
 import { getLLM } from '../agent/llmFactory';
-import { toolRegistry, createMemoryTool, ToolFunction } from '../agent/toolRegistry';
+import { toolRegistry, createMemoryTool, createRetrievalTools, ToolFunction } from '../agent/toolRegistry';
 import { createPromptTemplate } from '../agent/promptFactory';
 import { createAgent } from '../agent/agentFactory';
 import { redis } from '../lib/redis';
 import { memoryService } from './memoryService';
+import { chromaService } from './chromaService';
 
 export class ChatService {
   constructor() {
@@ -98,21 +99,25 @@ export class ChatService {
       let modelId: string | null = null;
       let collectionNames: string[] = [];
       let systemPrompt: string | null = null;
-      let temperature = 0.7;
-      let maxTokens = 4000;
+      let temperature: number = 0.7;
+      let maxTokens: number = 4000;
 
       if (chat.agentId) {
-        agentConfig = await agentService.getAgentById(chat.agentId);
-        if (agentConfig) {
-          modelId = agentConfig.modelId;
-          collectionNames = agentConfig.collectionNames || [];
-          systemPrompt = agentConfig.systemPrompt;
-          temperature = agentConfig.temperature;
-          maxTokens = agentConfig.maxTokens;
+        try {
+          agentConfig = await agentService.getAgentById(chat.agentId);
+          if (agentConfig) {
+            modelId = agentConfig.modelId;
+            collectionNames = agentConfig.collectionNames || [];
+            systemPrompt = agentConfig.systemPrompt;
+            temperature = agentConfig.temperature || 0.7;
+            maxTokens = agentConfig.maxTokens || 4000;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to get agent config for ${chat.agentId}:`, error);
         }
       }
 
-      // Process with AI agent using legacy-style processing (no placeholder message)
+      // Process with AI (เหมือน Legacy)
       await this.processWithAILegacy(chatId, content, images, {
         modelId,
         collectionNames,
@@ -123,19 +128,9 @@ export class ChatService {
       }, userId);
 
     } catch (error) {
-      console.error('❌ Error processing message:', error);
-      
-      // Handle validation errors specifically
-      if (error instanceof Error && error.message.includes('validation failed')) {
-        console.error('Validation error details:', error);
-      }
-      
-      // Send error to client
+      console.error('❌ Error in processMessage:', error);
       if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'error',
-          data: 'Failed to process message'
-        }));
+        wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
       }
     }
   }
@@ -148,32 +143,78 @@ export class ChatService {
     maxTokens?: number;
     agentId?: string;
   }, userId?: string): Promise<void> {
-    console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
-    console.log(`🤖 User message: ${userMessage.substring(0, 50)}...`);
-    console.log(`🤖 Config:`, config);
-    
     try {
-      // 1. เตรียม LLM instance
+      console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
+      console.log(`🤖 User message: ${userMessage.substring(0, 100)}...`);
+      console.log(`🤖 Config:`, config);
+
+      // 1. Get chat history
+      const chat = await ChatModel.findById(chatId);
+      if (!chat) {
+        throw new Error('Chat not found');
+      }
+
+      // 2. Smart Memory Management (เหมือน Legacy)
+      const messageCount = chat.messages.length;
+      const shouldUseMemoryTool = this.shouldUseMemoryTool(messageCount);
+      const shouldUseRedisMemory = this.shouldUseRedisMemory(messageCount);
+      const shouldEmbedMessages = this.shouldEmbedMessages(messageCount);
+
+      console.log(`🧠 Memory Management: messageCount=${messageCount}, useMemoryTool=${shouldUseMemoryTool}, useRedisMemory=${shouldUseRedisMemory}, shouldEmbed=${shouldEmbedMessages}`);
+
+      // 3. Embed messages if needed (เหมือน Legacy)
+      if (shouldEmbedMessages && chat.messages.length > 0) {
+        console.log(`📚 Embedding messages for chat ${chatId} (message count: ${messageCount})`);
+        // Embedding is now handled by hybrid memory management
+      }
+
+      // 4. Setup hybrid memory management (เหมือน Legacy)
+      if (shouldUseRedisMemory) {
+        console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
+        await memoryService.setupHybridMemory(chatId, chat.messages);
+      }
+
+      // 5. เตรียม LLM instance (เหมือน Legacy)
       console.log(`🤖 Creating LLM instance with model ${config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0'}`);
       const llm = getLLM(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
         temperature: config?.temperature,
-        maxTokens: config?.maxTokens
+        maxTokens: config?.maxTokens,
+        streaming: true
       });
-      // 2. เตรียม tools (รวม memory tool)
+
+      // 6. เตรียม tools (รวม memory tool และ retrieval tools)
       const sessionTools = createMemoryTool(chatId);
       const allTools: { [name: string]: ToolFunction } = {};
+      
+      // Add static tools
       for (const [k, v] of Object.entries(toolRegistry)) allTools[k] = v.func;
+      
+      // Add session-specific memory tools
       for (const [k, v] of Object.entries(sessionTools)) allTools[k] = v.func;
-      // 3. เตรียม prompt template
-      const promptTemplate = createPromptTemplate(config?.systemPrompt || '', true);
-      // 4. สร้าง agent executor (ใหม่) - ใช้ LangChain Agent
-      const agent = await createAgent(llm, allTools, config?.systemPrompt || '', {
+
+      // Add retrieval tools for collections (เหมือน Legacy)
+      if (config?.collectionNames && config.collectionNames.length > 0) {
+        const retrievalTools = createRetrievalTools(config.collectionNames);
+        for (const [name, tool] of Object.entries(retrievalTools)) {
+          allTools[name] = (tool as any).func;
+          console.log(`🔧 Added retrieval tool: ${name}`);
+        }
+      }
+
+      // 7. เตรียม prompt template (เหมือน Legacy)
+      const defaultSystemPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+      const finalSystemPrompt = config?.systemPrompt || defaultSystemPrompt;
+      const promptTemplate = createPromptTemplate(finalSystemPrompt, true);
+
+      // 8. สร้าง agent executor (ใหม่) - ใช้ LangChain Agent
+      const agent = await createAgent(llm, allTools, finalSystemPrompt, {
         modelId: config?.modelId || undefined,
         sessionId: chatId,
         temperature: config?.temperature,
         maxTokens: config?.maxTokens
       });
-      // 5. ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท
+
+      // 9. ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท
       const chatFromDb = await ChatModel.findById(chatId);
       if (!chatFromDb) throw new Error(`Chat session ${chatId} not found during AI processing`);
       let messages: ChatMessage[] = chatFromDb.messages.map(msg => ({
@@ -182,15 +223,19 @@ export class ChatService {
         id: msg.id,
         timestamp: msg.timestamp
       }));
+
       // เพิ่ม user message ล่าสุด (ถ้ายังไม่มี)
       if (!messages.length || messages[messages.length - 1].role !== 'user') {
         const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
         messages.push(userMsg);
       }
-      // 6. เรียก agent.run พร้อม onEvent สำหรับ stream event
+
+      // 10. เรียก agent.run พร้อม onEvent สำหรับ stream event
       console.log(`🤖 Starting agent.run with ${messages.length} messages`);
       let fullContent = '';
       let assistantMessageId: string | null = null;
+      let inputTokens = 0;
+      let outputTokens = 0;
       
       await agent.run(messages, {
         onEvent: async (event) => {
@@ -250,8 +295,24 @@ export class ChatService {
               );
             }
             
+            // Update usage statistics
+            if (event.data.inputTokens || event.data.outputTokens) {
+              inputTokens = event.data.inputTokens || 0;
+              outputTokens = event.data.outputTokens || 0;
+              if (userId && (inputTokens > 0 || outputTokens > 0)) {
+                await usageService.updateUsage(userId, inputTokens, outputTokens);
+              }
+            }
+            
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'end', data: { answer: event.data.answer } }));
+              wsManager.broadcastToSession(chatId, JSON.stringify({ 
+                type: 'end', 
+                data: { 
+                  answer: event.data.answer,
+                  inputTokens,
+                  outputTokens
+                } 
+              }));
             }
           }
         },
@@ -264,10 +325,6 @@ export class ChatService {
       }
     }
   }
-
-
-
-
 
   private async streamResponse(chatId: string, messageId: string, response: string): Promise<void> {
     const words = response.split(' ');
@@ -363,23 +420,17 @@ export class ChatService {
     ];
 
     const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-    
-    if (images && images.length > 0) {
-      return `${baseResponse} ฉันเห็นว่าคุณได้แนบรูปภาพมาด้วย ฉันจะวิเคราะห์ทั้งข้อความและรูปภาพเพื่อให้คำตอบที่ครบถ้วนที่สุด. ${this.generateDetailedResponse()}`;
-    }
-
     return `${baseResponse} ${this.generateDetailedResponse()}`;
   }
 
   private generateDetailedResponse(): string {
-    const details = [
-      `ข้อมูลนี้จะช่วยให้คุณเข้าใจแนวคิดได้ดีขึ้น และสามารถนำไปประยุกต์ใช้ในสถานการณ์จริงได้.`,
-      `หากคุณต้องการข้อมูลเพิ่มเติมหรือมีคำถามอื่นๆ อย่าลังเลที่จะถามได้เลย.`,
-      `ฉันหวังว่าคำตอบนี้จะช่วยให้คุณเข้าใจประเด็นนี้ได้ชัดเจนขึ้น.`,
-      `หากมีส่วนไหนที่ยังไม่ชัดเจน กรุณาแจ้งให้ฉันทราบเพื่อที่ฉันจะได้อธิบายเพิ่มเติม.`
+    const responses = [
+      "นี่คือข้อมูลที่ครอบคลุมและทันสมัยเกี่ยวกับเรื่องที่คุณถาม",
+      "ฉันได้รวบรวมข้อมูลจากแหล่งที่เชื่อถือได้เพื่อตอบคำถามของคุณ",
+      "ข้อมูลนี้ได้รับการอัปเดตล่าสุดและมีความแม่นยำสูง",
+      "ฉันหวังว่าข้อมูลนี้จะช่วยตอบคำถามของคุณได้อย่างครบถ้วน"
     ];
-
-    return details[Math.floor(Math.random() * details.length)];
+    return responses[Math.floor(Math.random() * responses.length)];
   }
 
   private delay(ms: number): Promise<void> {
@@ -388,7 +439,7 @@ export class ChatService {
 
   public async getUserChats(userId: string): Promise<Chat[]> {
     const chats = await ChatModel.find({ userId })
-      .sort({ isPinned: -1, updatedAt: -1 })
+      .sort({ updatedAt: -1 })
       .exec();
 
     return chats;
@@ -399,7 +450,9 @@ export class ChatService {
     const success = result.deletedCount > 0;
     
     if (success) {
-      console.log(`🗑️ Deleted chat session ${chatId}`);
+      console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
+    } else {
+      console.log(`❌ Failed to delete chat ${chatId} for user ${userId}`);
     }
     
     return success;
@@ -413,7 +466,7 @@ export class ChatService {
     );
 
     if (chat) {
-      console.log(`✏️ Updated chat name for session ${chatId}`);
+      console.log(`📝 Updated chat name for session ${chatId}: ${name}`);
     }
     
     return chat;
@@ -435,70 +488,34 @@ export class ChatService {
 
   public async clearChatMemory(chatId: string): Promise<void> {
     try {
-      // Clear Redis memory
-      await redis.del(`chat:history:${chatId}`);
+      // Clear all memory using hybrid approach (เหมือน Legacy)
+      await memoryService.clearAllMemory(chatId);
+      
       // Clear memory tool (ถ้ามี)
       if (typeof (global as any).clearChatMemoryTool === 'function') {
         await (global as any).clearChatMemoryTool(chatId);
       }
+      
       console.log(`✅ Memory cleared for chat ${chatId}`);
     } catch (error) {
       console.error(`❌ Failed to clear memory for chat ${chatId}:`, error);
     }
   }
 
-  private async getRecentMessagesFromRedis(chatId: string): Promise<any[]> {
-    try {
-      const data = await redis.get(`chat:history:${chatId}`);
-      if (!data) return [];
-      return JSON.parse(data);
-    } catch (e) {
-      return [];
-    }
-  }
 
-  private async setRecentMessagesToRedis(chatId: string, messages: any[]): Promise<void> {
-    try {
-      await redis.set(`chat:history:${chatId}`,
-        JSON.stringify(messages), 'EX', 86400 // TTL 24 ชม.
-      );
-    } catch (e) {
-      // fallback เงียบ ๆ
-    }
-  }
-
-  private async restoreRecentContextIfNeeded(chatId: string, allMessages: any[]): Promise<void> {
-    const redisMessages = await this.getRecentMessagesFromRedis(chatId);
-    if (!redisMessages || redisMessages.length === 0) {
-      // Restore recent 10 messages
-      const recent = allMessages.slice(-10);
-      await this.setRecentMessagesToRedis(chatId, recent);
-      console.log(`🔄 Restored recent context to Redis for chat ${chatId}`);
-    }
-  }
-
-  private async embedMessagesIfNeeded(chatId: string, allMessages: any[]): Promise<void> {
-    if (allMessages.length % 10 === 0 && allMessages.length > 0) {
-      // ฝัง embedding ทุก 10 ข้อความ (mock call memory tool)
-      if (typeof (global as any).addChatMemoryTool === 'function') {
-        await (global as any).addChatMemoryTool(chatId, allMessages);
-        console.log(`📚 Embedded ${allMessages.length} messages to memory tool for chat ${chatId}`);
-      }
-    }
-  }
 
   private shouldUseMemoryTool(messageCount: number): boolean {
-    // Use memory tool when there are more than 10 messages
+    // Use memory tool when there are more than 10 messages (เหมือน Legacy)
     return messageCount > 10;
   }
 
   private shouldUseRedisMemory(messageCount: number): boolean {
-    // Always use Redis memory for recent conversations (last 10 messages)
+    // Always use Redis memory for recent conversations (เหมือน Legacy)
     return true;
   }
 
   private shouldEmbedMessages(messageCount: number): boolean {
-    // Embed messages every 10 messages (10, 20, 30, etc.)
+    // Embed messages every 10 messages (10, 20, 30, etc.) - เหมือน Legacy
     return messageCount % 10 === 0;
   }
 

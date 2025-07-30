@@ -2,9 +2,11 @@
  * สร้าง prompt template สำหรับ agent (เหมือน backend-legacy/agents/prompt_factory.py)
  * - รองรับ message placeholder, system prompt, user/assistant message
  * - ใช้ LangChain PromptTemplate
+ * - เพิ่ม tool instructions แบบ legacy
  */
 
 import { PromptTemplate } from '@langchain/core/prompts';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
 
 export function createPromptTemplate(systemPrompt: string, useHistory: boolean = true): (messages: { role: string; content: string }[], scratchpad?: string[]) => string {
   return (messages: { role: string; content: string }[], scratchpad?: string[]) => {
@@ -55,8 +57,9 @@ export function createLangChainPromptTemplate(systemPrompt: string, useHistory: 
 }
 
 /**
- * สร้าง prompt template สำหรับ LangChain Agent
+ * สร้าง prompt template สำหรับ LangChain Agent (เหมือน Legacy)
  * - ใช้ format ที่เหมาะสมกับ LangChain Agent
+ * - เพิ่ม tool instructions แบบ legacy
  */
 export function createAgentPromptTemplate(systemPrompt: string): PromptTemplate {
   const template = `You are a helpful AI assistant. ${systemPrompt}
@@ -79,4 +82,53 @@ Question: {input}
 Thought:{agent_scratchpad}`;
 
   return PromptTemplate.fromTemplate(template);
+}
+
+/**
+ * สร้าง system prompt แบบ legacy (เหมือน backend-legacy)
+ * - รวม tool instructions
+ * - รองรับ hybrid memory management
+ */
+export function createLegacySystemPrompt(basePrompt?: string): string {
+  const defaultPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+  
+  const systemPrompt = basePrompt || defaultPrompt;
+  
+  return `${systemPrompt}
+
+IMPORTANT INSTRUCTIONS:
+1. If the user asks you to search for information, you MUST use the web_search tool
+2. If the user asks for calculations, use the calculator tool
+3. If you need to recall previous conversation context, use memory tools
+4. Always use the appropriate tool when needed - do not try to answer without tools
+5. When using web_search, provide the search query as input
+6. When using calculator, provide the mathematical expression as input
+7. When using knowledge base search, provide the search query as input
+8. Use memory tools to maintain conversation context across long conversations
+9. Hybrid memory management: Redis for recent messages, Vectorstore for long-term storage
+
+Available tools:
+- web_search: Search the web for current information
+- calculator: Perform mathematical calculations
+- current_date: Get current date and time
+- memory_search: Search conversation memory
+- memory_embed: Store information in memory
+- Various session-specific memory tools
+- Knowledge base search tools
+
+Please provide clear, helpful responses to user questions.`;
+}
+
+/**
+ * สร้าง ChatPromptTemplate สำหรับ LangChain Agent (เหมือน Legacy)
+ * - ใช้ format ที่เหมาะสมกับ LangChain Agent
+ * - รองรับ hybrid memory management
+ */
+export function createLegacyChatPromptTemplate(systemPrompt?: string): ChatPromptTemplate {
+  const finalSystemPrompt = createLegacySystemPrompt(systemPrompt);
+  
+  return ChatPromptTemplate.fromMessages([
+    ["system", finalSystemPrompt],
+    ["human", "Question: {input}\nThought: {agent_scratchpad}"]
+  ]);
 } 

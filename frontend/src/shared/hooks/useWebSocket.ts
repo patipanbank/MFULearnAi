@@ -231,7 +231,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           const session = currentSessionRef.current;
           const lastMessage = session?.messages[session.messages.length - 1];
           
-          // Handle both string and object chunk data
+          // Handle both string and object chunk data (เหมือน Legacy)
           let chunkText = '';
           if (typeof data.data === 'string') {
             chunkText = data.data;
@@ -247,15 +247,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
               content: lastMessage.content + chunkText
             });
           } else {
-            const assistantMsg: ChatMessage = {
-              id: Date.now().toString() + '_assistant',
-              role: 'assistant',
-              content: chunkText,
-              timestamp: new Date(),
-              isStreaming: true,
-              isComplete: false
-            };
-            addMessage(assistantMsg);
+            // รอ backend สร้าง assistant message ให้ (เหมือน Legacy)
+            console.log('Waiting for backend to create assistant message...');
           }
         } else if (data.type === 'error') {
           console.error('WebSocket: Server error', data.data);

@@ -83,13 +83,18 @@ class ChatService {
             let temperature = 0.7;
             let maxTokens = 4000;
             if (chat.agentId) {
-                agentConfig = await agentService_1.agentService.getAgentById(chat.agentId);
-                if (agentConfig) {
-                    modelId = agentConfig.modelId;
-                    collectionNames = agentConfig.collectionNames || [];
-                    systemPrompt = agentConfig.systemPrompt;
-                    temperature = agentConfig.temperature;
-                    maxTokens = agentConfig.maxTokens;
+                try {
+                    agentConfig = await agentService_1.agentService.getAgentById(chat.agentId);
+                    if (agentConfig) {
+                        modelId = agentConfig.modelId;
+                        collectionNames = agentConfig.collectionNames || [];
+                        systemPrompt = agentConfig.systemPrompt;
+                        temperature = agentConfig.temperature || 0.7;
+                        maxTokens = agentConfig.maxTokens || 4000;
+                    }
+                }
+                catch (error) {
+                    console.warn(`⚠️ Failed to get agent config for ${chat.agentId}:`, error);
                 }
             }
             await this.processWithAILegacy(chatId, content, images, {
@@ -102,23 +107,34 @@ class ChatService {
             }, userId);
         }
         catch (error) {
-            console.error('❌ Error processing message:', error);
-            if (error instanceof Error && error.message.includes('validation failed')) {
-                console.error('Validation error details:', error);
-            }
+            console.error('❌ Error in processMessage:', error);
             if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                    type: 'error',
-                    data: 'Failed to process message'
-                }));
+                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
             }
         }
     }
     async processWithAILegacy(chatId, userMessage, images, config, userId) {
-        console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
-        console.log(`🤖 User message: ${userMessage.substring(0, 50)}...`);
-        console.log(`🤖 Config:`, config);
         try {
+            console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
+            console.log(`🤖 User message: ${userMessage.substring(0, 100)}...`);
+            console.log(`🤖 Config:`, config);
+            const chat = await chat_1.ChatModel.findById(chatId);
+            if (!chat) {
+                throw new Error('Chat not found');
+            }
+            const messageCount = chat.messages.length;
+            const shouldUseMemoryTool = this.shouldUseMemoryTool(messageCount);
+            const shouldUseRedisMemory = this.shouldUseRedisMemory(messageCount);
+            const shouldEmbedMessages = this.shouldEmbedMessages(messageCount);
+            console.log(`🧠 Memory Management: messageCount=${messageCount}, useMemoryTool=${shouldUseMemoryTool}, useRedisMemory=${shouldUseRedisMemory}, shouldEmbed=${shouldEmbedMessages}`);
+            if (shouldEmbedMessages && chat.messages.length > 0) {
+                console.log(`📚 Embedding messages for chat ${chatId} (message count: ${messageCount})`);
+                await this.embedMessagesIfNeeded(chatId, chat.messages);
+            }
+            if (shouldUseRedisMemory) {
+                console.log(`💾 Restoring recent context for chat ${chatId}`);
+                await this.restoreRecentContextIfNeeded(chatId, chat.messages);
+            }
             console.log(`🤖 Creating LLM instance with model ${config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0'}`);
             const llm = (0, llmFactory_1.getLLM)(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
                 temperature: config?.temperature,
@@ -278,26 +294,23 @@ class ChatService {
             `ฉันได้วิเคราะห์คำถาม "${userMessage}" ของคุณแล้ว และนี่คือสิ่งที่ฉันพบ:`
         ];
         const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-        if (images && images.length > 0) {
-            return `${baseResponse} ฉันเห็นว่าคุณได้แนบรูปภาพมาด้วย ฉันจะวิเคราะห์ทั้งข้อความและรูปภาพเพื่อให้คำตอบที่ครบถ้วนที่สุด. ${this.generateDetailedResponse()}`;
-        }
         return `${baseResponse} ${this.generateDetailedResponse()}`;
     }
     generateDetailedResponse() {
-        const details = [
-            `ข้อมูลนี้จะช่วยให้คุณเข้าใจแนวคิดได้ดีขึ้น และสามารถนำไปประยุกต์ใช้ในสถานการณ์จริงได้.`,
-            `หากคุณต้องการข้อมูลเพิ่มเติมหรือมีคำถามอื่นๆ อย่าลังเลที่จะถามได้เลย.`,
-            `ฉันหวังว่าคำตอบนี้จะช่วยให้คุณเข้าใจประเด็นนี้ได้ชัดเจนขึ้น.`,
-            `หากมีส่วนไหนที่ยังไม่ชัดเจน กรุณาแจ้งให้ฉันทราบเพื่อที่ฉันจะได้อธิบายเพิ่มเติม.`
+        const responses = [
+            "นี่คือข้อมูลที่ครอบคลุมและทันสมัยเกี่ยวกับเรื่องที่คุณถาม",
+            "ฉันได้รวบรวมข้อมูลจากแหล่งที่เชื่อถือได้เพื่อตอบคำถามของคุณ",
+            "ข้อมูลนี้ได้รับการอัปเดตล่าสุดและมีความแม่นยำสูง",
+            "ฉันหวังว่าข้อมูลนี้จะช่วยตอบคำถามของคุณได้อย่างครบถ้วน"
         ];
-        return details[Math.floor(Math.random() * details.length)];
+        return responses[Math.floor(Math.random() * responses.length)];
     }
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
     async getUserChats(userId) {
         const chats = await chat_1.ChatModel.find({ userId })
-            .sort({ isPinned: -1, updatedAt: -1 })
+            .sort({ updatedAt: -1 })
             .exec();
         return chats;
     }
@@ -305,14 +318,17 @@ class ChatService {
         const result = await chat_1.ChatModel.deleteOne({ _id: chatId, userId });
         const success = result.deletedCount > 0;
         if (success) {
-            console.log(`🗑️ Deleted chat session ${chatId}`);
+            console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
+        }
+        else {
+            console.log(`❌ Failed to delete chat ${chatId} for user ${userId}`);
         }
         return success;
     }
     async updateChatName(chatId, userId, name) {
         const chat = await chat_1.ChatModel.findOneAndUpdate({ _id: chatId, userId }, { name, updatedAt: new Date() }, { new: true });
         if (chat) {
-            console.log(`✏️ Updated chat name for session ${chatId}`);
+            console.log(`📝 Updated chat name for session ${chatId}: ${name}`);
         }
         return chat;
     }

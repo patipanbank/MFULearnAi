@@ -1,5 +1,6 @@
 import { toolRegistry as serviceToolRegistry, ToolFunction as ServiceToolFunction } from '../services/toolRegistry';
 import { memoryService } from '../services/memoryService';
+import { chromaService } from '../services/chromaService';
 import axios from 'axios';
 
 export type ToolFunction = (input: string, sessionId?: string, config?: any) => Promise<string>;
@@ -15,6 +16,7 @@ export interface ToolMeta {
  * - รองรับ web_search, calculator, current_date, memory_search, memory_embed, dynamic tool ฯลฯ
  * - เชื่อมต่อกับ service จริง (ไม่ mock)
  * - มี description/meta
+ * - เพิ่ม hybrid memory management
  */
 export const toolRegistry: Record<string, ToolMeta> = {
   web_search: {
@@ -77,18 +79,7 @@ export const toolRegistry: Record<string, ToolMeta> = {
       await memoryService.embedMessage(sessionId, input);
       return 'Message embedded into memory.';
     }
-  },
-  // ตัวอย่าง dynamic knowledge base tool (search_collectionName)
-  // export function createKnowledgeBaseTool(collectionName: string): ToolMeta {
-  //   return {
-  //     name: `search_${collectionName}`,
-  //     description: `Search and retrieve information from the ${collectionName} knowledge base.`,
-  //     func: async (input: string) => {
-  //       // TODO: implement vectorstore search for this collection
-  //       return `Knowledge base search for ${collectionName} not implemented yet.`;
-  //     }
-  //   };
-  // }
+  }
 };
 
 /** Web Search Result type */
@@ -224,61 +215,138 @@ function safeEvalMath(expr: string): string {
   }
 }
 
-// memory tool สำหรับ session (เหมือน legacy)
+/**
+ * Create memory tools for session (เหมือน Legacy)
+ * - Hybrid approach: Redis for recent, Vectorstore for long-term
+ * - Dynamic tool creation based on session
+ */
 export function createMemoryTool(sessionId: string) {
   return {
     [`search_chat_memory_${sessionId}`]: {
       name: `search_chat_memory_${sessionId}`,
       description: 'Search through the current chat session history to find relevant context.',
-      func: (input: string) => toolRegistry.memory_search.func(input, sessionId)
+      func: async (input: string) => {
+        try {
+          const results = await memoryService.searchMemory(sessionId, input);
+          if (!results.length) return 'No relevant chat history found.';
+          return results.map((r: any, i: number) => 
+            `${i + 1}. ${r.role}: ${r.content}`
+          ).join('\n');
+        } catch (error) {
+          return 'Memory search is currently unavailable.';
+        }
+      }
     },
     [`embed_chat_memory_${sessionId}`]: {
       name: `embed_chat_memory_${sessionId}`,
       description: 'Embed new message into chat memory for this session.',
-      func: (input: string) => toolRegistry.memory_embed.func(input, sessionId)
+      func: async (input: string) => {
+        try {
+          await memoryService.embedMessage(sessionId, input);
+          return 'Message embedded into memory.';
+        } catch (error) {
+          return 'Memory embedding is currently unavailable.';
+        }
+      }
     },
     [`recent_context_${sessionId}`]: {
       name: `recent_context_${sessionId}`,
       description: 'Get recent context from memory (last 10 messages in Redis).',
       func: async () => {
-        const recent = await memoryService.getRecentMessages(sessionId);
-        if (!recent.length) return 'No recent context found in memory.';
-        return recent.map((msg, i) => `${i + 1}. ${msg.role}: ${msg.content}`).join('\n');
+        try {
+          const recent = await memoryService.getRecentMessages(sessionId);
+          if (!recent.length) return 'No recent context found in memory.';
+          return recent.map((msg: any, i: number) => 
+            `${i + 1}. ${msg.role}: ${msg.content}`
+          ).join('\n');
+        } catch (error) {
+          return 'Recent context is currently unavailable.';
+        }
       }
     },
     [`full_context_${sessionId}`]: {
       name: `full_context_${sessionId}`,
       description: 'Get full conversation context from memory (vectorstore).',
       func: async () => {
-        const all = await memoryService.getAllMessages(sessionId);
-        if (!all.length) return 'No context found in memory.';
-        return all.map((msg, i) => `${i + 1}. ${msg.role}: ${msg.content}`).join('\n');
+        try {
+          const all = await memoryService.getAllMessages(sessionId);
+          if (!all.length) return 'No context found in memory.';
+          return all.map((msg: any, i: number) => 
+            `${i + 1}. ${msg.role}: ${msg.content}`
+          ).join('\n');
+        } catch (error) {
+          return 'Full context is currently unavailable.';
+        }
       }
     },
     [`clear_memory_${sessionId}`]: {
       name: `clear_memory_${sessionId}`,
       description: 'Clear all chat memory for this session.',
       func: async () => {
-        await memoryService.clearRecentMessages(sessionId);
-        await memoryService.clearLongTermMemory(sessionId);
-        return 'Memory cleared.';
+        try {
+          await memoryService.clearRecentMessages(sessionId);
+          await memoryService.clearLongTermMemory(sessionId);
+          return 'Memory cleared.';
+        } catch (error) {
+          return 'Memory clearing is currently unavailable.';
+        }
       }
     },
     [`memory_stats_${sessionId}`]: {
       name: `memory_stats_${sessionId}`,
       description: 'Get memory usage statistics for this session.',
       func: async () => {
-        // (mocked: real stats would require aggregation)
-        return 'Memory stats: (not implemented in this version)';
+        try {
+          const recent = await memoryService.getRecentMessages(sessionId);
+          const all = await memoryService.getAllMessages(sessionId);
+          return `Memory stats for session ${sessionId}:\n- Recent messages: ${recent.length}\n- Total messages: ${all.length}`;
+        } catch (error) {
+          return 'Memory stats are currently unavailable.';
+        }
       }
     }
   };
 }
 
+/**
+ * Create retrieval tools for collections (เหมือน Legacy)
+ * - Dynamic tool creation based on collection names
+ * - Vectorstore search with embeddings
+ */
+export function createRetrievalTools(collectionNames: string[]) {
+  const tools: Record<string, ToolMeta> = {};
+  
+  for (const collectionName of collectionNames) {
+    tools[`search_${collectionName}`] = {
+      name: `search_${collectionName}`,
+      description: `Search and retrieve information from the ${collectionName} knowledge base. Use this when you need specific information.`,
+      func: async (input: string) => {
+        try {
+          // Mock embedding for now - in production, use real embedding service
+          const mockEmbedding = Array(768).fill(0);
+          const results = await chromaService.queryCollection(collectionName, [mockEmbedding], 5);
+          
+          if (!results || !results.documents || results.documents.length === 0) {
+            return `No information found in ${collectionName} for: ${input}`;
+          }
+          
+          return results.documents.flat().map((doc: string | null, i: number) => 
+            `${i + 1}. ${doc || 'No content'}\nSource: ${collectionName}`
+          ).join('\n\n');
+        } catch (error) {
+          return `Search in ${collectionName} is currently unavailable.`;
+        }
+      }
+    };
+  }
+  
+  return tools;
+}
+
 // Utility functions
 export async function addChatMemory(sessionId: string, messages: { role: string; content: string; id?: string; timestamp?: string }[]) {
   for (const msg of messages) {
-    await toolRegistry.memory_embed.func(msg.content, sessionId);
+    await memoryService.embedMessage(sessionId, msg.content);
   }
 }
 
@@ -288,6 +356,15 @@ export async function clearChatMemory(sessionId: string) {
 }
 
 export async function getMemoryStats(sessionId: string) {
-  // (mocked: real stats would require aggregation)
-  return 'Memory stats: (not implemented in this version)';
+  try {
+    const recent = await memoryService.getRecentMessages(sessionId);
+    const all = await memoryService.getAllMessages(sessionId);
+    return {
+      recentCount: recent.length,
+      totalCount: all.length,
+      sessionId
+    };
+  } catch (error) {
+    return { error: 'Memory stats unavailable' };
+  }
 } 

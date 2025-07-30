@@ -73,29 +73,42 @@ const staticTools: Record<string, ToolFunction> = {
   web_search: async (input: string, _sessionId: string, config?: any) => {
     if (!input || input.trim() === '') return 'No query provided.';
     try {
-      // ลองใช้ Google Search API ก่อน
+      console.log(`🔍 Web search query: ${input}`);
+      
+      // ลองใช้ Google Search API ก่อน (เหมือน Legacy)
       if (process.env.GOOGLE_API_KEY && process.env.GOOGLE_CSE_ID) {
+        console.log(`🔍 Using Google Search API`);
         const gUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_CSE_ID}&q=${encodeURIComponent(input)}&num=3`;
         const gResp = await axios.get(gUrl, { timeout: 7000 });
         if (gResp.data && gResp.data.items && gResp.data.items.length > 0) {
-          return gResp.data.items.map((item: any, i: number) => `${i + 1}. ${item.title}\n${item.snippet}`).join('\n');
+          const results = gResp.data.items.map((item: any, i: number) => 
+            `${i + 1}. ${item.title}\n${item.snippet}\n${item.link}`
+          ).join('\n\n');
+          console.log(`🔍 Google Search results: ${results.substring(0, 100)}...`);
+          return results;
         }
       }
       
-      // Fallback ไปใช้ DuckDuckGo
+      // Fallback ไปใช้ DuckDuckGo (เหมือน Legacy)
+      console.log(`🔍 Using DuckDuckGo API`);
       const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(input)}&format=json&no_html=1&skip_disambig=1`;
       const resp = await axios.get(url, { timeout: 5000 });
       if (resp.data && resp.data.Abstract) {
-        return `DuckDuckGo: ${resp.data.Abstract}`;
+        const result = `DuckDuckGo: ${resp.data.Abstract}`;
+        console.log(`🔍 DuckDuckGo result: ${result.substring(0, 100)}...`);
+        return result;
       }
       if (resp.data && resp.data.RelatedTopics && resp.data.RelatedTopics.length > 0) {
         const topics = resp.data.RelatedTopics.slice(0, 3).map((t: any) => t.Text).filter(Boolean);
         if (topics.length > 0) {
-          return `DuckDuckGo related: ${topics.join(' | ')}`;
+          const result = `DuckDuckGo related: ${topics.join(' | ')}`;
+          console.log(`🔍 DuckDuckGo related: ${result.substring(0, 100)}...`);
+          return result;
         }
       }
       return 'No specific results found.';
     } catch (e) {
+      console.error(`❌ Web search error: ${(e as Error).message}`);
       return `Web search error: ${(e as Error).message}`;
     }
   }

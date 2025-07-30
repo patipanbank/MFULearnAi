@@ -7,6 +7,8 @@ import { DynamicTool } from '@langchain/core/tools';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { ToolFunction } from '../services/toolRegistry';
+import { redis } from '../lib/redis';
+import { memoryService } from '../services/memoryService';
 
 export interface LangChainAgentConfig {
   modelId: string;
@@ -29,6 +31,8 @@ export interface LangChainAgentExecutor {
 
 /**
  * สร้าง LangChain Agent ที่ใช้ LangChain Agent framework เต็มรูปแบบ
+ * - เพิ่ม hybrid memory management (Redis + Vectorstore)
+ * - รองรับ streaming events แบบ legacy
  */
 export async function createLangChainAgent(config: LangChainAgentConfig): Promise<LangChainAgentExecutor> {
   console.log(`🤖 Creating LangChain Agent with model: ${config.modelId}`);
@@ -67,44 +71,60 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
       const maxSteps = options?.maxSteps ?? 5;
       
       try {
+        // Smart Memory Management (เหมือน Legacy)
+        if (config.sessionId) {
+          await setupHybridMemory(config.sessionId, messages);
+        }
+        
         // แปลง messages เป็น LangChain format
         const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);
         
-                 // เรียก agent executor พร้อม streaming
-         const result = await agentExecutor.invoke({
-           input: langchainMessages,
-           maxIterations: maxSteps
-         }, {
-           callbacks: [
-             {
-               handleLLMStart: async (llm, prompts) => {
-                 console.log(`🤖 LangChain LLM started`);
-                 // ไม่ส่ง event เริ่มต้นเพื่อหลีกเลี่ยงข้อความซ้ำ
-               },
-               handleLLMNewToken: async (token) => {
-                 console.log(`🤖 LangChain new token: ${token}`);
-                 if (onEvent) onEvent({ type: 'chunk', data: token });
-               },
-               handleLLMEnd: async (output) => {
-                 console.log(`🤖 LangChain LLM ended`);
-                 const finalAnswer = output.generations[0][0].text;
-                 if (onEvent) onEvent({ type: 'end', data: { answer: finalAnswer } });
-               },
-               handleToolStart: async (tool) => {
-                 console.log(`🔧 LangChain tool started: ${tool.name}`);
-                 if (onEvent) onEvent({ type: 'tool_start', data: { tool_name: tool.name } });
-               },
-               handleToolEnd: async (output) => {
-                 console.log(`🔧 LangChain tool ended: ${output.name}`);
-                 if (onEvent) onEvent({ type: 'tool_result', data: { tool_name: output.name, output: output.output } });
-               },
-               handleToolError: async (error) => {
-                 console.error(`❌ LangChain tool error: ${error}`);
-                 if (onEvent) onEvent({ type: 'tool_error', data: { error: error.message } });
-               }
-             }
-           ]
-         });
+        // เรียก agent executor พร้อม streaming
+        const result = await agentExecutor.invoke({
+          input: langchainMessages,
+          maxIterations: maxSteps
+        }, {
+          callbacks: [
+            {
+              handleLLMStart: async (llm, prompts) => {
+                console.log(`🤖 LangChain LLM started`);
+                // ไม่ส่ง event เริ่มต้นเพื่อหลีกเลี่ยงข้อความซ้ำ
+              },
+              handleLLMNewToken: async (token) => {
+                console.log(`🤖 LangChain new token: ${token}`);
+                if (onEvent) onEvent({ type: 'chunk', data: token });
+              },
+              handleLLMError: async (error) => {
+                console.error(`❌ LangChain LLM error: ${error}`);
+                if (onEvent) onEvent({ type: 'error', data: { error: error.message } });
+              },
+              handleChainStart: async (chain) => {
+                console.log(`🔗 LangChain chain started: ${chain.name}`);
+              },
+              handleChainEnd: async (output) => {
+                console.log(`🔗 LangChain chain ended`);
+                // ไม่ส่ง event เพื่อหลีกเลี่ยงการซ้ำ
+              },
+              handleLLMEnd: async (output) => {
+                console.log(`🤖 LangChain LLM ended`);
+                const finalAnswer = output.generations[0][0].text;
+                if (onEvent) onEvent({ type: 'end', data: { answer: finalAnswer } });
+              },
+              handleToolStart: async (tool) => {
+                console.log(`🔧 LangChain tool started: ${tool.name}`);
+                if (onEvent) onEvent({ type: 'tool_start', data: { tool_name: tool.name } });
+              },
+              handleToolEnd: async (output) => {
+                console.log(`🔧 LangChain tool ended: ${output.name}`);
+                if (onEvent) onEvent({ type: 'tool_result', data: { tool_name: output.name, output: output.output } });
+              },
+              handleToolError: async (error) => {
+                console.error(`❌ LangChain tool error: ${error}`);
+                if (onEvent) onEvent({ type: 'tool_error', data: { error: error.message } });
+              }
+            }
+          ]
+        });
         
         console.log(`🤖 LangChain Agent result: ${result.output.substring(0, 100)}...`);
         
@@ -115,6 +135,41 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
       }
     }
   };
+}
+
+/**
+ * Setup hybrid memory management (Redis + Vectorstore) - เหมือน Legacy
+ */
+async function setupHybridMemory(sessionId: string, messages: { role: string; content: string }[]) {
+  try {
+    console.log(`🧠 Setting up hybrid memory for session ${sessionId}`);
+    
+    // 1. Redis memory for recent messages (last 10)
+    const recentMessages = messages.slice(-10);
+    if (recentMessages.length > 0) {
+      await redis.set(`chat:recent:${sessionId}`, JSON.stringify(recentMessages), 'EX', 86400);
+      console.log(`💾 Stored ${recentMessages.length} recent messages in Redis`);
+    }
+    
+    // 2. Vectorstore memory for long-term storage (every 10 messages)
+    if (messages.length % 10 === 0 && messages.length > 0) {
+      const messagesForEmbedding = messages.map(msg => ({
+        content: msg.content,
+        role: msg.role,
+        timestamp: new Date().toISOString()
+      }));
+      
+      // Embed messages into vectorstore
+      for (const msg of messagesForEmbedding) {
+        await memoryService.embedMessage(sessionId, msg.content);
+      }
+      
+      console.log(`📚 Embedded ${messagesForEmbedding.length} messages to vectorstore`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ Error setting up hybrid memory: ${error}`);
+  }
 }
 
 /**
@@ -178,31 +233,33 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
       description = 'Clear all chat memory for this session. Use this tool to reset the conversation memory.';
     } else if (name.startsWith('memory_stats_')) {
       description = 'Get memory usage statistics for this session. Use this tool to check memory usage.';
+    } else if (name.startsWith('search_')) {
+      description = `Search and retrieve information from the knowledge base. Use this when you need specific information.`;
     }
     
     const langchainTool = new DynamicTool({
       name,
       description,
-             func: async (input: string) => {
-         try {
-           console.log(`🔧 LangChain Tool called: ${name} with input: ${input}`);
-           const result = await toolFn(input, sessionId || '');
-           console.log(`🔧 LangChain Tool result: ${result.substring(0, 100)}...`);
-           return result;
-         } catch (error) {
-           console.error(`❌ LangChain Tool error: ${name}`, error);
-           // ส่งกลับข้อความ error ที่ชัดเจน
-           if (name === 'web_search') {
-             return 'Web search is currently unavailable. Please try again later.';
-           } else if (name === 'calculator') {
-             return 'Calculator error. Please check your mathematical expression.';
-           } else if (name.startsWith('memory_')) {
-             return 'Memory service is currently unavailable.';
-           } else {
-             return `Error executing tool ${name}: ${error}`;
-           }
-         }
-       }
+      func: async (input: string) => {
+        try {
+          console.log(`🔧 LangChain Tool called: ${name} with input: ${input}`);
+          const result = await toolFn(input, sessionId || '');
+          console.log(`🔧 LangChain Tool result: ${result.substring(0, 100)}...`);
+          return result;
+        } catch (error) {
+          console.error(`❌ LangChain Tool error: ${name}`, error);
+          // ส่งกลับข้อความ error ที่ชัดเจน
+          if (name === 'web_search') {
+            return 'Web search is currently unavailable. Please try again later.';
+          } else if (name === 'calculator') {
+            return 'Calculator error. Please check your mathematical expression.';
+          } else if (name.startsWith('memory_')) {
+            return 'Memory service is currently unavailable.';
+          } else {
+            return `Error executing tool ${name}: ${error}`;
+          }
+        }
+      }
     });
     
     langchainTools.push(langchainTool);
@@ -212,21 +269,14 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
 }
 
 /**
- * สร้าง prompt template สำหรับ agent
+ * สร้าง prompt template สำหรับ agent (เหมือน Legacy)
  */
 function createAgentPrompt(systemPrompt: string): ChatPromptTemplate {
-  const template = ChatPromptTemplate.fromMessages([
-    ["system", `You are a helpful AI assistant. Follow these guidelines:
-
-${systemPrompt}
-
-You have access to the following tools:
-- web_search: Search the web for current information
-- calculator: Perform mathematical calculations
-- current_date: Get current date and time
-- memory_search: Search conversation memory
-- memory_embed: Store information in memory
-- Various session-specific memory tools
+  const defaultPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+  
+  const finalSystemPrompt = systemPrompt || defaultPrompt;
+  
+  const legacyPrompt = `${finalSystemPrompt}
 
 IMPORTANT INSTRUCTIONS:
 1. If the user asks you to search for information, you MUST use the web_search tool
@@ -235,12 +285,25 @@ IMPORTANT INSTRUCTIONS:
 4. Always use the appropriate tool when needed - do not try to answer without tools
 5. When using web_search, provide the search query as input
 6. When using calculator, provide the mathematical expression as input
+7. When using knowledge base search, provide the search query as input
+8. Use memory tools to maintain conversation context across long conversations
+9. Hybrid memory management: Redis for recent messages, Vectorstore for long-term storage
 
-Please provide clear, helpful responses to user questions.`],
+Available tools:
+- web_search: Search the web for current information
+- calculator: Perform mathematical calculations
+- current_date: Get current date and time
+- memory_search: Search conversation memory
+- memory_embed: Store information in memory
+- Various session-specific memory tools
+- Knowledge base search tools
+
+Please provide clear, helpful responses to user questions.`;
+
+  return ChatPromptTemplate.fromMessages([
+    ["system", legacyPrompt],
     ["human", "Question: {input}\nThought: {agent_scratchpad}"]
   ]);
-
-  return template;
 }
 
 /**
