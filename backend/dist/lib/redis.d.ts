@@ -1,5 +1,3 @@
 import Redis from 'ioredis';
-export declare function connectRedis(): Promise<void>;
-export declare function getRedis(): Redis;
-export declare function disconnectRedis(): Promise<void>;
+export declare const redis: Redis;
 //# sourceMappingURL=redis.d.ts.map

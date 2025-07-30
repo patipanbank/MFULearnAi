@@ -184,7 +184,7 @@ export class WebSocketService {
     }
 
     // Verify user has access to this chat
-    const chat = await chatService.getChat(chatId);
+    const chat = await chatService.getChat(chatId, user.id);
     if (!chat) {
       this.sendError(connectionId, 'Chat not found or access denied');
       return;
@@ -287,7 +287,7 @@ export class WebSocketService {
 
       // Verify user has access to the new chat
       try {
-        const newChat = await chatService.getChat(incomingChatId);
+        const newChat = await chatService.getChat(incomingChatId, user.id);
         if (!newChat) {
           this.sendError(connectionId, 'Chat not found');
           return;

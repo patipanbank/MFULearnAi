@@ -113,7 +113,7 @@ export class ChainFactory {
     if (this.memoryStore) {
       try {
         const memoryDocs = await this.memoryStore.similaritySearch(query, 3);
-        contexts.push(...memoryDocs.map((doc: any) => doc.pageContent));
+        contexts.push(...memoryDocs.map(doc => doc.pageContent));
       } catch (error) {
         console.error("Error searching memory:", error);
       }

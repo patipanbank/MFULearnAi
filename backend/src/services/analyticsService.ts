@@ -1,5 +1,5 @@
 import { getRedis } from '../lib/redis';
-import { logPerformance, logAgentEvent, logToolUsage, logInfo, logError } from '../utils/logger';
+import { logPerformance, logAgentEvent, logToolUsage } from '../utils/logger';
 
 export interface AnalyticsEvent {
   type: string;
@@ -17,8 +17,8 @@ export interface PerformanceMetrics {
   averageResponseTime: number;
   errorRate: number;
   activeUsers: number;
-  agentUsage: Record<string, string>;
-  toolUsage: Record<string, string>;
+  agentUsage: Record<string, number>;
+  toolUsage: Record<string, number>;
 }
 
 export class AnalyticsService {

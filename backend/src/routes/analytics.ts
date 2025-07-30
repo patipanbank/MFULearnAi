@@ -222,7 +222,7 @@ router.get('/export', authenticateJWT, requireAdmin, async (req: any, res) => {
     
     // Convert to CSV format
     const csvData = convertToCSV(analytics);
-    return res.send(csvData);
+    res.send(csvData);
   } catch (error) {
     console.error('❌ Error exporting analytics:', error);
     return res.status(500).json({
@@ -235,7 +235,7 @@ router.get('/export', authenticateJWT, requireAdmin, async (req: any, res) => {
 // Helper function to convert analytics data to CSV
 function convertToCSV(analytics: any): string {
   const headers = ['Type', 'Count', 'Timestamp'];
-  const rows: any[] = [];
+  const rows = [];
   
   // Add event counts
   Object.entries(analytics.events).forEach(([type, count]) => {
@@ -253,7 +253,7 @@ function convertToCSV(analytics: any): string {
   });
   
   const csvContent = [headers, ...rows]
-    .map(row => row.map((cell: any) => `"${cell}"`).join(','))
+    .map(row => row.map(cell => `"${cell}"`).join(','))
     .join('\n');
   
   return csvContent;

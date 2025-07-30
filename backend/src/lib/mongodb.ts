@@ -8,11 +8,11 @@ export async function connectDB(): Promise<void> {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      bufferCommands: false,
+      bufferMaxEntries: 0,
     });
 
-    mongoose.connection.on('connected', () => {
-      console.log('✅ Connected to MongoDB');
-    });
+    console.log('✅ Connected to MongoDB:', mongoUri);
 
     mongoose.connection.on('error', (error) => {
       console.error('❌ MongoDB connection error:', error);
@@ -20,6 +20,10 @@ export async function connectDB(): Promise<void> {
 
     mongoose.connection.on('disconnected', () => {
       console.log('🔌 MongoDB disconnected');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('🔄 MongoDB reconnected');
     });
 
   } catch (error) {
@@ -31,7 +35,7 @@ export async function connectDB(): Promise<void> {
 export async function disconnectDB(): Promise<void> {
   try {
     await mongoose.disconnect();
-    console.log('✅ Disconnected from MongoDB');
+    console.log('✅ MongoDB disconnected');
   } catch (error) {
     console.error('❌ Error disconnecting from MongoDB:', error);
     throw error;

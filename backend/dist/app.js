@@ -8,94 +8,82 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const mongodb_1 = require("./lib/mongodb");
-const redis_1 = require("./lib/redis");
-const websocketService_1 = require("./services/websocketService");
-const rateLimit_1 = require("./middleware/rateLimit");
-const logger_1 = __importDefault(require("./utils/logger"));
+const express_session_1 = __importDefault(require("express-session"));
+const passport_1 = __importDefault(require("passport"));
+const http_1 = require("http");
 const auth_1 = __importDefault(require("./routes/auth"));
-const agent_1 = __importDefault(require("./routes/agent"));
 const chat_1 = __importDefault(require("./routes/chat"));
-const collection_1 = __importDefault(require("./routes/collection"));
-const embedding_1 = __importDefault(require("./routes/embedding"));
-const upload_1 = __importDefault(require("./routes/upload"));
+const agent_1 = __importDefault(require("./routes/agent"));
 const bedrock_1 = __importDefault(require("./routes/bedrock"));
 const chroma_1 = __importDefault(require("./routes/chroma"));
-const analytics_1 = __importDefault(require("./routes/analytics"));
+const embedding_1 = __importDefault(require("./routes/embedding"));
+const upload_1 = __importDefault(require("./routes/upload"));
+const collection_1 = __importDefault(require("./routes/collection"));
+const websocketService_1 = require("./services/websocketService");
+const mongodb_1 = require("./lib/mongodb");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 3001;
-const rateLimiters = (0, rateLimit_1.createRateLimiters)();
+app.use(express_1.default.json());
+app.use(express_1.default.urlencoded({ extended: true }));
+app.use((0, cors_1.default)());
 app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true
+app.use((0, morgan_1.default)('dev'));
+app.use((0, express_session_1.default)({
+    secret: process.env.SESSION_SECRET || 'secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false },
 }));
-app.use((0, morgan_1.default)('combined'));
-app.use(express_1.default.json({ limit: '50mb' }));
-app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
-app.use(rateLimiters.general);
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'OK',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        environment: process.env.NODE_ENV || 'development'
-    });
+app.use(passport_1.default.initialize());
+app.use(passport_1.default.session());
+const apiRouter = express_1.default.Router();
+apiRouter.use('/auth', auth_1.default);
+apiRouter.use('/chat', chat_1.default);
+apiRouter.use('/agents', agent_1.default);
+apiRouter.use('/bedrock', bedrock_1.default);
+apiRouter.use('/chroma', chroma_1.default);
+apiRouter.use('/embedding', embedding_1.default);
+apiRouter.use('/upload', upload_1.default);
+apiRouter.use('/collection', collection_1.default);
+app.use('/api', apiRouter);
+app.get('/', (req, res) => {
+    res.send('MFULearnAi Node.js Backend');
 });
-app.use('/api/auth', rateLimiters.auth, auth_1.default);
-app.use('/api/agents', rateLimiters.agent, agent_1.default);
-app.use('/api/chat', rateLimiters.chat, chat_1.default);
-app.use('/api/collections', collection_1.default);
-app.use('/api/embeddings', embedding_1.default);
-app.use('/api/upload', rateLimiters.upload, upload_1.default);
-app.use('/api/bedrock', bedrock_1.default);
-app.use('/api/chroma', chroma_1.default);
-app.use('/api/analytics', analytics_1.default);
 app.use((err, req, res, next) => {
-    logger_1.default.error('Unhandled error:', err);
-    res.status(500).json({
-        success: false,
-        error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
-    });
+    console.error(err.stack);
+    res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
 });
-app.use('*', (req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Route not found'
-    });
-});
-const server = app.listen(PORT, async () => {
+const PORT = process.env.PORT || 3001;
+const server = (0, http_1.createServer)(app);
+const wsService = new websocketService_1.WebSocketService(server);
+const startServer = async () => {
     try {
         await (0, mongodb_1.connectDB)();
-        logger_1.default.info('Connected to MongoDB');
-        await (0, redis_1.connectRedis)();
-        logger_1.default.info('Connected to Redis');
-        const wsService = new websocketService_1.WebSocketService(server);
-        logger_1.default.info('WebSocket service initialized');
-        logger_1.default.info(`Server running on port ${PORT}`);
-        logger_1.default.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-        logger_1.default.info(`Health check: http://localhost:${PORT}/health`);
+        server.listen(PORT, () => {
+            console.log(`🚀 Server running on port ${PORT}`);
+            console.log(`🌐 WebSocket server available at ws://localhost:${PORT}/ws`);
+        });
     }
     catch (error) {
-        logger_1.default.error('Failed to start server:', error);
+        console.error('Failed to start server:', error);
         process.exit(1);
     }
-});
+};
 process.on('SIGTERM', () => {
-    logger_1.default.info('SIGTERM received, shutting down gracefully');
+    console.log('🛑 SIGTERM received, shutting down gracefully...');
+    wsService.stop();
     server.close(() => {
-        logger_1.default.info('Server closed');
+        console.log('✅ Server closed');
         process.exit(0);
     });
 });
 process.on('SIGINT', () => {
-    logger_1.default.info('SIGINT received, shutting down gracefully');
+    console.log('🛑 SIGINT received, shutting down gracefully...');
+    wsService.stop();
     server.close(() => {
-        logger_1.default.info('Server closed');
+        console.log('✅ Server closed');
         process.exit(0);
     });
 });
-exports.default = app;
+startServer();
 //# sourceMappingURL=app.js.map

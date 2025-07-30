@@ -5,46 +5,39 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const agentService_1 = require("../services/agentService");
-const advancedToolService_1 = require("../services/advancedToolService");
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 router.get('/', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const userId = req.user.sub || req.user.id;
-        const agents = await agentService_1.agentService.getAllAgents(userId);
+        const userId = req.user.sub;
+        let agents = await agentService_1.agentService.getAllAgents(userId);
+        if (!Array.isArray(agents)) {
+            agents = [];
+        }
         return res.json(agents);
     }
     catch (error) {
         console.error('❌ Error getting agents:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get agents'
-        });
+        return res.status(500).json([]);
     }
 });
-router.get('/:id', auth_1.authenticateJWT, async (req, res) => {
+router.get('/:agentId', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const { id } = req.params;
-        const agent = await agentService_1.agentService.getAgentById(id);
+        const { agentId } = req.params;
+        const agent = await agentService_1.agentService.getAgentById(agentId);
         if (!agent) {
-            return res.status(404).json({
-                success: false,
-                error: 'Agent not found'
-            });
+            return res.status(404).json(null);
         }
         return res.json(agent);
     }
     catch (error) {
-        console.error(`❌ Error getting agent ${req.params.id}:`, error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get agent'
-        });
+        console.error('❌ Error getting agent:', error);
+        return res.status(500).json(null);
     }
 });
 router.post('/', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const userId = req.user.sub || req.user.id;
+        const userId = req.user.sub;
         const agentData = {
             ...req.body,
             createdBy: userId
@@ -54,43 +47,54 @@ router.post('/', auth_1.authenticateJWT, async (req, res) => {
     }
     catch (error) {
         console.error('❌ Error creating agent:', error);
-        return res.status(400).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to create agent'
-        });
+        return res.status(500).json(null);
     }
 });
-router.put('/:id', auth_1.authenticateJWT, async (req, res) => {
+router.put('/:agentId', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const { id } = req.params;
-        const userId = req.user.sub || req.user.id;
+        const { agentId } = req.params;
+        const userId = req.user.sub;
         const updates = req.body;
-        const agent = await agentService_1.agentService.updateAgent(id, updates, userId);
+        const existingAgent = await agentService_1.agentService.getAgentById(agentId);
+        if (!existingAgent) {
+            return res.status(404).json(null);
+        }
+        if (existingAgent.createdBy !== userId && !existingAgent.isPublic) {
+            return res.status(403).json(null);
+        }
+        const agent = await agentService_1.agentService.updateAgent(agentId, updates);
         if (!agent) {
-            return res.status(404).json({
-                success: false,
-                error: 'Agent not found or access denied'
-            });
+            return res.status(404).json(null);
         }
         return res.json(agent);
     }
     catch (error) {
-        console.error(`❌ Error updating agent ${req.params.id}:`, error);
-        return res.status(400).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to update agent'
-        });
+        console.error('❌ Error updating agent:', error);
+        return res.status(500).json(null);
     }
 });
-router.delete('/:id', auth_1.authenticateJWT, async (req, res) => {
+router.delete('/:agentId', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const { id } = req.params;
-        const userId = req.user.sub || req.user.id;
-        const success = await agentService_1.agentService.deleteAgent(id, userId);
+        const { agentId } = req.params;
+        const userId = req.user.sub;
+        const existingAgent = await agentService_1.agentService.getAgentById(agentId);
+        if (!existingAgent) {
+            return res.status(404).json({
+                success: false,
+                error: 'Agent not found'
+            });
+        }
+        if (existingAgent.createdBy !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        const success = await agentService_1.agentService.deleteAgent(agentId);
         if (!success) {
             return res.status(404).json({
                 success: false,
-                error: 'Agent not found or access denied'
+                error: 'Agent not found'
             });
         }
         return res.json({
@@ -99,7 +103,7 @@ router.delete('/:id', auth_1.authenticateJWT, async (req, res) => {
         });
     }
     catch (error) {
-        console.error(`❌ Error deleting agent ${req.params.id}:`, error);
+        console.error('❌ Error deleting agent:', error);
         return res.status(500).json({
             success: false,
             error: 'Failed to delete agent'
@@ -108,13 +112,20 @@ router.delete('/:id', auth_1.authenticateJWT, async (req, res) => {
 });
 router.get('/templates/all', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const templates = await agentService_1.agentService.getAgentTemplates();
-        return res.json(templates);
+        let templates = await agentService_1.agentService.getAgentTemplates();
+        if (!Array.isArray(templates)) {
+            templates = [];
+        }
+        return res.json({
+            success: true,
+            data: templates
+        });
     }
     catch (error) {
         console.error('❌ Error getting agent templates:', error);
         return res.status(500).json({
             success: false,
+            data: [],
             error: 'Failed to get agent templates'
         });
     }
@@ -122,151 +133,86 @@ router.get('/templates/all', auth_1.authenticateJWT, async (req, res) => {
 router.post('/templates/:templateId', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { templateId } = req.params;
-        const userId = req.user.sub || req.user.id;
-        const customizations = req.body;
-        const agent = await agentService_1.agentService.createAgentFromTemplate(templateId, {
-            ...customizations,
+        const userId = req.user.sub;
+        const customizations = {
+            ...req.body,
             createdBy: userId
-        });
+        };
+        const agent = await agentService_1.agentService.createAgentFromTemplate(templateId, customizations);
         return res.status(201).json(agent);
     }
     catch (error) {
         console.error('❌ Error creating agent from template:', error);
-        return res.status(400).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to create agent from template'
-        });
-    }
-});
-router.get('/popular/:limit?', auth_1.authenticateJWT, async (req, res) => {
-    try {
-        const limit = parseInt(req.params.limit) || 10;
-        const agents = await agentService_1.agentService.getPopularAgents(limit);
-        return res.json(agents);
-    }
-    catch (error) {
-        console.error('❌ Error getting popular agents:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get popular agents'
-        });
+        return res.status(500).json(null);
     }
 });
 router.get('/search/:query', auth_1.authenticateJWT, async (req, res) => {
     try {
         const { query } = req.params;
-        const userId = req.user.sub || req.user.id;
-        const agents = await agentService_1.agentService.searchAgents(query, userId);
+        const userId = req.user.sub;
+        let agents = await agentService_1.agentService.searchAgents(query, userId);
+        if (!Array.isArray(agents)) {
+            agents = [];
+        }
         return res.json(agents);
     }
     catch (error) {
         console.error('❌ Error searching agents:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to search agents'
-        });
+        return res.status(500).json([]);
     }
 });
-router.get('/tools/available', auth_1.authenticateJWT, async (req, res) => {
+router.get('/popular', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const tools = advancedToolService_1.advancedToolService.getAllTools();
-        const toolInfo = tools.map(tool => ({
-            name: tool.name,
-            description: tool.description
-        }));
-        return res.json(toolInfo);
-    }
-    catch (error) {
-        console.error('❌ Error getting available tools:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get available tools'
-        });
-    }
-});
-router.get('/tools/:name', auth_1.authenticateJWT, async (req, res) => {
-    try {
-        const { name } = req.params;
-        const tool = advancedToolService_1.advancedToolService.getTool(name);
-        if (!tool) {
-            return res.status(404).json({
-                success: false,
-                error: 'Tool not found'
-            });
+        const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+        let agents = await agentService_1.agentService.getPopularAgents(limit);
+        if (!Array.isArray(agents)) {
+            agents = [];
         }
-        return res.json({
-            name: tool.name,
-            description: tool.description
-        });
+        return res.json(agents);
     }
     catch (error) {
-        console.error(`❌ Error getting tool ${req.params.name}:`, error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get tool'
-        });
+        console.error('❌ Error getting popular agents:', error);
+        return res.status(500).json([]);
     }
 });
-router.post('/:id/test', auth_1.authenticateJWT, async (req, res) => {
+router.get('/popular/:limit', auth_1.authenticateJWT, async (req, res) => {
     try {
-        const { id } = req.params;
-        const { message } = req.body;
-        if (!message) {
+        const limit = parseInt(req.params.limit);
+        if (isNaN(limit) || limit <= 0) {
+            return res.status(400).json([]);
+        }
+        let agents = await agentService_1.agentService.getPopularAgents(limit);
+        if (!Array.isArray(agents)) {
+            agents = [];
+        }
+        return res.json(agents);
+    }
+    catch (error) {
+        console.error('❌ Error getting popular agents:', error);
+        return res.status(500).json([]);
+    }
+});
+router.post('/:agentId/rate', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const { agentId } = req.params;
+        const { rating } = req.body;
+        if (typeof rating !== 'number' || rating < 0 || rating > 5) {
             return res.status(400).json({
                 success: false,
-                error: 'Message is required'
+                error: 'Rating must be a number between 0 and 5'
             });
         }
-        const agent = await agentService_1.agentService.getAgentById(id);
-        if (!agent) {
-            return res.status(404).json({
-                success: false,
-                error: 'Agent not found'
-            });
-        }
-        const testResponse = `Test response from agent "${agent.name}": ${message}`;
+        await agentService_1.agentService.updateAgentRating(agentId, rating);
         return res.json({
             success: true,
-            agent: agent.name,
-            message: message,
-            response: testResponse
+            message: 'Rating updated successfully'
         });
     }
     catch (error) {
-        console.error(`❌ Error testing agent ${req.params.id}:`, error);
+        console.error('❌ Error rating agent:', error);
         return res.status(500).json({
             success: false,
-            error: 'Failed to test agent'
-        });
-    }
-});
-router.get('/:id/stats', auth_1.authenticateJWT, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const agent = await agentService_1.agentService.getAgentById(id);
-        if (!agent) {
-            return res.status(404).json({
-                success: false,
-                error: 'Agent not found'
-            });
-        }
-        const stats = {
-            id: agent.id,
-            name: agent.name,
-            usageCount: agent.usageCount,
-            rating: agent.rating,
-            createdAt: agent.createdAt,
-            updatedAt: agent.updatedAt,
-            tools: agent.tools?.length || 0,
-            collections: agent.collectionNames?.length || 0
-        };
-        return res.json(stats);
-    }
-    catch (error) {
-        console.error(`❌ Error getting agent stats ${req.params.id}:`, error);
-        return res.status(500).json({
-            success: false,
-            error: 'Failed to get agent statistics'
+            error: 'Failed to rate agent'
         });
     }
 });

@@ -13,224 +13,281 @@ export class ChatService {
     console.log('✅ Chat service initialized');
   }
 
-  async createChat(userId: string, agentId: string, name?: string): Promise<typeof ChatModel> {
+  public async createChat(userId: string, name: string, agentId?: string): Promise<any> {
     try {
       const chat = new ChatModel({
         userId,
-        agentId,
-        name: name || `Chat with ${agentId}`,
+        name,
+        agentId: agentId || '000000000000000000000001',
         messages: [],
         createdAt: new Date(),
         updatedAt: new Date(),
+        isPinned: false,
       });
 
       await chat.save();
-      return chat;
+      console.log(`✅ Created chat: ${chat.name} for user: ${userId}`);
+      return this.normalizeChat(chat.toObject());
     } catch (error) {
-      console.error('❌ Error creating chat:', error);
-      throw error;
+      console.error('Error creating chat:', error);
+      throw new Error(`Failed to create chat: ${error}`);
     }
   }
 
-  async getChat(chatId: string): Promise<typeof ChatModel | null> {
+  public async getChat(chatId: string, userId: string): Promise<any | null> {
     try {
-      return await ChatModel.findById(chatId);
+      const chat = await ChatModel.findOne({ _id: chatId, userId }).lean();
+      return chat ? this.normalizeChat(chat) : null;
     } catch (error) {
-      console.error('❌ Error getting chat:', error);
+      console.error(`Error fetching chat ${chatId}:`, error);
       return null;
     }
   }
 
-  async getUserChats(userId: string): Promise<typeof ChatModel[]> {
+  public async getUserChats(userId: string): Promise<any[]> {
     try {
-      return await ChatModel.find({ userId }).sort({ updatedAt: -1 });
+      const chats = await ChatModel.find({ userId })
+        .sort({ isPinned: -1, updatedAt: -1 })
+        .lean()
+        .exec();
+      
+      return chats.map(chat => this.normalizeChat(chat));
     } catch (error) {
-      console.error('❌ Error getting user chats:', error);
+      console.error('Error fetching user chats:', error);
       return [];
     }
   }
 
-  async updateChatName(chatId: string, name: string): Promise<boolean> {
+  public async updateChatName(chatId: string, userId: string, name: string): Promise<any | null> {
     try {
-      const result = await ChatModel.findByIdAndUpdate(chatId, { name });
+      const chat = await ChatModel.findOneAndUpdate(
+        { _id: chatId, userId },
+        { name, updatedAt: new Date() },
+        { new: true }
+      ).lean();
+      
+      return chat ? this.normalizeChat(chat) : null;
+    } catch (error) {
+      console.error(`Error updating chat name ${chatId}:`, error);
+      return null;
+    }
+  }
+
+  public async updateChatPinStatus(chatId: string, userId: string, isPinned: boolean): Promise<any | null> {
+    try {
+      const chat = await ChatModel.findOneAndUpdate(
+        { _id: chatId, userId },
+        { isPinned, updatedAt: new Date() },
+        { new: true }
+      ).lean();
+      
+      return chat ? this.normalizeChat(chat) : null;
+    } catch (error) {
+      console.error(`Error updating chat pin status ${chatId}:`, error);
+      return null;
+    }
+  }
+
+  public async deleteChat(chatId: string, userId: string): Promise<boolean> {
+    try {
+      const result = await ChatModel.findOneAndDelete({ _id: chatId, userId });
       return !!result;
     } catch (error) {
-      console.error('❌ Error updating chat name:', error);
+      console.error(`Error deleting chat ${chatId}:`, error);
       return false;
     }
   }
 
-  async updateChatPinStatus(chatId: string, isPinned: boolean): Promise<boolean> {
+  public async clearChatMemory(chatId: string): Promise<void> {
     try {
-      const result = await ChatModel.findByIdAndUpdate(chatId, { isPinned });
-      return !!result;
-    } catch (error) {
-      console.error('❌ Error updating chat pin status:', error);
-      return false;
-    }
-  }
+      // Clear memory from agent/chain instances
+      const agent = this.agentInstances.get(chatId);
+      if (agent) {
+        // Clear memory (implementation depends on agent type)
+        this.agentInstances.delete(chatId);
+      }
 
-  async deleteChat(chatId: string): Promise<boolean> {
-    try {
-      const result = await ChatModel.findByIdAndDelete(chatId);
-      
-      // Clear instances
-      this.agentInstances.delete(chatId);
-      this.chainInstances.delete(chatId);
-      
-      return !!result;
-    } catch (error) {
-      console.error('❌ Error deleting chat:', error);
-      return false;
-    }
-  }
+      const chain = this.chainInstances.get(chatId);
+      if (chain) {
+        // Clear memory (implementation depends on chain type)
+        this.chainInstances.delete(chatId);
+      }
 
-  async clearChatMemory(chatId: string): Promise<boolean> {
-    try {
-      // Clear instances
-      this.agentInstances.delete(chatId);
-      this.chainInstances.delete(chatId);
-      
-      // Clear messages in database
-      const result = await ChatModel.findByIdAndUpdate(chatId, { messages: [] });
-      return !!result;
+      console.log(`✅ Cleared memory for chat: ${chatId}`);
     } catch (error) {
-      console.error('❌ Error clearing chat memory:', error);
-      return false;
+      console.error(`Error clearing chat memory ${chatId}:`, error);
     }
   }
 
   public async processMessage(
-    chatId: string,
-    userId: string,
-    message: string,
+    chatId: string, 
+    userId: string, 
+    message: string, 
     images?: Array<{ url: string; mediaType: string }>
   ): Promise<void> {
     try {
-      const chat = await this.getChat(chatId);
+      // Get chat
+      const chat = await this.getChat(chatId, userId);
       if (!chat) {
         throw new Error('Chat not found');
       }
 
-      // Add user message
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
+      // Add user message to chat
+      const userMessage = {
         role: 'user',
         content: message,
         timestamp: new Date(),
-        images,
+        images: images || []
       };
 
-      chat.messages.push(userMessage);
-      chat.updatedAt = new Date();
-      await chat.save();
+      await ChatModel.findByIdAndUpdate(chatId, {
+        $push: { messages: userMessage },
+        $set: { updatedAt: new Date() }
+      });
 
-      // Broadcast user message
+      // Send user message to WebSocket clients
       wsManager.broadcastToSession(chatId, JSON.stringify({
         type: 'user_message',
         data: userMessage
       }));
 
+      // Get agent configuration
       const agent = await agentService.getAgentById(chat.agentId);
       if (!agent) {
         throw new Error('Agent not found');
       }
 
+      // Determine processing method based on agent configuration
       const useLangChainAgent = agent.tools && agent.tools.length > 0;
-
+      
       let response: string;
-
+      
       if (useLangChainAgent) {
         response = await this.processWithLangChainAgent(chatId, agent, message, images);
       } else {
         response = await this.processWithChain(chatId, agent, message, images);
       }
 
-      // Add assistant message
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+      // Add assistant message to chat
+      const assistantMessage = {
         role: 'assistant',
         content: response,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
 
-      chat.messages.push(assistantMessage);
-      chat.updatedAt = new Date();
-      await chat.save();
+      await ChatModel.findByIdAndUpdate(chatId, {
+        $push: { messages: assistantMessage },
+        $set: { updatedAt: new Date() }
+      });
 
-      // Increment usage
+      // Increment agent usage count
       await agentService.incrementUsageCount(agent.id);
 
-      // Broadcast assistant message
+      // Send assistant message to WebSocket clients
       wsManager.broadcastToSession(chatId, JSON.stringify({
         type: 'assistant_message',
         data: assistantMessage
       }));
 
+      console.log(`✅ Processed message in chat: ${chatId}`);
+
     } catch (error) {
       console.error(`Error processing message in chat ${chatId}:`, error);
-      wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
+      
+      // Send error message to WebSocket clients
+      wsManager.broadcastToSession(chatId, JSON.stringify({
+        type: 'error',
+        data: 'Failed to process message'
+      }));
     }
   }
 
   private async processWithLangChainAgent(
-    chatId: string,
-    agent: any,
-    message: string,
+    chatId: string, 
+    agent: any, 
+    message: string, 
     images?: Array<{ url: string; mediaType: string }>
   ): Promise<string> {
-    let agentInstance = this.agentInstances.get(chatId);
-    
-    if (!agentInstance) {
-      const config: LangChainAgentConfig = {
-        modelId: agent.modelId,
-        systemPrompt: agent.systemPrompt,
-        temperature: agent.temperature,
-        maxTokens: agent.maxTokens,
-        tools: agent.tools || [],
-        collectionNames: agent.collectionNames || [],
-        sessionId: chatId,
-      };
+    try {
+      // Get or create LangChain agent instance
+      let langChainAgent = this.agentInstances.get(chatId);
+      
+      if (!langChainAgent) {
+        const config: LangChainAgentConfig = {
+          modelId: agent.modelId,
+          systemPrompt: agent.systemPrompt,
+          temperature: agent.temperature,
+          maxTokens: agent.maxTokens,
+          tools: agent.tools.map((tool: any) => tool.name),
+          collectionNames: agent.collectionNames || [],
+          sessionId: chatId
+        };
 
-      agentInstance = new LangChainAgent(config);
-      await agentInstance.initialize();
-      this.agentInstances.set(chatId, agentInstance);
+        langChainAgent = new LangChainAgent(config);
+        await langChainAgent.initialize();
+        this.agentInstances.set(chatId, langChainAgent);
+      }
+
+      // Convert messages to LangChain format
+      const chat = await this.getChat(chatId, '');
+      const langChainMessages = this.convertToLangChainMessages(chat.messages);
+
+      // Process message
+      const response = await langChainAgent.processMessage(langChainMessages, (event) => {
+        // Send streaming events to WebSocket
+        wsManager.broadcastToSession(chatId, JSON.stringify(event));
+      });
+
+      return response;
+
+    } catch (error) {
+      console.error('Error processing with LangChain agent:', error);
+      throw error;
     }
-
-    const messages = this.convertToLangChainMessages(agent.messages || []);
-    messages.push(new HumanMessage(message));
-
-    return await agentInstance.processMessage(messages);
   }
 
   private async processWithChain(
-    chatId: string,
-    agent: any,
-    message: string,
+    chatId: string, 
+    agent: any, 
+    message: string, 
     images?: Array<{ url: string; mediaType: string }>
   ): Promise<string> {
-    let chainInstance = this.chainInstances.get(chatId);
-    
-    if (!chainInstance) {
-      const config: ChainConfig = {
-        modelId: agent.modelId,
-        systemPrompt: agent.systemPrompt,
-        temperature: agent.temperature,
-        maxTokens: agent.maxTokens,
-        chainType: 'conversational',
-        collectionNames: agent.collectionNames || [],
-        sessionId: chatId,
-      };
+    try {
+      // Get or create chain instance
+      let chain = this.chainInstances.get(chatId);
+      
+      if (!chain) {
+        const config: ChainConfig = {
+          modelId: agent.modelId,
+          systemPrompt: agent.systemPrompt,
+          temperature: agent.temperature,
+          maxTokens: agent.maxTokens,
+          chainType: agent.collectionNames && agent.collectionNames.length > 0 ? 'rag' : 'conversational',
+          collectionNames: agent.collectionNames || [],
+          sessionId: chatId
+        };
 
-      chainInstance = new ChainFactory(config);
-      await chainInstance.initialize();
-      this.chainInstances.set(chatId, chainInstance);
+        chain = new ChainFactory(config);
+        await chain.initialize();
+        this.chainInstances.set(chatId, chain);
+      }
+
+      // Convert messages to LangChain format
+      const chat = await this.getChat(chatId, '');
+      const langChainMessages = this.convertToLangChainMessages(chat.messages);
+
+      // Process message
+      const response = await chain.processMessage(langChainMessages, (event) => {
+        // Send streaming events to WebSocket
+        wsManager.broadcastToSession(chatId, JSON.stringify(event));
+      });
+
+      return response;
+
+    } catch (error) {
+      console.error('Error processing with chain:', error);
+      throw error;
     }
-
-    const messages = this.convertToLangChainMessages(agent.messages || []);
-    messages.push(new HumanMessage(message));
-
-    return await chainInstance.processMessage(messages);
   }
 
   private convertToLangChainMessages(messages: any[]): any[] {
@@ -242,22 +299,32 @@ export class ChatService {
       } else if (msg.role === 'system') {
         return new SystemMessage(msg.content);
       }
-      return msg;
-    });
+      return null;
+    }).filter(Boolean);
   }
 
   private normalizeChat(chat: any): any {
     return {
-      id: chat._id,
+      id: chat._id?.toString() || chat.id,
       userId: chat.userId,
-      agentId: chat.agentId,
       name: chat.name,
+      agentId: chat.agentId,
       messages: chat.messages || [],
-      isPinned: chat.isPinned || false,
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
+      isPinned: chat.isPinned || false,
+    };
+  }
+
+  public getStats(): any {
+    return {
+      totalChats: this.agentInstances.size + this.chainInstances.size,
+      activeAgents: this.agentInstances.size,
+      activeChains: this.chainInstances.size,
+      uptime: process.uptime()
     };
   }
 }
 
+// Export singleton instance
 export const chatService = new ChatService(); 

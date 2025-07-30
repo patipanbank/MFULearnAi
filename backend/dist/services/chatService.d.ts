@@ -1,22 +1,32 @@
+import { Chat, ChatMessage } from '../models/chat';
 export declare class ChatService {
-    private agentInstances;
-    private chainInstances;
     constructor();
-    createChat(userId: string, agentId: string, name?: string): Promise<ChatModel>;
-    getChat(chatId: string): Promise<ChatModel | null>;
-    getUserChats(userId: string): Promise<ChatModel[]>;
-    updateChatName(chatId: string, name: string): Promise<boolean>;
-    updateChatPinStatus(chatId: string, isPinned: boolean): Promise<boolean>;
-    deleteChat(chatId: string): Promise<boolean>;
-    clearChatMemory(chatId: string): Promise<boolean>;
-    processMessage(chatId: string, userId: string, message: string, images?: Array<{
+    createChat(userId: string, name: string, agentId?: string): Promise<Chat>;
+    getChat(chatId: string, userId: string): Promise<Chat | null>;
+    addMessage(chatId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage>;
+    processMessage(chatId: string, userId: string, content: string, images?: Array<{
         url: string;
         mediaType: string;
     }>): Promise<void>;
-    private processWithLangChainAgent;
-    private processWithChain;
-    private convertToLangChainMessages;
-    private normalizeChat;
+    private processWithAILegacy;
+    private streamResponse;
+    private streamResponseLegacy;
+    private generateResponse;
+    private generateDetailedResponse;
+    private delay;
+    getUserChats(userId: string): Promise<Chat[]>;
+    deleteChat(chatId: string, userId: string): Promise<boolean>;
+    updateChatName(chatId: string, userId: string, name: string): Promise<Chat | null>;
+    updateChatPinStatus(chatId: string, userId: string, isPinned: boolean): Promise<Chat | null>;
+    clearChatMemory(chatId: string): Promise<void>;
+    private getRecentMessagesFromRedis;
+    private setRecentMessagesToRedis;
+    private restoreRecentContextIfNeeded;
+    private embedMessagesIfNeeded;
+    private shouldUseMemoryTool;
+    private shouldUseRedisMemory;
+    private shouldEmbedMessages;
+    getStats(): any;
 }
 export declare const chatService: ChatService;
 //# sourceMappingURL=chatService.d.ts.map

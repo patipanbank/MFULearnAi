@@ -1,60 +1,24 @@
-import { getConnection } from '../lib/mongodb';
-import { Department } from '../models/department';
+import { getDatabase } from '../lib/mongodb';
 
-export class DepartmentService {
-  private db = getConnection();
-
-  constructor() {
-    console.log('✅ Department service initialized');
+export const ensure_department_exists = async (department_name: string): Promise<void> => {
+  if (!department_name) return;
+  
+  const db = getDatabase();
+  if (!db) {
+    throw new Error('Database not connected');
   }
-
-  async getAllDepartments(): Promise<Department[]> {
-    try {
-      return await Department.find().sort({ name: 1 });
-    } catch (error) {
-      console.error('❌ Error getting departments:', error);
-      return [];
-    }
+  
+  const collection = db.collection('departments');
+  
+  // Check if department exists
+  const existing = await collection.findOne({ name: department_name.toLowerCase() });
+  if (!existing) {
+    // Create department if it doesn't exist
+    await collection.insertOne({
+      name: department_name.toLowerCase(),
+      displayName: department_name,
+      created: new Date(),
+      updated: new Date()
+    });
   }
-
-  async getDepartmentById(id: string): Promise<Department | null> {
-    try {
-      return await Department.findById(id);
-    } catch (error) {
-      console.error('❌ Error getting department:', error);
-      return null;
-    }
-  }
-
-  async createDepartment(departmentData: any): Promise<Department | null> {
-    try {
-      const department = new Department(departmentData);
-      await department.save();
-      return department;
-    } catch (error) {
-      console.error('❌ Error creating department:', error);
-      return null;
-    }
-  }
-
-  async updateDepartment(id: string, updateData: any): Promise<Department | null> {
-    try {
-      return await Department.findByIdAndUpdate(id, updateData, { new: true });
-    } catch (error) {
-      console.error('❌ Error updating department:', error);
-      return null;
-    }
-  }
-
-  async deleteDepartment(id: string): Promise<boolean> {
-    try {
-      const result = await Department.findByIdAndDelete(id);
-      return !!result;
-    } catch (error) {
-      console.error('❌ Error deleting department:', error);
-      return false;
-    }
-  }
-}
-
-export const departmentService = new DepartmentService(); 
+}; 
