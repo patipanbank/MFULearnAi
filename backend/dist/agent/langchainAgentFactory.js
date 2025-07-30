@@ -40,8 +40,6 @@ async function createLangChainAgent(config) {
                         {
                             handleLLMStart: async (llm, prompts) => {
                                 console.log(`🤖 LangChain LLM started`);
-                                if (onEvent)
-                                    onEvent({ type: 'chunk', data: 'กำลังประมวลผล...' });
                             },
                             handleLLMNewToken: async (token) => {
                                 console.log(`🤖 LangChain new token: ${token}`);
@@ -50,8 +48,9 @@ async function createLangChainAgent(config) {
                             },
                             handleLLMEnd: async (output) => {
                                 console.log(`🤖 LangChain LLM ended`);
+                                const finalAnswer = output.generations[0][0].text;
                                 if (onEvent)
-                                    onEvent({ type: 'end', data: { answer: output.generations[0][0].text } });
+                                    onEvent({ type: 'end', data: { answer: finalAnswer } });
                             },
                             handleToolStart: async (tool) => {
                                 console.log(`🔧 LangChain tool started: ${tool.name}`);
@@ -110,9 +109,19 @@ function createLLM(modelId, config) {
 function convertToolsToLangChain(tools, sessionId) {
     const langchainTools = [];
     for (const [name, toolFn] of Object.entries(tools)) {
+        let description = `Tool: ${name}`;
+        if (name === 'web_search') {
+            description = 'Search the web for current information. Use this tool when you need to find recent or up-to-date information about any topic.';
+        }
+        else if (name === 'calculator') {
+            description = 'Perform mathematical calculations. Use this tool when you need to solve math problems or perform calculations.';
+        }
+        else if (name === 'memory') {
+            description = 'Access conversation memory and context. Use this tool to retrieve information from previous conversations.';
+        }
         const langchainTool = new tools_1.DynamicTool({
             name,
-            description: `Tool: ${name}`,
+            description,
             func: async (input) => {
                 try {
                     console.log(`🔧 LangChain Tool called: ${name} with input: ${input}`);
@@ -136,7 +145,9 @@ function createAgentPrompt(systemPrompt) {
 
 ${systemPrompt}
 
-You have access to various tools to help answer questions. When you need to use a tool, the system will automatically provide it for you.
+You have access to tools to help answer questions. When you need to search for information, use the web_search tool. When you need to calculate something, use the calculator tool.
+
+IMPORTANT: If the user asks you to search for information, you MUST use the web_search tool. Do not try to answer without using the appropriate tool.
 
 Please provide clear, helpful responses to user questions.`],
         ["human", "Question: {input}\nThought: {agent_scratchpad}"]

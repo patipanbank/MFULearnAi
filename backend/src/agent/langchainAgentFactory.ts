@@ -70,40 +70,41 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
         // แปลง messages เป็น LangChain format
         const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);
         
-        // เรียก agent executor พร้อม streaming
-        const result = await agentExecutor.invoke({
-          input: langchainMessages,
-          maxIterations: maxSteps
-        }, {
-          callbacks: [
-            {
-              handleLLMStart: async (llm, prompts) => {
-                console.log(`🤖 LangChain LLM started`);
-                if (onEvent) onEvent({ type: 'chunk', data: 'กำลังประมวลผล...' });
-              },
-              handleLLMNewToken: async (token) => {
-                console.log(`🤖 LangChain new token: ${token}`);
-                if (onEvent) onEvent({ type: 'chunk', data: token });
-              },
-              handleLLMEnd: async (output) => {
-                console.log(`🤖 LangChain LLM ended`);
-                if (onEvent) onEvent({ type: 'end', data: { answer: output.generations[0][0].text } });
-              },
-              handleToolStart: async (tool) => {
-                console.log(`🔧 LangChain tool started: ${tool.name}`);
-                if (onEvent) onEvent({ type: 'tool_start', data: { tool_name: tool.name } });
-              },
-              handleToolEnd: async (output) => {
-                console.log(`🔧 LangChain tool ended: ${output.name}`);
-                if (onEvent) onEvent({ type: 'tool_result', data: { tool_name: output.name, output: output.output } });
-              },
-              handleToolError: async (error) => {
-                console.error(`❌ LangChain tool error: ${error}`);
-                if (onEvent) onEvent({ type: 'tool_error', data: { error: error.message } });
-              }
-            }
-          ]
-        });
+                 // เรียก agent executor พร้อม streaming
+         const result = await agentExecutor.invoke({
+           input: langchainMessages,
+           maxIterations: maxSteps
+         }, {
+           callbacks: [
+             {
+               handleLLMStart: async (llm, prompts) => {
+                 console.log(`🤖 LangChain LLM started`);
+                 // ไม่ส่ง event เริ่มต้นเพื่อหลีกเลี่ยงข้อความซ้ำ
+               },
+               handleLLMNewToken: async (token) => {
+                 console.log(`🤖 LangChain new token: ${token}`);
+                 if (onEvent) onEvent({ type: 'chunk', data: token });
+               },
+               handleLLMEnd: async (output) => {
+                 console.log(`🤖 LangChain LLM ended`);
+                 const finalAnswer = output.generations[0][0].text;
+                 if (onEvent) onEvent({ type: 'end', data: { answer: finalAnswer } });
+               },
+               handleToolStart: async (tool) => {
+                 console.log(`🔧 LangChain tool started: ${tool.name}`);
+                 if (onEvent) onEvent({ type: 'tool_start', data: { tool_name: tool.name } });
+               },
+               handleToolEnd: async (output) => {
+                 console.log(`🔧 LangChain tool ended: ${output.name}`);
+                 if (onEvent) onEvent({ type: 'tool_result', data: { tool_name: output.name, output: output.output } });
+               },
+               handleToolError: async (error) => {
+                 console.error(`❌ LangChain tool error: ${error}`);
+                 if (onEvent) onEvent({ type: 'tool_error', data: { error: error.message } });
+               }
+             }
+           ]
+         });
         
         console.log(`🤖 LangChain Agent result: ${result.output.substring(0, 100)}...`);
         
@@ -152,9 +153,20 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
   const langchainTools: DynamicTool[] = [];
   
   for (const [name, toolFn] of Object.entries(tools)) {
+    let description = `Tool: ${name}`;
+    
+    // เพิ่ม description ที่ชัดเจนสำหรับแต่ละ tool
+    if (name === 'web_search') {
+      description = 'Search the web for current information. Use this tool when you need to find recent or up-to-date information about any topic.';
+    } else if (name === 'calculator') {
+      description = 'Perform mathematical calculations. Use this tool when you need to solve math problems or perform calculations.';
+    } else if (name === 'memory') {
+      description = 'Access conversation memory and context. Use this tool to retrieve information from previous conversations.';
+    }
+    
     const langchainTool = new DynamicTool({
       name,
-      description: `Tool: ${name}`,
+      description,
       func: async (input: string) => {
         try {
           console.log(`🔧 LangChain Tool called: ${name} with input: ${input}`);
@@ -183,7 +195,9 @@ function createAgentPrompt(systemPrompt: string): ChatPromptTemplate {
 
 ${systemPrompt}
 
-You have access to various tools to help answer questions. When you need to use a tool, the system will automatically provide it for you.
+You have access to tools to help answer questions. When you need to search for information, use the web_search tool. When you need to calculate something, use the calculator tool.
+
+IMPORTANT: If the user asks you to search for information, you MUST use the web_search tool. Do not try to answer without using the appropriate tool.
 
 Please provide clear, helpful responses to user questions.`],
     ["human", "Question: {input}\nThought: {agent_scratchpad}"]
