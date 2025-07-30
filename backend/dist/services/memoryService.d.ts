@@ -8,6 +8,9 @@ export declare class MemoryService {
     embedMessage(sessionId: string, message: string): Promise<void>;
     searchMemory(sessionId: string, query: string, k?: number): Promise<any[]>;
     getAllMessages(sessionId: string): Promise<any[]>;
+    setupHybridMemory(sessionId: string, messages: any[]): Promise<void>;
+    getMemoryStats(sessionId: string): Promise<any>;
+    clearAllMemory(sessionId: string): Promise<void>;
 }
 export declare const memoryService: MemoryService;
 //# sourceMappingURL=memoryService.d.ts.map

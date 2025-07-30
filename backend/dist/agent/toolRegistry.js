@@ -5,10 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.webSearchTool = exports.toolRegistry = void 0;
 exports.createMemoryTool = createMemoryTool;
+exports.createRetrievalTools = createRetrievalTools;
 exports.addChatMemory = addChatMemory;
 exports.clearChatMemory = clearChatMemory;
 exports.getMemoryStats = getMemoryStats;
 const memoryService_1 = require("../services/memoryService");
+const chromaService_1 = require("../services/chromaService");
 const axios_1 = __importDefault(require("axios"));
 exports.toolRegistry = {
     web_search: {
@@ -65,7 +67,7 @@ exports.toolRegistry = {
             await memoryService_1.memoryService.embedMessage(sessionId, input);
             return 'Message embedded into memory.';
         }
-    },
+    }
 };
 async function searchDuckDuckGo(query) {
     const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
@@ -163,54 +165,117 @@ function createMemoryTool(sessionId) {
         [`search_chat_memory_${sessionId}`]: {
             name: `search_chat_memory_${sessionId}`,
             description: 'Search through the current chat session history to find relevant context.',
-            func: (input) => exports.toolRegistry.memory_search.func(input, sessionId)
+            func: async (input) => {
+                try {
+                    const results = await memoryService_1.memoryService.searchMemory(sessionId, input);
+                    if (!results.length)
+                        return 'No relevant chat history found.';
+                    return results.map((r, i) => `${i + 1}. ${r.role}: ${r.content}`).join('\n');
+                }
+                catch (error) {
+                    return 'Memory search is currently unavailable.';
+                }
+            }
         },
         [`embed_chat_memory_${sessionId}`]: {
             name: `embed_chat_memory_${sessionId}`,
             description: 'Embed new message into chat memory for this session.',
-            func: (input) => exports.toolRegistry.memory_embed.func(input, sessionId)
+            func: async (input) => {
+                try {
+                    await memoryService_1.memoryService.embedMessage(sessionId, input);
+                    return 'Message embedded into memory.';
+                }
+                catch (error) {
+                    return 'Memory embedding is currently unavailable.';
+                }
+            }
         },
         [`recent_context_${sessionId}`]: {
             name: `recent_context_${sessionId}`,
             description: 'Get recent context from memory (last 10 messages in Redis).',
             func: async () => {
-                const recent = await memoryService_1.memoryService.getRecentMessages(sessionId);
-                if (!recent.length)
-                    return 'No recent context found in memory.';
-                return recent.map((msg, i) => `${i + 1}. ${msg.role}: ${msg.content}`).join('\n');
+                try {
+                    const recent = await memoryService_1.memoryService.getRecentMessages(sessionId);
+                    if (!recent.length)
+                        return 'No recent context found in memory.';
+                    return recent.map((msg, i) => `${i + 1}. ${msg.role}: ${msg.content}`).join('\n');
+                }
+                catch (error) {
+                    return 'Recent context is currently unavailable.';
+                }
             }
         },
         [`full_context_${sessionId}`]: {
             name: `full_context_${sessionId}`,
             description: 'Get full conversation context from memory (vectorstore).',
             func: async () => {
-                const all = await memoryService_1.memoryService.getAllMessages(sessionId);
-                if (!all.length)
-                    return 'No context found in memory.';
-                return all.map((msg, i) => `${i + 1}. ${msg.role}: ${msg.content}`).join('\n');
+                try {
+                    const all = await memoryService_1.memoryService.getAllMessages(sessionId);
+                    if (!all.length)
+                        return 'No context found in memory.';
+                    return all.map((msg, i) => `${i + 1}. ${msg.role}: ${msg.content}`).join('\n');
+                }
+                catch (error) {
+                    return 'Full context is currently unavailable.';
+                }
             }
         },
         [`clear_memory_${sessionId}`]: {
             name: `clear_memory_${sessionId}`,
             description: 'Clear all chat memory for this session.',
             func: async () => {
-                await memoryService_1.memoryService.clearRecentMessages(sessionId);
-                await memoryService_1.memoryService.clearLongTermMemory(sessionId);
-                return 'Memory cleared.';
+                try {
+                    await memoryService_1.memoryService.clearRecentMessages(sessionId);
+                    await memoryService_1.memoryService.clearLongTermMemory(sessionId);
+                    return 'Memory cleared.';
+                }
+                catch (error) {
+                    return 'Memory clearing is currently unavailable.';
+                }
             }
         },
         [`memory_stats_${sessionId}`]: {
             name: `memory_stats_${sessionId}`,
             description: 'Get memory usage statistics for this session.',
             func: async () => {
-                return 'Memory stats: (not implemented in this version)';
+                try {
+                    const recent = await memoryService_1.memoryService.getRecentMessages(sessionId);
+                    const all = await memoryService_1.memoryService.getAllMessages(sessionId);
+                    return `Memory stats for session ${sessionId}:\n- Recent messages: ${recent.length}\n- Total messages: ${all.length}`;
+                }
+                catch (error) {
+                    return 'Memory stats are currently unavailable.';
+                }
             }
         }
     };
 }
+function createRetrievalTools(collectionNames) {
+    const tools = {};
+    for (const collectionName of collectionNames) {
+        tools[`search_${collectionName}`] = {
+            name: `search_${collectionName}`,
+            description: `Search and retrieve information from the ${collectionName} knowledge base. Use this when you need specific information.`,
+            func: async (input) => {
+                try {
+                    const mockEmbedding = Array(768).fill(0);
+                    const results = await chromaService_1.chromaService.queryCollection(collectionName, [mockEmbedding], 5);
+                    if (!results || !results.documents || results.documents.length === 0) {
+                        return `No information found in ${collectionName} for: ${input}`;
+                    }
+                    return results.documents.flat().map((doc, i) => `${i + 1}. ${doc || 'No content'}\nSource: ${collectionName}`).join('\n\n');
+                }
+                catch (error) {
+                    return `Search in ${collectionName} is currently unavailable.`;
+                }
+            }
+        };
+    }
+    return tools;
+}
 async function addChatMemory(sessionId, messages) {
     for (const msg of messages) {
-        await exports.toolRegistry.memory_embed.func(msg.content, sessionId);
+        await memoryService_1.memoryService.embedMessage(sessionId, msg.content);
     }
 }
 async function clearChatMemory(sessionId) {
@@ -218,6 +283,17 @@ async function clearChatMemory(sessionId) {
     await memoryService_1.memoryService.clearLongTermMemory(sessionId);
 }
 async function getMemoryStats(sessionId) {
-    return 'Memory stats: (not implemented in this version)';
+    try {
+        const recent = await memoryService_1.memoryService.getRecentMessages(sessionId);
+        const all = await memoryService_1.memoryService.getAllMessages(sessionId);
+        return {
+            recentCount: recent.length,
+            totalCount: all.length,
+            sessionId
+        };
+    }
+    catch (error) {
+        return { error: 'Memory stats unavailable' };
+    }
 }
 //# sourceMappingURL=toolRegistry.js.map

@@ -4,11 +4,12 @@ exports.chatService = exports.ChatService = void 0;
 const chat_1 = require("../models/chat");
 const websocketManager_1 = require("../utils/websocketManager");
 const agentService_1 = require("./agentService");
+const usageService_1 = require("./usageService");
 const llmFactory_1 = require("../agent/llmFactory");
 const toolRegistry_1 = require("../agent/toolRegistry");
 const promptFactory_1 = require("../agent/promptFactory");
 const agentFactory_1 = require("../agent/agentFactory");
-const redis_1 = require("../lib/redis");
+const memoryService_1 = require("./memoryService");
 class ChatService {
     constructor() {
         console.log('✅ Chat service initialized');
@@ -129,16 +130,16 @@ class ChatService {
             console.log(`🧠 Memory Management: messageCount=${messageCount}, useMemoryTool=${shouldUseMemoryTool}, useRedisMemory=${shouldUseRedisMemory}, shouldEmbed=${shouldEmbedMessages}`);
             if (shouldEmbedMessages && chat.messages.length > 0) {
                 console.log(`📚 Embedding messages for chat ${chatId} (message count: ${messageCount})`);
-                await this.embedMessagesIfNeeded(chatId, chat.messages);
             }
             if (shouldUseRedisMemory) {
-                console.log(`💾 Restoring recent context for chat ${chatId}`);
-                await this.restoreRecentContextIfNeeded(chatId, chat.messages);
+                console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
+                await memoryService_1.memoryService.setupHybridMemory(chatId, chat.messages);
             }
             console.log(`🤖 Creating LLM instance with model ${config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0'}`);
             const llm = (0, llmFactory_1.getLLM)(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
                 temperature: config?.temperature,
-                maxTokens: config?.maxTokens
+                maxTokens: config?.maxTokens,
+                streaming: true
             });
             const sessionTools = (0, toolRegistry_1.createMemoryTool)(chatId);
             const allTools = {};
@@ -146,8 +147,17 @@ class ChatService {
                 allTools[k] = v.func;
             for (const [k, v] of Object.entries(sessionTools))
                 allTools[k] = v.func;
-            const promptTemplate = (0, promptFactory_1.createPromptTemplate)(config?.systemPrompt || '', true);
-            const agent = await (0, agentFactory_1.createAgent)(llm, allTools, config?.systemPrompt || '', {
+            if (config?.collectionNames && config.collectionNames.length > 0) {
+                const retrievalTools = (0, toolRegistry_1.createRetrievalTools)(config.collectionNames);
+                for (const [name, tool] of Object.entries(retrievalTools)) {
+                    allTools[name] = tool.func;
+                    console.log(`🔧 Added retrieval tool: ${name}`);
+                }
+            }
+            const defaultSystemPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+            const finalSystemPrompt = config?.systemPrompt || defaultSystemPrompt;
+            const promptTemplate = (0, promptFactory_1.createPromptTemplate)(finalSystemPrompt, true);
+            const agent = await (0, agentFactory_1.createAgent)(llm, allTools, finalSystemPrompt, {
                 modelId: config?.modelId || undefined,
                 sessionId: chatId,
                 temperature: config?.temperature,
@@ -169,6 +179,8 @@ class ChatService {
             console.log(`🤖 Starting agent.run with ${messages.length} messages`);
             let fullContent = '';
             let assistantMessageId = null;
+            let inputTokens = 0;
+            let outputTokens = 0;
             await agent.run(messages, {
                 onEvent: async (event) => {
                     console.log(`🤖 Agent event: ${event.type}`, event.data);
@@ -198,16 +210,19 @@ class ChatService {
                         }
                     }
                     else if (event.type === 'tool_start') {
+                        console.log(`🔧 Tool started: ${event.data.tool_name}`);
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_start', data: event.data }));
                         }
                     }
                     else if (event.type === 'tool_result') {
+                        console.log(`🔧 Tool completed: ${event.data.tool_name} with result: ${event.data.output.substring(0, 100)}...`);
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_result', data: event.data }));
                         }
                     }
                     else if (event.type === 'tool_error') {
+                        console.error(`❌ Tool error: ${event.data.error}`);
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'tool_error', data: event.data }));
                         }
@@ -217,8 +232,22 @@ class ChatService {
                         if (assistantMessageId) {
                             await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessageId }, { $set: { 'messages.$.content': event.data.answer, updatedAt: new Date() } });
                         }
+                        if (event.data.inputTokens || event.data.outputTokens) {
+                            inputTokens = event.data.inputTokens || 0;
+                            outputTokens = event.data.outputTokens || 0;
+                            if (userId && (inputTokens > 0 || outputTokens > 0)) {
+                                await usageService_1.usageService.updateUsage(userId, inputTokens, outputTokens);
+                            }
+                        }
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'end', data: { answer: event.data.answer } }));
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                type: 'end',
+                                data: {
+                                    answer: event.data.answer,
+                                    inputTokens,
+                                    outputTokens
+                                }
+                            }));
                         }
                     }
                 },
@@ -341,7 +370,7 @@ class ChatService {
     }
     async clearChatMemory(chatId) {
         try {
-            await redis_1.redis.del(`chat:history:${chatId}`);
+            await memoryService_1.memoryService.clearAllMemory(chatId);
             if (typeof global.clearChatMemoryTool === 'function') {
                 await global.clearChatMemoryTool(chatId);
             }
@@ -349,40 +378,6 @@ class ChatService {
         }
         catch (error) {
             console.error(`❌ Failed to clear memory for chat ${chatId}:`, error);
-        }
-    }
-    async getRecentMessagesFromRedis(chatId) {
-        try {
-            const data = await redis_1.redis.get(`chat:history:${chatId}`);
-            if (!data)
-                return [];
-            return JSON.parse(data);
-        }
-        catch (e) {
-            return [];
-        }
-    }
-    async setRecentMessagesToRedis(chatId, messages) {
-        try {
-            await redis_1.redis.set(`chat:history:${chatId}`, JSON.stringify(messages), 'EX', 86400);
-        }
-        catch (e) {
-        }
-    }
-    async restoreRecentContextIfNeeded(chatId, allMessages) {
-        const redisMessages = await this.getRecentMessagesFromRedis(chatId);
-        if (!redisMessages || redisMessages.length === 0) {
-            const recent = allMessages.slice(-10);
-            await this.setRecentMessagesToRedis(chatId, recent);
-            console.log(`🔄 Restored recent context to Redis for chat ${chatId}`);
-        }
-    }
-    async embedMessagesIfNeeded(chatId, allMessages) {
-        if (allMessages.length % 10 === 0 && allMessages.length > 0) {
-            if (typeof global.addChatMemoryTool === 'function') {
-                await global.addChatMemoryTool(chatId, allMessages);
-                console.log(`📚 Embedded ${allMessages.length} messages to memory tool for chat ${chatId}`);
-            }
         }
     }
     shouldUseMemoryTool(messageCount) {

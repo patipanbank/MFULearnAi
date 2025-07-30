@@ -7,6 +7,8 @@ const aws_1 = require("@langchain/aws");
 const prompts_1 = require("@langchain/core/prompts");
 const messages_1 = require("@langchain/core/messages");
 const tools_1 = require("@langchain/core/tools");
+const redis_1 = require("../lib/redis");
+const memoryService_1 = require("../services/memoryService");
 async function createLangChainAgent(config) {
     console.log(`🤖 Creating LangChain Agent with model: ${config.modelId}`);
     const llm = createLLM(config.modelId, {
@@ -23,7 +25,8 @@ async function createLangChainAgent(config) {
     const agentExecutor = agents_1.AgentExecutor.fromAgentAndTools({
         agent,
         tools: langchainTools,
-        verbose: true
+        verbose: true,
+        maxIterations: 5
     });
     return {
         async run(messages, options) {
@@ -31,9 +34,12 @@ async function createLangChainAgent(config) {
             const onEvent = options?.onEvent;
             const maxSteps = options?.maxSteps ?? 5;
             try {
+                if (config.sessionId) {
+                    await setupHybridMemory(config.sessionId, messages);
+                }
                 const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);
                 const result = await agentExecutor.invoke({
-                    input: langchainMessages,
+                    input: messages[messages.length - 1].content,
                     maxIterations: maxSteps
                 }, {
                     callbacks: [
@@ -51,9 +57,22 @@ async function createLangChainAgent(config) {
                                 if (onEvent)
                                     onEvent({ type: 'error', data: { error: error.message } });
                             },
+                            handleChainStart: async (chain) => {
+                                console.log(`🔗 LangChain chain started: ${chain.name}`);
+                            },
+                            handleChainEnd: async (output) => {
+                                console.log(`🔗 LangChain chain ended`);
+                            },
                             handleLLMEnd: async (output) => {
                                 console.log(`🤖 LangChain LLM ended`);
                                 const finalAnswer = output.generations[0][0].text;
+                                const generation = output.generations[0][0];
+                                if (generation.tool_calls && generation.tool_calls.length > 0) {
+                                    console.log(`🔧 Found ${generation.tool_calls.length} tool calls`);
+                                    for (const toolCall of generation.tool_calls) {
+                                        console.log(`🔧 Tool call: ${toolCall.name} with args: ${JSON.stringify(toolCall.args)}`);
+                                    }
+                                }
                                 if (onEvent)
                                     onEvent({ type: 'end', data: { answer: finalAnswer } });
                             },
@@ -63,7 +82,7 @@ async function createLangChainAgent(config) {
                                     onEvent({ type: 'tool_start', data: { tool_name: tool.name } });
                             },
                             handleToolEnd: async (output) => {
-                                console.log(`🔧 LangChain tool ended: ${output.name}`);
+                                console.log(`🔧 LangChain tool ended: ${output.name} with result: ${output.output}`);
                                 if (onEvent)
                                     onEvent({ type: 'tool_result', data: { tool_name: output.name, output: output.output } });
                             },
@@ -84,6 +103,30 @@ async function createLangChainAgent(config) {
             }
         }
     };
+}
+async function setupHybridMemory(sessionId, messages) {
+    try {
+        console.log(`🧠 Setting up hybrid memory for session ${sessionId}`);
+        const recentMessages = messages.slice(-10);
+        if (recentMessages.length > 0) {
+            await redis_1.redis.set(`chat:recent:${sessionId}`, JSON.stringify(recentMessages), 'EX', 86400);
+            console.log(`💾 Stored ${recentMessages.length} recent messages in Redis`);
+        }
+        if (messages.length % 10 === 0 && messages.length > 0) {
+            const messagesForEmbedding = messages.map(msg => ({
+                content: msg.content,
+                role: msg.role,
+                timestamp: new Date().toISOString()
+            }));
+            for (const msg of messagesForEmbedding) {
+                await memoryService_1.memoryService.embedMessage(sessionId, msg.content);
+            }
+            console.log(`📚 Embedded ${messagesForEmbedding.length} messages to vectorstore`);
+        }
+    }
+    catch (error) {
+        console.error(`❌ Error setting up hybrid memory: ${error}`);
+    }
 }
 function createLLM(modelId, config) {
     if (modelId.includes('anthropic') || modelId.includes('claude')) {
@@ -148,6 +191,9 @@ function convertToolsToLangChain(tools, sessionId) {
         else if (name.startsWith('memory_stats_')) {
             description = 'Get memory usage statistics for this session. Use this tool to check memory usage.';
         }
+        else if (name.startsWith('search_')) {
+            description = `Search and retrieve information from the knowledge base. Use this when you need specific information.`;
+        }
         const langchainTool = new tools_1.DynamicTool({
             name,
             description,
@@ -180,18 +226,9 @@ function convertToolsToLangChain(tools, sessionId) {
     return langchainTools;
 }
 function createAgentPrompt(systemPrompt) {
-    const template = prompts_1.ChatPromptTemplate.fromMessages([
-        ["system", `You are a helpful AI assistant. Follow these guidelines:
-
-${systemPrompt}
-
-You have access to the following tools:
-- web_search: Search the web for current information
-- calculator: Perform mathematical calculations
-- current_date: Get current date and time
-- memory_search: Search conversation memory
-- memory_embed: Store information in memory
-- Various session-specific memory tools
+    const defaultPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+    const finalSystemPrompt = systemPrompt || defaultPrompt;
+    const legacyPrompt = `${finalSystemPrompt}
 
 IMPORTANT INSTRUCTIONS:
 1. If the user asks you to search for information, you MUST use the web_search tool
@@ -200,11 +237,24 @@ IMPORTANT INSTRUCTIONS:
 4. Always use the appropriate tool when needed - do not try to answer without tools
 5. When using web_search, provide the search query as input
 6. When using calculator, provide the mathematical expression as input
+7. When using knowledge base search, provide the search query as input
+8. Use memory tools to maintain conversation context across long conversations
+9. Hybrid memory management: Redis for recent messages, Vectorstore for long-term storage
 
-Please provide clear, helpful responses to user questions.`],
+Available tools:
+- web_search: Search the web for current information
+- calculator: Perform mathematical calculations
+- current_date: Get current date and time
+- memory_search: Search conversation memory
+- memory_embed: Store information in memory
+- Various session-specific memory tools
+- Knowledge base search tools
+
+CRITICAL: You MUST use tools when appropriate. Do not just say you will use a tool - actually call the tool function.`;
+    return prompts_1.ChatPromptTemplate.fromMessages([
+        ["system", legacyPrompt],
         ["human", "Question: {input}\nThought: {agent_scratchpad}"]
     ]);
-    return template;
 }
 function convertMessagesToLangChain(messages, systemPrompt) {
     const langchainMessages = [];

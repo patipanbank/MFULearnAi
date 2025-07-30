@@ -19,10 +19,6 @@ export declare class ChatService {
     updateChatName(chatId: string, userId: string, name: string): Promise<Chat | null>;
     updateChatPinStatus(chatId: string, userId: string, isPinned: boolean): Promise<Chat | null>;
     clearChatMemory(chatId: string): Promise<void>;
-    private getRecentMessagesFromRedis;
-    private setRecentMessagesToRedis;
-    private restoreRecentContextIfNeeded;
-    private embedMessagesIfNeeded;
     private shouldUseMemoryTool;
     private shouldUseRedisMemory;
     private shouldEmbedMessages;

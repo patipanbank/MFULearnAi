@@ -314,7 +314,7 @@ CRITICAL: You MUST use tools when appropriate. Do not just say you will use a to
 
   return ChatPromptTemplate.fromMessages([
     ["system", legacyPrompt],
-    ["human", "{input}"]
+    ["human", "Question: {input}\nThought: {agent_scratchpad}"]
   ]);
 }
 

@@ -18,6 +18,7 @@ export declare function createMemoryTool(sessionId: string): {
         func: (input: string) => Promise<string>;
     };
 };
+export declare function createRetrievalTools(collectionNames: string[]): Record<string, ToolMeta>;
 export declare function addChatMemory(sessionId: string, messages: {
     role: string;
     content: string;
@@ -25,5 +26,15 @@ export declare function addChatMemory(sessionId: string, messages: {
     timestamp?: string;
 }[]): Promise<void>;
 export declare function clearChatMemory(sessionId: string): Promise<void>;
-export declare function getMemoryStats(sessionId: string): Promise<string>;
+export declare function getMemoryStats(sessionId: string): Promise<{
+    recentCount: number;
+    totalCount: number;
+    sessionId: string;
+    error?: undefined;
+} | {
+    error: string;
+    recentCount?: undefined;
+    totalCount?: undefined;
+    sessionId?: undefined;
+}>;
 //# sourceMappingURL=toolRegistry.d.ts.map

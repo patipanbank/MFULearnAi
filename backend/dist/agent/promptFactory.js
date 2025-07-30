@@ -3,7 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createPromptTemplate = createPromptTemplate;
 exports.createLangChainPromptTemplate = createLangChainPromptTemplate;
 exports.createAgentPromptTemplate = createAgentPromptTemplate;
+exports.createLegacySystemPrompt = createLegacySystemPrompt;
+exports.createLegacyChatPromptTemplate = createLegacyChatPromptTemplate;
 const prompts_1 = require("@langchain/core/prompts");
+const prompts_2 = require("@langchain/core/prompts");
 function createPromptTemplate(systemPrompt, useHistory = true) {
     return (messages, scratchpad) => {
         let prompt = '';
@@ -57,5 +60,39 @@ Final Answer: the final answer to the original input question
 Question: {input}
 Thought:{agent_scratchpad}`;
     return prompts_1.PromptTemplate.fromTemplate(template);
+}
+function createLegacySystemPrompt(basePrompt) {
+    const defaultPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+    const systemPrompt = basePrompt || defaultPrompt;
+    return `${systemPrompt}
+
+IMPORTANT INSTRUCTIONS:
+1. If the user asks you to search for information, you MUST use the web_search tool
+2. If the user asks for calculations, use the calculator tool
+3. If you need to recall previous conversation context, use memory tools
+4. Always use the appropriate tool when needed - do not try to answer without tools
+5. When using web_search, provide the search query as input
+6. When using calculator, provide the mathematical expression as input
+7. When using knowledge base search, provide the search query as input
+8. Use memory tools to maintain conversation context across long conversations
+9. Hybrid memory management: Redis for recent messages, Vectorstore for long-term storage
+
+Available tools:
+- web_search: Search the web for current information
+- calculator: Perform mathematical calculations
+- current_date: Get current date and time
+- memory_search: Search conversation memory
+- memory_embed: Store information in memory
+- Various session-specific memory tools
+- Knowledge base search tools
+
+Please provide clear, helpful responses to user questions.`;
+}
+function createLegacyChatPromptTemplate(systemPrompt) {
+    const finalSystemPrompt = createLegacySystemPrompt(systemPrompt);
+    return prompts_2.ChatPromptTemplate.fromMessages([
+        ["system", finalSystemPrompt],
+        ["human", "Question: {input}\nThought: {agent_scratchpad}"]
+    ]);
 }
 //# sourceMappingURL=promptFactory.js.map
