@@ -73,6 +73,16 @@ const staticTools: Record<string, ToolFunction> = {
   web_search: async (input: string, _sessionId: string, config?: any) => {
     if (!input || input.trim() === '') return 'No query provided.';
     try {
+      // ลองใช้ Google Search API ก่อน
+      if (process.env.GOOGLE_API_KEY && process.env.GOOGLE_CSE_ID) {
+        const gUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_CSE_ID}&q=${encodeURIComponent(input)}&num=3`;
+        const gResp = await axios.get(gUrl, { timeout: 7000 });
+        if (gResp.data && gResp.data.items && gResp.data.items.length > 0) {
+          return gResp.data.items.map((item: any, i: number) => `${i + 1}. ${item.title}\n${item.snippet}`).join('\n');
+        }
+      }
+      
+      // Fallback ไปใช้ DuckDuckGo
       const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(input)}&format=json&no_html=1&skip_disambig=1`;
       const resp = await axios.get(url, { timeout: 5000 });
       if (resp.data && resp.data.Abstract) {

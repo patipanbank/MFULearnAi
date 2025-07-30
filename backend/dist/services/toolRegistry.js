@@ -78,6 +78,13 @@ const staticTools = {
         if (!input || input.trim() === '')
             return 'No query provided.';
         try {
+            if (process.env.GOOGLE_API_KEY && process.env.GOOGLE_CSE_ID) {
+                const gUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_CSE_ID}&q=${encodeURIComponent(input)}&num=3`;
+                const gResp = await axios_1.default.get(gUrl, { timeout: 7000 });
+                if (gResp.data && gResp.data.items && gResp.data.items.length > 0) {
+                    return gResp.data.items.map((item, i) => `${i + 1}. ${item.title}\n${item.snippet}`).join('\n');
+                }
+            }
             const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(input)}&format=json&no_html=1&skip_disambig=1`;
             const resp = await axios_1.default.get(url, { timeout: 5000 });
             if (resp.data && resp.data.Abstract) {

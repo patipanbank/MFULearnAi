@@ -183,17 +183,26 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
     const langchainTool = new DynamicTool({
       name,
       description,
-      func: async (input: string) => {
-        try {
-          console.log(`🔧 LangChain Tool called: ${name} with input: ${input}`);
-          const result = await toolFn(input, sessionId || '');
-          console.log(`🔧 LangChain Tool result: ${result.substring(0, 100)}...`);
-          return result;
-        } catch (error) {
-          console.error(`❌ LangChain Tool error: ${name}`, error);
-          return `Error executing tool ${name}: ${error}`;
-        }
-      }
+             func: async (input: string) => {
+         try {
+           console.log(`🔧 LangChain Tool called: ${name} with input: ${input}`);
+           const result = await toolFn(input, sessionId || '');
+           console.log(`🔧 LangChain Tool result: ${result.substring(0, 100)}...`);
+           return result;
+         } catch (error) {
+           console.error(`❌ LangChain Tool error: ${name}`, error);
+           // ส่งกลับข้อความ error ที่ชัดเจน
+           if (name === 'web_search') {
+             return 'Web search is currently unavailable. Please try again later.';
+           } else if (name === 'calculator') {
+             return 'Calculator error. Please check your mathematical expression.';
+           } else if (name.startsWith('memory_')) {
+             return 'Memory service is currently unavailable.';
+           } else {
+             return `Error executing tool ${name}: ${error}`;
+           }
+         }
+       }
     });
     
     langchainTools.push(langchainTool);

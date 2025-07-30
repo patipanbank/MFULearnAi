@@ -43,7 +43,7 @@ const ChatMessageSchema = new Schema<ChatMessage>({
   },
   content: { 
     type: String, 
-    required: true,
+    required: false,
     default: '',
     validate: {
       validator: function(v: string) {

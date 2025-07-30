@@ -48,7 +48,7 @@ const ChatMessageSchema = new mongoose_1.Schema({
     },
     content: {
         type: String,
-        required: true,
+        required: false,
         default: '',
         validate: {
             validator: function (v) {
