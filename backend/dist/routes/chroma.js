@@ -33,7 +33,7 @@ router.delete('/collections/:name', async (req, res) => {
         res.status(500).json({ error: error.message || 'Unknown error' });
     }
 });
-router.post('/collections/add/:name', async (req, res) => {
+router.post('/collections/:name/add', async (req, res) => {
     const { documents, embeddings, metadatas, ids } = req.body;
     try {
         const result = await chromaService_1.chromaService.addToCollection(req.params.name, documents, embeddings, metadatas, ids);
@@ -43,7 +43,7 @@ router.post('/collections/add/:name', async (req, res) => {
         res.status(500).json({ error: error.message || 'Unknown error' });
     }
 });
-router.post('/collections/query/:name', async (req, res) => {
+router.post('/collections/:name/query', async (req, res) => {
     const { queryEmbeddings, nResults } = req.body;
     try {
         const result = await chromaService_1.chromaService.queryCollection(req.params.name, queryEmbeddings, nResults);
@@ -53,7 +53,7 @@ router.post('/collections/query/:name', async (req, res) => {
         res.status(500).json({ error: error.message || 'Unknown error' });
     }
 });
-router.get('/collections/documents/:name', async (req, res) => {
+router.get('/collections/:name/documents', async (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const offset = parseInt(req.query.offset) || 0;
     try {
@@ -64,7 +64,7 @@ router.get('/collections/documents/:name', async (req, res) => {
         res.status(500).json({ error: error.message || 'Unknown error' });
     }
 });
-router.post('/collections/delete_documents/:name', async (req, res) => {
+router.post('/collections/:name/delete_documents', async (req, res) => {
     const { ids } = req.body;
     try {
         await chromaService_1.chromaService.deleteDocuments(req.params.name, ids);
