@@ -285,13 +285,14 @@ export class ChatService {
               }));
             }
           } else if (event.type === 'tool_result') {
-            console.log(`🔧 Tool completed: ${event.data.tool_name} with result: ${event.data.output.substring(0, 100)}...`);
+            const output = event.data.output || 'No output available';
+            console.log(`🔧 Tool completed: ${event.data.tool_name} with result: ${output.substring(0, 100)}...`);
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ 
                 type: 'tool_result', 
                 data: {
                   tool_name: event.data.tool_name,
-                  output: event.data.output
+                  output: output
                 }
               }));
             }

@@ -89,13 +89,14 @@ async function createLangChainAgent(config) {
                                     });
                             },
                             handleToolEnd: async (output) => {
-                                console.log(`🔧 LangChain tool ended: ${output.name} with result: ${output.output}`);
+                                const toolOutput = output.output || 'Tool completed successfully';
+                                console.log(`🔧 LangChain tool ended: ${output.name} with result: ${toolOutput}`);
                                 if (onEvent)
                                     onEvent({
                                         type: 'tool_result',
                                         data: {
                                             tool_name: output.name,
-                                            output: output.output
+                                            output: toolOutput
                                         }
                                     });
                             },
