@@ -131,7 +131,12 @@ class ChatService {
             for (const [k, v] of Object.entries(sessionTools))
                 allTools[k] = v.func;
             const promptTemplate = (0, promptFactory_1.createPromptTemplate)(config?.systemPrompt || '', true);
-            const agent = (0, agentFactory_1.createAgent)(llm, allTools, config?.systemPrompt || '');
+            const agent = await (0, agentFactory_1.createAgent)(llm, allTools, config?.systemPrompt || '', {
+                modelId: config?.modelId || undefined,
+                sessionId: chatId,
+                temperature: config?.temperature,
+                maxTokens: config?.maxTokens
+            });
             const chatFromDb = await chat_1.ChatModel.findById(chatId);
             if (!chatFromDb)
                 throw new Error(`Chat session ${chatId} not found during AI processing`);
@@ -147,7 +152,7 @@ class ChatService {
             }
             const assistantMessage = await this.addMessage(chatId, {
                 role: 'assistant',
-                content: 'กำลังคิด...',
+                content: 'กำลังประมวลผล...',
             });
             console.log(`🤖 Starting agent.run with ${messages.length} messages`);
             let fullContent = '';

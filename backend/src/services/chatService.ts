@@ -166,8 +166,13 @@ export class ChatService {
       for (const [k, v] of Object.entries(sessionTools)) allTools[k] = v.func;
       // 3. เตรียม prompt template
       const promptTemplate = createPromptTemplate(config?.systemPrompt || '', true);
-      // 4. สร้าง agent executor (ใหม่)
-      const agent = createAgent(llm, allTools, config?.systemPrompt || '');
+      // 4. สร้าง agent executor (ใหม่) - ใช้ LangChain Agent
+      const agent = await createAgent(llm, allTools, config?.systemPrompt || '', {
+        modelId: config?.modelId || undefined,
+        sessionId: chatId,
+        temperature: config?.temperature,
+        maxTokens: config?.maxTokens
+      });
       // 5. ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท
       const chatFromDb = await ChatModel.findById(chatId);
       if (!chatFromDb) throw new Error(`Chat session ${chatId} not found during AI processing`);
@@ -185,7 +190,7 @@ export class ChatService {
       // เพิ่ม assistant message เปล่าไว้สำหรับอัปเดต
       const assistantMessage = await this.addMessage(chatId, {
         role: 'assistant',
-        content: 'กำลังคิด...',
+        content: 'กำลังประมวลผล...',
       });
       // 6. เรียก agent.run พร้อม onEvent สำหรับ stream event
       console.log(`🤖 Starting agent.run with ${messages.length} messages`);

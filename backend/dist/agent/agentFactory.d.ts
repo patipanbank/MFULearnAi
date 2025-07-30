@@ -14,5 +14,10 @@ export interface AgentExecutor {
 }
 export declare function createAgent(llm: LLM, tools: {
     [name: string]: ToolFunction;
-}, prompt: string): AgentExecutor;
+}, prompt: string, config?: {
+    modelId?: string;
+    sessionId?: string;
+    temperature?: number;
+    maxTokens?: number;
+}): Promise<AgentExecutor>;
 //# sourceMappingURL=agentFactory.d.ts.map
