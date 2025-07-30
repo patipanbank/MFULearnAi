@@ -12,10 +12,9 @@ async function connectRedis() {
     try {
         const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
         redis = new ioredis_1.default(redisUrl, {
+            retryDelayOnFailover: 100,
             maxRetriesPerRequest: 3,
             lazyConnect: true,
-            connectTimeout: 10000,
-            commandTimeout: 5000,
         });
         redis.on('connect', () => {
             console.log('✅ Connected to Redis');

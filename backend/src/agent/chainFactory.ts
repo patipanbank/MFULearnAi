@@ -2,7 +2,7 @@ import { BedrockChat } from "@langchain/community/chat_models/bedrock";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { BaseMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import { ChatMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
 import { BedrockEmbeddings } from "@langchain/community/embeddings/bedrock";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
@@ -145,7 +145,7 @@ export class ChainFactory {
   }
 
   async processMessage(
-    messages: BaseMessage[],
+    messages: ChatMessage[],
     onEvent?: (event: { type: string; data?: any }) => void
   ): Promise<string> {
     const chain = this.getChain();
@@ -154,21 +154,15 @@ export class ChainFactory {
     if (userMessage instanceof HumanMessage) {
       // Add to memory
       if (this.memoryStore) {
-        const content = typeof userMessage.content === 'string' 
-          ? userMessage.content 
-          : JSON.stringify(userMessage.content);
-        
         await this.memoryStore.addDocuments([{
-          pageContent: content,
+          pageContent: userMessage.content,
           metadata: { type: "user", timestamp: new Date().toISOString() }
         }]);
       }
 
       // Prepare input
       const input: any = {
-        input: typeof userMessage.content === 'string' 
-          ? userMessage.content 
-          : JSON.stringify(userMessage.content),
+        input: userMessage.content,
         chat_history: this.formatChatHistory(messages.slice(0, -1))
       };
 
@@ -202,18 +196,12 @@ export class ChainFactory {
     }
   }
 
-  private formatChatHistory(messages: BaseMessage[]): BaseMessage[] {
+  private formatChatHistory(messages: ChatMessage[]): ChatMessage[] {
     return messages.map(msg => {
       if (msg instanceof HumanMessage) {
-        const content = typeof msg.content === 'string' 
-          ? msg.content 
-          : JSON.stringify(msg.content);
-        return new HumanMessage(content);
+        return new HumanMessage(msg.content);
       } else if (msg instanceof AIMessage) {
-        const content = typeof msg.content === 'string' 
-          ? msg.content 
-          : JSON.stringify(msg.content);
-        return new AIMessage(content);
+        return new AIMessage(msg.content);
       }
       return msg;
     });

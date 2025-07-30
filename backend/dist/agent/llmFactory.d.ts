@@ -1,4 +1,4 @@
-import { BaseMessage } from "@langchain/core/messages";
+import { ChatMessage } from "langchain/schema";
 export interface LLMOptions {
     region?: string;
     model?: string;
@@ -7,12 +7,14 @@ export interface LLMOptions {
     systemPrompt?: string;
     maxTokens?: number;
     temperature?: number;
+    topP?: number;
+    topK?: number;
 }
 export declare class LLM {
     private chat;
     private options;
     constructor(options: LLMOptions);
-    generate(messages: BaseMessage[]): Promise<string>;
+    generate(messages: ChatMessage[]): Promise<string>;
 }
 export declare function getLLM(options: LLMOptions): LLM;
 //# sourceMappingURL=llmFactory.d.ts.map

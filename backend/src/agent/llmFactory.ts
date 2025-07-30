@@ -1,13 +1,16 @@
 import { BedrockChat } from "@langchain/community/chat_models/bedrock";
-import { BaseMessage } from "@langchain/core/messages";
+import { ChatMessage } from "langchain/schema";
 
 export interface LLMOptions {
   region?: string;
   model?: string;
   accessKeyId?: string;
   secretAccessKey?: string;
+  systemPrompt?: string;
   maxTokens?: number;
   temperature?: number;
+  topP?: number;
+  topK?: number;
   // ...อื่นๆ
 }
 
@@ -26,13 +29,15 @@ export class LLM {
       },
       maxTokens: options.maxTokens,
       temperature: options.temperature,
+      topP: options.topP,
+      topK: options.topK,
+      systemPrompt: options.systemPrompt,
     });
   }
 
-  async generate(messages: BaseMessage[]): Promise<string> {
+  async generate(messages: ChatMessage[]): Promise<string> {
     const response = await this.chat.invoke(messages);
-    const content = response.content;
-    return typeof content === 'string' ? content : JSON.stringify(content);
+    return response.content;
   }
 }
 

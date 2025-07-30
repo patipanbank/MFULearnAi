@@ -56,8 +56,6 @@ const userSchema = new mongoose_1.Schema({
         default: UserRole.STUDENTS
     },
     groups: { type: [String], default: [] },
-    isActive: { type: Boolean, default: true },
-    lastLogin: { type: Date },
     created: { type: Date, default: Date.now },
     updated: { type: Date, default: Date.now }
 });

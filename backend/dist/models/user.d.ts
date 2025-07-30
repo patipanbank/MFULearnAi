@@ -15,8 +15,6 @@ export interface IUser extends Document {
     department?: string;
     role: UserRole;
     groups: string[];
-    isActive?: boolean;
-    lastLogin?: Date;
     created: Date;
     updated: Date;
 }

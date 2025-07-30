@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const passport_1 = __importDefault(require("passport"));
-const passport_saml_1 = require("@node-saml/passport-saml");
+const passport_saml_1 = require("passport-saml");
 const samlService_1 = require("../services/samlService");
 const userService_1 = require("../services/userService");
 const auth_1 = require("../middleware/auth");
@@ -14,12 +14,10 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const router = (0, express_1.Router)();
 passport_1.default.use('saml', new passport_saml_1.Strategy((0, samlService_1.getSamlConfig)(), (profile, done) => {
     return done(null, profile || undefined);
-}, (profile, done) => {
-    return done(null, profile || undefined);
 }));
 router.get('/login/saml', passport_1.default.authenticate('saml', { failureRedirect: '/login', failureFlash: true }));
 router.post('/saml/callback', (req, res, next) => {
-    passport_1.default.authenticate('saml', { failureRedirect: '/login', failureFlash: true }, async (err, profile, info) => {
+    passport_1.default.authenticate('saml', async (err, profile, info) => {
         if (err || !profile) {
             console.log('❌ SAML Authentication failed:', err);
             return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=auth_failed&reason=${encodeURIComponent(err?.message || 'No profile')}`);
@@ -75,30 +73,48 @@ router.post('/saml/callback', (req, res, next) => {
                 getAttr(['sn']));
             const department = (getAttr(['depart_name']) ||
                 getAttr(['department']) ||
-                getAttr(['dept']));
-            const groups = getAttr(['http://schemas.xmlsoap.org/claims/Group'], []);
-            const groupsArray = Array.isArray(groups) ? groups : [groups].filter(Boolean);
-            console.log(`\n🔍 Extracted Attributes:`);
-            console.log(`   👤 Username: ${username}`);
-            console.log(`   📧 Email: ${email}`);
-            console.log(`   👨 First Name: ${firstName}`);
-            console.log(`   👨 Last Name: ${lastName}`);
-            console.log(`   🏢 Department: ${department}`);
-            console.log(`   👥 Groups: ${JSON.stringify(groupsArray)}`);
-            if (!username || !email) {
-                throw new Error(`Missing required attributes: username=${username}, email=${email}`);
+                getAttr(['organizationalUnit']));
+            let groups = [];
+            const groupsAttr = getAttr(['Groups']);
+            const groupSids = getAttr(['http://schemas.xmlsoap.org/claims/Group']);
+            console.log(`🔍 Groups mapping - Groups attr: ${JSON.stringify(groupsAttr)}`);
+            console.log(`🔍 Groups mapping - Group SIDs: ${JSON.stringify(groupSids)}`);
+            if (groupSids && Array.isArray(groupSids)) {
+                groups = groupSids;
+                console.log(`🔍 Groups mapping - Using Group SIDs array: ${JSON.stringify(groupSids)}`);
             }
+            else if (groupSids && !Array.isArray(groupSids)) {
+                groups = [groupSids];
+                console.log(`🔍 Groups mapping - Using Group SIDs single: ${groupSids}`);
+            }
+            else {
+                groups = [];
+                console.log(`🔍 Groups mapping - No Group SIDs found`);
+            }
+            const groupsArray = Array.isArray(groups) ? groups : [groups].filter(Boolean);
+            console.log(`🔍 Groups mapping - Final groups array: ${JSON.stringify(groupsArray)}`);
+            if (!username) {
+                console.log('❌ Username not found in SAML attributes');
+                return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
+            }
+            console.log('\n🔍 Mapped Values:');
+            console.log(`   Username: ${username}`);
+            console.log(`   Email: ${email}`);
+            console.log(`   First Name: ${firstName}`);
+            console.log(`   Last Name: ${lastName}`);
+            console.log(`   Department: ${department}`);
+            console.log(`   Groups: ${JSON.stringify(groupsArray)}`);
             const userProfile = {
                 nameID: profile.nameID,
-                username: username,
-                email: email,
-                firstName: firstName || '',
-                lastName: lastName || '',
-                department: department || '',
+                username,
+                email,
+                firstName,
+                lastName,
+                department,
                 groups: groupsArray,
             };
             console.log(`\n👤 Mapped Profile: ${JSON.stringify(userProfile, null, 2)}`);
-            const user = await userService_1.userService.findOrCreateSamlUser(userProfile);
+            const user = await userService_1.userService.find_or_create_saml_user(userProfile);
             console.log(`👤 Created/Found User: ${user.username} (${user.email})`);
             const tokenPayload = {
                 sub: user._id,
@@ -124,7 +140,7 @@ router.post('/saml/callback', (req, res, next) => {
     })(req, res, next);
 });
 router.get('/saml/callback', (req, res, next) => {
-    passport_1.default.authenticate('saml', { failureRedirect: '/login', failureFlash: true }, async (err, profile, info) => {
+    passport_1.default.authenticate('saml', async (err, profile, info) => {
         if (err || !profile) {
             console.log('❌ SAML Authentication failed:', err);
             return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=auth_failed&reason=${encodeURIComponent(err?.message || 'No profile')}`);
@@ -180,30 +196,48 @@ router.get('/saml/callback', (req, res, next) => {
                 getAttr(['sn']));
             const department = (getAttr(['depart_name']) ||
                 getAttr(['department']) ||
-                getAttr(['dept']));
-            const groups = getAttr(['http://schemas.xmlsoap.org/claims/Group'], []);
-            const groupsArray = Array.isArray(groups) ? groups : [groups].filter(Boolean);
-            console.log(`\n🔍 Extracted Attributes:`);
-            console.log(`   👤 Username: ${username}`);
-            console.log(`   📧 Email: ${email}`);
-            console.log(`   👨 First Name: ${firstName}`);
-            console.log(`   👨 Last Name: ${lastName}`);
-            console.log(`   🏢 Department: ${department}`);
-            console.log(`   👥 Groups: ${JSON.stringify(groupsArray)}`);
-            if (!username || !email) {
-                throw new Error(`Missing required attributes: username=${username}, email=${email}`);
+                getAttr(['organizationalUnit']));
+            let groups = [];
+            const groupsAttr = getAttr(['Groups']);
+            const groupSids = getAttr(['http://schemas.xmlsoap.org/claims/Group']);
+            console.log(`🔍 Groups mapping - Groups attr: ${JSON.stringify(groupsAttr)}`);
+            console.log(`🔍 Groups mapping - Group SIDs: ${JSON.stringify(groupSids)}`);
+            if (groupSids && Array.isArray(groupSids)) {
+                groups = groupSids;
+                console.log(`🔍 Groups mapping - Using Group SIDs array: ${JSON.stringify(groupSids)}`);
             }
+            else if (groupSids && !Array.isArray(groupSids)) {
+                groups = [groupSids];
+                console.log(`🔍 Groups mapping - Using Group SIDs single: ${groupSids}`);
+            }
+            else {
+                groups = [];
+                console.log(`🔍 Groups mapping - No Group SIDs found`);
+            }
+            const groupsArray = Array.isArray(groups) ? groups : [groups].filter(Boolean);
+            console.log(`🔍 Groups mapping - Final groups array: ${JSON.stringify(groupsArray)}`);
+            if (!username) {
+                console.log('❌ Username not found in SAML attributes');
+                return res.redirect(`${config_1.default.FRONTEND_URL}/login?error=profile_mapping&reason=Username not found in SAML attributes`);
+            }
+            console.log('\n🔍 Mapped Values:');
+            console.log(`   Username: ${username}`);
+            console.log(`   Email: ${email}`);
+            console.log(`   First Name: ${firstName}`);
+            console.log(`   Last Name: ${lastName}`);
+            console.log(`   Department: ${department}`);
+            console.log(`   Groups: ${JSON.stringify(groupsArray)}`);
             const userProfile = {
                 nameID: profile.nameID,
-                username: username,
-                email: email,
-                firstName: firstName || '',
-                lastName: lastName || '',
-                department: department || '',
+                username,
+                email,
+                firstName,
+                lastName,
+                department,
                 groups: groupsArray,
             };
             console.log(`\n👤 Mapped Profile: ${JSON.stringify(userProfile, null, 2)}`);
-            const user = await userService_1.userService.findOrCreateSamlUser(userProfile);
+            const user = await userService_1.userService.find_or_create_saml_user(userProfile);
             console.log(`👤 Created/Found User: ${user.username} (${user.email})`);
             const tokenPayload = {
                 sub: user._id,
@@ -265,56 +299,29 @@ router.get('/logout/saml/callback', (req, res) => {
     return res.redirect(`${config_1.default.FRONTEND_URL}/login?saml_logged_out=true`);
 });
 router.post('/admin/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        if (!username || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Username and password are required'
-            });
-        }
-        const user = await userService_1.userService.findAdminByUsername(username);
-        if (!user) {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid credentials'
-            });
-        }
-        const isMatch = await userService_1.userService.verifyAdminPassword(username, password);
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid credentials'
-            });
-        }
-        const tokenPayload = {
-            sub: user._id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
-        };
-        const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.default.JWT_SECRET, { algorithm: config_1.default.JWT_ALGORITHM });
-        return res.json({
-            success: true,
-            data: {
-                token,
-                user: {
-                    id: user._id,
-                    username: user.username,
-                    email: user.email,
-                    role: user.role
-                }
-            }
-        });
+    const { username, password } = req.body;
+    const user = await userService_1.userService.find_admin_by_username(username);
+    if (!user || !user.password) {
+        return res.status(401).json({ detail: 'User account not found or password not set' });
     }
-    catch (error) {
-        console.error('❌ Admin login error:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
+    const isMatch = await userService_1.userService.verify_admin_password(password, user.password);
+    if (!isMatch) {
+        return res.status(401).json({ detail: 'Password is incorrect' });
     }
+    const tokenPayload = {
+        sub: user._id,
+        nameID: user.nameID,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        department: user.department,
+        groups: user.groups,
+        role: user.role,
+        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+    };
+    const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.default.JWT_SECRET, { algorithm: config_1.default.JWT_ALGORITHM });
+    return res.json({ token, user: { ...user.toObject(), password: undefined } });
 });
 router.get('/me', auth_1.authenticateJWT, auth_1.requireAnyRole, (req, res) => {
     const user = req.user;

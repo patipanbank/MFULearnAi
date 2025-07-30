@@ -1,18 +1,21 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAgent = createAgent;
-const messages_1 = require("@langchain/core/messages");
 function createAgent(llm, tools, prompt) {
     function toLangChainMessages(messages) {
         return messages
             .filter(m => m.role === 'user' || m.role === 'assistant')
             .map(m => {
-            if (m.role === 'user') {
-                return new messages_1.HumanMessage(m.content);
+            if (m.images && Array.isArray(m.images) && m.images.length > 0) {
+                return {
+                    role: m.role,
+                    content: [
+                        ...m.images.map(img => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.url } })),
+                        { type: 'text', text: m.content }
+                    ]
+                };
             }
-            else {
-                return new messages_1.AIMessage(m.content);
-            }
+            return { role: m.role, content: m.content };
         });
     }
     return {

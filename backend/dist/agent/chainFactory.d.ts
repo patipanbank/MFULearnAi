@@ -1,5 +1,5 @@
-import { RunnableSequence } from "@langchain/core/runnables";
-import { BaseMessage } from "@langchain/core/messages";
+import { RunnableSequence } from "langchain/schema/runnable";
+import { ChatMessage } from "langchain/schema";
 export interface ChainConfig {
     modelId: string;
     systemPrompt: string;
@@ -20,7 +20,7 @@ export declare class ChainFactory {
     createConversationalChain(): RunnableSequence;
     createRAGChain(): RunnableSequence;
     private retrieveContext;
-    processMessage(messages: BaseMessage[], onEvent?: (event: {
+    processMessage(messages: ChatMessage[], onEvent?: (event: {
         type: string;
         data?: any;
     }) => void): Promise<string>;

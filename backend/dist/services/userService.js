@@ -1,161 +1,100 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.userService = exports.UserService = void 0;
+exports.userService = void 0;
 const mongodb_1 = require("../lib/mongodb");
 const user_1 = require("../models/user");
+const security_1 = require("../utils/security");
+const departmentService_1 = require("./departmentService");
+const mongoose_1 = __importDefault(require("mongoose"));
 class UserService {
-    constructor() {
-        this.db = (0, mongodb_1.getConnection)();
-        console.log('✅ User service initialized');
+    async get_user_by_id(user_id) {
+        const db = (0, mongodb_1.getDatabase)();
+        if (!db)
+            throw new Error('Database not connected');
+        const user = await db.collection('users').findOne({ _id: new mongoose_1.default.Types.ObjectId(user_id) });
+        if (user && user._id) {
+            user._id = user._id.toString();
+        }
+        return user ? new user_1.User(user) : null;
     }
-    async getAllUsers() {
-        try {
-            return await user_1.User.find().sort({ createdAt: -1 }).exec();
-        }
-        catch (error) {
-            console.error('❌ Error getting users:', error);
-            return [];
-        }
-    }
-    async getUserById(id) {
-        try {
-            return await user_1.User.findById(id).exec();
-        }
-        catch (error) {
-            console.error('❌ Error getting user:', error);
-            return null;
-        }
-    }
-    async getUserByEmail(email) {
-        try {
-            return await user_1.User.findOne({ email }).exec();
-        }
-        catch (error) {
-            console.error('❌ Error getting user by email:', error);
-            return null;
-        }
-    }
-    async createUser(userData) {
-        try {
-            const user = new user_1.User(userData);
-            await user.save();
-            return user;
-        }
-        catch (error) {
-            console.error('❌ Error creating user:', error);
-            return null;
-        }
-    }
-    async updateUser(id, updateData) {
-        try {
-            return await user_1.User.findByIdAndUpdate(id, updateData, { new: true }).exec();
-        }
-        catch (error) {
-            console.error('❌ Error updating user:', error);
-            return null;
-        }
-    }
-    async deleteUser(id) {
-        try {
-            const result = await user_1.User.findByIdAndDelete(id).exec();
-            return !!result;
-        }
-        catch (error) {
-            console.error('❌ Error deleting user:', error);
-            return false;
-        }
-    }
-    async getAdmins() {
-        try {
-            const admins = await user_1.User.find({ role: { $in: ['admin', 'superadmin'] } }).exec();
-            return admins;
-        }
-        catch (error) {
-            console.error('❌ Error getting admins:', error);
-            return [];
-        }
-    }
-    async getUserStats() {
-        try {
-            const totalUsers = await user_1.User.countDocuments();
-            const activeUsers = await user_1.User.countDocuments({ isActive: true });
-            const adminUsers = await user_1.User.countDocuments({ role: { $in: ['admin', 'superadmin'] } });
-            return {
-                total: totalUsers,
-                active: activeUsers,
-                admins: adminUsers
-            };
-        }
-        catch (error) {
-            console.error('❌ Error getting user stats:', error);
-            return { total: 0, active: 0, admins: 0 };
-        }
-    }
-    async find_or_create_saml_user(userProfile) {
-        try {
-            let user = await user_1.User.findOne({
-                $or: [
-                    { nameID: userProfile.nameID },
-                    { email: userProfile.email }
-                ]
-            });
-            if (!user) {
-                user = new user_1.User({
-                    nameID: userProfile.nameID,
-                    username: userProfile.username,
-                    email: userProfile.email,
-                    firstName: userProfile.firstName,
-                    lastName: userProfile.lastName,
-                    department: userProfile.department,
-                    groups: userProfile.groups || [],
-                    role: 'user',
-                    isActive: true,
-                    lastLogin: new Date()
-                });
-                await user.save();
-                console.log(`✅ Created new SAML user: ${user.username}`);
+    async get_all_admins() {
+        const db = (0, mongodb_1.getDatabase)();
+        if (!db)
+            throw new Error('Database not connected');
+        const admins = await db.collection('users')
+            .find({ role: user_1.UserRole.ADMIN })
+            .sort({ created: -1 })
+            .toArray();
+        for (const admin of admins) {
+            if (admin._id) {
+                admin._id = admin._id.toString();
             }
-            else {
-                user.nameID = userProfile.nameID;
-                user.username = userProfile.username;
-                user.email = userProfile.email;
-                user.firstName = userProfile.firstName;
-                user.lastName = userProfile.lastName;
-                user.department = userProfile.department;
-                user.groups = userProfile.groups || [];
-                user.lastLogin = new Date();
-                await user.save();
-                console.log(`✅ Updated existing SAML user: ${user.username}`);
-            }
-            return user;
         }
-        catch (error) {
-            console.error('❌ Error in findOrCreateSamlUser:', error);
-            throw error;
-        }
+        return admins.map(admin => new user_1.User(admin));
     }
     async find_admin_by_username(username) {
-        try {
-            return await user_1.User.findOne({
-                username,
-                role: { $in: ['admin', 'superadmin'] }
-            });
+        const db = (0, mongodb_1.getDatabase)();
+        if (!db)
+            throw new Error('Database not connected');
+        const user = await db.collection('users').findOne({
+            username,
+            role: { $in: [user_1.UserRole.ADMIN, user_1.UserRole.SUPER_ADMIN] }
+        });
+        if (user && user._id) {
+            user._id = user._id.toString();
         }
-        catch (error) {
-            console.error('❌ Error finding admin by username:', error);
-            return null;
-        }
+        return user ? new user_1.User(user) : null;
     }
-    async verify_admin_password(password, hashedPassword) {
-        try {
-            return hashedPassword === password;
+    async verify_admin_password(password, hashed_password) {
+        return (0, security_1.verify_password)(password, hashed_password);
+    }
+    async find_or_create_saml_user(profile) {
+        const db = (0, mongodb_1.getDatabase)();
+        if (!db)
+            throw new Error('Database not connected');
+        const username = profile.username;
+        if (!username) {
+            throw new Error('Username is required from SAML profile');
         }
-        catch (error) {
-            console.error('❌ Error verifying admin password:', error);
-            return false;
+        const department_name = profile.department?.toLowerCase() || '';
+        if (department_name) {
+            await (0, departmentService_1.ensure_department_exists)(department_name);
         }
+        let groups = profile.groups || [];
+        if (!Array.isArray(groups)) {
+            groups = [groups];
+        }
+        const map_group_to_role = (user_groups) => {
+            console.log(`🔍 Role mapping - Input groups: ${JSON.stringify(user_groups)}`);
+            const is_student = user_groups.some(g => g === 'S-1-5-21-893890582-1041674030-1199480097-43779');
+            const role = is_student ? user_1.UserRole.STUDENTS : user_1.UserRole.STAFFS;
+            console.log(`🔍 Role mapping - is_student: ${is_student}, result: ${role}`);
+            return role;
+        };
+        const user_data_to_update = {
+            nameID: profile.nameID,
+            username,
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            department: department_name,
+            groups,
+            role: map_group_to_role(groups),
+            updated: new Date()
+        };
+        const clean_data = Object.fromEntries(Object.entries(user_data_to_update).filter(([_, v]) => v !== undefined));
+        const result = await db.collection('users').findOneAndUpdate({ username }, {
+            $set: clean_data,
+            $setOnInsert: { created: new Date() }
+        }, { upsert: true, returnDocument: 'after' });
+        if (result && result._id) {
+            result._id = result._id.toString();
+        }
+        return new user_1.User(result);
     }
 }
-exports.UserService = UserService;
 exports.userService = new UserService();
 //# sourceMappingURL=userService.js.map

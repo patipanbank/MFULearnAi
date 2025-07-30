@@ -1,62 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.departmentService = exports.DepartmentService = void 0;
+exports.ensure_department_exists = void 0;
 const mongodb_1 = require("../lib/mongodb");
-const department_1 = require("../models/department");
-class DepartmentService {
-    constructor() {
-        this.db = (0, mongodb_1.getConnection)();
-        console.log('✅ Department service initialized');
+const ensure_department_exists = async (department_name) => {
+    if (!department_name)
+        return;
+    const db = (0, mongodb_1.getDatabase)();
+    if (!db) {
+        throw new Error('Database not connected');
     }
-    async getAllDepartments() {
-        try {
-            return await department_1.Department.find().sort({ name: 1 });
-        }
-        catch (error) {
-            console.error('❌ Error getting departments:', error);
-            return [];
-        }
+    const collection = db.collection('departments');
+    const existing = await collection.findOne({ name: department_name.toLowerCase() });
+    if (!existing) {
+        await collection.insertOne({
+            name: department_name.toLowerCase(),
+            displayName: department_name,
+            created: new Date(),
+            updated: new Date()
+        });
     }
-    async getDepartmentById(id) {
-        try {
-            return await department_1.Department.findById(id);
-        }
-        catch (error) {
-            console.error('❌ Error getting department:', error);
-            return null;
-        }
-    }
-    async createDepartment(departmentData) {
-        try {
-            const department = new department_1.Department(departmentData);
-            await department.save();
-            return department;
-        }
-        catch (error) {
-            console.error('❌ Error creating department:', error);
-            return null;
-        }
-    }
-    async updateDepartment(id, updateData) {
-        try {
-            return await department_1.Department.findByIdAndUpdate(id, updateData, { new: true });
-        }
-        catch (error) {
-            console.error('❌ Error updating department:', error);
-            return null;
-        }
-    }
-    async deleteDepartment(id) {
-        try {
-            const result = await department_1.Department.findByIdAndDelete(id);
-            return !!result;
-        }
-        catch (error) {
-            console.error('❌ Error deleting department:', error);
-            return false;
-        }
-    }
-}
-exports.DepartmentService = DepartmentService;
-exports.departmentService = new DepartmentService();
+};
+exports.ensure_department_exists = ensure_department_exists;
 //# sourceMappingURL=departmentService.js.map

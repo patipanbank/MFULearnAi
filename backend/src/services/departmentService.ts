@@ -1,5 +1,5 @@
 import { getConnection } from '../lib/mongodb';
-import { Department, IDepartment } from '../models/department';
+import { Department } from '../models/department';
 
 export class DepartmentService {
   private db = getConnection();
@@ -8,7 +8,7 @@ export class DepartmentService {
     console.log('✅ Department service initialized');
   }
 
-  async getAllDepartments(): Promise<IDepartment[]> {
+  async getAllDepartments(): Promise<Department[]> {
     try {
       return await Department.find().sort({ name: 1 });
     } catch (error) {
@@ -17,7 +17,7 @@ export class DepartmentService {
     }
   }
 
-  async getDepartmentById(id: string): Promise<IDepartment | null> {
+  async getDepartmentById(id: string): Promise<Department | null> {
     try {
       return await Department.findById(id);
     } catch (error) {
@@ -26,7 +26,7 @@ export class DepartmentService {
     }
   }
 
-  async createDepartment(departmentData: any): Promise<IDepartment | null> {
+  async createDepartment(departmentData: any): Promise<Department | null> {
     try {
       const department = new Department(departmentData);
       await department.save();
@@ -37,7 +37,7 @@ export class DepartmentService {
     }
   }
 
-  async updateDepartment(id: string, updateData: any): Promise<IDepartment | null> {
+  async updateDepartment(id: string, updateData: any): Promise<Department | null> {
     try {
       return await Department.findByIdAndUpdate(id, updateData, { new: true });
     } catch (error) {

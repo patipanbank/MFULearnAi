@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Chat = void 0;
+exports.ChatModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const ImagePayloadSchema = new mongoose_1.Schema({
     url: { type: String, required: true },
@@ -79,5 +79,5 @@ ChatSchema.pre('save', function (next) {
     this.updatedAt = new Date();
     next();
 });
-exports.Chat = mongoose_1.default.model('Chat', ChatSchema);
+exports.ChatModel = mongoose_1.default.model('Chat', ChatSchema);
 //# sourceMappingURL=chat.js.map

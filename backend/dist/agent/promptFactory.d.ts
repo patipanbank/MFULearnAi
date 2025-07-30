@@ -1,5 +1,4 @@
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatPromptTemplate, PromptTemplate } from "langchain/prompts";
 export interface PromptConfig {
     systemPrompt: string;
     includeHistory: boolean;

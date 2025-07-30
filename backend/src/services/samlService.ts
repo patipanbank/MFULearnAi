@@ -15,13 +15,13 @@ export function getSamlConfig(): SamlConfig {
     logoutUrl: config.SAML_IDP_SLO_URL!,
     issuer: config.SAML_SP_ENTITY_ID!,
     callbackUrl: `${baseUrl}/api/auth/saml/callback`,
-    idpCert: cert,
+    cert,
     identifierFormat: config.SAML_IDENTIFIER_FORMAT,
     disableRequestedAuthnContext: false,
     wantAssertionsSigned: true,
     signatureAlgorithm: 'sha256',
     digestAlgorithm: 'sha256',
-    validateInResponseTo: undefined,
+    validateInResponseTo: false,
     acceptedClockSkewMs: 5000,
   };
 } 

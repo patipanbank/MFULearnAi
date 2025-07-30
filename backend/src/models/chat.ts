@@ -15,7 +15,7 @@ export interface ChatMessage {
   isComplete?: boolean;
 }
 
-export interface IChat extends Document {
+export interface Chat extends Document {
   userId: string;
   name: string;
   messages: ChatMessage[];
@@ -31,6 +31,8 @@ const ImagePayloadSchema = new Schema<ImagePayload>({
   url: { type: String, required: true },
   mediaType: { type: String, required: true }
 });
+
+
 
 const ChatMessageSchema = new Schema<ChatMessage>({
   id: { type: String, required: true },
@@ -56,7 +58,7 @@ const ChatMessageSchema = new Schema<ChatMessage>({
   isComplete: Boolean
 });
 
-const ChatSchema = new Schema<IChat>({
+const ChatSchema = new Schema<Chat>({
   userId: { type: String, required: true, index: true },
   name: { type: String, required: true, default: 'Untitled Chat' },
   messages: [ChatMessageSchema],
@@ -78,4 +80,4 @@ ChatSchema.pre('save', function(next) {
   next();
 });
 
-export const Chat = mongoose.model<IChat>('Chat', ChatSchema); 
+export const ChatModel = mongoose.model<Chat>('Chat', ChatSchema); 
