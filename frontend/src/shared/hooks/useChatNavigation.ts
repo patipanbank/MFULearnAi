@@ -51,16 +51,15 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
               }
             }, 100);
           } else {
-            console.log('ChatNavigation: Chat not found, showing error');
+            console.log('ChatNavigation: Chat not found, showing error and navigating to /chat');
             addToast({
               type: 'error',
               title: 'Chat Not Found',
               message: 'The requested chat could not be found. It may have been deleted or you may not have permission to access it.',
               duration: 5000
             });
-            // แสดง error แทนการ redirect
-            // navigate('/chat');
-            // createNewChat();
+            // Navigate to /chat after showing error
+            navigate('/chat');
           }
         } catch (error) {
           console.error('ChatNavigation: Failed to load chat:', error);
@@ -70,9 +69,8 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
             message: 'An error occurred while loading the chat. Please try again.',
             duration: 5000
           });
-          // แสดง error แทนการ redirect
-          // navigate('/chat');
-          // createNewChat();
+          // Navigate to /chat after showing error
+          navigate('/chat');
         }
       };
       
