@@ -5,6 +5,8 @@ import { useUIStore } from '../../shared/stores';
 import CreateCollectionModal from './CreateCollectionModal';
 import CollectionDetailModal from './CollectionDetailModal';
 import UploadDocumentsModal from './UploadDocumentsModal';
+import EditCollectionModal from './EditCollectionModal';
+import CollectionCard from './CollectionCard';
 
 interface Collection {
   id: string;
@@ -22,15 +24,18 @@ const KnowledgePage: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [analytics, setAnalytics] = useState({
     totalCollections: 0,
     totalDocuments: 0,
     totalSize: 0
   });
+  const [error, setError] = useState<string | null>(null);
   const { addToast } = useUIStore();
 
   const fetchCollections = async () => {
     setLoading(true);
+    setError(null);
     try {
       // Attempt to fetch user-accessible collections first
       const userCollections = await api.get<Collection[]>('/collections/');
@@ -43,8 +48,9 @@ const KnowledgePage: React.FC = () => {
         totalSize: number;
       }>('/collections/analytics');
       setAnalytics(analyticsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching collections:', error);
+      setError(error.message || 'Failed to load collections');
       addToast({
         type: 'error',
         title: 'Failed to load collections',
@@ -58,6 +64,18 @@ const KnowledgePage: React.FC = () => {
   const handleCollectionCreated = (newCol: Collection) => {
     setCollections((prev) => [...prev, newCol]);
     setShowCreateModal(false);
+  };
+
+  const handleCollectionUpdated = (updatedCol: Collection) => {
+    setCollections((prev) => 
+      prev.map(col => col.id === updatedCol.id ? updatedCol : col)
+    );
+    setShowEditModal(false);
+  };
+
+  const handleCollectionDeleted = (deletedCol: Collection) => {
+    setCollections((prev) => prev.filter(col => col.id !== deletedCol.id));
+    setShowEditModal(false);
   };
 
   useEffect(() => {
@@ -151,86 +169,131 @@ const KnowledgePage: React.FC = () => {
         </div>
       </div>
 
+      {/* Results Count */}
+      {!loading && !error && (
+        <div className="mb-4">
+          <p className="text-sm text-muted">
+            {searchQuery 
+              ? `Found ${filteredCollections.length} collection${filteredCollections.length !== 1 ? 's' : ''} matching "${searchQuery}"`
+              : `Showing ${filteredCollections.length} collection${filteredCollections.length !== 1 ? 's' : ''}`
+            }
+          </p>
+        </div>
+      )}
+
       {/* Content */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCollections.map((collection) => (
-          <div key={collection.id} className="card card-hover p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-primary mb-1">{collection.name}</h3>
-                <p className="text-sm text-muted mb-2">Created by {collection.createdBy}</p>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    collection.permission === 'PUBLIC' 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                  }`}>
-                    {collection.permission}
-                  </span>
-                                     <span className="text-xs text-muted">
-                     {collection.createdAt ? new Date(collection.createdAt).toLocaleDateString() : 'Unknown'}
-                   </span>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="card p-6 animate-pulse">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3 flex-1">
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                  </div>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => {
-                    setSelectedCollection(collection);
-                    setShowDetailModal(true);
-                  }}
-                  className="btn-ghost p-2"
-                  title="View Details"
-                >
-                  <FiEye className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedCollection(collection);
-                    setShowUploadModal(true);
-                  }}
-                  className="btn-ghost p-2"
-                  title="Upload Documents"
-                >
-                  <FiUpload className="h-4 w-4" />
-                </button>
+              <div className="space-y-3">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
               </div>
             </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted">
-                {/* Document count will be added here */}
-                <span>0 documents</span>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedCollection(collection);
-                  setShowDetailModal(true);
-                }}
-                className="btn-secondary text-sm"
-              >
-                Manage
-              </button>
-            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="text-center py-12">
+          <div className="bg-red-100 dark:bg-red-900/20 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+            <FiDatabase className="h-10 w-10 text-red-600" />
           </div>
-        ))}
-      </div>
+          <h3 className="text-lg font-medium text-primary mb-2">Failed to load collections</h3>
+          <p className="text-muted mb-6 max-w-md mx-auto">
+            {error}
+          </p>
+          <button
+            onClick={fetchCollections}
+            className="btn-primary flex items-center space-x-2 mx-auto"
+          >
+            <FiRefreshCcw className="h-4 w-4" />
+            <span>Try Again</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCollections.map((collection) => (
+            <CollectionCard
+              key={collection.id}
+              collection={collection}
+              onView={(collection) => {
+                setSelectedCollection(collection);
+                setShowDetailModal(true);
+              }}
+              onUpload={(collection) => {
+                setSelectedCollection(collection);
+                setShowUploadModal(true);
+              }}
+              onEdit={(collection) => {
+                setSelectedCollection(collection);
+                setShowEditModal(true);
+              }}
+              onDelete={async (collection) => {
+                if (window.confirm(`Are you sure you want to delete "${collection.name}"? This action cannot be undone.`)) {
+                  try {
+                    await api.delete(`/collections/${collection.id}`);
+                    handleCollectionDeleted(collection);
+                    addToast({
+                      type: 'success',
+                      title: 'Collection Deleted',
+                      message: 'Collection has been deleted successfully.'
+                    });
+                  } catch (error: any) {
+                    addToast({
+                      type: 'error',
+                      title: 'Delete Failed',
+                      message: error.message || 'Failed to delete collection.'
+                    });
+                  }
+                }
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Empty State */}
-      {filteredCollections.length === 0 && !loading && (
+      {filteredCollections.length === 0 && !loading && !error && (
         <div className="text-center py-12">
-          <FiFolder className="h-16 w-16 text-muted mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-primary mb-2">No collections found</h3>
-          <p className="text-muted mb-6">
-            {searchQuery ? 'Try adjusting your search terms.' : 'Get started by creating your first collection.'}
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+            <FiFolder className="h-10 w-10 text-muted" />
+          </div>
+          <h3 className="text-lg font-medium text-primary mb-2">
+            {searchQuery ? 'No collections found' : 'No collections yet'}
+          </h3>
+          <p className="text-muted mb-6 max-w-md mx-auto">
+            {searchQuery 
+              ? 'Try adjusting your search terms or create a new collection that matches your criteria.'
+              : 'Collections help you organize and manage your documents for AI training. Create your first collection to get started.'
+            }
           </p>
-          {!searchQuery && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn-primary"
-            >
-              Create Collection
-            </button>
-          )}
+          <div className="flex items-center justify-center space-x-3">
+            {searchQuery ? (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="btn-secondary"
+              >
+                Clear Search
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn-primary flex items-center space-x-2"
+              >
+                <FiPlus className="h-4 w-4" />
+                <span>Create Collection</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -257,6 +320,15 @@ const KnowledgePage: React.FC = () => {
           onClose={() => setShowUploadModal(false)}
           collection={selectedCollection}
           onUploadComplete={fetchCollections}
+        />
+      )}
+
+      {showEditModal && selectedCollection && (
+        <EditCollectionModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          collection={selectedCollection}
+          onUpdated={handleCollectionUpdated}
         />
       )}
     </div>
