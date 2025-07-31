@@ -45,7 +45,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     if (!collection) return;
     setIsLoadingDocs(true);
     try {
-      const response = await api.get<CollectionDocument[]>(`/collections/${collection.id}/documents`);
+      const response = await api.get<CollectionDocument[]>(`/collections/${collection._id}/documents`);
       setDocs(response || []);
     } catch (err) {
       console.error('Failed to fetch documents', err);
@@ -149,7 +149,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     if (!collection) return;
     const ids = Array.isArray(docIds) ? docIds : [docIds];
     try {
-      await api.delete(`/collections/${collection.id}/documents`, {
+      await api.delete(`/collections/${collection._id}/documents`, {
         data: { document_ids: ids }
       });
       addToast({

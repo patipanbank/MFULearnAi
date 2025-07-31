@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiPlus, FiTrash2, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
+import { FiX, FiPlus, FiTrash2, FiGlobe, FiLock } from 'react-icons/fi';
 import { useAgentStore } from '../../stores';
 import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
@@ -16,7 +16,7 @@ interface ModelOption {
 }
 
 interface CollectionOption {
-  id: string;
+  _id: string;
   name: string;
   permission: string;
   createdBy: string;
@@ -333,9 +333,9 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   className="flex items-center space-x-2 p-2 rounded-lg border border-border hover:bg-secondary transition-colors"
                 >
                   {formData.isPublic ? (
-                    <FiToggleRight className="h-5 w-5 text-green-500" />
+                    <FiLock className="h-5 w-5 text-green-500" />
                   ) : (
-                    <FiToggleLeft className="h-5 w-5 text-gray-400" />
+                    <FiGlobe className="h-5 w-5 text-gray-400" />
                   )}
                   <span className="text-sm">
                     {formData.isPublic ? 'Public' : 'Private'}
@@ -354,19 +354,18 @@ const AgentModal: React.FC<AgentModalProps> = ({
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {collections.map((collection) => (
-                    <button
-                      key={collection.id}
-                      type="button"
-                      onClick={() => handleCollectionToggle(collection.name)}
-                      className={`p-3 rounded-lg border text-left transition-colors ${
+                    <div
+                      key={collection._id}
+                      className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         (formData.collectionNames || []).includes(collection.name)
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-border hover:bg-secondary'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                       }`}
+                      onClick={() => handleCollectionToggle(collection.name)}
                     >
                       <div className="font-medium text-sm">{collection.name}</div>
                       <div className="text-xs text-muted">{collection.permission}</div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}

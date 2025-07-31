@@ -26,4 +26,18 @@ const collectionSchema = new Schema<ICollection>({
   modelId: { type: String },
 });
 
+// Add virtual id field for frontend compatibility
+collectionSchema.virtual('id').get(function() {
+  return this._id.toHexString();
+});
+
+// Ensure virtual fields are included in JSON output
+collectionSchema.set('toJSON', {
+  virtuals: true,
+  transform: function(doc, ret) {
+    ret.id = ret._id;
+    return ret;
+  }
+});
+
 export const Collection = mongoose.model<ICollection>('Collection', collectionSchema); 

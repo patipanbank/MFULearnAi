@@ -31,7 +31,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
     const fetchDocumentCount = async () => {
       try {
         setLoading(true);
-        const collectionId = collection._id || collection.id;
+        const collectionId = collection._id;
         if (!collectionId) {
           console.error('Collection ID is undefined');
           setDocumentCount(0);
@@ -48,7 +48,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
     };
 
     fetchDocumentCount();
-  }, [collection._id, collection.id]);
+  }, [collection._id]);
 
   // Close menu when clicking outside
   useEffect(() => {

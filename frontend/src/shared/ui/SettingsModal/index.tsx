@@ -1,20 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiDatabase, FiSettings, FiUser, FiKey, FiDownload, FiUpload, FiTrash2, FiPlus, FiEdit, FiCopy } from 'react-icons/fi';
+import { FiSettings, FiX, FiDownload, FiUpload, FiDatabase, FiUser, FiEdit, FiCopy, FiTrash2, FiPlus, FiKey } from 'react-icons/fi';
 import { useSettingsStore, useUIStore } from '../../stores';
 import { api } from '../../lib/api';
 import PreferencesModal from '../PreferencesModal';
+import type { Collection } from '../../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-interface Collection {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
-  createdAt: string;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
@@ -248,22 +241,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                     {collections.map((collection) => (
                       <div
-                        key={collection.id}
-                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                          selectedCollections.includes(collection.id)
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'card card-hover'
+                        key={collection._id}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedCollections.includes(collection._id)
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                         }`}
-                        onClick={() => toggleCollection(collection.id)}
+                        onClick={() => toggleCollection(collection._id)}
                       >
-                        <div className="flex items-start space-x-3">
-                          <FiDatabase className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-primary">{collection.name}</h4>
-                            <p className="text-xs text-secondary mt-1">
-                              By: {collection.createdBy} • {collection.permission}
-                            </p>
-                          </div>
+                        <FiDatabase className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-primary">{collection.name}</h4>
+                          <p className="text-xs text-secondary mt-1">
+                            By: {collection.createdBy} • {collection.permission}
+                          </p>
                         </div>
                       </div>
                     ))}

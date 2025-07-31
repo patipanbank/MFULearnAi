@@ -61,13 +61,13 @@ const KnowledgePage: React.FC = () => {
 
   const handleCollectionUpdated = (updatedCol: Collection) => {
     setCollections((prev) => 
-      prev.map(col => col.id === updatedCol.id ? updatedCol : col)
+      prev.map(col => col._id === updatedCol._id ? updatedCol : col)
     );
     setShowEditModal(false);
   };
 
   const handleCollectionDeleted = (deletedCol: Collection) => {
-    setCollections((prev) => prev.filter(col => col.id !== deletedCol.id));
+    setCollections((prev) => prev.filter(col => col._id !== deletedCol._id));
     setShowEditModal(false);
   };
 
@@ -76,6 +76,41 @@ const KnowledgePage: React.FC = () => {
   }, []);
 
   const filteredCollections = collections.filter(col => col.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const handleViewCollection = (collection: Collection) => {
+    setSelectedCollection(collection);
+    setShowDetailModal(true);
+  };
+
+  const handleUploadDocuments = (collection: Collection) => {
+    setSelectedCollection(collection);
+    setShowUploadModal(true);
+  };
+
+  const handleEditCollection = (collection: Collection) => {
+    setSelectedCollection(collection);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteCollection = async (collection: Collection) => {
+    if (window.confirm(`Are you sure you want to delete "${collection.name}"? This action cannot be undone.`)) {
+      try {
+        await api.delete(`/collections/${collection._id}`);
+        handleCollectionDeleted(collection);
+        addToast({
+          type: 'success',
+          title: 'Collection Deleted',
+          message: 'Collection has been deleted successfully.'
+        });
+      } catch (error: any) {
+        addToast({
+          type: 'error',
+          title: 'Delete Failed',
+          message: error.message || 'Failed to delete collection.'
+        });
+      }
+    }
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -216,39 +251,12 @@ const KnowledgePage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCollections.map((collection) => (
             <CollectionCard
-              key={collection.id}
+              key={collection._id}
               collection={collection}
-              onView={(collection) => {
-                setSelectedCollection(collection);
-                setShowDetailModal(true);
-              }}
-              onUpload={(collection) => {
-                setSelectedCollection(collection);
-                setShowUploadModal(true);
-              }}
-              onEdit={(collection) => {
-                setSelectedCollection(collection);
-                setShowEditModal(true);
-              }}
-              onDelete={async (collection) => {
-                if (window.confirm(`Are you sure you want to delete "${collection.name}"? This action cannot be undone.`)) {
-                  try {
-                    await api.delete(`/collections/${collection.id}`);
-                    handleCollectionDeleted(collection);
-                    addToast({
-                      type: 'success',
-                      title: 'Collection Deleted',
-                      message: 'Collection has been deleted successfully.'
-                    });
-                  } catch (error: any) {
-                    addToast({
-                      type: 'error',
-                      title: 'Delete Failed',
-                      message: error.message || 'Failed to delete collection.'
-                    });
-                  }
-                }
-              }}
+              onView={handleViewCollection}
+              onUpload={handleUploadDocuments}
+              onEdit={handleEditCollection}
+              onDelete={handleDeleteCollection}
             />
           ))}
         </div>

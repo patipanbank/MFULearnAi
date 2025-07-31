@@ -23,21 +23,12 @@ export interface User {
 }
 
 export interface Collection {
-  _id?: string;
-  id?: string; // For backward compatibility
+  _id: string;
+  id: string; // Virtual field from backend
   name: string;
   permission: string;
   createdBy: string;
   createdAt?: string;
   department?: string;
   modelId?: string;
-}
-
-// Legacy Collection interface for backward compatibility
-export interface LegacyCollection {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
-  createdAt?: string;
 } 

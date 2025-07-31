@@ -57,7 +57,7 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
 
     setLoading(true);
     try {
-      const updatedCollection = await api.put<Collection>(`/collections/${collection.id}`, formData);
+      const updatedCollection = await api.put<Collection>(`/collections/${collection._id}`, formData);
       onUpdated(updatedCollection);
       addToast({
         type: 'success',
