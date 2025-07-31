@@ -5,8 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const multer_1 = __importDefault(require("multer"));
+const auth_1 = require("../middleware/auth");
 const trainingService_1 = require("../services/trainingService");
 const router = express_1.default.Router();
+router.use(auth_1.authenticateJWT, auth_1.requireAnyRole);
 const storage = multer_1.default.memoryStorage();
 const upload = (0, multer_1.default)({
     storage: storage,
@@ -40,7 +42,20 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         if (!collectionName) {
             return res.status(400).json({ error: 'Collection name is required' });
         }
-        const user = req.user;
+        const jwtUser = req.user;
+        const user = {
+            _id: jwtUser.sub,
+            nameID: jwtUser.nameID,
+            username: jwtUser.username,
+            email: jwtUser.email,
+            firstName: jwtUser.firstName,
+            lastName: jwtUser.lastName,
+            department: jwtUser.department,
+            role: jwtUser.role,
+            groups: jwtUser.groups || [],
+            created: new Date(),
+            updated: new Date()
+        };
         const chunksCount = await trainingService_1.trainingService.processAndEmbedFile(req.file.buffer, req.file.originalname, user, modelId || 'amazon.titan-embed-text-v1', collectionName);
         return res.json({
             message: 'File processed successfully with vector embeddings',

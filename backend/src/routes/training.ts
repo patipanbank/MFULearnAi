@@ -2,8 +2,12 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { authenticateJWT, requireAnyRole } from '../middleware/auth';
 import { trainingService } from '../services/trainingService';
+import { IUser } from '../models/user';
 
 const router = express.Router();
+
+// Apply authentication middleware to all training routes
+router.use(authenticateJWT, requireAnyRole);
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -12,7 +16,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (req: any, file: any, cb: any) => {
     // Allow common document formats
     const allowedMimes = [
       'application/pdf',
@@ -44,8 +48,21 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       return res.status(400).json({ error: 'Collection name is required' });
     }
 
-    // Get user from request
-    const user = req.user as any;
+    // Get user from request and map to expected format
+    const jwtUser = req.user as any;
+    const user = {
+      _id: jwtUser.sub,
+      nameID: jwtUser.nameID,
+      username: jwtUser.username,
+      email: jwtUser.email,
+      firstName: jwtUser.firstName,
+      lastName: jwtUser.lastName,
+      department: jwtUser.department,
+      role: jwtUser.role,
+      groups: jwtUser.groups || [],
+      created: new Date(),
+      updated: new Date()
+    } as IUser;
 
     // Process file and create embeddings
     const chunksCount = await trainingService.processAndEmbedFile(
