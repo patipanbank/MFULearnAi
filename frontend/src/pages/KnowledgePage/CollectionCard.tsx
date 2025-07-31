@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiDatabase, FiEye, FiUpload, FiEdit, FiTrash2, FiUsers, FiLock, FiGlobe, FiCalendar, FiFileText, FiMoreVertical } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
-
-interface Collection {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
-  createdAt?: string;
-  department?: string;
-  modelId?: string;
-}
+import type { Collection } from '../../shared/types';
 
 interface CollectionCardProps {
   collection: Collection;
@@ -40,7 +31,13 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
     const fetchDocumentCount = async () => {
       try {
         setLoading(true);
-        const response = await api.get<{ total: number }>(`/collections/${collection.id}/documents?limit=1&offset=0`);
+        const collectionId = collection._id || collection.id;
+        if (!collectionId) {
+          console.error('Collection ID is undefined');
+          setDocumentCount(0);
+          return;
+        }
+        const response = await api.get<{ total: number }>(`/collections/${collectionId}/documents?limit=1&offset=0`);
         setDocumentCount(response.total || 0);
       } catch (error) {
         console.error('Error fetching document count:', error);
@@ -51,7 +48,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
     };
 
     fetchDocumentCount();
-  }, [collection.id]);
+  }, [collection._id, collection.id]);
 
   // Close menu when clicking outside
   useEffect(() => {

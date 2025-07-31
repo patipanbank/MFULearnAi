@@ -2,16 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiSave, FiDatabase } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
-
-interface Collection {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
-  createdAt?: string;
-  department?: string;
-  modelId?: string;
-}
+import type { Collection } from '../../shared/types';
 
 interface EditCollectionModalProps {
   isOpen: boolean;

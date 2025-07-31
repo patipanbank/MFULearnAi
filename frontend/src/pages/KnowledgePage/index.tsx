@@ -2,19 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { FiDatabase, FiRefreshCcw, FiPlus, FiSearch, FiFolder, FiFile, FiUpload } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
+import type { Collection } from '../../shared/types';
 import CreateCollectionModal from './CreateCollectionModal';
 import CollectionDetailModal from './CollectionDetailModal';
 import UploadDocumentsModal from './UploadDocumentsModal';
 import EditCollectionModal from './EditCollectionModal';
 import CollectionCard from './CollectionCard';
-
-interface Collection {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
-  createdAt?: string;
-}
 
 const KnowledgePage: React.FC = () => {
   const [collections, setCollections] = useState<Collection[]>([]);

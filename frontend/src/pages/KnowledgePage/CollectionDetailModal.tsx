@@ -2,14 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FiUpload, FiX, FiSearch, FiEye, FiTrash2, FiFile, FiFileText, FiImage, FiGrid } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
-
-interface Collection {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
-  createdAt?: string;
-}
+import type { Collection } from '../../shared/types';
 
 interface CollectionDocument {
   id: string;

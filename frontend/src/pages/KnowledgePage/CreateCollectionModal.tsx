@@ -2,14 +2,7 @@ import React, { useState } from 'react';
 import { FiX } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
-
-interface Collection {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
-  createdAt?: string;
-}
+import type { Collection } from '../../shared/types';
 
 interface CreateCollectionModalProps {
   isOpen: boolean;

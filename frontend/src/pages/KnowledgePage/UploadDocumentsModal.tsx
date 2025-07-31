@@ -2,14 +2,7 @@ import React, { useState, useRef } from 'react';
 import { FiX, FiUpload, FiFile, FiTrash2 } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
-
-interface Collection {
-  id: string;
-  name: string;
-  permission: string;
-  createdBy: string;
-  createdAt?: string;
-}
+import type { Collection } from '../../shared/types';
 
 interface UploadDocumentsModalProps {
   isOpen: boolean;
