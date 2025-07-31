@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores';
 import { useUIStore } from '../stores';
@@ -17,16 +17,26 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
   // Note: setCurrentSession is no longer used since we removed the session ID update effect
   const isConnectedToRoom = useChatStore((state) => state.isConnectedToRoom);
   const addToast = useUIStore((state) => state.addToast);
+  
+  // เพิ่ม ref เพื่อป้องกันการทำงานซ้ำ
+  const isRedirectingRef = useRef(false);
 
   // Combined effect for chat navigation logic
   useEffect(() => {
     console.log('ChatNavigation: URL changed', { chatId, isInChatRoom, currentSessionId: currentSession?.id });
+    
+    // ป้องกันการทำงานซ้ำ
+    if (isRedirectingRef.current) {
+      console.log('ChatNavigation: Already redirecting, skipping...');
+      return;
+    }
     
     // Handle chat loading when URL changes
     if (isInChatRoom && chatId) {
       // ตรวจสอบว่า chatId มีรูปแบบถูกต้องหรือไม่ (MongoDB ObjectId = 24 characters)
       if (chatId.length !== 24) {
         console.log('ChatNavigation: Invalid chatId format, redirecting to /chat');
+        isRedirectingRef.current = true;
         addToast({
           type: 'warning',
           title: 'Invalid Chat ID',
@@ -66,6 +76,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
             }, 100);
           } else {
             console.log('ChatNavigation: Chat not found, redirecting to /chat');
+            isRedirectingRef.current = true;
             addToast({
               type: 'error',
               title: 'Chat Not Found',
@@ -78,6 +89,7 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
           }
         } catch (error) {
           console.error('ChatNavigation: Failed to load chat:', error);
+          isRedirectingRef.current = true;
           addToast({
             type: 'error',
             title: 'Failed to Load Chat',
@@ -107,7 +119,12 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
         connectWebSocket();
       }
     }
-  }, [chatId, isInChatRoom, currentSession, loadChat, connectWebSocket, navigate, createNewChat, isConnectedToRoom, addToast]);
+  }, [chatId, isInChatRoom, loadChat, connectWebSocket, navigate, createNewChat, isConnectedToRoom, addToast]);
+
+  // Reset redirecting flag when URL changes
+  useEffect(() => {
+    isRedirectingRef.current = false;
+  }, [chatId]);
 
   // Effect for session ID update - ลบออกเพราะไม่ควรอัปเดต ID โดยไม่โหลดข้อมูลจริง
   // useEffect(() => {
