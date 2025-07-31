@@ -24,6 +24,20 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
     
     // Handle chat loading when URL changes
     if (isInChatRoom && chatId) {
+      // ตรวจสอบว่า chatId มีรูปแบบถูกต้องหรือไม่ (MongoDB ObjectId = 24 characters)
+      if (chatId.length !== 24) {
+        console.log('ChatNavigation: Invalid chatId format, redirecting to /chat');
+        addToast({
+          type: 'warning',
+          title: 'Invalid Chat ID',
+          message: 'The chat ID format is invalid. Redirecting to chat page.',
+          duration: 3000
+        });
+        navigate('/chat');
+        createNewChat();
+        return;
+      }
+
       if (currentSession && currentSession.id === chatId) {
         console.log('ChatNavigation: Same chat, connecting WebSocket if needed');
         if (!isConnectedToRoom) {
@@ -51,16 +65,16 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
               }
             }, 100);
           } else {
-            console.log('ChatNavigation: Chat not found, showing error');
+            console.log('ChatNavigation: Chat not found, redirecting to /chat');
             addToast({
               type: 'error',
               title: 'Chat Not Found',
               message: 'The requested chat could not be found. It may have been deleted or you may not have permission to access it.',
               duration: 5000
             });
-            // แสดง error แทนการ redirect
-            // navigate('/chat');
-            // createNewChat();
+            // Redirect to /chat when chat is not found
+            navigate('/chat');
+            createNewChat();
           }
         } catch (error) {
           console.error('ChatNavigation: Failed to load chat:', error);
@@ -70,9 +84,9 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
             message: 'An error occurred while loading the chat. Please try again.',
             duration: 5000
           });
-          // แสดง error แทนการ redirect
-          // navigate('/chat');
-          // createNewChat();
+          // Redirect to /chat when there's an error loading chat
+          navigate('/chat');
+          createNewChat();
         }
       };
       
