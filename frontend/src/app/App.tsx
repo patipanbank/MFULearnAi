@@ -81,7 +81,7 @@ function App() {
               <Route path="/knowledgebase" element={<KnowledgePage />} />
               <Route path="/agent" element={<AgentPage />} />
               <Route path="/search" element={<SearchPage />} />
-              {/* Fallback - redirect to /chat for any unmatched routes */}
+              {/* Fallback */}
               <Route path="*" element={<ChatPage />} />
             </Routes>
           </Layout>
