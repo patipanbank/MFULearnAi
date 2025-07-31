@@ -53,7 +53,7 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
 
   const fetchModels = async () => {
     try {
-      const response = await api.get('/bedrock/models');
+      const response = await api.get<{ models: string[] }>('/bedrock/models');
       setModels(response.models || []);
     } catch (error) {
       console.error('Error fetching models:', error);
@@ -66,7 +66,7 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
 
     setLoading(true);
     try {
-      const updatedCollection = await api.put(`/collections/${collection.id}`, formData);
+      const updatedCollection = await api.put<Collection>(`/collections/${collection.id}`, formData);
       onUpdated(updatedCollection);
       addToast({
         type: 'success',

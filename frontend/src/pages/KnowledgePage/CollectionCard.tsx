@@ -40,7 +40,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
     const fetchDocumentCount = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/collections/${collection.id}/documents?limit=1&offset=0`);
+        const response = await api.get<{ total: number }>(`/collections/${collection.id}/documents?limit=1&offset=0`);
         setDocumentCount(response.total || 0);
       } catch (error) {
         console.error('Error fetching document count:', error);
@@ -55,7 +55,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
 
   // Close menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = () => {
       if (showMenu) {
         setShowMenu(false);
       }

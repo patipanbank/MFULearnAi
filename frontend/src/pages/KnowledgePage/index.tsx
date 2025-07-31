@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FiDatabase, FiRefreshCcw, FiPlus, FiSearch, FiFolder, FiFile, FiUpload, FiEye } from 'react-icons/fi';
+import { FiDatabase, FiRefreshCcw, FiPlus, FiSearch, FiFolder, FiFile, FiUpload } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
 import CreateCollectionModal from './CreateCollectionModal';
