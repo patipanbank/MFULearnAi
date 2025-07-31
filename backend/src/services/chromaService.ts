@@ -1,16 +1,32 @@
-import { ChromaClient, Collection } from 'chromadb';
+import { ChromaClient, Collection, EmbeddingFunction } from 'chromadb';
+
+// Custom embedding function that doesn't require @chroma-core/default-embed
+class CustomEmbeddingFunction implements EmbeddingFunction {
+  constructor() {}
+
+  async generate(texts: string[]): Promise<number[][]> {
+    // Return dummy embeddings for now
+    // TODO: Implement actual embedding generation
+    return texts.map(() => new Array(384).fill(0));
+  }
+}
 
 export class ChromaService {
   private client: ChromaClient;
+  private embeddingFunction: CustomEmbeddingFunction;
 
   constructor() {
     const url = process.env.CHROMA_URL || 'http://localhost:8000';
     this.client = new ChromaClient({ path: url });
+    this.embeddingFunction = new CustomEmbeddingFunction();
   }
 
   async getOrCreateCollection(name: string): Promise<Collection> {
     try {
-      return await this.client.getOrCreateCollection({ name });
+      return await this.client.getOrCreateCollection({ 
+        name,
+        embeddingFunction: this.embeddingFunction
+      });
     } catch (e) {
       console.error(`[ChromaService] Error getOrCreateCollection:`, e);
       throw e;

@@ -2,14 +2,24 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chromaService = exports.ChromaService = void 0;
 const chromadb_1 = require("chromadb");
+class CustomEmbeddingFunction {
+    constructor() { }
+    async generate(texts) {
+        return texts.map(() => new Array(384).fill(0));
+    }
+}
 class ChromaService {
     constructor() {
         const url = process.env.CHROMA_URL || 'http://localhost:8000';
         this.client = new chromadb_1.ChromaClient({ path: url });
+        this.embeddingFunction = new CustomEmbeddingFunction();
     }
     async getOrCreateCollection(name) {
         try {
-            return await this.client.getOrCreateCollection({ name });
+            return await this.client.getOrCreateCollection({
+                name,
+                embeddingFunction: this.embeddingFunction
+            });
         }
         catch (e) {
             console.error(`[ChromaService] Error getOrCreateCollection:`, e);

@@ -1,6 +1,7 @@
 import { Collection } from 'chromadb';
 export declare class ChromaService {
     private client;
+    private embeddingFunction;
     constructor();
     getOrCreateCollection(name: string): Promise<Collection>;
     listCollections(): Promise<Collection[]>;
