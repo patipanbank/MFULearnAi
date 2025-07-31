@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore, useChatStore, useUIStore } from '../stores';
 import { config } from '../../config/config';
 
@@ -8,6 +9,7 @@ interface UseWebSocketOptions {
 }
 
 export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
+  const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
   const refreshToken = useAuthStore((state) => state.refreshToken);
   
@@ -288,8 +290,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           
           // ใช้ setTimeout เพื่อให้ข้อความถูกส่งก่อน redirect
           setTimeout(() => {
-            // ใช้ window.location.href เพื่อให้ redirect ทำงานถูกต้อง
-            window.location.href = `/chat/${data.data.chatId}`;
+            // ใช้ navigate แทน window.location.href เพื่อป้องกันกรณี chatId ไม่มีอยู่จริง
+            navigate(`/chat/${data.data.chatId}`, { replace: true });
           }, 200);
         } else if (data.type === 'tool_start') {
           console.log('WebSocket: Tool started', data.data);
