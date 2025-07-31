@@ -35,15 +35,16 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
-        const { collectionId } = req.body;
-        if (!collectionId) {
-            return res.status(400).json({ error: 'Collection ID is required' });
+        const { collectionName, modelId } = req.body;
+        if (!collectionName) {
+            return res.status(400).json({ error: 'Collection name is required' });
         }
         return res.json({
             message: 'File uploaded successfully',
             filename: req.file.originalname,
             size: req.file.size,
-            collectionId: collectionId
+            collectionName: collectionName,
+            modelId: modelId || 'amazon.titan-embed-text-v1'
         });
     }
     catch (error) {
