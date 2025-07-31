@@ -1,7 +1,6 @@
 import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useAuthStore, useChatStore, useUIStore } from '../stores';
 import { config } from '../../config/config';
-import type { ChatMessage } from '../stores/chatStore';
 
 interface UseWebSocketOptions {
   chatId?: string;
