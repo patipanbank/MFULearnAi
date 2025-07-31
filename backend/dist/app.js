@@ -19,6 +19,7 @@ const chroma_1 = __importDefault(require("./routes/chroma"));
 const embedding_1 = __importDefault(require("./routes/embedding"));
 const upload_1 = __importDefault(require("./routes/upload"));
 const collection_1 = __importDefault(require("./routes/collection"));
+const training_1 = __importDefault(require("./routes/training"));
 const websocketService_1 = require("./services/websocketService");
 const mongodb_1 = require("./lib/mongodb");
 dotenv_1.default.config();
@@ -45,6 +46,7 @@ apiRouter.use('/chroma', chroma_1.default);
 apiRouter.use('/embedding', embedding_1.default);
 apiRouter.use('/upload', upload_1.default);
 apiRouter.use('/collections', collection_1.default);
+apiRouter.use('/training', training_1.default);
 app.use('/api', apiRouter);
 app.get('/', (req, res) => {
     res.send('MFULearnAi Node.js Backend');

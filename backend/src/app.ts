@@ -14,6 +14,7 @@ import chromaRouter from './routes/chroma';
 import embeddingRouter from './routes/embedding';
 import uploadRouter from './routes/upload';
 import collectionRouter from './routes/collection';
+import trainingRouter from './routes/training';
 import { WebSocketService } from './services/websocketService';
 import { connectDB } from './lib/mongodb';
 
@@ -63,6 +64,9 @@ apiRouter.use('/upload', uploadRouter);
 
 // Mount collection routes under API router
 apiRouter.use('/collections', collectionRouter);
+
+// Mount training routes under API router
+apiRouter.use('/training', trainingRouter);
 
 // Mount API router under /api prefix
 app.use('/api', apiRouter);

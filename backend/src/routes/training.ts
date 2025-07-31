@@ -1,0 +1,79 @@
+import express, { Request, Response } from 'express';
+import multer from 'multer';
+import { authenticateJWT, requireAnyRole } from '../middleware/auth';
+
+const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common document formats
+    const allowedMimes = [
+      'application/pdf',
+      'text/plain',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, TXT, CSV, XLS, XLSX files are allowed.'));
+    }
+  }
+});
+
+// POST /api/training/upload
+router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { collectionId } = req.body;
+    if (!collectionId) {
+      return res.status(400).json({ error: 'Collection ID is required' });
+    }
+
+    // For now, return success response
+    // TODO: Implement actual file processing and storage
+    return res.json({
+      message: 'File uploaded successfully',
+      filename: req.file.originalname,
+      size: req.file.size,
+      collectionId: collectionId
+    });
+
+  } catch (error: any) {
+    console.error('Training upload error:', error);
+    return res.status(500).json({ 
+      error: error.message || 'Failed to upload file' 
+    });
+  }
+});
+
+// GET /api/training/status
+router.get('/status', async (req: Request, res: Response) => {
+  try {
+    // TODO: Implement training status endpoint
+    res.json({
+      status: 'idle',
+      message: 'Training service is available'
+    });
+  } catch (error: any) {
+    console.error('Training status error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to get training status' 
+    });
+  }
+});
+
+export default router; 
