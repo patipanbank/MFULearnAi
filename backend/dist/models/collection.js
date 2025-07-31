@@ -50,5 +50,15 @@ const collectionSchema = new mongoose_1.Schema({
     updatedAt: { type: Date, default: Date.now },
     modelId: { type: String },
 });
+collectionSchema.virtual('id').get(function () {
+    return this._id.toString();
+});
+collectionSchema.set('toJSON', {
+    virtuals: true,
+    transform: function (doc, ret) {
+        ret.id = ret._id;
+        return ret;
+    }
+});
 exports.Collection = mongoose_1.default.model('Collection', collectionSchema);
 //# sourceMappingURL=collection.js.map

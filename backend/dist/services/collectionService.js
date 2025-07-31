@@ -29,7 +29,26 @@ class CollectionService {
             return user.role === 'Admin' || user.role === 'SuperAdmin';
         }
         if (collection.permission === 'DEPARTMENT') {
-            return collection.createdBy === user.username || user.role === 'Admin' || user.role === 'SuperAdmin';
+            return collection.createdBy === user.username;
+        }
+        if (user.role === 'Admin' || user.role === 'SuperAdmin') {
+            return true;
+        }
+        return false;
+    }
+    canUserAccessCollection(user, collection) {
+        if (collection.permission === 'PUBLIC') {
+            return true;
+        }
+        if (collection.permission === 'PRIVATE') {
+            return collection.createdBy === user.username;
+        }
+        if (collection.permission === 'DEPARTMENT') {
+            return (collection.createdBy === user.username ||
+                user.department === collection.department);
+        }
+        if (user.role === 'Admin' || user.role === 'SuperAdmin') {
+            return true;
         }
         return false;
     }
@@ -63,16 +82,11 @@ class CollectionService {
         const collection = new this.model(doc);
         return await collection.save();
     }
-    async updateCollection(collectionId, updates, userId) {
+    async updateCollection(collectionId, updates, user) {
         try {
-            if (userId) {
+            if (user) {
                 const existingCollection = await this.model.findById(collectionId);
                 if (!existingCollection) {
-                    return null;
-                }
-                const userService = require('./userService');
-                const user = await userService.userService.get_user_by_id(userId);
-                if (!user) {
                     return null;
                 }
                 const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
@@ -118,16 +132,11 @@ class CollectionService {
             return null;
         }
     }
-    async deleteCollection(collectionId, userId) {
+    async deleteCollection(collectionId, user) {
         try {
-            if (userId) {
+            if (user) {
                 const existingCollection = await this.model.findById(collectionId);
                 if (!existingCollection) {
-                    return false;
-                }
-                const userService = require('./userService');
-                const user = await userService.userService.get_user_by_id(userId);
-                if (!user) {
                     return false;
                 }
                 const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
@@ -245,30 +254,19 @@ class CollectionService {
             return null;
         }
     }
-    async hasAccess(collectionId, userId, department) {
+    async hasAccess(collectionId, user) {
         try {
             const collection = await this.model.findById(collectionId).exec();
             if (!collection) {
                 return false;
             }
-            let user = null;
-            let isAdmin = false;
-            let username = null;
-            if (userId) {
-                const userService = require('./userService');
-                user = await userService.userService.get_user_by_id(userId);
-                if (user) {
-                    isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
-                    username = user.username;
-                }
-            }
             if (collection.permission === 'PUBLIC') {
                 return true;
             }
-            if (isAdmin) {
+            if (user && (user.role === 'Admin' || user.role === 'SuperAdmin')) {
                 return true;
             }
-            if (username && collection.createdBy === username) {
+            if (user && collection.createdBy === user.username) {
                 return true;
             }
             if (collection.permission === 'DEPARTMENT' && user && user.department && collection.department === user.department) {

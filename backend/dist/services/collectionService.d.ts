@@ -17,21 +17,22 @@ export declare class CollectionService {
         __v: number;
     }) | null>;
     canUserModifyCollection(user: any, collection: any): boolean;
+    canUserAccessCollection(user: any, collection: any): boolean;
     getAllCollections(): Promise<ICollection[]>;
     createCollection(name: string, permission: string, user: any, modelId?: string): Promise<import("mongoose").Document<unknown, {}, ICollection, {}> & ICollection & Required<{
         _id: unknown;
     }> & {
         __v: number;
     }>;
-    updateCollection(collectionId: string, updates: Partial<ICollection>, userId?: string): Promise<ICollection | null>;
-    deleteCollection(collectionId: string, userId?: string): Promise<boolean>;
+    updateCollection(collectionId: string, updates: Partial<ICollection>, user?: any): Promise<ICollection | null>;
+    deleteCollection(collectionId: string, user?: any): Promise<boolean>;
     findByName(name: string): Promise<ICollection | null>;
     getCollectionsByPermission(permission: CollectionPermission): Promise<ICollection[]>;
     getCollectionsByDepartment(department: string): Promise<ICollection[]>;
     searchCollections(query: string, userId?: string, department?: string): Promise<ICollection[]>;
     getCollectionsByUser(userId: string): Promise<ICollection[]>;
     getCollectionStats(): Promise<any>;
-    hasAccess(collectionId: string, userId?: string, department?: string): Promise<boolean>;
+    hasAccess(collectionId: string, user?: any): Promise<boolean>;
 }
 export declare const collectionService: CollectionService;
 //# sourceMappingURL=collectionService.d.ts.map

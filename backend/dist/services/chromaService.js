@@ -124,7 +124,12 @@ class ChromaService {
     async getDocuments(collectionName, limit = 100, offset = 0) {
         try {
             const collection = await this.getOrCreateCollection(collectionName);
+            if (!collection) {
+                console.log(`[ChromaService] Collection '${collectionName}' not found`);
+                return { documents: [], total: 0 };
+            }
             const all = await collection.get();
+            const totalCount = all.ids?.length || 0;
             const docs = [];
             if (all && all.ids) {
                 for (let i = offset; i < Math.min(offset + limit, all.ids.length); i++) {
@@ -141,7 +146,7 @@ class ChromaService {
                     console.log(`  ${i + 1}. ${docs[i].document?.slice(0, 100)}...`);
                 }
             }
-            return { documents: docs, total: all.ids?.length || 0 };
+            return { documents: docs, total: totalCount };
         }
         catch (e) {
             console.error(`[ChromaService] Error getDocuments:`, e);
