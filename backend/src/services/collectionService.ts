@@ -34,8 +34,39 @@ export class CollectionService {
       return user.role === 'Admin' || user.role === 'SuperAdmin';
     }
     if (collection.permission === 'DEPARTMENT') {
-      return collection.createdBy === user.username || user.role === 'Admin' || user.role === 'SuperAdmin';
+      return collection.createdBy === user.username;
     }
+    // Admin and Super Admin can modify all collections
+    if (user.role === 'Admin' || user.role === 'SuperAdmin') {
+      return true;
+    }
+    return false;
+  }
+
+  // สำหรับ route: canUserAccessCollection(user, collection)
+  canUserAccessCollection(user: any, collection: any) {
+    // Public collections can be accessed by anyone
+    if (collection.permission === 'PUBLIC') {
+      return true;
+    }
+    
+    // Private collections can only be accessed by creator
+    if (collection.permission === 'PRIVATE') {
+      return collection.createdBy === user.username;
+    }
+    
+    // Department collections can be accessed by same department users
+    if (collection.permission === 'DEPARTMENT') {
+      return (collection.createdBy === user.username || 
+             user.department === collection.department);
+    }
+    
+    // Admin and Super Admin can access all collections
+    if (user.role === 'Admin' || user.role === 'SuperAdmin') {
+      return true;
+    }
+    
+    // Default to no access
     return false;
   }
 
@@ -76,18 +107,12 @@ export class CollectionService {
   /**
    * Update collection with ownership check
    */
-  async updateCollection(collectionId: string, updates: Partial<ICollection>, userId?: string): Promise<ICollection | null> {
+  async updateCollection(collectionId: string, updates: Partial<ICollection>, user?: any): Promise<ICollection | null> {
     try {
-      // Check ownership/role if userId provided
-      if (userId) {
+      // Check ownership/role if user provided
+      if (user) {
         const existingCollection = await this.model.findById(collectionId);
         if (!existingCollection) {
-          return null;
-        }
-        // ดึง user object
-        const userService = require('./userService');
-        const user = await userService.userService.get_user_by_id(userId);
-        if (!user) {
           return null;
         }
         const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
@@ -138,18 +163,12 @@ export class CollectionService {
   /**
    * Delete collection with ownership check
    */
-  async deleteCollection(collectionId: string, userId?: string): Promise<boolean> {
+  async deleteCollection(collectionId: string, user?: any): Promise<boolean> {
     try {
-      // Check ownership/role if userId provided
-      if (userId) {
+      // Check ownership/role if user provided
+      if (user) {
         const existingCollection = await this.model.findById(collectionId);
         if (!existingCollection) {
-          return false;
-        }
-        // ดึง user object
-        const userService = require('./userService');
-        const user = await userService.userService.get_user_by_id(userId);
-        if (!user) {
           return false;
         }
         const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
@@ -298,40 +317,33 @@ export class CollectionService {
   /**
    * Check if user has access to collection
    */
-  async hasAccess(collectionId: string, userId?: string, department?: string): Promise<boolean> {
+  async hasAccess(collectionId: string, user?: any): Promise<boolean> {
     try {
       const collection = await this.model.findById(collectionId).exec();
       if (!collection) {
         return false;
       }
-      // ดึง user object ถ้ามี userId
-      let user = null;
-      let isAdmin = false;
-      let username = null;
-      if (userId) {
-        const userService = require('./userService');
-        user = await userService.userService.get_user_by_id(userId);
-        if (user) {
-          isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
-          username = user.username;
-        }
-      }
+      
       // Public collections are accessible to everyone
       if (collection.permission === 'PUBLIC') {
         return true;
       }
+      
       // Admin/SuperAdmin can access all collections
-      if (isAdmin) {
+      if (user && (user.role === 'Admin' || user.role === 'SuperAdmin')) {
         return true;
       }
+      
       // Creator has access to all their collections
-      if (username && collection.createdBy === username) {
+      if (user && collection.createdBy === user.username) {
         return true;
       }
+      
       // Department collections are accessible to department members
       if (collection.permission === 'DEPARTMENT' && user && user.department && collection.department === user.department) {
         return true;
       }
+      
       // Private: only owner or admin/superadmin
       if (collection.permission === 'PRIVATE') {
         return false;
