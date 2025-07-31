@@ -107,7 +107,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${compact ? 'p-4' : 'p-6'} relative group`}>
+    <div className={`card card-hover ${compact ? 'p-4' : 'p-6'} relative group`}>
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -115,10 +115,10 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
             <FiDatabase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className={`font-semibold text-gray-900 dark:text-white truncate ${compact ? 'text-base' : 'text-lg'}`}>
+            <h3 className={`font-semibold text-primary truncate ${compact ? 'text-base' : 'text-lg'}`}>
               {collection.name}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Created by {collection.createdBy}</p>
+            <p className="text-sm text-secondary truncate">Created by {collection.createdBy}</p>
           </div>
         </div>
         
@@ -129,20 +129,20 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
                 e.stopPropagation();
                 setShowMenu(!showMenu);
               }}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="btn-ghost p-2 opacity-0 group-hover:opacity-100 transition-all duration-200"
             >
               <FiMoreVertical className="h-4 w-4" />
             </button>
             
             {showMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 z-10">
+              <div className="dropdown-menu absolute right-0 top-full mt-1 w-48">
                 <div className="py-1">
                   <button
                     onClick={() => {
                       setShowMenu(false);
                       onView(collection);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                    className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-secondary flex items-center space-x-2"
                   >
                     <FiEye className="h-4 w-4" />
                     <span>View Details</span>
@@ -152,7 +152,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
                       setShowMenu(false);
                       onUpload(collection);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                    className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-secondary flex items-center space-x-2"
                   >
                     <FiUpload className="h-4 w-4" />
                     <span>Upload Documents</span>
@@ -163,7 +163,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
                         setShowMenu(false);
                         onEdit(collection);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                      className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-secondary flex items-center space-x-2"
                     >
                       <FiEdit className="h-4 w-4" />
                       <span>Edit Collection</span>
@@ -195,7 +195,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
           {collection.permission}
         </span>
         {collection.department && (
-          <span className="text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+          <span className="text-xs text-secondary bg-secondary px-2 py-1 rounded">
             {collection.department}
           </span>
         )}
@@ -205,10 +205,10 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
       <div className="space-y-3 mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <FiFileText className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm text-gray-600 dark:text-gray-400">Documents</span>
+            <FiFileText className="h-4 w-4 text-muted" />
+            <span className="text-sm text-secondary">Documents</span>
           </div>
-          <span className="text-sm font-medium text-gray-900 dark:text-white">
+          <span className="text-sm font-medium text-primary">
             {loading ? '...' : documentCount}
           </span>
         </div>
@@ -216,10 +216,10 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
         {!compact && (
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <FiCalendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Created</span>
+              <FiCalendar className="h-4 w-4 text-muted" />
+              <span className="text-sm text-secondary">Created</span>
             </div>
-            <span className="text-sm text-gray-900 dark:text-white">
+            <span className="text-sm text-primary">
               {formatDate(collection.createdAt)}
             </span>
           </div>
@@ -228,10 +228,10 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
 
       {/* Quick Actions */}
       {!compact && (
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-600">
+        <div className="flex items-center justify-between pt-4 border-t border-secondary">
           <button
             onClick={() => onView(collection)}
-            className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200 flex items-center space-x-2"
+            className="btn-secondary text-sm flex items-center space-x-2"
           >
             <FiEye className="h-4 w-4" />
             <span>View</span>
@@ -239,7 +239,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
           
           <button
             onClick={() => onUpload(collection)}
-            className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-md transition-colors duration-200 flex items-center space-x-2"
+            className="btn-primary text-sm flex items-center space-x-2"
           >
             <FiUpload className="h-4 w-4" />
             <span>Upload</span>
