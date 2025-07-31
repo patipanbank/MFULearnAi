@@ -94,36 +94,36 @@ const KnowledgePage: React.FC = () => {
 
       {/* Analytics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="card p-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <FiFolder className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <FiFolder className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-muted">Total Collections</p>
-              <p className="text-2xl font-bold text-primary">{analytics.totalCollections}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Collections</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.totalCollections}</p>
             </div>
           </div>
         </div>
-        <div className="card p-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-              <FiFile className="h-6 w-6 text-green-600" />
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <FiFile className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-muted">Total Documents</p>
-              <p className="text-2xl font-bold text-primary">{analytics.totalDocuments}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Documents</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.totalDocuments}</p>
             </div>
           </div>
         </div>
-        <div className="card p-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-              <FiDatabase className="h-6 w-6 text-purple-600" />
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <FiDatabase className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-muted">Total Size</p>
-              <p className="text-2xl font-bold text-primary">{formatBytes(analytics.totalSize)}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Size</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatBytes(analytics.totalSize)}</p>
             </div>
           </div>
         </div>
@@ -132,11 +132,11 @@ const KnowledgePage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 space-y-4 md:space-y-0">
         <div className="flex-1 max-w-md relative">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted h-4 w-4" />
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
           <input
             type="text"
             placeholder="Search collections..."
-            className="input pl-10 w-full"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -145,7 +145,7 @@ const KnowledgePage: React.FC = () => {
         <div className="flex items-center space-x-3">
           <button
             onClick={fetchCollections}
-            className="btn-ghost flex items-center space-x-2"
+            className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200 flex items-center space-x-2"
           >
             <FiRefreshCcw className="h-4 w-4" />
             <span>Refresh</span>
@@ -153,7 +153,7 @@ const KnowledgePage: React.FC = () => {
 
           <button
             onClick={() => setShowUploadModal(true)}
-            className="btn-secondary flex items-center space-x-2"
+            className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200 flex items-center space-x-2"
           >
             <FiUpload className="h-4 w-4" />
             <span>Upload Documents</span>
@@ -161,7 +161,7 @@ const KnowledgePage: React.FC = () => {
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="btn-primary flex items-center space-x-2"
+            className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-md transition-colors duration-200 flex items-center space-x-2"
           >
             <FiPlus className="h-4 w-4" />
             <span>New Collection</span>
@@ -172,7 +172,7 @@ const KnowledgePage: React.FC = () => {
       {/* Results Count */}
       {!loading && !error && (
         <div className="mb-4">
-          <p className="text-sm text-muted">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {searchQuery 
               ? `Found ${filteredCollections.length} collection${filteredCollections.length !== 1 ? 's' : ''} matching "${searchQuery}"`
               : `Showing ${filteredCollections.length} collection${filteredCollections.length !== 1 ? 's' : ''}`
@@ -185,7 +185,7 @@ const KnowledgePage: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, index) => (
-            <div key={index} className="card p-6 animate-pulse">
+            <div key={index} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 animate-pulse">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3 flex-1">
                   <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
@@ -205,15 +205,15 @@ const KnowledgePage: React.FC = () => {
       ) : error ? (
         <div className="text-center py-12">
           <div className="bg-red-100 dark:bg-red-900/20 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-            <FiDatabase className="h-10 w-10 text-red-600" />
+            <FiDatabase className="h-10 w-10 text-red-600 dark:text-red-400" />
           </div>
-          <h3 className="text-lg font-medium text-primary mb-2">Failed to load collections</h3>
-          <p className="text-muted mb-6 max-w-md mx-auto">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Failed to load collections</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
             {error}
           </p>
           <button
             onClick={fetchCollections}
-            className="btn-primary flex items-center space-x-2 mx-auto"
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-md transition-colors duration-200 flex items-center space-x-2 mx-auto"
           >
             <FiRefreshCcw className="h-4 w-4" />
             <span>Try Again</span>
@@ -265,12 +265,12 @@ const KnowledgePage: React.FC = () => {
       {filteredCollections.length === 0 && !loading && !error && (
         <div className="text-center py-12">
           <div className="bg-gray-100 dark:bg-gray-800 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-            <FiFolder className="h-10 w-10 text-muted" />
+            <FiFolder className="h-10 w-10 text-gray-400 dark:text-gray-500" />
           </div>
-          <h3 className="text-lg font-medium text-primary mb-2">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             {searchQuery ? 'No collections found' : 'No collections yet'}
           </h3>
-          <p className="text-muted mb-6 max-w-md mx-auto">
+          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
             {searchQuery 
               ? 'Try adjusting your search terms or create a new collection that matches your criteria.'
               : 'Collections help you organize and manage your documents for AI training. Create your first collection to get started.'
@@ -280,14 +280,14 @@ const KnowledgePage: React.FC = () => {
             {searchQuery ? (
               <button
                 onClick={() => setSearchQuery('')}
-                className="btn-secondary"
+                className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
               >
                 Clear Search
               </button>
             ) : (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="btn-primary flex items-center space-x-2"
+                className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-md transition-colors duration-200 flex items-center space-x-2"
               >
                 <FiPlus className="h-4 w-4" />
                 <span>Create Collection</span>
