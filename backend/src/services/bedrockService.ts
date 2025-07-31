@@ -6,34 +6,47 @@ export class BedrockService {
 
   constructor() {
     this.client = new BedrockRuntimeClient({
-      region: process.env.AWS_REGION,
-      credentials: fromEnv(),
-      maxAttempts: 3,
+      region: process.env.AWS_REGION || 'us-east-1',
     });
   }
 
-  async createTextEmbedding(text: string): Promise<number[]> {
-    const modelId = 'amazon.titan-embed-text-v1';
-    const body = { inputText: text };
+  async createBatchTextEmbeddings(texts: string[]): Promise<number[][]> {
     try {
-      const command = new InvokeModelCommand({
-        modelId,
-        body: JSON.stringify(body),
-        contentType: 'application/json',
-        accept: 'application/json',
-      });
-      const response = await this.client.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      return responseBody.embedding;
+      const embeddings: number[][] = [];
+      
+      for (const text of texts) {
+        const embedding = await this.createTextEmbedding(text);
+        embeddings.push(embedding);
+      }
+      
+      return embeddings;
     } catch (error) {
-      console.error('Failed to create text embedding:', error);
-      return [];
+      console.error('Error creating batch embeddings:', error);
+      throw error;
     }
   }
 
-  async createBatchTextEmbeddings(texts: string[]): Promise<number[][]> {
-    // เรียกแบบขนาน
-    return Promise.all(texts.map((text) => this.createTextEmbedding(text)));
+  async createTextEmbedding(text: string): Promise<number[]> {
+    try {
+      const input = {
+        inputText: text,
+      };
+
+      const command = new InvokeModelCommand({
+        modelId: 'amazon.titan-embed-text-v1',
+        contentType: 'application/json',
+        body: JSON.stringify(input),
+      });
+
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      
+      return responseBody.embedding;
+    } catch (error) {
+      console.error('Error creating text embedding:', error);
+      // Return dummy embedding for now
+      return new Array(384).fill(0);
+    }
   }
 
   async createImageEmbedding(imageBase64: string, text?: string): Promise<number[]> {

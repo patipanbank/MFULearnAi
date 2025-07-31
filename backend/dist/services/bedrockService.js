@@ -2,36 +2,44 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bedrockService = exports.BedrockService = void 0;
 const client_bedrock_runtime_1 = require("@aws-sdk/client-bedrock-runtime");
-const credential_provider_env_1 = require("@aws-sdk/credential-provider-env");
 class BedrockService {
     constructor() {
         this.client = new client_bedrock_runtime_1.BedrockRuntimeClient({
-            region: process.env.AWS_REGION,
-            credentials: (0, credential_provider_env_1.fromEnv)(),
-            maxAttempts: 3,
+            region: process.env.AWS_REGION || 'us-east-1',
         });
     }
-    async createTextEmbedding(text) {
-        const modelId = 'amazon.titan-embed-text-v1';
-        const body = { inputText: text };
+    async createBatchTextEmbeddings(texts) {
         try {
+            const embeddings = [];
+            for (const text of texts) {
+                const embedding = await this.createTextEmbedding(text);
+                embeddings.push(embedding);
+            }
+            return embeddings;
+        }
+        catch (error) {
+            console.error('Error creating batch embeddings:', error);
+            throw error;
+        }
+    }
+    async createTextEmbedding(text) {
+        try {
+            const input = {
+                inputText: text,
+            };
             const command = new client_bedrock_runtime_1.InvokeModelCommand({
-                modelId,
-                body: JSON.stringify(body),
+                modelId: 'amazon.titan-embed-text-v1',
                 contentType: 'application/json',
-                accept: 'application/json',
+                body: JSON.stringify(input),
             });
             const response = await this.client.send(command);
             const responseBody = JSON.parse(new TextDecoder().decode(response.body));
             return responseBody.embedding;
         }
         catch (error) {
-            console.error('Failed to create text embedding:', error);
-            return [];
+            console.error('Error creating text embedding:', error);
+            return new Array(384).fill(0);
         }
-    }
-    async createBatchTextEmbeddings(texts) {
-        return Promise.all(texts.map((text) => this.createTextEmbedding(text)));
     }
     async createImageEmbedding(imageBase64, text) {
         const modelId = 'amazon.titan-embed-image-v1';

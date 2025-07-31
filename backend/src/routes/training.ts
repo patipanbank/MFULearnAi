@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { authenticateJWT, requireAnyRole } from '../middleware/auth';
+import { trainingService } from '../services/trainingService';
 
 const router = express.Router();
 
@@ -43,14 +44,25 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       return res.status(400).json({ error: 'Collection name is required' });
     }
 
-    // For now, return success response
-    // TODO: Implement actual file processing and storage
+    // Get user from request
+    const user = req.user as any;
+
+    // Process file and create embeddings
+    const chunksCount = await trainingService.processAndEmbedFile(
+      req.file.buffer,
+      req.file.originalname,
+      user,
+      modelId || 'amazon.titan-embed-text-v1',
+      collectionName
+    );
+
     return res.json({
-      message: 'File uploaded successfully',
+      message: 'File processed successfully with vector embeddings',
       filename: req.file.originalname,
       size: req.file.size,
       collectionName: collectionName,
-      modelId: modelId || 'amazon.titan-embed-text-v1'
+      modelId: modelId || 'amazon.titan-embed-text-v1',
+      chunks: chunksCount
     });
 
   } catch (error: any) {

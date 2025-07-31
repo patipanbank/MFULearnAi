@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const multer_1 = __importDefault(require("multer"));
+const trainingService_1 = require("../services/trainingService");
 const router = express_1.default.Router();
 const storage = multer_1.default.memoryStorage();
 const upload = (0, multer_1.default)({
@@ -39,12 +40,15 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         if (!collectionName) {
             return res.status(400).json({ error: 'Collection name is required' });
         }
+        const user = req.user;
+        const chunksCount = await trainingService_1.trainingService.processAndEmbedFile(req.file.buffer, req.file.originalname, user, modelId || 'amazon.titan-embed-text-v1', collectionName);
         return res.json({
-            message: 'File uploaded successfully',
+            message: 'File processed successfully with vector embeddings',
             filename: req.file.originalname,
             size: req.file.size,
             collectionName: collectionName,
-            modelId: modelId || 'amazon.titan-embed-text-v1'
+            modelId: modelId || 'amazon.titan-embed-text-v1',
+            chunks: chunksCount
         });
     }
     catch (error) {
