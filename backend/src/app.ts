@@ -62,7 +62,7 @@ apiRouter.use('/embedding', embeddingRouter);
 apiRouter.use('/upload', uploadRouter);
 
 // Mount collection routes under API router
-apiRouter.use('/collection', collectionRouter);
+apiRouter.use('/collections', collectionRouter);
 
 // Mount API router under /api prefix
 app.use('/api', apiRouter);
