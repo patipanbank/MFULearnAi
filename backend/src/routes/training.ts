@@ -17,6 +17,13 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req: any, file: any, cb: any) => {
+    console.log('🔍 Multer fileFilter called:', {
+      fieldname: file.fieldname,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    });
+    
     // Allow common document formats
     const allowedMimes = [
       'application/pdf',
@@ -29,8 +36,10 @@ const upload = multer({
     ];
     
     if (allowedMimes.includes(file.mimetype)) {
+      console.log('✅ File type allowed');
       cb(null, true);
     } else {
+      console.log('❌ File type not allowed:', file.mimetype);
       cb(new Error('Invalid file type. Only PDF, DOC, DOCX, TXT, CSV, XLS, XLSX files are allowed.'));
     }
   }
@@ -38,7 +47,18 @@ const upload = multer({
 
 // POST /api/training/upload
 router.post('/upload', (req: Request, res: Response, next: any) => {
+  console.log('📝 Upload route called, headers:', {
+    'content-type': req.headers['content-type'],
+    'content-length': req.headers['content-length']
+  });
+  
   return upload.single('file')(req, res, (err: any) => {
+    console.log('🔄 Multer finished:', {
+      hasError: !!err,
+      hasFile: !!req.file,
+      error: err?.message
+    });
+    
     if (err) {
       console.log('❌ Multer error:', err.message);
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -111,6 +131,15 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
       stack: error.stack,
       name: error.name
     });
+    
+    // Handle multer errors
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+    }
+    if (error.message && error.message.includes('Invalid file type')) {
+      return res.status(400).json({ error: error.message });
+    }
+    
     return res.status(500).json({ 
       error: error.message || 'Failed to upload file' 
     });

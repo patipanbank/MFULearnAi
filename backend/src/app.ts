@@ -22,8 +22,13 @@ dotenv.config();
 
 const app = express();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ 
+  type: ['application/json', 'text/plain'] 
+}));
+app.use(express.urlencoded({ 
+  extended: true,
+  type: 'application/x-www-form-urlencoded'
+}));
 app.use(cors());
 app.use(helmet());
 app.use(morgan('dev'));
