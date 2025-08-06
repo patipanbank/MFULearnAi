@@ -60,10 +60,16 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
         formData.append('modelId', 'amazon.titan-embed-text-v1');  // Use Titan embedding model
         formData.append('collectionName', collection.name);
 
+        // Debug: Log FormData contents
+        console.log('📁 Uploading file:', {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          collectionName: collection.name,
+          hasFile: file instanceof File
+        });
+
         const response = await api.post('/training/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
           onUploadProgress: (progressEvent) => {
             const progress = progressEvent.total 
               ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -185,7 +191,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
                         {file.name}
                       </p>
                       <p className="text-xs text-muted">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                        {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
                       </p>
                       {file.error && (
                         <p className="text-xs text-red-600">{file.error}</p>

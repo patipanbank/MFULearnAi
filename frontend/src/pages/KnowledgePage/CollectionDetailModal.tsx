@@ -77,12 +77,16 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
       formData.append('modelId', 'amazon.titan-embed-text-v1');  // Use Titan embedding model
       formData.append('collectionName', collection.name);
       
-      await api.post('/training/upload', formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+      // Debug: Log FormData contents
+      console.log('📁 Uploading file:', {
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type,
+        collectionName: collection.name,
+        hasFile: selectedFile instanceof File
       });
+      
+      await api.post('/training/upload', formData);
       setSelectedFile(null);
       addToast({
         type: 'success',
