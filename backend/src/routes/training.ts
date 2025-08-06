@@ -37,14 +37,37 @@ const upload = multer({
 });
 
 // POST /api/training/upload
-router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/upload', (req: Request, res: Response, next: any) => {
+  upload.single('file')(req, res, (err: any) => {
+    if (err) {
+      console.log('❌ Multer error:', err.message);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req: Request, res: Response) => {
   try {
+    console.log('📁 Training upload request:', {
+      hasFile: !!req.file,
+      body: req.body,
+      fileInfo: req.file ? {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      } : null
+    });
+
     if (!req.file) {
+      console.log('❌ No file uploaded');
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
     const { collectionName, modelId } = req.body;
     if (!collectionName) {
+      console.log('❌ Collection name is required');
       return res.status(400).json({ error: 'Collection name is required' });
     }
 
@@ -83,7 +106,11 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
     });
 
   } catch (error: any) {
-    console.error('Training upload error:', error);
+    console.error('❌ Training upload error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return res.status(500).json({ 
       error: error.message || 'Failed to upload file' 
     });

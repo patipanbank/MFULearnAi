@@ -28,6 +28,7 @@ export class BedrockService {
 
   async createTextEmbedding(text: string): Promise<number[]> {
     try {
+      console.log('🔮 Creating embedding for text:', text.substring(0, 100) + '...');
       const input = {
         inputText: text,
       };
@@ -41,10 +42,16 @@ export class BedrockService {
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
       
+      console.log('✅ Embedding created successfully, dimension:', responseBody.embedding?.length);
       return responseBody.embedding;
     } catch (error) {
-      console.error('Error creating text embedding:', error);
+      console.error('❌ Error creating text embedding:', {
+        message: error instanceof Error ? error.message : error,
+        name: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       // Return dummy embedding for now
+      console.log('⚠️ Returning dummy embedding with 384 dimensions');
       return new Array(384).fill(0);
     }
   }

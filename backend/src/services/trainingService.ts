@@ -108,8 +108,11 @@ export class TrainingService {
     }
 
     try {
+      console.log(`📄 Processing file: ${fileName} (${fileBuffer.length} bytes) for collection: ${collectionName}`);
+      
       // Parse file content
       const textContent = await documentService.parseFileContent(fileBuffer, fileName);
+      console.log(`📝 Parsed content length: ${textContent.length} characters`);
       
       const numChunks = await this.embedAndStore(
         textContent,
@@ -120,10 +123,10 @@ export class TrainingService {
         modelId
       );
 
-      console.log(`Processed file ${fileName}: ${numChunks} chunks added to collection ${collectionName}`);
+      console.log(`✅ Processed file ${fileName}: ${numChunks} chunks added to collection ${collectionName}`);
       return numChunks;
     } catch (error) {
-      console.error(`Error processing file ${fileName}:`, error);
+      console.error(`❌ Error processing file ${fileName}:`, error);
       throw error;
     }
   }
