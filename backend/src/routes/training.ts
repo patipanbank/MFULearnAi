@@ -38,7 +38,7 @@ const upload = multer({
 
 // POST /api/training/upload
 router.post('/upload', (req: Request, res: Response, next: any) => {
-  upload.single('file')(req, res, (err: any) => {
+  return upload.single('file')(req, res, (err: any) => {
     if (err) {
       console.log('❌ Multer error:', err.message);
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -46,7 +46,7 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
       }
       return res.status(400).json({ error: err.message });
     }
-    next();
+    return next();
   });
 }, async (req: Request, res: Response) => {
   try {
