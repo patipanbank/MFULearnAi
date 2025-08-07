@@ -62,11 +62,11 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
 
   const handleUpload = async () => {
     if (!collection || !selectedFile) return;
-    if (selectedFile.size > 10 * 1024 * 1024) {
+    if (selectedFile.size > 50 * 1024 * 1024) {
       addToast({
         type: 'warning',
         title: 'File Too Large',
-        message: 'Max file size is 10MB.'
+        message: 'Max file size is 50MB.'
       });
       return;
     }

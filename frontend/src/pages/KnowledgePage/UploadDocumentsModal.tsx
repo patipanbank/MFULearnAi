@@ -85,13 +85,21 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
         ));
 
         return response;
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Error uploading ${file.name}:`, error);
+        
+        let errorMessage = 'Upload failed';
+        if (error?.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        
         setFiles(prev => prev.map((f, i) => 
           i === index ? { 
             ...f, 
             status: 'error' as const, 
-            error: error instanceof Error ? error.message : 'Upload failed' 
+            error: errorMessage
           } : f
         ));
         throw error;
@@ -161,7 +169,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
               Drop files here or click to browse
             </p>
             <p className="text-sm text-muted">
-              Supports PDF, DOCX, XLSX, CSV, TXT files (max 10MB each)
+              Supports PDF, DOCX, XLSX, CSV, TXT files (max 50MB each)
             </p>
             <input
               ref={fileInputRef}

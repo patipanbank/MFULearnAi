@@ -14,7 +14,8 @@ const storage = multer.memoryStorage();
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit (increased for larger documents)
+    files: 1, // Only one file at a time
   },
   fileFilter: (req: any, file: any, cb: any) => {
     console.log('🔍 Multer fileFilter called:', {
@@ -32,7 +33,12 @@ const upload = multer({
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'text/csv',
       'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      // Additional MIME types for better compatibility
+      'application/csv',
+      'text/csv',
+      'application/vnd.ms-excel.sheet.macroEnabled.12',
+      'application/vnd.ms-excel.template.macroEnabled.12'
     ];
     
     if (allowedMimes.includes(file.mimetype)) {
@@ -134,10 +140,30 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
     
     // Handle multer errors
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+      return res.status(400).json({ 
+        error: 'File too large. Maximum size is 50MB.',
+        code: 'FILE_TOO_LARGE',
+        maxSize: '50MB'
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ 
+        error: 'Too many files. Please upload one file at a time.',
+        code: 'TOO_MANY_FILES'
+      });
     }
     if (error.message && error.message.includes('Invalid file type')) {
-      return res.status(400).json({ error: error.message });
+      return res.status(400).json({ 
+        error: error.message,
+        code: 'INVALID_FILE_TYPE',
+        allowedTypes: ['PDF', 'DOCX', 'XLSX', 'CSV', 'TXT']
+      });
+    }
+    if (error.message && error.message.includes('No readable content')) {
+      return res.status(400).json({
+        error: 'File appears to be empty or corrupted.',
+        code: 'EMPTY_FILE'
+      });
     }
     
     return res.status(500).json({ 

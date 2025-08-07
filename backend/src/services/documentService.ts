@@ -1,52 +1,124 @@
+import * as pdfParse from 'pdf-parse';
+import * as mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+import * as csv from 'csv-parser';
+import { Readable } from 'stream';
+
 export class DocumentService {
   async parseFileContent(fileBuffer: Buffer, fileName: string): Promise<string> {
     const fileExtension = fileName.split('.').pop()?.toLowerCase();
     
-    switch (fileExtension) {
-      case 'txt':
-        return this.parseTextFile(fileBuffer);
-      case 'pdf':
-        return this.parsePdfFile(fileBuffer);
-      case 'doc':
-      case 'docx':
-        return this.parseWordFile(fileBuffer);
-      case 'csv':
-        return this.parseCsvFile(fileBuffer);
-      case 'xls':
-      case 'xlsx':
-        return this.parseExcelFile(fileBuffer);
-      default:
-        // For unknown file types, try to parse as text
-        return this.parseTextFile(fileBuffer);
+    console.log(`📄 Parsing file: ${fileName} (${fileExtension})`);
+    
+    try {
+      switch (fileExtension) {
+        case 'txt':
+          return this.parseTextFile(fileBuffer);
+        case 'pdf':
+          return await this.parsePdfFile(fileBuffer);
+        case 'doc':
+        case 'docx':
+          return await this.parseWordFile(fileBuffer);
+        case 'csv':
+          return await this.parseCsvFile(fileBuffer);
+        case 'xls':
+        case 'xlsx':
+          return this.parseExcelFile(fileBuffer);
+        default:
+          // For unknown file types, try to parse as text
+          console.log(`⚠️ Unknown file type: ${fileExtension}, trying as text`);
+          return this.parseTextFile(fileBuffer);
+      }
+    } catch (error) {
+      console.error(`❌ Error parsing file ${fileName}:`, error);
+      throw new Error(`Failed to parse ${fileExtension} file: ${error.message}`);
     }
   }
 
   private parseTextFile(fileBuffer: Buffer): string {
-    return fileBuffer.toString('utf-8');
+    const content = fileBuffer.toString('utf-8');
+    console.log(`✅ Text file parsed: ${content.length} characters`);
+    return content;
   }
 
-  private parsePdfFile(fileBuffer: Buffer): string {
-    // TODO: Implement PDF parsing
-    // For now, return a placeholder
-    return `PDF content from ${fileBuffer.length} bytes`;
+  private async parsePdfFile(fileBuffer: Buffer): Promise<string> {
+    try {
+      const data = await pdfParse(fileBuffer);
+      console.log(`✅ PDF parsed: ${data.text.length} characters, ${data.numpages} pages`);
+      return data.text;
+    } catch (error) {
+      console.error('❌ PDF parsing failed:', error);
+      throw new Error(`Failed to parse PDF: ${error.message}`);
+    }
   }
 
-  private parseWordFile(fileBuffer: Buffer): string {
-    // TODO: Implement Word document parsing
-    // For now, return a placeholder
-    return `Word document content from ${fileBuffer.length} bytes`;
+  private async parseWordFile(fileBuffer: Buffer): Promise<string> {
+    try {
+      const result = await mammoth.extractRawText({ buffer: fileBuffer });
+      console.log(`✅ Word document parsed: ${result.value.length} characters`);
+      if (result.messages.length > 0) {
+        console.log('⚠️ Word parsing warnings:', result.messages);
+      }
+      return result.value;
+    } catch (error) {
+      console.error('❌ Word document parsing failed:', error);
+      throw new Error(`Failed to parse Word document: ${error.message}`);
+    }
   }
 
-  private parseCsvFile(fileBuffer: Buffer): string {
-    // TODO: Implement CSV parsing
-    // For now, return a placeholder
-    return `CSV content from ${fileBuffer.length} bytes`;
+  private async parseCsvFile(fileBuffer: Buffer): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const results: any[] = [];
+      const stream = Readable.from(fileBuffer);
+      
+      stream
+        .pipe(csv())
+        .on('data', (data) => results.push(data))
+        .on('end', () => {
+          try {
+            // Convert CSV data to readable text
+            const text = results.map(row => {
+              return Object.entries(row)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+            }).join('\n');
+            
+            console.log(`✅ CSV parsed: ${results.length} rows, ${text.length} characters`);
+            resolve(text);
+          } catch (error) {
+            reject(error);
+          }
+        })
+        .on('error', (error) => {
+          console.error('❌ CSV parsing failed:', error);
+          reject(new Error(`Failed to parse CSV: ${error.message}`));
+        });
+    });
   }
 
   private parseExcelFile(fileBuffer: Buffer): string {
-    // TODO: Implement Excel parsing
-    // For now, return a placeholder
-    return `Excel content from ${fileBuffer.length} bytes`;
+    try {
+      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      let allText = '';
+      
+      workbook.SheetNames.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        // Convert sheet data to text
+        const sheetText = sheetData.map((row: any[]) => 
+          row.join(', ')
+        ).join('\n');
+        
+        allText += `Sheet: ${sheetName}\n${sheetText}\n\n`;
+      });
+      
+      console.log(`✅ Excel parsed: ${workbook.SheetNames.length} sheets, ${allText.length} characters`);
+      return allText;
+    } catch (error) {
+      console.error('❌ Excel parsing failed:', error);
+      throw new Error(`Failed to parse Excel file: ${error.message}`);
+    }
   }
 }
 
