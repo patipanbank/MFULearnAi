@@ -58,21 +58,24 @@ const AgentModal: React.FC<AgentModalProps> = ({
 
   const [newTag, setNewTag] = useState('');
 
-  // Available tools
+  // Available tools (อัปเดตตาม backend capabilities)
   const availableTools = [
-    { id: 'web_search', name: 'Web Search', description: 'Search the web for current information' },
-    { id: 'calculator', name: 'Calculator', description: 'Perform mathematical calculations' },
-    { id: 'function', name: 'Custom Function', description: 'Custom function tools' }
+    { id: 'web_search', name: 'Web Search', description: 'Search the web for current information. Uses Google Search API or DuckDuckGo fallback.' },
+    { id: 'calculator', name: 'Calculator', description: 'Perform mathematical calculations and expressions.' },
+    { id: 'current_date', name: 'Current Date', description: 'Get current date and time with timezone support (Asia/Bangkok default).' },
+    { id: 'memory_search', name: 'Memory Search', description: 'Search through chat memory for relevant context using vector similarity.' },
+    { id: 'memory_embed', name: 'Memory Embed', description: 'Embed new information into chat memory for future retrieval.' }
   ];
 
   // Initialize models and fetch collections
   const initializeData = async () => {
-    // Set default models (no API call needed)
+    // Set default models (อัปเดตตาม backend support)
     setLoadingModels(true);
     const defaultModels = [
-      { id: 'anthropic.claude-3-5-sonnet-20240620-v1:0', name: 'Claude 3.5 Sonnet' },
-      { id: 'anthropic.claude-3-haiku-20240307-v1:0', name: 'Claude 3 Haiku' },
-      { id: 'anthropic.claude-3-opus-20240229-v1:0', name: 'Claude 3 Opus' }
+      { id: 'anthropic.claude-3-5-sonnet-20240620-v1:0', name: 'Claude 3.5 Sonnet (Recommended)' },
+      { id: 'anthropic.claude-3-haiku-20240307-v1:0', name: 'Claude 3 Haiku (Fast)' },
+      { id: 'anthropic.claude-3-opus-20240229-v1:0', name: 'Claude 3 Opus (Most Capable)' },
+      { id: 'anthropic.claude-3-sonnet-20240229-v1:0', name: 'Claude 3 Sonnet (Balanced)' }
     ];
     setModels(defaultModels);
     setLoadingModels(false);
@@ -258,6 +261,20 @@ const AgentModal: React.FC<AgentModalProps> = ({
                     </option>
                   ))}
                 </select>
+                {formData.modelId && (
+                  <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xs text-muted">
+                      {formData.modelId === 'anthropic.claude-3-5-sonnet-20240620-v1:0' && 
+                        '🎯 Best overall performance for most tasks. Latest and most capable model with excellent reasoning.'}
+                      {formData.modelId === 'anthropic.claude-3-haiku-20240307-v1:0' && 
+                        '⚡ Fastest model, ideal for quick responses and simple tasks. Cost-effective choice.'}
+                      {formData.modelId === 'anthropic.claude-3-opus-20240229-v1:0' && 
+                        '🧠 Most intelligent model for complex reasoning and analysis. Best for sophisticated tasks.'}
+                      {formData.modelId === 'anthropic.claude-3-sonnet-20240229-v1:0' && 
+                        '⚖️ Balanced performance between speed and capability. Good for general-purpose use.'}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -278,15 +295,19 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <div>
               <label className="block text-sm font-medium text-primary mb-2">
                 System Prompt *
+                <span className="text-xs text-muted ml-2">(Define agent's role, expertise, and behavior)</span>
               </label>
               <textarea
                 required
-                rows={4}
+                rows={6}
                 className="input"
-                placeholder="Define the agent's personality, expertise, and behavior..."
+                placeholder="Example: You are a helpful programming assistant with expertise in TypeScript, React, and Node.js. You provide clear, practical code examples and explanations. Always include error handling and follow best practices. When using knowledge base information, cite your sources clearly."
                 value={formData.systemPrompt || ''}
                 onChange={(e) => handleInputChange('systemPrompt', e.target.value)}
               />
+              <div className="text-xs text-muted mt-1">
+                💡 Pro tip: Mention that the agent should use the available tools and knowledge base collections when relevant to user queries.
+              </div>
             </div>
 
             {/* Advanced Settings */}
@@ -305,7 +326,10 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value))}
                 />
                 <div className="text-xs text-muted mt-1">
-                  {formData.temperature || 0.7} (Creativity)
+                  {formData.temperature || 0.7} - 
+                  {(formData.temperature || 0.7) <= 0.3 && ' Very focused and deterministic'}
+                  {(formData.temperature || 0.7) > 0.3 && (formData.temperature || 0.7) <= 0.7 && ' Balanced creativity and focus'}
+                  {(formData.temperature || 0.7) > 0.7 && ' More creative and varied'}
                 </div>
               </div>
               
@@ -317,10 +341,14 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   type="number"
                   min="100"
                   max="8000"
+                  step="100"
                   className="input"
                   value={formData.maxTokens || 4000}
                   onChange={(e) => handleInputChange('maxTokens', parseInt(e.target.value))}
                 />
+                <div className="text-xs text-muted mt-1">
+                  {formData.maxTokens || 4000} tokens ≈ {Math.round((formData.maxTokens || 4000) * 0.75)} words max response length
+                </div>
               </div>
               
               <div>
@@ -376,7 +404,10 @@ const AgentModal: React.FC<AgentModalProps> = ({
               <label className="block text-sm font-medium text-primary mb-2">
                 Available Tools
               </label>
-              <div className="space-y-2">
+              
+              {/* Static Tools */}
+              <div className="space-y-2 mb-4">
+                <h4 className="text-sm font-medium text-secondary mb-2">System Tools</h4>
                 {availableTools.map((tool) => (
                   <button
                     key={tool.id}
@@ -393,6 +424,36 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   </button>
                 ))}
               </div>
+
+              {/* Dynamic Knowledge Base Tools */}
+              {formData.collectionNames && formData.collectionNames.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-secondary mb-2">
+                    Knowledge Base Search Tools
+                    <span className="text-xs text-muted ml-2">(Auto-generated from selected collections)</span>
+                  </h4>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                    <div className="space-y-2">
+                      {formData.collectionNames.map((collectionName) => (
+                        <div key={collectionName} className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm text-blue-700 dark:text-blue-300">
+                              search_{collectionName}
+                            </div>
+                            <div className="text-xs text-blue-600 dark:text-blue-400">
+                              Search and retrieve information from the {collectionName} knowledge base using vector similarity
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-xs text-blue-600 dark:text-blue-400 italic">
+                      💡 These tools are automatically created and will allow the agent to search through your selected knowledge base collections.
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tags */}
