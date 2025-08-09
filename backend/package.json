@@ -15,6 +15,7 @@
     "@types/passport": "^1.0.17",
     "@types/passport-saml": "^1.1.7",
     "@types/pdf-parse": "^1.1.5",
+    "@types/cheerio": "^0.22.35",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
@@ -35,6 +36,7 @@
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.1",
     "axios": "^1.10.0",
+    "cheerio": "^1.0.0",
     "bcryptjs": "^3.0.2",
     "bull": "^4.16.5",
     "chromadb": "^3.0.9",

@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, useChatStore, useUIStore } from '../stores';
+import type { ChatMessage } from '../stores/chatStore';
 import { config } from '../../config/config';
 
 interface UseWebSocketOptions {
@@ -18,6 +19,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const updateMessage = useChatStore((state) => state.updateMessage);
   const setWsStatus = useChatStore((state) => state.setWsStatus);
   const setIsConnectedToRoom = useChatStore((state) => state.setIsConnectedToRoom);
+  const setIsTyping = useChatStore((state) => state.setIsTyping);
   const setIsRoomCreating = useChatStore((state) => state.setIsRoomCreating);
   const setCurrentSession = useChatStore((state) => state.setCurrentSession);
   const setChatHistory = useChatStore((state) => state.setChatHistory);
@@ -349,6 +351,18 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
               toolUsage: [...(lastMessage.toolUsage || []), toolInfo]
             });
           }
+        } else if (data.type === 'assistant_created') {
+          console.log('WebSocket: Assistant message created', data.data);
+          // Backend สร้าง assistant message ใหม่แล้ว
+          const assistantMsg: ChatMessage = {
+            id: data.data.messageId,
+            role: 'assistant',
+            content: data.data.content,
+            timestamp: new Date(),
+            isStreaming: true,
+            isComplete: false
+          };
+          addMessage(assistantMsg);
         } else if (data.type === 'end') {
           console.log('WebSocket: Message ended');
           const session = currentSessionRef.current;
@@ -359,6 +373,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
               isStreaming: false
             });
           }
+          setIsTyping(false);
         } else {
           console.debug('WS unhandled event', data);
         }

@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { chromaService } from './chromaService';
 import { bedrockService } from './bedrockService';
 import { documentService } from './documentService';
+import { webScraperService } from './webScraperService';
+import { trainingHistoryService } from './trainingHistoryService';
 import { IUser } from '../models/user';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 
@@ -216,6 +218,23 @@ export class TrainingService {
       const processingTime = Date.now() - startTime;
       console.log(`✅ Processed file ${fileName}: ${numChunks} chunks added to collection ${collectionName} in ${processingTime}ms`);
       
+      // Record training history
+      if (numChunks > 0) {
+        try {
+          await trainingHistoryService.recordFileUpload(
+            user,
+            collectionName,
+            fileName,
+            fileBuffer.length,
+            numChunks,
+            modelId
+          );
+        } catch (historyError) {
+          console.warn('⚠️ Failed to record training history:', historyError);
+          // Don't fail the whole operation for history recording failure
+        }
+      }
+      
       return numChunks;
     } catch (error) {
       const processingTime = Date.now() - startTime;
@@ -242,9 +261,88 @@ export class TrainingService {
       );
 
       console.log(`Processed text ${documentName}: ${numChunks} chunks added to collection ${collectionName}`);
+      
+      // Record training history
+      if (numChunks > 0) {
+        try {
+          await trainingHistoryService.recordTextInput(
+            user,
+            collectionName,
+            documentName,
+            numChunks,
+            modelId,
+            text.length
+          );
+        } catch (historyError) {
+          console.warn('⚠️ Failed to record training history:', historyError);
+        }
+      }
+      
       return numChunks;
     } catch (error) {
       console.error(`Error processing text ${documentName}:`, error);
+      throw error;
+    }
+  }
+
+  async processAndEmbedUrl(
+    url: string,
+    user: IUser,
+    modelId: string,
+    collectionName: string
+  ): Promise<number> {
+    try {
+      console.log(`🌐 Processing URL: ${url} for collection: ${collectionName}`);
+      
+      // Validate URL first
+      const validation = await webScraperService.validateUrl(url);
+      if (!validation.valid) {
+        throw new Error(`Invalid URL: ${validation.error}`);
+      }
+
+      // Scrape content from URL
+      const textContent = await webScraperService.scrapeUrl(url);
+      console.log(`📝 Scraped content length: ${textContent.length} characters`);
+      
+      // Validate content
+      if (!textContent || textContent.trim().length === 0) {
+        throw new Error('No readable content found from URL.');
+      }
+      
+      if (textContent.length < 10) {
+        throw new Error('URL content too short (minimum 10 characters required).');
+      }
+
+      const numChunks = await this.embedAndStore(
+        textContent,
+        url,
+        'url',
+        collectionName,
+        user,
+        modelId
+      );
+
+      console.log(`✅ Processed URL ${url}: ${numChunks} chunks added to collection ${collectionName}`);
+      
+      // Record training history
+      if (numChunks > 0) {
+        try {
+          await trainingHistoryService.recordUrlScraping(
+            user,
+            collectionName,
+            url,
+            numChunks,
+            modelId,
+            textContent.length
+          );
+        } catch (historyError) {
+          console.warn('⚠️ Failed to record training history:', historyError);
+        }
+      }
+      
+      return numChunks;
+    } catch (error) {
+      console.error(`❌ Error processing URL ${url}:`, error);
       throw error;
     }
   }

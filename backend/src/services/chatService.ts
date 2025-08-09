@@ -257,6 +257,27 @@ export class ChatService {
           if (event.type === 'chunk') {
             fullContent += event.data;
             
+            // สร้าง assistant message เมื่อได้รับ chunk แรก
+            if (fullContent === event.data) {
+              console.log(`🤖 First chunk received, creating assistant message...`);
+              
+              const assistantMessage = await this.addMessage(chatId, {
+                role: 'assistant',
+                content: '',
+              });
+              
+              // ส่ง event แจ้ง frontend ว่าสร้าง assistant message ใหม่
+              if (wsManager.getSessionConnectionCount(chatId) > 0) {
+                wsManager.broadcastToSession(chatId, JSON.stringify({ 
+                  type: 'assistant_created', 
+                  data: { 
+                    messageId: assistantMessage.id,
+                    content: '' 
+                  } 
+                }));
+              }
+            }
+            
             // ส่ง streaming ไปยัง frontend แต่ไม่บันทึกลง database
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
               wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
@@ -299,21 +320,23 @@ export class ChatService {
           } else if (event.type === 'end') {
             console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
             
-            // บันทึก assistant message สุดท้ายหลังจากเสร็จแล้ว (เหมือน Legacy)
-            const assistantMessage = await this.addMessage(chatId, {
-              role: 'assistant',
-              content: event.data.answer,
-            });
-            
-            // ส่ง event แจ้ง frontend ว่าสร้าง assistant message ใหม่
-            if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({ 
-                type: 'assistant_created', 
-                data: { 
-                  messageId: assistantMessage.id,
-                  content: event.data.answer 
-                } 
-              }));
+            // อัปเดต assistant message ที่สร้างไว้แล้วด้วย content สุดท้าย
+            const chatFromDb = await ChatModel.findById(chatId);
+            if (chatFromDb && chatFromDb.messages.length > 0) {
+              const lastMessage = chatFromDb.messages[chatFromDb.messages.length - 1];
+              if (lastMessage.role === 'assistant') {
+                // อัปเดต content ของ assistant message ล่าสุด
+                await ChatModel.updateOne(
+                  { _id: chatId, 'messages.id': lastMessage.id },
+                  { 
+                    $set: { 
+                      'messages.$.content': event.data.answer,
+                      updatedAt: new Date()
+                    }
+                  }
+                );
+                console.log(`🤖 Updated assistant message ${lastMessage.id} with final content`);
+              }
             }
             
             // Update usage statistics
