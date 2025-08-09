@@ -15,6 +15,9 @@ export declare class WebSocketService {
     private sendError;
     private startPingInterval;
     stop(): void;
+    emitProgressUpdate(userId: string, progress: any): void;
+    emitNotification(userId: string, notification: any): void;
+    broadcast(message: any): void;
     getStats(): any;
 }
 //# sourceMappingURL=websocketService.d.ts.map

@@ -391,6 +391,37 @@ export class WebSocketService {
     });
   }
 
+  // Emit progress updates to specific user
+  public emitProgressUpdate(userId: string, progress: any): void {
+    const client = wsManager.getClient(userId);
+    if (client && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: 'upload-progress',
+        data: progress
+      }));
+    }
+  }
+
+  // Emit notification to specific user
+  public emitNotification(userId: string, notification: any): void {
+    const client = wsManager.getClient(userId);
+    if (client && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: 'notification',
+        data: notification
+      }));
+    }
+  }
+
+  // Broadcast to all connected clients
+  public broadcast(message: any): void {
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(message));
+      }
+    });
+  }
+
   public getStats(): any {
     return {
       totalConnections: wsManager.getConnectionCount(),

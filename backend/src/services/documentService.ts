@@ -1,7 +1,7 @@
-import * as pdfParse from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
-import * as csv from 'csv-parser';
+import csv from 'csv-parser';
 import { Readable } from 'stream';
 
 export class DocumentService {
@@ -29,9 +29,9 @@ export class DocumentService {
           console.log(`⚠️ Unknown file type: ${fileExtension}, trying as text`);
           return this.parseTextFile(fileBuffer);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Error parsing file ${fileName}:`, error);
-      throw new Error(`Failed to parse ${fileExtension} file: ${error.message}`);
+      throw new Error(`Failed to parse ${fileExtension} file: ${error?.message || error}`);
     }
   }
 
@@ -46,9 +46,9 @@ export class DocumentService {
       const data = await pdfParse(fileBuffer);
       console.log(`✅ PDF parsed: ${data.text.length} characters, ${data.numpages} pages`);
       return data.text;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ PDF parsing failed:', error);
-      throw new Error(`Failed to parse PDF: ${error.message}`);
+      throw new Error(`Failed to parse PDF: ${error?.message || error}`);
     }
   }
 
@@ -60,9 +60,9 @@ export class DocumentService {
         console.log('⚠️ Word parsing warnings:', result.messages);
       }
       return result.value;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Word document parsing failed:', error);
-      throw new Error(`Failed to parse Word document: ${error.message}`);
+      throw new Error(`Failed to parse Word document: ${error?.message || error}`);
     }
   }
 
@@ -73,7 +73,7 @@ export class DocumentService {
       
       stream
         .pipe(csv())
-        .on('data', (data) => results.push(data))
+        .on('data', (data: any) => results.push(data))
         .on('end', () => {
           try {
             // Convert CSV data to readable text
@@ -89,9 +89,9 @@ export class DocumentService {
             reject(error);
           }
         })
-        .on('error', (error) => {
+        .on('error', (error: any) => {
           console.error('❌ CSV parsing failed:', error);
-          reject(new Error(`Failed to parse CSV: ${error.message}`));
+          reject(new Error(`Failed to parse CSV: ${error?.message || error}`));
         });
     });
   }
@@ -106,7 +106,7 @@ export class DocumentService {
         const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
         // Convert sheet data to text
-        const sheetText = sheetData.map((row: any[]) => 
+        const sheetText = (sheetData as any[][]).map((row: any[]) => 
           row.join(', ')
         ).join('\n');
         
@@ -115,9 +115,9 @@ export class DocumentService {
       
       console.log(`✅ Excel parsed: ${workbook.SheetNames.length} sheets, ${allText.length} characters`);
       return allText;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Excel parsing failed:', error);
-      throw new Error(`Failed to parse Excel file: ${error.message}`);
+      throw new Error(`Failed to parse Excel file: ${error?.message || error}`);
     }
   }
 }

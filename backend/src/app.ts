@@ -15,7 +15,9 @@ import embeddingRouter from './routes/embedding';
 import uploadRouter from './routes/upload';
 import collectionRouter from './routes/collection';
 import trainingRouter from './routes/training';
+import queueRouter from './routes/queue';
 import { WebSocketService } from './services/websocketService';
+import { queueService } from './services/queueService';
 import { connectDB } from './lib/mongodb';
 
 dotenv.config();
@@ -73,6 +75,9 @@ apiRouter.use('/collections', collectionRouter);
 // Mount training routes under API router
 apiRouter.use('/training', trainingRouter);
 
+// Mount queue routes under API router
+apiRouter.use('/queue', queueRouter);
+
 // Mount API router under /api prefix
 app.use('/api', apiRouter);
 
@@ -109,18 +114,32 @@ const startServer = async () => {
 };
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
+  
+  // Stop queue service
+  await queueService.shutdown();
+  
+  // Stop WebSocket service
   wsService.stop();
+  
+  // Close HTTP server
   server.close(() => {
     console.log('✅ Server closed');
     process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
+  
+  // Stop queue service
+  await queueService.shutdown();
+  
+  // Stop WebSocket service
   wsService.stop();
+  
+  // Close HTTP server
   server.close(() => {
     console.log('✅ Server closed');
     process.exit(0);

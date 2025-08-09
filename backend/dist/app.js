@@ -20,12 +20,19 @@ const embedding_1 = __importDefault(require("./routes/embedding"));
 const upload_1 = __importDefault(require("./routes/upload"));
 const collection_1 = __importDefault(require("./routes/collection"));
 const training_1 = __importDefault(require("./routes/training"));
+const queue_1 = __importDefault(require("./routes/queue"));
 const websocketService_1 = require("./services/websocketService");
+const queueService_1 = require("./services/queueService");
 const mongodb_1 = require("./lib/mongodb");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-app.use(express_1.default.json());
-app.use(express_1.default.urlencoded({ extended: true }));
+app.use(express_1.default.json({
+    type: ['application/json', 'text/plain']
+}));
+app.use(express_1.default.urlencoded({
+    extended: true,
+    type: 'application/x-www-form-urlencoded'
+}));
 app.use((0, cors_1.default)());
 app.use((0, helmet_1.default)());
 app.use((0, morgan_1.default)('dev'));
@@ -47,6 +54,7 @@ apiRouter.use('/embedding', embedding_1.default);
 apiRouter.use('/upload', upload_1.default);
 apiRouter.use('/collections', collection_1.default);
 apiRouter.use('/training', training_1.default);
+apiRouter.use('/queue', queue_1.default);
 app.use('/api', apiRouter);
 app.get('/', (req, res) => {
     res.send('MFULearnAi Node.js Backend');
@@ -71,16 +79,18 @@ const startServer = async () => {
         process.exit(1);
     }
 };
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     console.log('🛑 SIGTERM received, shutting down gracefully...');
+    await queueService_1.queueService.shutdown();
     wsService.stop();
     server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);
     });
 });
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     console.log('🛑 SIGINT received, shutting down gracefully...');
+    await queueService_1.queueService.shutdown();
     wsService.stop();
     server.close(() => {
         console.log('✅ Server closed');

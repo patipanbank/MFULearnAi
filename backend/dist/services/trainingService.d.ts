@@ -4,6 +4,7 @@ export declare class TrainingService {
     constructor();
     private embedAndStore;
     private splitText;
+    private fallbackSplitText;
     processAndEmbedFile(fileBuffer: Buffer, fileName: string, user: IUser, modelId: string, collectionName: string): Promise<number>;
     processAndEmbedText(text: string, documentName: string, user: IUser, modelId: string, collectionName: string): Promise<number>;
 }

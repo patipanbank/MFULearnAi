@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { authenticateJWT, requireAnyRole } from '../middleware/auth';
 import { trainingService } from '../services/trainingService';
+import { queueService } from '../services/queueService';
 import { IUser } from '../models/user';
 
 const router = express.Router();
@@ -91,7 +92,7 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { collectionName, modelId } = req.body;
+    const { collectionName, modelId, useQueue } = req.body;
     if (!collectionName) {
       console.log('❌ Collection name is required');
       return res.status(400).json({ error: 'Collection name is required' });
@@ -113,23 +114,48 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
       updated: new Date()
     } as IUser;
 
-    // Process file and create embeddings
-    const chunksCount = await trainingService.processAndEmbedFile(
-      req.file.buffer,
-      req.file.originalname,
-      user,
-      modelId || 'amazon.titan-embed-text-v1',
-      collectionName
-    );
+    // Check if should use queue (for large files or when specified)
+    const shouldUseQueue = useQueue === 'true' || req.file.size > 5 * 1024 * 1024; // 5MB threshold
 
-    return res.json({
-      message: 'File processed successfully with vector embeddings',
-      filename: req.file.originalname,
-      size: req.file.size,
-      collectionName: collectionName,
-      modelId: modelId || 'amazon.titan-embed-text-v1',
-      chunks: chunksCount
-    });
+    if (shouldUseQueue) {
+      // Use queue for background processing
+      const jobId = await queueService.addFileProcessingJob(
+        req.file.buffer,
+        req.file.originalname,
+        user,
+        modelId || 'amazon.titan-embed-text-v1',
+        collectionName
+      );
+
+      return res.json({
+        message: 'File queued for processing',
+        jobId: jobId,
+        filename: req.file.originalname,
+        size: req.file.size,
+        collectionName: collectionName,
+        modelId: modelId || 'amazon.titan-embed-text-v1',
+        queued: true
+      });
+    } else {
+      // Process immediately (for small files)
+      const chunksCount = await trainingService.processAndEmbedFile(
+        req.file.buffer,
+        req.file.originalname,
+        user,
+        modelId || 'amazon.titan-embed-text-v1',
+        collectionName
+      );
+
+      return res.json({
+        message: 'File processed successfully with vector embeddings',
+        filename: req.file.originalname,
+        size: req.file.size,
+        collectionName: collectionName,
+        modelId: modelId || 'amazon.titan-embed-text-v1',
+        chunks: chunksCount,
+        queued: false
+      });
+    }
 
   } catch (error: any) {
     console.error('❌ Training upload error:', {
