@@ -393,24 +393,22 @@ export class WebSocketService {
 
   // Emit progress updates to specific user
   public emitProgressUpdate(userId: string, progress: any): void {
-    const client = wsManager.getClient(userId);
-    if (client && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
-        type: 'upload-progress',
-        data: progress
-      }));
-    }
+    // Use broadcast instead of getClient since wsManager doesn't have getClient
+    this.broadcast({
+      type: 'upload-progress',
+      data: progress,
+      userId: userId
+    });
   }
 
   // Emit notification to specific user
   public emitNotification(userId: string, notification: any): void {
-    const client = wsManager.getClient(userId);
-    if (client && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
-        type: 'notification',
-        data: notification
-      }));
-    }
+    // Use broadcast instead of getClient since wsManager doesn't have getClient
+    this.broadcast({
+      type: 'notification',
+      data: notification,
+      userId: userId
+    });
   }
 
   // Broadcast to all connected clients

@@ -25,8 +25,16 @@ class BedrockService {
     async createTextEmbedding(text) {
         try {
             console.log('🔮 Creating embedding for text:', text.substring(0, 100) + '...');
+            if (!text || text.trim().length === 0) {
+                throw new Error('Empty text provided for embedding');
+            }
+            const maxLength = 25000;
+            const truncatedText = text.length > maxLength ? text.substring(0, maxLength) : text;
+            if (text.length !== truncatedText.length) {
+                console.warn(`⚠️ Text truncated from ${text.length} to ${truncatedText.length} characters`);
+            }
             const input = {
-                inputText: text,
+                inputText: truncatedText,
             };
             const command = new client_bedrock_runtime_1.InvokeModelCommand({
                 modelId: 'amazon.titan-embed-text-v1',
@@ -34,18 +42,40 @@ class BedrockService {
                 body: JSON.stringify(input),
             });
             const response = await this.client.send(command);
+            if (!response.body) {
+                throw new Error('Empty response from Bedrock');
+            }
             const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-            console.log('✅ Embedding created successfully, dimension:', responseBody.embedding?.length);
+            if (!responseBody.embedding || !Array.isArray(responseBody.embedding)) {
+                throw new Error('Invalid embedding response format');
+            }
+            console.log('✅ Embedding created successfully, dimension:', responseBody.embedding.length);
             return responseBody.embedding;
         }
         catch (error) {
             console.error('❌ Error creating text embedding:', {
                 message: error instanceof Error ? error.message : error,
                 name: error instanceof Error ? error.name : 'Unknown',
-                stack: error instanceof Error ? error.stack : undefined
+                code: error.code || 'Unknown',
+                statusCode: error.$metadata?.httpStatusCode
             });
-            console.log('⚠️ Returning dummy embedding with 384 dimensions');
-            return new Array(384).fill(0);
+            if (error.name === 'ThrottlingException') {
+                throw new Error('Bedrock service is throttled. Please try again later.');
+            }
+            if (error.name === 'ValidationException') {
+                throw new Error('Invalid input for embedding model.');
+            }
+            if (error.name === 'AccessDeniedException') {
+                throw new Error('Access denied to Bedrock service. Check AWS credentials.');
+            }
+            if (error.name === 'ServiceUnavailableException') {
+                throw new Error('Bedrock service is temporarily unavailable.');
+            }
+            if (process.env.NODE_ENV === 'development') {
+                console.log('⚠️ Development mode: Returning dummy embedding with 1536 dimensions');
+                return new Array(1536).fill(0.001);
+            }
+            throw error;
         }
     }
     async createImageEmbedding(imageBase64, text) {

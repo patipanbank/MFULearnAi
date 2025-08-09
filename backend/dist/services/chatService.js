@@ -195,6 +195,22 @@ class ChatService {
                     console.log(`🤖 Agent event: ${event.type}`, event.data);
                     if (event.type === 'chunk') {
                         fullContent += event.data;
+                        if (fullContent === event.data) {
+                            console.log(`🤖 First chunk received, creating assistant message...`);
+                            const assistantMessage = await this.addMessage(chatId, {
+                                role: 'assistant',
+                                content: '',
+                            });
+                            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                    type: 'assistant_created',
+                                    data: {
+                                        messageId: assistantMessage.id,
+                                        content: ''
+                                    }
+                                }));
+                            }
+                        }
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
                         }
@@ -239,18 +255,18 @@ class ChatService {
                     }
                     else if (event.type === 'end') {
                         console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
-                        const assistantMessage = await this.addMessage(chatId, {
-                            role: 'assistant',
-                            content: event.data.answer,
-                        });
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'assistant_created',
-                                data: {
-                                    messageId: assistantMessage.id,
-                                    content: event.data.answer
-                                }
-                            }));
+                        const chatFromDb = await chat_1.ChatModel.findById(chatId);
+                        if (chatFromDb && chatFromDb.messages.length > 0) {
+                            const lastMessage = chatFromDb.messages[chatFromDb.messages.length - 1];
+                            if (lastMessage.role === 'assistant') {
+                                await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': lastMessage.id }, {
+                                    $set: {
+                                        'messages.$.content': event.data.answer,
+                                        updatedAt: new Date()
+                                    }
+                                });
+                                console.log(`🤖 Updated assistant message ${lastMessage.id} with final content`);
+                            }
                         }
                         if (event.data.inputTokens || event.data.outputTokens) {
                             inputTokens = event.data.inputTokens || 0;

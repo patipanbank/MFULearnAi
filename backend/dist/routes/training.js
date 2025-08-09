@@ -178,5 +178,118 @@ router.get('/status', async (req, res) => {
         });
     }
 });
+router.post('/scrape-url', async (req, res) => {
+    try {
+        console.log('🌐 URL scraping request:', req.body);
+        const { url, collectionName, modelId } = req.body;
+        if (!url) {
+            return res.status(400).json({ error: 'URL is required' });
+        }
+        if (!collectionName) {
+            return res.status(400).json({ error: 'Collection name is required' });
+        }
+        const jwtUser = req.user;
+        const user = {
+            _id: jwtUser.sub,
+            nameID: jwtUser.nameID,
+            username: jwtUser.username,
+            email: jwtUser.email,
+            firstName: jwtUser.firstName,
+            lastName: jwtUser.lastName,
+            department: jwtUser.department,
+            role: jwtUser.role,
+            groups: jwtUser.groups || [],
+            created: new Date(),
+            updated: new Date()
+        };
+        const chunksCount = await trainingService_1.trainingService.processAndEmbedUrl(url, user, modelId || 'amazon.titan-embed-text-v1', collectionName);
+        return res.json({
+            message: `URL scraped successfully. ${chunksCount} chunks were added.`,
+            url: url,
+            collectionName: collectionName,
+            modelId: modelId || 'amazon.titan-embed-text-v1',
+            chunks: chunksCount
+        });
+    }
+    catch (error) {
+        console.error('❌ URL scraping error:', error);
+        if (error.message && error.message.includes('Invalid URL')) {
+            return res.status(400).json({
+                error: error.message,
+                code: 'INVALID_URL'
+            });
+        }
+        if (error.message && error.message.includes('No readable content')) {
+            return res.status(400).json({
+                error: 'No readable content found from URL.',
+                code: 'NO_CONTENT'
+            });
+        }
+        if (error.message && error.message.includes('timeout')) {
+            return res.status(408).json({
+                error: 'Request timeout. The website is taking too long to respond.',
+                code: 'TIMEOUT'
+            });
+        }
+        return res.status(500).json({
+            error: error.message || 'Failed to scrape URL'
+        });
+    }
+});
+router.post('/text', async (req, res) => {
+    try {
+        console.log('📝 Text processing request:', {
+            hasText: !!req.body.text,
+            textLength: req.body.text?.length || 0,
+            documentName: req.body.documentName,
+            collectionName: req.body.collectionName
+        });
+        const { text, documentName, collectionName, modelId } = req.body;
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({ error: 'Text content is required' });
+        }
+        if (!documentName) {
+            return res.status(400).json({ error: 'Document name is required' });
+        }
+        if (!collectionName) {
+            return res.status(400).json({ error: 'Collection name is required' });
+        }
+        if (text.length < 10) {
+            return res.status(400).json({ error: 'Text content too short (minimum 10 characters required)' });
+        }
+        if (text.length > 1000000) {
+            return res.status(400).json({ error: 'Text content too large (maximum 1MB)' });
+        }
+        const jwtUser = req.user;
+        const user = {
+            _id: jwtUser.sub,
+            nameID: jwtUser.nameID,
+            username: jwtUser.username,
+            email: jwtUser.email,
+            firstName: jwtUser.firstName,
+            lastName: jwtUser.lastName,
+            department: jwtUser.department,
+            role: jwtUser.role,
+            groups: jwtUser.groups || [],
+            created: new Date(),
+            updated: new Date()
+        };
+        const chunksCount = await trainingService_1.trainingService.processAndEmbedText(text, documentName, user, modelId || 'amazon.titan-embed-text-v1', collectionName);
+        return res.json({
+            message: `Text processed successfully. ${chunksCount} chunks were added.`,
+            documentName: documentName,
+            textLength: text.length,
+            collectionName: collectionName,
+            modelId: modelId || 'amazon.titan-embed-text-v1',
+            chunks: chunksCount
+        });
+    }
+    catch (error) {
+        console.error('❌ Text processing error:', error);
+        return res.status(500).json({
+            error: error.message || 'Failed to process text'
+        });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=training.js.map

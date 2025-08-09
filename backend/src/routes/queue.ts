@@ -25,10 +25,10 @@ router.get('/status/:jobId', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    res.json(progress);
+    return res.json(progress);
   } catch (error: any) {
     console.error('Error getting job status:', error);
-    res.status(500).json({ error: 'Failed to get job status' });
+    return res.status(500).json({ error: 'Failed to get job status' });
   }
 });
 
@@ -43,10 +43,10 @@ router.get('/user/jobs', async (req: Request, res: Response) => {
     }
     
     const jobs = queueService.getAllJobsForUser(userId);
-    res.json(jobs);
+    return res.json(jobs);
   } catch (error: any) {
     console.error('Error getting user jobs:', error);
-    res.status(500).json({ error: 'Failed to get user jobs' });
+    return res.status(500).json({ error: 'Failed to get user jobs' });
   }
 });
 
@@ -61,10 +61,10 @@ router.get('/stats', async (req: Request, res: Response) => {
     }
     
     const stats = await queueService.getQueueStats();
-    res.json(stats);
+    return res.json(stats);
   } catch (error: any) {
     console.error('Error getting queue stats:', error);
-    res.status(500).json({ error: 'Failed to get queue stats' });
+    return res.status(500).json({ error: 'Failed to get queue stats' });
   }
 });
 
@@ -79,10 +79,10 @@ router.post('/cleanup', async (req: Request, res: Response) => {
     }
     
     await queueService.cleanupOldJobs();
-    res.json({ message: 'Cleanup completed successfully' });
+    return res.json({ message: 'Cleanup completed successfully' });
   } catch (error: any) {
     console.error('Error cleaning up jobs:', error);
-    res.status(500).json({ error: 'Failed to cleanup jobs' });
+    return res.status(500).json({ error: 'Failed to cleanup jobs' });
   }
 });
 

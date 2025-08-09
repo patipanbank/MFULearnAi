@@ -19,11 +19,11 @@ router.get('/status/:jobId', async (req, res) => {
         if (progress.userId !== user._id?.toString()) {
             return res.status(403).json({ error: 'Access denied' });
         }
-        res.json(progress);
+        return res.json(progress);
     }
     catch (error) {
         console.error('Error getting job status:', error);
-        res.status(500).json({ error: 'Failed to get job status' });
+        return res.status(500).json({ error: 'Failed to get job status' });
     }
 });
 router.get('/user/jobs', async (req, res) => {
@@ -34,11 +34,11 @@ router.get('/user/jobs', async (req, res) => {
             return res.status(400).json({ error: 'Invalid user ID' });
         }
         const jobs = queueService_1.queueService.getAllJobsForUser(userId);
-        res.json(jobs);
+        return res.json(jobs);
     }
     catch (error) {
         console.error('Error getting user jobs:', error);
-        res.status(500).json({ error: 'Failed to get user jobs' });
+        return res.status(500).json({ error: 'Failed to get user jobs' });
     }
 });
 router.get('/stats', async (req, res) => {
@@ -48,11 +48,11 @@ router.get('/stats', async (req, res) => {
             return res.status(403).json({ error: 'Admin access required' });
         }
         const stats = await queueService_1.queueService.getQueueStats();
-        res.json(stats);
+        return res.json(stats);
     }
     catch (error) {
         console.error('Error getting queue stats:', error);
-        res.status(500).json({ error: 'Failed to get queue stats' });
+        return res.status(500).json({ error: 'Failed to get queue stats' });
     }
 });
 router.post('/cleanup', async (req, res) => {
@@ -62,11 +62,11 @@ router.post('/cleanup', async (req, res) => {
             return res.status(403).json({ error: 'Admin access required' });
         }
         await queueService_1.queueService.cleanupOldJobs();
-        res.json({ message: 'Cleanup completed successfully' });
+        return res.json({ message: 'Cleanup completed successfully' });
     }
     catch (error) {
         console.error('Error cleaning up jobs:', error);
-        res.status(500).json({ error: 'Failed to cleanup jobs' });
+        return res.status(500).json({ error: 'Failed to cleanup jobs' });
     }
 });
 exports.default = router;

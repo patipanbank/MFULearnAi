@@ -291,22 +291,18 @@ class WebSocketService {
         });
     }
     emitProgressUpdate(userId, progress) {
-        const client = websocketManager_1.wsManager.getClient(userId);
-        if (client && client.readyState === ws_1.WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'upload-progress',
-                data: progress
-            }));
-        }
+        this.broadcast({
+            type: 'upload-progress',
+            data: progress,
+            userId: userId
+        });
     }
     emitNotification(userId, notification) {
-        const client = websocketManager_1.wsManager.getClient(userId);
-        if (client && client.readyState === ws_1.WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'notification',
-                data: notification
-            }));
-        }
+        this.broadcast({
+            type: 'notification',
+            data: notification,
+            userId: userId
+        });
     }
     broadcast(message) {
         this.wss.clients.forEach((client) => {
