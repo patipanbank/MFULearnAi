@@ -336,9 +336,26 @@ export function createRetrievalTools(collectionNames: string[]) {
             return `No information found in ${collectionName} for: ${input}`;
           }
           
-          return results.documents.flat().map((doc: string | null, i: number) => 
-            `${i + 1}. ${doc || 'No content'}\nSource: ${collectionName}`
-          ).join('\n\n');
+          // Flatten documents and metadatas to get correct mapping
+          const documents = results.documents.flat();
+          const metadatas = results.metadatas ? results.metadatas.flat() : [];
+          
+          return documents.map((doc: string | null, i: number) => {
+            const metadata = metadatas[i] || {};
+            const sourceName = metadata?.source || `${collectionName}_document_${i + 1}`;
+            const sourceType = metadata?.source_type || 'unknown';
+            const uploadedBy = metadata?.uploadedBy;
+            
+            let sourceInfo = `Source: ${sourceName}`;
+            if (sourceType && sourceType !== 'unknown') {
+              sourceInfo += ` (${sourceType})`;
+            }
+            if (uploadedBy && uploadedBy !== 'system') {
+              sourceInfo += ` [Uploaded by: ${uploadedBy}]`;
+            }
+            
+            return `${i + 1}. ${doc || 'No content'}\n${sourceInfo}`;
+          }).join('\n\n');
         } catch (error) {
           console.error(`❌ Error searching ${collectionName}:`, error);
           return `Search in ${collectionName} is currently unavailable.`;
