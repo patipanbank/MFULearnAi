@@ -260,20 +260,41 @@ router.delete('/:collectionId/documents', async (req: Request, res: Response) =>
     const { collectionId } = req.params;
     const { documentIds } = req.body;
 
+    console.log('🗑️ DELETE documents request:', {
+      collectionId,
+      user: user.username,
+      body: req.body,
+      documentIds,
+      documentIdsType: typeof documentIds,
+      documentIdsLength: Array.isArray(documentIds) ? documentIds.length : 'not array'
+    });
+
     const collection = await collectionService.getCollectionById(collectionId);
     if (!collection) {
+      console.log('❌ Collection not found:', collectionId);
       res.status(404).json({ error: 'Collection not found' });
       return;
     }
 
     if (!collectionService.canUserModifyCollection(user, collection)) {
+      console.log('❌ User not authorized to delete documents:', user.username);
       res.status(403).json({ error: 'Not authorized to delete documents from this collection' });
       return;
     }
 
+    // Validate documentIds
+    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+      console.log('❌ Invalid documentIds:', documentIds);
+      res.status(400).json({ error: 'documentIds must be a non-empty array' });
+      return;
+    }
+
+    console.log('✅ Proceeding to delete documents:', documentIds.length);
     await chromaService.deleteDocuments(collection.name, documentIds);
+    console.log('✅ Documents deleted successfully');
     res.json({ message: `${documentIds.length} documents deleted successfully.` });
   } catch (error: any) {
+    console.error('❌ Error deleting documents:', error);
     res.status(500).json({ error: `Failed to delete documents: ${error.message}` });
   }
 });
