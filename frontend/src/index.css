@@ -101,11 +101,21 @@
   body {
     background: rgb(var(--color-background));
     color: rgb(var(--color-foreground));
+    transition: background-color 0.2s ease, color 0.2s ease;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  }
+  
+  /* Smooth theme transitions for all elements */
+  * {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
   }
 }
 
 /* Component utility classes for vibrant design */
 @layer components {
+  /* Vibrant card variants */
   .vibrant-card {
     @apply bg-white border-2 border-blue-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:border-blue-400;
   }
@@ -126,6 +136,7 @@
     @apply bg-accent-bg border-2 border-purple-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
   }
   
+  /* Vibrant button variants */
   .vibrant-button-primary {
     @apply bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300;
   }
@@ -134,6 +145,7 @@
     @apply bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300;
   }
   
+  /* Vibrant badge variants */
   .vibrant-badge {
     @apply px-3 py-1 bg-white border-2 rounded-full text-sm font-semibold shadow-sm;
   }
@@ -153,16 +165,23 @@
   .vibrant-badge-orange {
     @apply vibrant-badge border-orange-400 text-orange-700;
   }
-  
-  /* Enhanced existing component classes with vibrant colors */
+
+  /* Card components */
   .card {
-    @apply bg-white border border-sky-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-300;
+    background-color: rgb(var(--color-card));
+    border-color: rgb(var(--color-border));
+    @apply border rounded-xl shadow-sm bg-white border border-sky-200 shadow-md hover:shadow-lg transition-all duration-300;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-200;
   }
   
   .card-hover:hover {
     @apply border-sky-300 shadow-xl transform translate-y-[-2px];
   }
   
+  /* Button variants */
   .btn-primary {
     @apply bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200;
   }
@@ -174,60 +193,18 @@
   .btn-ghost {
     @apply text-blue-600 hover:bg-blue-50 hover:text-blue-700 px-3 py-2 rounded-lg font-medium transition-all duration-200;
   }
-  
-  .input {
-    @apply bg-white border-2 border-sky-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg px-4 py-2 transition-all duration-200;
-  }
-  
-  .dropdown-menu {
-    @apply bg-white border-2 border-sky-200 rounded-xl shadow-xl backdrop-blur-sm;
-  }
-  
-  .modal-content {
-    @apply bg-white border-2 border-sky-200 rounded-xl shadow-2xl;
-  }
-}
-  
-  /* Smooth theme transitions for all elements */
-  * {
-    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
-    border-color: rgb(var(--color-border));
-  }
-}
 
-/* Custom component classes using theme variables */
-@layer components {
-  /* Card components */
-  .card {
-    background-color: rgb(var(--color-card));
-    border-color: rgb(var(--color-border));
-    @apply border rounded-xl shadow-sm;
-  }
-  
-  .card-hover {
-    @apply transition-all duration-200;
-  }
-  
-  .card-hover:hover {
-    @apply shadow-md;
-  }
-  
   /* Input components */
   .input {
-    background-color: rgb(var(--color-input));
-    border-color: rgb(var(--color-border));
-    color: rgb(var(--color-foreground));
-    @apply w-full px-3 py-2 border rounded-xl transition-colors;
+    @apply bg-white border-2 border-sky-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg px-4 py-2 transition-all duration-200 w-full;
   }
   
   .input:focus {
-    @apply outline-none ring-2 ring-blue-500 border-transparent;
+    @apply outline-none;
   }
   
   .input::placeholder {
-    color: rgb(var(--color-muted-foreground));
+    color: rgb(var(--color-input-placeholder));
   }
   
   /* Select dropdown styles */
@@ -235,7 +212,7 @@
     background-color: rgb(var(--color-input));
     border-color: rgb(var(--color-border));
     color: rgb(var(--color-foreground));
-    @apply w-full px-3 py-2 border rounded-xl transition-colors appearance-none cursor-pointer;
+    @apply w-full px-3 py-2 border-2 border-sky-200 rounded-lg transition-colors appearance-none cursor-pointer focus:border-blue-500 focus:ring-2 focus:ring-blue-200;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
@@ -244,45 +221,13 @@
   }
   
   .select:focus {
-    @apply outline-none ring-2 ring-blue-500 border-transparent;
+    @apply outline-none;
   }
   
   .dark .select {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%9ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
   }
-  
-  /* Button variants */
-  .btn-primary {
-    background-color: rgb(var(--color-accent));
-    color: white;
-    @apply px-4 py-2 rounded-xl font-medium transition-colors;
-  }
-  
-  .btn-primary:hover {
-    @apply bg-blue-600;
-  }
-  
-  .btn-secondary {
-    background-color: rgb(var(--color-background-secondary));
-    color: rgb(var(--color-foreground));
-    border-color: rgb(var(--color-border));
-    @apply border px-4 py-2 rounded-xl font-medium transition-colors;
-  }
-  
-  .btn-secondary:hover {
-    background-color: rgb(var(--color-background-tertiary));
-  }
-  
-  .btn-ghost {
-    color: rgb(var(--color-foreground-secondary));
-    @apply px-3 py-2 rounded-xl transition-colors;
-  }
-  
-  .btn-ghost:hover {
-    background-color: rgb(var(--color-background-secondary));
-    color: rgb(var(--color-foreground));
-  }
-  
+
   /* Text variants */
   .text-primary {
     color: rgb(var(--color-foreground));
@@ -352,16 +297,12 @@
   }
   
   .modal-content {
-    background-color: rgb(var(--color-modal));
-    border-color: rgb(var(--color-border));
-    @apply rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden;
+    @apply bg-white border-2 border-sky-200 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden;
     animation: scale-in 0.2s ease-out;
   }
   
   .dropdown-menu {
-    background-color: rgb(var(--color-dropdown));
-    border-color: rgb(var(--color-border));
-    @apply rounded-xl shadow-lg border z-30;
+    @apply bg-white border-2 border-sky-200 rounded-xl shadow-xl backdrop-blur-sm z-30;
     animation: slide-in-from-top-2 0.2s ease-out, fade-in 0.2s ease-out;
   }
   
@@ -480,8 +421,6 @@
     animation: sidebar-collapse 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-
-  
   /* Keyframes */
   @keyframes slide-in-from-top-2 {
     from {
