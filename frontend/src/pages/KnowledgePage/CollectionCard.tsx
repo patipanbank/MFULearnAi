@@ -73,7 +73,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
       case 'PRIVATE':
         return <FiLock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />;
       default:
-        return <FiLock className="h-4 w-4 text-gray-600 dark:text-gray-400" />;
+        return <FiLock className="h-4 w-4 text-muted" />;
     }
   };
 
@@ -86,7 +86,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
       case 'PRIVATE':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+        return 'bg-secondary text-secondary';
     }
   };
 

@@ -262,7 +262,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   ))}
                 </select>
                 {formData.modelId && (
-                  <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="mt-2 p-2 bg-secondary rounded-lg">
                     <div className="text-xs text-muted">
                       {formData.modelId === 'anthropic.claude-3-5-sonnet-20240620-v1:0' && 
                         '🎯 Best overall performance for most tasks. Latest and most capable model with excellent reasoning.'}
@@ -363,7 +363,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   {formData.isPublic ? (
                     <FiLock className="h-5 w-5 text-green-500" />
                   ) : (
-                    <FiGlobe className="h-5 w-5 text-gray-400" />
+                    <FiGlobe className="h-5 w-5 text-muted" />
                   )}
                   <span className="text-sm">
                     {formData.isPublic ? 'Public' : 'Private'}
@@ -387,7 +387,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                       className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         (formData.collectionNames || []).includes(collection.name)
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                          : 'border-border hover:border-border-hover'
                       }`}
                       onClick={() => handleCollectionToggle(collection.name)}
                     >

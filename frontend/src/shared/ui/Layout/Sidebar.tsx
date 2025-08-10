@@ -14,7 +14,6 @@ import {
 import { useLayoutStore, useUIStore, useChatStore } from '../../stores';
 import { cn, formatDate } from '../../lib/utils';
 import PreferencesModal from '../PreferencesModal';
-import ThemeToggle from '../ThemeToggle';
 
 // Add custom icon styles
 const iconBaseStyle = "transition-colors duration-200";
@@ -253,7 +252,7 @@ const Sidebar: React.FC = () => {
                       'w-full h-10 rounded-lg flex items-center justify-center transition-colors relative',
                       isCurrentChat
                         ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 cursor-default'
-                        : 'text-muted hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary'
+                        : 'text-muted hover:bg-secondary hover:text-primary'
                     )}
                     title={chat.name}
                     disabled={isCurrentChat}
@@ -262,7 +261,7 @@ const Sidebar: React.FC = () => {
                       {chat.name.charAt(0).toUpperCase()}
                     </div>
                     {chat.isPinned && (
-                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900">
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-background">
                         <FiBookmark className="w-2 h-2 text-white" />
                       </div>
                     )}
@@ -342,19 +341,10 @@ const Sidebar: React.FC = () => {
           )}
         </div>
 
-        {/* Theme Toggle & Settings - Fixed at Bottom */}
-        <div className="p-4 relative space-y-3">
+        {/* Settings - Fixed at Bottom */}
+        <div className="p-4 relative">
           {/* Subtle top divider */}
           <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
-          
-          {/* Theme Toggle */}
-          {showExpandedContent ? (
-            <ThemeToggle variant="compact" className="w-full" />
-          ) : (
-            <div className="flex justify-center">
-              <ThemeToggle variant="icon-only" />
-            </div>
-          )}
           
           <div className="relative" ref={settingsRef}>
             <button

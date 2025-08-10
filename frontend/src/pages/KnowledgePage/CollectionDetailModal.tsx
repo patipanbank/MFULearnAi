@@ -185,7 +185,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
       case 'image':
         return <FiImage className="h-5 w-5 text-purple-500" />;
       default:
-        return <FiFile className="h-5 w-5 text-gray-500" />;
+        return <FiFile className="h-5 w-5 text-muted" />;
     }
   };
 

@@ -46,6 +46,14 @@ export default {
         // Semantic aliases for easier usage
         primary: 'rgb(var(--color-foreground) / <alpha-value>)',
         secondary: 'rgb(var(--color-foreground-secondary) / <alpha-value>)',
+        
+        // Agent & Knowledge Base specific colors
+        'agent-card': 'rgb(var(--color-agent-card) / <alpha-value>)',
+        'agent-card-hover': 'rgb(var(--color-agent-card-hover) / <alpha-value>)',
+        'knowledge-section': 'rgb(var(--color-knowledge-section) / <alpha-value>)',
+        'knowledge-card': 'rgb(var(--color-knowledge-card) / <alpha-value>)',
+        'code-bg': 'rgb(var(--color-code-background) / <alpha-value>)',
+        'highlight': 'rgb(var(--color-highlight) / <alpha-value>)',
         // Additional theme colors
         sidebar: 'rgb(var(--color-sidebar) / <alpha-value>)',
         header: 'rgb(var(--color-header) / <alpha-value>)',

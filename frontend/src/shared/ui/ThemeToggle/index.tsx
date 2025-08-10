@@ -35,7 +35,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
       value: 'auto', 
       label: 'Auto', 
       icon: FiMonitor, 
-      colors: 'text-gray-500 hover:text-gray-600' 
+      colors: 'text-muted hover:text-secondary' 
     }
   ];
 
