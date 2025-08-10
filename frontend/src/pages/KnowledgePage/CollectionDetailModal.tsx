@@ -269,7 +269,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
                   <div
                     key={source}
                     className={`p-4 rounded-lg card card-hover cursor-pointer transition-colors ${
-                      selectedDoc && selectedDoc.metadata?.source === source ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''
+                      selectedDoc && selectedDoc.metadata?.source === source ? 'border-blue-500 bg-blue-50 dark:bg-slate-700 dark:border-blue-400' : ''
                     }`}
                     onClick={() => handlePreview(docs[0])}
                   >

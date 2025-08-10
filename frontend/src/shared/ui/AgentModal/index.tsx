@@ -361,9 +361,9 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   className="flex items-center space-x-2 p-2 rounded-lg border border-border hover:bg-secondary transition-colors"
                 >
                   {formData.isPublic ? (
-                    <FiLock className="h-5 w-5 text-green-500" />
+                    <FiGlobe className="h-5 w-5 text-green-500" />
                   ) : (
-                    <FiGlobe className="h-5 w-5 text-muted" />
+                    <FiLock className="h-5 w-5 text-muted" />
                   )}
                   <span className="text-sm">
                     {formData.isPublic ? 'Public' : 'Private'}
@@ -386,7 +386,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                       key={collection._id}
                       className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         (formData.collectionNames || []).includes(collection.name)
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-slate-700 dark:border-blue-400'
                           : 'border-border hover:border-border-hover'
                       }`}
                       onClick={() => handleCollectionToggle(collection.name)}
@@ -415,7 +415,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                     onClick={() => handleToolToggle(tool.id)}
                     className={`w-full p-3 rounded-lg border text-left transition-colors ${
                       (formData.tools || []).some((t: any) => t.id === tool.id)
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-slate-700 dark:border-blue-400'
                         : 'border-border hover:bg-secondary'
                     }`}
                   >
@@ -432,7 +432,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                     Knowledge Base Search Tools
                     <span className="text-xs text-muted ml-2">(Auto-generated from selected collections)</span>
                   </h4>
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <div className="bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg p-3">
                     <div className="space-y-2">
                       {formData.collectionNames.map((collectionName) => (
                         <div key={collectionName} className="flex items-center space-x-2">

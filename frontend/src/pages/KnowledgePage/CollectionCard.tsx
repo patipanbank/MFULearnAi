@@ -67,11 +67,11 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   const getPermissionIcon = (permission: string) => {
     switch (permission) {
       case 'PUBLIC':
-        return <FiGlobe className="h-4 w-4 text-green-600 dark:text-green-400" />;
+        return <FiGlobe className="h-4 w-4 text-green-600" />;
       case 'DEPARTMENT':
-        return <FiUsers className="h-4 w-4 text-blue-600 dark:text-blue-400" />;
+        return <FiUsers className="h-4 w-4 text-blue-600" />;
       case 'PRIVATE':
-        return <FiLock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />;
+        return <FiLock className="h-4 w-4 text-secondary" />;
       default:
         return <FiLock className="h-4 w-4 text-muted" />;
     }
@@ -80,13 +80,13 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   const getPermissionColor = (permission: string) => {
     switch (permission) {
       case 'PUBLIC':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+        return 'bg-white border border-green-500 text-green-800 shadow-sm';
       case 'DEPARTMENT':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+        return 'bg-white border border-blue-500 text-blue-800 shadow-sm';
       case 'PRIVATE':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+        return 'bg-white border border-secondary text-secondary shadow-sm';
       default:
-        return 'bg-secondary text-secondary';
+        return 'bg-white border border-secondary text-secondary shadow-sm';
     }
   };
 
@@ -108,8 +108,8 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
-          <div className="p-2 bg-white border border-blue-500 rounded-lg flex-shrink-0 shadow-sm">
-            <FiDatabase className="h-5 w-5 text-blue-600" />
+          <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <FiDatabase className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className={`font-semibold text-primary truncate ${compact ? 'text-base' : 'text-lg'}`}>

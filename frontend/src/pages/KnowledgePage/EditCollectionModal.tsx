@@ -91,8 +91,8 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white border border-blue-500 rounded-lg shadow-sm">
-              <FiDatabase className="h-5 w-5 text-blue-600" />
+            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <FiDatabase className="h-5 w-5 text-white" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-primary">Edit Collection</h2>
