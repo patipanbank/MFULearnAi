@@ -68,22 +68,29 @@ export class QueueService {
       
       console.log(`🔄 Processing job ${jobId}: ${fileName}`);
       
-      // Update progress
+      // Update progress - File received
       this.updateProgress(jobId, {
         status: 'processing',
-        progress: 10,
+        progress: 5,
       });
 
       try {
         const startTime = Date.now();
         
-        // Process the file
-        const chunksCount = await trainingService.processAndEmbedFile(
+        // Progress - Starting file parsing
+        this.updateProgress(jobId, {
+          status: 'processing',
+          progress: 15,
+        });
+
+        // Create enhanced training service with progress callbacks
+        const chunksCount = await this.processFileWithProgress(
           fileBuffer,
           fileName,
           user,
           modelId,
-          collectionName
+          collectionName,
+          jobId
         );
 
         const processingTime = Date.now() - startTime;
@@ -184,10 +191,20 @@ export class QueueService {
       const updated = { ...current, ...updates };
       this.progressMap.set(jobId, updated);
       
+      console.log(`📊 Progress update for job ${jobId}:`, updated);
+      
       // Emit progress update via WebSocket if available
       if (wsService && updated.userId) {
         try {
-          wsService.emitProgressUpdate(updated.userId, updated);
+          wsService.emitProgressUpdate(updated.userId, {
+            type: 'upload-progress',
+            jobId: updated.jobId,
+            fileName: updated.fileName,
+            status: updated.status,
+            progress: updated.progress,
+            error: updated.error,
+            result: updated.result
+          });
         } catch (error) {
           console.warn('Failed to emit progress update via WebSocket:', error);
         }
@@ -232,6 +249,78 @@ export class QueueService {
     });
 
     console.log(`🧹 Cleaned up old jobs, keeping ${this.progressMap.size} recent jobs`);
+  }
+
+  private async processFileWithProgress(
+    fileBuffer: Buffer,
+    fileName: string,
+    user: IUser,
+    modelId: string,
+    collectionName: string,
+    jobId: string
+  ): Promise<number> {
+    // Progress - Parsing file content
+    this.updateProgress(jobId, {
+      status: 'processing',
+      progress: 25,
+    });
+
+    const textContent = await trainingService.parseFileContent(fileBuffer, fileName);
+    
+    // Progress - File parsed, starting text splitting
+    this.updateProgress(jobId, {
+      status: 'processing',
+      progress: 40,
+    });
+
+    const chunks = await trainingService.splitTextWithProgress(textContent, (progress) => {
+      this.updateProgress(jobId, {
+        status: 'processing',
+        progress: 40 + (progress * 0.15), // 40% + up to 15% for splitting
+      });
+    });
+
+    // Progress - Creating embeddings
+    this.updateProgress(jobId, {
+      status: 'processing',
+      progress: 55,
+    });
+
+    const embeddings = await trainingService.createEmbeddingsWithProgress(chunks, modelId, (progress) => {
+      this.updateProgress(jobId, {
+        status: 'processing',
+        progress: 55 + (progress * 0.25), // 55% + up to 25% for embeddings
+      });
+    });
+
+    // Progress - Storing in ChromaDB
+    this.updateProgress(jobId, {
+      status: 'processing',
+      progress: 80,
+    });
+
+    const result = await trainingService.storeDocumentsWithProgress(
+      chunks,
+      embeddings,
+      fileName,
+      user,
+      modelId,
+      collectionName,
+      (progress) => {
+        this.updateProgress(jobId, {
+          status: 'processing',
+          progress: 80 + (progress * 0.15), // 80% + up to 15% for storage
+        });
+      }
+    );
+
+    // Progress - Recording history
+    this.updateProgress(jobId, {
+      status: 'processing',
+      progress: 95,
+    });
+
+    return result;
   }
 
   async shutdown() {

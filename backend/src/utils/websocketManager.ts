@@ -225,6 +225,18 @@ export class WebSocketManager extends EventEmitter {
     return this.connections.get(connectionId);
   }
 
+  public getUserConnections(userId: string): string[] {
+    const userConnections: string[] = [];
+    
+    for (const [connectionId, connection] of this.connections) {
+      if (connection.userId === userId) {
+        userConnections.push(connectionId);
+      }
+    }
+    
+    return userConnections;
+  }
+
   // Health check for connections
   public pingConnections(): void {
     for (const [connectionId, connection] of this.connections) {

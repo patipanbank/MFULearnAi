@@ -2,6 +2,8 @@ import React, { useState, useRef } from 'react';
 import { FiX, FiUpload, FiFile, FiTrash2 } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
+import { useUploadProgress } from '../../shared/hooks/useUploadProgress';
+import UploadProgressTracker from '../../shared/ui/UploadProgressTracker';
 import type { Collection } from '../../shared/types';
 
 interface UploadDocumentsModalProps {
@@ -28,6 +30,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useUIStore();
+  const { addUpload, isUploading: isAnyUploading } = useUploadProgress();
 
   if (!isOpen) return null;
 
@@ -49,6 +52,10 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
     if (!collection || files.length === 0) return;
 
     setIsUploading(true);
+    
+    // ตรวจสอบขนาดไฟล์เพื่อเลือกใช้ queue หรือ direct upload
+    const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
+    
     const uploadPromises = files.map(async (file, index) => {
       try {
         setFiles(prev => prev.map((f, i) => 
@@ -57,32 +64,71 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('modelId', 'amazon.titan-embed-text-v1');  // Use Titan embedding model
+        formData.append('modelId', 'amazon.titan-embed-text-v1');
         formData.append('collectionName', collection.name);
+        
+        // สำหรับไฟล์ขนาดใหญ่ ให้ใช้ queue
+        const useQueue = file.size > LARGE_FILE_THRESHOLD;
+        if (useQueue) {
+          formData.append('useQueue', 'true');
+        }
 
-        // Debug: Log FormData contents
         console.log('📁 Uploading file:', {
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
           collectionName: collection.name,
-          hasFile: file instanceof File
+          useQueue: useQueue
         });
 
         const response = await api.post('/training/upload', formData, {
           onUploadProgress: (progressEvent) => {
-            const progress = progressEvent.total 
+            // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
+            const uploadProgress = progressEvent.total 
               ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
               : 0;
+            
             setFiles(prev => prev.map((f, i) => 
-              i === index ? { ...f, progress } : f
+              i === index ? { ...f, progress: Math.min(uploadProgress, 90) } : f
             ));
           }
         });
 
-        setFiles(prev => prev.map((f, i) => 
-          i === index ? { ...f, status: 'success' as const, progress: 100 } : f
-        ));
+        const responseData = response.data;
+
+        if (responseData.queued) {
+          // ไฟล์ถูกส่งไป queue แล้ว
+          console.log(`📋 File ${file.name} queued with job ID: ${responseData.jobId}`);
+          
+          // เพิ่มเข้า upload progress tracker
+          addUpload(responseData.jobId, file.name);
+          
+          setFiles(prev => prev.map((f, i) => 
+            i === index ? { 
+              ...f, 
+              status: 'success' as const, 
+              progress: 100,
+              error: `Queued for background processing (Job ID: ${responseData.jobId})`
+            } : f
+          ));
+          
+          addToast({
+            type: 'info',
+            title: 'File Queued',
+            message: `${file.name} has been queued for background processing. You'll receive updates via WebSocket.`
+          });
+        } else {
+          // ไฟล์ประมวลผลเสร็จสิ้นแล้ว
+          setFiles(prev => prev.map((f, i) => 
+            i === index ? { ...f, status: 'success' as const, progress: 100 } : f
+          ));
+          
+          addToast({
+            type: 'success',
+            title: 'Upload Complete',
+            message: `${file.name} processed successfully (${responseData.chunks} chunks)`
+          });
+        }
 
         return response;
       } catch (error: any) {
@@ -102,17 +148,37 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
             error: errorMessage
           } : f
         ));
+        
+        addToast({
+          type: 'error',
+          title: 'Upload Failed',
+          message: `Failed to upload ${file.name}: ${errorMessage}`
+        });
+        
         throw error;
       }
     });
 
     try {
       await Promise.all(uploadPromises);
-      addToast({
-        type: 'success',
-        title: 'Upload Complete',
-        message: `Successfully uploaded ${files.length} document(s) to ${collection.name}`
-      });
+      
+      const queuedFiles = files.filter(f => f.size > LARGE_FILE_THRESHOLD);
+      const immediateFiles = files.filter(f => f.size <= LARGE_FILE_THRESHOLD);
+      
+      if (queuedFiles.length > 0 && immediateFiles.length > 0) {
+        addToast({
+          type: 'info',
+          title: 'Mixed Upload Complete',
+          message: `${immediateFiles.length} file(s) processed immediately, ${queuedFiles.length} file(s) queued for background processing`
+        });
+      } else if (immediateFiles.length === files.length) {
+        addToast({
+          type: 'success',
+          title: 'Upload Complete',
+          message: `Successfully uploaded ${files.length} document(s) to ${collection.name}`
+        });
+      }
+      
       onUploadComplete();
       onClose();
     } catch (error) {
@@ -227,6 +293,13 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Upload Progress Tracker */}
+        {isAnyUploading && (
+          <div className="mb-6">
+            <UploadProgressTracker className="border-0 shadow-none bg-transparent" />
           </div>
         )}
 

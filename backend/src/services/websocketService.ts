@@ -393,11 +393,14 @@ export class WebSocketService {
 
   // Emit progress updates to specific user
   public emitProgressUpdate(userId: string, progress: any): void {
-    // Use broadcast instead of getClient since wsManager doesn't have getClient
-    this.broadcast({
-      type: 'upload-progress',
-      data: progress,
-      userId: userId
+    console.log(`📡 Emitting progress update to user ${userId}:`, progress);
+    
+    // Find connections for specific user and send targeted message
+    wsManager.getUserConnections(userId).forEach(connectionId => {
+      wsManager.sendToConnection(connectionId, JSON.stringify({
+        type: 'upload-progress',
+        data: progress
+      }));
     });
   }
 

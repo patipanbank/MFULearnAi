@@ -230,6 +230,14 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         const data = JSON.parse(event.data);
         console.log('WebSocket: Received message', data);
         
+        if (data.type === 'upload-progress') {
+          // Dispatch upload progress event for upload progress hook
+          window.dispatchEvent(new CustomEvent('websocket-message', { 
+            detail: event.data 
+          }));
+          return;
+        }
+
         if (data.type === 'chunk') {
           const session = currentSessionRef.current;
           if (!session) return;

@@ -201,15 +201,71 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
 // GET /api/training/status
 router.get('/status', async (req: Request, res: Response) => {
   try {
-    // TODO: Implement training status endpoint
+    const queueStats = await queueService.getQueueStats();
+    
     res.json({
-      status: 'idle',
-      message: 'Training service is available'
+      status: 'running',
+      message: 'Training service is available',
+      queue: queueStats
     });
   } catch (error: any) {
     console.error('Training status error:', error);
     res.status(500).json({ 
       error: error.message || 'Failed to get training status' 
+    });
+  }
+});
+
+// GET /api/training/job/:jobId
+router.get('/job/:jobId', async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+    
+    if (!jobId) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+
+    const jobProgress = queueService.getJobProgress(jobId);
+    
+    if (!jobProgress) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    res.json({
+      jobId: jobProgress.jobId,
+      fileName: jobProgress.fileName,
+      status: jobProgress.status,
+      progress: jobProgress.progress,
+      error: jobProgress.error,
+      result: jobProgress.result
+    });
+  } catch (error: any) {
+    console.error('Job status error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to get job status' 
+    });
+  }
+});
+
+// GET /api/training/jobs/user
+router.get('/jobs/user', async (req: Request, res: Response) => {
+  try {
+    const jwtUser = req.user as any;
+    const userId = jwtUser.sub;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID not found' });
+    }
+
+    const userJobs = queueService.getAllJobsForUser(userId);
+    
+    res.json({
+      jobs: userJobs
+    });
+  } catch (error: any) {
+    console.error('User jobs error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to get user jobs' 
     });
   }
 });

@@ -70,17 +70,25 @@ export class ChromaService {
     }
   }
 
-  async addDocuments(collectionName: string, documentsWithEmbeddings: Array<{ document: string; embedding: number[]; metadata: any; id: string }>) {
+  async addDocuments(
+    collectionName: string, 
+    documentsWithEmbeddings: Array<{ document: string; embedding: number[]; metadata: any; id: string }>,
+    onProgress?: (completed: number, total: number) => void
+  ) {
     if (!documentsWithEmbeddings || documentsWithEmbeddings.length === 0) {
       console.log('[ChromaService] No documents to process. Skipping.');
       return;
     }
+
+    console.log(`[ChromaService] Starting to add ${documentsWithEmbeddings.length} documents to '${collectionName}'`);
+    
     // Dedup by id
     const seen = new Set();
     const docs = [];
     const metadatas = [];
     const embeddings = [];
     const ids = [];
+    
     for (const item of documentsWithEmbeddings) {
       if (seen.has(item.id)) continue;
       seen.add(item.id);
@@ -89,23 +97,90 @@ export class ChromaService {
       embeddings.push(item.embedding);
       ids.push(item.id);
     }
+    
     if (docs.length === 0) {
       console.log('[ChromaService] All documents are duplicates. Skipping.');
       return;
     }
+
     try {
-      const collection = await this.getOrCreateCollection(collectionName);
-      await collection.add({
-        ids,
-        embeddings,
-        documents: docs,
-        metadatas,
-      });
+      // สำหรับข้อมูลจำนวนมาก ให้แบ่งเป็น batch เพื่อป้องกัน memory overflow
+      if (docs.length > 100) {
+        await this.addDocumentsInBatches(collectionName, {
+          ids,
+          embeddings,
+          documents: docs,
+          metadatas,
+        }, onProgress);
+      } else {
+        const collection = await this.getOrCreateCollection(collectionName);
+        await collection.add({
+          ids,
+          embeddings,
+          documents: docs,
+          metadatas,
+        });
+        onProgress?.(docs.length, docs.length);
+      }
+      
       console.log(`[ChromaService] Successfully added ${docs.length} documents to '${collectionName}'.`);
     } catch (e) {
       console.error(`[ChromaService] Error addDocuments:`, e);
       throw e;
     }
+  }
+
+  private async addDocumentsInBatches(
+    collectionName: string,
+    data: {
+      ids: string[];
+      embeddings: number[][];
+      documents: string[];
+      metadatas: any[];
+    },
+    onProgress?: (completed: number, total: number) => void
+  ) {
+    const BATCH_SIZE = 50; // จำนวน documents ต่อ batch
+    const { ids, embeddings, documents, metadatas } = data;
+    const total = documents.length;
+    let completed = 0;
+
+    console.log(`[ChromaService] Adding ${total} documents in batches of ${BATCH_SIZE}`);
+    
+    const collection = await this.getOrCreateCollection(collectionName);
+    
+    for (let i = 0; i < total; i += BATCH_SIZE) {
+      const endIndex = Math.min(i + BATCH_SIZE, total);
+      const batchIds = ids.slice(i, endIndex);
+      const batchEmbeddings = embeddings.slice(i, endIndex);
+      const batchDocuments = documents.slice(i, endIndex);
+      const batchMetadatas = metadatas.slice(i, endIndex);
+      
+      try {
+        console.log(`[ChromaService] Adding batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(total / BATCH_SIZE)}`);
+        
+        await collection.add({
+          ids: batchIds,
+          embeddings: batchEmbeddings,
+          documents: batchDocuments,
+          metadatas: batchMetadatas,
+        });
+        
+        completed += batchIds.length;
+        onProgress?.(completed, total);
+        
+        // เล็กน้อยหน่วงเวลาเพื่อป้องกัน overwhelm ChromaDB
+        if (i + BATCH_SIZE < total) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+      } catch (error) {
+        console.error(`[ChromaService] Error in batch ${Math.floor(i / BATCH_SIZE) + 1}:`, error);
+        throw error;
+      }
+    }
+    
+    console.log(`[ChromaService] Successfully added all ${total} documents in batches`);
   }
 
   async queryCollection(collectionName: string, queryEmbeddings: number[][], nResults: number = 5) {
