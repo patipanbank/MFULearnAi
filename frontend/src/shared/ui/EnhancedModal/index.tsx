@@ -1,5 +1,4 @@
-import React from 'react';
-import type { ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 import { FiX } from 'react-icons/fi';
 import useModalAnimation from '../../hooks/useModalAnimation';
 
