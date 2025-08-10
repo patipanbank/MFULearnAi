@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiGlobe, FiLock } from 'react-icons/fi';
+import { FiX, FiPlus, FiTrash2, FiGlobe, FiLock } from 'react-icons/fi';
 import { useAgentStore } from '../../stores';
 import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
-import EnhancedModal from '../EnhancedModal';
 
 interface AgentModalProps {
   isOpen: boolean;
@@ -206,38 +205,28 @@ const AgentModal: React.FC<AgentModalProps> = ({
     onClose();
   };
 
-  const footer = (
-    <div className="flex items-center justify-end space-x-3">
-      <button
-        type="button"
-        onClick={handleClose}
-        className="btn-ghost"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        form="agent-form"
-        className="btn-primary"
-      >
-        {isEditing ? 'Update Agent' : 'Create Agent'}
-      </button>
-    </div>
-  );
+  if (!isOpen) return null;
 
   return (
-    <EnhancedModal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={isEditing ? 'Edit Agent' : 'Create New Agent'}
-      subtitle="Configure your AI assistant with custom knowledge and tools"
-      size="xl"
-      animationType="spring"
-      enhanced={true}
-      footer={footer}
-    >
-      <form id="agent-form" onSubmit={handleSubmit}>
-        <div className="space-y-6">
+    <div className="modal-overlay">
+      <div className="modal-content max-w-4xl w-full max-h-90vh overflow-y-auto">
+        <form onSubmit={handleSubmit}>
+          {/* Header */}
+          <div className="p-6 border-b border-border flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-primary">
+              {isEditing ? 'Edit Agent' : 'Create New Agent'}
+            </h2>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="btn-ghost p-2"
+            >
+              <FiX className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 space-y-6">
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -508,9 +497,26 @@ const AgentModal: React.FC<AgentModalProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      </form>
-    </EnhancedModal>
+
+          {/* Footer */}
+          <div className="p-6 border-t border-border flex items-center justify-end space-x-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="btn-ghost"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary"
+            >
+              {isEditing ? 'Update Agent' : 'Create Agent'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 };
 

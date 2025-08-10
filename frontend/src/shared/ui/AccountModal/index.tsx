@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiSave, FiUser, FiShield, FiDownload, FiTrash2, FiKey } from 'react-icons/fi';
+import { FiX, FiSave, FiUser, FiShield, FiDownload, FiTrash2, FiKey } from 'react-icons/fi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useAuthStore } from '../../stores/index';
 import { useUIStore } from '../../stores/uiStore';
-import EnhancedModal from '../EnhancedModal';
+import useLayoutStore from '../../stores/layoutStore';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -22,6 +22,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
   
   const { user } = useAuthStore();
   const { addToast } = useUIStore();
+  const { isMobile } = useLayoutStore();
   
   const [localProfile, setLocalProfile] = useState(profile);
   const [localPrivacy, setLocalPrivacy] = useState(privacy);
@@ -155,51 +156,27 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const footer = (
-    <div className="flex items-center justify-between w-full">
-      <div className="text-sm text-secondary">
-        {hasChanges ? 'You have unsaved changes' : 'All changes saved'}
-      </div>
-      <div className="flex items-center space-x-3">
-        <button
-          onClick={handleCancel}
-          className="btn-ghost"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={!hasChanges || isSaving}
-          className="btn-primary flex items-center space-x-2"
-        >
-          {isSaving ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Saving...</span>
-            </>
-          ) : (
-            <>
-              <FiSave className="h-4 w-4" />
-              <span>Save Changes</span>
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  );
+  if (!isOpen) return null;
 
   return (
-    <EnhancedModal
-      isOpen={isOpen}
-      onClose={handleCancel}
-      title="Account Settings"
-      subtitle="Manage your account and privacy settings"
-      size="lg"
-      animationType="spring"
-      enhanced={true}
-      footer={footer}
-    >
-      <div className="space-y-6">
+    <div className="modal-overlay">
+      <div className={`modal-content ${isMobile ? 'animate-slide-up-from-bottom' : ''}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div>
+            <h2 className="text-xl font-semibold text-primary">Account Settings</h2>
+            <p className="text-sm text-secondary mt-1">Manage your account and privacy settings</p>
+          </div>
+          <button
+            onClick={handleCancel}
+            className="btn-ghost p-2"
+          >
+            <FiX className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] space-y-6">
           {/* Profile Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
@@ -397,8 +374,40 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
         </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-6 border-t border-border bg-secondary">
+          <div className="text-sm text-secondary">
+            {hasChanges ? 'You have unsaved changes' : 'All changes saved'}
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleCancel}
+              className="btn-ghost"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || isSaving}
+              className="btn-primary flex items-center space-x-2"
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <FiSave className="h-4 w-4" />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
-    </EnhancedModal>
+    </div>
   );
 };
 
