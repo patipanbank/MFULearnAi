@@ -31,27 +31,27 @@ export const useMessageHandler = () => {
   // Handle WebSocket message
   const handleWebSocketMessage = useCallback((data: any) => {
     if (data.type === 'chunk') {
-      // Handle streaming response
+      // Support new format with messageId
+      if (data?.data && typeof data.data === 'object' && data.data.messageId) {
+        const { messageId, delta } = data.data as { messageId: string; delta?: string };
+        updateMessage(messageId, (prev: any) => ({
+          content: ((prev?.content ?? '') as string) + (delta ?? '')
+        }) as any);
+        return;
+      }
+      // Fallback legacy
       const lastMessage = currentSession?.messages[currentSession.messages.length - 1];
-      
-      // Handle both string and object chunk data
       let chunkText = '';
       if (typeof data.data === 'string') {
         chunkText = data.data;
       } else if (typeof data.data === 'object' && data.data !== null) {
-        // Handle object format from new backend
-        chunkText = data.data.chunk || data.data.fullContent || JSON.stringify(data.data);
+        chunkText = data.data.delta || data.data.chunk || data.data.fullContent || '';
       } else {
-        chunkText = String(data.data);
+        chunkText = String(data.data ?? '');
       }
-      
       if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
-        updateMessage(lastMessage.id, {
-          content: lastMessage.content + chunkText
-        });
+        updateMessage(lastMessage.id, { content: lastMessage.content + chunkText });
       } else {
-        // รอ backend สร้าง assistant message ให้ ไม่สร้างเอง
-        // Backend จะสร้าง message เมื่อได้รับ chunk แรก
         console.log('Waiting for backend to create assistant message...');
       }
     } else if (data.type === 'assistant_created') {
@@ -69,13 +69,15 @@ export const useMessageHandler = () => {
       // Handle room creation
       setIsRoomCreating(false);
     } else if (data.type === 'end') {
-      // Mark message as complete
-      const lastMessage = currentSession?.messages[currentSession.messages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        updateMessage(lastMessage.id, {
-          isComplete: true,
-          isStreaming: false
-        });
+      // Mark message as complete; prefer messageId from new backend
+      const messageId = data?.data?.messageId as string | undefined;
+      if (messageId) {
+        updateMessage(messageId, { isComplete: true, isStreaming: false });
+      } else {
+        const lastMessage = currentSession?.messages[currentSession.messages.length - 1];
+        if (lastMessage && lastMessage.role === 'assistant') {
+          updateMessage(lastMessage.id, { isComplete: true, isStreaming: false });
+        }
       }
       setIsTyping(false);
     } else if (data.type === 'error') {

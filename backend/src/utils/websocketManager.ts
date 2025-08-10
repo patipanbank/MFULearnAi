@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { createClient } from 'redis';
+import { redis as sharedRedis } from '../lib/redis';
 import { EventEmitter } from 'events';
 
 interface WebSocketConnection {
@@ -23,17 +23,11 @@ export class WebSocketManager extends EventEmitter {
 
   private async initializeRedis() {
     try {
-      this.redisClient = createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379'
-      });
+      // Reuse shared ioredis instance for publish; create a lightweight subscriber for pattern subscribe
+      this.redisClient = sharedRedis; // ioredis instance
+      this.redisSubscriber = sharedRedis.duplicate();
 
-      this.redisSubscriber = this.redisClient.duplicate();
-
-      await this.redisClient.connect();
-      await this.redisSubscriber.connect();
-
-      // Subscribe to chat channels
-      await this.redisSubscriber.pSubscribe('chat:*', (message: string, channel: string) => {
+      await this.redisSubscriber.psubscribe('chat:*', (message: string, channel: string) => {
         const sessionId = channel.replace('chat:', '');
         this.broadcastToSession(sessionId, message);
       });
@@ -205,9 +199,6 @@ export class WebSocketManager extends EventEmitter {
     }
 
     this.redisClient.publish(channel, message)
-      .then(() => {
-        console.log(`📨 Published to Redis channel: ${channel}`);
-      })
       .catch((error: any) => {
         console.error(`❌ Failed to publish to Redis:`, error);
       });

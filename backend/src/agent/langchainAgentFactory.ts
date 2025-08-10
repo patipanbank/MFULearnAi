@@ -75,10 +75,7 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
       const maxSteps = options?.maxSteps ?? 5;
       
       try {
-        // Smart Memory Management (เหมือน Legacy)
-        if (config.sessionId) {
-          await setupHybridMemory(config.sessionId, messages);
-        }
+        // Memory setup ถูกจัดการที่ ChatService แล้ว (incremental)
         
         // แปลง messages เป็น LangChain format
         const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);

@@ -73,6 +73,8 @@ const ChatSchema = new Schema<Chat>({
 // Indexes for better query performance
 ChatSchema.index({ userId: 1, createdAt: -1 });
 ChatSchema.index({ userId: 1, isPinned: -1, updatedAt: -1 });
+// Optimize common list query: list chats by user ordered by updatedAt desc
+ChatSchema.index({ userId: 1, updatedAt: -1 });
 
 // Update the updatedAt field before saving
 ChatSchema.pre('save', function(next) {

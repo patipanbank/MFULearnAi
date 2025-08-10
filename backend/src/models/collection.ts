@@ -40,4 +40,9 @@ collectionSchema.set('toJSON', {
   }
 });
 
+// Helpful indexes for frequent queries
+collectionSchema.index({ permission: 1 });
+collectionSchema.index({ department: 1 });
+collectionSchema.index({ createdBy: 1 });
+
 export const Collection = mongoose.model<ICollection>('Collection', collectionSchema); 

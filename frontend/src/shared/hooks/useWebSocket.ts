@@ -232,25 +232,36 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         
         if (data.type === 'chunk') {
           const session = currentSessionRef.current;
-          const lastMessage = session?.messages[session.messages.length - 1];
-          
-          // Handle both string and object chunk data (เหมือน Legacy)
+          if (!session) return;
+
+          // New format: { data: { messageId, delta } }
+          if (data?.data && typeof data.data === 'object' && data.data.messageId) {
+            const { messageId, delta } = data.data as { messageId: string; delta?: string };
+            const target = session.messages.find((m) => m.id === messageId);
+            if (target) {
+              updateMessage(messageId, {
+                content: (target.content || '') + (delta || '')
+              });
+            } else {
+              console.log('Chunk received but target message not found, waiting assistant_created...');
+            }
+            return;
+          }
+
+          // Legacy fallback
+          const lastMessage = session.messages[session.messages.length - 1];
           let chunkText = '';
           if (typeof data.data === 'string') {
             chunkText = data.data;
           } else if (typeof data.data === 'object' && data.data !== null) {
-            // Handle object format from new backend
-            chunkText = data.data.chunk || data.data.fullContent || JSON.stringify(data.data);
+            chunkText = data.data.delta || data.data.chunk || data.data.fullContent || '';
           } else {
-            chunkText = String(data.data);
+            chunkText = String(data.data ?? '');
           }
-          
+
           if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
-            updateMessage(lastMessage.id, {
-              content: lastMessage.content + chunkText
-            });
+            updateMessage(lastMessage.id, { content: lastMessage.content + chunkText });
           } else {
-            // รอ backend สร้าง assistant message ให้ (เหมือน Legacy)
             console.log('Waiting for backend to create assistant message...');
           }
         } else if (data.type === 'error') {
@@ -366,12 +377,16 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         } else if (data.type === 'end') {
           console.log('WebSocket: Message ended');
           const session = currentSessionRef.current;
-          const lastMessage = session?.messages[session.messages.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            updateMessage(lastMessage.id, {
-              isComplete: true,
-              isStreaming: false
-            });
+          if (!session) return;
+          const messageId = data?.data?.messageId as string | undefined;
+          if (messageId) {
+            updateMessage(messageId, { isComplete: true, isStreaming: false });
+          } else {
+            // Legacy fallback: mark last assistant as complete
+            const lastMessage = session.messages[session.messages.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+              updateMessage(lastMessage.id, { isComplete: true, isStreaming: false });
+            }
           }
           setIsTyping(false);
         } else {

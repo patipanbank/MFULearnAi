@@ -15,6 +15,12 @@ export class ChatService {
     console.log('✅ Chat service initialized');
   }
 
+  // Cache agent executors per session/config to reduce recreation overhead
+  private agentCache: Map<string, {
+    signature: string;
+    executor: any; // AgentExecutor compatible
+  }> = new Map();
+
   public async createChat(userId: string, name: string, agentId?: string): Promise<Chat> {
     const chat = new ChatModel({
       userId,
@@ -174,45 +180,56 @@ export class ChatService {
         await memoryService.setupHybridMemory(chatId, chat.messages);
       }
 
-      // 5. เตรียม LLM instance (เหมือน Legacy)
-      console.log(`🤖 Creating LLM instance with model ${config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0'}`);
-      const llm = getLLM(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
-        temperature: config?.temperature,
-        maxTokens: config?.maxTokens,
-        streaming: true
-      });
-
-      // 6. เตรียม tools (รวม memory tool และ retrieval tools)
-      const sessionTools = createMemoryTool(chatId);
-      const allTools: { [name: string]: ToolFunction } = {};
-      
-      // Add static tools
-      for (const [k, v] of Object.entries(toolRegistry)) allTools[k] = v.func;
-      
-      // Add session-specific memory tools
-      for (const [k, v] of Object.entries(sessionTools)) allTools[k] = v.func;
-
-      // Add retrieval tools for collections (เหมือน Legacy)
-      if (config?.collectionNames && config.collectionNames.length > 0) {
-        const retrievalTools = createRetrievalTools(config.collectionNames);
-        for (const [name, tool] of Object.entries(retrievalTools)) {
-          allTools[name] = (tool as any).func;
-          console.log(`🔧 Added retrieval tool: ${name}`);
-        }
-      }
-
-      // 7. เตรียม prompt template (เหมือน Legacy)
+      // 5-8. เตรียม/รีใช้ LLM + Tools + AgentExecutor จาก cache ตาม signature
       const defaultSystemPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
-      const finalSystemPrompt = config?.systemPrompt || defaultSystemPrompt;
-      const promptTemplate = createPromptTemplate(finalSystemPrompt, true);
+      const finalSystemPrompt = (config?.systemPrompt || defaultSystemPrompt);
 
-      // 8. สร้าง agent executor (ใหม่) - ใช้ LangChain Agent
-      const agent = await createAgent(llm, allTools, finalSystemPrompt, {
-        modelId: config?.modelId || undefined,
-        sessionId: chatId,
-        temperature: config?.temperature,
-        maxTokens: config?.maxTokens
-      });
+      const signaturePayload = {
+        modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        temperature: config?.temperature ?? 0.7,
+        maxTokens: config?.maxTokens ?? 4000,
+        systemPrompt: finalSystemPrompt,
+        collections: (config?.collectionNames || []).slice().sort(),
+        agentId: config?.agentId || null
+      };
+      const signature = JSON.stringify(signaturePayload);
+
+      let cached = this.agentCache.get(chatId);
+      let agent: any;
+
+      if (cached && cached.signature === signature) {
+        console.log(`⚡ Reusing cached agent for chat ${chatId}`);
+        agent = cached.executor;
+      } else {
+        console.log(`🤖 Creating LLM/Agent for chat ${chatId}`);
+        const llm = getLLM(signaturePayload.modelId, {
+          temperature: signaturePayload.temperature,
+          maxTokens: signaturePayload.maxTokens,
+          streaming: true
+        });
+
+        // Prepare tools
+        const sessionTools = createMemoryTool(chatId);
+        const allTools: { [name: string]: ToolFunction } = {};
+        for (const [k, v] of Object.entries(toolRegistry)) allTools[k] = v.func;
+        for (const [k, v] of Object.entries(sessionTools)) allTools[k] = v.func;
+        if (signaturePayload.collections && signaturePayload.collections.length > 0) {
+          const retrievalTools = createRetrievalTools(signaturePayload.collections);
+          for (const [name, tool] of Object.entries(retrievalTools)) {
+            allTools[name] = (tool as any).func;
+            console.log(`🔧 Added retrieval tool: ${name}`);
+          }
+        }
+
+        agent = await createAgent(llm, allTools, finalSystemPrompt, {
+          modelId: signaturePayload.modelId,
+          sessionId: chatId,
+          temperature: signaturePayload.temperature,
+          maxTokens: signaturePayload.maxTokens
+        });
+
+        this.agentCache.set(chatId, { signature, executor: agent });
+      }
 
       // 9. ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท (เหมือน Legacy)
       const chatFromDb = await ChatModel.findById(chatId);
@@ -251,6 +268,8 @@ export class ChatService {
       let inputTokens = 0;
       let outputTokens = 0;
       
+      let assistantMessageId: string | null = null;
+
       await agent.run(messages, {
         onEvent: async (event) => {
           console.log(`🤖 Agent event: ${event.type}`, event.data);
@@ -265,6 +284,7 @@ export class ChatService {
                 role: 'assistant',
                 content: '',
               });
+              assistantMessageId = assistantMessage.id;
               
               // ส่ง event แจ้ง frontend ว่าสร้าง assistant message ใหม่
               if (wsManager.getSessionConnectionCount(chatId) > 0) {
@@ -280,7 +300,13 @@ export class ChatService {
             
             // ส่ง streaming ไปยัง frontend แต่ไม่บันทึกลง database
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
+              wsManager.broadcastToSession(chatId, JSON.stringify({ 
+                type: 'chunk', 
+                data: { 
+                  messageId: assistantMessageId,
+                  delta: event.data
+                }
+              }));
             }
           } else if (event.type === 'tool_start') {
             console.log(`🔧 Tool started: ${event.data.tool_name}`);
@@ -336,6 +362,9 @@ export class ChatService {
                   }
                 );
                 console.log(`🤖 Updated assistant message ${lastMessage.id} with final content`);
+                if (!assistantMessageId) {
+                  assistantMessageId = lastMessage.id;
+                }
               }
             }
             
@@ -353,6 +382,7 @@ export class ChatService {
               wsManager.broadcastToSession(chatId, JSON.stringify({ 
                 type: 'end', 
                 data: { 
+                  messageId: assistantMessageId,
                   answer: event.data.answer,
                   inputTokens,
                   outputTokens
