@@ -6,7 +6,6 @@ import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { ToolUsageDisplay } from '../../shared/ui/ToolUsageDisplay';
 import { api } from '../../shared/lib/api';
 import Loading from '../../shared/ui/Loading';
-import dindinAvatar from '../../assets/dindin.png';
 import dindinNp from '../../assets/dindin_np.PNG';
 import { useWebSocket } from '../../shared/hooks/useWebSocket';
 import { useChatNavigation } from '../../shared/hooks/useChatNavigation';
@@ -58,6 +57,40 @@ const ChatPage: React.FC = () => {
     setImages,
     messagesEndRef
   } = useChatInput();
+
+  // Enhanced scroll behavior - scroll to latest user message
+  const scrollToLatestMessage = useCallback(() => {
+    if (currentSession?.messages?.length) {
+      const messagesContainer = messagesEndRef.current?.parentElement;
+      if (messagesContainer) {
+        // Find the last user message element
+        const userMessages = messagesContainer.querySelectorAll('.user-message');
+        const lastUserMessage = userMessages[userMessages.length - 1];
+        
+        if (lastUserMessage) {
+          // Scroll so the user message is near the top
+          const elementTop = (lastUserMessage as HTMLElement).offsetTop;
+          const scrollTarget = Math.max(0, elementTop - 100); // 100px from top
+          
+          messagesContainer.scrollTo({
+            top: scrollTarget,
+            behavior: 'smooth'
+          });
+        }
+      }
+    }
+  }, [currentSession?.messages?.length, messagesEndRef]);
+
+  // Trigger scroll when new messages are added
+  useEffect(() => {
+    if (currentSession?.messages && currentSession.messages.length > 0) {
+      const lastMessage = currentSession.messages[currentSession.messages.length - 1];
+      if (lastMessage?.role === 'user') {
+        // Delay scroll to ensure DOM is updated
+        setTimeout(scrollToLatestMessage, 100);
+      }
+    }
+  }, [currentSession?.messages?.length, scrollToLatestMessage]);
 
   // Debug function to test WebSocket connection
   const debugWebSocket = useCallback(() => {
@@ -302,13 +335,131 @@ const ChatPage: React.FC = () => {
     setImages(prev => prev.filter((_, i) => i !== index));
   }, [setImages]);
 
-  // Get user initials for avatar
-  const getInitials = useCallback(() => {
-    if (!user) return 'U';
-    const firstInitial = user.firstName?.charAt(0) || '';
-    const lastInitial = user.lastName?.charAt(0) || '';
-    return (firstInitial + lastInitial).toUpperCase() || 'U';
-  }, [user]);
+  // Render assistant content with rich formatting
+  const renderAssistantContent = useCallback((content: string) => {
+    // Split content by double newlines to identify potential sections
+    const sections = content.split('\n\n');
+    
+    return sections.map((section, index) => {
+      const trimmedSection = section.trim();
+      if (!trimmedSection) return null;
+      
+      // Check if section starts with # (header)
+      if (trimmedSection.startsWith('# ')) {
+        return (
+          <h1 key={index} className="text-3xl font-bold mb-4 mt-6 text-primary border-b border-border pb-2">
+            {trimmedSection.substring(2)}
+          </h1>
+        );
+      }
+      
+      // Check if section starts with ## (subheader)  
+      if (trimmedSection.startsWith('## ')) {
+        return (
+          <h2 key={index} className="text-2xl font-semibold mb-3 mt-5 text-primary">
+            {trimmedSection.substring(3)}
+          </h2>
+        );
+      }
+      
+      // Check if section starts with ### (sub-subheader)
+      if (trimmedSection.startsWith('### ')) {
+        return (
+          <h3 key={index} className="text-xl font-medium mb-2 mt-4 text-primary">
+            {trimmedSection.substring(4)}
+          </h3>
+        );
+      }
+      
+      // Check if section contains code blocks
+      if (trimmedSection.includes('```')) {
+        const parts = trimmedSection.split('```');
+        return (
+          <div key={index} className="mb-4">
+            {parts.map((part, partIndex) => {
+              if (partIndex % 2 === 1) {
+                // This is a code block
+                const lines = part.split('\n');
+                const language = lines[0] || 'text';
+                const code = lines.slice(1).join('\n');
+                
+                return (
+                  <div key={partIndex} className="my-4 rounded-lg overflow-hidden border border-border">
+                    <div className="bg-secondary px-4 py-2 text-sm text-muted border-b border-border">
+                      {language}
+                    </div>
+                    <pre className="bg-card p-4 overflow-x-auto">
+                      <code className="text-sm text-primary font-mono">{code}</code>
+                    </pre>
+                  </div>
+                );
+              } else {
+                // Regular text
+                return part && (
+                  <div key={partIndex} className="whitespace-pre-wrap">
+                    {formatTextContent(part)}
+                  </div>
+                );
+              }
+            })}
+          </div>
+        );
+      }
+      
+      // Check if section is a list
+      if (trimmedSection.includes('\n- ') || trimmedSection.includes('\n* ') || trimmedSection.includes('\n1. ')) {
+        const lines = trimmedSection.split('\n');
+        const listItems: string[] = [];
+        const nonListLines: string[] = [];
+        
+        lines.forEach(line => {
+          if (line.trim().match(/^[-*]\s/) || line.trim().match(/^\d+\.\s/)) {
+            listItems.push(line.trim());
+          } else {
+            nonListLines.push(line);
+          }
+        });
+        
+        return (
+          <div key={index} className="mb-4">
+            {nonListLines.length > 0 && (
+              <div className="whitespace-pre-wrap mb-2">
+                {formatTextContent(nonListLines.join('\n'))}
+              </div>
+            )}
+            {listItems.length > 0 && (
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                {listItems.map((item, itemIndex) => (
+                  <li key={itemIndex} className="text-primary">
+                    {item.replace(/^[-*]\s/, '').replace(/^\d+\.\s/, '')}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      }
+      
+      // Regular paragraph
+      return (
+        <div key={index} className="mb-4 text-base leading-relaxed whitespace-pre-wrap">
+          {formatTextContent(trimmedSection)}
+        </div>
+      );
+    }).filter(Boolean);
+  }, []);
+
+  // Format text content with basic markdown-like features
+  const formatTextContent = useCallback((text: string) => {
+    // Handle bold text
+    let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Handle italic text
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Handle inline code
+    formatted = formatted.replace(/`(.*?)`/g, '<code class="bg-secondary px-1 py-0.5 rounded text-sm font-mono">$1</code>');
+    
+    return <span dangerouslySetInnerHTML={{ __html: formatted }} />;
+  }, []);
 
   if (isLoading) {
     return <Loading />;
@@ -338,73 +489,71 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 flex flex-col w-full relative h-full overflow-hidden">
         {/* Messages */}
         {hasMessages ? (
-        <div className="flex-1 overflow-y-auto px-0 sm:px-4 py-4 pb-32 space-y-4 h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 dark:hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
-          {currentSession?.messages.map((msg) => (
+        <div className="flex-1 overflow-y-auto px-4 py-6 pb-32 space-y-6 h-full chat-messages">
+          {currentSession?.messages.map((msg, index) => (
             <div
               key={msg.id}
-              className={`flex ${
-                msg.role === 'user' 
-                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[230px] 2xl:mr-[485px]' 
-                  : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[245px] 2xl:ml-[500px]'
-              } items-end space-x-2 px-1 sm:px-2`}
+              className={`message-container ${msg.role === 'user' ? 'user-message' : 'assistant-message'} animate-in slide-in-from-bottom-2 duration-300`}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              {msg.role !== 'user' && (
-                <div className="flex-shrink-0 ml-1 sm:ml-0">
-                  <img 
-                    src={dindinAvatar} 
-                    alt="DINDIN AI" 
-                    className="w-8 h-8 sm:w-8 sm:h-8 rounded-full shadow-md"
-                  />
-                </div>
-              )}
-              <div className="flex flex-col max-w-[75%] sm:max-w-[65%] md:max-w-[60%] lg:max-w-[55%] 2xl:max-w-[50%]">
-                {/* Timestamp */}
-                <div className={`text-[10px] sm:text-xs mb-1 ${
-                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
-                }`}>
-                  {msg.role === 'user'
-                    ? (() => { const d = new Date(msg.timestamp); d.setHours(d.getHours() + 7); return d.toLocaleTimeString(); })()
-                    : msg.timestamp.toLocaleTimeString()}
-                </div>
-                <div
-                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm ${
-                    msg.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-sm'
-                      : 'card text-primary rounded-bl-sm'
-                  }`}
-                >
-                  {/* Images */}
-                  {msg.images && msg.images.length > 0 && (
-                    <div className="mb-3 grid grid-cols-2 gap-2 sm:gap-3">
-                      {msg.images.map((img, idx) => (
-                        <img
-                          key={idx}
-                          src={img.url}
-                          alt="Uploaded"
-                          className="rounded-lg max-w-full h-auto shadow-sm"
-                        />
-                      ))}
+              {msg.role === 'user' ? (
+                // User Message - Compact bubble on the right
+                <div className="flex justify-end">
+                  <div className="max-w-[80%] lg:max-w-[60%]">
+                    <div className="message-bubble bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-2xl rounded-br-md shadow-lg">
+                      {/* Images */}
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="mb-3 grid grid-cols-2 gap-2">
+                          {msg.images.map((img, idx) => (
+                            <img
+                              key={idx}
+                              src={img.url}
+                              alt="Uploaded"
+                              className="rounded-lg max-w-full h-auto shadow-sm"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Message Content */}
+                      <div className="text-base leading-relaxed">
+                        {msg.content}
+                      </div>
                     </div>
-                  )}
-                  
-                  {/* Message Content */}
-                  <div className="whitespace-pre-wrap text-base sm:text-base">
-                    {msg.content}
-                    {msg.isStreaming && (
-                      <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
-                    )}
                   </div>
-                  
-                  {/* Tool Usage Display */}
-                  {msg.toolUsage && msg.toolUsage.length > 0 && (
-                    <ToolUsageDisplay toolUsage={msg.toolUsage} />
-                  )}
                 </div>
-              </div>
-              {msg.role === 'user' && (
-                <div className="flex-shrink-0">
-                  <div className="h-8 w-8 sm:h-8 sm:w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm sm:text-sm font-medium shadow-md">
-                    {getInitials()}
+              ) : (
+                // Assistant Message - Full width canvas-style
+                <div className="w-full">
+                  <div className="prose prose-lg dark:prose-invert max-w-none">
+                    {/* Images */}
+                    {msg.images && msg.images.length > 0 && (
+                      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {msg.images.map((img, idx) => (
+                          <img
+                            key={idx}
+                            src={img.url}
+                            alt="AI Response"
+                            className="rounded-xl max-w-full h-auto shadow-md"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Message Content - Rich Display */}
+                    <div className="assistant-content text-primary leading-relaxed">
+                      {renderAssistantContent(msg.content)}
+                      {msg.isStreaming && (
+                        <span className="inline-block w-3 h-6 bg-blue-500 animate-pulse ml-1 rounded-sm" />
+                      )}
+                    </div>
+                    
+                    {/* Tool Usage Display */}
+                    {msg.toolUsage && msg.toolUsage.length > 0 && (
+                      <div className="mt-4">
+                        <ToolUsageDisplay toolUsage={msg.toolUsage} />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -412,20 +561,16 @@ const ChatPage: React.FC = () => {
           ))}
           
           {isTyping && (
-            <div className="flex justify-start items-end space-x-2">
-              <div className="flex-shrink-0">
-                <img 
-                  src={dindinAvatar} 
-                  alt="DINDIN AI" 
-                  className="w-8 h-8 rounded-full shadow-md opacity-50"
-                />
-              </div>
-              <div className="card px-4 py-2 rounded-2xl rounded-bl-sm shadow-sm">
+            <div className="w-full animate-in slide-in-from-bottom-2 duration-300">
+              <div className="typing-indicator flex items-center space-x-3 py-4 px-6 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border-l-4 border-blue-400">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
                 </div>
+                <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                  DINDIN AI กำลังคิด...
+                </span>
               </div>
             </div>
           )}

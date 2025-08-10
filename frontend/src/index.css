@@ -723,3 +723,206 @@
   transform: translateY(20px);
   transition: opacity 300ms, transform 300ms;
 }
+
+/* Chat-specific styles */
+@layer components {
+  /* Message containers */
+  .message-container {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  .user-message {
+    animation: message-slide-in-right 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  
+  .assistant-message {
+    animation: message-fade-in 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  
+  /* Assistant content rich display */
+  .assistant-content {
+    @apply prose prose-slate dark:prose-invert max-w-none;
+  }
+  
+  .assistant-content h1 {
+    @apply text-3xl font-bold mb-6 mt-8 text-primary border-b border-border pb-3;
+    background: linear-gradient(135deg, rgb(var(--color-foreground)), rgb(var(--color-foreground-secondary)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .assistant-content h2 {
+    @apply text-2xl font-semibold mb-4 mt-6 text-primary;
+  }
+  
+  .assistant-content h3 {
+    @apply text-xl font-medium mb-3 mt-5 text-primary;
+  }
+  
+  .assistant-content p {
+    @apply mb-4 leading-relaxed text-base;
+  }
+  
+  .assistant-content ul, .assistant-content ol {
+    @apply mb-4 space-y-2;
+  }
+  
+  .assistant-content li {
+    @apply leading-relaxed;
+  }
+  
+  .assistant-content code {
+    @apply bg-secondary px-2 py-1 rounded-md text-sm font-mono border;
+  }
+  
+  .assistant-content pre {
+    @apply bg-card border border-border rounded-lg overflow-x-auto;
+  }
+  
+  .assistant-content pre code {
+    @apply bg-transparent border-none p-0;
+  }
+  
+  .assistant-content blockquote {
+    @apply border-l-4 border-blue-500 pl-4 italic bg-secondary/30 py-2 rounded-r-lg;
+  }
+  
+  .assistant-content table {
+    @apply w-full border-collapse border border-border rounded-lg overflow-hidden;
+  }
+  
+  .assistant-content th, .assistant-content td {
+    @apply border border-border px-3 py-2;
+  }
+  
+  .assistant-content th {
+    @apply bg-secondary font-semibold;
+  }
+  
+  /* User message bubble enhancements */
+  .user-message .message-bubble {
+    @apply relative;
+  }
+  
+  .user-message .message-bubble::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl rounded-br-md opacity-0 transition-opacity duration-300;
+    z-index: -1;
+  }
+  
+  .user-message .message-bubble:hover::before {
+    @apply opacity-10;
+  }
+  
+  /* Smooth typing indicator */
+  .typing-indicator {
+    animation: typing-pulse 1.5s ease-in-out infinite;
+  }
+  
+  /* Chat scroll area */
+  .chat-messages {
+    scroll-behavior: smooth;
+  }
+  
+  .chat-messages::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .chat-messages::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--color-border));
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+  
+  .chat-messages::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--color-border-hover));
+  }
+}
+
+/* Chat animations */
+@layer utilities {
+  @keyframes message-slide-in-right {
+    0% {
+      opacity: 0;
+      transform: translateX(50px) scale(0.95);
+    }
+    50% {
+      opacity: 0.7;
+      transform: translateX(0) scale(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+  
+  @keyframes message-fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes typing-pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.05);
+    }
+  }
+  
+  @keyframes message-highlight {
+    0% {
+      background-color: transparent;
+    }
+    50% {
+      background-color: rgb(var(--color-accent) / 0.1);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+  
+  .animate-message-highlight {
+    animation: message-highlight 1s ease-in-out;
+  }
+  
+  /* Enhanced message entrance animations */
+  .animate-message-entrance {
+    animation: message-entrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  @keyframes message-entrance {
+    0% {
+      opacity: 0;
+      transform: translateY(30px) scale(0.9);
+    }
+    70% {
+      opacity: 0.8;
+      transform: translateY(-5px) scale(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  /* Staggered animation delays for multiple messages */
+  .message-container:nth-child(1) { animation-delay: 0ms; }
+  .message-container:nth-child(2) { animation-delay: 100ms; }
+  .message-container:nth-child(3) { animation-delay: 200ms; }
+  .message-container:nth-child(4) { animation-delay: 300ms; }
+  .message-container:nth-child(5) { animation-delay: 400ms; }
+}
