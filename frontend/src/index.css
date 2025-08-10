@@ -613,7 +613,8 @@
   
   /* Modal header improvements */
   .modal-header {
-    @apply transition-all duration-200 ease-out border-b border-border p-6;
+    @apply transition-all duration-200 ease-out border-b p-6;
+    border-bottom-color: rgb(var(--color-border));
     background: linear-gradient(135deg, rgb(var(--color-modal)), rgb(var(--color-background-secondary)));
   }
   
@@ -622,7 +623,9 @@
   }
   
   .modal-footer {
-    @apply transition-all duration-200 ease-out border-t border-border p-6 bg-secondary;
+    @apply transition-all duration-200 ease-out border-t p-6;
+    background-color: rgb(var(--color-background-secondary));
+    border-top-color: rgb(var(--color-border));
   }
   
   /* Enhanced backdrop effects */
@@ -633,7 +636,7 @@
   
   /* Focus ring for modal elements */
   .modal-content:focus {
-    @apply outline-none ring-2 ring-blue-500 ring-opacity-50;
+    @apply outline-none ring-2 ring-blue-500/50;
   }
   
   /* Modal animations with spring effect */
@@ -741,11 +744,13 @@
   
   /* Assistant content rich display */
   .assistant-content {
-    @apply prose prose-slate dark:prose-invert max-w-none;
+    max-width: none;
   }
   
   .assistant-content h1 {
-    @apply text-3xl font-bold mb-6 mt-8 text-primary border-b border-border pb-3;
+    @apply text-3xl font-bold mb-6 mt-8 pb-3;
+    color: rgb(var(--color-foreground));
+    border-bottom: 1px solid rgb(var(--color-border));
     background: linear-gradient(135deg, rgb(var(--color-foreground)), rgb(var(--color-foreground-secondary)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -753,11 +758,13 @@
   }
   
   .assistant-content h2 {
-    @apply text-2xl font-semibold mb-4 mt-6 text-primary;
+    @apply text-2xl font-semibold mb-4 mt-6;
+    color: rgb(var(--color-foreground));
   }
   
   .assistant-content h3 {
-    @apply text-xl font-medium mb-3 mt-5 text-primary;
+    @apply text-xl font-medium mb-3 mt-5;
+    color: rgb(var(--color-foreground));
   }
   
   .assistant-content p {
@@ -773,11 +780,14 @@
   }
   
   .assistant-content code {
-    @apply bg-secondary px-2 py-1 rounded-md text-sm font-mono border;
+    @apply px-2 py-1 rounded-md text-sm font-mono border;
+    background-color: rgb(var(--color-background-secondary));
   }
   
   .assistant-content pre {
-    @apply bg-card border border-border rounded-lg overflow-x-auto;
+    @apply border rounded-lg overflow-x-auto;
+    background-color: rgb(var(--color-card));
+    border-color: rgb(var(--color-border));
   }
   
   .assistant-content pre code {
@@ -785,19 +795,23 @@
   }
   
   .assistant-content blockquote {
-    @apply border-l-4 border-blue-500 pl-4 italic bg-secondary/30 py-2 rounded-r-lg;
+    @apply border-l-4 border-blue-500 pl-4 italic py-2 rounded-r-lg;
+    background-color: color-mix(in oklab, rgb(var(--color-background-secondary)) 30%, transparent);
   }
   
   .assistant-content table {
-    @apply w-full border-collapse border border-border rounded-lg overflow-hidden;
+    @apply w-full border-collapse border rounded-lg overflow-hidden;
+    border-color: rgb(var(--color-border));
   }
   
   .assistant-content th, .assistant-content td {
-    @apply border border-border px-3 py-2;
+    @apply border px-3 py-2;
+    border-color: rgb(var(--color-border));
   }
   
   .assistant-content th {
-    @apply bg-secondary font-semibold;
+    @apply font-semibold;
+    background-color: rgb(var(--color-background-secondary));
   }
   
   /* User message bubble enhancements */

@@ -238,20 +238,20 @@ const AgentModal: React.FC<AgentModalProps> = ({
     >
       <form id="agent-form" onSubmit={handleSubmit}>
         <div className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-2">
-                  Agent Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="input"
-                  placeholder="e.g., Programming Assistant"
-                  value={formData.name || ''}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                />
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">
+                Agent Name *
+              </label>
+              <input
+                type="text"
+                required
+                className="input"
+                placeholder="e.g., Programming Assistant"
+                value={formData.name || ''}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+              />
               </div>
               
               <div>
@@ -508,7 +508,6 @@ const AgentModal: React.FC<AgentModalProps> = ({
               </div>
             </div>
           </div>
-        </div>
       </form>
     </EnhancedModal>
   );

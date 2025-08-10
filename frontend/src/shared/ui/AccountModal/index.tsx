@@ -200,201 +200,200 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
       footer={footer}
     >
       <div className="space-y-6">
-          {/* Profile Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
-              <FiUser className="h-5 w-5" />
-              <span>Profile</span>
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-2">Name</label>
-                <input
-                  type="text"
-                  value={localProfile.name || (user ? `${user.firstName} ${user.lastName}` : '') || ''}
-                  onChange={(e) => setLocalProfile({ ...localProfile, name: e.target.value })}
-                  className="input w-full"
-                  placeholder="Enter your name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-primary mb-2">Email</label>
-                <input
-                  type="email"
-                  value={localProfile.email || user?.email || ''}
-                  onChange={(e) => setLocalProfile({ ...localProfile, email: e.target.value })}
-                  className="input w-full"
-                  placeholder="Enter your email"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-primary mb-2">Department</label>
-                <input
-                  type="text"
-                  value={localProfile.department || (user?.department_id?.$oid || '') || ''}
-                  onChange={(e) => setLocalProfile({ ...localProfile, department: e.target.value })}
-                  className="input w-full"
-                  placeholder="Enter your department"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-primary mb-2">Avatar URL</label>
-                <input
-                  type="url"
-                  value={localProfile.avatar}
-                  onChange={(e) => setLocalProfile({ ...localProfile, avatar: e.target.value })}
-                  className="input w-full"
-                  placeholder="https://example.com/avatar.jpg"
-                />
-              </div>
+        {/* Profile Section */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
+            <FiUser className="h-5 w-5" />
+            <span>Profile</span>
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">Name</label>
+              <input
+                type="text"
+                value={localProfile.name || (user ? `${user.firstName} ${user.lastName}` : '') || ''}
+                onChange={(e) => setLocalProfile({ ...localProfile, name: e.target.value })}
+                className="input w-full"
+                placeholder="Enter your name"
+              />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-primary mb-2">Bio</label>
-              <textarea
-                value={localProfile.bio}
-                onChange={(e) => setLocalProfile({ ...localProfile, bio: e.target.value })}
-                rows={3}
+              <label className="block text-sm font-medium text-primary mb-2">Email</label>
+              <input
+                type="email"
+                value={localProfile.email || user?.email || ''}
+                onChange={(e) => setLocalProfile({ ...localProfile, email: e.target.value })}
                 className="input w-full"
-                placeholder="Tell us about yourself..."
+                placeholder="Enter your email"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">Department</label>
+              <input
+                type="text"
+                value={localProfile.department || (user?.department_id?.$oid || '') || ''}
+                onChange={(e) => setLocalProfile({ ...localProfile, department: e.target.value })}
+                className="input w-full"
+                placeholder="Enter your department"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">Avatar URL</label>
+              <input
+                type="url"
+                value={localProfile.avatar}
+                onChange={(e) => setLocalProfile({ ...localProfile, avatar: e.target.value })}
+                className="input w-full"
+                placeholder="https://example.com/avatar.jpg"
               />
             </div>
           </div>
-
-          {/* Privacy Settings */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
-              <FiShield className="h-5 w-5" />
-              <span>Privacy Settings</span>
-            </h3>
-            
-            <div className="space-y-4">
-              <label className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-medium text-primary">Share usage data</span>
-                  <p className="text-sm text-secondary">Help improve the service by sharing anonymous usage data</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={localPrivacy.shareData}
-                  onChange={(e) => setLocalPrivacy({ ...localPrivacy, shareData: e.target.checked })}
-                                        className="rounded border-border text-blue-600 focus:ring-blue-500"
-                />
-              </label>
-
-              <label className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-medium text-primary">Analytics</span>
-                  <p className="text-sm text-secondary">Allow analytics to improve your experience</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={localPrivacy.analytics}
-                  onChange={(e) => setLocalPrivacy({ ...localPrivacy, analytics: e.target.checked })}
-                                        className="rounded border-border text-blue-600 focus:ring-blue-500"
-                />
-              </label>
-
-              <label className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-medium text-primary">Marketing communications</span>
-                  <p className="text-sm text-secondary">Receive updates and marketing emails</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={localPrivacy.marketing}
-                  onChange={(e) => setLocalPrivacy({ ...localPrivacy, marketing: e.target.checked })}
-                                        className="rounded border-border text-blue-600 focus:ring-blue-500"
-                />
-              </label>
-            </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-primary mb-2">Bio</label>
+            <textarea
+              value={localProfile.bio}
+              onChange={(e) => setLocalProfile({ ...localProfile, bio: e.target.value })}
+              rows={3}
+              className="input w-full"
+              placeholder="Tell us about yourself..."
+            />
           </div>
+        </div>
 
-          {/* Account Actions */}
+        {/* Privacy Settings */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
+            <FiShield className="h-5 w-5" />
+            <span>Privacy Settings</span>
+          </h3>
+          
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
-              <FiKey className="h-5 w-5" />
-              <span>Account Actions</span>
-            </h3>
-            
-            <div className="space-y-3">
-              {!isChangingPassword ? (
-                <button
-                  onClick={() => setIsChangingPassword(true)}
-                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                >
-                  <FiKey className="h-4 w-4" />
-                  <span>Change Password</span>
-                </button>
-              ) : (
-                <div className="space-y-3 p-4 bg-secondary rounded-lg">
-                  <div>
-                    <label className="block text-sm font-medium text-primary mb-1">Current Password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                      className="input w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-primary mb-1">New Password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      className="input w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-primary mb-1">Confirm New Password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                      className="input w-full"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={handleChangePassword}
-                      className="px-3 py-1 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
-                    >
-                      Change Password
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsChangingPassword(false);
-                        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                      }}
-                      className="px-3 py-1 text-sm font-medium text-secondary hover:text-primary transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+            <label className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-primary">Share usage data</span>
+                <p className="text-sm text-secondary">Help improve the service by sharing anonymous usage data</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={localPrivacy.shareData}
+                onChange={(e) => setLocalPrivacy({ ...localPrivacy, shareData: e.target.checked })}
+                className="rounded border-border text-blue-600 focus:ring-blue-500"
+              />
+            </label>
+
+            <label className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-primary">Analytics</span>
+                <p className="text-sm text-secondary">Allow analytics to improve your experience</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={localPrivacy.analytics}
+                onChange={(e) => setLocalPrivacy({ ...localPrivacy, analytics: e.target.checked })}
+                className="rounded border-border text-blue-600 focus:ring-blue-500"
+              />
+            </label>
+
+            <label className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-primary">Marketing communications</span>
+                <p className="text-sm text-secondary">Receive updates and marketing emails</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={localPrivacy.marketing}
+                onChange={(e) => setLocalPrivacy({ ...localPrivacy, marketing: e.target.checked })}
+                className="rounded border-border text-blue-600 focus:ring-blue-500"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Account Actions */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
+            <FiKey className="h-5 w-5" />
+            <span>Account Actions</span>
+          </h3>
+          
+          <div className="space-y-3">
+            {!isChangingPassword ? (
+              <button
+                onClick={() => setIsChangingPassword(true)}
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+              >
+                <FiKey className="h-4 w-4" />
+                <span>Change Password</span>
+              </button>
+            ) : (
+              <div className="space-y-3 p-4 bg-secondary rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-primary mb-1">Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    className="input w-full"
+                  />
                 </div>
-              )}
-              
-              <button
-                onClick={handleDownloadData}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-green-600 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-              >
-                <FiDownload className="h-4 w-4" />
-                <span>Download My Data</span>
-              </button>
-              
-              <button
-                onClick={handleDeleteAccount}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-              >
-                <FiTrash2 className="h-4 w-4" />
-                <span>Delete Account</span>
-              </button>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary mb-1">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    className="input w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    className="input w-full"
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleChangePassword}
+                    className="px-3 py-1 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                  >
+                    Change Password
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsChangingPassword(false);
+                      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    }}
+                    className="px-3 py-1 text-sm font-medium text-secondary hover:text-primary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <button
+              onClick={handleDownloadData}
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-green-600 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+            >
+              <FiDownload className="h-4 w-4" />
+              <span>Download My Data</span>
+            </button>
+            
+            <button
+              onClick={handleDeleteAccount}
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+            >
+              <FiTrash2 className="h-4 w-4" />
+              <span>Delete Account</span>
+            </button>
           </div>
         </div>
       </div>
