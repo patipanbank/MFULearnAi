@@ -121,19 +121,23 @@
   }
   
   .success-card {
-    @apply bg-success-bg border-2 border-green-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
+    background-color: rgb(var(--color-success-bg));
+    @apply border-2 border-green-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
   }
   
   .warning-card {
-    @apply bg-warning-bg border-2 border-amber-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
+    background-color: rgb(var(--color-warning-bg));
+    @apply border-2 border-amber-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
   }
   
   .info-card {
-    @apply bg-info-bg border-2 border-blue-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
+    background-color: rgb(var(--color-info-bg));
+    @apply border-2 border-blue-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
   }
   
   .accent-card {
-    @apply bg-accent-bg border-2 border-purple-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
+    background-color: rgb(var(--color-accent-bg));
+    @apply border-2 border-purple-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
   }
   
   /* Vibrant button variants */
@@ -151,19 +155,19 @@
   }
   
   .vibrant-badge-blue {
-    @apply vibrant-badge border-blue-400 text-blue-700;
+    @apply px-3 py-1 bg-white border-2 rounded-full text-sm font-semibold shadow-sm border-blue-400 text-blue-700;
   }
   
   .vibrant-badge-green {
-    @apply vibrant-badge border-green-400 text-green-700;
+    @apply px-3 py-1 bg-white border-2 rounded-full text-sm font-semibold shadow-sm border-green-400 text-green-700;
   }
   
   .vibrant-badge-purple {
-    @apply vibrant-badge border-purple-400 text-purple-700;
+    @apply px-3 py-1 bg-white border-2 rounded-full text-sm font-semibold shadow-sm border-purple-400 text-purple-700;
   }
   
   .vibrant-badge-orange {
-    @apply vibrant-badge border-orange-400 text-orange-700;
+    @apply px-3 py-1 bg-white border-2 rounded-full text-sm font-semibold shadow-sm border-orange-400 text-orange-700;
   }
 
   /* Card components */
