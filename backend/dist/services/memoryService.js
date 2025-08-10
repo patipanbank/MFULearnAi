@@ -11,8 +11,37 @@ class MemoryService {
     async addRecentMessage(sessionId, message) {
         try {
             const key = `chat:recent:${sessionId}`;
+            const currentLen = await redis_1.redis.llen(key);
+            if (currentLen >= 10) {
+                const items = await redis_1.redis.lrange(key, 0, -1);
+                const parsed = items.map((item) => {
+                    try {
+                        return JSON.parse(item);
+                    }
+                    catch {
+                        return null;
+                    }
+                }).filter(Boolean);
+                const contents = parsed.map((m) => String(m?.content ?? '')).filter((c) => c.trim().length > 0);
+                if (contents.length > 0) {
+                    try {
+                        const embeddings = await embeddingService_1.embeddingService.embedBatch(contents);
+                        const ids = contents.map((c) => Buffer.from(c).toString('base64'));
+                        const metadatas = parsed.map((m) => ({
+                            role: m?.role || 'user',
+                            timestamp: new Date().toISOString(),
+                            sessionId
+                        }));
+                        await chromaService_1.chromaService.addToCollection(`chat_memory_${sessionId}`, contents, embeddings, metadatas, ids);
+                        console.log(`📦 Embedded batch of ${contents.length} messages and reset Redis window for ${sessionId}`);
+                    }
+                    catch (err) {
+                        console.warn('⚠️ Batch embedding failed, will keep Redis window intact:', err);
+                    }
+                }
+                await redis_1.redis.del(key);
+            }
             await redis_1.redis.rpush(key, JSON.stringify(message));
-            await redis_1.redis.ltrim(key, -10, -1);
         }
         catch (error) {
             console.error(`❌ Error adding recent message: ${error}`);
@@ -22,7 +51,14 @@ class MemoryService {
         try {
             const key = `chat:recent:${sessionId}`;
             const items = await redis_1.redis.lrange(key, 0, -1);
-            return items.map((item) => JSON.parse(item));
+            return items.map((item) => {
+                try {
+                    return JSON.parse(item);
+                }
+                catch {
+                    return null;
+                }
+            }).filter(Boolean);
         }
         catch (error) {
             console.error(`❌ Error getting recent messages: ${error}`);
@@ -142,29 +178,11 @@ class MemoryService {
         try {
             console.log(`🧠 Setting up hybrid memory for session ${sessionId}`);
             const recentMessages = messages.slice(-10);
-            if (recentMessages.length > 0) {
-                for (const msg of recentMessages) {
-                    await this.addRecentMessage(sessionId, msg);
-                }
-                console.log(`💾 Stored ${recentMessages.length} recent messages in Redis`);
+            await redis_1.redis.del(`chat:recent:${sessionId}`);
+            for (const msg of recentMessages) {
+                await this.addRecentMessage(sessionId, msg);
             }
-            const collectionName = `chat_memory_${sessionId}`;
-            const candidates = messages
-                .filter(m => typeof m?.content === 'string' && m.content.trim().length > 0)
-                .slice(-10);
-            if (candidates.length > 0) {
-                const prepared = await Promise.all(candidates.map(async (m) => {
-                    const id = Buffer.from(m.content).toString('base64');
-                    const exists = await chromaService_1.chromaService.documentExists(collectionName, id);
-                    return exists ? null : { id, content: m.content, metadata: { role: m.role, timestamp: new Date().toISOString(), sessionId } };
-                }));
-                const toInsert = prepared.filter(Boolean);
-                if (toInsert.length > 0) {
-                    const embeddings = await embeddingService_1.embeddingService.embedBatch(toInsert.map(i => i.content));
-                    await chromaService_1.chromaService.addToCollection(collectionName, toInsert.map(i => i.content), embeddings, toInsert.map(i => i.metadata), toInsert.map(i => i.id));
-                    console.log(`📚 Embedded ${toInsert.length} new messages to vectorstore`);
-                }
-            }
+            console.log(`💾 Redis window refreshed with ${recentMessages.length} messages`);
         }
         catch (error) {
             console.error(`❌ Error setting up hybrid memory: ${error}`);

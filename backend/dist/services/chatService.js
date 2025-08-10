@@ -131,10 +131,6 @@ class ChatService {
             if (shouldEmbedMessages && chat.messages.length > 0) {
                 console.log(`📚 Embedding messages for chat ${chatId} (message count: ${messageCount})`);
             }
-            if (shouldUseRedisMemory) {
-                console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
-                await memoryService_1.memoryService.setupHybridMemory(chatId, chat.messages);
-            }
             const defaultSystemPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
             const finalSystemPrompt = (config?.systemPrompt || defaultSystemPrompt);
             const signaturePayload = {
@@ -198,10 +194,6 @@ class ChatService {
             const useRedisMemory = this.shouldUseRedisMemory(currentMessageCount);
             const shouldEmbed = this.shouldEmbedMessages(currentMessageCount);
             console.log(`🧠 Memory Management: messageCount=${currentMessageCount}, useMemoryTool=${useMemoryTool}, useRedisMemory=${useRedisMemory}, shouldEmbed=${shouldEmbed}`);
-            if (useRedisMemory) {
-                console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
-                await memoryService_1.memoryService.setupHybridMemory(chatId, messages);
-            }
             console.log(`🤖 Starting agent.run with ${messages.length} messages`);
             console.log(`🤖 Last message: ${messages[messages.length - 1].content.substring(0, 50)}...`);
             let fullContent = '';
@@ -295,6 +287,16 @@ class ChatService {
                                     assistantMessageId = lastMessage.id;
                                 }
                             }
+                        }
+                        try {
+                            const updated = await chat_1.ChatModel.findById(chatId);
+                            if (updated) {
+                                console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
+                                await memoryService_1.memoryService.setupHybridMemory(chatId, updated.messages);
+                            }
+                        }
+                        catch (memErr) {
+                            console.warn('⚠️ Hybrid memory setup failed:', memErr);
                         }
                         if (event.data.inputTokens || event.data.outputTokens) {
                             inputTokens = event.data.inputTokens || 0;
@@ -413,6 +415,13 @@ class ChatService {
         const success = result.deletedCount > 0;
         if (success) {
             console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
+            try {
+                await memoryService_1.memoryService.clearAllMemory(chatId);
+                console.log(`🧹 Cleared memory for deleted chat ${chatId}`);
+            }
+            catch (err) {
+                console.warn(`⚠️ Failed to clear memory for deleted chat ${chatId}:`, err);
+            }
         }
         else {
             console.log(`❌ Failed to delete chat ${chatId} for user ${userId}`);

@@ -174,11 +174,7 @@ export class ChatService {
         // Embedding is now handled by hybrid memory management
       }
 
-      // 4. Setup hybrid memory management (เหมือน Legacy)
-      if (shouldUseRedisMemory) {
-        console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
-        await memoryService.setupHybridMemory(chatId, chat.messages);
-      }
+      // 4. Setup hybrid memory management: handled later once messages are finalized
 
       // 5-8. เตรียม/รีใช้ LLM + Tools + AgentExecutor จาก cache ตาม signature
       const defaultSystemPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
@@ -255,11 +251,7 @@ export class ChatService {
       
       console.log(`🧠 Memory Management: messageCount=${currentMessageCount}, useMemoryTool=${useMemoryTool}, useRedisMemory=${useRedisMemory}, shouldEmbed=${shouldEmbed}`);
       
-      // Setup hybrid memory management (เหมือน Legacy)
-      if (useRedisMemory) {
-        console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
-        await memoryService.setupHybridMemory(chatId, messages);
-      }
+      // จัดการ memory หลังจากได้ผลลัพธ์สุดท้าย เพื่อ embed เฉพาะข้อความใหม่จริงๆ
 
       // 10. เรียก agent.run พร้อม onEvent สำหรับ stream event
       console.log(`🤖 Starting agent.run with ${messages.length} messages`);
@@ -368,6 +360,17 @@ export class ChatService {
               }
             }
             
+            // จัดการ hybrid memory ณ จุดสิ้นสุด เพื่อ embed เฉพาะชุดล่าสุด
+            try {
+              const updated = await ChatModel.findById(chatId);
+              if (updated) {
+                console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
+                await memoryService.setupHybridMemory(chatId, updated.messages);
+              }
+            } catch (memErr) {
+              console.warn('⚠️ Hybrid memory setup failed:', memErr);
+            }
+
             // Update usage statistics
             if (event.data.inputTokens || event.data.outputTokens) {
               inputTokens = event.data.inputTokens || 0;
@@ -526,6 +529,13 @@ export class ChatService {
     
     if (success) {
       console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
+      // Also clear associated memory (Redis + Chroma vectorstore)
+      try {
+        await memoryService.clearAllMemory(chatId);
+        console.log(`🧹 Cleared memory for deleted chat ${chatId}`);
+      } catch (err) {
+        console.warn(`⚠️ Failed to clear memory for deleted chat ${chatId}:`, err);
+      }
     } else {
       console.log(`❌ Failed to delete chat ${chatId} for user ${userId}`);
     }

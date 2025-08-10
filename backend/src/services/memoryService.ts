@@ -11,8 +11,34 @@ export class MemoryService {
   async addRecentMessage(sessionId: string, message: any) {
     try {
       const key = `chat:recent:${sessionId}`;
+      const currentLen = await redis.llen(key);
+      if (currentLen >= 10) {
+        // Embed existing 10 messages as a batch then reset window
+        const items = await redis.lrange(key, 0, -1);
+        const parsed = items.map((item) => {
+          try { return JSON.parse(item); } catch { return null; }
+        }).filter(Boolean) as Array<{ content?: string; role?: string }>;
+
+        const contents = parsed.map((m) => String(m?.content ?? '')).filter((c) => c.trim().length > 0);
+        if (contents.length > 0) {
+          try {
+            const embeddings = await embeddingService.embedBatch(contents);
+            const ids = contents.map((c) => Buffer.from(c).toString('base64'));
+            const metadatas = parsed.map((m) => ({
+              role: m?.role || 'user',
+              timestamp: new Date().toISOString(),
+              sessionId
+            }));
+            await chromaService.addToCollection(`chat_memory_${sessionId}`,
+              contents, embeddings, metadatas, ids);
+            console.log(`📦 Embedded batch of ${contents.length} messages and reset Redis window for ${sessionId}`);
+          } catch (err) {
+            console.warn('⚠️ Batch embedding failed, will keep Redis window intact:', err);
+          }
+        }
+        await redis.del(key);
+      }
       await redis.rpush(key, JSON.stringify(message));
-      await redis.ltrim(key, -10, -1); // keep only last 10
     } catch (error) {
       console.error(`❌ Error adding recent message: ${error}`);
     }
@@ -22,7 +48,9 @@ export class MemoryService {
     try {
       const key = `chat:recent:${sessionId}`;
       const items = await redis.lrange(key, 0, -1);
-      return items.map((item) => JSON.parse(item));
+      return items.map((item) => {
+        try { return JSON.parse(item); } catch { return null; }
+      }).filter(Boolean) as any[];
     } catch (error) {
       console.error(`❌ Error getting recent messages: ${error}`);
       return [];
@@ -154,47 +182,18 @@ export class MemoryService {
     }
   }
 
-  // Hybrid memory management - incremental batch embed only for new messages
+  // Hybrid memory management - windowed: use Redis as primary, embed in batches of 10
   async setupHybridMemory(sessionId: string, messages: any[]) {
     try {
       console.log(`🧠 Setting up hybrid memory for session ${sessionId}`);
       
-      // 1. Redis memory for recent messages (last 10)
+      // Redis window is the primary store; just ensure the last up-to-10 messages are present
       const recentMessages = messages.slice(-10);
-      if (recentMessages.length > 0) {
-        for (const msg of recentMessages) {
-          await this.addRecentMessage(sessionId, msg);
-        }
-        console.log(`💾 Stored ${recentMessages.length} recent messages in Redis`);
+      await redis.del(`chat:recent:${sessionId}`);
+      for (const msg of recentMessages) {
+        await this.addRecentMessage(sessionId, msg);
       }
-      
-      // 2. Vectorstore memory: embed only new messages (incremental)
-      const collectionName = `chat_memory_${sessionId}`;
-      const candidates = messages
-        .filter(m => typeof m?.content === 'string' && m.content.trim().length > 0)
-        .slice(-10); // only recent batch to cap cost
-
-      if (candidates.length > 0) {
-        // Compute hashes and filter out existing by id
-        const prepared = await Promise.all(candidates.map(async (m) => {
-          const id = Buffer.from(m.content).toString('base64');
-          const exists = await chromaService.documentExists(collectionName, id);
-          return exists ? null : { id, content: m.content, metadata: { role: m.role, timestamp: new Date().toISOString(), sessionId } };
-        }));
-        const toInsert = prepared.filter(Boolean) as Array<{ id: string; content: string; metadata: any }>;
-        if (toInsert.length > 0) {
-          // Batch embed
-          const embeddings = await embeddingService.embedBatch(toInsert.map(i => i.content));
-          await chromaService.addToCollection(
-            collectionName,
-            toInsert.map(i => i.content),
-            embeddings,
-            toInsert.map(i => i.metadata),
-            toInsert.map(i => i.id)
-          );
-          console.log(`📚 Embedded ${toInsert.length} new messages to vectorstore`);
-        }
-      }
+      console.log(`💾 Redis window refreshed with ${recentMessages.length} messages`);
       
     } catch (error) {
       console.error(`❌ Error setting up hybrid memory: ${error}`);
