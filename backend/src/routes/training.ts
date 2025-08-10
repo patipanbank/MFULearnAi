@@ -203,14 +203,14 @@ router.get('/status', async (req: Request, res: Response) => {
   try {
     const queueStats = await queueService.getQueueStats();
     
-    res.json({
+    return res.json({
       status: 'running',
       message: 'Training service is available',
       queue: queueStats
     });
   } catch (error: any) {
     console.error('Training status error:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: error.message || 'Failed to get training status' 
     });
   }
@@ -231,7 +231,7 @@ router.get('/job/:jobId', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    res.json({
+    return res.json({
       jobId: jobProgress.jobId,
       fileName: jobProgress.fileName,
       status: jobProgress.status,
@@ -241,7 +241,7 @@ router.get('/job/:jobId', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Job status error:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: error.message || 'Failed to get job status' 
     });
   }
@@ -259,12 +259,12 @@ router.get('/jobs/user', async (req: Request, res: Response) => {
 
     const userJobs = queueService.getAllJobsForUser(userId);
     
-    res.json({
+    return res.json({
       jobs: userJobs
     });
   } catch (error: any) {
     console.error('User jobs error:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: error.message || 'Failed to get user jobs' 
     });
   }
