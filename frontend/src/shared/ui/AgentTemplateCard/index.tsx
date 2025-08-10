@@ -20,14 +20,14 @@ const AgentTemplateCard: React.FC<AgentTemplateCardProps> = ({
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      'Development': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      'Education': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      'Analytics': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      'Content': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      'Research': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
-      'Business': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+      'Development': 'bg-white border border-blue-500 text-blue-800 shadow-sm',
+      'Education': 'bg-white border border-green-500 text-green-800 shadow-sm',
+      'Analytics': 'bg-white border border-purple-500 text-purple-800 shadow-sm',
+      'Content': 'bg-white border border-orange-500 text-orange-800 shadow-sm',
+      'Research': 'bg-white border border-indigo-500 text-indigo-800 shadow-sm',
+      'Business': 'bg-white border border-emerald-500 text-emerald-800 shadow-sm'
     };
-    return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    return colors[category as keyof typeof colors] || 'bg-white border border-secondary text-secondary shadow-sm';
   };
 
   return (

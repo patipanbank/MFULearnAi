@@ -124,8 +124,8 @@ const KnowledgePage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <FiFolder className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 bg-white border border-blue-500 rounded-lg shadow-sm">
+              <FiFolder className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-3">
               <p className="text-sm text-secondary">Total Collections</p>
@@ -135,8 +135,8 @@ const KnowledgePage: React.FC = () => {
         </div>
         <div className="card p-4">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <FiFile className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="p-2 bg-white border border-green-500 rounded-lg shadow-sm">
+              <FiFile className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-3">
               <p className="text-sm text-secondary">Total Documents</p>
@@ -146,8 +146,8 @@ const KnowledgePage: React.FC = () => {
         </div>
         <div className="card p-4">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-              <FiDatabase className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            <div className="p-2 bg-white border border-purple-500 rounded-lg shadow-sm">
+              <FiDatabase className="h-6 w-6 text-purple-600" />
             </div>
             <div className="ml-3">
               <p className="text-sm text-secondary">Total Size</p>

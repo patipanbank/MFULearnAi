@@ -108,8 +108,8 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0">
-            <FiDatabase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="p-2 bg-white border border-blue-500 rounded-lg flex-shrink-0 shadow-sm">
+            <FiDatabase className="h-5 w-5 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className={`font-semibold text-primary truncate ${compact ? 'text-base' : 'text-lg'}`}>
