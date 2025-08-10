@@ -14,6 +14,7 @@ import {
 import { useLayoutStore, useUIStore, useChatStore } from '../../stores';
 import { cn, formatDate } from '../../lib/utils';
 import PreferencesModal from '../PreferencesModal';
+import ThemeToggle from '../ThemeToggle';
 
 // Add custom icon styles
 const iconBaseStyle = "transition-colors duration-200";
@@ -341,10 +342,20 @@ const Sidebar: React.FC = () => {
           )}
         </div>
 
-        {/* Settings Button - Fixed at Bottom */}
-        <div className="p-4 relative">
+        {/* Theme Toggle & Settings - Fixed at Bottom */}
+        <div className="p-4 relative space-y-3">
           {/* Subtle top divider */}
           <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
+          
+          {/* Theme Toggle */}
+          {showExpandedContent ? (
+            <ThemeToggle variant="compact" className="w-full" />
+          ) : (
+            <div className="flex justify-center">
+              <ThemeToggle variant="icon-only" />
+            </div>
+          )}
+          
           <div className="relative" ref={settingsRef}>
             <button
               onClick={() => toggleDropdown(settingsDropdownId)}

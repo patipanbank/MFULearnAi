@@ -4,6 +4,7 @@ import { FiMenu, FiUser } from 'react-icons/fi';
 import { useAuthStore, useUIStore, useLayoutStore, useChatStore } from '../../stores';
 import AgentSelector from '../AgentSelector';
 import UserProfile from '../UserProfile';
+import ThemeToggle from '../ThemeToggle';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -59,7 +60,10 @@ const Header: React.FC = () => {
       </div>
 
       {/* Right side - User controls */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-2">
+        {/* Theme Toggle */}
+        <ThemeToggle variant="icon-only" />
+        
         {/* User Profile */}
         {user ? (
           <UserProfile />

@@ -6,81 +6,81 @@
 /* Theme variables for comprehensive dark mode support */
 @layer base {
   :root {
-    /* Light theme colors */
-    --color-background: 248 250 252; /* slate-50 */
-    --color-background-secondary: 241 245 249; /* slate-100 */
-    --color-background-tertiary: 226 232 240; /* slate-200 */
-    --color-foreground: 15 23 42; /* slate-900 */
-    --color-foreground-secondary: 71 85 105; /* slate-600 */
-    --color-foreground-tertiary: 107 114 128;
+    /* Light theme colors - Enhanced with better contrast and modern palette */
+    --color-background: 250 251 252; /* Cool gray-50 */
+    --color-background-secondary: 243 244 246; /* Gray-100 */
+    --color-background-tertiary: 229 231 235; /* Gray-200 */
+    --color-foreground: 17 24 39; /* Gray-900 - Better contrast */
+    --color-foreground-secondary: 75 85 99; /* Gray-600 */
+    --color-foreground-tertiary: 107 114 128; /* Gray-500 */
     --color-card: 255 255 255;
-    --color-card-hover: 249 250 251;
-    --color-primary: 59 130 246;
+    --color-card-hover: 248 250 252;
+    --color-primary: 99 102 241; /* Indigo-500 - More sophisticated */
     --color-primary-foreground: 255 255 255;
-    --color-secondary: 241 245 249;
-    --color-secondary-foreground: 15 23 42;
-    --color-muted: 248 250 252; /* slate-50 */
-    --color-muted-foreground: 100 116 139; /* slate-500 */
-    --color-accent: 59 130 246; /* blue-500 */
+    --color-secondary: 243 244 246;
+    --color-secondary-foreground: 17 24 39;
+    --color-muted: 249 250 251; /* Gray-50 */
+    --color-muted-foreground: 107 114 128; /* Gray-500 */
+    --color-accent: 99 102 241; /* Indigo-500 */
     --color-accent-foreground: 255 255 255;
-    --color-destructive: 239 68 68; /* red-500 */
+    --color-destructive: 239 68 68; /* Red-500 */
     --color-destructive-foreground: 255 255 255;
-    --color-border: 203 213 225; /* slate-300 */
-    --color-border-secondary: 226 232 240; /* slate-200 */
-    --color-border-hover: 148 163 184; /* slate-400 */
-    --color-input: 255 255 255; /* white */
-    --color-input-placeholder: 156 163 175;
-    --color-ring: 59 130 246;
+    --color-border: 209 213 219; /* Gray-300 */
+    --color-border-secondary: 229 231 235; /* Gray-200 */
+    --color-border-hover: 156 163 175; /* Gray-400 */
+    --color-input: 255 255 255; /* White */
+    --color-input-placeholder: 156 163 175; /* Gray-400 */
+    --color-ring: 99 102 241; /* Indigo-500 */
     
     /* Component specific colors */
-    --color-sidebar: 241 245 249; /* slate-100 - slightly darker for subtle contrast */
-    --color-header: 248 250 252; /* slate-50 - same as main background */
-    --color-dropdown: 255 255 255; /* white */
-    --color-modal: 255 255 255; /* white */
-    --color-toast-success: 34 197 94; /* green-500 */
-    --color-toast-error: 239 68 68; /* red-500 */
-    --color-toast-warning: 245 158 11; /* amber-500 */
-    --color-toast-info: 59 130 246; /* blue-500 */
-    --color-popover: 255 255 255; /* white */
+    --color-sidebar: 249 250 251; /* Gray-50 */
+    --color-header: 255 255 255; /* White for better definition */
+    --color-dropdown: 255 255 255; /* White */
+    --color-modal: 255 255 255; /* White */
+    --color-toast-success: 34 197 94; /* Emerald-500 */
+    --color-toast-error: 239 68 68; /* Red-500 */
+    --color-toast-warning: 245 158 11; /* Amber-500 */
+    --color-toast-info: 99 102 241; /* Indigo-500 */
+    --color-popover: 255 255 255; /* White */
   }
   
   .dark {
-    /* Dark theme colors */
-    --color-background: 2 6 23; /* slate-950 */
-    --color-background-secondary: 15 23 42; /* slate-900 */
-    --color-background-tertiary: 30 41 59; /* slate-800 */
-    --color-foreground: 248 250 252; /* slate-50 */
-    --color-foreground-secondary: 203 213 225; /* slate-300 */
-    --color-foreground-tertiary: 148 163 184;
-    --color-card: 15 23 42; /* slate-900 */
-    --color-card-hover: 51 65 85;
-    --color-primary: 59 130 246;
+    /* Dark theme colors - Enhanced with better contrast and warm undertones */
+    --color-background: 13 13 18; /* Warm black - zinc-950 with blue tint */
+    --color-background-secondary: 24 24 27; /* Zinc-900 */
+    --color-background-tertiary: 39 39 42; /* Zinc-800 */
+    --color-foreground: 250 250 250; /* Neutral-50 */
+    --color-foreground-secondary: 212 212 216; /* Neutral-300 */
+    --color-foreground-tertiary: 163 163 163; /* Neutral-400 */
+    --color-card: 24 24 27; /* Zinc-900 */
+    --color-card-hover: 39 39 42; /* Zinc-800 */
+    --color-primary: 129 140 248; /* Indigo-400 - Better contrast in dark */
     --color-primary-foreground: 255 255 255;
-    --color-secondary: 30 41 59;
-    --color-secondary-foreground: 248 250 252;
-    --color-muted: 15 23 42; /* slate-900 */
-    --color-muted-foreground: 148 163 184; /* slate-400 */
-    --color-accent: 59 130 246; /* blue-500 */
-    --color-accent-foreground: 248 250 252;
-    --color-destructive: 239 68 68; /* red-500 */
+    --color-secondary: 39 39 42; /* Zinc-800 */
+    --color-secondary-foreground: 250 250 250;
+    --color-muted: 24 24 27; /* Zinc-900 */
+    --color-muted-foreground: 163 163 163; /* Neutral-400 */
+    --color-accent: 129 140 248; /* Indigo-400 */
+    --color-accent-foreground: 250 250 250;
+    --color-destructive: 248 113 113; /* Red-400 */
     --color-destructive-foreground: 255 255 255;
-    --color-border: 51 65 85; /* slate-700 */
-    --color-border-secondary: 30 41 59; /* slate-800 */
-    --color-border-hover: 71 85 105; /* slate-600 */
-    --color-input: 15 23 42; /* slate-900 */
-    --color-input-placeholder: 100 116 139;
-    --color-ring: 59 130 246;
+    --color-border: 63 63 70; /* Zinc-700 */
+    --color-border-secondary: 39 39 42; /* Zinc-800 */
+    --color-border-hover: 82 82 91; /* Zinc-600 */
+    --color-input: 24 24 27; /* Zinc-900 */
+    --color-input-placeholder: 115 115 115; /* Neutral-500 */
+    --color-ring: 129 140 248; /* Indigo-400 */
     
     /* Component specific colors */
-    --color-sidebar: 30 41 59; /* slate-800 - lighter tone for better contrast */
-    --color-header: 2 6 23; /* slate-950 - same as main background */
-    --color-dropdown: 15 23 42; /* slate-900 */
-    --color-modal: 15 23 42; /* slate-900 */
-    --color-toast-success: 34 197 94; /* green-500 */
-    --color-toast-error: 239 68 68; /* red-500 */
-    --color-toast-warning: 245 158 11; /* amber-500 */
-    --color-toast-info: 59 130 246; /* blue-500 */
-    --color-popover: 15 23 42; /* slate-900 */
+    --color-sidebar: 20 20 23; /* Slightly lighter than background */
+    --color-header: 13 13 18; /* Same as background for seamless look */
+    --color-dropdown: 24 24 27; /* Zinc-900 */
+    --color-modal: 24 24 27; /* Zinc-900 */
+    --color-toast-success: 74 222 128; /* Emerald-400 */
+    --color-toast-error: 248 113 113; /* Red-400 */
+    --color-toast-warning: 251 191 36; /* Amber-400 */
+    --color-toast-info: 129 140 248; /* Indigo-400 */
+    --color-popover: 24 24 27; /* Zinc-900 */
   }
   
   /* Apply theme colors to body */

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiSave, FiMoon, FiSun, FiMessageSquare } from 'react-icons/fi';
+import { FiX, FiSave, FiSun, FiMessageSquare } from 'react-icons/fi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUIStore } from '../../stores/uiStore';
 import { cn } from '../../lib/utils';
+import ThemeToggle from '../ThemeToggle';
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -53,12 +54,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen, handleKeyDown]);
 
-  const handleThemeChange = (theme: 'light' | 'dark') => {
-    const newPreferences = { ...localPreferences, theme };
-    setLocalPreferences(newPreferences);
-    applyTheme(theme);
-  };
-
   const handleSave = async () => {
     try {
       setPreferences(localPreferences);
@@ -93,11 +88,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
 
   if (!isOpen) return null;
 
-  const themes = [
-    { value: 'light', label: 'Light', icon: FiSun, description: 'Light theme' },
-    { value: 'dark', label: 'Dark', icon: FiMoon, description: 'Dark theme' }
-  ];
-
   return (
     <div 
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center md:p-4"
@@ -131,26 +121,11 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               <span>Appearance</span>
             </h3>
             
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-primary mb-3">Theme</label>
-              <div className="grid grid-cols-2 gap-3">
-                {themes.map(({ value, label, icon: Icon, description }) => (
-                  <button
-                    key={value}
-                    onClick={() => handleThemeChange(value as any)}
-                    className={`p-3 rounded-lg border text-center transition-colors ${
-                      localPreferences.theme === value
-                        ? 'btn-primary'
-                        : 'card card-hover'
-                    }`}
-                  >
-                    <Icon className="h-6 w-6 mx-auto mb-2" />
-                    <div className="text-sm font-medium">{label}</div>
-                    <span className="text-xs text-muted">{description}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <ThemeToggle 
+              variant="default"
+              showLabel={false}
+              className="mt-4"
+            />
           </div>
 
           {/* General Settings */}
