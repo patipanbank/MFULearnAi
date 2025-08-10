@@ -25,7 +25,7 @@ export interface UseUploadProgressReturn {
 
 export const useUploadProgress = (): UseUploadProgressReturn => {
   const [uploads, setUploads] = useState<Map<string, UploadProgressState>>(new Map());
-  const { isConnected } = useWebSocket();
+  const { isConnected } = useWebSocket({ chatId: undefined, isInChatRoom: false });
   const { addNotification } = useUIStore();
 
   // Check if any uploads are in progress

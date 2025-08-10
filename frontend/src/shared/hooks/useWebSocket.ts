@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useRef, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, useChatStore, useUIStore } from '../stores';
 import type { ChatMessage } from '../stores/chatStore';
@@ -26,6 +26,9 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const chatHistory = useChatStore((state) => state.chatHistory);
   
   const addToast = useUIStore((state) => state.addToast);
+  
+  // Add connection state tracking
+  const [isConnected, setIsConnected] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const currentSessionRef = useRef<typeof currentSession>(null);
@@ -184,6 +187,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     ws.onopen = () => {
       console.log('WebSocket connected');
       setWsStatus('connected');
+      setIsConnected(true);
       setIsConnectedToRoom(false); // จะถูก set เป็น true เมื่อ join room สำเร็จ
       
       if (isInChatRoom && chatId) {
@@ -421,6 +425,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     ws.onclose = (event) => {
       console.log('WebSocket closed', event.code, event.reason);
       setWsStatus('disconnected');
+      setIsConnected(false);
       setIsConnectedToRoom(false); // Reset connection state
       
       if (event.code === 1000) {
@@ -483,6 +488,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     abortStreaming,
     isTokenExpired,
     tryRefreshToken,
-    sendMessage
+    sendMessage,
+    isConnected
   };
 }; 

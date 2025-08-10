@@ -94,7 +94,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
           }
         });
 
-        const responseData = response.data;
+        const responseData = (response as any).data;
 
         if (responseData.queued) {
           // ไฟล์ถูกส่งไป queue แล้ว
