@@ -22,7 +22,7 @@ const LoginPage: React.FC = () => {
             <div className="mx-auto h-16 w-16 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
               <FiMessageCircle className="h-8 w-8 text-white" />
             </div>
-            <h2 className="text-4xl font-bold text-gray-900 mb-2">
+            <h2 className="text-4xl font-bold text-primary mb-2">
               Welcome to <span style={{ 
                 background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
                 WebkitBackgroundClip: 'text',
@@ -35,35 +35,35 @@ const LoginPage: React.FC = () => {
                 backgroundClip: 'text'
               }}>AI</span>
             </h2>
-            <p className="text-lg text-gray-600 mb-2">
+            <p className="text-lg text-secondary mb-2">
               Your 24/7 AI Assistant
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Mae Fah Luang University
             </p>
           </div>
 
           {/* Features */}
           <div className="grid grid-cols-2 gap-4 my-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-blue-200">
               <FiBookOpen className="h-6 w-6 text-blue-600 mb-2" />
-              <p className="text-sm font-medium text-gray-900">Academic Support</p>
-              <p className="text-xs text-gray-600">Get help with courses</p>
+              <p className="text-sm font-medium text-primary">Academic Support</p>
+              <p className="text-xs text-secondary">Get help with courses</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-cyan-200">
               <FiZap className="h-6 w-6 text-cyan-600 mb-2" />
-              <p className="text-sm font-medium text-gray-900">Instant Answers</p>
-              <p className="text-xs text-gray-600">Quick responses</p>
+              <p className="text-sm font-medium text-primary">Instant Answers</p>
+              <p className="text-xs text-secondary">Quick responses</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-green-200">
               <FiGlobe className="h-6 w-6 text-green-600 mb-2" />
-              <p className="text-sm font-medium text-gray-900">Campus Info</p>
-              <p className="text-xs text-gray-600">University resources</p>
+              <p className="text-sm font-medium text-primary">Campus Info</p>
+              <p className="text-xs text-secondary">University resources</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-purple-200">
               <FiMessageCircle className="h-6 w-6 text-purple-600 mb-2" />
-              <p className="text-sm font-medium text-gray-900">Smart Chat</p>
-              <p className="text-xs text-gray-600">AI-powered conversations</p>
+              <p className="text-sm font-medium text-primary">Smart Chat</p>
+              <p className="text-xs text-secondary">AI-powered conversations</p>
             </div>
           </div>
 
@@ -82,7 +82,7 @@ const LoginPage: React.FC = () => {
             <div className="text-center">
               <button 
                 onClick={handleAdminLogin}
-                className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-500 hover:text-blue-600 transition-colors duration-200 underline underline-offset-2"
+                className="inline-flex items-center px-3 py-1 text-xs font-medium text-muted-foreground hover:text-blue-600 transition-colors duration-200 underline underline-offset-2"
               >
                 Administrator Login
               </button>
@@ -91,7 +91,7 @@ const LoginPage: React.FC = () => {
 
           {/* Footer */}
           <div className="text-center pt-4">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               By logging in, you agree to our terms of service and privacy policy
             </p>
           </div>

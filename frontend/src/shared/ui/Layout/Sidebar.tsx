@@ -344,7 +344,7 @@ const Sidebar: React.FC = () => {
         {/* Settings - Fixed at Bottom */}
         <div className="p-4 relative">
           {/* Subtle top divider */}
-          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
+          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-sky-200 dark:via-gray-700 to-transparent"></div>
           
           <div className="relative" ref={settingsRef}>
             <button
