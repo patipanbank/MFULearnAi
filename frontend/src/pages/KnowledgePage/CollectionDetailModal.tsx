@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { FiUpload, FiX, FiSearch, FiEye, FiTrash2, FiFile, FiFileText, FiImage, FiGrid } from 'react-icons/fi';
+import { FiUpload, FiSearch, FiEye, FiTrash2, FiFile, FiFileText, FiImage, FiGrid } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
 import type { Collection } from '../../shared/types';
+import EnhancedModal from '../../shared/ui/EnhancedModal';
 
 interface CollectionDocument {
   id: string;
@@ -194,21 +195,20 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     return text.substring(0, maxLength) + '...';
   };
 
-  if (!isOpen || !collection) return null;
+  if (!collection) return null;
 
   return (
-    <div className="modal-overlay flex items-center justify-center z-40">
-      <div className="modal-content w-full max-w-6xl bg-primary p-6 rounded-xl relative shadow-xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Close */}
-        <button className="absolute top-4 right-4 btn-ghost p-1" onClick={onClose}>
-          <FiX className="h-5 w-5" />
-        </button>
-
-        {/* Header */}
-        <h2 className="text-2xl font-semibold text-primary mb-1 flex items-center">
-          {collection.name}
-        </h2>
-        <p className="text-secondary mb-6">Manage documents and settings for this collection</p>
+    <EnhancedModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={collection.name}
+      subtitle="Manage documents and settings for this collection"
+      size="xl"
+      animationType="scale"
+      enhanced={true}
+      className="max-h-[90vh] overflow-hidden flex flex-col"
+    >
+      <div className="flex flex-col h-full space-y-6">
 
         {/* Upload Section */}
         <div className="border-2 border-dashed border-border rounded-lg p-6 mb-6">
@@ -362,7 +362,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
           </div>
         </div>
       </div>
-    </div>
+    </EnhancedModal>
   );
 };
 

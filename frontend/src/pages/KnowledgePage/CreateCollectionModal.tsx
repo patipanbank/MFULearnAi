@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { FiX } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
 import type { Collection } from '../../shared/types';
+import EnhancedModal from '../../shared/ui/EnhancedModal';
 
 interface CreateCollectionModalProps {
   isOpen: boolean;
@@ -15,8 +15,6 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
   const [permission, setPermission] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToast } = useUIStore();
-
-  if (!isOpen) return null;
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -97,46 +95,57 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
     }
   };
 
-  return (
-    <div className="modal-overlay flex items-center justify-center z-40">
-      <div className="modal-content w-full max-w-md bg-primary p-6 rounded-xl relative shadow-xl">
-        {/* Close button */}
-        <button className="absolute top-4 right-4 btn-ghost p-1" onClick={onClose}>
-          <FiX className="h-5 w-5" />
-        </button>
-        <h2 className="text-2xl font-semibold text-primary mb-1">Create New Collection</h2>
-        <p className="text-secondary mb-6">Create a new collection to organize your training documents.</p>
-
-        <label className="block text-sm font-medium text-primary mb-2">Collection Name</label>
-        <input
-          type="text"
-          className="input w-full mb-4"
-          placeholder="Enter collection name (3-100 characters, letters, numbers, spaces, - _)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-
-        <label className="block text-sm font-medium text-primary mb-2">Permission</label>
-        <select
-          className="input w-full mb-6"
-          value={permission}
-          onChange={(e) => setPermission(e.target.value as 'PUBLIC' | 'PRIVATE')}
-        >
-          <option value="PRIVATE">Private - Only you can access</option>
-          <option value="PUBLIC">Public - Anyone can access</option>
-        </select>
-
-        <button
-          onClick={handleSubmit}
-          className="btn-primary w-full mb-3 disabled:opacity-50"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? 'Creating...' : 'Create Collection'}
-        </button>
-
-        <button onClick={onClose} className="btn-ghost w-full">Cancel</button>
-      </div>
+  const footer = (
+    <div className="flex items-center justify-end space-x-3">
+      <button onClick={onClose} className="btn-ghost">
+        Cancel
+      </button>
+      <button
+        onClick={handleSubmit}
+        className="btn-primary disabled:opacity-50"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? 'Creating...' : 'Create Collection'}
+      </button>
     </div>
+  );
+
+  return (
+    <EnhancedModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Create New Collection"
+      subtitle="Create a new collection to organize your training documents"
+      size="sm"
+      animationType="spring"
+      enhanced={true}
+      footer={footer}
+    >
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-primary mb-2">Collection Name</label>
+          <input
+            type="text"
+            className="input w-full"
+            placeholder="Enter collection name (3-100 characters, letters, numbers, spaces, - _)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-primary mb-2">Permission</label>
+          <select
+            className="input w-full"
+            value={permission}
+            onChange={(e) => setPermission(e.target.value as 'PUBLIC' | 'PRIVATE')}
+          >
+            <option value="PRIVATE">Private - Only you can access</option>
+            <option value="PUBLIC">Public - Anyone can access</option>
+          </select>
+        </div>
+      </div>
+    </EnhancedModal>
   );
 };
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { FiX, FiDownload, FiUpload, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { FiDownload, FiUpload, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 import { useSettingsStore, useUIStore } from '../../stores';
-import useLayoutStore from '../../stores/layoutStore';
+import EnhancedModal from '../EnhancedModal';
 
 interface AdvancedModalProps {
   isOpen: boolean;
@@ -15,26 +15,8 @@ const AdvancedModal: React.FC<AdvancedModalProps> = ({ isOpen, onClose }) => {
   
   const { exportSettings, importSettings, resetSettings } = useSettingsStore();
   const { addToast } = useUIStore();
-  const { isMobile } = useLayoutStore();
   
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-  
-  const handleKeyDown = React.useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  }, [onClose]);
-  
-  React.useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, handleKeyDown]);
+
 
   const handleExportData = async () => {
     setIsExporting(true);
@@ -143,32 +125,29 @@ const AdvancedModal: React.FC<AdvancedModalProps> = ({ isOpen, onClose }) => {
     }
   };
   
-  if (!isOpen) return null;
-  
+  const footer = (
+    <div className="flex justify-end">
+      <button
+        onClick={onClose}
+        className="btn-ghost"
+      >
+        Close
+      </button>
+    </div>
+  );
+
   return (
-    <div 
-      className="modal-overlay"
-      onClick={handleBackdropClick}
+    <EnhancedModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Advanced Settings"
+      subtitle="Import, export, and manage your data"
+      size="lg"
+      animationType="scale"
+      enhanced={true}
+      footer={footer}
     >
-      <div className={`modal-content max-w-2xl w-full max-h-[90vh] overflow-hidden ${isMobile ? 'animate-slide-up-from-bottom' : ''}`}>
-        {/* Header */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-primary">Advanced Settings</h2>
-              <p className="text-sm text-secondary mt-1">Import, export, and manage your data</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="btn-ghost p-2"
-            >
-              <FiX className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-        
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] space-y-6">
+      <div className="space-y-6">
           {/* Data Management */}
           <div>
             <h3 className="text-lg font-medium text-primary mb-4">Data Management</h3>
@@ -295,20 +274,7 @@ const AdvancedModal: React.FC<AdvancedModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
         </div>
-        
-        {/* Footer */}
-        <div className="p-6 border-t border-border bg-tertiary">
-          <div className="flex justify-end">
-            <button
-              onClick={onClose}
-              className="btn-ghost"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </EnhancedModal>
   );
 };
 
