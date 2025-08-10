@@ -27,6 +27,7 @@ export declare class ChromaService {
         total: number;
     }>;
     deleteDocuments(collectionName: string, documentIds: string[]): Promise<void>;
+    documentExists(collectionName: string, id: string): Promise<boolean>;
     deleteDocumentsBySource(collectionName: string, sourceName: string): Promise<void>;
     getAllFromCollection(collectionName: string): Promise<Array<{
         document: string | null;

@@ -271,7 +271,7 @@ export class ChatService {
       let assistantMessageId: string | null = null;
 
       await agent.run(messages, {
-        onEvent: async (event) => {
+        onEvent: async (event: { type: string; data?: any }) => {
           console.log(`🤖 Agent event: ${event.type}`, event.data);
           if (event.type === 'chunk') {
             fullContent += event.data;

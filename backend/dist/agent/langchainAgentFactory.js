@@ -35,9 +35,6 @@ async function createLangChainAgent(config) {
             const onEvent = options?.onEvent;
             const maxSteps = options?.maxSteps ?? 5;
             try {
-                if (config.sessionId) {
-                    await setupHybridMemory(config.sessionId, messages);
-                }
                 const langchainMessages = convertMessagesToLangChain(messages, config.systemPrompt);
                 let contentReceived = false;
                 let finalAnswer = '';

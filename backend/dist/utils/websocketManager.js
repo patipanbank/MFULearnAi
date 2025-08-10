@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.wsManager = exports.WebSocketManager = void 0;
-const redis_1 = require("redis");
+const redis_1 = require("../lib/redis");
 const events_1 = require("events");
 class WebSocketManager extends events_1.EventEmitter {
     constructor() {
@@ -13,13 +13,9 @@ class WebSocketManager extends events_1.EventEmitter {
     }
     async initializeRedis() {
         try {
-            this.redisClient = (0, redis_1.createClient)({
-                url: process.env.REDIS_URL || 'redis://localhost:6379'
-            });
-            this.redisSubscriber = this.redisClient.duplicate();
-            await this.redisClient.connect();
-            await this.redisSubscriber.connect();
-            await this.redisSubscriber.pSubscribe('chat:*', (message, channel) => {
+            this.redisClient = redis_1.redis;
+            this.redisSubscriber = redis_1.redis.duplicate();
+            await this.redisSubscriber.psubscribe('chat:*', (message, channel) => {
                 const sessionId = channel.replace('chat:', '');
                 this.broadcastToSession(sessionId, message);
             });
@@ -155,9 +151,6 @@ class WebSocketManager extends events_1.EventEmitter {
             return;
         }
         this.redisClient.publish(channel, message)
-            .then(() => {
-            console.log(`📨 Published to Redis channel: ${channel}`);
-        })
             .catch((error) => {
             console.error(`❌ Failed to publish to Redis:`, error);
         });

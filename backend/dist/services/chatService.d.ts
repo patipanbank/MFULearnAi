@@ -1,6 +1,7 @@
 import { Chat, ChatMessage } from '../models/chat';
 export declare class ChatService {
     constructor();
+    private agentCache;
     createChat(userId: string, name: string, agentId?: string): Promise<Chat>;
     getChat(chatId: string, userId: string): Promise<Chat | null>;
     addMessage(chatId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage>;

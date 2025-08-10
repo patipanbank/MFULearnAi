@@ -7,11 +7,11 @@ const agentService_1 = require("./agentService");
 const usageService_1 = require("./usageService");
 const llmFactory_1 = require("../agent/llmFactory");
 const toolRegistry_1 = require("../agent/toolRegistry");
-const promptFactory_1 = require("../agent/promptFactory");
 const agentFactory_1 = require("../agent/agentFactory");
 const memoryService_1 = require("./memoryService");
 class ChatService {
     constructor() {
+        this.agentCache = new Map();
         console.log('✅ Chat service initialized');
     }
     async createChat(userId, name, agentId) {
@@ -135,34 +135,51 @@ class ChatService {
                 console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
                 await memoryService_1.memoryService.setupHybridMemory(chatId, chat.messages);
             }
-            console.log(`🤖 Creating LLM instance with model ${config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0'}`);
-            const llm = (0, llmFactory_1.getLLM)(config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0', {
-                temperature: config?.temperature,
-                maxTokens: config?.maxTokens,
-                streaming: true
-            });
-            const sessionTools = (0, toolRegistry_1.createMemoryTool)(chatId);
-            const allTools = {};
-            for (const [k, v] of Object.entries(toolRegistry_1.toolRegistry))
-                allTools[k] = v.func;
-            for (const [k, v] of Object.entries(sessionTools))
-                allTools[k] = v.func;
-            if (config?.collectionNames && config.collectionNames.length > 0) {
-                const retrievalTools = (0, toolRegistry_1.createRetrievalTools)(config.collectionNames);
-                for (const [name, tool] of Object.entries(retrievalTools)) {
-                    allTools[name] = tool.func;
-                    console.log(`🔧 Added retrieval tool: ${name}`);
-                }
-            }
             const defaultSystemPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
-            const finalSystemPrompt = config?.systemPrompt || defaultSystemPrompt;
-            const promptTemplate = (0, promptFactory_1.createPromptTemplate)(finalSystemPrompt, true);
-            const agent = await (0, agentFactory_1.createAgent)(llm, allTools, finalSystemPrompt, {
-                modelId: config?.modelId || undefined,
-                sessionId: chatId,
-                temperature: config?.temperature,
-                maxTokens: config?.maxTokens
-            });
+            const finalSystemPrompt = (config?.systemPrompt || defaultSystemPrompt);
+            const signaturePayload = {
+                modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                temperature: config?.temperature ?? 0.7,
+                maxTokens: config?.maxTokens ?? 4000,
+                systemPrompt: finalSystemPrompt,
+                collections: (config?.collectionNames || []).slice().sort(),
+                agentId: config?.agentId || null
+            };
+            const signature = JSON.stringify(signaturePayload);
+            let cached = this.agentCache.get(chatId);
+            let agent;
+            if (cached && cached.signature === signature) {
+                console.log(`⚡ Reusing cached agent for chat ${chatId}`);
+                agent = cached.executor;
+            }
+            else {
+                console.log(`🤖 Creating LLM/Agent for chat ${chatId}`);
+                const llm = (0, llmFactory_1.getLLM)(signaturePayload.modelId, {
+                    temperature: signaturePayload.temperature,
+                    maxTokens: signaturePayload.maxTokens,
+                    streaming: true
+                });
+                const sessionTools = (0, toolRegistry_1.createMemoryTool)(chatId);
+                const allTools = {};
+                for (const [k, v] of Object.entries(toolRegistry_1.toolRegistry))
+                    allTools[k] = v.func;
+                for (const [k, v] of Object.entries(sessionTools))
+                    allTools[k] = v.func;
+                if (signaturePayload.collections && signaturePayload.collections.length > 0) {
+                    const retrievalTools = (0, toolRegistry_1.createRetrievalTools)(signaturePayload.collections);
+                    for (const [name, tool] of Object.entries(retrievalTools)) {
+                        allTools[name] = tool.func;
+                        console.log(`🔧 Added retrieval tool: ${name}`);
+                    }
+                }
+                agent = await (0, agentFactory_1.createAgent)(llm, allTools, finalSystemPrompt, {
+                    modelId: signaturePayload.modelId,
+                    sessionId: chatId,
+                    temperature: signaturePayload.temperature,
+                    maxTokens: signaturePayload.maxTokens
+                });
+                this.agentCache.set(chatId, { signature, executor: agent });
+            }
             const chatFromDb = await chat_1.ChatModel.findById(chatId);
             if (!chatFromDb)
                 throw new Error(`Chat session ${chatId} not found during AI processing`);
@@ -190,6 +207,7 @@ class ChatService {
             let fullContent = '';
             let inputTokens = 0;
             let outputTokens = 0;
+            let assistantMessageId = null;
             await agent.run(messages, {
                 onEvent: async (event) => {
                     console.log(`🤖 Agent event: ${event.type}`, event.data);
@@ -201,6 +219,7 @@ class ChatService {
                                 role: 'assistant',
                                 content: '',
                             });
+                            assistantMessageId = assistantMessage.id;
                             if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
                                 websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
                                     type: 'assistant_created',
@@ -212,7 +231,13 @@ class ChatService {
                             }
                         }
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'chunk', data: event.data }));
+                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                type: 'chunk',
+                                data: {
+                                    messageId: assistantMessageId,
+                                    delta: event.data
+                                }
+                            }));
                         }
                     }
                     else if (event.type === 'tool_start') {
@@ -266,6 +291,9 @@ class ChatService {
                                     }
                                 });
                                 console.log(`🤖 Updated assistant message ${lastMessage.id} with final content`);
+                                if (!assistantMessageId) {
+                                    assistantMessageId = lastMessage.id;
+                                }
                             }
                         }
                         if (event.data.inputTokens || event.data.outputTokens) {
@@ -279,6 +307,7 @@ class ChatService {
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
                                 type: 'end',
                                 data: {
+                                    messageId: assistantMessageId,
                                     answer: event.data.answer,
                                     inputTokens,
                                     outputTokens

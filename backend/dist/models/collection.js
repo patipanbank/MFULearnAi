@@ -60,5 +60,8 @@ collectionSchema.set('toJSON', {
         return ret;
     }
 });
+collectionSchema.index({ permission: 1 });
+collectionSchema.index({ department: 1 });
+collectionSchema.index({ createdBy: 1 });
 exports.Collection = mongoose_1.default.model('Collection', collectionSchema);
 //# sourceMappingURL=collection.js.map

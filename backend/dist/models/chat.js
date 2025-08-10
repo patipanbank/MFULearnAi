@@ -75,6 +75,7 @@ const ChatSchema = new mongoose_1.Schema({
 });
 ChatSchema.index({ userId: 1, createdAt: -1 });
 ChatSchema.index({ userId: 1, isPinned: -1, updatedAt: -1 });
+ChatSchema.index({ userId: 1, updatedAt: -1 });
 ChatSchema.pre('save', function (next) {
     this.updatedAt = new Date();
     next();

@@ -34,9 +34,10 @@ export const useMessageHandler = () => {
       // Support new format with messageId
       if (data?.data && typeof data.data === 'object' && data.data.messageId) {
         const { messageId, delta } = data.data as { messageId: string; delta?: string };
-        updateMessage(messageId, (prev: any) => ({
-          content: ((prev?.content ?? '') as string) + (delta ?? '')
-        }) as any);
+        // เนื่องจาก updateMessage รับ Partial<ChatMessage> ให้อัพเดตโดยรวมค่ากับ content ปัจจุบัน
+        const target = currentSession?.messages.find(m => m.id === messageId);
+        const currentContent = target?.content || '';
+        updateMessage(messageId, { content: currentContent + (delta ?? '') });
         return;
       }
       // Fallback legacy

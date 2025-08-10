@@ -1,33 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.memoryService = exports.MemoryService = void 0;
-const redis_1 = require("redis");
 const chromaService_1 = require("./chromaService");
 const embeddingService_1 = require("./embeddingService");
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const redisClient = (0, redis_1.createClient)({ url: redisUrl });
-async function ensureRedisConnection() {
-    if (!redisClient.isOpen) {
-        try {
-            await redisClient.connect();
-            console.log('✅ Redis connected successfully');
-        }
-        catch (error) {
-            console.error('❌ Redis connection failed:', error);
-            throw error;
-        }
-    }
-}
+const redis_1 = require("../lib/redis");
 function isArrayOfMemoryDocs(arr) {
     return Array.isArray(arr) && arr.every(item => typeof item === 'object' && 'document' in item);
 }
 class MemoryService {
     async addRecentMessage(sessionId, message) {
         try {
-            await ensureRedisConnection();
             const key = `chat:recent:${sessionId}`;
-            await redisClient.rPush(key, JSON.stringify(message));
-            await redisClient.lTrim(key, -10, -1);
+            await redis_1.redis.rpush(key, JSON.stringify(message));
+            await redis_1.redis.ltrim(key, -10, -1);
         }
         catch (error) {
             console.error(`❌ Error adding recent message: ${error}`);
@@ -35,9 +20,8 @@ class MemoryService {
     }
     async getRecentMessages(sessionId) {
         try {
-            await ensureRedisConnection();
             const key = `chat:recent:${sessionId}`;
-            const items = await redisClient.lRange(key, 0, -1);
+            const items = await redis_1.redis.lrange(key, 0, -1);
             return items.map((item) => JSON.parse(item));
         }
         catch (error) {
@@ -47,9 +31,8 @@ class MemoryService {
     }
     async clearRecentMessages(sessionId) {
         try {
-            await ensureRedisConnection();
             const key = `chat:recent:${sessionId}`;
-            await redisClient.del(key);
+            await redis_1.redis.del(key);
         }
         catch (error) {
             console.error(`❌ Error clearing recent messages: ${error}`);
@@ -82,13 +65,20 @@ class MemoryService {
     }
     async embedMessage(sessionId, message) {
         try {
+            const contentHash = Buffer.from(message).toString('base64');
+            const collectionName = `chat_memory_${sessionId}`;
+            const exists = await chromaService_1.chromaService.documentExists(collectionName, contentHash);
+            if (exists) {
+                console.log(`🔁 Skip embedding duplicate content for session ${sessionId}`);
+                return;
+            }
             const embedding = await embeddingService_1.embeddingService.embed(message);
             if (embedding && embedding.length > 0) {
-                await this.addLongTermMemory(sessionId, message, embedding, {
-                    role: 'user',
-                    timestamp: new Date().toISOString(),
-                    sessionId
-                });
+                await chromaService_1.chromaService.addToCollection(collectionName, [message], [embedding], [{
+                        role: 'user',
+                        timestamp: new Date().toISOString(),
+                        sessionId
+                    }], [contentHash]);
                 console.log(`📚 Embedded message to long-term memory for session ${sessionId}`);
             }
             else {
@@ -97,13 +87,6 @@ class MemoryService {
         }
         catch (error) {
             console.error(`❌ Error embedding message: ${error}`);
-            const mockEmbedding = Array(768).fill(0);
-            await this.addLongTermMemory(sessionId, message, mockEmbedding, {
-                role: 'user',
-                timestamp: new Date().toISOString(),
-                sessionId
-            });
-            console.log(`📚 Used mock embedding for session ${sessionId}`);
         }
     }
     async searchMemory(sessionId, query, k = 3) {
@@ -165,16 +148,22 @@ class MemoryService {
                 }
                 console.log(`💾 Stored ${recentMessages.length} recent messages in Redis`);
             }
-            if (messages.length % 10 === 0 && messages.length > 0) {
-                const messagesForEmbedding = messages.map(msg => ({
-                    content: msg.content,
-                    role: msg.role,
-                    timestamp: new Date().toISOString()
+            const collectionName = `chat_memory_${sessionId}`;
+            const candidates = messages
+                .filter(m => typeof m?.content === 'string' && m.content.trim().length > 0)
+                .slice(-10);
+            if (candidates.length > 0) {
+                const prepared = await Promise.all(candidates.map(async (m) => {
+                    const id = Buffer.from(m.content).toString('base64');
+                    const exists = await chromaService_1.chromaService.documentExists(collectionName, id);
+                    return exists ? null : { id, content: m.content, metadata: { role: m.role, timestamp: new Date().toISOString(), sessionId } };
                 }));
-                for (const msg of messagesForEmbedding) {
-                    await this.embedMessage(sessionId, msg.content);
+                const toInsert = prepared.filter(Boolean);
+                if (toInsert.length > 0) {
+                    const embeddings = await embeddingService_1.embeddingService.embedBatch(toInsert.map(i => i.content));
+                    await chromaService_1.chromaService.addToCollection(collectionName, toInsert.map(i => i.content), embeddings, toInsert.map(i => i.metadata), toInsert.map(i => i.id));
+                    console.log(`📚 Embedded ${toInsert.length} new messages to vectorstore`);
                 }
-                console.log(`📚 Embedded ${messagesForEmbedding.length} messages to vectorstore`);
             }
         }
         catch (error) {

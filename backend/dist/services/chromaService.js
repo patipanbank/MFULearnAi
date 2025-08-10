@@ -175,6 +175,17 @@ class ChromaService {
             throw e;
         }
     }
+    async documentExists(collectionName, id) {
+        try {
+            const collection = await this.getOrCreateCollection(collectionName);
+            const res = await collection.get({ ids: [id] });
+            return Array.isArray(res?.ids) && res.ids.length > 0;
+        }
+        catch (e) {
+            console.error(`[ChromaService] Error documentExists:`, e);
+            return false;
+        }
+    }
     async deleteDocumentsBySource(collectionName, sourceName) {
         try {
             const collection = await this.getOrCreateCollection(collectionName);
