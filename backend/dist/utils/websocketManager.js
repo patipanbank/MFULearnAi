@@ -15,9 +15,17 @@ class WebSocketManager extends events_1.EventEmitter {
         try {
             this.redisClient = redis_1.redis;
             this.redisSubscriber = redis_1.redis.duplicate();
-            await this.redisSubscriber.psubscribe('chat:*', (message, channel) => {
-                const sessionId = channel.replace('chat:', '');
-                this.broadcastToSession(sessionId, message);
+            await this.redisSubscriber.psubscribe('chat:*');
+            this.redisSubscriber.on('pmessage', (_pattern, channel, message) => {
+                try {
+                    const sessionId = typeof channel === 'string' ? channel.replace('chat:', '') : '';
+                    if (sessionId) {
+                        this.broadcastToSession(sessionId, message);
+                    }
+                }
+                catch (err) {
+                    console.error('❌ Error handling pmessage:', err);
+                }
             });
             this.isRedisConnected = true;
             console.log('✅ Redis connected and subscribed to chat channels');

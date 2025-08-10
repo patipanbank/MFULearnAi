@@ -27,9 +27,17 @@ export class WebSocketManager extends EventEmitter {
       this.redisClient = sharedRedis; // ioredis instance
       this.redisSubscriber = sharedRedis.duplicate();
 
-      await this.redisSubscriber.psubscribe('chat:*', (message: string, channel: string) => {
-        const sessionId = channel.replace('chat:', '');
-        this.broadcastToSession(sessionId, message);
+      // Subscribe pattern and handle messages via 'pmessage' event (ioredis semantics)
+      await this.redisSubscriber.psubscribe('chat:*');
+      this.redisSubscriber.on('pmessage', (_pattern: string, channel: string, message: string) => {
+        try {
+          const sessionId = typeof channel === 'string' ? channel.replace('chat:', '') : '';
+          if (sessionId) {
+            this.broadcastToSession(sessionId, message);
+          }
+        } catch (err) {
+          console.error('❌ Error handling pmessage:', err);
+        }
       });
 
       this.isRedisConnected = true;
