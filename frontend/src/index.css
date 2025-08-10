@@ -6,56 +6,50 @@
 /* Theme variables for comprehensive dark mode support */
 @layer base {
   :root {
-    /* Light theme colors - Vibrant and Fresh Design (No Gray Tones) */
-    --color-background: 255 255 255; /* Pure white - Clean and bright base */
-    --color-background-secondary: 240 249 255; /* Sky-50 - Fresh blue tint */
-    --color-background-tertiary: 219 234 254; /* Sky-100 - Soft blue accent */
-    --color-foreground: 7 89 133; /* Sky-900 - Deep blue for strong readability */
-    --color-foreground-secondary: 12 74 110; /* Sky-800 - Rich blue for secondary text */
-    --color-foreground-tertiary: 14 116 144; /* Cyan-700 - Vibrant cyan for muted text */
+    /* Light theme colors - Modern and professional design for Agent & Knowledge Base */
+    --color-background: 248 250 252; /* Slate-50 - Clean, professional base */
+    --color-background-secondary: 241 245 249; /* Slate-100 - Subtle contrast */
+    --color-background-tertiary: 226 232 240; /* Slate-200 - Defined sections */
+    --color-foreground: 15 23 42; /* Slate-900 - Strong readability */
+    --color-foreground-secondary: 51 65 85; /* Slate-700 - Clear secondary text */
+    --color-foreground-tertiary: 100 116 139; /* Slate-500 - Muted text */
     --color-card: 255 255 255; /* Pure white for content cards */
-    --color-card-hover: 240 249 255; /* Sky-50 - Fresh hover effect */
-    --color-primary: 59 130 246; /* Blue-500 - Vibrant primary blue */
+    --color-card-hover: 248 250 252; /* Subtle hover effect */
+    --color-primary: 59 130 246; /* Blue-500 - Professional, trustworthy */
     --color-primary-foreground: 255 255 255;
-    --color-secondary: 240 249 255; /* Sky-50 - Fresh secondary background */
-    --color-secondary-foreground: 7 89 133;
-    --color-muted: 254 249 195; /* Yellow-100 - Warm highlight background */
-    --color-muted-foreground: 14 116 144; /* Cyan-700 - Vibrant muted text */
-    --color-accent: 168 85 247; /* Purple-500 - Vibrant purple accent */
+    --color-secondary: 241 245 249; /* Slate-100 - Gentle secondary background */
+    --color-secondary-foreground: 15 23 42;
+    --color-muted: 248 250 252; /* Slate-50 - Minimal backgrounds */
+    --color-muted-foreground: 100 116 139; /* Slate-500 - Readable muted text */
+    --color-accent: 99 102 241; /* Indigo-500 - Action highlights */
     --color-accent-foreground: 255 255 255;
     --color-destructive: 239 68 68; /* Red-500 - Clear warnings */
     --color-destructive-foreground: 255 255 255;
-    --color-border: 125 211 252; /* Sky-300 - Fresh blue borders */
-    --color-border-secondary: 186 230 253; /* Sky-200 - Soft blue borders */
-    --color-border-hover: 59 130 246; /* Blue-500 - Interactive vibrant borders */
-    --color-input: 255 255 255; /* Pure white input backgrounds */
-    --color-input-placeholder: 14 116 144; /* Cyan-700 - Clear vibrant placeholder */
+    --color-border: 203 213 225; /* Slate-300 - Clean borders */
+    --color-border-secondary: 226 232 240; /* Slate-200 - Subtle borders */
+    --color-border-hover: 148 163 184; /* Slate-400 - Interactive borders */
+    --color-input: 255 255 255; /* Clean input backgrounds */
+    --color-input-placeholder: 148 163 184; /* Slate-400 - Clear placeholder text */
     --color-ring: 59 130 246; /* Blue-500 - Focus indicators */
     
-    /* Component specific colors - Vibrant and Fresh */
-    --color-sidebar: 248 250 252; /* Very light blue-gray for subtle contrast */
-    --color-header: 255 255 255; /* Pure white for maximum clarity */
-    --color-dropdown: 255 255 255; /* Pure white dropdown backgrounds */
-    --color-modal: 255 255 255; /* Pure white modal backgrounds */
-    --color-toast-success: 34 197 94; /* Emerald-500 - Fresh success */
-    --color-toast-error: 239 68 68; /* Red-500 - Clear error */
-    --color-toast-warning: 245 158 11; /* Amber-500 - Bright warning */
-    --color-toast-info: 59 130 246; /* Blue-500 - Vibrant info */
-    --color-popover: 255 255 255; /* Pure white popover backgrounds */
+    /* Component specific colors - Enhanced for Agent & Knowledge Base */
+    --color-sidebar: 248 250 252; /* Slate-50 - Clean sidebar */
+    --color-header: 255 255 255; /* Pure white for clarity */
+    --color-dropdown: 255 255 255; /* Clean dropdown backgrounds */
+    --color-modal: 255 255 255; /* Clean modal backgrounds */
+    --color-toast-success: 34 197 94; /* Emerald-500 - Success feedback */
+    --color-toast-error: 239 68 68; /* Red-500 - Error feedback */
+    --color-toast-warning: 245 158 11; /* Amber-500 - Warning feedback */
+    --color-toast-info: 59 130 246; /* Blue-500 - Info feedback */
+    --color-popover: 255 255 255; /* Clean popover backgrounds */
     
-    /* Agent & Knowledge Base specific colors - Vibrant Design */
-    --color-agent-card: 255 255 255; /* Pure white agent cards */
-    --color-agent-card-hover: 240 249 255; /* Fresh blue hover */
-    --color-knowledge-section: 240 249 255; /* Fresh blue section background */
-    --color-knowledge-card: 255 255 255; /* Pure white knowledge cards */
-    --color-code-background: 254 249 195; /* Warm yellow code backgrounds */
-    --color-highlight: 253 224 71; /* Yellow-300 - Bright highlights */
-    
-    /* Additional vibrant colors for variety */
-    --color-success-bg: 240 253 244; /* Emerald-50 - Fresh success background */
-    --color-warning-bg: 255 251 235; /* Amber-50 - Warm warning background */
-    --color-info-bg: 239 246 255; /* Blue-50 - Cool info background */
-    --color-accent-bg: 250 245 255; /* Purple-50 - Soft accent background */
+    /* Agent & Knowledge Base specific colors */
+    --color-agent-card: 255 255 255; /* Clean agent card backgrounds */
+    --color-agent-card-hover: 248 250 252; /* Subtle hover for agent cards */
+    --color-knowledge-section: 248 250 252; /* Knowledge base section background */
+    --color-knowledge-card: 255 255 255; /* Knowledge item backgrounds */
+    --color-code-background: 248 250 252; /* Code block backgrounds */
+    --color-highlight: 254 249 195; /* Yellow-100 - Text highlights */
   }
   
   .dark {
@@ -99,94 +93,11 @@
   
   /* Apply theme colors to body */
   body {
-    background: rgb(var(--color-background));
+    background-color: rgb(var(--color-background));
     color: rgb(var(--color-foreground));
+    transition: background-color 0.2s ease, color 0.2s ease;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   }
-}
-
-/* Component utility classes for vibrant design */
-@layer components {
-  .vibrant-card {
-    @apply bg-white border-2 border-blue-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:border-blue-400;
-  }
-  
-  .success-card {
-    @apply bg-success-bg border-2 border-green-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
-  }
-  
-  .warning-card {
-    @apply bg-warning-bg border-2 border-amber-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
-  }
-  
-  .info-card {
-    @apply bg-info-bg border-2 border-blue-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
-  }
-  
-  .accent-card {
-    @apply bg-accent-bg border-2 border-purple-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300;
-  }
-  
-  .vibrant-button-primary {
-    @apply bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300;
-  }
-  
-  .vibrant-button-secondary {
-    @apply bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300;
-  }
-  
-  .vibrant-badge {
-    @apply px-3 py-1 bg-white border-2 rounded-full text-sm font-semibold shadow-sm;
-  }
-  
-  .vibrant-badge-blue {
-    @apply vibrant-badge border-blue-400 text-blue-700;
-  }
-  
-  .vibrant-badge-green {
-    @apply vibrant-badge border-green-400 text-green-700;
-  }
-  
-  .vibrant-badge-purple {
-    @apply vibrant-badge border-purple-400 text-purple-700;
-  }
-  
-  .vibrant-badge-orange {
-    @apply vibrant-badge border-orange-400 text-orange-700;
-  }
-  
-  /* Enhanced existing component classes with vibrant colors */
-  .card {
-    @apply bg-white border border-sky-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-300;
-  }
-  
-  .card-hover:hover {
-    @apply border-sky-300 shadow-xl transform translate-y-[-2px];
-  }
-  
-  .btn-primary {
-    @apply bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200;
-  }
-  
-  .btn-secondary {
-    @apply bg-white border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-500 px-4 py-2 rounded-lg font-medium shadow-sm hover:shadow-md transition-all duration-200;
-  }
-  
-  .btn-ghost {
-    @apply text-blue-600 hover:bg-blue-50 hover:text-blue-700 px-3 py-2 rounded-lg font-medium transition-all duration-200;
-  }
-  
-  .input {
-    @apply bg-white border-2 border-sky-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg px-4 py-2 transition-all duration-200;
-  }
-  
-  .dropdown-menu {
-    @apply bg-white border-2 border-sky-200 rounded-xl shadow-xl backdrop-blur-sm;
-  }
-  
-  .modal-content {
-    @apply bg-white border-2 border-sky-200 rounded-xl shadow-2xl;
-  }
-}
   
   /* Smooth theme transitions for all elements */
   * {

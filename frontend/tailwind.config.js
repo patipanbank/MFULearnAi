@@ -54,12 +54,6 @@ export default {
         'knowledge-card': 'rgb(var(--color-knowledge-card) / <alpha-value>)',
         'code-bg': 'rgb(var(--color-code-background) / <alpha-value>)',
         'highlight': 'rgb(var(--color-highlight) / <alpha-value>)',
-        
-        // Additional vibrant colors for fresh design
-        'success-bg': 'rgb(var(--color-success-bg) / <alpha-value>)',
-        'warning-bg': 'rgb(var(--color-warning-bg) / <alpha-value>)',
-        'info-bg': 'rgb(var(--color-info-bg) / <alpha-value>)',
-        'accent-bg': 'rgb(var(--color-accent-bg) / <alpha-value>)',
         // Additional theme colors
         sidebar: 'rgb(var(--color-sidebar) / <alpha-value>)',
         header: 'rgb(var(--color-header) / <alpha-value>)',

@@ -113,7 +113,7 @@ const UserProfile: React.FC = () => {
                 <div className="text-xs md:text-sm text-muted">DEPARTMENT</div>
                 <div className="text-sm md:text-base text-primary">
                   {departmentLoading ? (
-                    <div className="animate-pulse bg-info-bg h-4 w-24 rounded"></div>
+                    <div className="animate-pulse bg-gray-200 h-4 w-24 rounded"></div>
                   ) : (
                     department?.name || 'Not specified'
                   )}
