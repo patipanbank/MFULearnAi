@@ -29,12 +29,12 @@ class UserProfileErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return this.props.fallback || (
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 bg-gray-300 rounded-full flex items-center justify-center">
-            <span className="text-gray-600 text-sm">U</span>
+          <div className="h-8 w-8 bg-secondary rounded-full flex items-center justify-center">
+            <span className="text-muted text-sm">U</span>
           </div>
           <div className="hidden sm:block text-left">
-            <p className="text-sm font-medium text-gray-600">User Profile</p>
-            <p className="text-xs text-gray-500">Error loading profile</p>
+            <p className="text-sm font-medium text-secondary">User Profile</p>
+            <p className="text-xs text-muted">Error loading profile</p>
           </div>
         </div>
       );

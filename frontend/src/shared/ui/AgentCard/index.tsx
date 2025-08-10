@@ -62,8 +62,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
             <div className="flex items-center space-x-2 mt-1">
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm ${
                 agent.isPublic 
-                  ? 'bg-white border border-green-500 text-green-800' 
-                  : 'bg-white border border-secondary text-secondary'
+                  ? 'bg-card border border-green-500 text-green-800' 
+                  : 'bg-card border border-secondary text-secondary'
               }`}>
                 {agent.isPublic ? 'Public' : 'Private'}
               </span>
@@ -163,7 +163,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
           {agent.tags.slice(0, 3).map((tag, index) => (
             <span
               key={index}
-              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-white border border-blue-500 text-blue-800 shadow-sm"
+              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-card border border-blue-500 text-blue-800 shadow-sm"
             >
               {tag}
             </span>

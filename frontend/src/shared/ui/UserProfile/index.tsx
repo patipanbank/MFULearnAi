@@ -91,7 +91,7 @@ const UserProfile: React.FC = () => {
           <div className="p-3 md:p-4 space-y-4 md:space-y-5">
             {/* Email */}
             <div className="flex items-center space-x-3 md:space-x-4 animate-in fade-in slide-in-from-right-3 duration-300 delay-200">
-              <div className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center bg-white border border-blue-500 rounded-lg shadow-sm">
+              <div className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center bg-card border border-blue-500 rounded-lg shadow-sm">
                 <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M3 8L10.89 13.26C11.2187 13.4793 11.6049 13.5963 12 13.5963C12.3951 13.5963 12.7813 13.4793 13.11 13.26L21 8M5 19H19C19.5304 19 20.0391 18.7893 20.4142 18.4142C20.7893 18.0391 21 17.5304 21 17V7C21 6.46957 20.7893 5.96086 20.4142 5.58579C20.0391 5.21071 19.5304 5 19 5H5C4.46957 5 3.96086 5.21071 3.58579 5.58579C3.21071 5.96086 3 6.46957 3 7V17C3 17.5304 3.21071 18.0391 3.58579 18.4142C3.96086 18.7893 4.46957 19 5 19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -104,7 +104,7 @@ const UserProfile: React.FC = () => {
 
             {/* Department */}
             <div className="flex items-center space-x-3 md:space-x-4 animate-in fade-in slide-in-from-right-3 duration-300 delay-300">
-              <div className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center bg-white border border-green-500 rounded-lg shadow-sm">
+              <div className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center bg-card border border-green-500 rounded-lg shadow-sm">
                 <svg className="w-4 h-4 text-green-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M3 21H21M3 18H21M9 18V13M15 18V13M4 10L12 3L20 10M6 10H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -113,7 +113,7 @@ const UserProfile: React.FC = () => {
                 <div className="text-xs md:text-sm text-muted">DEPARTMENT</div>
                 <div className="text-sm md:text-base text-primary">
                   {departmentLoading ? (
-                    <div className="animate-pulse bg-gray-200 h-4 w-24 rounded"></div>
+                    <div className="animate-pulse bg-secondary h-4 w-24 rounded"></div>
                   ) : (
                     department?.name || 'Not specified'
                   )}
@@ -131,7 +131,7 @@ const UserProfile: React.FC = () => {
               <div className="flex-1">
                 <div className="text-xs md:text-sm text-muted">GROUPS</div>
                 <div className="mt-0.5 md:mt-1">
-                  <span className="inline-flex items-center px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium bg-white border border-purple-500 text-purple-800 shadow-sm">
+                  <span className="inline-flex items-center px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium bg-card border border-purple-500 text-purple-800 shadow-sm">
                     {user.role}
                   </span>
                 </div>

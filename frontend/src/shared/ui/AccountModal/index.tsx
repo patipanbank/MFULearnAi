@@ -162,14 +162,14 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
     <div className="modal-overlay">
       <div className={`modal-content ${isMobile ? 'animate-slide-up-from-bottom' : ''}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
+        <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Account Settings</h2>
-            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">Manage your account and privacy settings</p>
+            <h2 className="text-xl font-semibold text-primary">Account Settings</h2>
+            <p className="text-sm text-secondary mt-1">Manage your account and privacy settings</p>
           </div>
           <button
             onClick={handleCancel}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            className="btn-ghost p-2"
           >
             <FiX className="h-5 w-5" />
           </button>
@@ -179,64 +179,64 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] space-y-6">
           {/* Profile Section */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 flex items-center space-x-2">
+            <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
               <FiUser className="h-5 w-5" />
               <span>Profile</span>
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Name</label>
+                <label className="block text-sm font-medium text-primary mb-2">Name</label>
                 <input
                   type="text"
                   value={localProfile.name || (user ? `${user.firstName} ${user.lastName}` : '') || ''}
                   onChange={(e) => setLocalProfile({ ...localProfile, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+                  className="input w-full"
                   placeholder="Enter your name"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Email</label>
+                <label className="block text-sm font-medium text-primary mb-2">Email</label>
                 <input
                   type="email"
                   value={localProfile.email || user?.email || ''}
                   onChange={(e) => setLocalProfile({ ...localProfile, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+                  className="input w-full"
                   placeholder="Enter your email"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Department</label>
+                <label className="block text-sm font-medium text-primary mb-2">Department</label>
                 <input
                   type="text"
                   value={localProfile.department || (user?.department_id?.$oid || '') || ''}
                   onChange={(e) => setLocalProfile({ ...localProfile, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+                  className="input w-full"
                   placeholder="Enter your department"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Avatar URL</label>
+                <label className="block text-sm font-medium text-primary mb-2">Avatar URL</label>
                 <input
                   type="url"
                   value={localProfile.avatar}
                   onChange={(e) => setLocalProfile({ ...localProfile, avatar: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+                  className="input w-full"
                   placeholder="https://example.com/avatar.jpg"
                 />
               </div>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bio</label>
+              <label className="block text-sm font-medium text-primary mb-2">Bio</label>
               <textarea
                 value={localProfile.bio}
                 onChange={(e) => setLocalProfile({ ...localProfile, bio: e.target.value })}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+                className="input w-full"
                 placeholder="Tell us about yourself..."
               />
             </div>
@@ -244,7 +244,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
 
           {/* Privacy Settings */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 flex items-center space-x-2">
+            <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
               <FiShield className="h-5 w-5" />
               <span>Privacy Settings</span>
             </h3>
@@ -252,40 +252,40 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
             <div className="space-y-4">
               <label className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-slate-100">Share usage data</span>
-                  <p className="text-sm text-gray-600 dark:text-slate-400">Help improve the service by sharing anonymous usage data</p>
+                  <span className="text-sm font-medium text-primary">Share usage data</span>
+                  <p className="text-sm text-secondary">Help improve the service by sharing anonymous usage data</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={localPrivacy.shareData}
                   onChange={(e) => setLocalPrivacy({ ...localPrivacy, shareData: e.target.checked })}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        className="rounded border-border text-blue-600 focus:ring-blue-500"
                 />
               </label>
 
               <label className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-slate-100">Analytics</span>
-                  <p className="text-sm text-gray-600 dark:text-slate-400">Allow analytics to improve your experience</p>
+                  <span className="text-sm font-medium text-primary">Analytics</span>
+                  <p className="text-sm text-secondary">Allow analytics to improve your experience</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={localPrivacy.analytics}
                   onChange={(e) => setLocalPrivacy({ ...localPrivacy, analytics: e.target.checked })}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        className="rounded border-border text-blue-600 focus:ring-blue-500"
                 />
               </label>
 
               <label className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-slate-100">Marketing communications</span>
-                  <p className="text-sm text-gray-600 dark:text-slate-400">Receive updates and marketing emails</p>
+                  <span className="text-sm font-medium text-primary">Marketing communications</span>
+                  <p className="text-sm text-secondary">Receive updates and marketing emails</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={localPrivacy.marketing}
                   onChange={(e) => setLocalPrivacy({ ...localPrivacy, marketing: e.target.checked })}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        className="rounded border-border text-blue-600 focus:ring-blue-500"
                 />
               </label>
             </div>
@@ -293,7 +293,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
 
           {/* Account Actions */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 flex items-center space-x-2">
+            <h3 className="text-lg font-medium text-primary flex items-center space-x-2">
               <FiKey className="h-5 w-5" />
               <span>Account Actions</span>
             </h3>
@@ -308,32 +308,32 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
                   <span>Change Password</span>
                 </button>
               ) : (
-                <div className="space-y-3 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                <div className="space-y-3 p-4 bg-secondary rounded-lg">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Current Password</label>
+                    <label className="block text-sm font-medium text-primary mb-1">Current Password</label>
                     <input
                       type="password"
                       value={passwordForm.currentPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                      className="input w-full"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">New Password</label>
+                    <label className="block text-sm font-medium text-primary mb-1">New Password</label>
                     <input
                       type="password"
                       value={passwordForm.newPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                      className="input w-full"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Confirm New Password</label>
+                    <label className="block text-sm font-medium text-primary mb-1">Confirm New Password</label>
                     <input
                       type="password"
                       value={passwordForm.confirmPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                      className="input w-full"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -348,7 +348,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
                         setIsChangingPassword(false);
                         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
                       }}
-                      className="px-3 py-1 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 transition-colors"
+                      className="px-3 py-1 text-sm font-medium text-secondary hover:text-primary transition-colors"
                     >
                       Cancel
                     </button>
@@ -376,21 +376,21 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
-          <div className="text-sm text-gray-600 dark:text-slate-400">
+        <div className="flex items-center justify-between p-6 border-t border-border bg-secondary">
+          <div className="text-sm text-secondary">
             {hasChanges ? 'You have unsaved changes' : 'All changes saved'}
           </div>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleCancel}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
+              className="btn-ghost"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={!hasChanges || isSaving}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+              className="btn-primary flex items-center space-x-2"
             >
               {isSaving ? (
                 <>

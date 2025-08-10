@@ -80,13 +80,13 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   const getPermissionColor = (permission: string) => {
     switch (permission) {
       case 'PUBLIC':
-        return 'bg-white border border-green-500 text-green-800 shadow-sm';
+        return 'bg-card border border-green-500 text-green-800 shadow-sm';
       case 'DEPARTMENT':
-        return 'bg-white border border-blue-500 text-blue-800 shadow-sm';
+        return 'bg-card border border-blue-500 text-blue-800 shadow-sm';
       case 'PRIVATE':
-        return 'bg-white border border-secondary text-secondary shadow-sm';
+        return 'bg-card border border-secondary text-secondary shadow-sm';
       default:
-        return 'bg-white border border-secondary text-secondary shadow-sm';
+        return 'bg-card border border-secondary text-secondary shadow-sm';
     }
   };
 

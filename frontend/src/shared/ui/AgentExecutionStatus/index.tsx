@@ -58,7 +58,7 @@ const AgentExecutionStatus: React.FC<AgentExecutionStatusProps> = ({
       case 'error':
         return 'text-red-600 dark:text-red-400';
       default:
-        return 'text-gray-600 dark:text-gray-400';
+        return 'text-muted';
     }
   };
 
@@ -73,7 +73,7 @@ const AgentExecutionStatus: React.FC<AgentExecutionStatusProps> = ({
       case 'error':
         return 'bg-red-500';
       default:
-        return 'bg-gray-500';
+        return 'bg-muted';
     }
   };
 

@@ -71,8 +71,8 @@ const AgentSelector: React.FC = () => {
 
   const getAgentTypeColor = (isPublic: boolean) => {
     return isPublic 
-      ? 'bg-white border border-green-500 text-green-800 shadow-sm'
-      : 'bg-white border border-blue-500 text-blue-800 shadow-sm';
+      ? 'bg-card border border-green-500 text-green-800 shadow-sm'
+      : 'bg-card border border-blue-500 text-blue-800 shadow-sm';
   };
 
   // Error fallback

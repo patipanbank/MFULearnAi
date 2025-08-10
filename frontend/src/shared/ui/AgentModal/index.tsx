@@ -465,7 +465,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                 {(formData.tags || []).map((tag, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-white border border-blue-500 text-blue-800 shadow-sm"
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-card border border-blue-500 text-blue-800 shadow-sm"
                   >
                     {tag}
                     <button

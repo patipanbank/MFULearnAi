@@ -134,11 +134,11 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
         return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />;
       case 'success':
         return <div className="h-4 w-4 bg-green-500 rounded-full flex items-center justify-center">
-          <div className="h-2 w-2 bg-white rounded-full" />
+          <div className="h-2 w-2 bg-primary rounded-full" />
         </div>;
       case 'error':
         return <div className="h-4 w-4 bg-red-500 rounded-full flex items-center justify-center">
-          <div className="h-2 w-2 bg-white rounded-full" />
+          <div className="h-2 w-2 bg-primary rounded-full" />
         </div>;
     }
   };

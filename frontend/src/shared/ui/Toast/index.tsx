@@ -59,7 +59,7 @@ const Toast: React.FC = () => {
           
           <button
             onClick={() => removeToast(toast.id)}
-            className="flex-shrink-0 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-muted hover:text-primary"
+            className="flex-shrink-0 ml-2 p-1 rounded-full hover:bg-secondary transition-colors text-muted hover:text-primary"
           >
             <FiX className="h-4 w-4" />
           </button>
