@@ -33,36 +33,36 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
   const { addToast } = useUIStore();
   const { addUpload, isUploading: isAnyUploading } = useUploadProgress();
 
-  // Helper function to create safe FormData
-  const createFormData = (file: File, collectionName: string, useQueue: boolean) => {
-    const formData = new FormData();
-    
-    // Ensure we're appending actual File object
-    if (!(file instanceof File)) {
-      throw new Error('Invalid file object provided');
-    }
-    
-    formData.append('file', file);
-    formData.append('modelId', 'amazon.titan-embed-text-v1');
-    formData.append('collectionName', collectionName);
-    
-    if (useQueue) {
-      formData.append('useQueue', 'true');
-    }
-    
-    return formData;
-  };
+
 
   if (!isOpen) return null;
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
-    const newFiles: FileWithStatus[] = selectedFiles.map(file => ({
-      file,
-      id: `${Date.now()}-${Math.random()}`,
-      status: 'pending' as const,
-      progress: 0
-    }));
+    const newFiles: FileWithStatus[] = selectedFiles.map(file => {
+      console.log('🔍 Creating FileWithStatus:', {
+        originalFile: file,
+        fileInstanceOf: file instanceof File,
+        fileName: file.name,
+        fileSize: file.size,
+        fileConstructor: file.constructor.name
+      });
+      
+      return {
+        file,
+        id: `${Date.now()}-${Math.random()}`,
+        status: 'pending' as const,
+        progress: 0
+      };
+    });
+    
+    console.log('🔍 New files created:', newFiles.map(f => ({
+      id: f.id,
+      fileType: typeof f.file,
+      fileInstanceOf: f.file instanceof File,
+      fileName: f.file?.name
+    })));
+    
     setFiles(prev => [...prev, ...newFiles]);
   };
 
@@ -86,16 +86,47 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
 
         const { file } = fileWithStatus;
         
+        // Debug: Check file object integrity
+        console.log('🔍 File object debug:', {
+          fileWithStatusType: typeof fileWithStatus,
+          fileType: typeof file,
+          fileInstanceOf: file instanceof File,
+          fileName: file?.name,
+          fileSize: file?.size,
+          fileConstructor: file?.constructor?.name,
+          hasFileMethod: typeof file?.stream === 'function'
+        });
+        
         // สำหรับไฟล์ขนาดใหญ่ ให้ใช้ queue
         const useQueue = file.size > LARGE_FILE_THRESHOLD;
         
-        // Create FormData using helper function
-        const formData = createFormData(file, collection.name, useQueue);
+        // Create FormData manually instead of using helper
+        const formData = new FormData();
         
-        // Validate FormData before sending
+        // Direct validation before append
+        if (!(file instanceof File)) {
+          throw new Error(`Invalid file object before append: ${typeof file}, constructor: ${(file as any)?.constructor?.name}`);
+        }
+        
+        formData.append('file', file);
+        formData.append('modelId', 'amazon.titan-embed-text-v1');
+        formData.append('collectionName', collection.name);
+        
+        if (useQueue) {
+          formData.append('useQueue', 'true');
+        }
+        
+        // Validate FormData after creation
         const fileEntry = formData.get('file');
+        console.log('🔍 FormData validation:', {
+          fileEntryType: typeof fileEntry,
+          fileEntryInstanceOf: fileEntry instanceof File,
+          fileEntryName: fileEntry instanceof File ? fileEntry.name : 'not a file',
+          formDataSize: Array.from(formData.entries()).length
+        });
+        
         if (!(fileEntry instanceof File)) {
-          throw new Error(`Invalid file object: ${typeof fileEntry}`);
+          throw new Error(`Invalid file object in FormData: ${typeof fileEntry}`);
         }
         
         console.log('📁 Uploading file:', {
