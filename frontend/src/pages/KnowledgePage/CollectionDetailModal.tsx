@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { FiUpload, FiX, FiSearch, FiEye, FiTrash2, FiFile, FiFileText, FiImage, FiGrid } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
+import { useUploadProgress } from '../../shared/hooks/useUploadProgress';
+import UploadProgressTracker from '../../shared/ui/UploadProgressTracker';
 import type { Collection } from '../../shared/types';
 
 interface CollectionDocument {
@@ -27,12 +29,14 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDoc, setSelectedDoc] = useState<CollectionDocument | null>(null);
 
   const [previewContent, setPreviewContent] = useState('');
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const { addToast } = useUIStore();
+  const { addUpload, isUploading: isAnyUploading } = useUploadProgress();
 
   // Fetch docs when modal opens
   useEffect(() => {
@@ -70,39 +74,89 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
       });
       return;
     }
+    
     setIsUploading(true);
+    setUploadProgress(0);
+    
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('modelId', 'amazon.titan-embed-text-v1');  // Use Titan embedding model
+      formData.append('modelId', 'amazon.titan-embed-text-v1');
       formData.append('collectionName', collection.name);
       
-      // Debug: Log FormData contents
+      // ตรวจสอบขนาดไฟล์เพื่อเลือกใช้ queue หรือ direct upload
+      const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
+      const useQueue = selectedFile.size > LARGE_FILE_THRESHOLD;
+      if (useQueue) {
+        formData.append('useQueue', 'true');
+      }
+      
       console.log('📁 Uploading file:', {
         fileName: selectedFile.name,
         fileSize: selectedFile.size,
         fileType: selectedFile.type,
         collectionName: collection.name,
-        hasFile: selectedFile instanceof File
+        useQueue: useQueue
       });
       
-      await api.post('/training/upload', formData);
-      setSelectedFile(null);
-      addToast({
-        type: 'success',
-        title: 'Upload Success',
-        message: `${selectedFile.name} uploaded and processed successfully.`
+      const response = await api.post('/training/upload', formData, {
+        onUploadProgress: (progressEvent) => {
+          // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
+          const uploadProgressValue = progressEvent.total 
+            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            : 0;
+          
+          setUploadProgress(Math.min(uploadProgressValue, 90));
+        }
       });
+
+      const responseData = (response as any).data;
+
+      if (responseData.queued) {
+        // ไฟล์ถูกส่งไป queue แล้ว
+        console.log(`📋 File ${selectedFile.name} queued with job ID: ${responseData.jobId}`);
+        
+        // เพิ่มเข้า upload progress tracker
+        addUpload(responseData.jobId, selectedFile.name);
+        
+        setUploadProgress(100);
+        
+        addToast({
+          type: 'info',
+          title: 'File Queued',
+          message: `${selectedFile.name} has been queued for background processing. You'll receive updates via WebSocket.`
+        });
+      } else {
+        // ไฟล์ประมวลผลเสร็จสิ้นแล้ว
+        setUploadProgress(100);
+        
+        addToast({
+          type: 'success',
+          title: 'Upload Complete',
+          message: `${selectedFile.name} processed successfully (${responseData.chunks} chunks)`
+        });
+      }
+      
+      setSelectedFile(null);
       fetchDocs();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Upload failed', err);
+      
+      let errorMessage = 'Unable to upload and process document.';
+      if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
       addToast({
         type: 'error',
         title: 'Upload Failed',
-        message: 'Unable to upload and process document.'
+        message: errorMessage
       });
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -219,6 +273,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
               accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,.json,.xml"
               onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
               className="input flex-1 mb-4 md:mb-0"
+              disabled={isUploading}
             />
             <button
               onClick={handleUpload}
@@ -229,8 +284,39 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
               <span>{isUploading ? 'Uploading...' : 'Upload Document'}</span>
             </button>
           </div>
-          <p className="text-xs text-secondary mt-2">Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 10MB)</p>
+          
+          {/* Upload Progress Bar */}
+          {isUploading && uploadProgress > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-secondary">Uploading {selectedFile?.name}</span>
+                <span className="text-sm text-secondary">{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+          
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-secondary">Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 50MB)</p>
+            {selectedFile && selectedFile.size > 5 * 1024 * 1024 && (
+              <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                Large file will be queued for background processing
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* Upload Progress Tracker */}
+        {isAnyUploading && (
+          <div className="mb-6">
+            <UploadProgressTracker className="border-0 shadow-none bg-transparent" />
+          </div>
+        )}
 
         {/* Search Section */}
         <div className="mb-6">
