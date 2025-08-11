@@ -13,8 +13,9 @@ interface UploadDocumentsModalProps {
   onUploadComplete: () => void;
 }
 
-interface FileWithPreview extends File {
-  preview?: string;
+interface FileWithStatus {
+  file: File;
+  id: string;
   status: 'pending' | 'uploading' | 'success' | 'error';
   progress: number;
   error?: string;
@@ -26,18 +27,39 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
   collection, 
   onUploadComplete 
 }) => {
-  const [files, setFiles] = useState<FileWithPreview[]>([]);
+  const [files, setFiles] = useState<FileWithStatus[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useUIStore();
   const { addUpload, isUploading: isAnyUploading } = useUploadProgress();
 
+  // Helper function to create safe FormData
+  const createFormData = (file: File, collectionName: string, useQueue: boolean) => {
+    const formData = new FormData();
+    
+    // Ensure we're appending actual File object
+    if (!(file instanceof File)) {
+      throw new Error('Invalid file object provided');
+    }
+    
+    formData.append('file', file);
+    formData.append('modelId', 'amazon.titan-embed-text-v1');
+    formData.append('collectionName', collectionName);
+    
+    if (useQueue) {
+      formData.append('useQueue', 'true');
+    }
+    
+    return formData;
+  };
+
   if (!isOpen) return null;
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
-    const newFiles: FileWithPreview[] = selectedFiles.map(file => ({
-      ...file,
+    const newFiles: FileWithStatus[] = selectedFiles.map(file => ({
+      file,
+      id: `${Date.now()}-${Math.random()}`,
       status: 'pending' as const,
       progress: 0
     }));
@@ -56,32 +78,44 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
     // ตรวจสอบขนาดไฟล์เพื่อเลือกใช้ queue หรือ direct upload
     const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
     
-    const uploadPromises = files.map(async (file, index) => {
+    const uploadPromises = files.map(async (fileWithStatus, index) => {
       try {
         setFiles(prev => prev.map((f, i) => 
           i === index ? { ...f, status: 'uploading' as const, progress: 0 } : f
         ));
 
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('modelId', 'amazon.titan-embed-text-v1');
-        formData.append('collectionName', collection.name);
+        const { file } = fileWithStatus;
         
         // สำหรับไฟล์ขนาดใหญ่ ให้ใช้ queue
         const useQueue = file.size > LARGE_FILE_THRESHOLD;
-        if (useQueue) {
-          formData.append('useQueue', 'true');
+        
+        // Create FormData using helper function
+        const formData = createFormData(file, collection.name, useQueue);
+        
+        // Validate FormData before sending
+        const fileEntry = formData.get('file');
+        if (!(fileEntry instanceof File)) {
+          throw new Error(`Invalid file object: ${typeof fileEntry}`);
         }
-
+        
         console.log('📁 Uploading file:', {
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
           collectionName: collection.name,
-          useQueue: useQueue
+          useQueue: useQueue,
+          fileInstance: file instanceof File,
+          formDataFileInstance: fileEntry instanceof File,
+          formDataEntries: Array.from(formData.entries()).map(([key, value]) => ({
+            key,
+            value: value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value
+          }))
         });
 
         const response = await api.post('/training/upload', formData, {
+          headers: {
+            // Don't set Content-Type - let browser set it with proper boundary
+          },
           onUploadProgress: (progressEvent) => {
             // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
             const uploadProgress = progressEvent.total 
@@ -162,8 +196,8 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
     try {
       await Promise.all(uploadPromises);
       
-      const queuedFiles = files.filter(f => f.size > LARGE_FILE_THRESHOLD);
-      const immediateFiles = files.filter(f => f.size <= LARGE_FILE_THRESHOLD);
+      const queuedFiles = files.filter(f => f.file.size > LARGE_FILE_THRESHOLD);
+      const immediateFiles = files.filter(f => f.file.size <= LARGE_FILE_THRESHOLD);
       
       if (queuedFiles.length > 0 && immediateFiles.length > 0) {
         addToast({
@@ -192,7 +226,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
     }
   };
 
-  const getStatusIcon = (status: FileWithPreview['status']) => {
+  const getStatusIcon = (status: FileWithStatus['status']) => {
     switch (status) {
       case 'pending':
         return <FiFile className="h-4 w-4 text-muted" />;
@@ -253,39 +287,39 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
           <div className="mb-6">
             <h3 className="text-lg font-medium text-primary mb-3">Selected Files</h3>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {files.map((file, index) => (
+              {files.map((fileWithStatus, index) => (
                 <div
-                  key={index}
+                  key={fileWithStatus.id}
                   className="flex items-center justify-between p-3 bg-secondary rounded-lg"
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    {getStatusIcon(file.status)}
+                    {getStatusIcon(fileWithStatus.status)}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-primary truncate">
-                        {file.name}
+                        {fileWithStatus.file.name}
                       </p>
                       <p className="text-xs text-muted">
-                        {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                        {fileWithStatus.file.size ? `${(fileWithStatus.file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
                       </p>
-                      {file.error && (
-                        <p className="text-xs text-red-600">{file.error}</p>
+                      {fileWithStatus.error && (
+                        <p className="text-xs text-red-600">{fileWithStatus.error}</p>
                       )}
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    {file.status === 'uploading' && (
+                    {fileWithStatus.status === 'uploading' && (
                       <div className="w-16 bg-secondary rounded-full h-2">
                         <div
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${file.progress}%` }}
+                          style={{ width: `${fileWithStatus.progress}%` }}
                         />
                       </div>
                     )}
                     <button
                       onClick={() => removeFile(index)}
                       className="btn-ghost p-1 text-red-600 hover:text-red-700"
-                      disabled={file.status === 'uploading'}
+                      disabled={fileWithStatus.status === 'uploading'}
                     >
                       <FiTrash2 className="h-4 w-4" />
                     </button>

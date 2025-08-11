@@ -63,13 +63,22 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
     console.log('🔄 Multer finished:', {
       hasError: !!err,
       hasFile: !!req.file,
-      error: err?.message
+      error: err?.message,
+      bodyKeys: Object.keys(req.body || {}),
+      bodyValues: req.body,
+      filesKeys: req.files ? Object.keys(req.files) : 'no files object',
+      fileObject: req.file ? {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      } : 'no file object'
     });
     
     if (err) {
       console.log('❌ Multer error:', err.message);
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+        return res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
       }
       return res.status(400).json({ error: err.message });
     }
