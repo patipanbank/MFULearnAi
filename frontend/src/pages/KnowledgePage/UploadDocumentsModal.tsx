@@ -132,10 +132,10 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
 
         if (responseData.queued) {
           // ไฟล์ถูกส่งไป queue แล้ว
-          console.log(`📋 File ${file.name} queued with job ID: ${responseData.jobId}`);
+          console.log(`📋 File ${fileWithStatus.file.name} queued with job ID: ${responseData.jobId}`);
           
           // เพิ่มเข้า upload progress tracker
-          addUpload(responseData.jobId, file.name);
+          addUpload(responseData.jobId, fileWithStatus.file.name);
           
           setFiles(prev => prev.map((f, i) => 
             i === index ? { 
@@ -166,7 +166,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
 
         return response;
       } catch (error: any) {
-        console.error(`Error uploading ${file.name}:`, error);
+        console.error(`Error uploading ${fileWithStatus.file.name}:`, error);
         
         let errorMessage = 'Upload failed';
         if (error?.response?.data?.error) {
@@ -186,7 +186,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
         addToast({
           type: 'error',
           title: 'Upload Failed',
-          message: `Failed to upload ${file.name}: ${errorMessage}`
+          message: `Failed to upload ${fileWithStatus.file.name}: ${errorMessage}`
         });
         
         throw error;
