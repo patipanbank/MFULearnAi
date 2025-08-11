@@ -24,12 +24,18 @@ interface CollectionDetailModalProps {
   onClose: () => void;
 }
 
+interface FileWithPreview extends File {
+  preview?: string;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  progress: number;
+  error?: string;
+}
+
 const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collection, isOpen, onClose }) => {
   const [docs, setDocs] = useState<CollectionDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDoc, setSelectedDoc] = useState<CollectionDocument | null>(null);
 
@@ -37,6 +43,8 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const { addToast } = useUIStore();
   const { addUpload, isUploading: isAnyUploading } = useUploadProgress();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = React.useState(false);
 
   // Fetch docs when modal opens
   useEffect(() => {
@@ -64,99 +72,247 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     }
   };
 
-  const handleUpload = async () => {
-    if (!collection || !selectedFile) return;
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      addToast({
-        type: 'warning',
-        title: 'File Too Large',
-        message: 'Max file size is 50MB.'
-      });
-      return;
-    }
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    const validFiles = selectedFiles.filter(file => {
+      // Check file size (50MB limit)
+      if (file.size > 50 * 1024 * 1024) {
+        addToast({
+          type: 'warning',
+          title: 'File Too Large',
+          message: `${file.name} is too large. Maximum file size is 50MB.`
+        });
+        return false;
+      }
+      return true;
+    });
+
+    const newFiles: FileWithPreview[] = validFiles.map(file => ({
+      ...file,
+      status: 'pending' as const,
+      progress: 0
+    }));
+    setFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
     
-    setIsUploading(true);
-    setUploadProgress(0);
-    
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('modelId', 'amazon.titan-embed-text-v1');
-      formData.append('collectionName', collection.name);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    const validFiles = droppedFiles.filter(file => {
+      const allowedTypes = ['.pdf', '.docx', '.xlsx', '.csv', '.txt'];
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
       
-      // ตรวจสอบขนาดไฟล์เพื่อเลือกใช้ queue หรือ direct upload
-      const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
-      const useQueue = selectedFile.size > LARGE_FILE_THRESHOLD;
-      if (useQueue) {
-        formData.append('useQueue', 'true');
+      // Check file type
+      if (!allowedTypes.includes(fileExtension)) {
+        return false;
       }
       
-      console.log('📁 Uploading file:', {
-        fileName: selectedFile.name,
-        fileSize: selectedFile.size,
-        fileType: selectedFile.type,
-        collectionName: collection.name,
-        useQueue: useQueue
-      });
+      // Check file size (50MB limit)
+      if (file.size > 50 * 1024 * 1024) {
+        addToast({
+          type: 'warning',
+          title: 'File Too Large',
+          message: `${file.name} is too large. Maximum file size is 50MB.`
+        });
+        return false;
+      }
       
-      const response = await api.post('/training/upload', formData, {
-        onUploadProgress: (progressEvent) => {
-          // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
-          const uploadProgressValue = progressEvent.total 
-            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            : 0;
-          
-          setUploadProgress(Math.min(uploadProgressValue, 90));
-        }
+      return true;
+    });
+
+    if (validFiles.length !== droppedFiles.length) {
+      const invalidCount = droppedFiles.length - validFiles.length;
+      addToast({
+        type: 'warning',
+        title: 'Invalid Files',
+        message: `${invalidCount} file(s) were skipped. Only PDF, DOCX, XLSX, CSV, and TXT files under 50MB are supported.`
       });
+    }
 
-      const responseData = (response as any).data;
+    const newFiles: FileWithPreview[] = validFiles.map(file => ({
+      ...file,
+      status: 'pending' as const,
+      progress: 0
+    }));
+    setFiles(prev => [...prev, ...newFiles]);
+  };
 
-      if (responseData.queued) {
-        // ไฟล์ถูกส่งไป queue แล้ว
-        console.log(`📋 File ${selectedFile.name} queued with job ID: ${responseData.jobId}`);
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpload = async () => {
+    if (!collection || files.length === 0) return;
+
+    setIsUploading(true);
+    
+    // ตรวจสอบขนาดไฟล์เพื่อเลือกใช้ queue หรือ direct upload
+    const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
+    
+    const uploadPromises = files.map(async (file, index) => {
+      try {
+        setFiles(prev => prev.map((f, i) => 
+          i === index ? { ...f, status: 'uploading' as const, progress: 0 } : f
+        ));
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('modelId', 'amazon.titan-embed-text-v1');
+        formData.append('collectionName', collection.name);
         
-        // เพิ่มเข้า upload progress tracker
-        addUpload(responseData.jobId, selectedFile.name);
+        // สำหรับไฟล์ขนาดใหญ่ ให้ใช้ queue
+        const useQueue = file.size > LARGE_FILE_THRESHOLD;
+        if (useQueue) {
+          formData.append('useQueue', 'true');
+        }
+
+        console.log('📁 Uploading file:', {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          collectionName: collection.name,
+          useQueue: useQueue
+        });
+
+        const response = await api.post('/training/upload', formData, {
+          onUploadProgress: (progressEvent) => {
+            // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
+            const uploadProgress = progressEvent.total 
+              ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+              : 0;
+            
+            setFiles(prev => prev.map((f, i) => 
+              i === index ? { ...f, progress: Math.min(uploadProgress, 90) } : f
+            ));
+          }
+        });
+
+        const responseData = (response as any).data;
+
+        if (responseData.queued) {
+          // ไฟล์ถูกส่งไป queue แล้ว
+          console.log(`📋 File ${file.name} queued with job ID: ${responseData.jobId}`);
+          
+          // เพิ่มเข้า upload progress tracker
+          addUpload(responseData.jobId, file.name);
+          
+          setFiles(prev => prev.map((f, i) => 
+            i === index ? { 
+              ...f, 
+              status: 'success' as const, 
+              progress: 100,
+              error: `Queued for background processing (Job ID: ${responseData.jobId})`
+            } : f
+          ));
+          
+          addToast({
+            type: 'info',
+            title: 'File Queued',
+            message: `${file.name} has been queued for background processing. You'll receive updates via WebSocket.`
+          });
+        } else {
+          // ไฟล์ประมวลผลเสร็จสิ้นแล้ว
+          setFiles(prev => prev.map((f, i) => 
+            i === index ? { ...f, status: 'success' as const, progress: 100 } : f
+          ));
+          
+          addToast({
+            type: 'success',
+            title: 'Upload Complete',
+            message: `${file.name} processed successfully (${responseData.chunks} chunks)`
+          });
+        }
+
+        return response;
+      } catch (error: any) {
+        console.error(`Error uploading ${file.name}:`, error);
         
-        setUploadProgress(100);
+        let errorMessage = 'Upload failed';
+        if (error?.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        
+        setFiles(prev => prev.map((f, i) => 
+          i === index ? { 
+            ...f, 
+            status: 'error' as const, 
+            error: errorMessage
+          } : f
+        ));
         
         addToast({
-          type: 'info',
-          title: 'File Queued',
-          message: `${selectedFile.name} has been queued for background processing. You'll receive updates via WebSocket.`
+          type: 'error',
+          title: 'Upload Failed',
+          message: `Failed to upload ${file.name}: ${errorMessage}`
         });
-      } else {
-        // ไฟล์ประมวลผลเสร็จสิ้นแล้ว
-        setUploadProgress(100);
         
+        throw error;
+      }
+    });
+
+    try {
+      await Promise.all(uploadPromises);
+      
+      const queuedFiles = files.filter(f => f.size > LARGE_FILE_THRESHOLD);
+      const immediateFiles = files.filter(f => f.size <= LARGE_FILE_THRESHOLD);
+      
+      if (queuedFiles.length > 0 && immediateFiles.length > 0) {
+        addToast({
+          type: 'info',
+          title: 'Mixed Upload Complete',
+          message: `${immediateFiles.length} file(s) processed immediately, ${queuedFiles.length} file(s) queued for background processing`
+        });
+      } else if (immediateFiles.length === files.length) {
         addToast({
           type: 'success',
           title: 'Upload Complete',
-          message: `${selectedFile.name} processed successfully (${responseData.chunks} chunks)`
+          message: `Successfully uploaded ${files.length} document(s) to ${collection.name}`
         });
       }
       
-      setSelectedFile(null);
       fetchDocs();
-    } catch (err: any) {
-      console.error('Upload failed', err);
-      
-      let errorMessage = 'Unable to upload and process document.';
-      if (err?.response?.data?.error) {
-        errorMessage = err.response.data.error;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      
+      setTimeout(() => {
+        setFiles([]);
+      }, 2000); // Clear files after 2 seconds
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Upload Failed',
-        message: errorMessage
+        message: 'Some files failed to upload. Please check the errors and try again.'
       });
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
+    }
+  };
+
+  const getStatusIcon = (status: FileWithPreview['status']) => {
+    switch (status) {
+      case 'pending':
+        return <FiFile className="h-4 w-4 text-muted" />;
+      case 'uploading':
+        return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />;
+      case 'success':
+        return <div className="h-4 w-4 bg-green-500 rounded-full flex items-center justify-center">
+          <div className="h-2 w-2 bg-primary rounded-full" />
+        </div>;
+      case 'error':
+        return <div className="h-4 w-4 bg-red-500 rounded-full flex items-center justify-center">
+          <div className="h-2 w-2 bg-primary rounded-full" />
+        </div>;
     }
   };
 
@@ -265,51 +421,88 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
         <p className="text-secondary mb-6">Manage documents and settings for this collection</p>
 
         {/* Upload Section */}
-        <div className="border-2 border-dashed border-border rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-semibold text-primary mb-4">Upload Document</h3>
-          <div className="flex flex-col md:flex-row md:items-center md:space-x-4">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-primary mb-4">Upload Documents</h3>
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+              isDragging 
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                : 'border-border hover:border-blue-500'
+            }`}
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <FiUpload className={`h-12 w-12 mx-auto mb-4 ${
+              isDragging ? 'text-blue-500' : 'text-muted'
+            }`} />
+            <p className={`text-lg font-medium mb-2 ${
+              isDragging ? 'text-blue-600 dark:text-blue-400' : 'text-primary'
+            }`}>
+              {isDragging ? 'Drop files here' : 'Drop files here or click to browse'}
+            </p>
+            <p className="text-sm text-muted">
+              Supports PDF, DOCX, XLSX, CSV, TXT files (max 50MB each)
+            </p>
             <input
+              ref={fileInputRef}
               type="file"
-              accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,.json,.xml"
-              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-              className="input flex-1 mb-4 md:mb-0"
-              disabled={isUploading}
+              multiple
+              accept=".pdf,.docx,.xlsx,.csv,.txt"
+              onChange={handleFileSelect}
+              className="hidden"
             />
-            <button
-              onClick={handleUpload}
-              className="btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
-              disabled={isUploading || !selectedFile}
-            >
-              <FiUpload className="h-4 w-4" />
-              <span>{isUploading ? 'Uploading...' : 'Upload Document'}</span>
-            </button>
-          </div>
-          
-          {/* Upload Progress Bar */}
-          {isUploading && uploadProgress > 0 && (
-            <div className="mt-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-secondary">Uploading {selectedFile?.name}</span>
-                <span className="text-sm text-secondary">{uploadProgress}%</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
-          
-          <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-secondary">Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 50MB)</p>
-            {selectedFile && selectedFile.size > 5 * 1024 * 1024 && (
-              <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                Large file will be queued for background processing
-              </p>
-            )}
           </div>
         </div>
+
+        {/* File List */}
+        {files.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-primary mb-3">Selected Files</h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {files.map((file, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-secondary rounded-lg"
+                >
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    {getStatusIcon(file.status)}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-primary truncate">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                      </p>
+                      {file.error && (
+                        <p className="text-xs text-red-600">{file.error}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {file.status === 'uploading' && (
+                      <div className="w-16 bg-secondary rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${file.progress}%` }}
+                        />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeFile(index)}
+                      className="btn-ghost p-1 text-red-600 hover:text-red-700"
+                      disabled={file.status === 'uploading'}
+                    >
+                      <FiTrash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Upload Progress Tracker */}
         {isAnyUploading && (
@@ -317,6 +510,8 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
             <UploadProgressTracker className="border-0 shadow-none bg-transparent" />
           </div>
         )}
+
+
 
         {/* Search Section */}
         <div className="mb-6">
@@ -447,6 +642,26 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
             )}
           </div>
         </div>
+
+        {/* Action Buttons */}
+        {files.length > 0 && (
+          <div className="flex space-x-3 mt-6 pt-4 border-t border-border">
+            <button
+              onClick={handleUpload}
+              disabled={files.length === 0 || isUploading}
+              className="btn-primary flex-1 disabled:opacity-50"
+            >
+              {isUploading ? 'Uploading...' : `Upload ${files.length} File${files.length !== 1 ? 's' : ''}`}
+            </button>
+            <button
+              onClick={() => setFiles([])}
+              className="btn-ghost"
+              disabled={isUploading}
+            >
+              Clear Files
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
