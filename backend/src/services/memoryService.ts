@@ -1,174 +1,437 @@
 import { chromaService } from './chromaService';
 import { embeddingService } from './embeddingService';
 import { redis } from '../lib/redis';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
-function isArrayOfMemoryDocs(arr: any): arr is Array<{ document: string | null; metadata: any }> {
-  return Array.isArray(arr) && arr.every(item => typeof item === 'object' && 'document' in item);
+// Modern Memory Service with intelligent conversation management
+export interface ConversationMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+export interface MemorySearchResult {
+  content: string;
+  role: string;
+  timestamp: string;
+  relevanceScore: number;
+  metadata?: Record<string, any>;
+}
+
+export interface ConversationSummary {
+  sessionId: string;
+  summary: string;
+  messageCount: number;
+  lastUpdated: string;
+  keyTopics: string[];
 }
 
 export class MemoryService {
-  // Redis: recent messages (last 10) - เหมือน Legacy
-  async addRecentMessage(sessionId: string, message: any) {
-    try {
-      const key = `chat:recent:${sessionId}`;
-      const currentLen = await redis.llen(key);
-      if (currentLen >= 10) {
-        // Embed existing 10 messages as a batch then reset window
-        const items = await redis.lrange(key, 0, -1);
-        const parsed = items.map((item) => {
-          try { return JSON.parse(item); } catch { return null; }
-        }).filter(Boolean) as Array<{ content?: string; role?: string }>;
+  private bedrock: BedrockRuntimeClient;
+  private readonly BUFFER_WINDOW_SIZE = 20; // Increased buffer
+  private readonly TOKEN_LIMIT = 4000; // Context window limit
+  private readonly SUMMARY_THRESHOLD = 30; // Messages before summarization
+  private readonly MIN_RELEVANCE_SCORE = 0.7;
 
-        const contents = parsed.map((m) => String(m?.content ?? '')).filter((c) => c.trim().length > 0);
-        if (contents.length > 0) {
-          try {
-            const embeddings = await embeddingService.embedBatch(contents);
-            const ids = contents.map((c) => Buffer.from(c).toString('base64'));
-            const metadatas = parsed.map((m) => ({
-              role: m?.role || 'user',
-              timestamp: new Date().toISOString(),
-              sessionId
-            }));
-            await chromaService.addToCollection(`chat_memory_${sessionId}`,
-              contents, embeddings, metadatas, ids);
-            console.log(`📦 Embedded batch of ${contents.length} messages and reset Redis window for ${sessionId}`);
-          } catch (err) {
-            console.warn('⚠️ Batch embedding failed, will keep Redis window intact:', err);
-          }
-        }
-        await redis.del(key);
+  constructor() {
+    this.bedrock = new BedrockRuntimeClient({
+      region: process.env.AWS_REGION || 'us-east-1'
+    });
+  }
+
+  // ===== MAIN API METHODS =====
+
+  /**
+   * Add message with intelligent management
+   */
+  async addMessage(sessionId: string, message: ConversationMessage): Promise<void> {
+    try {
+      // 1. Add to buffer
+      await this.addToBuffer(sessionId, message);
+      
+      // 2. Check if we need summarization
+      const bufferSize = await this.getBufferSize(sessionId);
+      if (bufferSize >= this.SUMMARY_THRESHOLD) {
+        await this.performSummarization(sessionId);
       }
-      await redis.rpush(key, JSON.stringify(message));
+      
+      // 3. Add to vector store for semantic search
+      await this.addToVectorStore(sessionId, message);
+      
     } catch (error) {
-      console.error(`❌ Error adding recent message: ${error}`);
+      console.error(`❌ Error adding message: ${error}`);
+      throw error;
     }
   }
 
-  async getRecentMessages(sessionId: string): Promise<any[]> {
+  /**
+   * Get conversation context with smart retrieval
+   */
+  async getConversationContext(sessionId: string, query?: string): Promise<ConversationMessage[]> {
     try {
-      const key = `chat:recent:${sessionId}`;
-      const items = await redis.lrange(key, 0, -1);
-      return items.map((item) => {
-        try { return JSON.parse(item); } catch { return null; }
-      }).filter(Boolean) as any[];
+      // 1. Get recent buffer messages
+      const recentMessages = await this.getBufferMessages(sessionId);
+      
+      // 2. Get conversation summary if exists
+      const summary = await this.getConversationSummary(sessionId);
+      
+      // 3. If query provided, get relevant messages
+      let relevantMessages: ConversationMessage[] = [];
+      if (query) {
+        const searchResults = await this.semanticSearch(sessionId, query, 5);
+        relevantMessages = searchResults.map(result => ({
+          role: result.role as 'user' | 'assistant',
+          content: result.content,
+          timestamp: result.timestamp,
+          metadata: { ...result.metadata, relevanceScore: result.relevanceScore }
+        }));
+      }
+      
+      // 4. Combine and optimize
+      return this.combineMessages(recentMessages, relevantMessages, summary);
+      
     } catch (error) {
-      console.error(`❌ Error getting recent messages: ${error}`);
+      console.error(`❌ Error getting conversation context: ${error}`);
       return [];
     }
   }
 
-  async clearRecentMessages(sessionId: string) {
-    try {
-      const key = `chat:recent:${sessionId}`;
-      await redis.del(key);
-    } catch (error) {
-      console.error(`❌ Error clearing recent messages: ${error}`);
-    }
+  /**
+   * Legacy compatibility - add recent message
+   */
+  async addRecentMessage(sessionId: string, message: any) {
+    const msg: ConversationMessage = {
+      role: message.role || 'user',
+      content: message.content || '',
+      timestamp: message.timestamp || new Date().toISOString(),
+      metadata: message.metadata
+    };
+    await this.addMessage(sessionId, msg);
   }
 
-  // ChromaDB: long-term memory - เหมือน Legacy
-  async addLongTermMemory(sessionId: string, document: string, embedding: number[], metadata: any = {}) {
-    try {
-      await chromaService.addToCollection(`chat_memory_${sessionId}`, [document], [embedding], [metadata], [Date.now().toString()]);
-    } catch (error) {
-      console.error(`❌ Error adding to long-term memory: ${error}`);
-    }
+  /**
+   * Legacy compatibility - get recent messages
+   */
+  async getRecentMessages(sessionId: string): Promise<any[]> {
+    const messages = await this.getBufferMessages(sessionId);
+    return messages.map(msg => ({
+      role: msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp,
+      ...msg.metadata
+    }));
   }
 
-  async searchLongTermMemory(sessionId: string, queryEmbedding: number[], k: number = 3) {
-    try {
-      return await chromaService.queryCollection(`chat_memory_${sessionId}`, [queryEmbedding], k);
-    } catch (error) {
-      console.error(`❌ Error searching long-term memory: ${error}`);
-      return null;
-    }
-  }
-
-  async clearLongTermMemory(sessionId: string) {
-    try {
-      await chromaService.deleteCollection(`chat_memory_${sessionId}`);
-    } catch (error) {
-      console.error(`❌ Error clearing long-term memory: ${error}`);
-    }
-  }
-
-  // Embed message into long-term memory (vectorstore) - incremental + dedup by content hash
-  async embedMessage(sessionId: string, message: string) {
-    try {
-      // Dedup id by content hash (base64 of content)
-      const contentHash = Buffer.from(message).toString('base64');
-      const collectionName = `chat_memory_${sessionId}`;
-
-      // Skip if exists
-      const exists = await chromaService.documentExists(collectionName, contentHash);
-      if (exists) {
-        console.log(`🔁 Skip embedding duplicate content for session ${sessionId}`);
-        return;
-      }
-
-      // Generate embedding
-      const embedding = await embeddingService.embed(message);
-      if (embedding && embedding.length > 0) {
-        await chromaService.addToCollection(collectionName, [message], [embedding], [{ 
-          role: 'user',
-          timestamp: new Date().toISOString(),
-          sessionId 
-        }], [contentHash]);
-        console.log(`📚 Embedded message to long-term memory for session ${sessionId}`);
-      } else {
-        console.warn(`⚠️ Failed to get embedding for message in session ${sessionId}`);
-      }
-    } catch (error) {
-      console.error(`❌ Error embedding message: ${error}`);
-      // No fallback to mock embedding (to avoid vector noise)
-    }
-  }
-
-  // Search memory (vectorstore) - แก้ไขให้ใช้ embedding service จริง
+  /**
+   * Search memory with semantic understanding
+   */
   async searchMemory(sessionId: string, query: string, k: number = 3): Promise<any[]> {
     try {
-      // ใช้ embedding service จริงสำหรับ query
-      const queryEmbedding = await embeddingService.embed(query);
-      if (!queryEmbedding || queryEmbedding.length === 0) {
-        console.warn(`⚠️ Failed to get query embedding for session ${sessionId}`);
-        return [];
-      }
-      
-      const results = await this.searchLongTermMemory(sessionId, queryEmbedding, k);
-      
-      // ปรับปรุงการจัดการ response format
-      if (!results) return [];
-      
-      // ตรวจสอบ format ของ results
-      if (results.documents && Array.isArray(results.documents)) {
-        const documents = results.documents.flat();
-        const metadatas = results.metadatas?.flat() || [];
-        
-        return documents.map((doc: string | null, i: number) => ({
-          content: doc || '',
-          role: metadatas[i]?.role || 'user',
-          timestamp: metadatas[i]?.timestamp || null
-        }));
-      } else if (Array.isArray(results)) {
-        // ถ้า results เป็น array โดยตรง
-        return results.map((r: { document: string | null; metadata: any }) => ({
-          content: r.document ?? '',
-          role: r.metadata?.role || 'user',
-          timestamp: r.metadata?.timestamp || null
-        }));
-      }
-      
-      return [];
+      const results = await this.semanticSearch(sessionId, query, k);
+      return results.map(result => ({
+        content: result.content,
+        role: result.role,
+        timestamp: result.timestamp,
+        relevanceScore: result.relevanceScore
+      }));
     } catch (error) {
       console.error(`❌ Error searching memory: ${error}`);
       return [];
     }
   }
 
-  // Get all messages from long-term memory (vectorstore) - แก้ไขการจัดการ response
+  // ===== BUFFER MANAGEMENT =====
+
+  private async addToBuffer(sessionId: string, message: ConversationMessage): Promise<void> {
+    const key = `memory:buffer:${sessionId}`;
+    const messageStr = JSON.stringify(message);
+    
+    await redis.lpush(key, messageStr);
+    await redis.ltrim(key, 0, this.BUFFER_WINDOW_SIZE - 1);
+    await redis.expire(key, 86400); // 24 hours
+  }
+
+  private async getBufferMessages(sessionId: string): Promise<ConversationMessage[]> {
+    const key = `memory:buffer:${sessionId}`;
+    const items = await redis.lrange(key, 0, -1);
+    
+    return items.map(item => {
+      try {
+        return JSON.parse(item);
+      } catch {
+        return null;
+      }
+    }).filter(Boolean).reverse(); // Chronological order
+  }
+
+  private async getBufferSize(sessionId: string): Promise<number> {
+    const key = `memory:buffer:${sessionId}`;
+    return await redis.llen(key);
+  }
+
+  private async clearBuffer(sessionId: string): Promise<void> {
+    const key = `memory:buffer:${sessionId}`;
+    await redis.del(key);
+  }
+
+  // ===== SUMMARIZATION =====
+
+  private async performSummarization(sessionId: string): Promise<void> {
+    try {
+      const messages = await this.getBufferMessages(sessionId);
+      if (messages.length < 15) return;
+      
+      // Keep recent 10, summarize older ones
+      const messagesToSummarize = messages.slice(0, -10);
+      const remainingMessages = messages.slice(-10);
+      
+      // Generate summary
+      const newSummary = await this.generateSummary(sessionId, messagesToSummarize);
+      
+      // Update summary
+      await this.updateSummary(sessionId, newSummary);
+      
+      // Reset buffer
+      await this.clearBuffer(sessionId);
+      for (const msg of remainingMessages) {
+        await this.addToBuffer(sessionId, msg);
+      }
+      
+      console.log(`🧠 Summarized ${messagesToSummarize.length} messages for session ${sessionId}`);
+    } catch (error) {
+      console.error(`❌ Error in summarization: ${error}`);
+    }
+  }
+
+  private async generateSummary(sessionId: string, messages: ConversationMessage[]): Promise<ConversationSummary> {
+    try {
+      const conversationText = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+      
+      const prompt = `Summarize this conversation focusing on key points, decisions, and context needed for continuation:\n\n${conversationText}\n\nProvide a concise summary:`;
+
+      const command = new InvokeModelCommand({
+        modelId: 'amazon.titan-text-express-v1',
+        body: JSON.stringify({
+          inputText: prompt,
+          textGenerationConfig: {
+            maxTokenCount: 500,
+            temperature: 0.3,
+            topP: 0.9
+          }
+        }),
+        contentType: 'application/json'
+      });
+
+      const response = await this.bedrock.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      const summary = responseBody.results[0].outputText.trim();
+      
+      // Extract key topics
+      const keyTopics = this.extractKeyTopics(conversationText);
+      
+      return {
+        sessionId,
+        summary,
+        messageCount: messages.length,
+        lastUpdated: new Date().toISOString(),
+        keyTopics
+      };
+      
+    } catch (error) {
+      console.error(`❌ Error generating summary: ${error}`);
+      return {
+        sessionId,
+        summary: `Conversation summary (${messages.length} messages)`,
+        messageCount: messages.length,
+        lastUpdated: new Date().toISOString(),
+        keyTopics: []
+      };
+    }
+  }
+
+  private extractKeyTopics(text: string): string[] {
+    const words = text.toLowerCase().split(/\W+/);
+    const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'how', 'what', 'when', 'where', 'why', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can']);
+    
+    const wordCount: Record<string, number> = {};
+    words.forEach(word => {
+      if (word.length > 3 && !stopWords.has(word)) {
+        wordCount[word] = (wordCount[word] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(wordCount)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([word]) => word);
+  }
+
+  // ===== SUMMARY MANAGEMENT =====
+
+  private async updateSummary(sessionId: string, summary: ConversationSummary): Promise<void> {
+    const key = `memory:summary:${sessionId}`;
+    await redis.set(key, JSON.stringify(summary), { EX: 604800 }); // 7 days
+  }
+
+  private async getConversationSummary(sessionId: string): Promise<ConversationSummary | null> {
+    const key = `memory:summary:${sessionId}`;
+    const summaryStr = await redis.get(key);
+    
+    if (!summaryStr) return null;
+    
+    try {
+      return JSON.parse(summaryStr);
+    } catch {
+      return null;
+    }
+  }
+
+  // ===== VECTOR STORE OPERATIONS =====
+
+  private async addToVectorStore(sessionId: string, message: ConversationMessage): Promise<void> {
+    try {
+      const contentHash = Buffer.from(message.content + message.timestamp).toString('base64');
+      const collectionName = `memory_${sessionId}`;
+      
+      // Check if exists
+      const exists = await chromaService.documentExists(collectionName, contentHash);
+      if (exists) return;
+      
+      // Generate embedding
+      const embedding = await embeddingService.embed(message.content);
+      if (!embedding || embedding.length === 0) return;
+      
+      // Add to ChromaDB
+      await chromaService.addToCollection(
+        collectionName,
+        [message.content],
+        [embedding],
+        [{
+          role: message.role,
+          timestamp: message.timestamp,
+          sessionId,
+          ...message.metadata
+        }],
+        [contentHash]
+      );
+      
+    } catch (error) {
+      console.error(`❌ Error adding to vector store: ${error}`);
+    }
+  }
+
+  private async semanticSearch(sessionId: string, query: string, k: number = 5): Promise<MemorySearchResult[]> {
+    try {
+      const queryEmbedding = await embeddingService.embed(query);
+      if (!queryEmbedding || queryEmbedding.length === 0) return [];
+      
+      const results = await chromaService.queryCollection(`memory_${sessionId}`, [queryEmbedding], k);
+      if (!results) return [];
+      
+      const processedResults: MemorySearchResult[] = [];
+      
+      if (results.documents && results.distances && results.metadatas) {
+        const documents = results.documents.flat();
+        const distances = results.distances.flat();
+        const metadatas = results.metadatas.flat();
+        
+        for (let i = 0; i < documents.length; i++) {
+          const relevanceScore = Math.max(0, 1 - (distances[i] || 1));
+          
+          if (relevanceScore >= this.MIN_RELEVANCE_SCORE) {
+            processedResults.push({
+              content: documents[i] || '',
+              role: metadatas[i]?.role || 'user',
+              timestamp: metadatas[i]?.timestamp || '',
+              relevanceScore,
+              metadata: metadatas[i]
+            });
+          }
+        }
+      }
+      
+      return processedResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      
+    } catch (error) {
+      console.error(`❌ Error in semantic search: ${error}`);
+      return [];
+    }
+  }
+
+  // ===== UTILITY METHODS =====
+
+  private combineMessages(
+    recentMessages: ConversationMessage[],
+    relevantMessages: ConversationMessage[],
+    summary: ConversationSummary | null
+  ): ConversationMessage[] {
+    const messages: ConversationMessage[] = [];
+    
+    // Add summary as context
+    if (summary) {
+      messages.push({
+        role: 'system',
+        content: `Previous conversation: ${summary.summary}`,
+        timestamp: summary.lastUpdated,
+        metadata: { type: 'summary', keyTopics: summary.keyTopics }
+      });
+    }
+    
+    // Deduplicate and combine
+    const seen = new Set<string>();
+    const allMessages = [...relevantMessages, ...recentMessages];
+    
+    for (const msg of allMessages) {
+      const key = `${msg.content}_${msg.timestamp}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        messages.push(msg);
+      }
+    }
+    
+    // Sort by timestamp and apply token limit
+    const sorted = messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return this.trimToTokenLimit(sorted);
+  }
+
+  private trimToTokenLimit(messages: ConversationMessage[]): ConversationMessage[] {
+    let totalTokens = 0;
+    const result: ConversationMessage[] = [];
+    
+    // Process from most recent backwards
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      const estimatedTokens = Math.ceil(msg.content.length / 4);
+      
+      if (totalTokens + estimatedTokens <= this.TOKEN_LIMIT) {
+        result.unshift(msg);
+        totalTokens += estimatedTokens;
+      } else if (msg.role === 'system') {
+        // Always keep system messages (summaries)
+        result.unshift(msg);
+      } else {
+        break;
+      }
+    }
+    
+    return result;
+  }
+
+  // ===== LEGACY COMPATIBILITY =====
+
+  async embedMessage(sessionId: string, message: string) {
+    const msg: ConversationMessage = {
+      role: 'user',
+      content: message,
+      timestamp: new Date().toISOString()
+    };
+    await this.addMessage(sessionId, msg);
+  }
+
   async getAllMessages(sessionId: string): Promise<any[]> {
     try {
-      const results = await chromaService.getAllFromCollection(`chat_memory_${sessionId}`);
+      const results = await chromaService.getAllFromCollection(`memory_${sessionId}`);
       if (!Array.isArray(results)) return [];
       
       return results.map((r: { document: string | null; metadata: any }) => ({
@@ -182,35 +445,51 @@ export class MemoryService {
     }
   }
 
-  // Hybrid memory management - windowed: use Redis as primary, embed in batches of 10
   async setupHybridMemory(sessionId: string, messages: any[]) {
     try {
-      console.log(`🧠 Setting up hybrid memory for session ${sessionId}`);
+      console.log(`🧠 Setting up memory for session ${sessionId}`);
       
-      // Redis window is the primary store; just ensure the last up-to-10 messages are present
-      const recentMessages = messages.slice(-10);
-      await redis.del(`chat:recent:${sessionId}`);
+      const recentMessages = messages.slice(-this.BUFFER_WINDOW_SIZE);
+      await this.clearBuffer(sessionId);
+      
       for (const msg of recentMessages) {
-        await this.addRecentMessage(sessionId, msg);
+        const message: ConversationMessage = {
+          role: msg.role || 'user',
+          content: msg.content || '',
+          timestamp: msg.timestamp || new Date().toISOString(),
+          metadata: msg.metadata
+        };
+        await this.addToBuffer(sessionId, message);
       }
-      console.log(`💾 Redis window refreshed with ${recentMessages.length} messages`);
       
+      console.log(`💾 Memory initialized with ${recentMessages.length} messages`);
     } catch (error) {
-      console.error(`❌ Error setting up hybrid memory: ${error}`);
+      console.error(`❌ Error setting up memory: ${error}`);
     }
   }
 
-  // Get memory statistics - เหมือน Legacy
   async getMemoryStats(sessionId: string): Promise<any> {
     try {
-      const recent = await this.getRecentMessages(sessionId);
-      const all = await this.getAllMessages(sessionId);
+      const bufferSize = await this.getBufferSize(sessionId);
+      const summary = await this.getConversationSummary(sessionId);
+      
+      let vectorStoreCount = 0;
+      try {
+        const allMessages = await chromaService.getAllFromCollection(`memory_${sessionId}`);
+        vectorStoreCount = Array.isArray(allMessages) ? allMessages.length : 0;
+      } catch {
+        vectorStoreCount = 0;
+      }
       
       return {
         sessionId,
-        recentCount: recent.length,
-        totalCount: all.length,
-        hybridMemory: true
+        bufferSize,
+        vectorStoreCount,
+        hasSummary: !!summary,
+        summaryMessageCount: summary?.messageCount || 0,
+        keyTopics: summary?.keyTopics || [],
+        lastSummaryUpdate: summary?.lastUpdated || null,
+        memoryType: 'intelligent_hybrid'
       };
     } catch (error) {
       console.error(`❌ Error getting memory stats: ${error}`);
@@ -218,14 +497,37 @@ export class MemoryService {
     }
   }
 
-  // Clear all memory for session - เหมือน Legacy
+  async clearRecentMessages(sessionId: string) {
+    await this.clearBuffer(sessionId);
+  }
+
+  async clearLongTermMemory(sessionId: string) {
+    try {
+      await chromaService.deleteCollection(`memory_${sessionId}`);
+    } catch (error) {
+      console.error(`❌ Error clearing long-term memory: ${error}`);
+    }
+  }
+
   async clearAllMemory(sessionId: string) {
     try {
-      await this.clearRecentMessages(sessionId);
-      await this.clearLongTermMemory(sessionId);
+      await this.clearBuffer(sessionId);
+      await redis.del(`memory:summary:${sessionId}`);
+      await chromaService.deleteCollection(`memory_${sessionId}`);
       console.log(`🧹 Cleared all memory for session ${sessionId}`);
     } catch (error) {
       console.error(`❌ Error clearing memory: ${error}`);
+    }
+  }
+
+  // Development/testing methods
+  async forceSummarization(sessionId: string): Promise<ConversationSummary | null> {
+    try {
+      await this.performSummarization(sessionId);
+      return await this.getConversationSummary(sessionId);
+    } catch (error) {
+      console.error(`❌ Error in force summarization: ${error}`);
+      return null;
     }
   }
 }
