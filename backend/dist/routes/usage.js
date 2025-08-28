@@ -10,10 +10,10 @@ const adminMiddleware_1 = require("../middleware/adminMiddleware");
 const router = express_1.default.Router();
 router.get('/me', auth_1.authenticateJWT, async (req, res) => {
     try {
-        if (!req.user?._id) {
+        if (!req.user?.sub) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
-        const quotaInfo = await usageService_1.usageService.getUserQuotaInfo(req.user._id);
+        const quotaInfo = await usageService_1.usageService.getUserQuotaInfo(req.user.sub);
         return res.json(quotaInfo);
     }
     catch (error) {
@@ -69,11 +69,11 @@ router.post('/user/:userId/reset', auth_1.authenticateJWT, adminMiddleware_1.adm
 });
 router.post('/check', auth_1.authenticateJWT, async (req, res) => {
     try {
-        if (!req.user?._id) {
+        if (!req.user?.sub) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
         const { inputTokens = 0, outputTokens = 0 } = req.body;
-        const check = await usageService_1.usageService.checkQuotaAndUsage(req.user._id, inputTokens, outputTokens);
+        const check = await usageService_1.usageService.checkQuotaAndUsage(req.user.sub, inputTokens, outputTokens);
         return res.json(check);
     }
     catch (error) {

@@ -12,10 +12,10 @@ router.post('/embedding', auth_1.authenticateJWT, async (req, res) => {
     const body = req.body;
     try {
         const embeddings = await embeddingService_1.embeddingService.getTextEmbeddings(body.input, body.model);
-        if (req.user?._id) {
+        if (req.user?.sub) {
             const totalChars = body.input.join('').length;
             const estimatedTokens = Math.ceil(totalChars / 4);
-            await usageService_1.usageService.updateUsage(req.user._id, estimatedTokens, 0);
+            await usageService_1.usageService.updateUsage(req.user.sub, estimatedTokens, 0);
         }
         const data = embeddings.map((emb, i) => ({
             object: 'embedding',

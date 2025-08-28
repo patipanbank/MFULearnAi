@@ -8,11 +8,11 @@ const router = express.Router();
 // Get current user's usage statistics and quota info
 router.get('/me', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!req.user?._id) {
+    if (!req.user?.sub) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const quotaInfo = await usageService.getUserQuotaInfo(req.user._id);
+    const quotaInfo = await usageService.getUserQuotaInfo(req.user.sub);
     return res.json(quotaInfo);
   } catch (error) {
     console.error('Error fetching user usage:', error);
@@ -76,12 +76,12 @@ router.post('/user/:userId/reset', authenticateJWT, adminMiddleware, async (req:
 // Check if user can use tokens before making request
 router.post('/check', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!req.user?._id) {
+    if (!req.user?.sub) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
     const { inputTokens = 0, outputTokens = 0 } = req.body;
-    const check = await usageService.checkQuotaAndUsage(req.user._id, inputTokens, outputTokens);
+    const check = await usageService.checkQuotaAndUsage(req.user.sub, inputTokens, outputTokens);
     return res.json(check);
   } catch (error) {
     console.error('Error checking usage quota:', error);

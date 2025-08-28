@@ -26,10 +26,10 @@ router.post('/embedding', authenticateJWT, async (req: AuthenticatedRequest, res
     const embeddings = await embeddingService.getTextEmbeddings(body.input, body.model);
     
     // Track token usage for embeddings (rough estimate: 1 token per 4 characters)
-    if (req.user?._id) {
+    if (req.user?.sub) {
       const totalChars = body.input.join('').length;
       const estimatedTokens = Math.ceil(totalChars / 4);
-      await usageService.updateUsage(req.user._id, estimatedTokens, 0);
+      await usageService.updateUsage(req.user.sub, estimatedTokens, 0);
     }
     
     const data: EmbeddingData[] = embeddings.map((emb, i) => ({
