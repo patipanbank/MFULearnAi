@@ -8,15 +8,23 @@ export interface MongoDBDate {
 
 export interface User {
   _id: { $oid: string };
+  nameID: string;
+  username: string;
+  password?: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  role: 'user' | 'admin' | 'superadmin';
+  firstName?: string;
+  lastName?: string;
+  department?: string;
+  role: 'Admin' | 'Staffs' | 'Students' | 'SuperAdmin';
+  groups: string[];
+  tokenQuota?: number;
+  dailyTokenLimit?: number;
   department_id?: { $oid: string };
   student_id?: string;
-  username?: string;
-  is_active: boolean;
-  usage: {
+  is_active?: boolean;
+  created: Date | MongoDBDate;
+  updated: Date | MongoDBDate;
+  usage?: {
     total_tokens: number;
     total_requests: number;
   };
