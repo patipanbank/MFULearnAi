@@ -4,10 +4,11 @@ export interface LangChainAgentConfig {
     systemPrompt: string;
     temperature?: number;
     maxTokens?: number;
-    tools: {
+    tools?: {
         [name: string]: ToolFunction;
     };
     sessionId?: string;
+    collections?: string[];
 }
 export interface LangChainAgentExecutor {
     run: (messages: {

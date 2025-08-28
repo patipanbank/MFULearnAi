@@ -14,8 +14,9 @@ const storage = multer_1.default.memoryStorage();
 const upload = (0, multer_1.default)({
     storage: storage,
     limits: {
-        fileSize: 50 * 1024 * 1024,
+        fileSize: 100 * 1024 * 1024,
         files: 1,
+        fieldSize: 25 * 1024 * 1024,
     },
     fileFilter: (req, file, cb) => {
         console.log('🔍 Multer fileFilter called:', {
@@ -70,7 +71,7 @@ router.post('/upload', (req, res, next) => {
         if (err) {
             console.log('❌ Multer error:', err.message);
             if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
+                return res.status(400).json({ error: 'File too large. Maximum size is 100MB.' });
             }
             return res.status(400).json({ error: err.message });
         }
@@ -110,7 +111,7 @@ router.post('/upload', (req, res, next) => {
             created: new Date(),
             updated: new Date()
         };
-        const shouldUseQueue = useQueue === 'true' || req.file.size > 5 * 1024 * 1024;
+        const shouldUseQueue = useQueue === 'true' || req.file.size > 10 * 1024 * 1024;
         if (shouldUseQueue) {
             const jobId = await queueService_1.queueService.addFileProcessingJob(req.file.buffer, req.file.originalname, user, modelId || 'amazon.titan-embed-text-v1', collectionName);
             return res.json({
@@ -144,9 +145,9 @@ router.post('/upload', (req, res, next) => {
         });
         if (error.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
-                error: 'File too large. Maximum size is 50MB.',
+                error: 'File too large. Maximum size is 100MB.',
                 code: 'FILE_TOO_LARGE',
-                maxSize: '50MB'
+                maxSize: '100MB'
             });
         }
         if (error.code === 'LIMIT_FILE_COUNT') {

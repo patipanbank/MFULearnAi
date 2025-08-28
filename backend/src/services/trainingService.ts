@@ -12,9 +12,9 @@ export class TrainingService {
 
   constructor() {
     this.textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-      separators: ['\n\n', '\n', '. ', '! ', '? ', ' ', ''],
+      chunkSize: 1500, // Increased for better context retention
+      chunkOverlap: 300, // Increased overlap for better semantic continuity
+      separators: ['\n\n', '\n', '. ', '! ', '? ', '; ', ', ', ' ', ''],
     });
   }
 

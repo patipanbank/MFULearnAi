@@ -15,8 +15,9 @@ const storage = multer.memoryStorage();
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit (increased for larger documents)
+    fileSize: 100 * 1024 * 1024, // 100MB limit (increased for better compatibility)
     files: 1, // Only one file at a time
+    fieldSize: 25 * 1024 * 1024, // 25MB field size limit
   },
   fileFilter: (req: any, file: any, cb: any) => {
     console.log('🔍 Multer fileFilter called:', {
@@ -78,7 +79,7 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
     if (err) {
       console.log('❌ Multer error:', err.message);
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
+        return res.status(400).json({ error: 'File too large. Maximum size is 100MB.' });
       }
       return res.status(400).json({ error: err.message });
     }
@@ -124,7 +125,7 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
     } as IUser;
 
     // Check if should use queue (for large files or when specified)
-    const shouldUseQueue = useQueue === 'true' || req.file.size > 5 * 1024 * 1024; // 5MB threshold
+    const shouldUseQueue = useQueue === 'true' || req.file.size > 10 * 1024 * 1024; // 10MB threshold (optimized)
 
     if (shouldUseQueue) {
       // Use queue for background processing
@@ -176,9 +177,9 @@ router.post('/upload', (req: Request, res: Response, next: any) => {
     // Handle multer errors
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ 
-        error: 'File too large. Maximum size is 50MB.',
+        error: 'File too large. Maximum size is 100MB.',
         code: 'FILE_TOO_LARGE',
-        maxSize: '50MB'
+        maxSize: '100MB'
       });
     }
     if (error.code === 'LIMIT_FILE_COUNT') {

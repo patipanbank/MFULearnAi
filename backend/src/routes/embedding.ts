@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { embeddingService } from '../services/embeddingService';
+import { bedrockService } from '../services/bedrockService';
 
 const router = express.Router();
 
@@ -21,7 +21,9 @@ interface EmbeddingResponse {
 router.post('/embedding', async (req: Request, res: Response) => {
   const body: EmbeddingRequest = req.body;
   try {
-    const embeddings = await embeddingService.getTextEmbeddings(body.input, body.model);
+    const embeddings = await Promise.all(
+      body.input.map(text => bedrockService.createTextEmbedding(text))
+    ).then(results => results.filter(emb => emb && emb.length > 0));
     const data: EmbeddingData[] = embeddings.map((emb, i) => ({
       object: 'embedding',
       embedding: emb,

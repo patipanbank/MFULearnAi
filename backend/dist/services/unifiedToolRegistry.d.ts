@@ -11,4 +11,4 @@ export declare function createKnowledgeTools(collectionNames: string[]): Record<
 export declare function getAllTools(sessionId: string, collections?: string[]): Record<string, ToolFunction>;
 export declare const toolMetadata: Record<string, Omit<ToolMeta, 'func'>>;
 export declare const toolRegistry: Record<string, ToolFunction>;
-//# sourceMappingURL=toolRegistry.d.ts.map
+//# sourceMappingURL=unifiedToolRegistry.d.ts.map

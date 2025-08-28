@@ -271,4 +271,4 @@ exports.toolRegistry = new Proxy({}, {
         return async () => `Tool "${prop}" not found.`;
     }
 });
-//# sourceMappingURL=toolRegistry.js.map
+//# sourceMappingURL=unifiedToolRegistry.js.map

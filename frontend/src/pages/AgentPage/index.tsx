@@ -1,25 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FiPlus, FiSearch, FiFilter } from 'react-icons/fi';
-import { useAgentStore, useUIStore } from '../../shared/stores';
-import AgentCard from '../../shared/ui/AgentCard';
-import AgentTemplateCard from '../../shared/ui/AgentTemplateCard';
-import AgentModal from '../../shared/ui/AgentModal';
-import type { AgentConfig, AgentTemplate } from '../../shared/stores/agentStore';
+import { useAgentStore } from '../../shared/services';
+import { useUIStore } from '../../shared/stores';
+import type { Agent, AgentTemplate } from '../../shared/types';
 
 const AgentPage: React.FC = () => {
-  // Refactored: Use individual selectors for each state/action
-  const agents = useAgentStore(state => state.agents);
-  const agentTemplates = useAgentStore(state => state.agentTemplates);
-  const showAgentModal = useAgentStore(state => state.showAgentModal);
-  const isEditingAgent = useAgentStore(state => state.isEditingAgent);
-  const createAgent = useAgentStore(state => state.createAgent);
-  const deleteAgent = useAgentStore(state => state.deleteAgent);
-  const selectAgent = useAgentStore(state => state.selectAgent);
-  const createAgentFromTemplate = useAgentStore(state => state.createAgentFromTemplate);
-  const setShowAgentModal = useAgentStore(state => state.setShowAgentModal);
-  const setEditingAgent = useAgentStore(state => state.setEditingAgent);
-  const fetchAgents = useAgentStore(state => state.fetchAgents);
-  const fetchTemplates = useAgentStore(state => state.fetchTemplates);
+  const {
+    agents,
+    templates,
+    activeAgent,
+    loading,
+    error,
+    loadAgents,
+    loadTemplates,
+    deleteAgent,
+    setActiveAgent,
+    createFromTemplate
+  } = useAgentStore();
 
   const { addToast } = useUIStore();
 
@@ -30,19 +27,18 @@ const AgentPage: React.FC = () => {
 
   // Initialize data
   useEffect(() => {
-    fetchAgents();
-    fetchTemplates();
-  }, []);
+    loadAgents();
+    loadTemplates();
+  }, [loadAgents, loadTemplates]);
 
   // Filter agents and templates
   const filteredAgents = agents.filter(agent => {
     const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         agent.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                         agent.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
-  const filteredTemplates = agentTemplates.filter(template => {
+  const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          template.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
@@ -50,69 +46,16 @@ const AgentPage: React.FC = () => {
   });
 
   // Get unique categories
-  const categories = ['all', ...Array.from(new Set(agentTemplates.map(t => t.category)))];
+  const categories = ['all', ...Array.from(new Set(templates.map(t => t.category)))];
 
   // Handlers
-  const handleCreateAgent = () => {
-    setEditingAgent(false);
-    setShowAgentModal(true);
-  };
-
-  const handleEditAgent = (agent: AgentConfig) => {
-    selectAgent(agent);
-    setEditingAgent(true);
-    setShowAgentModal(true);
-  };
-
-  const handleDeleteAgent = async (agentId: string) => {
-    try {
-      await deleteAgent(agentId);
-      addToast({
-        type: 'success',
-        title: 'Agent Deleted',
-        message: 'Agent has been successfully deleted'
-      });
-    } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Delete Failed',
-        message: 'Failed to delete agent'
-      });
-    }
-  };
-
-  const handleDuplicateAgent = async (agent: AgentConfig) => {
-    try {
-      const duplicatedAgent = await createAgent({
-        ...agent,
-        name: `${agent.name} (Copy)`,
-        createdBy: 'current-user' // This should come from auth store
-      });
-      
-      addToast({
-        type: 'success',
-        title: 'Agent Duplicated',
-        message: `Created "${duplicatedAgent.name}"`
-      });
-    } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Duplication Failed',
-        message: 'Failed to duplicate agent'
-      });
-    }
-  };
-
   const handleCreateFromTemplate = async (template: AgentTemplate) => {
     try {
-      const newAgent = await createAgentFromTemplate(template.id, {
-        createdBy: 'current-user' // This should come from auth store
-      });
-      
+      const agent = await createFromTemplate(template.id);
       addToast({
         type: 'success',
         title: 'Agent Created',
-        message: `Created "${newAgent.name}" from template`
+        message: `Created "${agent.name}" from template`
       });
     } catch (error) {
       addToast({
@@ -122,6 +65,53 @@ const AgentPage: React.FC = () => {
       });
     }
   };
+
+  const handleSetActiveAgent = (agent: Agent) => {
+    setActiveAgent(agent);
+    addToast({
+      type: 'success',
+      title: 'Agent Activated',
+      message: `Switched to ${agent.name}`
+    });
+  };
+
+  const handleDeleteAgent = async (agentId: string) => {
+    if (window.confirm('Are you sure you want to delete this agent?')) {
+      try {
+        await deleteAgent(agentId);
+        addToast({
+          type: 'success',
+          title: 'Agent Deleted',
+          message: 'Agent has been successfully deleted'
+        });
+      } catch (error) {
+        addToast({
+          type: 'error',
+          title: 'Delete Failed',
+          message: 'Failed to delete agent'
+        });
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-500 mb-4">{error}</div>
+        <button onClick={loadAgents} className="btn-primary">
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -144,16 +134,6 @@ const AgentPage: React.FC = () => {
           >
             {showTemplates ? 'My Agents' : 'Templates'}
           </button>
-          
-          {!showTemplates && (
-            <button
-              onClick={handleCreateAgent}
-              className="btn-primary flex items-center space-x-2"
-            >
-              <FiPlus className="h-5 w-5" />
-              <span>Create Agent</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -190,66 +170,97 @@ const AgentPage: React.FC = () => {
 
       {/* Content */}
       {showTemplates ? (
-        /* Agent Templates Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTemplates.map((template) => (
-            <AgentTemplateCard
+            <div
               key={template.id}
-              template={template}
-              onUse={handleCreateFromTemplate}
-            />
-          ))}
-          
-          {filteredTemplates.length === 0 && (
-            <div className="col-span-full text-center py-12">
-              <p className="text-muted">No templates found matching your criteria</p>
+              className="card p-6 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="text-2xl">{template.icon}</div>
+                  <div>
+                    <h3 className="font-semibold text-primary">{template.name}</h3>
+                    <p className="text-sm text-muted">{template.category}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-sm text-secondary mb-4">{template.description}</p>
+              
+              <div className="flex flex-wrap gap-1 mb-4">
+                {template.tags.map((tag, idx) => (
+                  <span key={idx} className="px-2 py-1 bg-secondary text-xs rounded">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              
+              <button
+                onClick={() => handleCreateFromTemplate(template)}
+                className="btn-primary w-full flex items-center justify-center space-x-2"
+              >
+                <FiPlus className="h-4 w-4" />
+                <span>Create Agent</span>
+              </button>
             </div>
-          )}
+          ))}
         </div>
       ) : (
-        /* My Agents Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAgents.map((agent) => (
-            <AgentCard
+            <div
               key={agent.id}
-              agent={agent}
-              onEdit={handleEditAgent}
-              onDuplicate={handleDuplicateAgent}
-              onDelete={handleDeleteAgent}
-              compact={true}
-            />
+              className={`card p-6 hover:shadow-lg transition-shadow ${
+                activeAgent?.id === agent.id ? 'ring-2 ring-primary' : ''
+              }`}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-primary">{agent.name}</h3>
+                  <p className="text-sm text-secondary">{agent.description}</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {activeAgent?.id === agent.id && (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="text-xs text-muted mb-4">
+                Tools: {agent.tools.length} | Collections: {agent.collections.length}
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleSetActiveAgent(agent)}
+                  className="btn-secondary flex-1"
+                  disabled={activeAgent?.id === agent.id}
+                >
+                  {activeAgent?.id === agent.id ? 'Active' : 'Activate'}
+                </button>
+                <button
+                  onClick={() => handleDeleteAgent(agent.id)}
+                  className="btn-secondary text-red-600 hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
           ))}
-
-          {/* Create New Agent Card */}
-          <div 
-            onClick={handleCreateAgent}
-            className="bg-tertiary border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-border-hover hover:bg-secondary transition-colors min-h-64"
-          >
-            <div className="h-12 w-12 bg-secondary rounded-lg flex items-center justify-center mb-4">
-              <FiPlus className="h-6 w-6 text-muted" />
-            </div>
-            <h3 className="font-medium text-primary mb-2">Create New Agent</h3>
-            <p className="text-muted text-sm">
-              Build a specialized AI assistant for your specific needs
-            </p>
-          </div>
-          
-          {filteredAgents.length === 0 && (
-            <div className="col-span-full text-center py-12">
-              <p className="text-muted">No agents found. Create your first agent to get started!</p>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Agent Modal */}
-      <AgentModal
-        isOpen={showAgentModal}
-        onClose={() => setShowAgentModal(false)}
-        isEditing={isEditingAgent}
-      />
+      {/* Empty state */}
+      {filteredAgents.length === 0 && filteredTemplates.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-muted">No {showTemplates ? 'templates' : 'agents'} found</p>
+        </div>
+      )}
     </div>
   );
 };
 
-export default AgentPage; 
+export default AgentPage;

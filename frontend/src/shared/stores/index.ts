@@ -1,17 +1,14 @@
-// Auth & User Management
-export { default as useAuthStore } from '../../entities/user/store';
+// New unified services
+export { useAgentStore } from '../services/agentService';
+export { useChatStore } from '../services/chatService';  
+export { useKnowledgeStore } from '../services/knowledgeService';
 
-// Layout & UI Management  
+// Auth store
+export { useAuthStore } from './authStore';
+
+// Legacy stores (keeping for compatibility)
 export { default as useLayoutStore } from './layoutStore';
 export { default as useUIStore } from './uiStore';
-
-// Chat & Communication
-export { default as useChatStore } from './chatStore';
-
-// Agent Management
-export { default as useAgentStore } from './agentStore';
-
-// Settings & Preferences
 export { default as useSettingsStore } from './settingsStore';
 
 // Type exports for external usage

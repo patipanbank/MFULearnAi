@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.memoryService = exports.MemoryService = void 0;
 const chromaService_1 = require("./chromaService");
-const embeddingService_1 = require("./embeddingService");
+const bedrockService_1 = require("./bedrockService");
 const redis_1 = require("../lib/redis");
 function isArrayOfMemoryDocs(arr) {
     return Array.isArray(arr) && arr.every(item => typeof item === 'object' && 'document' in item);
@@ -25,7 +25,7 @@ class MemoryService {
                 const contents = parsed.map((m) => String(m?.content ?? '')).filter((c) => c.trim().length > 0);
                 if (contents.length > 0) {
                     try {
-                        const embeddings = await embeddingService_1.embeddingService.embedBatch(contents);
+                        const embeddings = await bedrockService_1.bedrockService.createBatchTextEmbeddings(contents);
                         const ids = contents.map((c) => Buffer.from(c).toString('base64'));
                         const metadatas = parsed.map((m) => ({
                             role: m?.role || 'user',
@@ -108,7 +108,7 @@ class MemoryService {
                 console.log(`🔁 Skip embedding duplicate content for session ${sessionId}`);
                 return;
             }
-            const embedding = await embeddingService_1.embeddingService.embed(message);
+            const embedding = await bedrockService_1.bedrockService.createTextEmbedding(message);
             if (embedding && embedding.length > 0) {
                 await chromaService_1.chromaService.addToCollection(collectionName, [message], [embedding], [{
                         role: 'user',
@@ -127,7 +127,7 @@ class MemoryService {
     }
     async searchMemory(sessionId, query, k = 3) {
         try {
-            const queryEmbedding = await embeddingService_1.embeddingService.embed(query);
+            const queryEmbedding = await bedrockService_1.bedrockService.createTextEmbedding(query);
             if (!queryEmbedding || queryEmbedding.length === 0) {
                 console.warn(`⚠️ Failed to get query embedding for session ${sessionId}`);
                 return [];

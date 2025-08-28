@@ -6,7 +6,7 @@ const websocketManager_1 = require("../utils/websocketManager");
 const agentService_1 = require("./agentService");
 const usageService_1 = require("./usageService");
 const llmFactory_1 = require("../agent/llmFactory");
-const toolRegistry_1 = require("../agent/toolRegistry");
+const toolRegistry_1 = require("./toolRegistry");
 const agentFactory_1 = require("../agent/agentFactory");
 const memoryService_1 = require("./memoryService");
 const storageService_1 = require("./storageService");
@@ -185,19 +185,8 @@ class ChatService {
                     maxTokens: signaturePayload.maxTokens,
                     streaming: true
                 });
-                const sessionTools = (0, toolRegistry_1.createMemoryTool)(chatId);
-                const allTools = {};
-                for (const [k, v] of Object.entries(toolRegistry_1.toolRegistry))
-                    allTools[k] = v.func;
-                for (const [k, v] of Object.entries(sessionTools))
-                    allTools[k] = v.func;
-                if (signaturePayload.collections && signaturePayload.collections.length > 0) {
-                    const retrievalTools = (0, toolRegistry_1.createRetrievalTools)(signaturePayload.collections);
-                    for (const [name, tool] of Object.entries(retrievalTools)) {
-                        allTools[name] = tool.func;
-                        console.log(`🔧 Added retrieval tool: ${name}`);
-                    }
-                }
+                const allTools = (0, toolRegistry_1.getAllTools)(chatId, signaturePayload.collections || []);
+                console.log(`🔧 Available tools: ${Object.keys(allTools).join(', ')}`);
                 agent = await (0, agentFactory_1.createAgent)(llm, allTools, finalSystemPrompt, {
                     modelId: signaturePayload.modelId,
                     sessionId: chatId,

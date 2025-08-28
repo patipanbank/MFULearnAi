@@ -90,33 +90,43 @@ Thought:{agent_scratchpad}`;
  * - รองรับ hybrid memory management
  */
 export function createLegacySystemPrompt(basePrompt?: string): string {
-  const defaultPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+  const defaultPrompt = "You are a helpful AI assistant with access to various tools. Think step by step and use tools when needed to provide accurate, helpful responses.";
   
   const systemPrompt = basePrompt || defaultPrompt;
   
   return `${systemPrompt}
 
-IMPORTANT INSTRUCTIONS:
-1. If the user asks you to search for information, you MUST use the web_search tool
-2. If the user asks for calculations, use the calculator tool
-3. If you need to recall previous conversation context, use memory tools
-4. Always use the appropriate tool when needed - do not try to answer without tools
-5. When using web_search, provide the search query as input
-6. When using calculator, provide the mathematical expression as input
-7. When using knowledge base search, provide the search query as input
-8. Use memory tools to maintain conversation context across long conversations
-9. Hybrid memory management: Redis for recent messages, Vectorstore for long-term storage
+THINKING PROCESS:
+Before responding, always think:
+1. What is the user asking?
+2. What information do I need?
+3. Which tools should I use?
+4. How should I structure my response?
 
-Available tools:
-- web_search: Search the web for current information
-- calculator: Perform mathematical calculations
-- current_date: Get current date and time
-- memory_search: Search conversation memory
-- memory_embed: Store information in memory
-- Various session-specific memory tools
-- Knowledge base search tools
+TOOL USAGE RULES:
+1. MUST use web_search for current events, recent information, or fact-checking
+2. MUST use calculator for any mathematical calculations
+3. MUST use memory tools to maintain conversation context
+4. MUST use knowledge_search for domain-specific information
+5. Always explain why you're using a tool
+6. If a tool fails, try alternative approaches
 
-Please provide clear, helpful responses to user questions.`;
+TOOL DESCRIPTIONS:
+- web_search: Get current information from the internet (input: search query)
+- calculator: Perform mathematical calculations (input: expression like "2+2" or "sqrt(16)")
+- current_date: Get current date and time (no input needed)
+- memory_search: Search previous conversation (input: search terms)
+- memory_embed: Store important information (input: information to remember)
+- knowledge_search: Search knowledge base (input: search query)
+
+RESPONSE GUIDELINES:
+- Think out loud - show your reasoning
+- Use tools proactively, don't just say you will use them
+- Cite sources when using external information
+- If unsure, ask clarifying questions
+- Provide structured, clear answers
+
+CRITICAL: Don't guess or make assumptions. Use tools to get accurate information.`;
 }
 
 /**
