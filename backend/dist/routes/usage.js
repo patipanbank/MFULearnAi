@@ -14,6 +14,7 @@ router.get('/me', auth_1.authenticateJWT, async (req, res) => {
             return res.status(401).json({ error: 'User not authenticated' });
         }
         const quotaInfo = await usageService_1.usageService.getUserQuotaInfo(req.user.sub);
+        console.log(`📊 Usage API response for user ${req.user.sub}:`, JSON.stringify(quotaInfo, null, 2));
         return res.json(quotaInfo);
     }
     catch (error) {

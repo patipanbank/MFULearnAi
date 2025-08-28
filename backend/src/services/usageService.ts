@@ -194,7 +194,8 @@ export class UsageService {
     remainingQuota?: number;
     remainingDaily?: number;
   }> {
-    const user = await User.findById(userId).select('tokenQuota dailyTokenLimit');
+    const user = await User.findById(new mongoose.Types.ObjectId(userId)).select('tokenQuota dailyTokenLimit');
+    console.log(`🔍 getUserQuotaInfo - userId: ${userId}, user found:`, !!user);
     const usage = await this.getUserUsage(userId);
     const today = new Date().toISOString().split('T')[0];
 

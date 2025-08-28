@@ -136,7 +136,8 @@ class UsageService {
         console.log(`🔄 Reset usage for user ${userId}`);
     }
     async getUserQuotaInfo(userId) {
-        const user = await user_1.User.findById(userId).select('tokenQuota dailyTokenLimit');
+        const user = await user_1.User.findById(new mongoose_1.default.Types.ObjectId(userId)).select('tokenQuota dailyTokenLimit');
+        console.log(`🔍 getUserQuotaInfo - userId: ${userId}, user found:`, !!user);
         const usage = await this.getUserUsage(userId);
         const today = new Date().toISOString().split('T')[0];
         const remainingQuota = user?.tokenQuota ? user.tokenQuota - (usage?.totalTokens || 0) : undefined;

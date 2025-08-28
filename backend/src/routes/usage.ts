@@ -13,6 +13,7 @@ router.get('/me', authenticateJWT, async (req: AuthenticatedRequest, res: Respon
     }
 
     const quotaInfo = await usageService.getUserQuotaInfo(req.user.sub);
+    console.log(`📊 Usage API response for user ${req.user.sub}:`, JSON.stringify(quotaInfo, null, 2));
     return res.json(quotaInfo);
   } catch (error) {
     console.error('Error fetching user usage:', error);

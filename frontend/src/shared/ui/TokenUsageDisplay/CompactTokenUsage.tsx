@@ -57,10 +57,13 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch usage information');
+        const errorText = await response.text();
+        console.error('Usage API Error:', response.status, errorText);
+        throw new Error(`Failed to fetch usage information: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Usage API Response:', data);
       setUsageInfo(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
