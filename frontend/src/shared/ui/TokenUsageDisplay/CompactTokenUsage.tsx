@@ -98,8 +98,8 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
 
   if (loading) {
     return (
-      <div className={`flex items-center px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${className}`}>
-        <FiRefreshCw className="animate-spin w-4 h-4 text-gray-500" />
+      <div className={`flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}>
+        <FiRefreshCw className="animate-spin w-4 h-4 text-gray-500 dark:text-gray-400" />
         <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">Loading...</span>
       </div>
     );
@@ -107,8 +107,8 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
 
   if (error) {
     return (
-      <div className={`flex items-center px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${className}`}>
-        <FiAlertTriangle className="w-4 h-4 text-red-500" />
+      <div className={`flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}>
+        <FiAlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
         <span className="ml-2 text-sm text-red-600 dark:text-red-400">Error loading usage</span>
       </div>
     );
@@ -116,8 +116,8 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
 
   if (!usageInfo) {
     return (
-      <div className={`flex items-center px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${className}`}>
-        <FiDatabase className="w-4 h-4 text-gray-500" />
+      <div className={`flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}>
+        <FiDatabase className="w-4 h-4 text-gray-500 dark:text-gray-400" />
         <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">No usage data</span>
       </div>
     );
@@ -127,48 +127,32 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
   const today = new Date().toISOString().split('T')[0];
   const isToday = usage?.dailyUsage?.date === today;
   const dailyUsed = isToday ? (usage?.dailyUsage?.totalTokens || 0) : 0;
-  const totalUsed = usage?.totalTokens || 0;
 
   return (
-    <div className={`flex items-center px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border hover:shadow-md transition-shadow ${className}`}>
-      <FiActivity className="w-4 h-4 text-blue-500" />
+    <div className={`flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${className}`}>
+      <FiActivity className="w-4 h-4 text-blue-500 dark:text-blue-400" />
       
-      <div className="ml-3 flex items-center space-x-4">
-        {/* Total Usage */}
-        {user?.tokenQuota && (
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {formatNumber(totalUsed)} / {formatNumber(user.tokenQuota)}
-            </span>
-            <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full ${getProgressBarColor(getPercentage(totalUsed, user.tokenQuota))}`}
-                style={{ width: `${Math.min(getPercentage(totalUsed, user.tokenQuota), 100)}%` }}
-              ></div>
-            </div>
-          </div>
-        )}
-
-        {/* Daily Usage */}
+      <div className="ml-2 flex items-center space-x-3">
+        {/* Daily Usage Only */}
         {user?.dailyTokenLimit && (
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Daily:</span>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
               {formatNumber(dailyUsed)} / {formatNumber(user.dailyTokenLimit)}
             </span>
-            <div className="w-12 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+            <div className="w-20 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
               <div
-                className={`h-2 rounded-full ${getProgressBarColor(getPercentage(dailyUsed, user.dailyTokenLimit))}`}
+                className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(getPercentage(dailyUsed, user.dailyTokenLimit))}`}
                 style={{ width: `${Math.min(getPercentage(dailyUsed, user.dailyTokenLimit), 100)}%` }}
               ></div>
             </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">daily</span>
           </div>
         )}
 
         {/* Refresh Button */}
         <button
           onClick={fetchUsageInfo}
-          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+          className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 transition-colors duration-200"
           title="Refresh usage"
         >
           <FiRefreshCw className="w-3 h-3" />
