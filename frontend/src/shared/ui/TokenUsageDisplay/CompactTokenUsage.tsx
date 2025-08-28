@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiActivity, FiRefreshCw, FiAlertTriangle, FiDatabase } from 'react-icons/fi';
+import { FiActivity, FiRefreshCw, FiAlertTriangle, FiDatabase, FiZap } from 'react-icons/fi';
 
 interface TokenUsage {
   userId: string;
@@ -98,27 +98,27 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
 
   if (loading) {
     return (
-      <div className={`flex items-center px-3 py-1.5 bg-card border border-primary rounded-lg shadow-sm ${className}`}>
-        <FiRefreshCw className="animate-spin w-4 h-4 text-muted" />
-        <span className="ml-2 text-sm text-secondary">Loading...</span>
+      <div className={`flex items-center space-x-2 md:space-x-3 px-2 md:px-4 py-1.5 md:py-2 bg-secondary rounded-lg transition-colors duration-200 min-w-48 md:min-w-64 ${className}`}>
+        <FiRefreshCw className="animate-spin h-3 w-3 md:h-4 md:w-4 text-muted" />
+        <span className="text-xs md:text-sm text-muted">Loading usage...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={`flex items-center px-3 py-1.5 bg-card border border-primary rounded-lg shadow-sm ${className}`}>
-        <FiAlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
-        <span className="ml-2 text-sm text-red-600 dark:text-red-400">Error loading usage</span>
+      <div className={`flex items-center space-x-2 md:space-x-3 px-2 md:px-4 py-1.5 md:py-2 bg-secondary rounded-lg transition-colors duration-200 min-w-48 md:min-w-64 ${className}`}>
+        <FiAlertTriangle className="h-3 w-3 md:h-4 md:w-4 text-red-500 dark:text-red-400" />
+        <span className="text-xs md:text-sm text-red-600 dark:text-red-400">Usage error</span>
       </div>
     );
   }
 
   if (!usageInfo) {
     return (
-      <div className={`flex items-center px-3 py-1.5 bg-card border border-primary rounded-lg shadow-sm ${className}`}>
-        <FiDatabase className="w-4 h-4 text-muted" />
-        <span className="ml-2 text-sm text-secondary">No usage data</span>
+      <div className={`flex items-center space-x-2 md:space-x-3 px-2 md:px-4 py-1.5 md:py-2 bg-secondary rounded-lg transition-colors duration-200 min-w-48 md:min-w-64 ${className}`}>
+        <FiDatabase className="h-3 w-3 md:h-4 md:w-4 text-muted" />
+        <span className="text-xs md:text-sm text-muted">No usage data</span>
       </div>
     );
   }
@@ -129,35 +129,41 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
   const dailyUsed = isToday ? (usage?.dailyUsage?.totalTokens || 0) : 0;
 
   return (
-    <div className={`flex items-center px-3 py-1.5 bg-card border border-primary rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${className}`}>
-      <FiActivity className="w-4 h-4 text-accent" />
+    <div className={`flex items-center space-x-2 md:space-x-3 px-2 md:px-4 py-1.5 md:py-2 bg-secondary hover:bg-accent rounded-lg transition-colors duration-200 min-w-48 md:min-w-64 ${className}`}>
+      <FiZap className="h-3 w-3 md:h-4 md:w-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
       
-      <div className="ml-2 flex items-center space-x-3">
-        {/* Daily Usage Only */}
-        {user?.dailyTokenLimit && (
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-primary">
-              {formatNumber(dailyUsed)} / {formatNumber(user.dailyTokenLimit)}
-            </span>
-            <div className="w-20 bg-background-secondary rounded-full h-2">
-              <div
-                className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(getPercentage(dailyUsed, user.dailyTokenLimit))}`}
-                style={{ width: `${Math.min(getPercentage(dailyUsed, user.dailyTokenLimit), 100)}%` }}
-              ></div>
+      <div className="flex-1 text-left min-w-0">
+        {user?.dailyTokenLimit ? (
+          <>
+            <div className="text-xs md:text-sm font-medium text-primary truncate">
+              {formatNumber(dailyUsed)} / {formatNumber(user.dailyTokenLimit)} tokens
             </div>
-            <span className="text-xs text-muted">daily</span>
+            <div className="flex items-center space-x-1 md:space-x-2 mt-0.5">
+              <div className="flex-1 bg-background-secondary rounded-full h-1.5 md:h-2">
+                <div
+                  className={`h-1.5 md:h-2 rounded-full transition-all duration-300 ${getProgressBarColor(getPercentage(dailyUsed, user.dailyTokenLimit))}`}
+                  style={{ width: `${Math.min(getPercentage(dailyUsed, user.dailyTokenLimit), 100)}%` }}
+                ></div>
+              </div>
+              <span className="text-[10px] md:text-xs text-muted whitespace-nowrap">
+                {getPercentage(dailyUsed, user.dailyTokenLimit)}% used
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="text-xs md:text-sm text-muted">
+            Token usage unavailable
           </div>
         )}
-
-        {/* Refresh Button */}
-        <button
-          onClick={fetchUsageInfo}
-          className="p-1 text-muted hover:text-secondary transition-colors duration-200"
-          title="Refresh usage"
-        >
-          <FiRefreshCw className="w-3 h-3" />
-        </button>
       </div>
+
+      <button
+        onClick={fetchUsageInfo}
+        className="p-0.5 md:p-1 text-muted hover:text-secondary transition-colors duration-200 flex-shrink-0"
+        title="Refresh usage"
+      >
+        <FiRefreshCw className="h-2.5 w-2.5 md:h-3 md:w-3" />
+      </button>
     </div>
   );
 };
