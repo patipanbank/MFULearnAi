@@ -271,7 +271,7 @@ export class MemoryService {
 
   private async updateSummary(sessionId: string, summary: ConversationSummary): Promise<void> {
     const key = `memory:summary:${sessionId}`;
-    await redis.set(key, JSON.stringify(summary), { EX: 604800 }); // 7 days
+    await redis.setex(key, 604800, JSON.stringify(summary)); // 7 days
   }
 
   private async getConversationSummary(sessionId: string): Promise<ConversationSummary | null> {
@@ -340,12 +340,13 @@ export class MemoryService {
           const relevanceScore = Math.max(0, 1 - (distances[i] || 1));
           
           if (relevanceScore >= this.MIN_RELEVANCE_SCORE) {
+            const metadata = metadatas[i];
             processedResults.push({
-              content: documents[i] || '',
-              role: metadatas[i]?.role || 'user',
-              timestamp: metadatas[i]?.timestamp || '',
+              content: String(documents[i] || ''),
+              role: String(metadata?.role || 'user'),
+              timestamp: String(metadata?.timestamp || ''),
               relevanceScore,
-              metadata: metadatas[i]
+              metadata: metadata || undefined
             });
           }
         }

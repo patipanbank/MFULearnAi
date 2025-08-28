@@ -1,20 +1,56 @@
+export interface ConversationMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: string;
+    metadata?: Record<string, any>;
+}
+export interface MemorySearchResult {
+    content: string;
+    role: string;
+    timestamp: string;
+    relevanceScore: number;
+    metadata?: Record<string, any>;
+}
+export interface ConversationSummary {
+    sessionId: string;
+    summary: string;
+    messageCount: number;
+    lastUpdated: string;
+    keyTopics: string[];
+}
 export declare class MemoryService {
+    private bedrock;
+    private readonly BUFFER_WINDOW_SIZE;
+    private readonly TOKEN_LIMIT;
+    private readonly SUMMARY_THRESHOLD;
+    private readonly MIN_RELEVANCE_SCORE;
+    constructor();
+    addMessage(sessionId: string, message: ConversationMessage): Promise<void>;
+    getConversationContext(sessionId: string, query?: string): Promise<ConversationMessage[]>;
     addRecentMessage(sessionId: string, message: any): Promise<void>;
     getRecentMessages(sessionId: string): Promise<any[]>;
-    clearRecentMessages(sessionId: string): Promise<void>;
-    addLongTermMemory(sessionId: string, document: string, embedding: number[], metadata?: any): Promise<void>;
-    searchLongTermMemory(sessionId: string, queryEmbedding: number[], k?: number): Promise<import("chromadb").QueryResult<import("chromadb").Metadata> | {
-        documents: never[];
-        metadatas: never[];
-        distances: never[];
-    } | null>;
-    clearLongTermMemory(sessionId: string): Promise<void>;
-    embedMessage(sessionId: string, message: string): Promise<void>;
     searchMemory(sessionId: string, query: string, k?: number): Promise<any[]>;
+    private addToBuffer;
+    private getBufferMessages;
+    private getBufferSize;
+    private clearBuffer;
+    private performSummarization;
+    private generateSummary;
+    private extractKeyTopics;
+    private updateSummary;
+    private getConversationSummary;
+    private addToVectorStore;
+    private semanticSearch;
+    private combineMessages;
+    private trimToTokenLimit;
+    embedMessage(sessionId: string, message: string): Promise<void>;
     getAllMessages(sessionId: string): Promise<any[]>;
     setupHybridMemory(sessionId: string, messages: any[]): Promise<void>;
     getMemoryStats(sessionId: string): Promise<any>;
+    clearRecentMessages(sessionId: string): Promise<void>;
+    clearLongTermMemory(sessionId: string): Promise<void>;
     clearAllMemory(sessionId: string): Promise<void>;
+    forceSummarization(sessionId: string): Promise<ConversationSummary | null>;
 }
 export declare const memoryService: MemoryService;
 //# sourceMappingURL=memoryService.d.ts.map
