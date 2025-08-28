@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu, FiUser } from 'react-icons/fi';
 import { useAuthStore, useUIStore, useLayoutStore, useChatStore } from '../../stores';
 import AgentSelector from '../AgentSelector';
+import CompactTokenUsage from '../TokenUsageDisplay/CompactTokenUsage';
 import UserProfile from '../UserProfile';
 
 const Header: React.FC = () => {
@@ -56,6 +57,13 @@ const Header: React.FC = () => {
 
         {/* Agent Selector (chat routes) */}
         {showAgentSelector && <AgentSelector />}
+        
+        {/* Token Usage Display (chat routes) */}
+        {showAgentSelector && (
+          <div className="ml-4">
+            <CompactTokenUsage />
+          </div>
+        )}
       </div>
 
       {/* Right side - User controls */}
