@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiActivity, FiRefreshCw, FiAlertTriangle } from 'react-icons/fi';
+import { FiActivity, FiRefreshCw, FiAlertTriangle, FiDatabase } from 'react-icons/fi';
 
 interface TokenUsage {
   userId: string;
@@ -105,7 +105,7 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
     );
   }
 
-  if (error || !usageInfo?.usage) {
+  if (error) {
     return (
       <div className={`flex items-center px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${className}`}>
         <FiAlertTriangle className="w-4 h-4 text-red-500" />
@@ -114,10 +114,20 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
     );
   }
 
+  if (!usageInfo) {
+    return (
+      <div className={`flex items-center px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${className}`}>
+        <FiDatabase className="w-4 h-4 text-gray-500" />
+        <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">No usage data</span>
+      </div>
+    );
+  }
+
   const { user, usage } = usageInfo;
   const today = new Date().toISOString().split('T')[0];
-  const isToday = usage.dailyUsage.date === today;
-  const dailyUsed = isToday ? usage.dailyUsage.totalTokens : 0;
+  const isToday = usage?.dailyUsage?.date === today;
+  const dailyUsed = isToday ? (usage?.dailyUsage?.totalTokens || 0) : 0;
+  const totalUsed = usage?.totalTokens || 0;
 
   return (
     <div className={`flex items-center px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border hover:shadow-md transition-shadow ${className}`}>
@@ -128,12 +138,12 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
         {user?.tokenQuota && (
           <div className="flex items-center space-x-2">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {formatNumber(usage.totalTokens)} / {formatNumber(user.tokenQuota)}
+              {formatNumber(totalUsed)} / {formatNumber(user.tokenQuota)}
             </span>
             <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
               <div
-                className={`h-2 rounded-full ${getProgressBarColor(getPercentage(usage.totalTokens, user.tokenQuota))}`}
-                style={{ width: `${Math.min(getPercentage(usage.totalTokens, user.tokenQuota), 100)}%` }}
+                className={`h-2 rounded-full ${getProgressBarColor(getPercentage(totalUsed, user.tokenQuota))}`}
+                style={{ width: `${Math.min(getPercentage(totalUsed, user.tokenQuota), 100)}%` }}
               ></div>
             </div>
           </div>
