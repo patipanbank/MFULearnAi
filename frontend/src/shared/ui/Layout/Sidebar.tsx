@@ -294,7 +294,7 @@ const Sidebar: React.FC = () => {
                         className={cn(
                           'group relative flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors',
                           isCurrentChat
-                            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 cursor-default'
+                            ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20 dark:ring-blue-400 text-blue-600 dark:text-blue-400 cursor-default'
                             : 'text-secondary card-hover cursor-pointer'
                         )}
                       >

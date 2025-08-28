@@ -244,7 +244,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         key={collection._id}
                         className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                           selectedCollections.includes(collection._id)
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                            ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20 dark:ring-blue-400'
                             : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                         }`}
                         onClick={() => toggleCollection(collection._id)}

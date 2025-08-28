@@ -386,7 +386,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                       key={collection._id}
                       className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         (formData.collectionNames || []).includes(collection.name)
-                          ? 'border-blue-500 bg-blue-50 dark:bg-slate-700 dark:border-blue-400'
+                          ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20 dark:ring-blue-400'
                           : 'border-border hover:border-border-hover'
                       }`}
                       onClick={() => handleCollectionToggle(collection.name)}
@@ -415,7 +415,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
                     onClick={() => handleToolToggle(tool.id)}
                     className={`w-full p-3 rounded-lg border text-left transition-colors ${
                       (formData.tools || []).some((t: any) => t.id === tool.id)
-                        ? 'border-blue-500 bg-blue-50 dark:bg-slate-700 dark:border-blue-400'
+                        ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20 dark:ring-blue-400'
                         : 'border-border hover:bg-secondary'
                     }`}
                   >

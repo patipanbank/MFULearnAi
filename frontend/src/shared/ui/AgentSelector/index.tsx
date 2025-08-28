@@ -176,7 +176,7 @@ const AgentSelector: React.FC = () => {
                     key={agent.id}
                     className={`p-1.5 md:p-3 rounded-lg cursor-pointer transition-colors ${
                       selectedAgent?.id === agent.id
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                        ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20 dark:ring-blue-400'
                         : 'hover:bg-secondary'
                     }`}
                     onClick={() => handleAgentSelect(agent)}
