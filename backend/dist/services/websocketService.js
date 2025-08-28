@@ -198,13 +198,13 @@ class WebSocketService {
             this.sendError(connectionId, 'Session not found');
             return;
         }
-        const message = data.text || data.message;
+        const message = data.text || data.message || '';
         const incomingChatId = data.chatId || data.session_id;
         const newAgentId = data.agent_id || data.agentId;
         const images = data.images || [];
         console.log(`💬 Extracted data:`, { message: message?.substring(0, 50) + '...', incomingChatId, newAgentId, imagesCount: images.length });
-        if (!message) {
-            console.log(`⚠️ Empty message received, ignoring`);
+        if (!message && (!images || images.length === 0)) {
+            console.log(`⚠️ Empty message without images received, ignoring`);
             return;
         }
         let currentChatId = userSession.sessionId;
@@ -261,7 +261,7 @@ class WebSocketService {
             data: { chatId }
         }));
         console.log(`💬 Calling chatService.processMessage for chat ${chatId}`);
-        await chatService_1.chatService.processMessage(chatId, user.id, message, images);
+        await chatService_1.chatService.processMessage(chatId, user.id, message || '', images);
         console.log(`💬 User ${user.id} sent message in room ${chatId}`);
     }
     handleLeaveRoom(connectionId) {
@@ -291,10 +291,12 @@ class WebSocketService {
         });
     }
     emitProgressUpdate(userId, progress) {
-        this.broadcast({
-            type: 'upload-progress',
-            data: progress,
-            userId: userId
+        console.log(`📡 Emitting progress update to user ${userId}:`, progress);
+        websocketManager_1.wsManager.getUserConnections(userId).forEach(connectionId => {
+            websocketManager_1.wsManager.sendToConnection(connectionId, JSON.stringify({
+                type: 'upload-progress',
+                data: progress
+            }));
         });
     }
     emitNotification(userId, notification) {

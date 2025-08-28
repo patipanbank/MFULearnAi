@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import config from '../config/config';
 
@@ -29,6 +29,58 @@ export class StorageService {
       ContentType: contentType,
     });
     await s3.send(command);
+    return `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
+  }
+
+  // เพิ่มฟังก์ชันสำหรับดึงไฟล์จาก MinIO และแปลงเป็น base64
+  async getFileAsBase64(url: string): Promise<{ data: string; mediaType: string } | null> {
+    try {
+      // แยก key จาก URL
+      const urlParts = url.split('/');
+      const bucketIndex = urlParts.findIndex(part => part === S3_BUCKET);
+      if (bucketIndex === -1) {
+        console.error('Invalid S3 URL format');
+        return null;
+      }
+      
+      const key = urlParts.slice(bucketIndex + 1).join('/');
+      
+      const command = new GetObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+      });
+      
+      const response = await s3.send(command);
+      if (!response.Body) {
+        console.error('No body in S3 response');
+        return null;
+      }
+      
+      // อ่านไฟล์เป็น Buffer
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body as any) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+      
+      // แปลงเป็น base64
+      const base64Data = buffer.toString('base64');
+      const mediaType = response.ContentType || 'image/jpeg';
+      
+      return {
+        data: base64Data,
+        mediaType
+      };
+    } catch (error) {
+      console.error('Error getting file from MinIO:', error);
+      return null;
+    }
+  }
+
+  // ฟังก์ชันช่วยสร้าง pre-signed URL สำหรับการเข้าถึงไฟล์ (ถ้าต้องการ)
+  async generatePresignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
+    // TODO: Implement pre-signed URL generation if needed
+    // สำหรับตอนนี้ใช้ getObject ตรงๆ แทน
     return `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
   }
 }

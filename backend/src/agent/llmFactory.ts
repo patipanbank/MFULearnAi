@@ -3,6 +3,22 @@ import { fromEnv } from '@aws-sdk/credential-provider-env';
 import { ChatBedrockConverse } from '@langchain/aws';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
+export interface ImageBlock {
+  type: 'image';
+  source: {
+    type: 'base64';
+    media_type: string;
+    data: string;
+  };
+}
+
+export interface TextBlock {
+  type: 'text';
+  text: string;
+}
+
+export type ContentBlock = TextBlock | ImageBlock;
+
 export interface LLMOptions {
   streaming?: boolean;
   temperature?: number;
@@ -45,12 +61,59 @@ export class LLM {
   }
 
   /**
+   * สร้าง multimodal messages สำหรับ Bedrock API
+   * รองรับทั้งข้อความและรูปภาพ
+   */
+  private buildMultimodalMessages(prompt: string, images?: Array<{ url: string; mediaType: string; base64Data?: string }>): any[] {
+    const messages: any[] = [];
+    
+    // เริ่มต้นด้วยข้อความ
+    if (prompt.trim()) {
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt }
+        ]
+      });
+    }
+    
+    // เพิ่มรูปภาพถ้ามี
+    if (images && images.length > 0) {
+      // ถ้าไม่มีข้อความ ให้สร้าง user message ใหม่
+      if (!prompt.trim()) {
+        messages.push({
+          role: 'user',
+          content: []
+        });
+      }
+      
+      // เพิ่มรูปภาพเข้า content ของ user message ล่าสุด
+      const lastMessage = messages[messages.length - 1];
+      for (const image of images) {
+        if (image.base64Data) {
+          lastMessage.content.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: image.mediaType,
+              data: image.base64Data
+            }
+          });
+        }
+      }
+    }
+    
+    return messages;
+  }
+
+  /**
    * Generate text from prompt using LangChain Bedrock LLM
    * - ใช้ LangChain ChatBedrock แทนการ implement เอง
    * - รองรับ system prompt และ message format
+   * - เพิ่มการรองรับ multimodal (รูปภาพ)
    */
-  async generate(prompt: string): Promise<string> {
-    console.log(`🤖 LLM.generate called with prompt length: ${prompt.length}`);
+  async generate(prompt: string, images?: Array<{ url: string; mediaType: string; base64Data?: string }>): Promise<string> {
+    console.log(`🤖 LLM.generate called with prompt length: ${prompt.length}, images: ${images?.length || 0}`);
     
     if (!this.langchainModel) {
       throw new Error('LangChain model not initialized');
@@ -65,9 +128,16 @@ export class LLM {
         messages.push(new SystemMessage(this.options.systemPrompt));
       }
       
-      // เพิ่ม user message
-      console.log(`🤖 Adding user message: ${prompt.substring(0, 50)}...`);
-      messages.push(new HumanMessage(prompt));
+      // เพิ่ม user message (รองรับ multimodal)
+      if (images && images.length > 0 && images.some(img => img.base64Data)) {
+        // ใช้ multimodal approach สำหรับ Bedrock
+        console.log(`🤖 Using multimodal approach with ${images.length} images`);
+        return this.generateWithBedrockMultimodal(prompt, images);
+      } else {
+        // ใช้ LangChain approach แบบเดิม
+        console.log(`🤖 Adding user message: ${prompt.substring(0, 50)}...`);
+        messages.push(new HumanMessage(prompt));
+      }
       
       // เรียก LangChain model
       console.log(`🤖 Calling LangChain model.invoke...`);
@@ -77,6 +147,49 @@ export class LLM {
     } catch (error) {
       // Fallback ไปใช้ Bedrock API เดิมถ้า LangChain มีปัญหา
       console.warn('LangChain failed, falling back to direct Bedrock API:', error);
+      return this.generateWithBedrockAPI(prompt, images);
+    }
+  }
+
+  /**
+   * ใช้ Bedrock Multimodal API สำหรับโมเดลที่รองรับ (เช่น Claude 3.5)
+   */
+  private async generateWithBedrockMultimodal(prompt: string, images: Array<{ url: string; mediaType: string; base64Data?: string }>): Promise<string> {
+    try {
+      const messages = this.buildMultimodalMessages(prompt, images);
+      
+      const body: any = {
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: this.options.maxTokens ?? 1024,
+        messages,
+      };
+      
+      if (this.options.systemPrompt) body.system = this.options.systemPrompt;
+      if (this.options.temperature !== undefined) body.temperature = this.options.temperature;
+      if (this.options.topP !== undefined) body.top_p = this.options.topP;
+      if (this.options.topK !== undefined) body.top_k = this.options.topK;
+      
+      const command = new InvokeModelCommand({
+        modelId: this.modelId,
+        body: JSON.stringify(body),
+        contentType: 'application/json',
+        accept: 'application/json',
+      });
+      
+      const response = await this.client.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      
+      // Claude 3.5: content is array of blocks, find first text block
+      if (Array.isArray(responseBody.content)) {
+        const textBlock = responseBody.content.find((c: any) => c.type === 'text' && typeof c.text === 'string');
+        if (textBlock) return textBlock.text;
+      }
+      
+      if (responseBody.completion && typeof responseBody.completion === 'string') return responseBody.completion;
+      return JSON.stringify(responseBody);
+    } catch (error) {
+      console.error('❌ Error in Bedrock Multimodal API:', error);
+      // Fallback to text-only
       return this.generateWithBedrockAPI(prompt);
     }
   }
@@ -84,7 +197,7 @@ export class LLM {
   /**
    * Fallback method ใช้ Bedrock API โดยตรง (เหมือนเดิม)
    */
-  private async generateWithBedrockAPI(prompt: string): Promise<string> {
+  private async generateWithBedrockAPI(prompt: string, images?: Array<{ url: string; mediaType: string; base64Data?: string }>): Promise<string> {
     // Extract model-level keyword arguments (legacy style, whitelist only allowed keys, use snake_case)
     const allowedParams: Record<string, string> = {
       temperature: 'temperature',
@@ -195,13 +308,21 @@ export class LLM {
   /**
    * Streaming generation using LangChain streaming
    * - ใช้ LangChain streaming แทนการ implement เอง
+   * - เพิ่มการรองรับ multimodal
    */
-  async *stream(prompt: string): AsyncGenerator<string, void, unknown> {
+  async *stream(prompt: string, images?: Array<{ url: string; mediaType: string; base64Data?: string }>): AsyncGenerator<string, void, unknown> {
     if (!this.langchainModel) {
       throw new Error('LangChain model not initialized');
     }
 
     try {
+      // ตรวจสอบว่าต้องใช้ multimodal หรือไม่
+      if (images && images.length > 0 && images.some(img => img.base64Data)) {
+        console.log(`🤖 Using multimodal streaming with ${images.length} images`);
+        yield* this.streamWithBedrockMultimodal(prompt, images);
+        return;
+      }
+
       const messages = [];
       
       // เพิ่ม system message ถ้ามี
@@ -223,6 +344,42 @@ export class LLM {
     } catch (error) {
       // Fallback ไปใช้ Bedrock streaming API เดิม
       console.warn('LangChain streaming failed, falling back to direct Bedrock API:', error);
+      yield* this.streamWithBedrockAPI(prompt, images);
+    }
+  }
+
+  /**
+   * Streaming สำหรับ multimodal
+   */
+  private async *streamWithBedrockMultimodal(prompt: string, images: Array<{ url: string; mediaType: string; base64Data?: string }>): AsyncGenerator<string, void, unknown> {
+    try {
+      const messages = this.buildMultimodalMessages(prompt, images);
+      
+      const inferenceConfig: any = {};
+      if (this.options.maxTokens !== undefined) inferenceConfig.maxTokens = this.options.maxTokens;
+      if (this.options.temperature !== undefined) inferenceConfig.temperature = this.options.temperature;
+      if (this.options.topP !== undefined) inferenceConfig.topP = this.options.topP;
+      
+      const command = new ConverseStreamCommand({
+        modelId: this.modelId,
+        messages,
+        inferenceConfig,
+      });
+      
+      const response = await this.client.send(command);
+      if (!response.stream) {
+        return;
+      }
+      
+      for await (const item of response.stream) {
+        if (item.contentBlockDelta) {
+          const text = item.contentBlockDelta.delta?.text;
+          if (text) yield text;
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in Bedrock Multimodal streaming:', error);
+      // Fallback to text-only streaming
       yield* this.streamWithBedrockAPI(prompt);
     }
   }
@@ -230,7 +387,7 @@ export class LLM {
   /**
    * Fallback streaming method ใช้ Bedrock API โดยตรง (เหมือนเดิม)
    */
-  private async *streamWithBedrockAPI(prompt: string): AsyncGenerator<string, void, unknown> {
+  private async *streamWithBedrockAPI(prompt: string, images?: Array<{ url: string; mediaType: string; base64Data?: string }>): AsyncGenerator<string, void, unknown> {
     // ตัวอย่างนี้รองรับเฉพาะ message-based (Claude 3, Nova, Llama 3)
     // ถ้าต้องการรองรับ native payload (Cohere, Mistral) ต้อง implement เพิ่ม
     const modelId = this.modelId;
@@ -269,6 +426,7 @@ export class LLM {
  * getLLM: Return a Bedrock LLM instance for the requested modelId and options
  * - Compatible with backend-legacy/agents/llm_factory.py
  * - ใช้ LangChain เป็นหลัก แต่มี fallback ไปใช้ Bedrock API โดยตรง
+ * - เพิ่มการรองรับ multimodal
  */
 export function getLLM(modelId: string, options: LLMOptions = {}): LLM {
   return new LLM(modelId, options);

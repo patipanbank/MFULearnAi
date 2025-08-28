@@ -173,6 +173,15 @@ class WebSocketManager extends events_1.EventEmitter {
     getConnectionInfo(connectionId) {
         return this.connections.get(connectionId);
     }
+    getUserConnections(userId) {
+        const userConnections = [];
+        for (const [connectionId, connection] of this.connections) {
+            if (connection.userId === userId) {
+                userConnections.push(connectionId);
+            }
+        }
+        return userConnections;
+    }
     pingConnections() {
         for (const [connectionId, connection] of this.connections) {
             if (!connection.isAlive) {

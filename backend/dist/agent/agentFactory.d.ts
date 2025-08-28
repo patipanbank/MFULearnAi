@@ -10,6 +10,11 @@ export interface AgentExecutor {
             data?: any;
         }) => void;
         maxSteps?: number;
+        images?: Array<{
+            url: string;
+            mediaType: string;
+            base64Data?: string;
+        }>;
     }) => Promise<string>;
 }
 export declare function createAgent(llm: LLM, tools: {

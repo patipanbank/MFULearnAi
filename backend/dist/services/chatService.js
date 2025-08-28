@@ -9,6 +9,7 @@ const llmFactory_1 = require("../agent/llmFactory");
 const toolRegistry_1 = require("../agent/toolRegistry");
 const agentFactory_1 = require("../agent/agentFactory");
 const memoryService_1 = require("./memoryService");
+const storageService_1 = require("./storageService");
 class ChatService {
     constructor() {
         this.agentCache = new Map();
@@ -61,6 +62,34 @@ class ChatService {
         await chat.save();
         console.log(`✅ Added message to session ${chatId}`);
         return newMessage;
+    }
+    async prepareImagesForMultimodal(images) {
+        if (!images || images.length === 0) {
+            return [];
+        }
+        const preparedImages = [];
+        for (const image of images) {
+            try {
+                console.log(`🖼️ Preparing image for multimodal: ${image.url.substring(0, 50)}...`);
+                const base64Data = await storageService_1.storageService.getFileAsBase64(image.url);
+                if (base64Data) {
+                    preparedImages.push({
+                        ...image,
+                        base64Data: base64Data.data
+                    });
+                    console.log(`✅ Image prepared successfully: ${base64Data.mediaType}, size: ${Math.round(base64Data.data.length / 1024)}KB`);
+                }
+                else {
+                    console.warn(`⚠️ Failed to prepare image: ${image.url}`);
+                    preparedImages.push(image);
+                }
+            }
+            catch (error) {
+                console.error(`❌ Error preparing image ${image.url}:`, error);
+                preparedImages.push(image);
+            }
+        }
+        return preparedImages;
     }
     async processMessage(chatId, userId, content, images) {
         console.log(`🔧 processMessage called for chat ${chatId}, user ${userId}`);
@@ -118,6 +147,7 @@ class ChatService {
         try {
             console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
             console.log(`🤖 User message: ${userMessage.substring(0, 100)}...`);
+            console.log(`🤖 Images: ${images?.length || 0}`);
             console.log(`🤖 Config:`, config);
             const chat = await chat_1.ChatModel.findById(chatId);
             if (!chat) {
@@ -179,12 +209,21 @@ class ChatService {
             const chatFromDb = await chat_1.ChatModel.findById(chatId);
             if (!chatFromDb)
                 throw new Error(`Chat session ${chatId} not found during AI processing`);
-            let messages = chatFromDb.messages.map(msg => ({
-                role: msg.role,
-                content: msg.content,
-                id: msg.id,
-                timestamp: msg.timestamp
-            }));
+            let messages = chatFromDb.messages.map(msg => {
+                let enrichedContent = msg.content;
+                if (msg.role === 'user' && Array.isArray(msg.images) && msg.images.length > 0) {
+                    const imagesDesc = msg.images
+                        .map((im, idx) => `#${idx + 1} (${im.mediaType}): ${im.url}`)
+                        .join('\n');
+                    enrichedContent = `${enrichedContent}\n\n[Attached images]\n${imagesDesc}`;
+                }
+                return {
+                    role: msg.role,
+                    content: enrichedContent,
+                    id: msg.id,
+                    timestamp: msg.timestamp
+                };
+            });
             if (!messages.length || messages[messages.length - 1].role !== 'user') {
                 const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
                 messages.push(userMsg);
@@ -194,8 +233,15 @@ class ChatService {
             const useRedisMemory = this.shouldUseRedisMemory(currentMessageCount);
             const shouldEmbed = this.shouldEmbedMessages(currentMessageCount);
             console.log(`🧠 Memory Management: messageCount=${currentMessageCount}, useMemoryTool=${useMemoryTool}, useRedisMemory=${useRedisMemory}, shouldEmbed=${shouldEmbed}`);
+            let preparedImages = [];
+            if (images && images.length > 0) {
+                console.log(`🖼️ Preparing ${images.length} images for multimodal processing...`);
+                preparedImages = await this.prepareImagesForMultimodal(images);
+                console.log(`✅ Prepared ${preparedImages.filter(img => img.base64Data).length} images for multimodal`);
+            }
             console.log(`🤖 Starting agent.run with ${messages.length} messages`);
             console.log(`🤖 Last message: ${messages[messages.length - 1].content.substring(0, 50)}...`);
+            console.log(`🤖 Images for multimodal: ${preparedImages.filter(img => img.base64Data).length}`);
             let fullContent = '';
             let inputTokens = 0;
             let outputTokens = 0;
@@ -270,6 +316,18 @@ class ChatService {
                             }));
                         }
                     }
+                    else if (event.type === 'assistant_created') {
+                        console.log(`🤖 Assistant message created`, event.data);
+                        const assistantMsg = {
+                            id: event.data.messageId,
+                            role: 'assistant',
+                            content: event.data.content,
+                            timestamp: new Date(),
+                            isStreaming: true,
+                            isComplete: false
+                        };
+                        await this.addMessage(chatId, assistantMsg);
+                    }
                     else if (event.type === 'end') {
                         console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
                         const chatFromDb = await chat_1.ChatModel.findById(chatId);
@@ -318,7 +376,8 @@ class ChatService {
                         }
                     }
                 },
-                maxSteps: 5
+                maxSteps: 5,
+                images: preparedImages
             });
         }
         catch (error) {

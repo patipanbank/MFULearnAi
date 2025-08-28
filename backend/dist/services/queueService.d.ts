@@ -29,6 +29,7 @@ export declare class QueueService {
         total: number;
     }>;
     cleanupOldJobs(): Promise<void>;
+    private processFileWithProgress;
     shutdown(): Promise<void>;
 }
 export declare const queueService: QueueService;

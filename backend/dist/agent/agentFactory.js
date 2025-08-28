@@ -17,7 +17,16 @@ async function createAgent(llm, tools, prompt, config) {
         async run(messages, options) {
             console.log(`🤖 LangChain Agent.run called with ${messages.length} messages`);
             console.log(`🤖 Last message: ${messages[messages.length - 1]?.content.substring(0, 50)}...`);
+            console.log(`🤖 Images for multimodal: ${options?.images?.length || 0}`);
             try {
+                if (options?.images && options.images.length > 0 && options.images.some(img => img.base64Data)) {
+                    console.log(`🤖 Using multimodal approach with ${options.images.length} images`);
+                    const lastUserMessage = messages.slice().reverse().find((msg) => msg.role === 'user');
+                    if (lastUserMessage) {
+                        const response = await llm.generate(lastUserMessage.content, options.images);
+                        return response;
+                    }
+                }
                 return await langchainAgent.run(messages, options);
             }
             catch (error) {

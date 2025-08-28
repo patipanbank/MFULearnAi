@@ -5,6 +5,7 @@ export declare class ChatService {
     createChat(userId: string, name: string, agentId?: string): Promise<Chat>;
     getChat(chatId: string, userId: string): Promise<Chat | null>;
     addMessage(chatId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage>;
+    private prepareImagesForMultimodal;
     processMessage(chatId: string, userId: string, content: string, images?: Array<{
         url: string;
         mediaType: string;

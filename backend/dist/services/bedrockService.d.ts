@@ -1,7 +1,10 @@
 export declare class BedrockService {
     private client;
     constructor();
-    createBatchTextEmbeddings(texts: string[]): Promise<number[][]>;
+    createBatchTextEmbeddings(texts: string[], onProgress?: (completed: number, total: number) => void): Promise<number[][]>;
+    private createLargeBatchEmbeddings;
+    private createParallelEmbeddings;
+    private createSequentialEmbeddings;
     createTextEmbedding(text: string): Promise<number[]>;
     createImageEmbedding(imageBase64: string, text?: string): Promise<number[]>;
     generateImage(prompt: string): Promise<string>;

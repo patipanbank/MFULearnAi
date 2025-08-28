@@ -133,6 +133,97 @@ class TrainingService {
         }
         return chunks.filter(chunk => chunk.length > 0);
     }
+    async parseFileContent(fileBuffer, fileName) {
+        return documentService_1.documentService.parseFileContent(fileBuffer, fileName);
+    }
+    async splitTextWithProgress(text, onProgress) {
+        try {
+            console.log(`📝 Splitting text: ${text.length} characters`);
+            onProgress?.(0);
+            const chunks = await this.textSplitter.splitText(text);
+            onProgress?.(100);
+            console.log(`✂️ Text split into ${chunks.length} chunks`);
+            const chunkSizes = chunks.map(chunk => chunk.length);
+            const avgSize = chunkSizes.reduce((a, b) => a + b, 0) / chunks.length;
+            const maxSize = Math.max(...chunkSizes);
+            const minSize = Math.min(...chunkSizes);
+            console.log(`📊 Chunk statistics: avg=${Math.round(avgSize)}, min=${minSize}, max=${maxSize}`);
+            return chunks.filter(chunk => chunk.trim().length > 0);
+        }
+        catch (error) {
+            console.error('❌ Text splitting failed:', error);
+            onProgress?.(50);
+            console.log('🔄 Using fallback text splitting');
+            const result = this.fallbackSplitText(text);
+            onProgress?.(100);
+            return result;
+        }
+    }
+    async createEmbeddingsWithProgress(chunks, modelId, onProgress) {
+        console.log(`🔮 Creating embeddings for ${chunks.length} chunks...`);
+        let embeddings = null;
+        let retryCount = 0;
+        const maxRetries = 3;
+        while (retryCount < maxRetries) {
+            try {
+                embeddings = await bedrockService_1.bedrockService.createBatchTextEmbeddings(chunks, (completed, total) => {
+                    const baseProgress = retryCount * 33;
+                    const currentProgress = Math.floor((completed / total) * 67);
+                    onProgress?.(baseProgress + currentProgress);
+                });
+                onProgress?.(100);
+                break;
+            }
+            catch (embeddingError) {
+                retryCount++;
+                console.error(`❌ Embedding attempt ${retryCount} failed:`, embeddingError);
+                if (retryCount >= maxRetries) {
+                    throw new Error(`Failed to create embeddings after ${maxRetries} attempts: ${embeddingError?.message || embeddingError}`);
+                }
+                const waitTime = Math.pow(2, retryCount) * 1000;
+                console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+        }
+        if (!embeddings || embeddings.length !== chunks.length) {
+            const errorMsg = `Mismatch between chunks (${chunks.length}) and embeddings (${embeddings?.length || 0})`;
+            console.error(`❌ ${errorMsg}`);
+            throw new Error(errorMsg);
+        }
+        console.log(`✅ Successfully created ${embeddings.length} embeddings`);
+        return embeddings;
+    }
+    async storeDocumentsWithProgress(chunks, embeddings, sourceName, user, modelId, collectionName, onProgress) {
+        onProgress?.(10);
+        console.log(`💾 Preparing ${chunks.length} documents for storage...`);
+        const documentsToAdd = chunks.map((chunk, index) => ({
+            id: (0, uuid_1.v4)(),
+            document: chunk,
+            metadata: {
+                source_type: 'file',
+                source: sourceName,
+                uploadedBy: user?.username || 'system',
+                userId: user?._id?.toString() || 'system',
+                modelId: modelId,
+                collectionName: collectionName,
+                createdAt: new Date().toISOString(),
+                chunkIndex: index,
+                chunkSize: chunk.length,
+            },
+            embedding: embeddings[index],
+        }));
+        if (documentsToAdd.length > 0) {
+            onProgress?.(25);
+            console.log(`💾 Storing ${documentsToAdd.length} documents in ChromaDB...`);
+            await chromaService_1.chromaService.addDocuments(collectionName, documentsToAdd, (completed, total) => {
+                const storageProgress = Math.floor((completed / total) * 75);
+                onProgress?.(25 + storageProgress);
+            });
+            onProgress?.(100);
+            console.log(`✅ Successfully stored documents in collection: ${collectionName}`);
+        }
+        return documentsToAdd.length;
+    }
     async processAndEmbedFile(fileBuffer, fileName, user, modelId, collectionName) {
         if (!fileName) {
             throw new Error('File has no filename.');

@@ -29,8 +29,41 @@ class LLM {
             } : undefined,
         });
     }
-    async generate(prompt) {
-        console.log(`🤖 LLM.generate called with prompt length: ${prompt.length}`);
+    buildMultimodalMessages(prompt, images) {
+        const messages = [];
+        if (prompt.trim()) {
+            messages.push({
+                role: 'user',
+                content: [
+                    { type: 'text', text: prompt }
+                ]
+            });
+        }
+        if (images && images.length > 0) {
+            if (!prompt.trim()) {
+                messages.push({
+                    role: 'user',
+                    content: []
+                });
+            }
+            const lastMessage = messages[messages.length - 1];
+            for (const image of images) {
+                if (image.base64Data) {
+                    lastMessage.content.push({
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            media_type: image.mediaType,
+                            data: image.base64Data
+                        }
+                    });
+                }
+            }
+        }
+        return messages;
+    }
+    async generate(prompt, images) {
+        console.log(`🤖 LLM.generate called with prompt length: ${prompt.length}, images: ${images?.length || 0}`);
         if (!this.langchainModel) {
             throw new Error('LangChain model not initialized');
         }
@@ -40,8 +73,14 @@ class LLM {
                 console.log(`🤖 Adding system prompt: ${this.options.systemPrompt.substring(0, 50)}...`);
                 messages.push(new messages_1.SystemMessage(this.options.systemPrompt));
             }
-            console.log(`🤖 Adding user message: ${prompt.substring(0, 50)}...`);
-            messages.push(new messages_1.HumanMessage(prompt));
+            if (images && images.length > 0 && images.some(img => img.base64Data)) {
+                console.log(`🤖 Using multimodal approach with ${images.length} images`);
+                return this.generateWithBedrockMultimodal(prompt, images);
+            }
+            else {
+                console.log(`🤖 Adding user message: ${prompt.substring(0, 50)}...`);
+                messages.push(new messages_1.HumanMessage(prompt));
+            }
             console.log(`🤖 Calling LangChain model.invoke...`);
             const response = await this.langchainModel.invoke(messages);
             console.log(`🤖 LangChain response received: ${response.content.substring(0, 100)}...`);
@@ -49,10 +88,48 @@ class LLM {
         }
         catch (error) {
             console.warn('LangChain failed, falling back to direct Bedrock API:', error);
+            return this.generateWithBedrockAPI(prompt, images);
+        }
+    }
+    async generateWithBedrockMultimodal(prompt, images) {
+        try {
+            const messages = this.buildMultimodalMessages(prompt, images);
+            const body = {
+                anthropic_version: 'bedrock-2023-05-31',
+                max_tokens: this.options.maxTokens ?? 1024,
+                messages,
+            };
+            if (this.options.systemPrompt)
+                body.system = this.options.systemPrompt;
+            if (this.options.temperature !== undefined)
+                body.temperature = this.options.temperature;
+            if (this.options.topP !== undefined)
+                body.top_p = this.options.topP;
+            if (this.options.topK !== undefined)
+                body.top_k = this.options.topK;
+            const command = new client_bedrock_runtime_1.InvokeModelCommand({
+                modelId: this.modelId,
+                body: JSON.stringify(body),
+                contentType: 'application/json',
+                accept: 'application/json',
+            });
+            const response = await this.client.send(command);
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            if (Array.isArray(responseBody.content)) {
+                const textBlock = responseBody.content.find((c) => c.type === 'text' && typeof c.text === 'string');
+                if (textBlock)
+                    return textBlock.text;
+            }
+            if (responseBody.completion && typeof responseBody.completion === 'string')
+                return responseBody.completion;
+            return JSON.stringify(responseBody);
+        }
+        catch (error) {
+            console.error('❌ Error in Bedrock Multimodal API:', error);
             return this.generateWithBedrockAPI(prompt);
         }
     }
-    async generateWithBedrockAPI(prompt) {
+    async generateWithBedrockAPI(prompt, images) {
         const allowedParams = {
             temperature: 'temperature',
             topP: 'top_p',
@@ -160,11 +237,16 @@ class LLM {
         }
         return JSON.stringify(responseBody);
     }
-    async *stream(prompt) {
+    async *stream(prompt, images) {
         if (!this.langchainModel) {
             throw new Error('LangChain model not initialized');
         }
         try {
+            if (images && images.length > 0 && images.some(img => img.base64Data)) {
+                console.log(`🤖 Using multimodal streaming with ${images.length} images`);
+                yield* this.streamWithBedrockMultimodal(prompt, images);
+                return;
+            }
             const messages = [];
             if (this.options.systemPrompt) {
                 messages.push(new messages_1.SystemMessage(this.options.systemPrompt));
@@ -179,10 +261,42 @@ class LLM {
         }
         catch (error) {
             console.warn('LangChain streaming failed, falling back to direct Bedrock API:', error);
+            yield* this.streamWithBedrockAPI(prompt, images);
+        }
+    }
+    async *streamWithBedrockMultimodal(prompt, images) {
+        try {
+            const messages = this.buildMultimodalMessages(prompt, images);
+            const inferenceConfig = {};
+            if (this.options.maxTokens !== undefined)
+                inferenceConfig.maxTokens = this.options.maxTokens;
+            if (this.options.temperature !== undefined)
+                inferenceConfig.temperature = this.options.temperature;
+            if (this.options.topP !== undefined)
+                inferenceConfig.topP = this.options.topP;
+            const command = new client_bedrock_runtime_1.ConverseStreamCommand({
+                modelId: this.modelId,
+                messages,
+                inferenceConfig,
+            });
+            const response = await this.client.send(command);
+            if (!response.stream) {
+                return;
+            }
+            for await (const item of response.stream) {
+                if (item.contentBlockDelta) {
+                    const text = item.contentBlockDelta.delta?.text;
+                    if (text)
+                        yield text;
+                }
+            }
+        }
+        catch (error) {
+            console.error('❌ Error in Bedrock Multimodal streaming:', error);
             yield* this.streamWithBedrockAPI(prompt);
         }
     }
-    async *streamWithBedrockAPI(prompt) {
+    async *streamWithBedrockAPI(prompt, images) {
         const modelId = this.modelId;
         const messages = [
             {

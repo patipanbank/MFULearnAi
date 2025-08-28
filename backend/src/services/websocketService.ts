@@ -274,16 +274,16 @@ export class WebSocketService {
       return;
     }
 
-    const message = data.text || data.message;
+    const message = data.text || data.message || '';
     const incomingChatId = data.chatId || data.session_id;
     const newAgentId = data.agent_id || data.agentId;
     const images = data.images || [];
 
     console.log(`💬 Extracted data:`, { message: message?.substring(0, 50) + '...', incomingChatId, newAgentId, imagesCount: images.length });
 
-    if (!message) {
-      console.log(`⚠️ Empty message received, ignoring`);
-      return; // Ignore empty messages
+    if (!message && (!images || images.length === 0)) {
+      console.log(`⚠️ Empty message without images received, ignoring`);
+      return; // Ignore when both text and images are empty
     }
 
     // Handle session switching
@@ -352,7 +352,7 @@ export class WebSocketService {
 
     // Process message with chat service (user message will be added inside)
     console.log(`💬 Calling chatService.processMessage for chat ${chatId}`);
-    await chatService.processMessage(chatId, user.id, message, images);
+    await chatService.processMessage(chatId, user.id, message || '', images);
 
     console.log(`💬 User ${user.id} sent message in room ${chatId}`);
   }

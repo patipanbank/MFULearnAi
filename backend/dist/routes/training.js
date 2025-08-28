@@ -56,12 +56,21 @@ router.post('/upload', (req, res, next) => {
         console.log('🔄 Multer finished:', {
             hasError: !!err,
             hasFile: !!req.file,
-            error: err?.message
+            error: err?.message,
+            bodyKeys: Object.keys(req.body || {}),
+            bodyValues: req.body,
+            filesKeys: req.files ? Object.keys(req.files) : 'no files object',
+            fileObject: req.file ? {
+                fieldname: req.file.fieldname,
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
+            } : 'no file object'
         });
         if (err) {
             console.log('❌ Multer error:', err.message);
             if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+                return res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
             }
             return res.status(400).json({ error: err.message });
         }
@@ -166,15 +175,62 @@ router.post('/upload', (req, res, next) => {
 });
 router.get('/status', async (req, res) => {
     try {
-        res.json({
-            status: 'idle',
-            message: 'Training service is available'
+        const queueStats = await queueService_1.queueService.getQueueStats();
+        return res.json({
+            status: 'running',
+            message: 'Training service is available',
+            queue: queueStats
         });
     }
     catch (error) {
         console.error('Training status error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             error: error.message || 'Failed to get training status'
+        });
+    }
+});
+router.get('/job/:jobId', async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        if (!jobId) {
+            return res.status(400).json({ error: 'Job ID is required' });
+        }
+        const jobProgress = queueService_1.queueService.getJobProgress(jobId);
+        if (!jobProgress) {
+            return res.status(404).json({ error: 'Job not found' });
+        }
+        return res.json({
+            jobId: jobProgress.jobId,
+            fileName: jobProgress.fileName,
+            status: jobProgress.status,
+            progress: jobProgress.progress,
+            error: jobProgress.error,
+            result: jobProgress.result
+        });
+    }
+    catch (error) {
+        console.error('Job status error:', error);
+        return res.status(500).json({
+            error: error.message || 'Failed to get job status'
+        });
+    }
+});
+router.get('/jobs/user', async (req, res) => {
+    try {
+        const jwtUser = req.user;
+        const userId = jwtUser.sub;
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID not found' });
+        }
+        const userJobs = queueService_1.queueService.getAllJobsForUser(userId);
+        return res.json({
+            jobs: userJobs
+        });
+    }
+    catch (error) {
+        console.error('User jobs error:', error);
+        return res.status(500).json({
+            error: error.message || 'Failed to get user jobs'
         });
     }
 });

@@ -1,3 +1,16 @@
+export interface ImageBlock {
+    type: 'image';
+    source: {
+        type: 'base64';
+        media_type: string;
+        data: string;
+    };
+}
+export interface TextBlock {
+    type: 'text';
+    text: string;
+}
+export type ContentBlock = TextBlock | ImageBlock;
 export interface LLMOptions {
     streaming?: boolean;
     temperature?: number;
@@ -14,9 +27,20 @@ export declare class LLM {
     private options;
     private langchainModel;
     constructor(modelId: string, options?: LLMOptions);
-    generate(prompt: string): Promise<string>;
+    private buildMultimodalMessages;
+    generate(prompt: string, images?: Array<{
+        url: string;
+        mediaType: string;
+        base64Data?: string;
+    }>): Promise<string>;
+    private generateWithBedrockMultimodal;
     private generateWithBedrockAPI;
-    stream(prompt: string): AsyncGenerator<string, void, unknown>;
+    stream(prompt: string, images?: Array<{
+        url: string;
+        mediaType: string;
+        base64Data?: string;
+    }>): AsyncGenerator<string, void, unknown>;
+    private streamWithBedrockMultimodal;
     private streamWithBedrockAPI;
 }
 export declare function getLLM(modelId: string, options?: LLMOptions): LLM;

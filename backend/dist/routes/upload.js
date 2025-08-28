@@ -24,5 +24,25 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         return res.status(500).json({ error: `Upload failed: ${e.message}` });
     }
 });
+router.post('/image', upload.single('file'), async (req, res) => {
+    try {
+        const file = req.file;
+        if (!file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            return res.status(400).json({ error: 'File too large (max 10 MB)' });
+        }
+        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowed.includes(file.mimetype)) {
+            return res.status(400).json({ error: 'Unsupported image type' });
+        }
+        const url = await storageService_1.storageService.uploadFile(file.buffer, file.originalname, file.mimetype);
+        return res.json({ url, mediaType: file.mimetype });
+    }
+    catch (e) {
+        return res.status(500).json({ error: `Upload failed: ${e.message}` });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=upload.js.map

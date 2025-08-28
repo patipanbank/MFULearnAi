@@ -27,6 +27,7 @@ export declare class WebSocketManager extends EventEmitter {
     getConnectionCount(): number;
     getSessionConnectionCount(sessionId: string): number;
     getConnectionInfo(connectionId: string): WebSocketConnection | undefined;
+    getUserConnections(userId: string): string[];
     pingConnections(): void;
     cleanup(): Promise<void>;
 }

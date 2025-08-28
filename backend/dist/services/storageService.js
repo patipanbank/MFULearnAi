@@ -30,6 +30,44 @@ class StorageService {
         await s3.send(command);
         return `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
     }
+    async getFileAsBase64(url) {
+        try {
+            const urlParts = url.split('/');
+            const bucketIndex = urlParts.findIndex(part => part === S3_BUCKET);
+            if (bucketIndex === -1) {
+                console.error('Invalid S3 URL format');
+                return null;
+            }
+            const key = urlParts.slice(bucketIndex + 1).join('/');
+            const command = new client_s3_1.GetObjectCommand({
+                Bucket: S3_BUCKET,
+                Key: key,
+            });
+            const response = await s3.send(command);
+            if (!response.Body) {
+                console.error('No body in S3 response');
+                return null;
+            }
+            const chunks = [];
+            for await (const chunk of response.Body) {
+                chunks.push(chunk);
+            }
+            const buffer = Buffer.concat(chunks);
+            const base64Data = buffer.toString('base64');
+            const mediaType = response.ContentType || 'image/jpeg';
+            return {
+                data: base64Data,
+                mediaType
+            };
+        }
+        catch (error) {
+            console.error('Error getting file from MinIO:', error);
+            return null;
+        }
+    }
+    async generatePresignedUrl(key, expiresIn = 3600) {
+        return `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
+    }
 }
 exports.StorageService = StorageService;
 exports.storageService = new StorageService();

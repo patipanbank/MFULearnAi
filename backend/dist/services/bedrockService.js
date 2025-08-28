@@ -8,19 +8,113 @@ class BedrockService {
             region: process.env.AWS_REGION || 'us-east-1',
         });
     }
-    async createBatchTextEmbeddings(texts) {
+    async createBatchTextEmbeddings(texts, onProgress) {
+        if (!texts || texts.length === 0) {
+            return [];
+        }
+        console.log(`🔮 Starting batch embedding for ${texts.length} texts`);
         try {
-            const embeddings = [];
-            for (const text of texts) {
-                const embedding = await this.createTextEmbedding(text);
-                embeddings.push(embedding);
+            if (texts.length > 50) {
+                return await this.createLargeBatchEmbeddings(texts, onProgress);
             }
-            return embeddings;
+            return await this.createParallelEmbeddings(texts, onProgress);
         }
         catch (error) {
             console.error('Error creating batch embeddings:', error);
             throw error;
         }
+    }
+    async createLargeBatchEmbeddings(texts, onProgress) {
+        const BATCH_SIZE = 10;
+        const DELAY_BETWEEN_BATCHES = 200;
+        const allEmbeddings = [];
+        let completed = 0;
+        console.log(`📦 Processing ${texts.length} texts in batches of ${BATCH_SIZE}`);
+        for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+            const batch = texts.slice(i, i + BATCH_SIZE);
+            try {
+                console.log(`🔄 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(texts.length / BATCH_SIZE)}`);
+                const batchEmbeddings = await this.createParallelEmbeddings(batch);
+                allEmbeddings.push(...batchEmbeddings);
+                completed += batch.length;
+                onProgress?.(completed, texts.length);
+                if (i + BATCH_SIZE < texts.length) {
+                    await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+                }
+            }
+            catch (error) {
+                console.error(`❌ Error in batch ${Math.floor(i / BATCH_SIZE) + 1}:`, error);
+                console.log(`🔄 Retrying batch ${Math.floor(i / BATCH_SIZE) + 1} sequentially`);
+                const fallbackEmbeddings = await this.createSequentialEmbeddings(batch);
+                allEmbeddings.push(...fallbackEmbeddings);
+                completed += batch.length;
+                onProgress?.(completed, texts.length);
+            }
+        }
+        console.log(`✅ Completed batch embedding: ${allEmbeddings.length} embeddings`);
+        return allEmbeddings;
+    }
+    async createParallelEmbeddings(texts, onProgress) {
+        const MAX_CONCURRENT = 5;
+        const embeddings = [];
+        let completed = 0;
+        for (let i = 0; i < texts.length; i += MAX_CONCURRENT) {
+            const chunk = texts.slice(i, i + MAX_CONCURRENT);
+            const chunkPromises = chunk.map(async (text, index) => {
+                try {
+                    const embedding = await this.createTextEmbedding(text);
+                    return { index: i + index, embedding, success: true };
+                }
+                catch (error) {
+                    console.warn(`⚠️ Failed to embed text ${i + index}, will retry`);
+                    return { index: i + index, embedding: null, success: false, error };
+                }
+            });
+            const chunkResults = await Promise.allSettled(chunkPromises);
+            for (const result of chunkResults) {
+                if (result.status === 'fulfilled') {
+                    const { index, embedding, success } = result.value;
+                    if (success && embedding) {
+                        embeddings[index] = embedding;
+                    }
+                    else {
+                        try {
+                            console.log(`🔄 Retrying embedding for index ${index}`);
+                            const retryEmbedding = await this.createTextEmbedding(texts[index]);
+                            embeddings[index] = retryEmbedding;
+                        }
+                        catch (retryError) {
+                            console.error(`❌ Final failure for text ${index}:`, retryError);
+                            throw new Error(`Failed to create embedding for text at index ${index}`);
+                        }
+                    }
+                }
+                else {
+                    throw new Error(`Chunk processing failed: ${result.reason}`);
+                }
+                completed++;
+                onProgress?.(completed, texts.length);
+            }
+        }
+        return embeddings.filter(e => e);
+    }
+    async createSequentialEmbeddings(texts) {
+        const embeddings = [];
+        for (let i = 0; i < texts.length; i++) {
+            try {
+                console.log(`🔄 Sequential embedding ${i + 1}/${texts.length}`);
+                const embedding = await this.createTextEmbedding(texts[i]);
+                embeddings.push(embedding);
+                if (i < texts.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+            catch (error) {
+                console.error(`❌ Failed to create embedding ${i + 1}:`, error);
+                throw error;
+            }
+        }
+        return embeddings;
     }
     async createTextEmbedding(text) {
         try {

@@ -146,7 +146,7 @@ const ChatPage: React.FC = () => {
 
   // Send message function
   const sendMessage = useCallback(async () => {
-    if (!message.trim()) {
+    if (!message.trim() && images.length === 0) {
       return;
     }
     if (!selectedAgent) {

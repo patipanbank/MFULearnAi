@@ -12,7 +12,8 @@ export declare class ChromaService {
         embedding: number[];
         metadata: any;
         id: string;
-    }>): Promise<void>;
+    }>, onProgress?: (completed: number, total: number) => void): Promise<void>;
+    private addDocumentsInBatches;
     queryCollection(collectionName: string, queryEmbeddings: number[][], nResults?: number): Promise<import("chromadb").QueryResult<import("chromadb").Metadata> | {
         documents: never[];
         metadatas: never[];
