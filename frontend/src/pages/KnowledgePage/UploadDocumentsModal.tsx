@@ -21,6 +21,17 @@ interface FileWithStatus {
   error?: string;
 }
 
+interface UploadResponse {
+  message: string;
+  filename: string;
+  size: number;
+  collectionName: string;
+  modelId: string;
+  queued: boolean;
+  jobId?: string;
+  chunks?: number;
+}
+
 const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({ 
   isOpen, 
   onClose, 
@@ -143,7 +154,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
           }))
         });
 
-        const responseData = await api.post('/training/upload', formData, {
+        const responseData = await api.post<UploadResponse>('/training/upload', formData, {
           headers: {
             // Don't set Content-Type - let browser set it with proper boundary
           },
@@ -164,7 +175,9 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
           console.log(`📋 File ${fileWithStatus.file.name} queued with job ID: ${responseData.jobId}`);
           
           // เพิ่มเข้า upload progress tracker
-          addUpload(responseData.jobId, fileWithStatus.file.name);
+          if (responseData.jobId) {
+            addUpload(responseData.jobId, fileWithStatus.file.name);
+          }
           
           setFiles(prev => prev.map((f, i) => 
             i === index ? { 
