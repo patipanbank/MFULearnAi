@@ -3,7 +3,7 @@ import { wsManager } from '../utils/websocketManager';
 import { agentService } from './agentService';
 import { usageService } from './usageService';
 import { getLLM } from '../agent/llmFactory';
-import { getAllTools, ToolFunction } from './toolRegistry';
+import { toolRegistry, createMemoryTool, createRetrievalTools, ToolFunction } from '../agent/toolRegistry';
 import { createPromptTemplate } from '../agent/promptFactory';
 import { createAgent } from '../agent/agentFactory';
 import { redis } from '../lib/redis';
@@ -244,9 +244,18 @@ export class ChatService {
           streaming: true
         });
 
-        // Prepare tools using unified registry
-        const allTools = getAllTools(chatId, signaturePayload.collections || []);
-        console.log(`🔧 Available tools: ${Object.keys(allTools).join(', ')}`);
+        // Prepare tools
+        const sessionTools = createMemoryTool(chatId);
+        const allTools: { [name: string]: ToolFunction } = {};
+        for (const [k, v] of Object.entries(toolRegistry)) allTools[k] = v.func;
+        for (const [k, v] of Object.entries(sessionTools)) allTools[k] = v.func;
+        if (signaturePayload.collections && signaturePayload.collections.length > 0) {
+          const retrievalTools = createRetrievalTools(signaturePayload.collections);
+          for (const [name, tool] of Object.entries(retrievalTools)) {
+            allTools[name] = (tool as any).func;
+            console.log(`🔧 Added retrieval tool: ${name}`);
+          }
+        }
 
         agent = await createAgent(llm, allTools, finalSystemPrompt, {
           modelId: signaturePayload.modelId,

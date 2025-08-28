@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { FiX, FiUpload, FiFile, FiTrash2 } from 'react-icons/fi';
+import { api } from '../../shared/lib/api';
+import { useUIStore } from '../../shared/stores';
 import { useUploadProgress } from '../../shared/hooks/useUploadProgress';
-import { useDocumentUpload, type FileWithStatus } from '../../shared/hooks/useDocumentUpload';
 import UploadProgressTracker from '../../shared/ui/UploadProgressTracker';
 import type { Collection } from '../../shared/types';
 
@@ -12,6 +13,13 @@ interface UploadDocumentsModalProps {
   onUploadComplete: () => void;
 }
 
+interface FileWithStatus {
+  file: File;
+  id: string;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  progress: number;
+  error?: string;
+}
 
 const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({ 
   isOpen, 
@@ -19,23 +27,11 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
   collection, 
   onUploadComplete 
 }) => {
+  const [files, setFiles] = useState<FileWithStatus[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { isUploading: isAnyUploading } = useUploadProgress();
-  
-  const {
-    files,
-    isUploading,
-    addFiles,
-    removeFile,
-    uploadFiles,
-    clearFiles
-  } = useDocumentUpload({
-    onUploadComplete: () => {
-      onUploadComplete();
-      onClose();
-      clearFiles();
-    }
-  });
+  const { addToast } = useUIStore();
+  const { addUpload, isUploading: isAnyUploading } = useUploadProgress();
 
 
 
@@ -43,13 +39,222 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
-    addFiles(selectedFiles);
+    const newFiles: FileWithStatus[] = selectedFiles.map(file => {
+      console.log('🔍 Creating FileWithStatus:', {
+        originalFile: file,
+        fileInstanceOf: file instanceof File,
+        fileName: file.name,
+        fileSize: file.size,
+        fileConstructor: file.constructor.name
+      });
+      
+      return {
+        file,
+        id: `${Date.now()}-${Math.random()}`,
+        status: 'pending' as const,
+        progress: 0
+      };
+    });
+    
+    console.log('🔍 New files created:', newFiles.map(f => ({
+      id: f.id,
+      fileType: typeof f.file,
+      fileInstanceOf: f.file instanceof File,
+      fileName: f.file?.name
+    })));
+    
+    setFiles(prev => [...prev, ...newFiles]);
   };
 
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
-  const handleUploadFiles = async () => {
+  const uploadFiles = async () => {
     if (!collection || files.length === 0) return;
-    await uploadFiles(collection.name);
+
+    setIsUploading(true);
+    
+    // ตรวจสอบขนาดไฟล์เพื่อเลือกใช้ queue หรือ direct upload
+    const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
+    
+    const uploadPromises = files.map(async (fileWithStatus, index) => {
+      try {
+        setFiles(prev => prev.map((f, i) => 
+          i === index ? { ...f, status: 'uploading' as const, progress: 0 } : f
+        ));
+
+        const { file } = fileWithStatus;
+        
+        // Debug: Check file object integrity
+        console.log('🔍 File object debug:', {
+          fileWithStatusType: typeof fileWithStatus,
+          fileType: typeof file,
+          fileInstanceOf: file instanceof File,
+          fileName: file?.name,
+          fileSize: file?.size,
+          fileConstructor: file?.constructor?.name,
+          hasFileMethod: typeof file?.stream === 'function'
+        });
+        
+        // สำหรับไฟล์ขนาดใหญ่ ให้ใช้ queue
+        const useQueue = file.size > LARGE_FILE_THRESHOLD;
+        
+        // Create FormData manually instead of using helper
+        const formData = new FormData();
+        
+        // Direct validation before append
+        if (!(file instanceof File)) {
+          throw new Error(`Invalid file object before append: ${typeof file}, constructor: ${(file as any)?.constructor?.name}`);
+        }
+        
+        formData.append('file', file);
+        formData.append('modelId', 'amazon.titan-embed-text-v1');
+        formData.append('collectionName', collection.name);
+        
+        if (useQueue) {
+          formData.append('useQueue', 'true');
+        }
+        
+        // Validate FormData after creation
+        const fileEntry = formData.get('file');
+        console.log('🔍 FormData validation:', {
+          fileEntryType: typeof fileEntry,
+          fileEntryInstanceOf: fileEntry instanceof File,
+          fileEntryName: fileEntry instanceof File ? fileEntry.name : 'not a file',
+          formDataSize: Array.from(formData.entries()).length
+        });
+        
+        if (!(fileEntry instanceof File)) {
+          throw new Error(`Invalid file object in FormData: ${typeof fileEntry}`);
+        }
+        
+        console.log('📁 Uploading file:', {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          collectionName: collection.name,
+          useQueue: useQueue,
+          fileInstance: file instanceof File,
+          formDataFileInstance: fileEntry instanceof File,
+          formDataEntries: Array.from(formData.entries()).map(([key, value]) => ({
+            key,
+            value: value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value
+          }))
+        });
+
+        const response = await api.post('/training/upload', formData, {
+          headers: {
+            // Don't set Content-Type - let browser set it with proper boundary
+          },
+          onUploadProgress: (progressEvent) => {
+            // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
+            const uploadProgress = progressEvent.total 
+              ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+              : 0;
+            
+            setFiles(prev => prev.map((f, i) => 
+              i === index ? { ...f, progress: Math.min(uploadProgress, 90) } : f
+            ));
+          }
+        });
+
+        const responseData = (response as any).data;
+
+        if (responseData.queued) {
+          // ไฟล์ถูกส่งไป queue แล้ว
+          console.log(`📋 File ${fileWithStatus.file.name} queued with job ID: ${responseData.jobId}`);
+          
+          // เพิ่มเข้า upload progress tracker
+          addUpload(responseData.jobId, fileWithStatus.file.name);
+          
+          setFiles(prev => prev.map((f, i) => 
+            i === index ? { 
+              ...f, 
+              status: 'success' as const, 
+              progress: 100,
+              error: `Queued for background processing (Job ID: ${responseData.jobId})`
+            } : f
+          ));
+          
+          addToast({
+            type: 'info',
+            title: 'File Queued',
+            message: `${file.name} has been queued for background processing. You'll receive updates via WebSocket.`
+          });
+        } else {
+          // ไฟล์ประมวลผลเสร็จสิ้นแล้ว
+          setFiles(prev => prev.map((f, i) => 
+            i === index ? { ...f, status: 'success' as const, progress: 100 } : f
+          ));
+          
+          addToast({
+            type: 'success',
+            title: 'Upload Complete',
+            message: `${file.name} processed successfully (${responseData.chunks} chunks)`
+          });
+        }
+
+        return response;
+      } catch (error: any) {
+        console.error(`Error uploading ${fileWithStatus.file.name}:`, error);
+        
+        let errorMessage = 'Upload failed';
+        if (error?.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        
+        setFiles(prev => prev.map((f, i) => 
+          i === index ? { 
+            ...f, 
+            status: 'error' as const, 
+            error: errorMessage
+          } : f
+        ));
+        
+        addToast({
+          type: 'error',
+          title: 'Upload Failed',
+          message: `Failed to upload ${fileWithStatus.file.name}: ${errorMessage}`
+        });
+        
+        throw error;
+      }
+    });
+
+    try {
+      await Promise.all(uploadPromises);
+      
+      const queuedFiles = files.filter(f => f.file.size > LARGE_FILE_THRESHOLD);
+      const immediateFiles = files.filter(f => f.file.size <= LARGE_FILE_THRESHOLD);
+      
+      if (queuedFiles.length > 0 && immediateFiles.length > 0) {
+        addToast({
+          type: 'info',
+          title: 'Mixed Upload Complete',
+          message: `${immediateFiles.length} file(s) processed immediately, ${queuedFiles.length} file(s) queued for background processing`
+        });
+      } else if (immediateFiles.length === files.length) {
+        addToast({
+          type: 'success',
+          title: 'Upload Complete',
+          message: `Successfully uploaded ${files.length} document(s) to ${collection.name}`
+        });
+      }
+      
+      onUploadComplete();
+      onClose();
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Upload Failed',
+        message: 'Some files failed to upload. Please check the errors and try again.'
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const getStatusIcon = (status: FileWithStatus['status']) => {
@@ -95,7 +300,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
               Drop files here or click to browse
             </p>
             <p className="text-sm text-muted">
-              Supports PDF, DOCX, XLSX, CSV, TXT files (max 100MB each)
+              Supports PDF, DOCX, XLSX, CSV, TXT files (max 50MB each)
             </p>
             <input
               ref={fileInputRef}
@@ -166,7 +371,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
         {/* Action Buttons */}
         <div className="flex space-x-3">
           <button
-            onClick={handleUploadFiles}
+            onClick={uploadFiles}
             disabled={files.length === 0 || isUploading}
             className="btn-primary flex-1 disabled:opacity-50"
           >

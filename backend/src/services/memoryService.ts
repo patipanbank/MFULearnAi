@@ -1,5 +1,5 @@
 import { chromaService } from './chromaService';
-import { bedrockService } from './bedrockService';
+import { embeddingService } from './embeddingService';
 import { redis } from '../lib/redis';
 
 function isArrayOfMemoryDocs(arr: any): arr is Array<{ document: string | null; metadata: any }> {
@@ -22,7 +22,7 @@ export class MemoryService {
         const contents = parsed.map((m) => String(m?.content ?? '')).filter((c) => c.trim().length > 0);
         if (contents.length > 0) {
           try {
-            const embeddings = await bedrockService.createBatchTextEmbeddings(contents);
+            const embeddings = await embeddingService.embedBatch(contents);
             const ids = contents.map((c) => Buffer.from(c).toString('base64'));
             const metadatas = parsed.map((m) => ({
               role: m?.role || 'user',
@@ -107,7 +107,7 @@ export class MemoryService {
       }
 
       // Generate embedding
-      const embedding = await bedrockService.createTextEmbedding(message);
+      const embedding = await embeddingService.embed(message);
       if (embedding && embedding.length > 0) {
         await chromaService.addToCollection(collectionName, [message], [embedding], [{ 
           role: 'user',
@@ -128,7 +128,7 @@ export class MemoryService {
   async searchMemory(sessionId: string, query: string, k: number = 3): Promise<any[]> {
     try {
       // ใช้ embedding service จริงสำหรับ query
-      const queryEmbedding = await bedrockService.createTextEmbedding(query);
+      const queryEmbedding = await embeddingService.embed(query);
       if (!queryEmbedding || queryEmbedding.length === 0) {
         console.warn(`⚠️ Failed to get query embedding for session ${sessionId}`);
         return [];

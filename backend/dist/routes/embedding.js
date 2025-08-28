@@ -4,12 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const bedrockService_1 = require("../services/bedrockService");
+const embeddingService_1 = require("../services/embeddingService");
 const router = express_1.default.Router();
 router.post('/embedding', async (req, res) => {
     const body = req.body;
     try {
-        const embeddings = await Promise.all(body.input.map(text => bedrockService_1.bedrockService.createTextEmbedding(text))).then(results => results.filter(emb => emb && emb.length > 0));
+        const embeddings = await embeddingService_1.embeddingService.getTextEmbeddings(body.input, body.model);
         const data = embeddings.map((emb, i) => ({
             object: 'embedding',
             embedding: emb,

@@ -11,5 +11,3 @@ docker-compose.override.yml
 # Bedrock API Gateway
 bedrock_api_keys.json
 bedrock-api-gateway/.env
-CLAUDE.md
-.claude/settings.local.json

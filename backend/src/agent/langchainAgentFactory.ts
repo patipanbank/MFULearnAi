@@ -6,7 +6,7 @@ import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages
 import { DynamicTool } from '@langchain/core/tools';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { getAllTools, ToolFunction, toolMetadata } from '../services/toolRegistry';
+import { ToolFunction } from '../services/toolRegistry';
 import { redis } from '../lib/redis';
 import { memoryService } from '../services/memoryService';
 
@@ -15,9 +15,8 @@ export interface LangChainAgentConfig {
   systemPrompt: string;
   temperature?: number;
   maxTokens?: number;
-  tools?: { [name: string]: ToolFunction };
+  tools: { [name: string]: ToolFunction };
   sessionId?: string;
-  collections?: string[];
 }
 
 export interface LangChainAgentExecutor {
@@ -45,9 +44,8 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
     maxTokens: config.maxTokens || 4000
   });
   
-  // 2. Get unified tools for this agent
-  const allTools = config.tools || getAllTools(config.sessionId || 'default', config.collections || []);
-  const langchainTools = convertToolsToLangChain(allTools, config.sessionId);
+  // 2. แปลง tools เป็น LangChain Tools
+  const langchainTools = convertToolsToLangChain(config.tools, config.sessionId);
   
   console.log(`🔧 Available tools for agent: ${langchainTools.map(t => t.name).join(', ')}`);
   
@@ -255,14 +253,33 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
   console.log(`🔧 Session ID: ${sessionId}`);
   
   for (const [name, toolFn] of Object.entries(tools)) {
-    // Use metadata from unified registry, fall back to dynamic descriptions
-    let description = toolMetadata[name]?.description || `Tool: ${name}`;
+    let description = `Tool: ${name}`;
     
-    // Handle dynamic tool names
-    if (name.startsWith('search_chat_memory_')) {
-      description = 'Search this chat session memory. Input: search terms';
+    // เพิ่ม description ที่ชัดเจนสำหรับแต่ละ tool
+    if (name === 'web_search') {
+      description = 'Search the web for current information. Use this tool when you need to find recent or up-to-date information about any topic. Input should be a search query.';
+    } else if (name === 'calculator') {
+      description = 'Perform mathematical calculations. Use this tool when you need to solve math problems or perform calculations. Input should be a mathematical expression.';
+    } else if (name === 'current_date') {
+      description = 'Get the current date and time. Use this tool when you need to know the current date or time.';
+    } else if (name === 'memory_search') {
+      description = 'Search through conversation memory to find relevant context from previous messages. Use this tool when you need to recall information from earlier in the conversation.';
+    } else if (name === 'memory_embed') {
+      description = 'Embed new information into conversation memory for future reference. Use this tool to store important information from the current conversation.';
+    } else if (name.startsWith('search_chat_memory_')) {
+      description = 'Search through the current chat session history to find relevant context. Use this tool to recall information from this specific conversation.';
+    } else if (name.startsWith('embed_chat_memory_')) {
+      description = 'Embed new message into chat memory for this session. Use this tool to store important information from the current conversation.';
+    } else if (name.startsWith('recent_context_')) {
+      description = 'Get recent context from memory (last 10 messages). Use this tool to get a summary of recent conversation history.';
+    } else if (name.startsWith('full_context_')) {
+      description = 'Get full conversation context from memory. Use this tool to get the complete conversation history.';
+    } else if (name.startsWith('clear_memory_')) {
+      description = 'Clear all chat memory for this session. Use this tool to reset the conversation memory.';
+    } else if (name.startsWith('memory_stats_')) {
+      description = 'Get memory usage statistics for this session. Use this tool to check memory usage.';
     } else if (name.startsWith('search_')) {
-      description = 'Search knowledge base. Input: search query';
+      description = `Search and retrieve information from the knowledge base. Use this when you need specific information.`;
     }
     
     console.log(`🔧 Creating LangChain tool: ${name} - ${description.substring(0, 50)}...`);
@@ -302,32 +319,38 @@ function convertToolsToLangChain(tools: { [name: string]: ToolFunction }, sessio
  * สร้าง prompt template สำหรับ agent (เหมือน Legacy) - แก้ไขให้เรียกใช้ tool จริงๆ
  */
 function createAgentPrompt(systemPrompt: string): ChatPromptTemplate {
-  const defaultPrompt = "You are a helpful AI assistant with access to tools.";
+  const defaultPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+  
   const finalSystemPrompt = systemPrompt || defaultPrompt;
   
-  const improvedPrompt = `${finalSystemPrompt}
+  const legacyPrompt = `${finalSystemPrompt}
 
-EXECUTION PROCESS:
-1. Understand the user's request clearly
-2. Determine what information or tools are needed
-3. Use appropriate tools with correct inputs
-4. Provide clear, helpful responses
+IMPORTANT INSTRUCTIONS:
+1. If the user asks you to search for information, you MUST use the web_search tool
+2. If the user asks for calculations, use the calculator tool
+3. If you need to recall previous conversation context, use memory tools
+4. Always use the appropriate tool when needed - do not try to answer without tools
+5. When using web_search, provide the search query as input
+6. When using calculator, provide the mathematical expression as input
+7. When using knowledge base search, provide the search query as input
+8. Use memory tools to maintain conversation context across long conversations
+9. Hybrid memory management: Redis for recent messages, Vectorstore for long-term storage
+10. IMPORTANT: If the user gives you a specific instruction (like "answer only with X"), you MUST follow that instruction exactly
 
-TOOL USAGE:
-- web_search: For current information, news, facts (input: search query)
-- calculator: For math calculations (input: mathematical expression)
-- knowledge_search: For specific domain knowledge (input: query)
-- memory tools: For conversation context
+Available tools:
+- web_search: Search the web for current information
+- calculator: Perform mathematical calculations
+- current_date: Get current date and time
+- memory_search: Search conversation memory
+- memory_embed: Store information in memory
+- Various session-specific memory tools
+- Knowledge base search tools
 
-RULES:
-- Actually use tools when needed, don't just mention them
-- Show your reasoning process
-- Provide accurate, complete answers
-- If tools fail, try alternatives`;
+CRITICAL: You MUST use tools when appropriate. Do not just say you will use a tool - actually call the tool function. When the user asks for current information, you MUST use web_search to get the latest data.`;
 
   return ChatPromptTemplate.fromMessages([
-    ["system", improvedPrompt],
-    ["human", "Previous: {chat_history}\nCurrent: {input}\nThinking: {agent_scratchpad}"]
+    ["system", legacyPrompt],
+    ["human", "Chat History: {chat_history}\nQuestion: {input}\nThought: {agent_scratchpad}"]
   ]);
 }
 

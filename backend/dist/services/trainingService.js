@@ -11,9 +11,9 @@ const text_splitter_1 = require("langchain/text_splitter");
 class TrainingService {
     constructor() {
         this.textSplitter = new text_splitter_1.RecursiveCharacterTextSplitter({
-            chunkSize: 1500,
-            chunkOverlap: 300,
-            separators: ['\n\n', '\n', '. ', '! ', '? ', '; ', ', ', ' ', ''],
+            chunkSize: 1000,
+            chunkOverlap: 200,
+            separators: ['\n\n', '\n', '. ', '! ', '? ', ' ', ''],
         });
     }
     async embedAndStore(text, sourceName, contentType, collectionName, user, modelId) {
