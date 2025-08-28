@@ -143,7 +143,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
           }))
         });
 
-        const response = await api.post('/training/upload', formData, {
+        const responseData = await api.post('/training/upload', formData, {
           headers: {
             // Don't set Content-Type - let browser set it with proper boundary
           },
@@ -158,8 +158,6 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
             ));
           }
         });
-
-        const responseData = (response as any).data;
 
         if (responseData.queued) {
           // ไฟล์ถูกส่งไป queue แล้ว
@@ -195,7 +193,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
           });
         }
 
-        return response;
+        return responseData;
       } catch (error: any) {
         console.error(`Error uploading ${fileWithStatus.file.name}:`, error);
         
