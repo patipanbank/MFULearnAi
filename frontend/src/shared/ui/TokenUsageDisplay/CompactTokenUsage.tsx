@@ -91,23 +91,23 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
   };
 
   const getProgressBarColor = (percentage: number) => {
-    if (percentage >= 90) return 'bg-red-500';
-    if (percentage >= 75) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (percentage >= 90) return 'bg-red-500 dark:bg-red-400';
+    if (percentage >= 75) return 'bg-yellow-500 dark:bg-yellow-400';
+    return 'bg-emerald-500 dark:bg-emerald-400';
   };
 
   if (loading) {
     return (
-      <div className={`flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}>
-        <FiRefreshCw className="animate-spin w-4 h-4 text-gray-500 dark:text-gray-400" />
-        <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">Loading...</span>
+      <div className={`flex items-center px-3 py-1.5 bg-card border border-primary rounded-lg shadow-sm ${className}`}>
+        <FiRefreshCw className="animate-spin w-4 h-4 text-muted" />
+        <span className="ml-2 text-sm text-secondary">Loading...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={`flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}>
+      <div className={`flex items-center px-3 py-1.5 bg-card border border-primary rounded-lg shadow-sm ${className}`}>
         <FiAlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
         <span className="ml-2 text-sm text-red-600 dark:text-red-400">Error loading usage</span>
       </div>
@@ -116,9 +116,9 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
 
   if (!usageInfo) {
     return (
-      <div className={`flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}>
-        <FiDatabase className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-        <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">No usage data</span>
+      <div className={`flex items-center px-3 py-1.5 bg-card border border-primary rounded-lg shadow-sm ${className}`}>
+        <FiDatabase className="w-4 h-4 text-muted" />
+        <span className="ml-2 text-sm text-secondary">No usage data</span>
       </div>
     );
   }
@@ -129,30 +129,30 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
   const dailyUsed = isToday ? (usage?.dailyUsage?.totalTokens || 0) : 0;
 
   return (
-    <div className={`flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${className}`}>
-      <FiActivity className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+    <div className={`flex items-center px-3 py-1.5 bg-card border border-primary rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${className}`}>
+      <FiActivity className="w-4 h-4 text-accent" />
       
       <div className="ml-2 flex items-center space-x-3">
         {/* Daily Usage Only */}
         {user?.dailyTokenLimit && (
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+            <span className="text-sm font-medium text-primary">
               {formatNumber(dailyUsed)} / {formatNumber(user.dailyTokenLimit)}
             </span>
-            <div className="w-20 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+            <div className="w-20 bg-background-secondary rounded-full h-2">
               <div
                 className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(getPercentage(dailyUsed, user.dailyTokenLimit))}`}
                 style={{ width: `${Math.min(getPercentage(dailyUsed, user.dailyTokenLimit), 100)}%` }}
               ></div>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">daily</span>
+            <span className="text-xs text-muted">daily</span>
           </div>
         )}
 
         {/* Refresh Button */}
         <button
           onClick={fetchUsageInfo}
-          className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 transition-colors duration-200"
+          className="p-1 text-muted hover:text-secondary transition-colors duration-200"
           title="Refresh usage"
         >
           <FiRefreshCw className="w-3 h-3" />
