@@ -15,6 +15,8 @@ export interface IUser extends Document {
     department?: string;
     role: UserRole;
     groups: string[];
+    tokenQuota?: number;
+    dailyTokenLimit?: number;
     created: Date;
     updated: Date;
 }

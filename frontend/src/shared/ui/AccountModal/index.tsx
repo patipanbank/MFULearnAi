@@ -4,6 +4,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useAuthStore } from '../../stores/index';
 import { useUIStore } from '../../stores/uiStore';
 import useLayoutStore from '../../stores/layoutStore';
+import TokenUsageDisplay from '../TokenUsageDisplay';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -289,6 +290,11 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
                 />
               </label>
             </div>
+          </div>
+
+          {/* Token Usage */}
+          <div className="space-y-4">
+            <TokenUsageDisplay />
           </div>
 
           {/* Account Actions */}

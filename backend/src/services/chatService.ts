@@ -310,7 +310,28 @@ export class ChatService {
         console.log(`✅ Prepared ${preparedImages.filter(img => img.base64Data).length} images for multimodal`);
       }
 
-      // 11. เรียก agent.run พร้อม onEvent สำหรับ stream event
+      // 11. Check quota before starting agent processing
+      if (userId) {
+        const quotaCheck = await usageService.checkQuotaAndUsage(userId, 0, 100); // Pre-check with estimated tokens
+        if (!quotaCheck.canUse) {
+          console.warn(`⚠️ Pre-chat quota check failed for user ${userId}: ${quotaCheck.reason}`);
+          
+          // Send quota exceeded message to frontend
+          if (wsManager.getSessionConnectionCount(chatId) > 0) {
+            wsManager.broadcastToSession(chatId, JSON.stringify({
+              type: 'quota_exceeded',
+              data: {
+                reason: quotaCheck.reason,
+                timestamp: new Date().toISOString()
+              }
+            }));
+          }
+          
+          throw new Error(`Token quota exceeded: ${quotaCheck.reason}`);
+        }
+      }
+
+      // 12. เรียก agent.run พร้อม onEvent สำหรับ stream event
       console.log(`🤖 Starting agent.run with ${messages.length} messages`);
       console.log(`🤖 Last message: ${messages[messages.length - 1].content.substring(0, 50)}...`);
       console.log(`🤖 Images for multimodal: ${preparedImages.filter(img => img.base64Data).length}`);
@@ -447,7 +468,21 @@ export class ChatService {
               inputTokens = event.data.inputTokens || 0;
               outputTokens = event.data.outputTokens || 0;
               if (userId && (inputTokens > 0 || outputTokens > 0)) {
-                await usageService.updateUsage(userId, inputTokens, outputTokens);
+                const updateResult = await usageService.updateUsage(userId, inputTokens, outputTokens);
+                if (!updateResult.success) {
+                  console.warn(`⚠️ Usage update failed for user ${userId}: ${updateResult.reason}`);
+                  
+                  // Send quota exceeded message to frontend
+                  if (wsManager.getSessionConnectionCount(chatId) > 0) {
+                    wsManager.broadcastToSession(chatId, JSON.stringify({
+                      type: 'quota_exceeded',
+                      data: {
+                        reason: updateResult.reason,
+                        timestamp: new Date().toISOString()
+                      }
+                    }));
+                  }
+                }
               }
             }
             

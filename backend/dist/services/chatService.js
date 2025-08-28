@@ -239,6 +239,22 @@ class ChatService {
                 preparedImages = await this.prepareImagesForMultimodal(images);
                 console.log(`✅ Prepared ${preparedImages.filter(img => img.base64Data).length} images for multimodal`);
             }
+            if (userId) {
+                const quotaCheck = await usageService_1.usageService.checkQuotaAndUsage(userId, 0, 100);
+                if (!quotaCheck.canUse) {
+                    console.warn(`⚠️ Pre-chat quota check failed for user ${userId}: ${quotaCheck.reason}`);
+                    if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                            type: 'quota_exceeded',
+                            data: {
+                                reason: quotaCheck.reason,
+                                timestamp: new Date().toISOString()
+                            }
+                        }));
+                    }
+                    throw new Error(`Token quota exceeded: ${quotaCheck.reason}`);
+                }
+            }
             console.log(`🤖 Starting agent.run with ${messages.length} messages`);
             console.log(`🤖 Last message: ${messages[messages.length - 1].content.substring(0, 50)}...`);
             console.log(`🤖 Images for multimodal: ${preparedImages.filter(img => img.base64Data).length}`);
@@ -360,7 +376,19 @@ class ChatService {
                             inputTokens = event.data.inputTokens || 0;
                             outputTokens = event.data.outputTokens || 0;
                             if (userId && (inputTokens > 0 || outputTokens > 0)) {
-                                await usageService_1.usageService.updateUsage(userId, inputTokens, outputTokens);
+                                const updateResult = await usageService_1.usageService.updateUsage(userId, inputTokens, outputTokens);
+                                if (!updateResult.success) {
+                                    console.warn(`⚠️ Usage update failed for user ${userId}: ${updateResult.reason}`);
+                                    if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                                        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                            type: 'quota_exceeded',
+                                            data: {
+                                                reason: updateResult.reason,
+                                                timestamp: new Date().toISOString()
+                                            }
+                                        }));
+                                    }
+                                }
                             }
                         }
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {

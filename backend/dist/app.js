@@ -21,6 +21,7 @@ const upload_1 = __importDefault(require("./routes/upload"));
 const collection_1 = __importDefault(require("./routes/collection"));
 const training_1 = __importDefault(require("./routes/training"));
 const queue_1 = __importDefault(require("./routes/queue"));
+const usage_1 = __importDefault(require("./routes/usage"));
 const websocketService_1 = require("./services/websocketService");
 const queueService_1 = require("./services/queueService");
 const mongodb_1 = require("./lib/mongodb");
@@ -55,6 +56,7 @@ apiRouter.use('/upload', upload_1.default);
 apiRouter.use('/collections', collection_1.default);
 apiRouter.use('/training', training_1.default);
 apiRouter.use('/queue', queue_1.default);
+apiRouter.use('/usage', usage_1.default);
 app.use('/api', apiRouter);
 app.get('/', (req, res) => {
     res.send('MFULearnAi Node.js Backend');

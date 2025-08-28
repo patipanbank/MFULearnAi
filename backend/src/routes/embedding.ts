@@ -1,5 +1,7 @@
 import express, { Request, Response } from 'express';
 import { embeddingService } from '../services/embeddingService';
+import { usageService } from '../services/usageService';
+import { authenticateJWT, AuthenticatedRequest } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -18,10 +20,18 @@ interface EmbeddingResponse {
   model: string;
 }
 
-router.post('/embedding', async (req: Request, res: Response) => {
+router.post('/embedding', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
   const body: EmbeddingRequest = req.body;
   try {
     const embeddings = await embeddingService.getTextEmbeddings(body.input, body.model);
+    
+    // Track token usage for embeddings (rough estimate: 1 token per 4 characters)
+    if (req.user?._id) {
+      const totalChars = body.input.join('').length;
+      const estimatedTokens = Math.ceil(totalChars / 4);
+      await usageService.updateUsage(req.user._id, estimatedTokens, 0);
+    }
+    
     const data: EmbeddingData[] = embeddings.map((emb, i) => ({
       object: 'embedding',
       embedding: emb,

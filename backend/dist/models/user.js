@@ -56,6 +56,8 @@ const userSchema = new mongoose_1.Schema({
         default: UserRole.STUDENTS
     },
     groups: { type: [String], default: [] },
+    tokenQuota: { type: Number, default: 10000 },
+    dailyTokenLimit: { type: Number, default: 1000 },
     created: { type: Date, default: Date.now },
     updated: { type: Date, default: Date.now }
 });
