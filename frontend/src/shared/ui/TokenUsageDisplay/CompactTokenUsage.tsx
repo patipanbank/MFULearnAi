@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiActivity, FiRefreshCw, FiAlertTriangle, FiDatabase, FiZap } from 'react-icons/fi';
+import { FiRefreshCw, FiAlertTriangle, FiDatabase, FiZap } from 'react-icons/fi';
 
 interface TokenUsage {
   userId: string;
