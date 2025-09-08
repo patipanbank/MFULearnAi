@@ -341,7 +341,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
                         {fileWithStatus.file.name}
                       </p>
                       <p className="text-xs text-muted">
-                        {fileWithStatus.file.size ? `${(fileWithStatus.file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                        {fileWithStatus.file.size !== undefined ? `${(fileWithStatus.file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
                       </p>
                       {fileWithStatus.error && (
                         <p className="text-xs text-red-600">{fileWithStatus.error}</p>
