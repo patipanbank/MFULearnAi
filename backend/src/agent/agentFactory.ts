@@ -1,7 +1,6 @@
-import type { LLM } from './llmFactory';
-import { toolRegistry } from './tools/ToolRegistry';
-import { agentFactory as newAgentFactory } from './core/AgentFactory';
-import type { AgentExecutor as NewAgentExecutor } from './core/AgentExecutor';
+import { LLM } from './llmFactory';
+import { ToolFunction } from '../services/toolRegistry';
+import { createLangChainAgent, LangChainAgentConfig } from './langchainAgentFactory';
 
 export interface AgentExecutor {
   run: (
@@ -15,14 +14,14 @@ export interface AgentExecutor {
 }
 
 /**
- * createAgent (Legacy API): Wrapper ที่ใช้ระบบใหม่
- * - Backward compatibility สำหรับ API เดิม
- * - ใช้ AgentFactory และ ToolRegistry ใหม่
- * - รองรับ multimodal เหมือนเดิม
+ * createAgent (agentFactory): สร้าง AgentExecutor สำหรับ orchestrate LLM + tools + prompt
+ * - ใช้ LangChain Agent framework เต็มรูปแบบ
+ * - ยังคง API interface เดิมไว้
+ * - เพิ่มการรองรับ multimodal (รูปภาพ)
  */
 export async function createAgent(
   llm: LLM,
-  customTools: { [name: string]: any } = {},
+  tools: { [name: string]: ToolFunction },
   prompt: string,
   config?: {
     modelId?: string;
@@ -31,57 +30,50 @@ export async function createAgent(
     maxTokens?: number;
   }
 ): Promise<AgentExecutor> {
-  console.log(`🤖 Creating Agent (Legacy API) with prompt: ${prompt.substring(0, 50)}...`);
+  console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
   
-  const sessionId = config?.sessionId || 'default';
-  
-  // รวม tools: static + session-specific + custom
-  const allTools = {
-    ...toolRegistry.getStaticTools(),
-    ...toolRegistry.createMemoryTools(sessionId),
-    ...customTools
+  // สร้าง LangChain Agent config
+  const agentConfig: LangChainAgentConfig = {
+    modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    systemPrompt: prompt,
+    temperature: config?.temperature || 0.7,
+    maxTokens: config?.maxTokens || 4000,
+    tools,
+    sessionId: config?.sessionId
   };
   
-  console.log(`🛠️ Total tools available: ${Object.keys(allTools).length}`);
+  // สร้าง LangChain Agent
+  const langchainAgent = await createLangChainAgent(agentConfig);
   
-  // สร้าง agent ผ่าน new AgentFactory
-  const newExecutor: NewAgentExecutor = await newAgentFactory.createAgent(
-    llm,
-    allTools,
-    prompt,
-    {
-      modelId: config?.modelId,
-      sessionId,
-      temperature: config?.temperature,
-      maxTokens: config?.maxTokens
-    }
-  );
-  
-  // Wrapper เพื่อ compatibility
   return {
     async run(messages: { role: string; content: string }[], options?: { 
       onEvent?: (event: { type: string; data?: any }) => void; 
       maxSteps?: number;
       images?: Array<{ url: string; mediaType: string; base64Data?: string }>;
     }): Promise<string> {
-      console.log(`🤖 Legacy Agent Wrapper.run called`);
+      console.log(`🤖 LangChain Agent.run called with ${messages.length} messages`);
+      console.log(`🤖 Last message: ${messages[messages.length - 1]?.content.substring(0, 50)}...`);
+      console.log(`🤖 Images for multimodal: ${options?.images?.length || 0}`);
       
-      // แปลง messages format
-      const agentMessages = messages.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-      
-      // ส่งต่อไปยัง new executor
-      return await newExecutor.run(agentMessages, {
-        onEvent: options?.onEvent,
-        maxSteps: options?.maxSteps,
-        images: options?.images
-      });
+      try {
+        // ตรวจสอบว่าต้องใช้ multimodal หรือไม่
+        if (options?.images && options.images.length > 0 && options.images.some(img => img.base64Data)) {
+          console.log(`🤖 Using multimodal approach with ${options.images.length} images`);
+          
+          // ใช้ multimodal LLM โดยตรง
+          const lastUserMessage = messages.slice().reverse().find((msg: { role: string; content: string }) => msg.role === 'user');
+          if (lastUserMessage) {
+            const response = await llm.generate(lastUserMessage.content, options.images);
+            return response;
+          }
+        }
+        
+        // ใช้ LangChain Agent แบบเดิม
+        return await langchainAgent.run(messages, options);
+      } catch (error) {
+        console.error('❌ Error in LangChain Agent:', error);
+        throw error;
+      }
     }
   };
-}
-
-// Export new factory สำหรับการใช้งานใหม่
-export { agentFactory } from './core/AgentFactory';
-export { toolRegistry } from './tools/ToolRegistry'; 
+} 
