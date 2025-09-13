@@ -56,6 +56,34 @@ export class StorageService {
     }
   }
 
+  // Auto create bucket if it doesn't exist
+  async ensureBucketExists(): Promise<void> {
+    try {
+      const { HeadBucketCommand, CreateBucketCommand } = await import('@aws-sdk/client-s3');
+
+      // Check if bucket exists
+      const headCommand = new HeadBucketCommand({ Bucket: S3_BUCKET });
+      await s3.send(headCommand);
+      console.log(`✅ Bucket ${S3_BUCKET} exists`);
+    } catch (error: any) {
+      if (error.name === 'NoSuchBucket' || error.name === 'NotFound') {
+        console.log(`📦 Creating bucket ${S3_BUCKET}...`);
+        try {
+          const { CreateBucketCommand } = await import('@aws-sdk/client-s3');
+          const createCommand = new CreateBucketCommand({ Bucket: S3_BUCKET });
+          await s3.send(createCommand);
+          console.log(`✅ Bucket ${S3_BUCKET} created successfully`);
+        } catch (createError: any) {
+          console.error(`❌ Failed to create bucket ${S3_BUCKET}:`, createError.message);
+          throw createError;
+        }
+      } else {
+        console.error(`❌ Error checking bucket ${S3_BUCKET}:`, error.message);
+        throw error;
+      }
+    }
+  }
+
   async uploadFile(data: Buffer, filename: string, contentType: string): Promise<string> {
     try {
       console.log('🗄️ StorageService.uploadFile called:', {
@@ -65,6 +93,9 @@ export class StorageService {
         bucket: S3_BUCKET,
         endpoint: S3_ENDPOINT
       });
+
+      // Ensure bucket exists before upload
+      await this.ensureBucketExists();
 
       const key = `${uuidv4()}/${filename}`;
       console.log('🔑 Generated key:', key);
