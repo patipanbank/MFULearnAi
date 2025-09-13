@@ -3,8 +3,8 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ApiResponse, ApiListResponse, ApiError } from '../types/api.types';
-import { apiClient } from '../lib/apiClient';
+import type { ApiResponse, ApiListResponse } from '../types/api.types';
+import { ApiError } from '../types/api.types';
 
 export interface UseApiCallOptions {
   immediate?: boolean;

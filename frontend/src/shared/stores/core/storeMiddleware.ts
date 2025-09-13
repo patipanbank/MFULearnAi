@@ -1,4 +1,4 @@
-import { StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 
 /**
  * Logging Middleware - ติดตาม state changes
@@ -14,7 +14,7 @@ export const withLogging = <T extends object>(
       const nextState = get();
       
       // Log only in development
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.group(`🔄 Store Update: ${name}`);
         console.log('Previous:', prevState);
         console.log('Next:', nextState);
@@ -106,7 +106,7 @@ export const withDevMiddleware = <T extends object>(
   config: StateCreator<T, [], [], T>,
   name: string
 ): StateCreator<T, [], [], T> => {
-  if (process.env.NODE_ENV !== 'development') {
+  if (!import.meta.env.DEV) {
     return config;
   }
 

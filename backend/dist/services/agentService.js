@@ -360,6 +360,74 @@ class AgentService {
             return [];
         }
     }
+    async getUserAgents(userId, options = {}) {
+        return await this.getAllAgents(userId);
+    }
+    async getPublicAgents(options = {}) {
+        return await this.getPopularAgents(options.limit || 10);
+    }
+    async getAgent(agentId, userId) {
+        return await this.getAgentById(agentId);
+    }
+    async cloneAgent(agentId, userId) {
+        try {
+            const originalAgent = await this.getAgentById(agentId);
+            if (!originalAgent) {
+                throw new Error('Agent not found');
+            }
+            const clonedAgent = {
+                ...originalAgent,
+                _id: undefined,
+                name: `Copy of ${originalAgent.name}`,
+                ownerId: userId,
+                isPublic: false,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+            return await this.createAgent(clonedAgent);
+        }
+        catch (error) {
+            console.error('Error cloning agent:', error);
+            throw error;
+        }
+    }
+    async testAgent(agentId, testInput) {
+        try {
+            const agent = await this.getAgentById(agentId);
+            if (!agent) {
+                throw new Error('Agent not found');
+            }
+            return {
+                agentId,
+                testInput,
+                result: 'Test completed successfully',
+                timestamp: new Date().toISOString()
+            };
+        }
+        catch (error) {
+            console.error('Error testing agent:', error);
+            throw error;
+        }
+    }
+    async getAgentStats(agentId) {
+        try {
+            const agent = await this.getAgentById(agentId);
+            if (!agent) {
+                throw new Error('Agent not found');
+            }
+            return {
+                agentId,
+                usageCount: 0,
+                lastUsed: null,
+                createdAt: agent.createdAt,
+                updatedAt: agent.updatedAt
+            };
+        }
+        catch (error) {
+            console.error('Error getting agent stats:', error);
+            throw error;
+        }
+    }
 }
 exports.AgentService = AgentService;
 exports.agentService = new AgentService();

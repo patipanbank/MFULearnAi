@@ -8,6 +8,7 @@ export interface ApiResponse<T = any> {
   error?: string;
   code?: string;
   message?: string;
+  details?: any;
   meta?: {
     timestamp?: string;
     requestId?: string;

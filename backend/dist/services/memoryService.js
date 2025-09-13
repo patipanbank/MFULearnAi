@@ -398,6 +398,43 @@ class MemoryService {
             return null;
         }
     }
+    async storeMemory(sessionId, key, value) {
+        const message = {
+            role: 'system',
+            content: value,
+            timestamp: new Date().toISOString(),
+            metadata: { memoryKey: key, type: 'stored_memory' }
+        };
+        await this.addMessage(sessionId, message);
+    }
+    async searchMemories(sessionId, query) {
+        try {
+            const results = await this.searchMemory(sessionId, query, 10);
+            return results.map(r => ({
+                key: r.metadata?.memoryKey || 'general',
+                value: r.content,
+                timestamp: r.timestamp
+            }));
+        }
+        catch (error) {
+            console.error(`❌ Error searching memories: ${error}`);
+            return [];
+        }
+    }
+    async getAllMemories(sessionId) {
+        try {
+            const messages = await this.getAllMessages(sessionId);
+            return messages.map(msg => ({
+                key: msg.metadata?.memoryKey || 'general',
+                value: msg.content,
+                timestamp: msg.timestamp || new Date().toISOString()
+            }));
+        }
+        catch (error) {
+            console.error(`❌ Error getting all memories: ${error}`);
+            return [];
+        }
+    }
 }
 exports.MemoryService = MemoryService;
 exports.memoryService = new MemoryService();

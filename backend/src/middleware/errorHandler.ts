@@ -134,7 +134,7 @@ export const errorHandler = (
         field: err.path.join('.'),
         message: err.message,
         code: err.code,
-        value: err.input
+        value: (err as any).input || 'N/A'
       })),
       meta: {
         requestId: requestId as string,
@@ -146,7 +146,7 @@ export const errorHandler = (
     res.status(400).json(response);
   } else if (error.name === 'ValidationError') {
     // Mongoose validation errors
-    const details = Object.keys((error as any).errors).map(key => ({
+    const details: any[] = Object.keys((error as any).errors).map(key => ({
       field: key,
       message: (error as any).errors[key].message
     }));
@@ -170,11 +170,11 @@ export const errorHandler = (
       success: false,
       error: 'Invalid data format',
       code: API_ERROR_CODES.INVALID_INPUT,
-      details: {
+      details: [{
         field: (error as any).path,
         value: (error as any).value,
         type: (error as any).kind
-      },
+      }] as any,
       meta: {
         requestId: requestId as string,
         timestamp: new Date().toISOString(),
@@ -190,10 +190,10 @@ export const errorHandler = (
       success: false,
       error: `${field} already exists`,
       code: API_ERROR_CODES.ALREADY_EXISTS,
-      details: {
+      details: [{
         field,
         value: (error as any).keyValue[field]
-      },
+      }] as any,
       meta: {
         requestId: requestId as string,
         timestamp: new Date().toISOString(),

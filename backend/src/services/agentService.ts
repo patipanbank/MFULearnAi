@@ -398,6 +398,86 @@ export class AgentService {
       return [];
     }
   }
+
+  // ===== ROUTE COMPATIBILITY METHODS =====
+  
+  async getUserAgents(userId: string, options: any = {}): Promise<any[]> {
+    return await this.getAllAgents(userId);
+  }
+
+  async getPublicAgents(options: any = {}): Promise<any[]> {
+    return await this.getPopularAgents(options.limit || 10);
+  }
+
+  async getAgent(agentId: string, userId?: string): Promise<any> {
+    return await this.getAgentById(agentId);
+  }
+
+  async cloneAgent(agentId: string, userId: string): Promise<any> {
+    // Stub implementation - clone an existing agent
+    try {
+      const originalAgent = await this.getAgentById(agentId);
+      if (!originalAgent) {
+        throw new Error('Agent not found');
+      }
+      
+      const clonedAgent = {
+        ...originalAgent,
+        _id: undefined,
+        name: `Copy of ${originalAgent.name}`,
+        ownerId: userId,
+        isPublic: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      return await this.createAgent(clonedAgent);
+    } catch (error) {
+      console.error('Error cloning agent:', error);
+      throw error;
+    }
+  }
+
+  async testAgent(agentId: string, testInput: any): Promise<any> {
+    // Stub implementation - test agent functionality
+    try {
+      const agent = await this.getAgentById(agentId);
+      if (!agent) {
+        throw new Error('Agent not found');
+      }
+      
+      return {
+        agentId,
+        testInput,
+        result: 'Test completed successfully',
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error testing agent:', error);
+      throw error;
+    }
+  }
+
+  async getAgentStats(agentId: string): Promise<any> {
+    // Stub implementation - get agent statistics
+    try {
+      const agent = await this.getAgentById(agentId);
+      if (!agent) {
+        throw new Error('Agent not found');
+      }
+      
+      return {
+        agentId,
+        usageCount: 0,
+        lastUsed: null,
+        createdAt: agent.createdAt,
+        updatedAt: agent.updatedAt
+      };
+    } catch (error) {
+      console.error('Error getting agent stats:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

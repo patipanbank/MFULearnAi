@@ -40,11 +40,11 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     
     const agents = await agentService.getUserAgents(userId, {
       includePublic: includePublic === 'true',
-      tags: tags ? tags.split(',') : undefined,
+      tags: tags ? (typeof tags === 'string' ? tags.split(',') : []) : undefined,
       search
     });
     
-    res.json({
+    return res.json({
       success: true,
       data: agents,
       meta: {
@@ -54,7 +54,7 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     });
   } catch (error) {
     console.error('❌ Error getting agents:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get agents',
       code: 'AGENTS_FETCH_ERROR'
@@ -69,13 +69,13 @@ router.get('/public', async (req, res) => {
     
     const agents = await agentService.getPublicAgents({
       category,
-      tags: tags ? tags.split(',') : undefined,
+      tags: tags ? (typeof tags === 'string' ? tags.split(',') : []) : undefined,
       search,
       limit: limit ? parseInt(limit as string) : undefined,
       offset: offset ? parseInt(offset as string) : undefined
     });
     
-    res.json({
+    return res.json({
       success: true,
       data: agents,
       meta: {
@@ -86,7 +86,7 @@ router.get('/public', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error getting public agents:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get public agents',
       code: 'PUBLIC_AGENTS_FETCH_ERROR'
@@ -110,13 +110,13 @@ router.get('/:agentId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: agent
     });
   } catch (error) {
     console.error('❌ Error getting agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get agent',
       code: 'AGENT_FETCH_ERROR'
@@ -135,14 +135,14 @@ router.post('/', authenticateJWT, validateRequest(createAgentSchema), async (req
       createdBy: userId
     });
     
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: agent,
       message: 'Agent created successfully'
     });
   } catch (error) {
     console.error('❌ Error creating agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create agent',
       code: 'AGENT_CREATE_ERROR'
@@ -167,14 +167,14 @@ router.put('/:agentId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: agent,
       message: 'Agent updated successfully'
     });
   } catch (error) {
     console.error('❌ Error updating agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to update agent',
       code: 'AGENT_UPDATE_ERROR'
@@ -198,13 +198,13 @@ router.delete('/:agentId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       message: 'Agent deleted successfully'
     });
   } catch (error) {
     console.error('❌ Error deleting agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to delete agent',
       code: 'AGENT_DELETE_ERROR'
@@ -219,10 +219,7 @@ router.post('/:agentId/clone', authenticateJWT, async (req: any, res) => {
     const { agentId } = req.params;
     const { name, description } = req.body;
     
-    const clonedAgent = await agentService.cloneAgent(agentId, userId, {
-      name,
-      description
-    });
+    const clonedAgent = await agentService.cloneAgent(agentId, userId);
     
     if (!clonedAgent) {
       return res.status(404).json({
@@ -232,14 +229,14 @@ router.post('/:agentId/clone', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: clonedAgent,
       message: 'Agent cloned successfully'
     });
   } catch (error) {
     console.error('❌ Error cloning agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to clone agent',
       code: 'AGENT_CLONE_ERROR'
@@ -262,15 +259,15 @@ router.post('/:agentId/test', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    const response = await agentService.testAgent(agentId, userId, message, context);
+    const response = await agentService.testAgent(agentId, message);
     
-    res.json({
+    return res.json({
       success: true,
       data: response
     });
   } catch (error) {
     console.error('❌ Error testing agent:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to test agent',
       code: 'AGENT_TEST_ERROR'
@@ -284,7 +281,7 @@ router.get('/:agentId/stats', authenticateJWT, async (req: any, res) => {
     const userId = req.user.sub || req.user.id;
     const { agentId } = req.params;
     
-    const stats = await agentService.getAgentStats(agentId, userId);
+    const stats = await agentService.getAgentStats(agentId);
     
     if (!stats) {
       return res.status(404).json({
@@ -294,13 +291,13 @@ router.get('/:agentId/stats', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: stats
     });
   } catch (error) {
     console.error('❌ Error getting agent stats:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get agent statistics',
       code: 'AGENT_STATS_ERROR'

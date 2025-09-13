@@ -30,14 +30,14 @@ export class RetrievalTool {
 
           // Filter by threshold และจัดรูปแบบ
           const filteredResults = results
-            .filter(result => result.score >= threshold)
+            .filter((result: any) => result.score >= threshold)
             .slice(0, limit);
 
           if (filteredResults.length === 0) {
             return `No highly relevant documents found in "${this.collectionName}" for: "${query}" (all results below ${threshold} similarity threshold)`;
           }
 
-          const formatted = filteredResults.map((result, index) => {
+          const formatted = filteredResults.map((result: any, index: number) => {
             const metadata = result.metadata || {};
             return `${index + 1}. ${metadata.filename || 'Unknown File'} (Score: ${(result.score * 100).toFixed(1)}%)\n` +
                    `   ${result.content.substring(0, 200)}${result.content.length > 200 ? '...' : ''}\n` +
@@ -104,13 +104,13 @@ export class RetrievalTool {
           }
 
           // Filter and format results
-          const filteredResults = results.filter(result => result.score >= threshold);
+          const filteredResults = results.filter((result: any) => result.score >= threshold);
           
           if (filteredResults.length === 0) {
             return `No documents found above ${threshold} similarity threshold`;
           }
 
-          const formatted = filteredResults.map((result, index) => {
+          const formatted = filteredResults.map((result: any, index: number) => {
             const metadata = result.metadata || {};
             return `${index + 1}. ${metadata.filename || 'Unknown File'}\n` +
                    `   Type: ${metadata.file_type || 'Unknown'} | Score: ${(result.score * 100).toFixed(1)}%\n` +

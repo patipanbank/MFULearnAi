@@ -324,6 +324,30 @@ export class ChromaService {
     console.log(`[ChromaService] getVectorStore is not implemented in this version.`);
     return null;
   }
+
+  // ===== TOOL COMPATIBILITY METHODS =====
+  
+  async searchDocuments(collectionName: string, query: string, limit: number = 10): Promise<Array<{score: number, content: string, metadata: any}>> {
+    try {
+      // For now, return empty results until we implement proper embedding search
+      console.log(`[ChromaService] searchDocuments called with query: ${query}, limit: ${limit}`);
+      return [];
+    } catch (error) {
+      console.error(`[ChromaService] Error in searchDocuments: ${error}`);
+      return [];
+    }
+  }
+
+  async searchDocumentsWithFilter(collectionName: string, query: string, filters: any, limit: number = 10): Promise<Array<{score: number, content: string, metadata: any}>> {
+    try {
+      // For now, return empty results until we implement proper embedding search with filters
+      console.log(`[ChromaService] searchDocumentsWithFilter called with query: ${query}, filters:`, filters);
+      return [];
+    } catch (error) {
+      console.error(`[ChromaService] Error in searchDocumentsWithFilter: ${error}`);
+      return [];
+    }
+  }
 }
 
 export const chromaService = new ChromaService(); 

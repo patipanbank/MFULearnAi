@@ -35,6 +35,16 @@ export declare class ChromaService {
         metadata: any;
     }>>;
     getVectorStore(collectionName: string): null;
+    searchDocuments(collectionName: string, query: string, limit?: number): Promise<Array<{
+        score: number;
+        content: string;
+        metadata: any;
+    }>>;
+    searchDocumentsWithFilter(collectionName: string, query: string, filters: any, limit?: number): Promise<Array<{
+        score: number;
+        content: string;
+        metadata: any;
+    }>>;
 }
 export declare const chromaService: ChromaService;
 //# sourceMappingURL=chromaService.d.ts.map

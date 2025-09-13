@@ -69,6 +69,7 @@ const createEnhancedChatStore = () => {
                   console.error('Chat sync error:', error);
                   set((state) => {
                     state.syncStatus = 'error';
+                    return state;
                   });
                 }
               });
@@ -77,6 +78,7 @@ const createEnhancedChatStore = () => {
                 set((state) => {
                   state.chatHistory = data.history;
                   state.syncStatus = 'idle';
+                  return state;
                 });
               });
             }
@@ -99,6 +101,7 @@ const createEnhancedChatStore = () => {
             setCurrentSession: (session) => {
               set((state) => {
                 state.currentSession = session;
+                return state;
               });
               
               storeActionCreator.createAction(
@@ -112,6 +115,7 @@ const createEnhancedChatStore = () => {
               set((state) => {
                 state.chatHistory = history;
                 state.filteredHistory = history;
+                return state;
               });
 
               storeActionCreator.createAction(
@@ -130,6 +134,7 @@ const createEnhancedChatStore = () => {
                   state.chatHistory.unshift(chat);
                 }
                 state.filteredHistory = state.chatHistory;
+                return state;
               });
 
               // Auto-sync to backup
@@ -145,6 +150,7 @@ const createEnhancedChatStore = () => {
                 if (state.currentSession?.id === chatId) {
                   state.currentSession = null;
                 }
+                return state;
               });
             },
 
@@ -154,6 +160,7 @@ const createEnhancedChatStore = () => {
                   state.currentSession.messages.push(message);
                   state.messageCache.set(message.id, message);
                 }
+                return state;
               });
 
               storeActionCreator.createAction(
@@ -172,6 +179,7 @@ const createEnhancedChatStore = () => {
                     state.messageCache.set(messageId, state.currentSession.messages[messageIndex]);
                   }
                 }
+                return state;
               });
 
               storeActionCreator.createAction(
@@ -187,12 +195,14 @@ const createEnhancedChatStore = () => {
                   state.currentSession.messages = [];
                   state.messageCache.clear();
                 }
+                return state;
               });
             },
 
             setWsStatus: (status) => {
               set((state) => {
                 state.wsStatus = status;
+                return state;
               });
 
               storeActionCreator.createAction(
@@ -205,6 +215,7 @@ const createEnhancedChatStore = () => {
             setIsTyping: (typing) => {
               set((state) => {
                 state.isTyping = typing;
+                return state;
               });
             },
 
@@ -222,6 +233,7 @@ const createEnhancedChatStore = () => {
                     )
                   );
                 }
+                return state;
               });
             },
 
@@ -231,6 +243,7 @@ const createEnhancedChatStore = () => {
                 if (chat) {
                   chat.isPinned = !chat.isPinned;
                 }
+                return state;
               });
             },
 
@@ -253,6 +266,7 @@ const createEnhancedChatStore = () => {
                   state.chatHistory.unshift(duplicatedChat);
                   state.filteredHistory = state.chatHistory;
                 }
+                return state;
               });
             },
 
@@ -282,6 +296,7 @@ const createEnhancedChatStore = () => {
                     }
                   });
                 }
+                return state;
               });
             },
 
@@ -291,12 +306,14 @@ const createEnhancedChatStore = () => {
                 state.filteredHistory = [];
                 state.currentSession = null;
                 state.messageCache.clear();
+                return state;
               });
             },
 
             syncWithServer: async () => {
               set((state) => {
                 state.syncStatus = 'syncing';
+                return state;
               });
 
               try {
@@ -305,10 +322,12 @@ const createEnhancedChatStore = () => {
                 
                 set((state) => {
                   state.syncStatus = 'idle';
+                  return state;
                 });
               } catch (error) {
                 set((state) => {
                   state.syncStatus = 'error';
+                  return state;
                 });
                 throw error;
               }

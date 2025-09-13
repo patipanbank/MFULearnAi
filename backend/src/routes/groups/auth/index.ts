@@ -1,7 +1,7 @@
 import express from 'express';
-import { authRoutes } from './authRoutes';
-import { userRoutes } from './userRoutes';
-import { sessionRoutes } from './sessionRoutes';
+import authRoutes from './authRoutes';
+import userRoutes from './userRoutes';
+import sessionRoutes from './sessionRoutes';
 
 /**
  * Auth Group Routes - จัดกลุ่ม routes ที่เกี่ยวกับ authentication
