@@ -9,6 +9,15 @@ const S3_REGION = process.env.S3_REGION || 'us-east-1';
 const S3_BUCKET = process.env.S3_BUCKET || 'uploads';
 const PUBLIC_ENDPOINT = process.env.S3_PUBLIC_ENDPOINT || S3_ENDPOINT;
 
+console.log('🔧 StorageService configuration:', {
+  S3_ENDPOINT,
+  S3_ACCESS_KEY: S3_ACCESS_KEY ? '***' + S3_ACCESS_KEY.slice(-4) : 'undefined',
+  S3_SECRET_KEY: S3_SECRET_KEY ? '***' + S3_SECRET_KEY.slice(-4) : 'undefined',
+  S3_REGION,
+  S3_BUCKET,
+  PUBLIC_ENDPOINT
+});
+
 const s3 = new S3Client({
   region: S3_REGION,
   endpoint: S3_ENDPOINT,
@@ -20,16 +29,58 @@ const s3 = new S3Client({
 });
 
 export class StorageService {
+  // Health check method
+  async healthCheck(): Promise<boolean> {
+    try {
+      console.log('🏥 Performing MinIO health check...');
+      // Try to list buckets as a simple health check
+      const { HeadBucketCommand } = await import('@aws-sdk/client-s3');
+      const command = new HeadBucketCommand({ Bucket: S3_BUCKET });
+      await s3.send(command);
+      console.log('✅ MinIO health check passed');
+      return true;
+    } catch (error: any) {
+      console.error('❌ MinIO health check failed:', error.message);
+      return false;
+    }
+  }
+
   async uploadFile(data: Buffer, filename: string, contentType: string): Promise<string> {
-    const key = `${uuidv4()}/${filename}`;
-    const command = new PutObjectCommand({
-      Bucket: S3_BUCKET,
-      Key: key,
-      Body: data,
-      ContentType: contentType,
-    });
-    await s3.send(command);
-    return `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
+    try {
+      console.log('🗄️ StorageService.uploadFile called:', {
+        filename,
+        contentType,
+        dataSize: data?.length,
+        bucket: S3_BUCKET,
+        endpoint: S3_ENDPOINT
+      });
+
+      const key = `${uuidv4()}/${filename}`;
+      console.log('🔑 Generated key:', key);
+
+      const command = new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+        Body: data,
+        ContentType: contentType,
+      });
+
+      console.log('📤 Sending command to S3...');
+      await s3.send(command);
+
+      const url = `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
+      console.log('✅ Upload successful, generated URL:', url);
+
+      return url;
+    } catch (error: any) {
+      console.error('❌ StorageService upload error:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 
   // เพิ่มฟังก์ชันสำหรับดึงไฟล์จาก MinIO และแปลงเป็น base64
