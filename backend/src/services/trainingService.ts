@@ -24,7 +24,8 @@ export class TrainingService {
     contentType: string,
     collectionName: string,
     user: IUser,
-    modelId: string
+    modelId: string,
+    fileSize?: number
   ): Promise<number> {
     if (!text || !text.trim()) {
       return 0;
@@ -85,6 +86,7 @@ export class TrainingService {
           createdAt: new Date().toISOString(),
           chunkIndex: index,
           chunkSize: chunk.length,
+          fileSize: fileSize || null, // Add file size to metadata
         },
         embedding: embeddings[index],
       }));
@@ -274,6 +276,7 @@ export class TrainingService {
         createdAt: new Date().toISOString(),
         chunkIndex: index,
         chunkSize: chunk.length,
+        fileSize: null, // File size not available for storeDocumentsWithProgress method
       },
       embedding: embeddings[index],
     }));
@@ -340,7 +343,8 @@ export class TrainingService {
         'file',
         collectionName,
         user,
-        modelId
+        modelId,
+        fileBuffer.length // Pass file size
       );
 
       const processingTime = Date.now() - startTime;

@@ -15,6 +15,7 @@ interface CollectionDocument {
     uploadedBy?: string;
     modelId?: string;
     collectionName?: string;
+    fileSize?: number;
   };
 }
 
@@ -634,6 +635,9 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
                             <span>Type: {docs[0].metadata?.source_type || 'unknown'}</span>
                             <span>By: {docs[0].metadata?.uploadedBy || 'unknown'}</span>
                             <span>Chunks: {docs.length}</span>
+                            {docs[0].metadata?.fileSize && (
+                              <span>Size: {(docs[0].metadata.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -695,6 +699,9 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
                         <p>Type: {selectedDoc.metadata?.source_type || 'unknown'}</p>
                         <p>Uploaded by: {selectedDoc.metadata?.uploadedBy || 'unknown'}</p>
                         <p>Model: {selectedDoc.metadata?.modelId || 'unknown'}</p>
+                        {selectedDoc.metadata?.fileSize && (
+                          <p>Size: {(selectedDoc.metadata.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                        )}
                       </div>
                     </div>
                     <div className="prose prose-sm max-w-none">
