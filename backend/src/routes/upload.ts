@@ -99,4 +99,41 @@ router.get('/status', async (req: Request, res: Response) => {
   }
 });
 
+// Debug endpoint to test image URLs
+router.get('/debug/:filename', async (req: Request, res: Response) => {
+  try {
+    const { filename } = req.params;
+    const S3_BUCKET = process.env.S3_BUCKET || 'uploads';
+    const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://minio:9000';
+
+    // Try to get the image as base64
+    const testUrl = `${S3_ENDPOINT}/${S3_BUCKET}/${filename}`;
+    console.log(`🔍 Testing image URL: ${testUrl}`);
+
+    const result = await storageService.getFileAsBase64(testUrl);
+
+    if (result) {
+      return res.json({
+        success: true,
+        url: testUrl,
+        mediaType: result.mediaType,
+        size: result.data.length,
+        sizeKB: Math.round(result.data.length / 1024),
+        preview: result.data.substring(0, 100) + '...'
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        url: testUrl,
+        error: 'Image not found or failed to convert to base64'
+      });
+    }
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router; 

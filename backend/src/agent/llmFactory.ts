@@ -156,36 +156,59 @@ export class LLM {
    */
   private async generateWithBedrockMultimodal(prompt: string, images: Array<{ url: string; mediaType: string; base64Data?: string }>): Promise<string> {
     try {
+      console.log(`🖼️ generateWithBedrockMultimodal called - prompt: ${prompt.substring(0, 50)}...`);
+      console.log(`🖼️ Images for processing: ${images.length} total, ${images.filter(img => img.base64Data).length} with base64 data`);
+
       const messages = this.buildMultimodalMessages(prompt, images);
-      
+      console.log(`📨 Built ${messages.length} multimodal messages`);
+
       const body: any = {
         anthropic_version: 'bedrock-2023-05-31',
         max_tokens: this.options.maxTokens ?? 1024,
         messages,
       };
-      
-      if (this.options.systemPrompt) body.system = this.options.systemPrompt;
+
+      if (this.options.systemPrompt) {
+        body.system = this.options.systemPrompt;
+        console.log(`🤖 Added system prompt: ${this.options.systemPrompt.substring(0, 50)}...`);
+      }
       if (this.options.temperature !== undefined) body.temperature = this.options.temperature;
       if (this.options.topP !== undefined) body.top_p = this.options.topP;
       if (this.options.topK !== undefined) body.top_k = this.options.topK;
       
+      console.log(`🚀 Sending multimodal request to model: ${this.modelId}`);
       const command = new InvokeModelCommand({
         modelId: this.modelId,
         body: JSON.stringify(body),
         contentType: 'application/json',
         accept: 'application/json',
       });
-      
+
+      console.log(`⏳ Awaiting Bedrock response...`);
       const response = await this.client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-      
+
+      console.log(`✅ Received response from Bedrock:`, {
+        hasContent: !!responseBody.content,
+        contentType: Array.isArray(responseBody.content) ? 'array' : typeof responseBody.content,
+        hasCompletion: !!responseBody.completion
+      });
+
       // Claude 3.5: content is array of blocks, find first text block
       if (Array.isArray(responseBody.content)) {
         const textBlock = responseBody.content.find((c: any) => c.type === 'text' && typeof c.text === 'string');
-        if (textBlock) return textBlock.text;
+        if (textBlock) {
+          console.log(`📝 Extracted text response: ${textBlock.text.substring(0, 100)}...`);
+          return textBlock.text;
+        }
       }
-      
-      if (responseBody.completion && typeof responseBody.completion === 'string') return responseBody.completion;
+
+      if (responseBody.completion && typeof responseBody.completion === 'string') {
+        console.log(`📝 Using completion response: ${responseBody.completion.substring(0, 100)}...`);
+        return responseBody.completion;
+      }
+
+      console.warn(`⚠️ Unexpected response format, returning JSON string`);
       return JSON.stringify(responseBody);
     } catch (error) {
       console.error('❌ Error in Bedrock Multimodal API:', error);

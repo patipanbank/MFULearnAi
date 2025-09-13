@@ -252,9 +252,16 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
                     <img
                       src={img.url}
                       alt={`Preview ${idx + 1}`}
-                      className="w-20 h-20 object-cover rounded-lg border border-primary transition-all duration-200 group-hover:scale-105 shadow-sm"
+                      className="w-20 h-20 object-cover rounded-lg border-2 border-gray-300 hover:border-blue-400 transition-all duration-200 group-hover:scale-105 shadow-sm bg-gray-100"
                       onClick={() => window.open(img.url, '_blank')}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', display: 'block' }}
+                      onError={(e) => {
+                        console.error('Preview image failed to load:', img.url);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                      onLoad={() => {
+                        console.log('Preview image loaded successfully:', img.url);
+                      }}
                     />
                     {/* Image type badge */}
                     <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 py-0.5 rounded text-[10px]">
@@ -272,11 +279,12 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
                 </div>
               ))}
             </div>
-            {/* Image count and status */}
-            <div className="mt-2 flex items-center justify-between text-xs text-muted">
-              <span>{images.length} image{images.length > 1 ? 's' : ''} ready to send</span>
-              <span className="text-green-600">✓ Vision-enabled agent selected</span>
-            </div>
+            {/* Image count only */}
+            {images.length > 1 && (
+              <div className="mt-2 text-xs text-gray-500">
+                {images.length} images attached
+              </div>
+            )}
           </div>
         )}
 
