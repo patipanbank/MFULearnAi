@@ -2,7 +2,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3
 import { v4 as uuidv4 } from 'uuid';
 import config from '../config/config';
 
-const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://minio:9000';
+const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://mfulearnai_minio:9000';
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || 'minioadmin';
 const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'minioadmin123';
 const S3_REGION = process.env.S3_REGION || 'us-east-1';
@@ -33,14 +33,25 @@ export class StorageService {
   async healthCheck(): Promise<boolean> {
     try {
       console.log('🏥 Performing MinIO health check...');
+      console.log('🔗 Connecting to:', S3_ENDPOINT);
+
       // Try to list buckets as a simple health check
-      const { HeadBucketCommand } = await import('@aws-sdk/client-s3');
-      const command = new HeadBucketCommand({ Bucket: S3_BUCKET });
-      await s3.send(command);
-      console.log('✅ MinIO health check passed');
+      const { ListBucketsCommand } = await import('@aws-sdk/client-s3');
+      const command = new ListBucketsCommand({});
+      const result = await s3.send(command);
+
+      console.log('✅ MinIO health check passed, found buckets:',
+        result.Buckets?.map(b => b.Name) || 'none'
+      );
       return true;
     } catch (error: any) {
-      console.error('❌ MinIO health check failed:', error.message);
+      console.error('❌ MinIO health check failed:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        endpoint: S3_ENDPOINT,
+        bucket: S3_BUCKET
+      });
       return false;
     }
   }
