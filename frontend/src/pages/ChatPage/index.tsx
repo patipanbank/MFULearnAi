@@ -246,8 +246,20 @@ const ChatPage: React.FC = () => {
 
   // Handle image upload
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('🖼️ Image upload triggered:', {
+      filesCount: event.target.files?.length || 0,
+      selectedAgent: selectedAgent?.name,
+      agentModel: selectedAgent?.modelId,
+      isVisionCapable: selectedAgent?.modelId?.includes('claude-3'),
+      disabled: !selectedAgent || isLoading,
+      isTyping: isTyping
+    });
+
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      console.log('⚠️ No files selected');
+      return;
+    }
 
     const maxSize = 5 * 1024 * 1024; // 5MB
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -473,6 +485,7 @@ const ChatPage: React.FC = () => {
               hasMessages={hasMessages}
               isInChatRoom={isInChatRoom}
               onRoomCreated={handleRoomCreatedWithNavigate}
+              selectedAgent={selectedAgent}
             />
           </div>
         </div>

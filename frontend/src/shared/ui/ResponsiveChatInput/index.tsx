@@ -15,6 +15,7 @@ interface ResponsiveChatInputProps {
   hasMessages?: boolean; // To determine floating vs bottom mode
   isInChatRoom?: boolean; // New prop to track WebSocket connection
   onRoomCreated?: (roomId: string) => void; // Callback when room is created
+  selectedAgent?: { name: string; modelId: string } | null; // Add agent info for vision check
 }
 
 const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
@@ -27,11 +28,28 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   disabled = false,
   isTyping = false,
   isInChatRoom = false,
-  onRoomCreated: _onRoomCreated
+  onRoomCreated: _onRoomCreated,
+  selectedAgent = null
 }) => {
   const { isMobile, sidebarCollapsed, sidebarHovered } = useLayoutStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if selected agent supports vision
+  const isVisionAgent = selectedAgent?.modelId?.includes('claude-3') || false;
+  const canAttachImages = isVisionAgent && !disabled && !isTyping;
+
+  // Debug logging for vision capability
+  React.useEffect(() => {
+    console.log('🔍 Vision capability check:', {
+      selectedAgent: selectedAgent?.name,
+      modelId: selectedAgent?.modelId,
+      isVisionAgent,
+      canAttachImages,
+      disabled,
+      isTyping
+    });
+  }, [selectedAgent, isVisionAgent, canAttachImages, disabled, isTyping]);
   
   // State for animation transition
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -278,10 +296,27 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
             {/* Attach Button */}
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className={getButtonClasses('attach')}
-              disabled={disabled || isTyping}
-              title="Attach images"
+              onClick={() => {
+                console.log('📎 Attach button clicked:', { canAttachImages, isVisionAgent, selectedAgent: selectedAgent?.name });
+                if (canAttachImages) {
+                  fileInputRef.current?.click();
+                }
+              }}
+              className={cn(
+                getButtonClasses('attach'),
+                !canAttachImages && 'opacity-50 cursor-not-allowed',
+                !isVisionAgent && 'text-red-500'
+              )}
+              disabled={!canAttachImages}
+              title={
+                !selectedAgent
+                  ? "Please select an agent first"
+                  : !isVisionAgent
+                  ? `${selectedAgent.name} doesn't support images`
+                  : isTyping
+                  ? "Cannot attach images while AI is typing"
+                  : "Attach images (JPEG, PNG, GIF, WebP)"
+              }
             >
               <FiPlus className="h-5 w-5" />
               {currentMode === 'fixbottom' && <span className="sr-only">Attach</span>}
