@@ -51,17 +51,6 @@ export declare class MemoryService {
     clearLongTermMemory(sessionId: string): Promise<void>;
     clearAllMemory(sessionId: string): Promise<void>;
     forceSummarization(sessionId: string): Promise<ConversationSummary | null>;
-    storeMemory(sessionId: string, key: string, value: string): Promise<void>;
-    searchMemories(sessionId: string, query: string): Promise<Array<{
-        key: string;
-        value: string;
-        timestamp: string;
-    }>>;
-    getAllMemories(sessionId: string): Promise<Array<{
-        key: string;
-        value: string;
-        timestamp: string;
-    }>>;
 }
 export declare const memoryService: MemoryService;
 //# sourceMappingURL=memoryService.d.ts.map

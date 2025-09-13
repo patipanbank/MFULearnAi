@@ -11,11 +11,9 @@ export * from './storeSync';
 export * from '../enhanced/chatStore.enhanced';
 
 // Utility functions
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const createStoreWithDefaults = <_T extends object>(
+export const createStoreWithDefaults = <T extends object>(
   config: any,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _name: string
+  name: string
 ) => {
   return config; // Can add default middleware here
 };

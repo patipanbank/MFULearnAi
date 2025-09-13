@@ -147,7 +147,7 @@ export const handleValidationError = (error: z.ZodError) => {
       field: err.path.join('.'),
       message: err.message,
       code: err.code,
-      value: (err as any).input || 'N/A'
+      value: err.input
     }))
   };
 };

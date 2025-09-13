@@ -53,7 +53,7 @@ router.get('/:chatId', authenticateJWT, async (req: any, res) => {
       after
     });
     
-    return res.json({
+    res.json({
       success: true,
       data: messages,
       meta: {
@@ -65,7 +65,7 @@ router.get('/:chatId', authenticateJWT, async (req: any, res) => {
     });
   } catch (error) {
     console.error('❌ Error getting messages:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to get messages',
       code: 'MESSAGES_FETCH_ERROR'
@@ -79,20 +79,20 @@ router.post('/', authenticateJWT, validateRequest(sendMessageSchema), async (req
     const userId = req.user.sub || req.user.id;
     const { chatId, content, role, images } = req.body;
     
-    const message = await chatService.addMessage(chatId, {
+    const message = await chatService.addMessage(chatId, userId, {
       content,
       role,
       images
     });
     
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       data: message,
       message: 'Message sent successfully'
     });
   } catch (error) {
     console.error('❌ Error sending message:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to send message',
       code: 'MESSAGE_SEND_ERROR'
@@ -107,7 +107,7 @@ router.put('/:messageId', authenticateJWT, validateRequest(updateMessageSchema),
     const { messageId } = req.params;
     const updates = req.body;
     
-    const message = await chatService.updateMessage(messageId, updates);
+    const message = await chatService.updateMessage(messageId, userId, updates);
     
     if (!message) {
       return res.status(404).json({
@@ -117,14 +117,14 @@ router.put('/:messageId', authenticateJWT, validateRequest(updateMessageSchema),
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       data: message,
       message: 'Message updated successfully'
     });
   } catch (error) {
     console.error('❌ Error updating message:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to update message',
       code: 'MESSAGE_UPDATE_ERROR'
@@ -138,7 +138,7 @@ router.delete('/:messageId', authenticateJWT, async (req: any, res) => {
     const userId = req.user.sub || req.user.id;
     const { messageId } = req.params;
     
-    const success = await chatService.deleteMessage(messageId);
+    const success = await chatService.deleteMessage(messageId, userId);
     
     if (!success) {
       return res.status(404).json({
@@ -148,13 +148,13 @@ router.delete('/:messageId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       message: 'Message deleted successfully'
     });
   } catch (error) {
     console.error('❌ Error deleting message:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to delete message',
       code: 'MESSAGE_DELETE_ERROR'
@@ -177,14 +177,14 @@ router.get('/:chatId/search', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    const messages = await chatService.searchMessages(chatId, {
+    const messages = await chatService.searchMessages(chatId, userId, {
       query,
       role,
       dateFrom,
       dateTo
     });
     
-    return res.json({
+    res.json({
       success: true,
       data: messages,
       meta: {
@@ -195,7 +195,7 @@ router.get('/:chatId/search', authenticateJWT, async (req: any, res) => {
     });
   } catch (error) {
     console.error('❌ Error searching messages:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to search messages',
       code: 'MESSAGE_SEARCH_ERROR'
@@ -215,7 +215,7 @@ router.get('/:chatId/export', authenticateJWT, async (req: any, res) => {
     if (format === 'json') {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="chat-${chatId}-messages.json"`);
-      return res.json(messages);
+      res.json(messages);
     } else if (format === 'txt') {
       const txtContent = messages.map(msg => 
         `[${msg.timestamp}] ${msg.role}: ${msg.content}`
@@ -223,7 +223,7 @@ router.get('/:chatId/export', authenticateJWT, async (req: any, res) => {
       
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Content-Disposition', `attachment; filename="chat-${chatId}-messages.txt"`);
-      return res.send(txtContent);
+      res.send(txtContent);
     } else {
       return res.status(400).json({
         success: false,
@@ -233,7 +233,7 @@ router.get('/:chatId/export', authenticateJWT, async (req: any, res) => {
     }
   } catch (error) {
     console.error('❌ Error exporting messages:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to export messages',
       code: 'MESSAGE_EXPORT_ERROR'

@@ -1,7 +1,7 @@
 import express from 'express';
-import systemRoutes from './systemRoutes';
-import usersRoutes from './usersRoutes';
-import analyticsRoutes from './analyticsRoutes';
+import { systemRoutes } from './systemRoutes';
+import { usersRoutes } from './usersRoutes';
+import { analyticsRoutes } from './analyticsRoutes';
 
 /**
  * Admin Group Routes - จัดกลุ่ม routes สำหรับ admin operations

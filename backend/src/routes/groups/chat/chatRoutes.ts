@@ -34,9 +34,14 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     const userId = req.user.sub || req.user.id;
     const { limit, offset, search, agentId } = req.query;
     
-    const chats = await chatService.getUserChats(userId);
+    const chats = await chatService.getUserChats(userId, {
+      limit: limit ? parseInt(limit) : undefined,
+      offset: offset ? parseInt(offset) : undefined,
+      search,
+      agentId
+    });
     
-    return res.json({
+    res.json({
       success: true,
       data: chats,
       meta: {
@@ -47,7 +52,7 @@ router.get('/', authenticateJWT, async (req: any, res) => {
     });
   } catch (error) {
     console.error('❌ Error getting user chats:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to get chat history',
       code: 'CHAT_FETCH_ERROR'
@@ -62,10 +67,10 @@ router.get('/history', authenticateJWT, async (req: any, res) => {
     const chats = await chatService.getUserChats(userId);
     
     // Return array directly for frontend compatibility
-    return res.json(chats);
+    res.json(chats);
   } catch (error) {
     console.error('❌ Error getting chat history:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to get chat history'
     });
@@ -88,13 +93,13 @@ router.get('/:chatId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       data: chat
     });
   } catch (error) {
     console.error('❌ Error getting chat:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to get chat',
       code: 'CHAT_FETCH_ERROR'
@@ -108,16 +113,21 @@ router.post('/', authenticateJWT, validateRequest(createChatSchema), async (req:
     const userId = req.user.sub || req.user.id;
     const { name, agentId, initialMessage } = req.body;
     
-    const chat = await chatService.createChat(name, agentId, userId);
+    const chat = await chatService.createChat({
+      name,
+      agentId,
+      userId,
+      initialMessage
+    });
     
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       data: chat,
       message: 'Chat created successfully'
     });
   } catch (error) {
     console.error('❌ Error creating chat:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to create chat',
       code: 'CHAT_CREATE_ERROR'
@@ -132,7 +142,7 @@ router.put('/:chatId', authenticateJWT, validateRequest(updateChatSchema), async
     const { chatId } = req.params;
     const updates = req.body;
     
-    const chat = await chatService.updateChat(chatId, updates);
+    const chat = await chatService.updateChat(chatId, userId, updates);
     
     if (!chat) {
       return res.status(404).json({
@@ -142,14 +152,14 @@ router.put('/:chatId', authenticateJWT, validateRequest(updateChatSchema), async
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       data: chat,
       message: 'Chat updated successfully'
     });
   } catch (error) {
     console.error('❌ Error updating chat:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to update chat',
       code: 'CHAT_UPDATE_ERROR'
@@ -173,13 +183,13 @@ router.delete('/:chatId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       message: 'Chat deleted successfully'
     });
   } catch (error) {
     console.error('❌ Error deleting chat:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to delete chat',
       code: 'CHAT_DELETE_ERROR'
@@ -196,13 +206,13 @@ router.post('/batch', authenticateJWT, async (req: any, res) => {
     let result;
     switch (operation) {
       case 'delete':
-        result = await chatService.batchDeleteChats(chatIds);
+        result = await chatService.batchDeleteChats(chatIds, userId);
         break;
       case 'pin':
-        result = await chatService.batchPinChats(chatIds, true);
+        result = await chatService.batchPinChats(chatIds, userId, true);
         break;
       case 'unpin':
-        result = await chatService.batchPinChats(chatIds, false);
+        result = await chatService.batchPinChats(chatIds, userId, false);
         break;
       default:
         return res.status(400).json({
@@ -212,14 +222,14 @@ router.post('/batch', authenticateJWT, async (req: any, res) => {
         });
     }
     
-    return res.json({
+    res.json({
       success: true,
       data: result,
       message: `Batch ${operation} completed successfully`
     });
   } catch (error) {
     console.error('❌ Error in batch operation:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Batch operation failed',
       code: 'BATCH_OPERATION_ERROR'

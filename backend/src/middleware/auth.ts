@@ -57,8 +57,4 @@ export const requireAnyRole = requireRoles([
 export const requireAdminRole = requireRoles([
   UserRole.ADMIN,
   UserRole.SUPER_ADMIN
-]);
-
-// Aliases for backward compatibility
-export const authenticateToken = authenticateJWT;
-export const requireAdmin = requireAdminRole; 
+]); 

@@ -138,8 +138,7 @@ export const corsHandler = (req: Request, res: Response, next: NextFunction): vo
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   next();

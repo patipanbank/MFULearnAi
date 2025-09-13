@@ -118,22 +118,20 @@ export class ApiError extends Error {
   }
 
   isAuthError(): boolean {
-    const authCodes = [
+    return [
       API_ERROR_CODES.UNAUTHORIZED,
       API_ERROR_CODES.FORBIDDEN,
       API_ERROR_CODES.TOKEN_EXPIRED,
       API_ERROR_CODES.INVALID_CREDENTIALS
-    ] as const;
-    return authCodes.includes(this.code as any);
+    ].includes(this.code);
   }
 
   isValidationError(): boolean {
-    const validationCodes = [
+    return [
       API_ERROR_CODES.VALIDATION_ERROR,
       API_ERROR_CODES.INVALID_INPUT,
       API_ERROR_CODES.MISSING_REQUIRED_FIELD
-    ] as const;
-    return validationCodes.includes(this.code as any);
+    ].includes(this.code);
   }
 
   isNotFoundError(): boolean {
@@ -141,12 +139,11 @@ export class ApiError extends Error {
   }
 
   isServerError(): boolean {
-    const serverCodes = [
+    return [
       API_ERROR_CODES.INTERNAL_ERROR,
       API_ERROR_CODES.SERVICE_UNAVAILABLE,
       API_ERROR_CODES.DATABASE_ERROR,
       API_ERROR_CODES.EXTERNAL_SERVICE_ERROR
-    ] as const;
-    return serverCodes.includes(this.code as any);
+    ].includes(this.code);
   }
 }

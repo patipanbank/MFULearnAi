@@ -1,4 +1,5 @@
-import type { LLM } from './llmFactory';
+import { LLM } from './llmFactory';
+import { ToolFunction } from '../services/toolRegistry';
 export interface AgentExecutor {
     run: (messages: {
         role: string;
@@ -16,14 +17,12 @@ export interface AgentExecutor {
         }>;
     }) => Promise<string>;
 }
-export declare function createAgent(llm: LLM, customTools: {
-    [name: string]: any;
-} | undefined, prompt: string, config?: {
+export declare function createAgent(llm: LLM, tools: {
+    [name: string]: ToolFunction;
+}, prompt: string, config?: {
     modelId?: string;
     sessionId?: string;
     temperature?: number;
     maxTokens?: number;
 }): Promise<AgentExecutor>;
-export { agentFactory } from './core/AgentFactory';
-export { toolRegistry } from './tools/ToolRegistry';
 //# sourceMappingURL=agentFactory.d.ts.map

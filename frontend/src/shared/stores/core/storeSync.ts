@@ -18,7 +18,7 @@ export interface SyncAdapter<T> {
 export class StoreSync<T> {
   private adapter: SyncAdapter<T>;
   private config: SyncConfig;
-  private syncInterval?: ReturnType<typeof setInterval>;
+  private syncInterval?: NodeJS.Timeout;
   private unsubscribe?: () => void;
   private lastSync = 0;
 

@@ -2,8 +2,7 @@
  * API Client - Type-safe HTTP client with error handling
  */
 
-import type { ApiResponse, ApiListResponse, CommonQuery } from '../types/api.types';
-import { ApiError } from '../types/api.types';
+import { ApiResponse, ApiListResponse, ApiError, CommonQuery } from '../types/api.types';
 
 export interface RequestConfig extends RequestInit {
   timeout?: number;
@@ -202,23 +201,6 @@ export class ApiClient {
 
   // Specialized methods for list responses
   async getList<T>(endpoint: string, query?: CommonQuery, config?: RequestConfig): Promise<ApiListResponse<T>> {
-    let url = endpoint;
-    if (query) {
-      const searchParams = new URLSearchParams();
-      Object.entries(query).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          if (Array.isArray(value)) {
-            value.forEach(v => searchParams.append(key, String(v)));
-          } else {
-            searchParams.append(key, String(value));
-          }
-        }
-      });
-      const queryString = searchParams.toString();
-      if (queryString) {
-        url += `?${queryString}`;
-      }
-    }
     return this.request<T[]>(endpoint, { ...config, method: 'GET' }) as Promise<ApiListResponse<T>>;
   }
 

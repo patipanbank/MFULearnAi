@@ -27,9 +27,9 @@ export class MemoryTool {
         let key: string, value: string;
         
         if (input.includes(':') && !input.startsWith('{')) {
-          const parts = input.split(':');
-          key = parts[0].trim();
-          value = parts.slice(1).join(':').trim();
+          [key, ...value] = input.split(':');
+          key = key.trim();
+          value = value.join(':').trim();
         } else {
           try {
             const parsed = JSON.parse(input);
@@ -69,8 +69,8 @@ export class MemoryTool {
           return `No memories found for: "${query}"`;
         }
 
-        const formatted = results.map((result: any, index: number) => 
-          `${index + 1}. ${result.key}: ${result.value}\n   (Stored: ${new Date(result.timestamp).toLocaleString()})`
+        const formatted = results.map((result, index) => 
+          `${index + 1}. ${result.key}: ${result.value}\n   (Stored: ${result.timestamp.toLocaleString()})`
         ).join('\n\n');
 
         return `Found ${results.length} memory(ies) for "${query}":\n\n${formatted}`;
@@ -94,7 +94,7 @@ export class MemoryTool {
           return 'No memories stored for this session';
         }
 
-        const formatted = memories.map((memory: any, index: number) => 
+        const formatted = memories.map((memory, index) => 
           `${index + 1}. ${memory.key}: ${memory.value.substring(0, 50)}${memory.value.length > 50 ? '...' : ''}`
         ).join('\n');
 

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireAdmin = exports.authenticateToken = exports.requireAdminRole = exports.requireAnyRole = exports.requireRoles = exports.authenticateJWT = exports.UserRole = void 0;
+exports.requireAdminRole = exports.requireAnyRole = exports.requireRoles = exports.authenticateJWT = exports.UserRole = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = __importDefault(require("../config/config"));
 var UserRole;
@@ -54,6 +54,4 @@ exports.requireAdminRole = (0, exports.requireRoles)([
     UserRole.ADMIN,
     UserRole.SUPER_ADMIN
 ]);
-exports.authenticateToken = exports.authenticateJWT;
-exports.requireAdmin = exports.requireAdminRole;
 //# sourceMappingURL=auth.js.map

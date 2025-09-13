@@ -531,46 +531,6 @@ export class MemoryService {
       return null;
     }
   }
-
-  // ===== TOOL COMPATIBILITY METHODS =====
-  
-  async storeMemory(sessionId: string, key: string, value: string): Promise<void> {
-    const message: ConversationMessage = {
-      role: 'system',
-      content: value,
-      timestamp: new Date().toISOString(),
-      metadata: { memoryKey: key, type: 'stored_memory' }
-    };
-    await this.addMessage(sessionId, message);
-  }
-
-  async searchMemories(sessionId: string, query: string): Promise<Array<{key: string, value: string, timestamp: string}>> {
-    try {
-      const results = await this.searchMemory(sessionId, query, 10);
-      return results.map(r => ({
-        key: r.metadata?.memoryKey || 'general',
-        value: r.content,
-        timestamp: r.timestamp
-      }));
-    } catch (error) {
-      console.error(`❌ Error searching memories: ${error}`);
-      return [];
-    }
-  }
-
-  async getAllMemories(sessionId: string): Promise<Array<{key: string, value: string, timestamp: string}>> {
-    try {
-      const messages = await this.getAllMessages(sessionId);
-      return messages.map(msg => ({
-        key: msg.metadata?.memoryKey || 'general',
-        value: msg.content,
-        timestamp: msg.timestamp || new Date().toISOString()
-      }));
-    } catch (error) {
-      console.error(`❌ Error getting all memories: ${error}`);
-      return [];
-    }
-  }
 }
 
 export const memoryService = new MemoryService(); 

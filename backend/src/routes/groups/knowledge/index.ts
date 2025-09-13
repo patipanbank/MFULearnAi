@@ -1,8 +1,8 @@
 import express from 'express';
-import collectionRoutes from './collectionRoutes';
-import documentRoutes from './documentRoutes';
-import searchRoutes from './searchRoutes';
-import embeddingRoutes from './embeddingRoutes';
+import { collectionRoutes } from './collectionRoutes';
+import { documentRoutes } from './documentRoutes';
+import { searchRoutes } from './searchRoutes';
+import { embeddingRoutes } from './embeddingRoutes';
 
 /**
  * Knowledge Group Routes - จัดกลุ่ม routes ที่เกี่ยวกับ knowledge base

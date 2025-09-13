@@ -1,7 +1,7 @@
 import express from 'express';
 import { agentRoutes } from './agentRoutes';
-import templateRoutes from './templateRoutes';
-import executionRoutes from './executionRoutes';
+import { templateRoutes } from './templateRoutes';
+import { executionRoutes } from './executionRoutes';
 
 /**
  * Agent Group Routes - จัดกลุ่ม routes ที่เกี่ยวกับ agent

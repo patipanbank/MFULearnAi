@@ -29,7 +29,7 @@ router.get('/active', authenticateJWT, async (req: any, res) => {
     
     const sessions = await chatService.getActiveSessions(userId);
     
-    return res.json({
+    res.json({
       success: true,
       data: sessions,
       meta: {
@@ -39,7 +39,7 @@ router.get('/active', authenticateJWT, async (req: any, res) => {
     });
   } catch (error) {
     console.error('❌ Error getting active sessions:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to get active sessions',
       code: 'SESSIONS_FETCH_ERROR'
@@ -60,14 +60,14 @@ router.post('/', authenticateJWT, validateRequest(createSessionSchema), async (r
       config
     });
     
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       data: session,
       message: 'Session created successfully'
     });
   } catch (error) {
     console.error('❌ Error creating session:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to create session',
       code: 'SESSION_CREATE_ERROR'
@@ -81,7 +81,7 @@ router.get('/:sessionId', authenticateJWT, async (req: any, res) => {
     const userId = req.user.sub || req.user.id;
     const { sessionId } = req.params;
     
-    const session = await chatService.getSession(sessionId);
+    const session = await chatService.getSession(sessionId, userId);
     
     if (!session) {
       return res.status(404).json({
@@ -91,13 +91,13 @@ router.get('/:sessionId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       data: session
     });
   } catch (error) {
     console.error('❌ Error getting session:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to get session',
       code: 'SESSION_FETCH_ERROR'
@@ -112,7 +112,7 @@ router.put('/:sessionId', authenticateJWT, async (req: any, res) => {
     const { sessionId } = req.params;
     const updates = req.body;
     
-    const session = await chatService.updateSession(sessionId, updates);
+    const session = await chatService.updateSession(sessionId, userId, updates);
     
     if (!session) {
       return res.status(404).json({
@@ -122,14 +122,14 @@ router.put('/:sessionId', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       data: session,
       message: 'Session updated successfully'
     });
   } catch (error) {
     console.error('❌ Error updating session:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to update session',
       code: 'SESSION_UPDATE_ERROR'
@@ -143,7 +143,7 @@ router.post('/:sessionId/end', authenticateJWT, async (req: any, res) => {
     const userId = req.user.sub || req.user.id;
     const { sessionId } = req.params;
     
-    const success = await chatService.endSession(sessionId);
+    const success = await chatService.endSession(sessionId, userId);
     
     if (!success) {
       return res.status(404).json({
@@ -153,13 +153,13 @@ router.post('/:sessionId/end', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       message: 'Session ended successfully'
     });
   } catch (error) {
     console.error('❌ Error ending session:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to end session',
       code: 'SESSION_END_ERROR'
@@ -173,7 +173,7 @@ router.get('/:sessionId/stats', authenticateJWT, async (req: any, res) => {
     const userId = req.user.sub || req.user.id;
     const { sessionId } = req.params;
     
-    const stats = await chatService.getSessionStats(sessionId);
+    const stats = await chatService.getSessionStats(sessionId, userId);
     
     if (!stats) {
       return res.status(404).json({
@@ -183,13 +183,13 @@ router.get('/:sessionId/stats', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       data: stats
     });
   } catch (error) {
     console.error('❌ Error getting session stats:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to get session statistics',
       code: 'SESSION_STATS_ERROR'
@@ -212,7 +212,7 @@ router.post('/:sessionId/transfer', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    const session = await chatService.transferSession(sessionId, targetAgentId);
+    const session = await chatService.transferSession(sessionId, userId, targetAgentId, reason);
     
     if (!session) {
       return res.status(404).json({
@@ -222,14 +222,14 @@ router.post('/:sessionId/transfer', authenticateJWT, async (req: any, res) => {
       });
     }
     
-    return res.json({
+    res.json({
       success: true,
       data: session,
       message: 'Session transferred successfully'
     });
   } catch (error) {
     console.error('❌ Error transferring session:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Failed to transfer session',
       code: 'SESSION_TRANSFER_ERROR'

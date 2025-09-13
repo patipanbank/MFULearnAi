@@ -278,26 +278,6 @@ class ChromaService {
         console.log(`[ChromaService] getVectorStore is not implemented in this version.`);
         return null;
     }
-    async searchDocuments(collectionName, query, limit = 10) {
-        try {
-            console.log(`[ChromaService] searchDocuments called with query: ${query}, limit: ${limit}`);
-            return [];
-        }
-        catch (error) {
-            console.error(`[ChromaService] Error in searchDocuments: ${error}`);
-            return [];
-        }
-    }
-    async searchDocumentsWithFilter(collectionName, query, filters, limit = 10) {
-        try {
-            console.log(`[ChromaService] searchDocumentsWithFilter called with query: ${query}, filters:`, filters);
-            return [];
-        }
-        catch (error) {
-            console.error(`[ChromaService] Error in searchDocumentsWithFilter: ${error}`);
-            return [];
-        }
-    }
 }
 exports.ChromaService = ChromaService;
 exports.chromaService = new ChromaService();

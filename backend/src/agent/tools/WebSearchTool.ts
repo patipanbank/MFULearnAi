@@ -22,7 +22,7 @@ export class WebSearchTool {
             throw new Error(`Search API error: ${response.status}`);
           }
           
-          const data = await response.json() as any;
+          const data = await response.json();
           
           if (!data.items || data.items.length === 0) {
             return `No search results found for: "${query}"`;
