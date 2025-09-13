@@ -395,6 +395,7 @@ export class ChatService {
       let assistantMessageId: string | null = null;
 
       await agent.run(messages, {
+        images: preparedImages.filter(img => img.base64Data), // ส่ง prepared images ที่พร้อมใช้งาน
         onEvent: async (event: { type: string; data?: any }) => {
           console.log(`🤖 Agent event: ${event.type}`, event.data);
           if (event.type === 'chunk') {

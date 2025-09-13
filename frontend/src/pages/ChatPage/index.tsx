@@ -289,13 +289,14 @@ const ChatPage: React.FC = () => {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await api.post<{ url: string }>('/upload/image', formData, {
+        const response = await api.post<{ url: string; mediaType: string }>('/upload/image', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
 
-        setImages(prev => [...prev, { url: response.url, mediaType: file.type }]);
+        console.log('🖼️ Upload response:', response);
+        setImages(prev => [...prev, { url: response.url, mediaType: response.mediaType || file.type }]);
       } catch (error) {
         console.error('Failed to upload image:', error);
         addToast({
@@ -398,7 +399,7 @@ const ChatPage: React.FC = () => {
                             <img
                               src={img.url}
                               alt={`Image ${idx + 1}`}
-                              className="rounded-lg w-full h-auto max-h-64 object-cover shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer bg-gray-100"
+                              className="rounded-lg w-full h-auto max-h-64 object-cover shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer border border-primary"
                               onClick={() => window.open(img.url, '_blank')}
                               onError={(e) => {
                                 console.error('Chat image failed to load:', img.url);
@@ -408,14 +409,18 @@ const ChatPage: React.FC = () => {
                                 console.log('Chat image loaded successfully:', img.url);
                               }}
                               loading="lazy"
-                              style={{ display: 'block', minHeight: '80px' }}
+                              style={{
+                                display: 'block',
+                                minHeight: '80px',
+                                backgroundColor: 'rgb(var(--color-card))'
+                              }}
                             />
                             {/* Image overlay info */}
                             <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                               {img.mediaType?.split('/')[1]?.toUpperCase() || 'IMG'}
                             </div>
                             {/* Loading placeholder while image loads */}
-                            <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse opacity-30"
+                            <div className="absolute inset-0 bg-secondary rounded-lg animate-pulse opacity-30"
                                  style={{ zIndex: -1 }} />
                           </div>
                         ))}

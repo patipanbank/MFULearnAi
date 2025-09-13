@@ -252,9 +252,15 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
                     <img
                       src={img.url}
                       alt={`Preview ${idx + 1}`}
-                      className="w-20 h-20 object-cover rounded-lg border-2 border-gray-300 hover:border-blue-400 transition-all duration-200 group-hover:scale-105 shadow-sm bg-gray-100"
+                      className="w-20 h-20 object-cover rounded-lg border-2 border-primary hover:border-blue-400 transition-all duration-200 group-hover:scale-105 shadow-md"
                       onClick={() => window.open(img.url, '_blank')}
-                      style={{ cursor: 'pointer', display: 'block' }}
+                      style={{
+                        cursor: 'pointer',
+                        display: 'block',
+                        backgroundColor: 'rgb(var(--color-card))',
+                        minHeight: '80px',
+                        minWidth: '80px'
+                      }}
                       onError={(e) => {
                         console.error('Preview image failed to load:', img.url);
                         e.currentTarget.style.display = 'none';
@@ -281,7 +287,7 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
             </div>
             {/* Image count only */}
             {images.length > 1 && (
-              <div className="mt-2 text-xs text-gray-500">
+              <div className="mt-2 text-xs text-muted">
                 {images.length} images attached
               </div>
             )}
