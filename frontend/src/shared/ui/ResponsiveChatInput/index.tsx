@@ -244,22 +244,39 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
 
         {/* Image Preview */}
         {images.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {images.map((img, idx) => (
-              <div key={idx} className="relative group">
-                <img
-                  src={img.url}
-                  alt="Preview"
-                  className="w-16 h-16 object-cover rounded-lg border border-primary transition-transform group-hover:scale-105"
-                />
-                <button
-                  onClick={() => onRemoveImage(idx)}
-                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 transform hover:scale-110"
-                >
-                  <FiX className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-2">
+              {images.map((img, idx) => (
+                <div key={idx} className="relative group">
+                  <div className="relative">
+                    <img
+                      src={img.url}
+                      alt={`Preview ${idx + 1}`}
+                      className="w-20 h-20 object-cover rounded-lg border border-primary transition-all duration-200 group-hover:scale-105 shadow-sm"
+                      onClick={() => window.open(img.url, '_blank')}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    {/* Image type badge */}
+                    <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 py-0.5 rounded text-[10px]">
+                      {img.mediaType?.split('/')[1]?.toUpperCase() || 'IMG'}
+                    </div>
+                    {/* Remove button */}
+                    <button
+                      onClick={() => onRemoveImage(idx)}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 transform hover:scale-110 shadow-md"
+                      title="Remove image"
+                    >
+                      <FiX className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Image count and status */}
+            <div className="mt-2 flex items-center justify-between text-xs text-muted">
+              <span>{images.length} image{images.length > 1 ? 's' : ''} ready to send</span>
+              <span className="text-green-600">✓ Vision-enabled agent selected</span>
+            </div>
           </div>
         )}
 

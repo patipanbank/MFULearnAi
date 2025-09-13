@@ -91,30 +91,68 @@ export class ChatService {
 
     const preparedImages: Array<{ url: string; mediaType: string; base64Data?: string }> = [];
     
-    for (const image of images) {
+    const maxImageSize = 10 * 1024 * 1024; // 10MB limit for vision processing
+    const supportedFormats = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+    console.log(`🖼️ Preparing ${images.length} images for vision processing...`);
+
+    for (const [index, image] of images.entries()) {
       try {
-        console.log(`🖼️ Preparing image for multimodal: ${image.url.substring(0, 50)}...`);
-        
-        // ดึงไฟล์จาก MinIO และแปลงเป็น base64
-        const base64Data = await storageService.getFileAsBase64(image.url);
-        
-        if (base64Data) {
+        console.log(`🖼️ Processing image ${index + 1}/${images.length}: ${image.url.substring(0, 50)}...`);
+
+        // Validate image format
+        if (!supportedFormats.includes(image.mediaType)) {
+          console.warn(`⚠️ Unsupported image format: ${image.mediaType}`);
           preparedImages.push({
             ...image,
-            base64Data: base64Data.data
-          });
-          console.log(`✅ Image prepared successfully: ${base64Data.mediaType}, size: ${Math.round(base64Data.data.length / 1024)}KB`);
-        } else {
-          console.warn(`⚠️ Failed to prepare image: ${image.url}`);
-          // เก็บรูปไว้แต่ไม่มี base64Data (จะใช้ text-only fallback)
-          preparedImages.push(image);
+            base64Data: undefined,
+            error: `Unsupported format: ${image.mediaType}`
+          } as any);
+          continue;
         }
-      } catch (error) {
-        console.error(`❌ Error preparing image ${image.url}:`, error);
-        // เก็บรูปไว้แต่ไม่มี base64Data (จะใช้ text-only fallback)
-        preparedImages.push(image);
+
+        // ดึงไฟล์จาก MinIO และแปลงเป็น base64
+        const base64Data = await storageService.getFileAsBase64(image.url);
+
+        if (base64Data) {
+          // Check file size
+          const base64Size = base64Data.data.length * 0.75; // Approximate size from base64
+          if (base64Size > maxImageSize) {
+            console.warn(`⚠️ Image too large for vision processing: ${(base64Size / 1024 / 1024).toFixed(2)}MB`);
+            preparedImages.push({
+              ...image,
+              base64Data: undefined,
+              error: 'Image too large for processing'
+            } as any);
+            continue;
+          }
+
+          preparedImages.push({
+            ...image,
+            base64Data: base64Data.data,
+            mediaType: base64Data.mediaType || image.mediaType
+          });
+          console.log(`✅ Image ${index + 1} prepared successfully: ${base64Data.mediaType}, size: ${Math.round(base64Data.data.length / 1024)}KB`);
+        } else {
+          console.warn(`⚠️ Failed to prepare image ${index + 1}: ${image.url}`);
+          preparedImages.push({
+            ...image,
+            base64Data: undefined,
+            error: 'Failed to load image'
+          } as any);
+        }
+      } catch (error: any) {
+        console.error(`❌ Error preparing image ${index + 1} (${image.url}):`, error.message);
+        preparedImages.push({
+          ...image,
+          base64Data: undefined,
+          error: error.message || 'Unknown error'
+        } as any);
       }
     }
+
+    const successCount = preparedImages.filter(img => img.base64Data).length;
+    console.log(`📊 Vision preparation complete: ${successCount}/${images.length} images ready for processing`);
 
     return preparedImages;
   }
@@ -307,7 +345,21 @@ export class ChatService {
       if (images && images.length > 0) {
         console.log(`🖼️ Preparing ${images.length} images for multimodal processing...`);
         preparedImages = await this.prepareImagesForMultimodal(images);
-        console.log(`✅ Prepared ${preparedImages.filter(img => img.base64Data).length} images for multimodal`);
+        const successCount = preparedImages.filter(img => img.base64Data).length;
+        console.log(`✅ Prepared ${successCount}/${images.length} images for multimodal processing`);
+
+        // Send vision processing status to user if some images failed
+        if (successCount < images.length) {
+          const failedCount = images.length - successCount;
+          const statusMessage = failedCount === images.length
+            ? `⚠️ Unable to process ${failedCount} image${failedCount > 1 ? 's' : ''}. I'll respond based on your text message only.`
+            : `⚠️ ${failedCount} of ${images.length} images couldn't be processed. Continuing with ${successCount} image${successCount > 1 ? 's' : ''}.`;
+
+          await this.addMessage(chatId, {
+            role: 'assistant',
+            content: statusMessage
+          });
+        }
       }
 
       // 11. Check quota before starting agent processing

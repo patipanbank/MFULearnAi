@@ -387,15 +387,41 @@ const ChatPage: React.FC = () => {
                 >
                   {/* Images */}
                   {msg.images && msg.images.length > 0 && (
-                    <div className="mb-3 grid grid-cols-2 gap-2 sm:gap-3">
-                      {msg.images.map((img, idx) => (
-                        <img
-                          key={idx}
-                          src={img.url}
-                          alt="Uploaded"
-                          className="rounded-lg max-w-full h-auto shadow-sm"
-                        />
-                      ))}
+                    <div className="mb-3">
+                      <div className={`grid gap-2 sm:gap-3 ${
+                        msg.images.length === 1 ? 'grid-cols-1' :
+                        msg.images.length === 2 ? 'grid-cols-2' :
+                        'grid-cols-2 md:grid-cols-3'
+                      }`}>
+                        {msg.images.map((img, idx) => (
+                          <div key={idx} className="relative group">
+                            <img
+                              src={img.url}
+                              alt={`Image ${idx + 1}`}
+                              className="rounded-lg w-full h-auto max-h-64 object-cover shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+                              onClick={() => window.open(img.url, '_blank')}
+                              onError={(e) => {
+                                console.error('Failed to load image:', img.url);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                              loading="lazy"
+                            />
+                            {/* Image overlay info */}
+                            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              {img.mediaType?.split('/')[1]?.toUpperCase() || 'IMG'}
+                            </div>
+                            {/* Loading placeholder while image loads */}
+                            <div className="absolute inset-0 bg-secondary rounded-lg animate-pulse opacity-50 group-hover:opacity-0 transition-opacity duration-200"
+                                 style={{ zIndex: -1 }} />
+                          </div>
+                        ))}
+                      </div>
+                      {/* Image count indicator */}
+                      {msg.images.length > 1 && (
+                        <div className="mt-2 text-xs text-muted">
+                          {msg.images.length} images attached
+                        </div>
+                      )}
                     </div>
                   )}
                   
