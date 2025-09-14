@@ -191,53 +191,25 @@ export class ChatService {
         images
       });
 
-      // Step 2: Notify frontend about new user message
-      console.log(`📡 Step 2: Notifying frontend about user message...`);
-      this.broadcastToChat(chatId, {
-        type: 'message_added',
-        data: {
-          message: {
-            id: userMessage.id,
-            role: 'user',
-            content: userMessage.content,
-            timestamp: userMessage.timestamp.toISOString(),
-            images: userMessage.images
-          }
-        }
-      });
-
-      // Step 3: Create empty assistant message
-      console.log(`🤖 Step 3: Creating assistant message...`);
-      const assistantMessage = await this.addMessage(chatId, {
-        role: 'assistant',
-        content: '' // Empty initially
-      });
-
-      // Step 4: Notify frontend about new assistant message
-      console.log(`📡 Step 4: Notifying frontend about assistant message...`);
-      this.broadcastToChat(chatId, {
-        type: 'message_added',
-        data: {
-          message: {
-            id: assistantMessage.id,
-            role: 'assistant',
-            content: '',
-            timestamp: assistantMessage.timestamp.toISOString(),
-            isStreaming: true
-          }
-        }
-      });
-
-      // Step 5: Process with AI (using existing LangChain Agent system)
-      console.log(`🤖 Step 5: Processing with AI...`);
-      await this.processWithAISimple(chatId, assistantMessage.id, content, images, userId);
+      // Process with AI (using existing legacy system)
+      console.log(`🤖 Processing with AI...`);
+      await this.processWithAILegacy(chatId, content, images, {
+        modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        collectionNames: [],
+        systemPrompt: 'You are a helpful assistant.',
+        temperature: 0.7,
+        maxTokens: 4000,
+        agentId: undefined
+      }, userId);
 
     } catch (error) {
       console.error('❌ Error in processMessage:', error);
-      this.broadcastToChat(chatId, {
-        type: 'error',
-        data: { message: 'Failed to process message' }
-      });
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'error',
+          data: 'Failed to process message'
+        }));
+      }
     }
   }
 
@@ -364,35 +336,38 @@ export class ChatService {
             // Update database in real-time
             await this.updateMessageContent(chatId, assistantMessageId, fullContent);
 
-            // Broadcast streaming update
-            this.broadcastToChat(chatId, {
-              type: 'message_updated',
-              data: {
-                messageId: assistantMessageId,
-                content: fullContent,
-                isStreaming: true
-              }
-            });
+            // ส่ง chunk แบบ legacy แทน message_updated
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'chunk',
+                data: {
+                  messageId: assistantMessageId,
+                  delta: chunkContent
+                }
+              }));
+            }
 
           } else if (event.type === 'tool_start') {
-            this.broadcastToChat(chatId, {
-              type: 'tool_start',
-              data: {
-                messageId: assistantMessageId,
-                toolName: event.data.tool_name,
-                toolInput: event.data.tool_input
-              }
-            });
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'tool_start',
+                data: {
+                  tool_name: event.data.tool_name,
+                  tool_input: event.data.tool_input
+                }
+              }));
+            }
 
           } else if (event.type === 'tool_result') {
-            this.broadcastToChat(chatId, {
-              type: 'tool_result',
-              data: {
-                messageId: assistantMessageId,
-                toolName: event.data.tool_name,
-                result: event.data.output
-              }
-            });
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'tool_result',
+                data: {
+                  tool_name: event.data.tool_name,
+                  output: event.data.output
+                }
+              }));
+            }
 
           } else if (event.type === 'end') {
             const finalContent = String(event.data.answer || fullContent);
@@ -400,14 +375,18 @@ export class ChatService {
             // Final update to database
             await this.updateMessageContent(chatId, assistantMessageId, finalContent);
 
-            // Mark as completed
-            this.broadcastToChat(chatId, {
-              type: 'message_completed',
-              data: {
-                messageId: assistantMessageId,
-                content: finalContent
-              }
-            });
+            // ส่ง end event แบบ legacy
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'end',
+                data: {
+                  messageId: assistantMessageId,
+                  answer: finalContent,
+                  inputTokens: event.data.inputTokens || 0,
+                  outputTokens: event.data.outputTokens || 0
+                }
+              }));
+            }
 
             // Update usage if provided
             if (userId && (event.data.inputTokens || event.data.outputTokens)) {
@@ -435,13 +414,12 @@ export class ChatService {
         `[Error: ${errorMessage}]`
       );
 
-      this.broadcastToChat(chatId, {
-        type: 'message_error',
-        data: {
-          messageId: assistantMessageId,
-          error: errorMessage
-        }
-      });
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'error',
+          data: errorMessage
+        }));
+      }
     }
   }
 
