@@ -242,41 +242,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           return;
         }
 
-        if (data.type === 'chunk') {
-          const session = currentSessionRef.current;
-          if (!session) return;
-
-          // New format: { data: { messageId, delta } }
-          if (data?.data && typeof data.data === 'object' && data.data.messageId) {
-            const { messageId, delta } = data.data as { messageId: string; delta?: string };
-            const target = session.messages.find((m) => m.id === messageId);
-            if (target) {
-              updateMessage(messageId, {
-                content: (target.content || '') + (delta || '')
-              });
-            } else {
-              console.log('Chunk received but target message not found, waiting assistant_created...');
-            }
-            return;
-          }
-
-          // Legacy fallback
-          const lastMessage = session.messages[session.messages.length - 1];
-          let chunkText = '';
-          if (typeof data.data === 'string') {
-            chunkText = data.data;
-          } else if (typeof data.data === 'object' && data.data !== null) {
-            chunkText = data.data.delta || data.data.chunk || data.data.fullContent || '';
-          } else {
-            chunkText = String(data.data ?? '');
-          }
-
-          if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
-            updateMessage(lastMessage.id, { content: lastMessage.content + chunkText });
-          } else {
-            console.log('Waiting for backend to create assistant message...');
-          }
-        } else if (data.type === 'error') {
+        if (data.type === 'error') {
           console.error('WebSocket: Server error', data.data);
 
           // Ensure error message is properly formatted and not showing [object Object]
@@ -387,46 +353,53 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
               toolUsage: [...(lastMessage.toolUsage || []), toolInfo]
             });
           }
-        } else if (data.type === 'user_message_created') {
-          console.log('WebSocket: User message created', data.data);
-          // Backend สร้าง user message แล้ว
-          const userMsg: ChatMessage = {
-            id: data.data.messageId,
-            role: 'user',
-            content: data.data.content,
-            timestamp: new Date(data.data.timestamp),
-            images: data.data.images
+        } else if (data.type === 'message_added') {
+          console.log('WebSocket: Message added', data.data);
+          // Backend สร้าง message ใหม่แล้ว (user หรือ assistant)
+          const message: ChatMessage = {
+            id: data.data.message.id,
+            role: data.data.message.role,
+            content: data.data.message.content,
+            timestamp: new Date(data.data.message.timestamp),
+            images: data.data.message.images,
+            isStreaming: data.data.message.isStreaming || false,
+            isComplete: data.data.message.isComplete || false
           };
-          addMessage(userMsg);
-        } else if (data.type === 'assistant_created') {
-          console.log('WebSocket: Assistant message created', data.data);
-          // Backend สร้าง assistant message ใหม่แล้ว
-          const assistantMsg: ChatMessage = {
-            id: data.data.messageId,
-            role: 'assistant',
-            content: data.data.content || '', // Ensure content is never undefined
-            timestamp: new Date(),
-            isStreaming: true,
-            isComplete: false
-          };
-          addMessage(assistantMsg);
-          // Stop typing indicator now that we have response
-          setIsTyping(false);
-        } else if (data.type === 'end') {
-          console.log('WebSocket: Message ended');
-          const session = currentSessionRef.current;
-          if (!session) return;
-          const messageId = data?.data?.messageId as string | undefined;
-          if (messageId) {
-            updateMessage(messageId, { isComplete: true, isStreaming: false });
-          } else {
-            // Legacy fallback: mark last assistant as complete
-            const lastMessage = session.messages[session.messages.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant') {
-              updateMessage(lastMessage.id, { isComplete: true, isStreaming: false });
-            }
+          addMessage(message);
+
+          // Stop typing indicator when assistant message starts
+          if (message.role === 'assistant') {
+            setIsTyping(false);
           }
-          setIsTyping(false);
+        } else if (data.type === 'message_updated') {
+          console.log('WebSocket: Message updated', data.data);
+          // Update existing message with new content (streaming)
+          updateMessage(data.data.messageId, {
+            content: data.data.content,
+            isStreaming: data.data.isStreaming || false
+          });
+        } else if (data.type === 'message_completed') {
+          console.log('WebSocket: Message completed', data.data);
+          // Mark message as completed
+          updateMessage(data.data.messageId, {
+            content: data.data.content,
+            isStreaming: false,
+            isComplete: true
+          });
+        } else if (data.type === 'message_error') {
+          console.log('WebSocket: Message error', data.data);
+          // Mark message as failed
+          updateMessage(data.data.messageId, {
+            content: `[Error: ${data.data.error}]`,
+            isStreaming: false,
+            isComplete: true
+          });
+        } else if (data.type === 'tool_start') {
+          console.log('WebSocket: Tool started', data.data);
+          // Handle tool start events if needed
+        } else if (data.type === 'tool_result') {
+          console.log('WebSocket: Tool result', data.data);
+          // Handle tool result events if needed
         } else if (data.type === 'image_processing_error') {
           console.log('WebSocket: Image processing error', data.data);
           // Show toast notification for image processing errors

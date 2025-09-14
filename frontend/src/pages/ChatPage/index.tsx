@@ -196,28 +196,30 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    // Set typing indicator to show message is being processed
-    setIsTyping(true);
-
-    // Clear input
+    // Clear input immediately (no local message creation)
+    const messageToSend = message.trim();
+    const imagesToSend = [...images];
     setMessage('');
     setImages([]);
+
+    // Show processing state
+    setIsTyping(true);
 
     // Note: messagePayload is no longer used since we use wsSendMessage function
 
     // Check if we're in a chat room
     if (isInChatRoom && chatId && chatId.length === 24) {
       console.log('ChatPage: Sending to existing room', chatId);
-      // ใช้ sendMessage function ที่ปรับปรุงแล้ว
-      wsSendMessage(message.trim(), images, selectedAgent?.id);
+      // Send to existing room
+      wsSendMessage(messageToSend, imagesToSend, selectedAgent?.id);
     } else {
       console.log('ChatPage: Creating new room');
       // Create new room
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         // Store first message for when room is created
         pendingFirstRef.current = {
-          text: message.trim(),
-          images: images,
+          text: messageToSend,
+          images: imagesToSend,
           agentId: selectedAgent.id
         };
 
@@ -235,11 +237,11 @@ const ChatPage: React.FC = () => {
           type: 'create_room',
           agent_id: selectedAgent.id
         });
-        
+
         // Store first message for when room is created
         pendingFirstRef.current = {
-          text: message.trim(),
-          images: images,
+          text: messageToSend,
+          images: imagesToSend,
           agentId: selectedAgent.id
         };
       }

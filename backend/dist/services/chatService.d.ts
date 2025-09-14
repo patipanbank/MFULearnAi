@@ -10,6 +10,9 @@ export declare class ChatService {
         url: string;
         mediaType: string;
     }>): Promise<void>;
+    private broadcastToChat;
+    private processWithAISimple;
+    private updateMessageContent;
     private processWithAILegacy;
     getUserChats(userId: string): Promise<Chat[]>;
     deleteChat(chatId: string, userId: string): Promise<boolean>;

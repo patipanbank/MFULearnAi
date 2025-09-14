@@ -134,35 +134,73 @@ class ChatService {
         return preparedImages;
     }
     async processMessage(chatId, userId, content, images) {
-        console.log(`🔧 processMessage called for chat ${chatId}, user ${userId}`);
-        console.log(`🔧 Content: ${content.substring(0, 50)}...`);
-        console.log(`🔧 Images: ${images?.length || 0}`);
+        console.log(`🚀 [NEW] processMessage: chat=${chatId}, user=${userId}`);
+        console.log(`🚀 Content: "${content.substring(0, 50)}...", Images: ${images?.length || 0}`);
         try {
-            console.log(`🔧 Adding user message to chat ${chatId}`);
+            console.log(`💾 Step 1: Saving user message to database...`);
             const userMessage = await this.addMessage(chatId, {
                 role: 'user',
                 content,
                 images
             });
-            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                    type: 'user_message_created',
-                    data: {
-                        messageId: userMessage.id,
+            console.log(`📡 Step 2: Notifying frontend about user message...`);
+            this.broadcastToChat(chatId, {
+                type: 'message_added',
+                data: {
+                    message: {
+                        id: userMessage.id,
+                        role: 'user',
                         content: userMessage.content,
                         timestamp: userMessage.timestamp.toISOString(),
                         images: userMessage.images
                     }
-                }));
-            }
+                }
+            });
+            console.log(`🤖 Step 3: Creating assistant message...`);
+            const assistantMessage = await this.addMessage(chatId, {
+                role: 'assistant',
+                content: ''
+            });
+            console.log(`📡 Step 4: Notifying frontend about assistant message...`);
+            this.broadcastToChat(chatId, {
+                type: 'message_added',
+                data: {
+                    message: {
+                        id: assistantMessage.id,
+                        role: 'assistant',
+                        content: '',
+                        timestamp: assistantMessage.timestamp.toISOString(),
+                        isStreaming: true
+                    }
+                }
+            });
+            console.log(`🤖 Step 5: Processing with AI...`);
+            await this.processWithAISimple(chatId, assistantMessage.id, content, images, userId);
+        }
+        catch (error) {
+            console.error('❌ Error in processMessage:', error);
+            this.broadcastToChat(chatId, {
+                type: 'error',
+                data: { message: 'Failed to process message' }
+            });
+        }
+    }
+    broadcastToChat(chatId, data) {
+        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify(data));
+        }
+    }
+    async processWithAISimple(chatId, assistantMessageId, userContent, images, userId) {
+        try {
+            console.log(`🤖 processWithAISimple: chatId=${chatId}, assistantId=${assistantMessageId}`);
             const chat = await chat_1.ChatModel.findById(chatId);
             if (!chat) {
-                throw new Error(`Chat session ${chatId} not found`);
+                throw new Error(`Chat not found: ${chatId}`);
             }
             let agentConfig = null;
-            let modelId = null;
+            let modelId = 'anthropic.claude-3-5-sonnet-20240620-v1:0';
             let collectionNames = [];
-            let systemPrompt = null;
+            let systemPrompt = "You are a helpful assistant. Use tools when appropriate.";
             let temperature = 0.7;
             let maxTokens = 4000;
             if (chat.agentId) {
@@ -171,30 +209,130 @@ class ChatService {
                     if (agentConfig) {
                         modelId = agentConfig.modelId;
                         collectionNames = agentConfig.collectionNames || [];
-                        systemPrompt = agentConfig.systemPrompt;
+                        systemPrompt = agentConfig.systemPrompt || systemPrompt;
                         temperature = agentConfig.temperature || 0.7;
                         maxTokens = agentConfig.maxTokens || 4000;
                     }
                 }
                 catch (error) {
-                    console.warn(`⚠️ Failed to get agent config for ${chat.agentId}:`, error);
+                    console.warn(`⚠️ Failed to get agent config:`, error);
                 }
             }
-            await this.processWithAILegacy(chatId, content, images, {
-                modelId,
-                collectionNames,
-                systemPrompt,
+            console.log(`🔧 Setting up LangChain agent...`);
+            const llm = (0, llmFactory_1.getLLM)(modelId, {
                 temperature,
                 maxTokens,
-                agentId: chat.agentId
-            }, userId);
+                streaming: true
+            });
+            const sessionTools = (0, toolRegistry_1.createMemoryTool)(chatId);
+            const allTools = {};
+            for (const [k, v] of Object.entries(toolRegistry_1.toolRegistry)) {
+                allTools[k] = v.func;
+            }
+            for (const [k, v] of Object.entries(sessionTools)) {
+                allTools[k] = v.func;
+            }
+            if (collectionNames && collectionNames.length > 0) {
+                const retrievalTools = (0, toolRegistry_1.createRetrievalTools)(collectionNames);
+                for (const [name, tool] of Object.entries(retrievalTools)) {
+                    allTools[name] = tool.func;
+                }
+            }
+            const agent = await (0, agentFactory_1.createAgent)(llm, allTools, systemPrompt, {
+                modelId,
+                sessionId: chatId,
+                temperature,
+                maxTokens
+            });
+            const chatHistory = chat.messages.map(msg => ({
+                role: msg.role,
+                content: msg.content,
+                id: msg.id,
+                timestamp: msg.timestamp
+            }));
+            let preparedImages = [];
+            if (images && images.length > 0) {
+                console.log(`🖼️ Preparing ${images.length} images...`);
+                preparedImages = await this.prepareImagesForMultimodal(images);
+            }
+            let fullContent = '';
+            console.log(`🚀 Starting agent.run...`);
+            await agent.run(chatHistory, {
+                images: preparedImages.filter(img => img.base64Data),
+                onEvent: async (event) => {
+                    console.log(`📡 Agent event: ${event.type}`);
+                    if (event.type === 'chunk') {
+                        const chunkContent = String(event.data || '');
+                        fullContent += chunkContent;
+                        await this.updateMessageContent(chatId, assistantMessageId, fullContent);
+                        this.broadcastToChat(chatId, {
+                            type: 'message_updated',
+                            data: {
+                                messageId: assistantMessageId,
+                                content: fullContent,
+                                isStreaming: true
+                            }
+                        });
+                    }
+                    else if (event.type === 'tool_start') {
+                        this.broadcastToChat(chatId, {
+                            type: 'tool_start',
+                            data: {
+                                messageId: assistantMessageId,
+                                toolName: event.data.tool_name,
+                                toolInput: event.data.tool_input
+                            }
+                        });
+                    }
+                    else if (event.type === 'tool_result') {
+                        this.broadcastToChat(chatId, {
+                            type: 'tool_result',
+                            data: {
+                                messageId: assistantMessageId,
+                                toolName: event.data.tool_name,
+                                result: event.data.output
+                            }
+                        });
+                    }
+                    else if (event.type === 'end') {
+                        const finalContent = String(event.data.answer || fullContent);
+                        await this.updateMessageContent(chatId, assistantMessageId, finalContent);
+                        this.broadcastToChat(chatId, {
+                            type: 'message_completed',
+                            data: {
+                                messageId: assistantMessageId,
+                                content: finalContent
+                            }
+                        });
+                        if (userId && (event.data.inputTokens || event.data.outputTokens)) {
+                            await usageService_1.usageService.updateUsage(userId, event.data.inputTokens || 0, event.data.outputTokens || 0);
+                        }
+                        console.log(`✅ AI processing completed for message ${assistantMessageId}`);
+                    }
+                },
+                maxSteps: 5
+            });
         }
         catch (error) {
-            console.error('❌ Error in processMessage:', error);
-            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
-            }
+            console.error('❌ Error in processWithAISimple:', error);
+            const errorMessage = error instanceof Error ? error.message : 'AI processing failed';
+            await this.updateMessageContent(chatId, assistantMessageId, `[Error: ${errorMessage}]`);
+            this.broadcastToChat(chatId, {
+                type: 'message_error',
+                data: {
+                    messageId: assistantMessageId,
+                    error: errorMessage
+                }
+            });
         }
+    }
+    async updateMessageContent(chatId, messageId, content) {
+        await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': messageId }, {
+            $set: {
+                'messages.$.content': content,
+                updatedAt: new Date()
+            }
+        });
     }
     async processWithAILegacy(chatId, userMessage, images, config, userId) {
         try {

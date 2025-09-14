@@ -172,46 +172,113 @@ export class ChatService {
     return preparedImages;
   }
 
+  /**
+   * ✨ NEW SIMPLIFIED MESSAGE PROCESSING ✨
+   * - Backend เป็นผู้จัดการทั้งหมด
+   * - Single source of truth (Database)
+   * - Clean WebSocket events
+   */
   public async processMessage(chatId: string, userId: string, content: string, images?: Array<{ url: string; mediaType: string }>): Promise<void> {
-    console.log(`🔧 processMessage called for chat ${chatId}, user ${userId}`);
-    console.log(`🔧 Content: ${content.substring(0, 50)}...`);
-    console.log(`🔧 Images: ${images?.length || 0}`);
-    
+    console.log(`🚀 [NEW] processMessage: chat=${chatId}, user=${userId}`);
+    console.log(`🚀 Content: "${content.substring(0, 50)}...", Images: ${images?.length || 0}`);
+
     try {
-      // Add user message first (like in legacy)
-      console.log(`🔧 Adding user message to chat ${chatId}`);
+      // Step 1: Save user message to database FIRST
+      console.log(`💾 Step 1: Saving user message to database...`);
       const userMessage = await this.addMessage(chatId, {
         role: 'user',
         content,
         images
       });
 
-      // Send user message created event to frontend
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'user_message_created',
-          data: {
-            messageId: userMessage.id,
+      // Step 2: Notify frontend about new user message
+      console.log(`📡 Step 2: Notifying frontend about user message...`);
+      this.broadcastToChat(chatId, {
+        type: 'message_added',
+        data: {
+          message: {
+            id: userMessage.id,
+            role: 'user',
             content: userMessage.content,
             timestamp: userMessage.timestamp.toISOString(),
             images: userMessage.images
           }
-        }));
-      }
+        }
+      });
 
-      // Get chat and agent info
+      // Step 3: Create empty assistant message
+      console.log(`🤖 Step 3: Creating assistant message...`);
+      const assistantMessage = await this.addMessage(chatId, {
+        role: 'assistant',
+        content: '' // Empty initially
+      });
+
+      // Step 4: Notify frontend about new assistant message
+      console.log(`📡 Step 4: Notifying frontend about assistant message...`);
+      this.broadcastToChat(chatId, {
+        type: 'message_added',
+        data: {
+          message: {
+            id: assistantMessage.id,
+            role: 'assistant',
+            content: '',
+            timestamp: assistantMessage.timestamp.toISOString(),
+            isStreaming: true
+          }
+        }
+      });
+
+      // Step 5: Process with AI (using existing LangChain Agent system)
+      console.log(`🤖 Step 5: Processing with AI...`);
+      await this.processWithAISimple(chatId, assistantMessage.id, content, images, userId);
+
+    } catch (error) {
+      console.error('❌ Error in processMessage:', error);
+      this.broadcastToChat(chatId, {
+        type: 'error',
+        data: { message: 'Failed to process message' }
+      });
+    }
+  }
+
+  /**
+   * Simplified broadcast helper
+   */
+  private broadcastToChat(chatId: string, data: any): void {
+    if (wsManager.getSessionConnectionCount(chatId) > 0) {
+      wsManager.broadcastToSession(chatId, JSON.stringify(data));
+    }
+  }
+
+  /**
+   * ✨ NEW SIMPLIFIED AI PROCESSING ✨
+   * - ใช้ LangChain Agent ที่มีอยู่
+   * - ทำงานกับ existing agent system
+   * - เรียบง่ายและชัดเจน
+   */
+  private async processWithAISimple(
+    chatId: string,
+    assistantMessageId: string,
+    userContent: string,
+    images?: Array<{ url: string; mediaType: string }>,
+    userId?: string
+  ): Promise<void> {
+    try {
+      console.log(`🤖 processWithAISimple: chatId=${chatId}, assistantId=${assistantMessageId}`);
+
+      // Get chat and agent configuration
       const chat = await ChatModel.findById(chatId);
       if (!chat) {
-        throw new Error(`Chat session ${chatId} not found`);
+        throw new Error(`Chat not found: ${chatId}`);
       }
 
-      // Get agent configuration if available
+      // Prepare agent configuration
       let agentConfig = null;
-      let modelId: string | null = null;
+      let modelId = 'anthropic.claude-3-5-sonnet-20240620-v1:0';
       let collectionNames: string[] = [];
-      let systemPrompt: string | null = null;
-      let temperature: number = 0.7;
-      let maxTokens: number = 4000;
+      let systemPrompt = "You are a helpful assistant. Use tools when appropriate.";
+      let temperature = 0.7;
+      let maxTokens = 4000;
 
       if (chat.agentId) {
         try {
@@ -219,31 +286,178 @@ export class ChatService {
           if (agentConfig) {
             modelId = agentConfig.modelId;
             collectionNames = agentConfig.collectionNames || [];
-            systemPrompt = agentConfig.systemPrompt;
+            systemPrompt = agentConfig.systemPrompt || systemPrompt;
             temperature = agentConfig.temperature || 0.7;
             maxTokens = agentConfig.maxTokens || 4000;
           }
         } catch (error) {
-          console.warn(`⚠️ Failed to get agent config for ${chat.agentId}:`, error);
+          console.warn(`⚠️ Failed to get agent config:`, error);
         }
       }
 
-      // Process with AI (เหมือน Legacy)
-      await this.processWithAILegacy(chatId, content, images, {
-        modelId,
-        collectionNames,
-        systemPrompt,
+      // Create/reuse LangChain agent using existing system
+      console.log(`🔧 Setting up LangChain agent...`);
+      const llm = getLLM(modelId, {
         temperature,
         maxTokens,
-        agentId: chat.agentId
-      }, userId);
+        streaming: true
+      });
+
+      // Setup tools using existing system
+      const sessionTools = createMemoryTool(chatId);
+      const allTools: { [name: string]: ToolFunction } = {};
+
+      // Add registry tools
+      for (const [k, v] of Object.entries(toolRegistry)) {
+        allTools[k] = v.func;
+      }
+
+      // Add session tools
+      for (const [k, v] of Object.entries(sessionTools)) {
+        allTools[k] = v.func;
+      }
+
+      // Add retrieval tools if collections specified
+      if (collectionNames && collectionNames.length > 0) {
+        const retrievalTools = createRetrievalTools(collectionNames);
+        for (const [name, tool] of Object.entries(retrievalTools)) {
+          allTools[name] = (tool as any).func;
+        }
+      }
+
+      const agent = await createAgent(llm, allTools, systemPrompt, {
+        modelId,
+        sessionId: chatId,
+        temperature,
+        maxTokens
+      });
+
+      // Get chat history for context
+      const chatHistory = chat.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        id: msg.id,
+        timestamp: msg.timestamp
+      }));
+
+      // Prepare images if any
+      let preparedImages: Array<{ url: string; mediaType: string; base64Data?: string }> = [];
+      if (images && images.length > 0) {
+        console.log(`🖼️ Preparing ${images.length} images...`);
+        preparedImages = await this.prepareImagesForMultimodal(images);
+      }
+
+      // Track streaming content
+      let fullContent = '';
+
+      // Process with agent
+      console.log(`🚀 Starting agent.run...`);
+      await agent.run(chatHistory, {
+        images: preparedImages.filter(img => img.base64Data),
+        onEvent: async (event: { type: string; data?: any }) => {
+          console.log(`📡 Agent event: ${event.type}`);
+
+          if (event.type === 'chunk') {
+            const chunkContent = String(event.data || '');
+            fullContent += chunkContent;
+
+            // Update database in real-time
+            await this.updateMessageContent(chatId, assistantMessageId, fullContent);
+
+            // Broadcast streaming update
+            this.broadcastToChat(chatId, {
+              type: 'message_updated',
+              data: {
+                messageId: assistantMessageId,
+                content: fullContent,
+                isStreaming: true
+              }
+            });
+
+          } else if (event.type === 'tool_start') {
+            this.broadcastToChat(chatId, {
+              type: 'tool_start',
+              data: {
+                messageId: assistantMessageId,
+                toolName: event.data.tool_name,
+                toolInput: event.data.tool_input
+              }
+            });
+
+          } else if (event.type === 'tool_result') {
+            this.broadcastToChat(chatId, {
+              type: 'tool_result',
+              data: {
+                messageId: assistantMessageId,
+                toolName: event.data.tool_name,
+                result: event.data.output
+              }
+            });
+
+          } else if (event.type === 'end') {
+            const finalContent = String(event.data.answer || fullContent);
+
+            // Final update to database
+            await this.updateMessageContent(chatId, assistantMessageId, finalContent);
+
+            // Mark as completed
+            this.broadcastToChat(chatId, {
+              type: 'message_completed',
+              data: {
+                messageId: assistantMessageId,
+                content: finalContent
+              }
+            });
+
+            // Update usage if provided
+            if (userId && (event.data.inputTokens || event.data.outputTokens)) {
+              await usageService.updateUsage(
+                userId,
+                event.data.inputTokens || 0,
+                event.data.outputTokens || 0
+              );
+            }
+
+            console.log(`✅ AI processing completed for message ${assistantMessageId}`);
+          }
+        },
+        maxSteps: 5
+      });
 
     } catch (error) {
-      console.error('❌ Error in processMessage:', error);
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
-      }
+      console.error('❌ Error in processWithAISimple:', error);
+      const errorMessage = error instanceof Error ? error.message : 'AI processing failed';
+
+      // Mark message as failed
+      await this.updateMessageContent(
+        chatId,
+        assistantMessageId,
+        `[Error: ${errorMessage}]`
+      );
+
+      this.broadcastToChat(chatId, {
+        type: 'message_error',
+        data: {
+          messageId: assistantMessageId,
+          error: errorMessage
+        }
+      });
     }
+  }
+
+  /**
+   * Helper to update message content in database
+   */
+  private async updateMessageContent(chatId: string, messageId: string, content: string): Promise<void> {
+    await ChatModel.updateOne(
+      { _id: chatId, 'messages.id': messageId },
+      {
+        $set: {
+          'messages.$.content': content,
+          updatedAt: new Date()
+        }
+      }
+    );
   }
 
   private async processWithAILegacy(chatId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
