@@ -65,9 +65,23 @@ export class ChatService {
       throw new Error(`Chat session ${chatId} not found`);
     }
 
-    // Ensure content is not empty
+    // Generate unique message ID
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Check for duplicate messages (avoid double creation)
+    const isDuplicate = chat.messages.some(msg =>
+      msg.role === message.role &&
+      msg.content === message.content &&
+      Math.abs(new Date().getTime() - msg.timestamp.getTime()) < 5000 // Within 5 seconds
+    );
+
+    if (isDuplicate) {
+      console.log(`⚠️ Duplicate message detected and skipped for chat ${chatId}`);
+      return chat.messages[chat.messages.length - 1]; // Return the existing message
+    }
+
     const newMessage: ChatMessage = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: messageId,
       ...message,
       timestamp: new Date()
     };
@@ -76,7 +90,7 @@ export class ChatService {
     chat.updatedAt = new Date();
     await chat.save();
 
-    console.log(`✅ Added message to session ${chatId}`);
+    console.log(`✅ Added message to session ${chatId}:`, messageId);
 
     return newMessage;
   }
@@ -171,6 +185,19 @@ export class ChatService {
         content,
         images
       });
+
+      // Send user message created event to frontend
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({
+          type: 'user_message_created',
+          data: {
+            messageId: userMessage.id,
+            content: userMessage.content,
+            timestamp: userMessage.timestamp.toISOString(),
+            images: userMessage.images
+          }
+        }));
+      }
 
       // Get chat and agent info
       const chat = await ChatModel.findById(chatId);
@@ -439,34 +466,48 @@ export class ChatService {
             // สร้าง assistant message เมื่อได้รับ chunk แรก
             if (fullContent === chunkContent) {
               console.log(`🤖 First chunk received, creating assistant message...`);
-              
+
               const assistantMessage = await this.addMessage(chatId, {
                 role: 'assistant',
-                content: '',
+                content: chunkContent, // เริ่มต้นด้วย chunk แรก
               });
               assistantMessageId = assistantMessage.id;
-              
+
               // ส่ง event แจ้ง frontend ว่าสร้าง assistant message ใหม่
               if (wsManager.getSessionConnectionCount(chatId) > 0) {
-                wsManager.broadcastToSession(chatId, JSON.stringify({ 
-                  type: 'assistant_created', 
-                  data: { 
+                wsManager.broadcastToSession(chatId, JSON.stringify({
+                  type: 'assistant_created',
+                  data: {
                     messageId: assistantMessage.id,
-                    content: '' 
-                  } 
+                    content: chunkContent
+                  }
                 }));
               }
             }
             
-            // ส่ง streaming ไปยัง frontend แต่ไม่บันทึกลง database
-            if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({
-                type: 'chunk',
-                data: {
-                  messageId: assistantMessageId,
-                  delta: chunkContent
+            // ส่ง streaming ไปยัง frontend และ update database
+            if (assistantMessageId) {
+              // Update message content in database
+              await ChatModel.updateOne(
+                { _id: chatId, 'messages.id': assistantMessageId },
+                {
+                  $set: {
+                    'messages.$.content': fullContent,
+                    updatedAt: new Date()
+                  }
                 }
-              }));
+              );
+
+              // Send to frontend
+              if (wsManager.getSessionConnectionCount(chatId) > 0) {
+                wsManager.broadcastToSession(chatId, JSON.stringify({
+                  type: 'chunk',
+                  data: {
+                    messageId: assistantMessageId,
+                    delta: chunkContent
+                  }
+                }));
+              }
             }
           } else if (event.type === 'tool_start') {
             console.log(`🔧 Tool started: ${event.data.tool_name}`);

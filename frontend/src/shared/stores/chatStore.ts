@@ -91,10 +91,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const state = get();
     if (!state.currentSession) return;
 
-    // Check for duplicate messages by ID
+    // Check for duplicate messages by ID - simplified check since backend handles deduplication
     const existingMessage = state.currentSession.messages.find(msg => msg.id === message.id);
     if (existingMessage) {
-      console.log('Duplicate message detected, skipping:', message.id);
+      console.log('Duplicate message ID detected, skipping:', message.id);
       return;
     }
     let updatedName = state.currentSession.name;

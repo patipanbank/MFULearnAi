@@ -5,7 +5,6 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
-import type { ChatMessage } from '../../shared/stores/chatStore';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { ToolUsageDisplay } from '../../shared/ui/ToolUsageDisplay';
 import { api } from '../../shared/lib/api';
@@ -25,6 +24,7 @@ const ChatPage: React.FC = () => {
   const updateMessage = useChatStore((state) => state.updateMessage);
   const wsStatus = useChatStore((state) => state.wsStatus);
   const isTyping = useChatStore((state) => state.isTyping);
+  const setIsTyping = useChatStore((state) => state.setIsTyping);
   const setChatHistory = useChatStore((state) => state.setChatHistory);
   const isLoading = useChatStore((state) => state.isLoading);
 
@@ -196,19 +196,8 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    // Add user message immediately for local rendering
-    const userTimestamp = new Date();
-    userTimestamp.setHours(userTimestamp.getHours() - 7);
-    const userMessage: ChatMessage = {
-      id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      role: 'user',
-      content: message.trim(),
-      timestamp: userTimestamp,
-      images: images.length > 0 ? images : undefined
-    };
-
-    // Add message to session
-    addMessage(userMessage);
+    // Set typing indicator to show message is being processed
+    setIsTyping(true);
 
     // Clear input
     setMessage('');
@@ -507,10 +496,16 @@ const ChatPage: React.FC = () => {
       }
     }
 
-    // For assistant messages that are streaming, allow empty content
+    // For assistant messages that are streaming, show loading indicator instead of "Thinking..."
     if (!content || content.trim() === '') {
       if (role === 'assistant') {
-        return <div className="text-muted italic opacity-50">Thinking...</div>;
+        return (
+          <div className="flex space-x-1 items-center">
+            <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
+            <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+            <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+          </div>
+        );
       }
       return <div className="text-muted italic">Empty message</div>;
     }

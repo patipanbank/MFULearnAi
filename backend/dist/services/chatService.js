@@ -52,15 +52,23 @@ class ChatService {
         if (!chat) {
             throw new Error(`Chat session ${chatId} not found`);
         }
+        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const isDuplicate = chat.messages.some(msg => msg.role === message.role &&
+            msg.content === message.content &&
+            Math.abs(new Date().getTime() - msg.timestamp.getTime()) < 5000);
+        if (isDuplicate) {
+            console.log(`⚠️ Duplicate message detected and skipped for chat ${chatId}`);
+            return chat.messages[chat.messages.length - 1];
+        }
         const newMessage = {
-            id: Math.random().toString(36).substr(2, 9),
+            id: messageId,
             ...message,
             timestamp: new Date()
         };
         chat.messages.push(newMessage);
         chat.updatedAt = new Date();
         await chat.save();
-        console.log(`✅ Added message to session ${chatId}`);
+        console.log(`✅ Added message to session ${chatId}:`, messageId);
         return newMessage;
     }
     async prepareImagesForMultimodal(images) {
@@ -136,6 +144,17 @@ class ChatService {
                 content,
                 images
             });
+            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                    type: 'user_message_created',
+                    data: {
+                        messageId: userMessage.id,
+                        content: userMessage.content,
+                        timestamp: userMessage.timestamp.toISOString(),
+                        images: userMessage.images
+                    }
+                }));
+            }
             const chat = await chat_1.ChatModel.findById(chatId);
             if (!chat) {
                 throw new Error(`Chat session ${chatId} not found`);
@@ -347,7 +366,7 @@ class ChatService {
                             console.log(`🤖 First chunk received, creating assistant message...`);
                             const assistantMessage = await this.addMessage(chatId, {
                                 role: 'assistant',
-                                content: '',
+                                content: chunkContent,
                             });
                             assistantMessageId = assistantMessage.id;
                             if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
@@ -355,19 +374,27 @@ class ChatService {
                                     type: 'assistant_created',
                                     data: {
                                         messageId: assistantMessage.id,
-                                        content: ''
+                                        content: chunkContent
                                     }
                                 }));
                             }
                         }
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'chunk',
-                                data: {
-                                    messageId: assistantMessageId,
-                                    delta: chunkContent
+                        if (assistantMessageId) {
+                            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessageId }, {
+                                $set: {
+                                    'messages.$.content': fullContent,
+                                    updatedAt: new Date()
                                 }
-                            }));
+                            });
+                            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                                    type: 'chunk',
+                                    data: {
+                                        messageId: assistantMessageId,
+                                        delta: chunkContent
+                                    }
+                                }));
+                            }
                         }
                     }
                     else if (event.type === 'tool_start') {

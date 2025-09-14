@@ -387,6 +387,17 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
               toolUsage: [...(lastMessage.toolUsage || []), toolInfo]
             });
           }
+        } else if (data.type === 'user_message_created') {
+          console.log('WebSocket: User message created', data.data);
+          // Backend สร้าง user message แล้ว
+          const userMsg: ChatMessage = {
+            id: data.data.messageId,
+            role: 'user',
+            content: data.data.content,
+            timestamp: new Date(data.data.timestamp),
+            images: data.data.images
+          };
+          addMessage(userMsg);
         } else if (data.type === 'assistant_created') {
           console.log('WebSocket: Assistant message created', data.data);
           // Backend สร้าง assistant message ใหม่แล้ว
@@ -399,6 +410,8 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
             isComplete: false
           };
           addMessage(assistantMsg);
+          // Stop typing indicator now that we have response
+          setIsTyping(false);
         } else if (data.type === 'end') {
           console.log('WebSocket: Message ended');
           const session = currentSessionRef.current;
