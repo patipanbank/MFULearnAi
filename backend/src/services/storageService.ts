@@ -192,20 +192,32 @@ export class StorageService {
   // เพิ่มฟังก์ชันสำหรับดึงไฟล์จาก MinIO และแปลงเป็น base64
   async getFileAsBase64(url: string): Promise<{ data: string; mediaType: string } | null> {
     try {
+      console.log('🔍 getFileAsBase64 called with URL:', url);
+      console.log('🔍 Expected bucket name:', S3_BUCKET);
+
       // แยก key จาก URL
       const urlParts = url.split('/');
+      console.log('🔍 URL parts:', urlParts);
+
       const bucketIndex = urlParts.findIndex(part => part === S3_BUCKET);
+      console.log('🔍 Bucket index found:', bucketIndex);
+
       if (bucketIndex === -1) {
-        console.error('Invalid S3 URL format');
+        console.error('❌ Invalid S3 URL format - bucket not found in URL');
+        console.error('❌ Looking for bucket:', S3_BUCKET);
+        console.error('❌ In URL parts:', urlParts);
         return null;
       }
-      
+
       const key = urlParts.slice(bucketIndex + 1).join('/');
-      
+      console.log('🔑 Extracted key:', key);
+
       const command = new GetObjectCommand({
         Bucket: S3_BUCKET,
         Key: key,
       });
+
+      console.log('📤 Sending GetObjectCommand to MinIO...');
       
       const response = await s3.send(command);
       if (!response.Body) {
