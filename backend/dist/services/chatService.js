@@ -68,27 +68,61 @@ class ChatService {
             return [];
         }
         const preparedImages = [];
-        for (const image of images) {
+        const maxImageSize = 10 * 1024 * 1024;
+        const supportedFormats = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        console.log(`🖼️ Preparing ${images.length} images for vision processing...`);
+        for (const [index, image] of images.entries()) {
             try {
-                console.log(`🖼️ Preparing image for multimodal: ${image.url.substring(0, 50)}...`);
-                const base64Data = await storageService_1.storageService.getFileAsBase64(image.url);
-                if (base64Data) {
+                console.log(`🖼️ Processing image ${index + 1}/${images.length}: ${image.url.substring(0, 50)}...`);
+                if (!supportedFormats.includes(image.mediaType)) {
+                    console.warn(`⚠️ Unsupported image format: ${image.mediaType}`);
                     preparedImages.push({
                         ...image,
-                        base64Data: base64Data.data
+                        base64Data: undefined,
+                        error: `Unsupported format: ${image.mediaType}. Supported: JPEG, PNG, GIF, WebP`
                     });
-                    console.log(`✅ Image prepared successfully: ${base64Data.mediaType}, size: ${Math.round(base64Data.data.length / 1024)}KB`);
+                    continue;
+                }
+                const base64Data = await storageService_1.storageService.getFileAsBase64(image.url);
+                if (base64Data) {
+                    const base64Size = base64Data.data.length * 0.75;
+                    if (base64Size > maxImageSize) {
+                        const sizeInMB = (base64Size / 1024 / 1024).toFixed(1);
+                        console.warn(`⚠️ Image too large for vision processing: ${sizeInMB}MB`);
+                        preparedImages.push({
+                            ...image,
+                            base64Data: undefined,
+                            error: `Image too large: ${sizeInMB}MB (max 10MB)`
+                        });
+                        continue;
+                    }
+                    preparedImages.push({
+                        ...image,
+                        base64Data: base64Data.data,
+                        mediaType: base64Data.mediaType || image.mediaType
+                    });
+                    console.log(`✅ Image ${index + 1} prepared successfully: ${base64Data.mediaType}, size: ${Math.round(base64Data.data.length / 1024)}KB`);
                 }
                 else {
-                    console.warn(`⚠️ Failed to prepare image: ${image.url}`);
-                    preparedImages.push(image);
+                    console.warn(`⚠️ Failed to prepare image ${index + 1}: ${image.url}`);
+                    preparedImages.push({
+                        ...image,
+                        base64Data: undefined,
+                        error: 'Failed to load image'
+                    });
                 }
             }
             catch (error) {
-                console.error(`❌ Error preparing image ${image.url}:`, error);
-                preparedImages.push(image);
+                console.error(`❌ Error preparing image ${index + 1} (${image.url}):`, error.message);
+                preparedImages.push({
+                    ...image,
+                    base64Data: undefined,
+                    error: error.message || 'Unknown error'
+                });
             }
         }
+        const successCount = preparedImages.filter(img => img.base64Data).length;
+        console.log(`📊 Vision preparation complete: ${successCount}/${images.length} images ready for processing`);
         return preparedImages;
     }
     async processMessage(chatId, userId, content, images) {
@@ -237,7 +271,45 @@ class ChatService {
             if (images && images.length > 0) {
                 console.log(`🖼️ Preparing ${images.length} images for multimodal processing...`);
                 preparedImages = await this.prepareImagesForMultimodal(images);
-                console.log(`✅ Prepared ${preparedImages.filter(img => img.base64Data).length} images for multimodal`);
+                const successCount = preparedImages.filter(img => img.base64Data).length;
+                console.log(`✅ Prepared ${successCount}/${images.length} images for multimodal processing`);
+                if (successCount < images.length) {
+                    const failedCount = images.length - successCount;
+                    const failedImages = preparedImages.filter(img => !img.base64Data);
+                    let toastMessage;
+                    if (failedCount === images.length) {
+                        toastMessage = `Unable to process ${failedCount} image${failedCount > 1 ? 's' : ''}. Responding with text only.`;
+                    }
+                    else {
+                        toastMessage = `${failedCount} of ${images.length} images couldn't be processed. Continuing with ${successCount}.`;
+                    }
+                    const errorReasons = failedImages.map(img => img.error).filter(Boolean);
+                    const primaryReason = errorReasons[0];
+                    if (primaryReason) {
+                        if (primaryReason.includes('too large')) {
+                            toastMessage += ' Try using smaller images (max 10MB).';
+                        }
+                        else if (primaryReason.includes('Unsupported format')) {
+                            toastMessage += ' Use JPEG, PNG, GIF, or WebP formats.';
+                        }
+                        else if (primaryReason.includes('Failed to load')) {
+                            toastMessage += ' Some images could not be loaded from storage.';
+                        }
+                    }
+                    if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
+                            type: 'image_processing_error',
+                            data: {
+                                message: toastMessage,
+                                failedCount,
+                                totalCount: images.length,
+                                successCount,
+                                errors: errorReasons,
+                                timestamp: new Date().toISOString()
+                            }
+                        }));
+                    }
+                }
             }
             if (userId) {
                 const quotaCheck = await usageService_1.usageService.checkQuotaAndUsage(userId, 0, 100);
@@ -263,6 +335,7 @@ class ChatService {
             let outputTokens = 0;
             let assistantMessageId = null;
             await agent.run(messages, {
+                images: preparedImages.filter(img => img.base64Data),
                 onEvent: async (event) => {
                     console.log(`🤖 Agent event: ${event.type}`, event.data);
                     if (event.type === 'chunk') {
@@ -404,8 +477,7 @@ class ChatService {
                         }
                     }
                 },
-                maxSteps: 5,
-                images: preparedImages
+                maxSteps: 5
             });
         }
         catch (error) {

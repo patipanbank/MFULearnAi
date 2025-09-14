@@ -16,7 +16,7 @@ class TrainingService {
             separators: ['\n\n', '\n', '. ', '! ', '? ', ' ', ''],
         });
     }
-    async embedAndStore(text, sourceName, contentType, collectionName, user, modelId) {
+    async embedAndStore(text, sourceName, contentType, collectionName, user, modelId, fileSize) {
         if (!text || !text.trim()) {
             return 0;
         }
@@ -64,6 +64,7 @@ class TrainingService {
                     createdAt: new Date().toISOString(),
                     chunkIndex: index,
                     chunkSize: chunk.length,
+                    fileSize: fileSize || null,
                 },
                 embedding: embeddings[index],
             }));
@@ -209,6 +210,7 @@ class TrainingService {
                 createdAt: new Date().toISOString(),
                 chunkIndex: index,
                 chunkSize: chunk.length,
+                fileSize: null,
             },
             embedding: embeddings[index],
         }));
@@ -248,7 +250,7 @@ class TrainingService {
             if (textContent.length < 10) {
                 throw new Error('File content too short (minimum 10 characters required).');
             }
-            const numChunks = await this.embedAndStore(textContent, fileName, 'file', collectionName, user, modelId);
+            const numChunks = await this.embedAndStore(textContent, fileName, 'file', collectionName, user, modelId, fileBuffer.length);
             const processingTime = Date.now() - startTime;
             console.log(`✅ Processed file ${fileName}: ${numChunks} chunks added to collection ${collectionName} in ${processingTime}ms`);
             if (numChunks > 0) {

@@ -1,4 +1,7 @@
 export declare class StorageService {
+    healthCheck(): Promise<boolean>;
+    ensureBucketExists(): Promise<void>;
+    private setBucketPublicReadPolicy;
     uploadFile(data: Buffer, filename: string, contentType: string): Promise<string>;
     getFileAsBase64(url: string): Promise<{
         data: string;

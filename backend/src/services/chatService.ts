@@ -106,7 +106,7 @@ export class ChatService {
           preparedImages.push({
             ...image,
             base64Data: undefined,
-            error: `Unsupported format: ${image.mediaType}`
+            error: `Unsupported format: ${image.mediaType}. Supported: JPEG, PNG, GIF, WebP`
           } as any);
           continue;
         }
@@ -118,11 +118,12 @@ export class ChatService {
           // Check file size
           const base64Size = base64Data.data.length * 0.75; // Approximate size from base64
           if (base64Size > maxImageSize) {
-            console.warn(`⚠️ Image too large for vision processing: ${(base64Size / 1024 / 1024).toFixed(2)}MB`);
+            const sizeInMB = (base64Size / 1024 / 1024).toFixed(1);
+            console.warn(`⚠️ Image too large for vision processing: ${sizeInMB}MB`);
             preparedImages.push({
               ...image,
               base64Data: undefined,
-              error: 'Image too large for processing'
+              error: `Image too large: ${sizeInMB}MB (max 10MB)`
             } as any);
             continue;
           }
@@ -348,17 +349,46 @@ export class ChatService {
         const successCount = preparedImages.filter(img => img.base64Data).length;
         console.log(`✅ Prepared ${successCount}/${images.length} images for multimodal processing`);
 
-        // Send vision processing status to user if some images failed
+        // Send vision processing status via WebSocket instead of chat message
         if (successCount < images.length) {
           const failedCount = images.length - successCount;
-          const statusMessage = failedCount === images.length
-            ? `⚠️ Unable to process ${failedCount} image${failedCount > 1 ? 's' : ''}. I'll respond based on your text message only.`
-            : `⚠️ ${failedCount} of ${images.length} images couldn't be processed. Continuing with ${successCount} image${successCount > 1 ? 's' : ''}.`;
+          const failedImages = preparedImages.filter(img => !img.base64Data);
 
-          await this.addMessage(chatId, {
-            role: 'assistant',
-            content: statusMessage
-          });
+          // Create detailed error message
+          let toastMessage: string;
+          if (failedCount === images.length) {
+            toastMessage = `Unable to process ${failedCount} image${failedCount > 1 ? 's' : ''}. Responding with text only.`;
+          } else {
+            toastMessage = `${failedCount} of ${images.length} images couldn't be processed. Continuing with ${successCount}.`;
+          }
+
+          // Get primary error reason for better user guidance
+          const errorReasons = failedImages.map(img => (img as any).error).filter(Boolean);
+          const primaryReason = errorReasons[0];
+          if (primaryReason) {
+            if (primaryReason.includes('too large')) {
+              toastMessage += ' Try using smaller images (max 10MB).';
+            } else if (primaryReason.includes('Unsupported format')) {
+              toastMessage += ' Use JPEG, PNG, GIF, or WebP formats.';
+            } else if (primaryReason.includes('Failed to load')) {
+              toastMessage += ' Some images could not be loaded from storage.';
+            }
+          }
+
+          // Send toast notification instead of chat message
+          if (wsManager.getSessionConnectionCount(chatId) > 0) {
+            wsManager.broadcastToSession(chatId, JSON.stringify({
+              type: 'image_processing_error',
+              data: {
+                message: toastMessage,
+                failedCount,
+                totalCount: images.length,
+                successCount,
+                errors: errorReasons,
+                timestamp: new Date().toISOString()
+              }
+            }));
+          }
         }
       }
 

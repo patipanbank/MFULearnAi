@@ -401,6 +401,24 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
             }
           }
           setIsTyping(false);
+        } else if (data.type === 'image_processing_error') {
+          console.log('WebSocket: Image processing error', data.data);
+          // Show toast notification for image processing errors
+          addToast({
+            type: 'warning',
+            title: 'Image Processing',
+            message: data.data.message || 'Some images could not be processed',
+            duration: 4000
+          });
+        } else if (data.type === 'quota_exceeded') {
+          console.log('WebSocket: Quota exceeded', data.data);
+          // Show toast notification for quota exceeded
+          addToast({
+            type: 'error',
+            title: 'Usage Limit Exceeded',
+            message: data.data.reason || 'You have exceeded your usage quota',
+            duration: 5000
+          });
         } else {
           console.debug('WS unhandled event', data);
         }
