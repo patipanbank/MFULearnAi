@@ -553,9 +553,7 @@ export class ChatService {
             }
           }
         },
-        maxSteps: 5,
-        // ส่งรูปภาพไปยัง agent สำหรับ multimodal processing
-        images: preparedImages
+        maxSteps: 5
       });
     } catch (error) {
       console.error('❌ Error in processWithAILegacy:', error);
