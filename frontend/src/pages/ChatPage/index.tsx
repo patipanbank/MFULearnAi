@@ -349,49 +349,41 @@ const ChatPage: React.FC = () => {
       
       {/* Chat Area - Full width */}
       <div className="flex-1 flex flex-col w-full relative h-full overflow-hidden">
-        {/* Messages - Claude-inspired clean layout */}
+        {/* Messages */}
         {hasMessages ? (
-        <div className="flex-1 overflow-y-auto px-3 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-6 pb-32 space-y-4 sm:space-y-6 h-full">
+        <div className="flex-1 overflow-y-auto px-0 sm:px-4 py-4 pb-32 space-y-4 h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 dark:hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
               className={`flex ${
-                msg.role === 'user'
-                  ? 'justify-end'
-                  : 'justify-start'
-              } items-start space-x-2 sm:space-x-3 group message-enter`}
+                msg.role === 'user' 
+                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[230px] 2xl:mr-[485px]' 
+                  : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[245px] 2xl:ml-[500px]'
+              } items-end space-x-2 px-1 sm:px-2`}
             >
-              {/* AI Avatar - Left side */}
               {msg.role !== 'user' && (
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-sm">
-                    <img
-                      src={dindinAvatar}
-                      alt="DINDIN AI"
-                      className="w-6 h-6 rounded-full"
-                    />
-                  </div>
+                <div className="flex-shrink-0 ml-1 sm:ml-0">
+                  <img 
+                    src={dindinAvatar} 
+                    alt="DINDIN AI" 
+                    className="w-8 h-8 sm:w-8 sm:h-8 rounded-full shadow-md"
+                  />
                 </div>
               )}
-
-              <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] md:max-w-[70%] lg:max-w-[65%] xl:max-w-[60%] ${
-                msg.role === 'user' ? 'items-end' : 'items-start'
-              }`}>
+              <div className="flex flex-col max-w-[75%] sm:max-w-[65%] md:max-w-[60%] lg:max-w-[55%] 2xl:max-w-[50%]">
                 {/* Timestamp */}
-                <div className={`text-xs text-muted mb-1 sm:mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
-                  msg.role === 'user' ? 'text-right' : 'text-left'
+                <div className={`text-[10px] sm:text-xs mb-1 ${
+                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.role === 'user'
                     ? (() => { const d = new Date(msg.timestamp); d.setHours(d.getHours() + 7); return d.toLocaleTimeString(); })()
                     : msg.timestamp.toLocaleTimeString()}
                 </div>
-
-                {/* Message Bubble - Claude style */}
                 <div
-                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl message-bubble-hover ${
+                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white shadow-sm hover:shadow-md'
-                      : 'bg-card border border-border shadow-sm hover:shadow-md hover:border-border-hover'
+                      ? 'bg-blue-600 text-white rounded-br-sm'
+                      : 'card text-primary rounded-bl-sm'
                   }`}
                 >
                   {/* Images */}
@@ -442,15 +434,11 @@ const ChatPage: React.FC = () => {
                     </div>
                   )}
                   
-                  {/* Message Content - Enhanced typography */}
-                  <div className={`whitespace-pre-wrap leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'text-white text-[14px] sm:text-[15px]'
-                      : 'text-foreground text-[14px] sm:text-[15px]'
-                  }`}>
+                  {/* Message Content */}
+                  <div className="whitespace-pre-wrap text-base sm:text-base">
                     {msg.content}
                     {msg.isStreaming && (
-                      <span className="inline-block w-[2px] sm:w-[3px] h-[16px] sm:h-[18px] bg-current animate-pulse ml-1 rounded-sm" />
+                      <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
                     )}
                   </div>
                   
@@ -460,11 +448,9 @@ const ChatPage: React.FC = () => {
                   )}
                 </div>
               </div>
-
-              {/* User Avatar - Right side */}
               {msg.role === 'user' && (
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] flex items-center justify-center text-white text-sm font-medium shadow-sm">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 sm:h-8 sm:w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm sm:text-sm font-medium shadow-md">
                     {getInitials()}
                   </div>
                 </div>
@@ -472,26 +458,20 @@ const ChatPage: React.FC = () => {
             </div>
           ))}
           
-          {/* Typing Indicator - Claude style */}
           {isTyping && (
-            <div className="flex justify-start items-start space-x-3 group">
-              <div className="flex-shrink-0 mt-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-sm opacity-60">
-                  <img
-                    src={dindinAvatar}
-                    alt="DINDIN AI"
-                    className="w-6 h-6 rounded-full"
-                  />
-                </div>
+            <div className="flex justify-start items-end space-x-2">
+              <div className="flex-shrink-0">
+                <img 
+                  src={dindinAvatar} 
+                  alt="DINDIN AI" 
+                  className="w-8 h-8 rounded-full shadow-md opacity-50"
+                />
               </div>
-              <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-sm">
-                <div className="flex items-center space-x-1">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full typing-dots" />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full typing-dots" />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full typing-dots" />
-                  </div>
-                  <span className="text-xs text-muted ml-2">DINDIN AI is typing...</span>
+              <div className="card px-4 py-2 rounded-2xl rounded-bl-sm shadow-sm">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
                 </div>
               </div>
             </div>

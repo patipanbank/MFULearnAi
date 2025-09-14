@@ -361,32 +361,6 @@
 
 /* Custom animations for modals and dropdowns */
 @layer utilities {
-  /* Message animations - Claude inspired */
-  .message-enter {
-    animation: message-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .message-bubble-hover {
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .message-bubble-hover:hover {
-    transform: translateY(-1px);
-  }
-
-  /* Enhanced typing indicator */
-  .typing-dots {
-    animation: typing-pulse 1.4s infinite ease-in-out;
-  }
-
-  .typing-dots:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-
-  .typing-dots:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-
   /* Animation classes */
   .animate-slide-in-from-top-2 {
     animation: slide-in-from-top-2 0.2s ease-out;
@@ -515,29 +489,6 @@
 
   .animate-slide-up-from-bottom {
     animation: slide-up-from-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* New message animations */
-  @keyframes message-slide-in {
-    from {
-      opacity: 0;
-      transform: translateY(20px) scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  @keyframes typing-pulse {
-    0%, 60%, 100% {
-      transform: scale(0.8);
-      opacity: 0.5;
-    }
-    30% {
-      transform: scale(1);
-      opacity: 1;
-    }
   }
 
   /* Additional Z-index utilities */
