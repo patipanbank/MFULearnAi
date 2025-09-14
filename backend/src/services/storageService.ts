@@ -7,15 +7,37 @@ const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || 'minioadmin';
 const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'minioadmin123';
 const S3_REGION = process.env.S3_REGION || 'us-east-1';
 const S3_BUCKET = process.env.S3_BUCKET || 'uploads';
-const PUBLIC_ENDPOINT = process.env.S3_PUBLIC_ENDPOINT || S3_ENDPOINT;
+// Determine public endpoint based on environment
+const getPublicEndpoint = () => {
+  if (process.env.S3_PUBLIC_ENDPOINT) {
+    return process.env.S3_PUBLIC_ENDPOINT;
+  }
+
+  // Production: use HTTPS endpoint accessible from browser
+  if (process.env.NODE_ENV === 'production' || process.env.APP_ENV === 'production') {
+    return 'https://mfulearnai.mfu.ac.th/minio';
+  }
+
+  // Development: check if using Docker internal network
+  if (S3_ENDPOINT.includes('mfulearnai_minio') || S3_ENDPOINT.includes('minio:')) {
+    return 'http://localhost:9000';
+  }
+
+  return S3_ENDPOINT;
+};
+
+const PUBLIC_ENDPOINT = getPublicEndpoint();
 
 console.log('🔧 StorageService configuration:', {
+  NODE_ENV: process.env.NODE_ENV,
+  APP_ENV: process.env.APP_ENV,
   S3_ENDPOINT,
   S3_ACCESS_KEY: S3_ACCESS_KEY ? '***' + S3_ACCESS_KEY.slice(-4) : 'undefined',
   S3_SECRET_KEY: S3_SECRET_KEY ? '***' + S3_SECRET_KEY.slice(-4) : 'undefined',
   S3_REGION,
   S3_BUCKET,
-  PUBLIC_ENDPOINT
+  PUBLIC_ENDPOINT,
+  S3_PUBLIC_ENDPOINT_ENV: process.env.S3_PUBLIC_ENDPOINT
 });
 
 const s3 = new S3Client({
@@ -110,7 +132,9 @@ export class StorageService {
       console.log('📤 Sending command to S3...');
       await s3.send(command);
 
-      const url = `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
+      // Properly encode the key for URL generation
+      const encodedKey = encodeURIComponent(key).replace(/%2F/g, '/'); // Keep forward slashes unencoded
+      const url = `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${encodedKey}`;
       console.log('✅ Upload successful, generated URL:', url);
 
       return url;

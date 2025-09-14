@@ -104,18 +104,41 @@ router.get('/debug/:filename', async (req: Request, res: Response) => {
   try {
     const { filename } = req.params;
     const S3_BUCKET = process.env.S3_BUCKET || 'uploads';
-    const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://minio:9000';
+    const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://mfulearnai_minio:9000';
+
+    // Use same logic as storageService
+    const getPublicEndpoint = () => {
+      if (process.env.S3_PUBLIC_ENDPOINT) {
+        return process.env.S3_PUBLIC_ENDPOINT;
+      }
+
+      if (process.env.NODE_ENV === 'production' || process.env.APP_ENV === 'production') {
+        return 'https://mfulearnai.mfu.ac.th/minio';
+      }
+
+      if (S3_ENDPOINT.includes('mfulearnai_minio') || S3_ENDPOINT.includes('minio:')) {
+        return 'http://localhost:9000';
+      }
+
+      return S3_ENDPOINT;
+    };
+
+    const PUBLIC_ENDPOINT = getPublicEndpoint();
 
     // Try to get the image as base64
     const testUrl = `${S3_ENDPOINT}/${S3_BUCKET}/${filename}`;
-    console.log(`🔍 Testing image URL: ${testUrl}`);
+    const publicUrl = `${PUBLIC_ENDPOINT}/${S3_BUCKET}/${filename}`;
 
-    const result = await storageService.getFileAsBase64(testUrl);
+    console.log(`🔍 Testing image URL (internal): ${testUrl}`);
+    console.log(`🔍 Testing image URL (public): ${publicUrl}`);
+
+    const result = await storageService.getFileAsBase64(publicUrl);
 
     if (result) {
       return res.json({
         success: true,
-        url: testUrl,
+        internalUrl: testUrl,
+        publicUrl: publicUrl,
         mediaType: result.mediaType,
         size: result.data.length,
         sizeKB: Math.round(result.data.length / 1024),
@@ -124,7 +147,8 @@ router.get('/debug/:filename', async (req: Request, res: Response) => {
     } else {
       return res.status(404).json({
         success: false,
-        url: testUrl,
+        internalUrl: testUrl,
+        publicUrl: publicUrl,
         error: 'Image not found or failed to convert to base64'
       });
     }
