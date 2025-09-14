@@ -429,10 +429,15 @@ export class ChatService {
         onEvent: async (event: { type: string; data?: any }) => {
           console.log(`🤖 Agent event: ${event.type}`, event.data);
           if (event.type === 'chunk') {
-            fullContent += event.data;
-            
+            // Ensure event.data is properly converted to string
+            const chunkContent = typeof event.data === 'string' ? event.data :
+                                typeof event.data === 'object' && event.data !== null ? JSON.stringify(event.data) :
+                                String(event.data || '');
+
+            fullContent += chunkContent;
+
             // สร้าง assistant message เมื่อได้รับ chunk แรก
-            if (fullContent === event.data) {
+            if (fullContent === chunkContent) {
               console.log(`🤖 First chunk received, creating assistant message...`);
               
               const assistantMessage = await this.addMessage(chatId, {
@@ -455,11 +460,11 @@ export class ChatService {
             
             // ส่ง streaming ไปยัง frontend แต่ไม่บันทึกลง database
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({ 
-                type: 'chunk', 
-                data: { 
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'chunk',
+                data: {
                   messageId: assistantMessageId,
-                  delta: event.data
+                  delta: chunkContent
                 }
               }));
             }
@@ -467,11 +472,16 @@ export class ChatService {
             console.log(`🔧 Tool started: ${event.data.tool_name}`);
             console.log(`🔧 Tool input: ${event.data.tool_input}`);
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({ 
-                type: 'tool_start', 
+              // Ensure tool_input is properly stringified if it's an object
+              const toolInput = typeof event.data.tool_input === 'string' ? event.data.tool_input :
+                               typeof event.data.tool_input === 'object' && event.data.tool_input !== null ? JSON.stringify(event.data.tool_input) :
+                               String(event.data.tool_input || '');
+
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'tool_start',
                 data: {
                   tool_name: event.data.tool_name,
-                  tool_input: event.data.tool_input
+                  tool_input: toolInput
                 }
               }));
             }
@@ -511,8 +521,13 @@ export class ChatService {
             };
             await this.addMessage(chatId, assistantMsg);
           } else if (event.type === 'end') {
-            console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
-            
+            // Ensure answer is properly converted to string
+            const finalAnswer = typeof event.data.answer === 'string' ? event.data.answer :
+                               typeof event.data.answer === 'object' && event.data.answer !== null ? JSON.stringify(event.data.answer) :
+                               String(event.data.answer || '');
+
+            console.log(`🤖 Agent finished with answer: ${finalAnswer.substring(0, 50)}...`);
+
             // อัปเดต assistant message ที่สร้างไว้แล้วด้วย content สุดท้าย
             const chatFromDb = await ChatModel.findById(chatId);
             if (chatFromDb && chatFromDb.messages.length > 0) {
@@ -521,9 +536,9 @@ export class ChatService {
                 // อัปเดต content ของ assistant message ล่าสุด
                 await ChatModel.updateOne(
                   { _id: chatId, 'messages.id': lastMessage.id },
-                  { 
-                    $set: { 
-                      'messages.$.content': event.data.answer,
+                  {
+                    $set: {
+                      'messages.$.content': finalAnswer,
                       updatedAt: new Date()
                     }
                   }
@@ -571,14 +586,14 @@ export class ChatService {
             
             // ส่ง end event หลังจาก streaming เสร็จแล้ว
             if (wsManager.getSessionConnectionCount(chatId) > 0) {
-              wsManager.broadcastToSession(chatId, JSON.stringify({ 
-                type: 'end', 
-                data: { 
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'end',
+                data: {
                   messageId: assistantMessageId,
-                  answer: event.data.answer,
+                  answer: finalAnswer,
                   inputTokens,
                   outputTokens
-                } 
+                }
               }));
             }
           }

@@ -339,8 +339,11 @@ class ChatService {
                 onEvent: async (event) => {
                     console.log(`🤖 Agent event: ${event.type}`, event.data);
                     if (event.type === 'chunk') {
-                        fullContent += event.data;
-                        if (fullContent === event.data) {
+                        const chunkContent = typeof event.data === 'string' ? event.data :
+                            typeof event.data === 'object' && event.data !== null ? JSON.stringify(event.data) :
+                                String(event.data || '');
+                        fullContent += chunkContent;
+                        if (fullContent === chunkContent) {
                             console.log(`🤖 First chunk received, creating assistant message...`);
                             const assistantMessage = await this.addMessage(chatId, {
                                 role: 'assistant',
@@ -362,7 +365,7 @@ class ChatService {
                                 type: 'chunk',
                                 data: {
                                     messageId: assistantMessageId,
-                                    delta: event.data
+                                    delta: chunkContent
                                 }
                             }));
                         }
@@ -371,11 +374,14 @@ class ChatService {
                         console.log(`🔧 Tool started: ${event.data.tool_name}`);
                         console.log(`🔧 Tool input: ${event.data.tool_input}`);
                         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
+                            const toolInput = typeof event.data.tool_input === 'string' ? event.data.tool_input :
+                                typeof event.data.tool_input === 'object' && event.data.tool_input !== null ? JSON.stringify(event.data.tool_input) :
+                                    String(event.data.tool_input || '');
                             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
                                 type: 'tool_start',
                                 data: {
                                     tool_name: event.data.tool_name,
-                                    tool_input: event.data.tool_input
+                                    tool_input: toolInput
                                 }
                             }));
                         }
@@ -418,14 +424,17 @@ class ChatService {
                         await this.addMessage(chatId, assistantMsg);
                     }
                     else if (event.type === 'end') {
-                        console.log(`🤖 Agent finished with answer: ${event.data.answer.substring(0, 50)}...`);
+                        const finalAnswer = typeof event.data.answer === 'string' ? event.data.answer :
+                            typeof event.data.answer === 'object' && event.data.answer !== null ? JSON.stringify(event.data.answer) :
+                                String(event.data.answer || '');
+                        console.log(`🤖 Agent finished with answer: ${finalAnswer.substring(0, 50)}...`);
                         const chatFromDb = await chat_1.ChatModel.findById(chatId);
                         if (chatFromDb && chatFromDb.messages.length > 0) {
                             const lastMessage = chatFromDb.messages[chatFromDb.messages.length - 1];
                             if (lastMessage.role === 'assistant') {
                                 await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': lastMessage.id }, {
                                     $set: {
-                                        'messages.$.content': event.data.answer,
+                                        'messages.$.content': finalAnswer,
                                         updatedAt: new Date()
                                     }
                                 });
@@ -469,7 +478,7 @@ class ChatService {
                                 type: 'end',
                                 data: {
                                     messageId: assistantMessageId,
-                                    answer: event.data.answer,
+                                    answer: finalAnswer,
                                     inputTokens,
                                     outputTokens
                                 }
