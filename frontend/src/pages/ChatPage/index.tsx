@@ -1,5 +1,9 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { FiCopy, FiEdit3, FiTrash2, FiMoreHorizontal } from 'react-icons/fi';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
 import type { ChatMessage } from '../../shared/stores/chatStore';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
@@ -15,13 +19,19 @@ import { useChatInput } from '../../shared/hooks/useChatInput';
 const ChatPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
-  
+
   const currentSession = useChatStore((state) => state.currentSession);
   const addMessage = useChatStore((state) => state.addMessage);
+  const updateMessage = useChatStore((state) => state.updateMessage);
   const wsStatus = useChatStore((state) => state.wsStatus);
   const isTyping = useChatStore((state) => state.isTyping);
   const setChatHistory = useChatStore((state) => state.setChatHistory);
   const isLoading = useChatStore((state) => state.isLoading);
+
+  // Message actions state
+  const [activeMessageMenu, setActiveMessageMenu] = useState<string | null>(null);
+  const [editingMessage, setEditingMessage] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<string>('');
   
   const selectedAgent = useAgentStore((state) => state.selectedAgent);
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
@@ -58,6 +68,9 @@ const ChatPage: React.FC = () => {
     setImages,
     messagesEndRef
   } = useChatInput();
+
+  // File upload state
+  const [files, setFiles] = useState<Array<{ url: string; name: string; type: string; size: number }>>([]);
 
   // Debug function to test WebSocket connection
   const debugWebSocket = useCallback(() => {
@@ -315,6 +328,81 @@ const ChatPage: React.FC = () => {
     setImages(prev => prev.filter((_, i) => i !== index));
   }, [setImages]);
 
+  // Handle file upload for documents
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📁 File upload triggered');
+
+    const uploadedFiles = event.target.files;
+    if (!uploadedFiles || uploadedFiles.length === 0) {
+      console.log('⚠️ No files selected');
+      return;
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+
+      if (file.size > maxSize) {
+        addToast({
+          type: 'error',
+          title: 'File Too Large',
+          message: `${file.name} is too large. Maximum size is 10MB.`
+        });
+        continue;
+      }
+
+      if (!allowedTypes.includes(file.type)) {
+        addToast({
+          type: 'error',
+          title: 'Invalid File Type',
+          message: `${file.name} is not supported. Only PDF, DOCX, and TXT files are allowed.`
+        });
+        continue;
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await api.post<{ url: string; filename: string }>('/upload/document', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        console.log('📁 Upload response:', response);
+        setFiles(prev => [...prev, {
+          url: response.url,
+          name: response.filename || file.name,
+          type: file.type,
+          size: file.size
+        }]);
+
+        addToast({
+          type: 'success',
+          title: 'File Uploaded',
+          message: `${file.name} uploaded successfully`
+        });
+      } catch (error) {
+        console.error('📁 Upload error:', error);
+        addToast({
+          type: 'error',
+          title: 'Upload Failed',
+          message: `Failed to upload ${file.name}`
+        });
+      }
+    }
+
+    // Clear input
+    event.target.value = '';
+  }, [addToast]);
+
+  const handleRemoveFile = useCallback((index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   // Get user initials for avatar
   const getInitials = useCallback(() => {
     if (!user) return 'U';
@@ -322,6 +410,156 @@ const ChatPage: React.FC = () => {
     const lastInitial = user.lastName?.charAt(0) || '';
     return (firstInitial + lastInitial).toUpperCase() || 'U';
   }, [user]);
+
+  // Message Actions
+  const handleCopyMessage = useCallback(async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      addToast({
+        type: 'success',
+        title: 'Copied',
+        message: 'Message copied to clipboard'
+      });
+    } catch (error) {
+      console.error('Failed to copy message:', error);
+      addToast({
+        type: 'error',
+        title: 'Copy Failed',
+        message: 'Failed to copy message to clipboard'
+      });
+    }
+    setActiveMessageMenu(null);
+  }, [addToast]);
+
+  const handleEditMessage = useCallback((messageId: string, content: string) => {
+    setEditingMessage(messageId);
+    setEditingContent(content);
+    setActiveMessageMenu(null);
+  }, []);
+
+  const handleSaveEdit = useCallback(async (messageId: string) => {
+    if (!editingContent.trim()) return;
+
+    updateMessage(messageId, { content: editingContent.trim() });
+    setEditingMessage(null);
+    setEditingContent('');
+
+    addToast({
+      type: 'success',
+      title: 'Message Updated',
+      message: 'Message has been updated'
+    });
+  }, [editingContent, updateMessage, addToast]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessage(null);
+    setEditingContent('');
+  }, []);
+
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    if (!currentSession) return;
+
+    try {
+      // Mark message as deleted
+      updateMessage(messageId, { content: '[Message deleted]' });
+
+      addToast({
+        type: 'success',
+        title: 'Message Deleted',
+        message: 'Message has been deleted'
+      });
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      addToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: 'Failed to delete message'
+      });
+    }
+    setActiveMessageMenu(null);
+  }, [currentSession, updateMessage, addToast]);
+
+  // Click outside to close menu
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (activeMessageMenu) {
+        setActiveMessageMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activeMessageMenu]);
+
+  // Enhanced Message Content Component with Markdown support
+  const MessageContent: React.FC<{ content: string; role: 'user' | 'assistant' | 'system' }> = ({ content, role }) => {
+    // Check if content contains code blocks
+    const hasCodeBlocks = content.includes('```');
+
+    if (hasCodeBlocks && role === 'assistant') {
+      return (
+        <ReactMarkdown
+          components={{
+            code: ({ inline, className, children, ...props }: any) => {
+              const match = /language-(\w+)/.exec(className || '');
+              const language = match ? match[1] : '';
+
+              return !inline && language ? (
+                <div className="relative">
+                  <div className="flex items-center justify-between bg-gray-800 px-4 py-2 rounded-t-lg">
+                    <span className="text-xs text-gray-300 font-medium">{language}</span>
+                    <button
+                      onClick={() => handleCopyMessage(String(children))}
+                      className="text-xs text-gray-400 hover:text-white transition-colors flex items-center space-x-1"
+                    >
+                      <FiCopy className="h-3 w-3" />
+                      <span>Copy</span>
+                    </button>
+                  </div>
+                  <SyntaxHighlighter
+                    style={oneDark}
+                    language={language}
+                    PreTag="div"
+                    className="rounded-t-none !mt-0"
+                    {...props}
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
+                </div>
+              ) : (
+                <code
+                  className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono"
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            },
+            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+            li: ({ children }) => <li className="mb-1">{children}</li>,
+            blockquote: ({ children }) => (
+              <blockquote className="border-l-4 border-accent pl-4 py-1 bg-secondary/30 rounded-r">
+                {children}
+              </blockquote>
+            ),
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      );
+    }
+
+    // Fallback for simple text content
+    return (
+      <div className="whitespace-pre-wrap text-base sm:text-base leading-relaxed">
+        {content}
+      </div>
+    );
+  };
 
   if (isLoading) {
     return <Loading />;
@@ -356,10 +594,10 @@ const ChatPage: React.FC = () => {
             <div
               key={msg.id}
               className={`flex ${
-                msg.role === 'user' 
-                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[230px] 2xl:mr-[485px]' 
+                msg.role === 'user'
+                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[230px] 2xl:mr-[485px]'
                   : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[245px] 2xl:ml-[500px]'
-              } items-end space-x-2 px-1 sm:px-2`}
+              } items-end space-x-2 px-1 sm:px-2 group animate-fade-in`}
             >
               {msg.role !== 'user' && (
                 <div className="flex-shrink-0 ml-1 sm:ml-0">
@@ -370,20 +608,69 @@ const ChatPage: React.FC = () => {
                   />
                 </div>
               )}
-              <div className="flex flex-col max-w-[75%] sm:max-w-[65%] md:max-w-[60%] lg:max-w-[55%] 2xl:max-w-[50%]">
+              <div className="flex flex-col max-w-[75%] sm:max-w-[65%] md:max-w-[60%] lg:max-w-[55%] 2xl:max-w-[50%] relative">
                 {/* Timestamp */}
-                <div className={`text-[10px] sm:text-xs mb-1 ${
+                <div className={`text-[10px] sm:text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
                   msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
                 }`}>
                   {msg.role === 'user'
                     ? (() => { const d = new Date(msg.timestamp); d.setHours(d.getHours() + 7); return d.toLocaleTimeString(); })()
                     : msg.timestamp.toLocaleTimeString()}
                 </div>
+
+                {/* Message Actions Menu */}
+                <div className={`absolute top-0 ${
+                  msg.role === 'user' ? '-left-10' : '-right-10'
+                } opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                  <div className="relative">
+                    <button
+                      onClick={() => setActiveMessageMenu(activeMessageMenu === msg.id ? null : msg.id)}
+                      className="p-1 hover:bg-secondary rounded-lg transition-colors"
+                      aria-label="Message actions"
+                    >
+                      <FiMoreHorizontal className="h-4 w-4 text-muted" />
+                    </button>
+
+                    {/* Actions Dropdown */}
+                    {activeMessageMenu === msg.id && (
+                      <div className={`absolute top-8 ${
+                        msg.role === 'user' ? 'right-0' : 'left-0'
+                      } bg-card border border-border rounded-lg shadow-lg py-1 z-50 min-w-[120px]`}>
+                        <button
+                          onClick={() => handleCopyMessage(msg.content)}
+                          className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
+                        >
+                          <FiCopy className="h-3 w-3" />
+                          <span>Copy</span>
+                        </button>
+                        {msg.role === 'user' && (
+                          <>
+                            <button
+                              onClick={() => handleEditMessage(msg.id, msg.content)}
+                              className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
+                            >
+                              <FiEdit3 className="h-3 w-3" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-red-50 hover:text-red-600 transition-colors text-left"
+                            >
+                              <FiTrash2 className="h-3 w-3" />
+                              <span>Delete</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div
-                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm ${
+                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-sm'
-                      : 'card text-primary rounded-bl-sm'
+                      ? 'bg-blue-600 text-white rounded-br-sm hover:bg-blue-700'
+                      : 'card text-primary rounded-bl-sm hover:border-border-hover'
                   }`}
                 >
                   {/* Images */}
@@ -435,12 +722,42 @@ const ChatPage: React.FC = () => {
                   )}
                   
                   {/* Message Content */}
-                  <div className="whitespace-pre-wrap text-base sm:text-base">
-                    {msg.content}
-                    {msg.isStreaming && (
-                      <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
-                    )}
-                  </div>
+                  {editingMessage === msg.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        className={`w-full min-h-[60px] p-2 rounded-lg border resize-none ${
+                          msg.role === 'user'
+                            ? 'bg-blue-500 text-white border-blue-400 placeholder-blue-200'
+                            : 'bg-card text-primary border-border'
+                        }`}
+                        placeholder="Edit message..."
+                        autoFocus
+                      />
+                      <div className="flex space-x-2 justify-end">
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-3 py-1 text-xs rounded-md hover:bg-secondary transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleSaveEdit(msg.id)}
+                          className="px-3 py-1 text-xs bg-accent text-white rounded-md hover:bg-accent/80 transition-colors"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <MessageContent content={msg.content} role={msg.role} />
+                      {msg.isStreaming && (
+                        <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
+                      )}
+                    </div>
+                  )}
                   
                   {/* Tool Usage Display */}
                   {msg.toolUsage && msg.toolUsage.length > 0 && (
@@ -513,8 +830,11 @@ const ChatPage: React.FC = () => {
               onMessageChange={setMessage}
               onSendMessage={sendMessage}
               onImageUpload={handleImageUpload}
+              onFileUpload={handleFileUpload}
               images={images}
+              files={files}
               onRemoveImage={handleRemoveImage}
+              onRemoveFile={handleRemoveFile}
               disabled={!selectedAgent || isLoading}
               isTyping={isTyping}
               hasMessages={hasMessages}

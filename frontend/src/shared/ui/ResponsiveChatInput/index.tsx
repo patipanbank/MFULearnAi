@@ -8,8 +8,11 @@ interface ResponsiveChatInputProps {
   onMessageChange: (message: string) => void;
   onSendMessage: () => void;
   onImageUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileUpload?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   images: Array<{ url: string; mediaType: string }>;
+  files?: Array<{ url: string; name: string; type: string; size: number }>;
   onRemoveImage: (index: number) => void;
+  onRemoveFile?: (index: number) => void;
   disabled?: boolean;
   isTyping?: boolean;
   hasMessages?: boolean; // To determine floating vs bottom mode
@@ -23,8 +26,11 @@ const ResponsiveChatInput: React.FC<ResponsiveChatInputProps> = ({
   onMessageChange,
   onSendMessage,
   onImageUpload,
+  onFileUpload: _onFileUpload,
   images,
+  files: _files = [],
   onRemoveImage,
+  onRemoveFile: _onRemoveFile,
   disabled = false,
   isTyping = false,
   isInChatRoom = false,
