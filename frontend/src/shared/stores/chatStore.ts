@@ -90,6 +90,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   addMessage: (message) => {
     const state = get();
     if (!state.currentSession) return;
+
+    // Check for duplicate messages by ID
+    const existingMessage = state.currentSession.messages.find(msg => msg.id === message.id);
+    if (existingMessage) {
+      console.log('Duplicate message detected, skipping:', message.id);
+      return;
+    }
     let updatedName = state.currentSession.name;
     let shouldUpdateName = false;
     // เปลี่ยนชื่อแชทเฉพาะตอนแรกเท่านั้น
@@ -177,7 +184,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Actions
   createNewChat: () => {
     const newSession: ChatSession = {
-      id: `chat_${Date.now()}`,
+      id: `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: 'New Chat',
       messages: [],
       agentId: '',

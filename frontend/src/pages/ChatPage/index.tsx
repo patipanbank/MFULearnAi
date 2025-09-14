@@ -200,7 +200,7 @@ const ChatPage: React.FC = () => {
     const userTimestamp = new Date();
     userTimestamp.setHours(userTimestamp.getHours() - 7);
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       role: 'user',
       content: message.trim(),
       timestamp: userTimestamp,
