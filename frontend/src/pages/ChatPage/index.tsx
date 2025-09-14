@@ -495,8 +495,23 @@ const ChatPage: React.FC = () => {
 
   // Enhanced Message Content Component with Markdown support
   const MessageContent: React.FC<{ content: string; role: 'user' | 'assistant' | 'system' }> = ({ content, role }) => {
-    // Prevent rendering of error-like content as chat messages
+    // Check for JSON delta patterns and extract only the delta content
+    if (typeof content === 'string' && content.trim().startsWith('{') && content.includes('"delta":')) {
+      try {
+        const jsonMatch = content.match(/\{"messageId":"[^"]+","delta":"([^"]+)"\}/);
+        if (jsonMatch && jsonMatch[1]) {
+          content = jsonMatch[1];
+        }
+      } catch (error) {
+        console.error('Failed to parse JSON delta:', error);
+      }
+    }
+
+    // For assistant messages that are streaming, allow empty content
     if (!content || content.trim() === '') {
+      if (role === 'assistant') {
+        return <div className="text-muted italic opacity-50">Thinking...</div>;
+      }
       return <div className="text-muted italic">Empty message</div>;
     }
 

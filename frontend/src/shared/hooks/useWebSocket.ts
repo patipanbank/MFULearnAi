@@ -393,7 +393,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           const assistantMsg: ChatMessage = {
             id: data.data.messageId,
             role: 'assistant',
-            content: data.data.content,
+            content: data.data.content || '', // Ensure content is never undefined
             timestamp: new Date(),
             isStreaming: true,
             isComplete: false
