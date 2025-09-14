@@ -172,10 +172,16 @@ export class StorageService {
       console.log('📤 Sending command to S3...');
       await s3.send(command);
 
-      // Properly encode the key for URL generation
-      const encodedKey = encodeURIComponent(key).replace(/%2F/g, '/'); // Keep forward slashes unencoded
+      // Generate URL with properly encoded key for browsers
+      // Only encode the filename part, keep the directory separator (/) unencoded
+      const keyParts = key.split('/');
+      const encodedKeyParts = keyParts.map(part => encodeURIComponent(part));
+      const encodedKey = encodedKeyParts.join('/');
+
       const url = `${PUBLIC_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${encodedKey}`;
       console.log('✅ Upload successful, generated URL:', url);
+      console.log('📋 Key stored in MinIO:', key);
+      console.log('📋 Encoded key for URL:', encodedKey);
 
       return url;
     } catch (error: any) {
@@ -209,8 +215,12 @@ export class StorageService {
         return null;
       }
 
-      const key = urlParts.slice(bucketIndex + 1).join('/');
-      console.log('🔑 Extracted key:', key);
+      let key = urlParts.slice(bucketIndex + 1).join('/');
+      console.log('🔑 Raw extracted key:', key);
+
+      // Decode URL-encoded key (e.g., %20 -> space)
+      key = decodeURIComponent(key);
+      console.log('🔑 Decoded key:', key);
 
       const command = new GetObjectCommand({
         Bucket: S3_BUCKET,
