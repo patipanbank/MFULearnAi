@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import config from '../config/config';
 
@@ -87,6 +87,10 @@ export class StorageService {
       const headCommand = new HeadBucketCommand({ Bucket: S3_BUCKET });
       await s3.send(headCommand);
       console.log(`✅ Bucket ${S3_BUCKET} exists`);
+
+      // Ensure bucket has public read policy
+      await this.setBucketPublicReadPolicy();
+
     } catch (error: any) {
       if (error.name === 'NoSuchBucket' || error.name === 'NotFound') {
         console.log(`📦 Creating bucket ${S3_BUCKET}...`);
@@ -95,6 +99,10 @@ export class StorageService {
           const createCommand = new CreateBucketCommand({ Bucket: S3_BUCKET });
           await s3.send(createCommand);
           console.log(`✅ Bucket ${S3_BUCKET} created successfully`);
+
+          // Set public read policy for the new bucket
+          await this.setBucketPublicReadPolicy();
+
         } catch (createError: any) {
           console.error(`❌ Failed to create bucket ${S3_BUCKET}:`, createError.message);
           throw createError;
@@ -103,6 +111,37 @@ export class StorageService {
         console.error(`❌ Error checking bucket ${S3_BUCKET}:`, error.message);
         throw error;
       }
+    }
+  }
+
+  private async setBucketPublicReadPolicy(): Promise<void> {
+    try {
+      console.log(`🔐 Setting public read policy for bucket ${S3_BUCKET}...`);
+
+      const bucketPolicy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Effect: 'Allow',
+            Principal: '*',
+            Action: 's3:GetObject',
+            Resource: `arn:aws:s3:::${S3_BUCKET}/*`
+          }
+        ]
+      };
+
+      const policyCommand = new PutBucketPolicyCommand({
+        Bucket: S3_BUCKET,
+        Policy: JSON.stringify(bucketPolicy)
+      });
+
+      await s3.send(policyCommand);
+      console.log(`✅ Public read policy set for bucket ${S3_BUCKET}`);
+
+    } catch (error: any) {
+      console.warn(`⚠️ Could not set bucket policy for ${S3_BUCKET}:`, error.message);
+      console.warn('This might be expected if MinIO doesn\'t support bucket policies or access is restricted');
+      // Don't throw here as the bucket creation was successful
     }
   }
 
@@ -127,6 +166,7 @@ export class StorageService {
         Key: key,
         Body: data,
         ContentType: contentType,
+        ACL: 'public-read' // Make object publicly readable
       });
 
       console.log('📤 Sending command to S3...');

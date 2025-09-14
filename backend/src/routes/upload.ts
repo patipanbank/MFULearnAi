@@ -160,4 +160,26 @@ router.get('/debug/:filename', async (req: Request, res: Response) => {
   }
 });
 
+// Endpoint to manually fix bucket permissions
+router.post('/fix-permissions', async (req: Request, res: Response) => {
+  try {
+    console.log('🔧 Manual bucket permissions fix requested');
+
+    // Force bucket recreation with proper permissions
+    await storageService.ensureBucketExists();
+
+    return res.json({
+      success: true,
+      message: 'Bucket permissions have been updated',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('❌ Error fixing bucket permissions:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router; 
