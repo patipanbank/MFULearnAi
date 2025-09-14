@@ -487,82 +487,6 @@ class ChatService {
             }
         }
     }
-    async streamResponse(chatId, messageId, response) {
-        const words = response.split(' ');
-        let fullContent = '';
-        for (let i = 0; i < words.length; i++) {
-            const chunk = (i > 0 ? ' ' : '') + words[i];
-            fullContent += chunk;
-            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': messageId }, {
-                $set: {
-                    'messages.$.content': fullContent,
-                    updatedAt: new Date()
-                }
-            });
-            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                    type: 'chunk',
-                    data: chunk
-                }));
-            }
-            await this.delay(100);
-        }
-    }
-    async streamResponseLegacy(chatId, response) {
-        const words = response.split(' ');
-        let fullContent = '';
-        const assistantMessage = await this.addMessage(chatId, {
-            role: 'assistant',
-            content: 'กำลังคิด...'
-        });
-        for (let i = 0; i < words.length; i++) {
-            const chunk = (i > 0 ? ' ' : '') + words[i];
-            fullContent += chunk;
-            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessage.id }, {
-                $set: {
-                    'messages.$.content': fullContent,
-                    updatedAt: new Date()
-                }
-            });
-            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                    type: 'chunk',
-                    data: chunk
-                }));
-            }
-            await this.delay(100);
-        }
-    }
-    generateResponse(userMessage, images, config) {
-        if (config?.systemPrompt) {
-            const responses = [
-                `ตามที่กำหนดในระบบ: ${config.systemPrompt}\n\nสำหรับคำถาม "${userMessage}" นี่คือคำตอบ:`,
-                `ตามแนวทางของ AI Assistant: ${config.systemPrompt}\n\nคำตอบสำหรับ "${userMessage}":`
-            ];
-            const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-            return `${baseResponse} ${this.generateDetailedResponse()}`;
-        }
-        const responses = [
-            `ฉันเข้าใจคำถามของคุณเกี่ยวกับ "${userMessage}" แล้ว นี่คือคำตอบที่ครอบคลุม:`,
-            `ขอบคุณสำหรับคำถาม "${userMessage}" ฉันจะอธิบายให้คุณฟัง:`,
-            `สำหรับคำถาม "${userMessage}" นี่คือข้อมูลที่เกี่ยวข้อง:`,
-            `ฉันได้วิเคราะห์คำถาม "${userMessage}" ของคุณแล้ว และนี่คือสิ่งที่ฉันพบ:`
-        ];
-        const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-        return `${baseResponse} ${this.generateDetailedResponse()}`;
-    }
-    generateDetailedResponse() {
-        const responses = [
-            "นี่คือข้อมูลที่ครอบคลุมและทันสมัยเกี่ยวกับเรื่องที่คุณถาม",
-            "ฉันได้รวบรวมข้อมูลจากแหล่งที่เชื่อถือได้เพื่อตอบคำถามของคุณ",
-            "ข้อมูลนี้ได้รับการอัปเดตล่าสุดและมีความแม่นยำสูง",
-            "ฉันหวังว่าข้อมูลนี้จะช่วยตอบคำถามของคุณได้อย่างครบถ้วน"
-        ];
-        return responses[Math.floor(Math.random() * responses.length)];
-    }
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
     async getUserChats(userId) {
         const chats = await chat_1.ChatModel.find({ userId })
             .sort({ updatedAt: -1 })
@@ -604,9 +528,6 @@ class ChatService {
     async clearChatMemory(chatId) {
         try {
             await memoryService_1.memoryService.clearAllMemory(chatId);
-            if (typeof global.clearChatMemoryTool === 'function') {
-                await global.clearChatMemoryTool(chatId);
-            }
             console.log(`✅ Memory cleared for chat ${chatId}`);
         }
         catch (error) {

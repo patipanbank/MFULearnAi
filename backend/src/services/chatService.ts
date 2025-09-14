@@ -593,116 +593,10 @@ export class ChatService {
     }
   }
 
-  private async streamResponse(chatId: string, messageId: string, response: string): Promise<void> {
-    const words = response.split(' ');
-    let fullContent = '';
-    
-    for (let i = 0; i < words.length; i++) {
-      const chunk = (i > 0 ? ' ' : '') + words[i];
-      fullContent += chunk;
-      
-      // Update message content in database
-      await ChatModel.updateOne(
-        { _id: chatId, 'messages.id': messageId },
-        { 
-          $set: { 
-            'messages.$.content': fullContent,
-            updatedAt: new Date()
-          }
-        }
-      );
-      
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'chunk',
-          data: chunk
-        }));
-      }
 
-      await this.delay(100);
-    }
-  }
 
-  private async streamResponseLegacy(chatId: string, response: string): Promise<void> {
-    const words = response.split(' ');
-    let fullContent = '';
-    
-    // Create assistant message first (like in legacy)
-    const assistantMessage = await this.addMessage(chatId, {
-      role: 'assistant',
-      content: 'กำลังคิด...'
-    });
-    
-    for (let i = 0; i < words.length; i++) {
-      const chunk = (i > 0 ? ' ' : '') + words[i];
-      fullContent += chunk;
-      
-      // Update message content in database
-      await ChatModel.updateOne(
-        { _id: chatId, 'messages.id': assistantMessage.id },
-        { 
-          $set: { 
-            'messages.$.content': fullContent,
-            updatedAt: new Date()
-          }
-        }
-      );
-      
-      if (wsManager.getSessionConnectionCount(chatId) > 0) {
-        wsManager.broadcastToSession(chatId, JSON.stringify({
-          type: 'chunk',
-          data: chunk
-        }));
-      }
 
-      await this.delay(100);
-    }
-  }
 
-  private generateResponse(userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
-    modelId?: string | null;
-    collectionNames?: string[];
-    systemPrompt?: string | null;
-    temperature?: number;
-    maxTokens?: number;
-    agentId?: string;
-  }): string {
-    // Use system prompt if available
-    if (config?.systemPrompt) {
-      const responses = [
-        `ตามที่กำหนดในระบบ: ${config.systemPrompt}\n\nสำหรับคำถาม "${userMessage}" นี่คือคำตอบ:`,
-        `ตามแนวทางของ AI Assistant: ${config.systemPrompt}\n\nคำตอบสำหรับ "${userMessage}":`
-      ];
-      
-      const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-      return `${baseResponse} ${this.generateDetailedResponse()}`;
-    }
-
-    // Default responses
-    const responses = [
-      `ฉันเข้าใจคำถามของคุณเกี่ยวกับ "${userMessage}" แล้ว นี่คือคำตอบที่ครอบคลุม:`,
-      `ขอบคุณสำหรับคำถาม "${userMessage}" ฉันจะอธิบายให้คุณฟัง:`,
-      `สำหรับคำถาม "${userMessage}" นี่คือข้อมูลที่เกี่ยวข้อง:`,
-      `ฉันได้วิเคราะห์คำถาม "${userMessage}" ของคุณแล้ว และนี่คือสิ่งที่ฉันพบ:`
-    ];
-
-    const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-    return `${baseResponse} ${this.generateDetailedResponse()}`;
-  }
-
-  private generateDetailedResponse(): string {
-    const responses = [
-      "นี่คือข้อมูลที่ครอบคลุมและทันสมัยเกี่ยวกับเรื่องที่คุณถาม",
-      "ฉันได้รวบรวมข้อมูลจากแหล่งที่เชื่อถือได้เพื่อตอบคำถามของคุณ",
-      "ข้อมูลนี้ได้รับการอัปเดตล่าสุดและมีความแม่นยำสูง",
-      "ฉันหวังว่าข้อมูลนี้จะช่วยตอบคำถามของคุณได้อย่างครบถ้วน"
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
 
   public async getUserChats(userId: string): Promise<Chat[]> {
     const chats = await ChatModel.find({ userId })
@@ -765,10 +659,6 @@ export class ChatService {
       // Clear all memory using hybrid approach (เหมือน Legacy)
       await memoryService.clearAllMemory(chatId);
       
-      // Clear memory tool (ถ้ามี)
-      if (typeof (global as any).clearChatMemoryTool === 'function') {
-        await (global as any).clearChatMemoryTool(chatId);
-      }
       
       console.log(`✅ Memory cleared for chat ${chatId}`);
     } catch (error) {

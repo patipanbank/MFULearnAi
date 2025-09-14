@@ -59,11 +59,54 @@ export async function createAgent(
         // ตรวจสอบว่าต้องใช้ multimodal หรือไม่
         if (options?.images && options.images.length > 0 && options.images.some(img => img.base64Data)) {
           console.log(`🤖 Using multimodal approach with ${options.images.length} images`);
-          
-          // ใช้ multimodal LLM โดยตรง
+
+          // ใช้ multimodal LLM โดยตรงพร้อม streaming events
           const lastUserMessage = messages.slice().reverse().find((msg: { role: string; content: string }) => msg.role === 'user');
           if (lastUserMessage) {
+            // สร้าง messageId ที่จะใช้ตลอดการ stream
+            const messageId = Math.random().toString(36).substr(2, 9);
+
+            // ส่ง assistant_created event ก่อน
+            if (options.onEvent) {
+              options.onEvent({
+                type: 'assistant_created',
+                data: {
+                  messageId: messageId,
+                  content: ''
+                }
+              });
+            }
+
             const response = await llm.generate(lastUserMessage.content, options.images);
+
+            // จำลอง streaming โดยส่งทีละคำ
+            if (options.onEvent && response) {
+              const words = response.split(' ');
+              for (let i = 0; i < words.length; i++) {
+                const chunk = (i > 0 ? ' ' : '') + words[i];
+                options.onEvent({
+                  type: 'chunk',
+                  data: {
+                    messageId: messageId,
+                    delta: chunk
+                  }
+                });
+                // เพิ่ม delay เล็กน้อยเพื่อให้ดู streaming
+                await new Promise(resolve => setTimeout(resolve, 30));
+              }
+
+              // ส่ง end event
+              options.onEvent({
+                type: 'end',
+                data: {
+                  messageId: messageId,
+                  answer: response,
+                  inputTokens: 0,
+                  outputTokens: 0
+                }
+              });
+            }
+
             return response;
           }
         }

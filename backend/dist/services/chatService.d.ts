@@ -11,11 +11,6 @@ export declare class ChatService {
         mediaType: string;
     }>): Promise<void>;
     private processWithAILegacy;
-    private streamResponse;
-    private streamResponseLegacy;
-    private generateResponse;
-    private generateDetailedResponse;
-    private delay;
     getUserChats(userId: string): Promise<Chat[]>;
     deleteChat(chatId: string, userId: string): Promise<boolean>;
     updateChatName(chatId: string, userId: string, name: string): Promise<Chat | null>;

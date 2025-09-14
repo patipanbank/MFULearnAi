@@ -23,7 +23,40 @@ async function createAgent(llm, tools, prompt, config) {
                     console.log(`🤖 Using multimodal approach with ${options.images.length} images`);
                     const lastUserMessage = messages.slice().reverse().find((msg) => msg.role === 'user');
                     if (lastUserMessage) {
+                        const messageId = Math.random().toString(36).substr(2, 9);
+                        if (options.onEvent) {
+                            options.onEvent({
+                                type: 'assistant_created',
+                                data: {
+                                    messageId: messageId,
+                                    content: ''
+                                }
+                            });
+                        }
                         const response = await llm.generate(lastUserMessage.content, options.images);
+                        if (options.onEvent && response) {
+                            const words = response.split(' ');
+                            for (let i = 0; i < words.length; i++) {
+                                const chunk = (i > 0 ? ' ' : '') + words[i];
+                                options.onEvent({
+                                    type: 'chunk',
+                                    data: {
+                                        messageId: messageId,
+                                        delta: chunk
+                                    }
+                                });
+                                await new Promise(resolve => setTimeout(resolve, 30));
+                            }
+                            options.onEvent({
+                                type: 'end',
+                                data: {
+                                    messageId: messageId,
+                                    answer: response,
+                                    inputTokens: 0,
+                                    outputTokens: 0
+                                }
+                            });
+                        }
                         return response;
                     }
                 }
