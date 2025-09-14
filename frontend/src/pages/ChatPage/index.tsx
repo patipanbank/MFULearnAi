@@ -495,14 +495,36 @@ const ChatPage: React.FC = () => {
 
   // Enhanced Message Content Component with Markdown support
   const MessageContent: React.FC<{ content: string; role: 'user' | 'assistant' | 'system' }> = ({ content, role }) => {
+    // Prevent rendering of error-like content as chat messages
+    if (!content || content.trim() === '') {
+      return <div className="text-muted italic">Empty message</div>;
+    }
+
+    // Check for error patterns that shouldn't be rendered as normal messages
+    if (content.includes('[object Object]') ||
+        content.includes('TypeError:') ||
+        content.includes('ReferenceError:') ||
+        content.includes('SyntaxError:') ||
+        content.startsWith('Error:')) {
+
+      // Show error as toast instead of message
+      addToast({
+        type: 'error',
+        title: 'Message Error',
+        message: 'There was an error processing this message'
+      });
+      return <div className="text-muted italic">Message processing error</div>;
+    }
+
     // Check if content contains code blocks
     const hasCodeBlocks = content.includes('```');
 
     if (hasCodeBlocks && role === 'assistant') {
-      return (
-        <ReactMarkdown
-          components={{
-            code: ({ inline, className, children, ...props }: any) => {
+      try {
+        return (
+          <ReactMarkdown
+            components={{
+            code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) => {
               const match = /language-(\w+)/.exec(className || '');
               const language = match ? match[1] : '';
 
@@ -547,10 +569,24 @@ const ChatPage: React.FC = () => {
               </blockquote>
             ),
           }}
-        >
-          {content}
-        </ReactMarkdown>
-      );
+          >
+            {content}
+          </ReactMarkdown>
+        );
+      } catch (error) {
+        console.error('Markdown parsing error:', error);
+        addToast({
+          type: 'warning',
+          title: 'Formatting Error',
+          message: 'Could not format message properly'
+        });
+        // Fallback to plain text
+        return (
+          <div className="whitespace-pre-wrap text-base sm:text-base leading-relaxed">
+            {content}
+          </div>
+        );
+      }
     }
 
     // Fallback for simple text content
@@ -690,6 +726,11 @@ const ChatPage: React.FC = () => {
                               onClick={() => window.open(img.url, '_blank')}
                               onError={(e) => {
                                 console.error('Chat image failed to load:', img.url);
+                                addToast({
+                                  type: 'error',
+                                  title: 'Image Error',
+                                  message: `Failed to load image: ${img.url.split('/').pop()}`
+                                });
                                 e.currentTarget.style.display = 'none';
                               }}
                               onLoad={() => {
@@ -752,7 +793,10 @@ const ChatPage: React.FC = () => {
                     </div>
                   ) : (
                     <div>
-                      <MessageContent content={msg.content} role={msg.role} />
+                      {/* Wrap MessageContent in error boundary */}
+                      <React.Suspense fallback={<div className="text-muted">Loading...</div>}>
+                        <MessageContent content={msg.content} role={msg.role} />
+                      </React.Suspense>
                       {msg.isStreaming && (
                         <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
                       )}

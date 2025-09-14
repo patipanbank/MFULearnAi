@@ -278,13 +278,26 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
           }
         } else if (data.type === 'error') {
           console.error('WebSocket: Server error', data.data);
+
+          // Ensure error message is properly formatted and not showing [object Object]
+          let errorMessage = 'An error occurred on the server';
+          if (typeof data.data === 'string' && data.data.trim() !== '') {
+            errorMessage = data.data;
+          } else if (typeof data.data === 'object' && data.data?.message) {
+            errorMessage = data.data.message;
+          } else if (typeof data.data === 'object') {
+            errorMessage = 'Server encountered an error while processing your request';
+          }
+
           addToast({
             type: 'error',
             title: 'Server Error',
-            message: data.data || 'An error occurred on the server',
+            message: errorMessage,
             duration: 5000
           });
-          // อาจจะต้อง disconnect หรือ retry ตามประเภทของ error
+
+          // Stop typing indicator if active
+          setIsTyping(false);
         } else if (data.type === 'accepted') {
           console.log('WebSocket: Message accepted by server', data.data);
           // Message ถูก server รับแล้ว
