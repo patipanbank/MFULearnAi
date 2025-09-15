@@ -1,5 +1,5 @@
 import { toolRegistry as serviceToolRegistry, ToolFunction as ServiceToolFunction } from '../services/toolRegistry';
-import { memoryService } from '../services/memoryService';
+import { smartMemoryService } from '../services/smartMemoryService';
 import { chromaService } from '../services/chromaService';
 import { embeddingService } from '../services/embeddingService';
 import axios from 'axios';
@@ -64,9 +64,9 @@ export const toolRegistry: Record<string, ToolMeta> = {
      */
     func: async (input: string, sessionId?: string) => {
       if (!sessionId) return 'No sessionId provided.';
-      const results = await memoryService.searchMemory(sessionId, input);
+      const results = await smartMemoryService.searchMemory(sessionId, input);
       if (!results.length) return 'No relevant chat history found.';
-      return results.map((r: { role: string; content: string }) => `${r.role}: ${r.content}`).join('\n');
+      return results.map(r => `${r.role}: ${r.content} (relevance: ${r.relevanceScore.toFixed(2)})`).join('\n\n');
     }
   },
   memory_embed: {
@@ -77,8 +77,13 @@ export const toolRegistry: Record<string, ToolMeta> = {
      */
     func: async (input: string, sessionId?: string) => {
       if (!sessionId) return 'No sessionId provided.';
-      await memoryService.embedMessage(sessionId, input);
-      return 'Message embedded into memory.';
+      const message = {
+        role: 'user' as const,
+        content: input,
+        timestamp: new Date().toISOString()
+      };
+      await smartMemoryService.addMessage(sessionId, message);
+      return 'Message added to smart memory.';
     }
   }
 };
