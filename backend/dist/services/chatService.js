@@ -143,24 +143,46 @@ class ChatService {
                 content,
                 images
             });
-            console.log(`🤖 Processing with AI...`);
-            await this.processWithAILegacy(chatId, content, images, {
-                modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-                collectionNames: [],
-                systemPrompt: 'You are a helpful assistant.',
-                temperature: 0.7,
-                maxTokens: 4000,
-                agentId: undefined
-            }, userId);
+            console.log(`📡 Step 2: Notifying frontend about user message...`);
+            this.broadcastToChat(chatId, {
+                type: 'message_added',
+                data: {
+                    message: {
+                        id: userMessage.id,
+                        role: 'user',
+                        content: userMessage.content,
+                        timestamp: userMessage.timestamp.toISOString(),
+                        images: userMessage.images
+                    }
+                }
+            });
+            console.log(`🤖 Step 3: Creating assistant message...`);
+            const assistantMessage = await this.addMessage(chatId, {
+                role: 'assistant',
+                content: ''
+            });
+            console.log(`📡 Step 4: Notifying frontend about assistant message...`);
+            this.broadcastToChat(chatId, {
+                type: 'message_added',
+                data: {
+                    message: {
+                        id: assistantMessage.id,
+                        role: 'assistant',
+                        content: '',
+                        timestamp: assistantMessage.timestamp.toISOString(),
+                        isStreaming: true
+                    }
+                }
+            });
+            console.log(`🤖 Step 5: Processing with AI...`);
+            await this.processWithAISimple(chatId, assistantMessage.id, content, images, userId);
         }
         catch (error) {
             console.error('❌ Error in processMessage:', error);
-            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                    type: 'error',
-                    data: 'Failed to process message'
-                }));
-            }
+            this.broadcastToChat(chatId, {
+                type: 'error',
+                data: { message: 'Failed to process message' }
+            });
         }
     }
     broadcastToChat(chatId, data) {
@@ -243,52 +265,45 @@ class ChatService {
                         const chunkContent = String(event.data || '');
                         fullContent += chunkContent;
                         await this.updateMessageContent(chatId, assistantMessageId, fullContent);
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'chunk',
-                                data: {
-                                    messageId: assistantMessageId,
-                                    delta: chunkContent
-                                }
-                            }));
-                        }
+                        this.broadcastToChat(chatId, {
+                            type: 'message_updated',
+                            data: {
+                                messageId: assistantMessageId,
+                                content: fullContent,
+                                isStreaming: true
+                            }
+                        });
                     }
                     else if (event.type === 'tool_start') {
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'tool_start',
-                                data: {
-                                    tool_name: event.data.tool_name,
-                                    tool_input: event.data.tool_input
-                                }
-                            }));
-                        }
+                        this.broadcastToChat(chatId, {
+                            type: 'tool_start',
+                            data: {
+                                messageId: assistantMessageId,
+                                toolName: event.data.tool_name,
+                                toolInput: event.data.tool_input
+                            }
+                        });
                     }
                     else if (event.type === 'tool_result') {
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'tool_result',
-                                data: {
-                                    tool_name: event.data.tool_name,
-                                    output: event.data.output
-                                }
-                            }));
-                        }
+                        this.broadcastToChat(chatId, {
+                            type: 'tool_result',
+                            data: {
+                                messageId: assistantMessageId,
+                                toolName: event.data.tool_name,
+                                result: event.data.output
+                            }
+                        });
                     }
                     else if (event.type === 'end') {
                         const finalContent = String(event.data.answer || fullContent);
                         await this.updateMessageContent(chatId, assistantMessageId, finalContent);
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'end',
-                                data: {
-                                    messageId: assistantMessageId,
-                                    answer: finalContent,
-                                    inputTokens: event.data.inputTokens || 0,
-                                    outputTokens: event.data.outputTokens || 0
-                                }
-                            }));
-                        }
+                        this.broadcastToChat(chatId, {
+                            type: 'message_completed',
+                            data: {
+                                messageId: assistantMessageId,
+                                content: finalContent
+                            }
+                        });
                         if (userId && (event.data.inputTokens || event.data.outputTokens)) {
                             await usageService_1.usageService.updateUsage(userId, event.data.inputTokens || 0, event.data.outputTokens || 0);
                         }
@@ -302,12 +317,13 @@ class ChatService {
             console.error('❌ Error in processWithAISimple:', error);
             const errorMessage = error instanceof Error ? error.message : 'AI processing failed';
             await this.updateMessageContent(chatId, assistantMessageId, `[Error: ${errorMessage}]`);
-            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                    type: 'error',
-                    data: errorMessage
-                }));
-            }
+            this.broadcastToChat(chatId, {
+                type: 'message_error',
+                data: {
+                    messageId: assistantMessageId,
+                    error: errorMessage
+                }
+            });
         }
     }
     async updateMessageContent(chatId, messageId, content) {
