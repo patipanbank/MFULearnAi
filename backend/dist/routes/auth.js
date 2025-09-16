@@ -325,7 +325,22 @@ router.post('/admin/login', async (req, res) => {
 });
 router.get('/me', auth_1.authenticateJWT, auth_1.requireAnyRole, (req, res) => {
     const user = req.user;
-    return res.json(user);
+    const userResponse = {
+        _id: { $oid: user.sub || user._id },
+        nameID: user.nameID,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        department: user.department,
+        role: user.role,
+        groups: user.groups || [],
+        tokenQuota: user.tokenQuota || 100000,
+        dailyTokenLimit: user.dailyTokenLimit || 50000,
+        created: user.created || new Date(),
+        updated: user.updated || new Date()
+    };
+    return res.json(userResponse);
 });
 router.post('/refresh', auth_1.authenticateJWT, auth_1.requireAnyRole, (req, res) => {
     const user = req.user;
