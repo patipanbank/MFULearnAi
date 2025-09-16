@@ -113,10 +113,10 @@ const AdminLoginPage: React.FC = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className={`block w-full pl-12 pr-4 py-3 border rounded-xl 
+                    className={`block w-full pl-12 pr-4 py-3 border rounded-xl
                              focus:ring-2 focus:ring-blue-500 focus:border-transparent
                              bg-white backdrop-blur-sm transition-all duration-200
-                             placeholder-gray-400 focus:outline-none shadow-sm
+                             placeholder-gray-400 focus:outline-none shadow-sm text-gray-900
                              ${isUsernameError ? 'border-red-300 ring-red-500 bg-red-50' : 'border-gray-300 hover:border-gray-400'}`}
                     placeholder="Enter your username"
                     required
@@ -140,10 +140,10 @@ const AdminLoginPage: React.FC = () => {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`block w-full pl-12 pr-12 py-3 border rounded-xl 
+                    className={`block w-full pl-12 pr-12 py-3 border rounded-xl
                              focus:ring-2 focus:ring-blue-500 focus:border-transparent
                              bg-white backdrop-blur-sm transition-all duration-200
-                             placeholder-gray-400 focus:outline-none shadow-sm
+                             placeholder-gray-400 focus:outline-none shadow-sm text-gray-900
                              ${isPasswordError ? 'border-red-300 ring-red-500 bg-red-50' : 'border-gray-300 hover:border-gray-400'}`}
                     placeholder="Enter your password"
                     required

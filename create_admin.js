@@ -95,11 +95,13 @@ function askPassword(question) {
     process.stdin.setEncoding('utf8');
 
     let password = '';
-    process.stdin.on('data', (key) => {
+
+    const onData = (key) => {
       if (key === '\u0003') { // Ctrl+C
         process.exit();
       }
       if (key === '\r' || key === '\n') { // Enter
+        process.stdin.removeListener('data', onData);
         process.stdin.setRawMode(false);
         process.stdin.pause();
         process.stdout.write('\n');
@@ -113,7 +115,9 @@ function askPassword(question) {
         password += key;
         process.stdout.write('*');
       }
-    });
+    };
+
+    process.stdin.on('data', onData);
   });
 }
 
