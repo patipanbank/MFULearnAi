@@ -1,15 +1,13 @@
 import React, { useRef, useEffect } from 'react';
 import { FiLogOut } from 'react-icons/fi';
 import { useAuthStore, useUIStore } from '../../stores';
-import { useDepartment } from '../../hooks/useDepartment';
 import UserProfileErrorBoundary from './UserProfileErrorBoundary';
 
 const UserProfile: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, logoutSAML } = useAuthStore();
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
-  const { department, loading: departmentLoading } = useDepartment(user?.department_id?.['$oid']);
-  
+
   const dropdownId = 'user-profile';
   const isOpen = openDropdowns.includes(dropdownId);
 
@@ -112,11 +110,7 @@ const UserProfile: React.FC = () => {
               <div className="flex-1">
                 <div className="text-xs md:text-sm text-muted">DEPARTMENT</div>
                 <div className="text-sm md:text-base text-primary">
-                  {departmentLoading ? (
-                    <div className="animate-pulse bg-secondary h-4 w-24 rounded"></div>
-                  ) : (
-                    department?.name || 'Not specified'
-                  )}
+                  {user.department || 'Not specified'}
                 </div>
               </div>
             </div>
