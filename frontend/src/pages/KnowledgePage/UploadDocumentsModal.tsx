@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { FiX, FiUpload, FiFile, FiTrash2 } from 'react-icons/fi';
+import { FiUpload, FiFile, FiTrash2 } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
 import { useUploadProgress } from '../../shared/hooks/useUploadProgress';
 import UploadProgressTracker from '../../shared/ui/UploadProgressTracker';
+import UniversalModal from '../../shared/ui/UniversalModal';
 import type { Collection } from '../../shared/types';
 
 interface UploadDocumentsModalProps {
@@ -288,7 +289,17 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
 
 
   return (
-    <div className="modal-overlay flex items-center justify-center z-50">
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="upload-documents"
+      title="Upload Documents"
+      subtitle={`Add documents to ${collection.name}`}
+      headerIcon={<FiUpload className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
+    >
       <div className="modal-content w-full max-w-2xl bg-primary p-6 rounded-xl relative shadow-xl max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button className="absolute top-4 right-4 btn-ghost p-1" onClick={onClose}>
@@ -396,8 +407,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
             Cancel
           </button>
         </div>
-      </div>
-    </div>
+    </UniversalModal>
   );
 };
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiSave, FiDatabase } from 'react-icons/fi';
+import { FiSave, FiDatabase, FiEdit } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
+import UniversalModal from '../../shared/ui/UniversalModal';
 import type { Collection } from '../../shared/types';
 
 interface EditCollectionModalProps {
@@ -83,29 +84,21 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
     }));
   };
 
-  if (!isOpen || !collection) return null;
+  if (!collection) return null;
 
   return (
-    <div className="modal-overlay flex items-center justify-center z-50">
-      <div className="modal-content max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-              <FiDatabase className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-primary">Edit Collection</h2>
-              <p className="text-sm text-muted">Update collection settings</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="btn-ghost p-2"
-          >
-            <FiX className="h-5 w-5" />
-          </button>
-        </div>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="edit-collection"
+      title="Edit Collection"
+      subtitle="Update collection settings"
+      headerIcon={<FiEdit className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
+    >
+      <div className="p-6">
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -188,7 +181,7 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </UniversalModal>
   );
 };
 
