@@ -15,7 +15,7 @@
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const readline = require('readline');
+const readline = require('readline/promises');
 const fs = require('fs');
 const path = require('path');
 
@@ -78,12 +78,9 @@ const rl = readline.createInterface({
 });
 
 // Helper function to ask questions
-function askQuestion(question) {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer.trim());
-    });
-  });
+async function askQuestion(question) {
+  const answer = await rl.question(question);
+  return answer.trim();
 }
 
 // Helper function to hide password input
@@ -272,7 +269,7 @@ async function createAdmin() {
     console.error('\n❌ Error creating admin:', error.message);
     process.exit(1);
   } finally {
-    rl.close();
+    await rl.close();
     if (mongoose.connection.readyState === 1) {
       await mongoose.connection.close();
       console.log('🔌 Database connection closed.');
@@ -282,11 +279,11 @@ async function createAdmin() {
 }
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('\n\n👋 Goodbye!');
-  rl.close();
+  await rl.close();
   if (mongoose.connection.readyState === 1) {
-    mongoose.connection.close();
+    await mongoose.connection.close();
   }
   process.exit(0);
 });
