@@ -30,13 +30,11 @@ export declare function getMemoryStats(sessionId: string): Promise<{
     recentCount: number;
     totalCount: number;
     sessionId: string;
-    memoryType: string;
     error?: undefined;
 } | {
     error: string;
     recentCount?: undefined;
     totalCount?: undefined;
     sessionId?: undefined;
-    memoryType?: undefined;
 }>;
 //# sourceMappingURL=toolRegistry.d.ts.map

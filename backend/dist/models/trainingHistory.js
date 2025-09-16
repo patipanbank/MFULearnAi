@@ -28,16 +28,7 @@ const trainingHistorySchema = new mongoose_1.default.Schema({
     collection: 'training_history'
 });
 trainingHistorySchema.index({ userId: 1, timestamp: -1 });
-trainingHistorySchema.index({ username: 1, timestamp: -1 });
 trainingHistorySchema.index({ collectionName: 1, timestamp: -1 });
-trainingHistorySchema.index({ collectionName: 1, action: 1, timestamp: -1 });
 trainingHistorySchema.index({ action: 1, timestamp: -1 });
-trainingHistorySchema.index({ action: 1, userId: 1, timestamp: -1 });
-trainingHistorySchema.index({ timestamp: -1 });
-trainingHistorySchema.index({ userId: 1, action: 1 });
-trainingHistorySchema.index({ collectionName: 1, userId: 1 });
-trainingHistorySchema.index({ documentName: 1, collectionName: 1 });
-trainingHistorySchema.index({ 'details.modelId': 1, timestamp: -1 });
-trainingHistorySchema.index({ 'details.error': 1, timestamp: -1 });
 exports.TrainingHistory = mongoose_1.default.model('TrainingHistory', trainingHistorySchema);
 //# sourceMappingURL=trainingHistory.js.map

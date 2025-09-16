@@ -40,33 +40,9 @@ collectionSchema.set('toJSON', {
   }
 });
 
-// Comprehensive indexes for collection queries
-
-// Primary queries
-collectionSchema.index({ permission: 1, updatedAt: -1 }); // List collections by permission and recency
-collectionSchema.index({ createdBy: 1, updatedAt: -1 }); // User's collections by recency
-collectionSchema.index({ department: 1, permission: 1 }); // Department collections with permission filter
-
-// Access control queries
-collectionSchema.index({ permission: 1, department: 1 }); // Department-level access
-collectionSchema.index({ createdBy: 1, permission: 1 }); // User's collections with permission
-
-// Analytics and admin
-collectionSchema.index({ createdAt: -1 }); // Recent collections
-collectionSchema.index({ updatedAt: -1 }); // Recently updated collections
-collectionSchema.index({ modelId: 1 }); // Filter by model
-
-// Text search for collection names
-collectionSchema.index({
-  name: 'text'
-}, {
-  name: 'collection_name_search'
-});
-
-// Update the updatedAt field before saving
-collectionSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
-});
+// Helpful indexes for frequent queries
+collectionSchema.index({ permission: 1 });
+collectionSchema.index({ department: 1 });
+collectionSchema.index({ createdBy: 1 });
 
 export const Collection = mongoose.model<ICollection>('Collection', collectionSchema); 

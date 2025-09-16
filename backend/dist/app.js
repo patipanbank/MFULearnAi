@@ -25,7 +25,6 @@ const usage_1 = __importDefault(require("./routes/usage"));
 const websocketService_1 = require("./services/websocketService");
 const queueService_1 = require("./services/queueService");
 const mongodb_1 = require("./lib/mongodb");
-const errorMiddleware_1 = require("./middleware/errorMiddleware");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use(express_1.default.json({
@@ -62,8 +61,10 @@ app.use('/api', apiRouter);
 app.get('/', (req, res) => {
     res.send('MFULearnAi Node.js Backend');
 });
-app.use(errorMiddleware_1.notFoundHandler);
-app.use(errorMiddleware_1.globalErrorHandler);
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+});
 const PORT = process.env.PORT || 3001;
 const server = (0, http_1.createServer)(app);
 const wsService = new websocketService_1.WebSocketService(server);

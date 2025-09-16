@@ -20,7 +20,6 @@ import usageRouter from './routes/usage';
 import { WebSocketService } from './services/websocketService';
 import { queueService } from './services/queueService';
 import { connectDB } from './lib/mongodb';
-import { globalErrorHandler, notFoundHandler } from './middleware/errorMiddleware';
 
 dotenv.config();
 
@@ -90,11 +89,11 @@ app.get('/', (req, res) => {
   res.send('MFULearnAi Node.js Backend');
 });
 
-// 404 handler for unknown routes
-app.use(notFoundHandler);
-
-// Global error handler (must be last middleware)
-app.use(globalErrorHandler);
+// Error handler middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+});
 
 const PORT = process.env.PORT || 3001;
 

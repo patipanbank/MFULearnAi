@@ -22,16 +22,6 @@ const UsageSchema = new mongoose_1.default.Schema({
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
-UsageSchema.index({ userId: 1 });
-UsageSchema.index({ lastUsed: -1 });
-UsageSchema.index({ totalTokens: -1 });
-UsageSchema.index({ 'dailyUsage.date': -1 });
-UsageSchema.index({ createdAt: -1 });
-UsageSchema.index({ chatCount: -1 });
-UsageSchema.pre('save', function (next) {
-    this.updatedAt = new Date();
-    next();
-});
 const UsageModel = mongoose_1.default.model('Usage', UsageSchema);
 class UsageService {
     constructor() {

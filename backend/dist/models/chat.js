@@ -60,9 +60,7 @@ const ChatMessageSchema = new mongoose_1.Schema({
     timestamp: { type: Date, default: Date.now },
     images: [ImagePayloadSchema],
     isStreaming: Boolean,
-    isComplete: Boolean,
-    isDeleted: { type: Boolean, default: false },
-    deletedAt: Date
+    isComplete: Boolean
 });
 const ChatSchema = new mongoose_1.Schema({
     userId: { type: String, required: true, index: true },
@@ -72,28 +70,12 @@ const ChatSchema = new mongoose_1.Schema({
     modelId: String,
     collectionNames: [String],
     isPinned: { type: Boolean, default: false },
-    isDeleted: { type: Boolean, default: false, index: true },
-    deletedAt: Date,
-    deletedBy: String,
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
-ChatSchema.index({ userId: 1, isDeleted: 1, updatedAt: -1 });
-ChatSchema.index({ userId: 1, isDeleted: 1, isPinned: -1, updatedAt: -1 });
-ChatSchema.index({ userId: 1, isDeleted: 1, createdAt: -1 });
-ChatSchema.index({ userId: 1, agentId: 1, isDeleted: 1, updatedAt: -1 });
-ChatSchema.index({ agentId: 1, isDeleted: 1, updatedAt: -1 });
-ChatSchema.index({ userId: 1, isDeleted: 1, name: 1 });
-ChatSchema.index({ userId: 1, isDeleted: 1, modelId: 1 });
-ChatSchema.index({ userId: 1, isDeleted: 1, collectionNames: 1 });
-ChatSchema.index({ userId: 1, isDeleted: 1, deletedAt: -1 });
-ChatSchema.index({ isDeleted: 1, deletedAt: -1 });
-ChatSchema.index({ deletedBy: 1, deletedAt: -1 });
-ChatSchema.index({ isDeleted: 1, createdAt: -1 });
-ChatSchema.index({ isDeleted: 1, updatedAt: -1 });
-ChatSchema.index({ agentId: 1, isDeleted: 1, createdAt: -1 });
-ChatSchema.index({ 'messages.timestamp': -1, 'messages.isDeleted': 1 });
-ChatSchema.index({ userId: 1, 'messages.role': 1, 'messages.isDeleted': 1 });
+ChatSchema.index({ userId: 1, createdAt: -1 });
+ChatSchema.index({ userId: 1, isPinned: -1, updatedAt: -1 });
+ChatSchema.index({ userId: 1, updatedAt: -1 });
 ChatSchema.pre('save', function (next) {
     this.updatedAt = new Date();
     next();
