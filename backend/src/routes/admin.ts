@@ -4,6 +4,7 @@ import { superAdminMiddleware, SuperAdminRequest } from '../middleware/adminMidd
 import { userService } from '../services/userService';
 import { collectionService } from '../services/collectionService';
 import { chromaService } from '../services/chromaService';
+import { departmentService } from '../services/departmentService';
 import { getDatabase } from '../lib/mongodb';
 import { User, UserRole, IUser } from '../models/user';
 import mongoose from 'mongoose';
@@ -132,12 +133,22 @@ router.delete('/users/:userId', async (req: SuperAdminRequest, res: Response) =>
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
 
+    // Get user before deletion to handle department count
+    const userToDelete = await db.collection('users').findOne({
+      _id: new mongoose.Types.ObjectId(userId)
+    });
+
     const result = await db.collection('users').deleteOne({
       _id: new mongoose.Types.ObjectId(userId)
     });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update department user count
+    if (userToDelete?.department) {
+      await departmentService.onUserDeleted(userToDelete.department);
     }
 
     return res.json({ message: 'User deleted successfully' });
@@ -234,36 +245,87 @@ router.get('/analytics', async (req: SuperAdminRequest, res: Response) => {
 // Department Management Routes
 router.get('/departments', async (req: SuperAdminRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    if (!db) throw new Error('Database not connected');
-
-    // Get unique departments from users
-    const departments = await db.collection('users').distinct('department');
-
-    // Get user count per department
-    const departmentStats = await db.collection('users').aggregate([
-      {
-        $group: {
-          _id: '$department',
-          userCount: { $sum: 1 },
-          roles: { $addToSet: '$role' }
-        }
-      }
-    ]).toArray();
-
-    const departmentData = departments.filter(dept => dept).map(dept => {
-      const stats = departmentStats.find(s => s._id === dept);
-      return {
-        name: dept,
-        userCount: stats?.userCount || 0,
-        roles: stats?.roles || []
-      };
-    });
-
-    res.json({ departments: departmentData });
+    const { includeInactive = false } = req.query;
+    const departments = await departmentService.getAllDepartments(includeInactive === 'true');
+    res.json({ departments });
   } catch (error) {
     console.error('Error fetching departments:', error);
     res.status(500).json({ error: 'Failed to fetch departments' });
+  }
+});
+
+// Get department stats
+router.get('/departments/stats', async (req: SuperAdminRequest, res: Response) => {
+  try {
+    const stats = await departmentService.getDepartmentStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching department stats:', error);
+    res.status(500).json({ error: 'Failed to fetch department stats' });
+  }
+});
+
+// Get department by ID
+router.get('/departments/:id', async (req: SuperAdminRequest, res: Response) => {
+  try {
+    const department = await departmentService.getDepartmentById(req.params.id);
+    if (!department) {
+      return res.status(404).json({ error: 'Department not found' });
+    }
+    res.json(department);
+  } catch (error) {
+    console.error('Error fetching department:', error);
+    res.status(500).json({ error: 'Failed to fetch department' });
+  }
+});
+
+// Create department
+router.post('/departments', async (req: SuperAdminRequest, res: Response) => {
+  try {
+    const department = await departmentService.createDepartment({
+      ...req.body,
+      createdBy: req.user?._id
+    });
+    res.status(201).json(department);
+  } catch (error) {
+    console.error('Error creating department:', error);
+    res.status(500).json({ error: 'Failed to create department' });
+  }
+});
+
+// Update department
+router.put('/departments/:id', async (req: SuperAdminRequest, res: Response) => {
+  try {
+    const department = await departmentService.updateDepartment(req.params.id, req.body);
+    if (!department) {
+      return res.status(404).json({ error: 'Department not found' });
+    }
+    res.json(department);
+  } catch (error) {
+    console.error('Error updating department:', error);
+    res.status(500).json({ error: 'Failed to update department' });
+  }
+});
+
+// Delete department
+router.delete('/departments/:id', async (req: SuperAdminRequest, res: Response) => {
+  try {
+    const result = await departmentService.deleteDepartment(req.params.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error deleting department:', error);
+    res.status(500).json({ error: 'Failed to delete department' });
+  }
+});
+
+// Recalculate user counts
+router.post('/departments/recalculate', async (req: SuperAdminRequest, res: Response) => {
+  try {
+    const result = await departmentService.recalculateAllUserCounts();
+    res.json(result);
+  } catch (error) {
+    console.error('Error recalculating user counts:', error);
+    res.status(500).json({ error: 'Failed to recalculate user counts' });
   }
 });
 

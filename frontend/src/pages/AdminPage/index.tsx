@@ -1,16 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiBarChart, FiSettings, FiDatabase, FiShield, FiArrowLeft } from 'react-icons/fi';
+import { FiUsers, FiBarChart, FiSettings, FiDatabase, FiShield, FiArrowLeft, FiBuilding, FiRefreshCw, FiTrendingUp, FiActivity } from 'react-icons/fi';
 import { useAuthStore, useUIStore } from '../../shared/stores';
 import AdminUserModal from '../../shared/ui/AdminUserModal';
 import AdminAnalyticsModal from '../../shared/ui/AdminAnalyticsModal';
+import AdminDepartmentModal from '../../shared/ui/AdminDepartmentModal';
 import { api } from '../../shared/lib/api';
 
 interface SystemStats {
   totalUsers: number;
-  totalCollections: number;
-  totalDocuments: number;
-  activeSessions: number;
+  totalDepartments: number;
+  activeDepartments: number;
+  recentGrowth: number;
+}
+
+interface DepartmentStats {
+  totalDepartments: number;
+  activeDepartments: number;
+  emptyDepartments: number;
+  userStats: {
+    totalUsers: number;
+    averageUsersPerDepartment: number;
+    maxUsersInDepartment: number;
+    minUsersInDepartment: number;
+  };
+  topDepartments: Array<{
+    _id?: string;
+    name: string;
+    displayName?: string;
+    userCount: number;
+  }>;
 }
 
 const AdminPage: React.FC = () => {
@@ -20,13 +39,16 @@ const AdminPage: React.FC = () => {
 
   const [showUserModal, setShowUserModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
   const [stats, setStats] = useState<SystemStats>({
     totalUsers: 0,
-    totalCollections: 0,
-    totalDocuments: 0,
-    activeSessions: 0
+    totalDepartments: 0,
+    activeDepartments: 0,
+    recentGrowth: 0
   });
+  const [departmentStats, setDepartmentStats] = useState<DepartmentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Check if user is SuperAdmin
   const isSuperAdmin = user?.role === 'SuperAdmin';
@@ -47,13 +69,19 @@ const AdminPage: React.FC = () => {
 
   const fetchQuickStats = async () => {
     try {
-      const analytics = await api.get<any>('/admin/analytics');
+      const [analytics, departmentStats] = await Promise.all([
+        api.get<any>('/admin/analytics'),
+        api.get<DepartmentStats>('/admin/departments/stats')
+      ]);
+
       setStats({
         totalUsers: analytics.userStats.total,
-        totalCollections: analytics.collectionStats.total,
-        totalDocuments: analytics.collectionStats.totalDocuments,
-        activeSessions: 0 // Could be implemented later
+        totalDepartments: departmentStats.totalDepartments,
+        activeDepartments: departmentStats.activeDepartments,
+        recentGrowth: 0 // Could be implemented later
       });
+
+      setDepartmentStats(departmentStats);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -69,7 +97,7 @@ const AdminPage: React.FC = () => {
     {
       id: 'users',
       title: 'User Management',
-      description: 'Manage users, roles, and permissions',
+      description: 'Manage users, roles, and permissions across all departments',
       icon: FiUsers,
       color: 'bg-blue-500',
       count: stats.totalUsers,
@@ -77,43 +105,50 @@ const AdminPage: React.FC = () => {
       onClick: () => setShowUserModal(true)
     },
     {
+      id: 'departments',
+      title: 'Department Management',
+      description: 'Manage organizational departments and user distribution',
+      icon: FiBuilding,
+      color: 'bg-green-500',
+      count: stats.activeDepartments,
+      countLabel: 'Active Departments',
+      onClick: () => setShowDepartmentModal(true)
+    },
+    {
       id: 'analytics',
       title: 'System Analytics',
-      description: 'View system statistics and usage data',
+      description: 'View user distribution, department stats, and system metrics',
       icon: FiBarChart,
-      color: 'bg-green-500',
-      count: stats.totalDocuments,
-      countLabel: 'Documents',
+      color: 'bg-purple-500',
+      count: departmentStats?.topDepartments.length || 0,
+      countLabel: 'Top Departments',
       onClick: () => setShowAnalyticsModal(true)
     },
     {
-      id: 'collections',
-      title: 'Collection Management',
-      description: 'Manage knowledge base collections',
-      icon: FiDatabase,
-      color: 'bg-purple-500',
-      count: stats.totalCollections,
-      countLabel: 'Collections',
-      onClick: () => navigate('/knowledgebase')
-    },
-    {
-      id: 'agents',
-      title: 'AI Agent Management',
-      description: 'Manage system-wide AI agents',
-      icon: FiShield,
+      id: 'growth',
+      title: 'Growth Metrics',
+      description: 'Monitor user growth and department expansion',
+      icon: FiTrendingUp,
       color: 'bg-orange-500',
-      count: 0,
-      countLabel: 'System Agents',
-      onClick: () => navigate('/agent')
+      count: stats.recentGrowth,
+      countLabel: 'Recent Growth',
+      onClick: () => {
+        addToast({
+          type: 'info',
+          title: 'Growth Analytics',
+          message: 'Detailed growth metrics will be available in the analytics panel'
+        });
+        setShowAnalyticsModal(true);
+      }
     },
     {
       id: 'system',
       title: 'System Configuration',
-      description: 'Configure global system settings',
+      description: 'Configure global system settings and monitoring',
       icon: FiSettings,
       color: 'bg-red-500',
-      count: 0,
-      countLabel: 'Configurations',
+      count: stats.totalDepartments,
+      countLabel: 'Total Departments',
       onClick: () => {
         addToast({
           type: 'info',
@@ -183,7 +218,7 @@ const AdminPage: React.FC = () => {
               <div>
                 <p className="text-sm text-secondary">Total Users</p>
                 <p className="text-2xl font-bold text-primary">
-                  {loading ? '-' : stats.totalUsers}
+                  {loading ? '-' : stats.totalUsers.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -192,12 +227,12 @@ const AdminPage: React.FC = () => {
           <div className="card p-6">
             <div className="flex items-center space-x-3">
               <div className="h-10 w-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                <FiDatabase className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <FiBuilding className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-secondary">Collections</p>
+                <p className="text-sm text-secondary">Active Departments</p>
                 <p className="text-2xl font-bold text-primary">
-                  {loading ? '-' : stats.totalCollections}
+                  {loading ? '-' : stats.activeDepartments}
                 </p>
               </div>
             </div>
@@ -206,12 +241,12 @@ const AdminPage: React.FC = () => {
           <div className="card p-6">
             <div className="flex items-center space-x-3">
               <div className="h-10 w-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                <FiBarChart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <FiActivity className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <p className="text-sm text-secondary">Documents</p>
+                <p className="text-sm text-secondary">Total Departments</p>
                 <p className="text-2xl font-bold text-primary">
-                  {loading ? '-' : stats.totalDocuments}
+                  {loading ? '-' : stats.totalDepartments}
                 </p>
               </div>
             </div>
@@ -220,12 +255,12 @@ const AdminPage: React.FC = () => {
           <div className="card p-6">
             <div className="flex items-center space-x-3">
               <div className="h-10 w-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                <FiSettings className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <FiTrendingUp className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
-                <p className="text-sm text-secondary">Active Sessions</p>
+                <p className="text-sm text-secondary">Avg Users/Dept</p>
                 <p className="text-2xl font-bold text-primary">
-                  {loading ? '-' : stats.activeSessions}
+                  {loading ? '-' : (departmentStats?.userStats.averageUsersPerDepartment || 0)}
                 </p>
               </div>
             </div>
@@ -305,6 +340,11 @@ const AdminPage: React.FC = () => {
       <AdminUserModal
         isOpen={showUserModal}
         onClose={() => setShowUserModal(false)}
+      />
+
+      <AdminDepartmentModal
+        isOpen={showDepartmentModal}
+        onClose={() => setShowDepartmentModal(false)}
       />
 
       <AdminAnalyticsModal

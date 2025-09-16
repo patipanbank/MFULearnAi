@@ -1,7 +1,7 @@
 import { getDatabase } from '../lib/mongodb';
 import { User, UserRole } from '../models/user';
 import { verify_password, get_password_hash } from '../utils/security';
-import { ensure_department_exists } from './departmentService';
+import { departmentService } from './departmentService';
 import mongoose from 'mongoose';
 
 class UserService {
@@ -63,7 +63,7 @@ class UserService {
 
     const department_name = profile.department?.toLowerCase() || '';
     if (department_name) {
-      await ensure_department_exists(department_name);
+      await departmentService.ensureDepartmentExists(department_name);
     }
     
     let groups = profile.groups || [];
