@@ -11,10 +11,9 @@ import {
   FiBookmark,
   FiTrash2
 } from 'react-icons/fi';
-import { useLayoutStore, useUIStore, useChatStore } from '../../stores';
+import { useLayoutStore, useUIStore, useChatStore, useAuthStore } from '../../stores';
 import { cn, formatDate } from '../../lib/utils';
 import PreferencesModal from '../PreferencesModal';
-import SettingsModal from '../SettingsModal';
 
 // Add custom icon styles
 const iconBaseStyle = "transition-colors duration-200";
@@ -38,13 +37,14 @@ const Sidebar: React.FC = () => {
     setSidebarHovered
   } = useLayoutStore();
   const { openDropdowns, toggleDropdown, closeDropdown } = useUIStore();
-  const { 
-    chatHistory, 
-    fetchChatHistory, 
-    loadChat, 
-    deleteChat, 
+  const { user } = useAuthStore();
+  const {
+    chatHistory,
+    fetchChatHistory,
+    loadChat,
+    deleteChat,
     pinChat,
-    createNewChat 
+    createNewChat
   } = useChatStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,7 +52,6 @@ const Sidebar: React.FC = () => {
 
   // Modal states
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false);
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   const settingsDropdownId = 'settings-dropdown';
   const isSettingsOpen = openDropdowns.includes(settingsDropdownId);
@@ -74,6 +73,9 @@ const Sidebar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [closeDropdown, settingsDropdownId]);
 
+  // Check if user is SuperAdmin
+  const isSuperAdmin = user?.role === 'SuperAdmin';
+
   const settingsItems = [
     {
       id: 'knowledge',
@@ -93,17 +95,18 @@ const Sidebar: React.FC = () => {
       path: '/agent',
       iconColor: iconColors.user
     },
-    {
-      id: 'settings',
-      label: 'Settings',
+    ...(isSuperAdmin ? [{
+      id: 'admin',
+      label: 'System Admin',
       icon: FiSettings,
-      description: 'App settings and preferences',
-      type: 'modal',
+      description: 'System administration panel',
+      type: 'route',
+      path: '/admin',
       iconColor: iconColors.settings
-    },
+    }] : []),
     {
       id: 'preferences',
-      label: 'Quick Preferences',
+      label: 'Preferences',
       icon: FiSliders,
       description: 'Theme and display options',
       type: 'modal',
@@ -120,9 +123,6 @@ const Sidebar: React.FC = () => {
       
       // Open appropriate modal
       switch (item.id) {
-        case 'settings':
-          setSettingsModalOpen(true);
-          break;
         case 'preferences':
           setPreferencesModalOpen(true);
           break;
@@ -410,10 +410,6 @@ const Sidebar: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <SettingsModal
-        isOpen={settingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
-      />
       <PreferencesModal
         isOpen={preferencesModalOpen}
         onClose={() => setPreferencesModalOpen(false)}

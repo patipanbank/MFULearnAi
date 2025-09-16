@@ -10,6 +10,7 @@ import LogoutSuccessPage from '../pages/LogoutSuccessPage';
 import ChatPage from '../pages/ChatPage';
 import AgentPage from '../pages/AgentPage';
 import SearchPage from '../pages/SearchPage';
+import AdminPage from '../pages/AdminPage';
 import Toast from '../shared/ui/Toast';
 import Loading from '../shared/ui/Loading';
 import { useSettingsStore } from '../shared/stores/settingsStore';
@@ -72,6 +73,10 @@ function App() {
 
       {/* Protected Routes with Layout */}
       <Route element={<AuthGuard />}>
+        {/* Admin Page - No Layout */}
+        <Route path="/admin" element={<AdminPage />} />
+
+        {/* Other Protected Routes with Layout */}
         <Route path="/*" element={
           <Layout>
             <Routes>
