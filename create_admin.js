@@ -16,6 +16,29 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
+
+// Load .env file if it exists
+function loadEnvFile() {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    console.log('📄 Loading environment variables from .env file...');
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    const envVars = envContent.split('\n').filter(line => {
+      return line.trim() && !line.trim().startsWith('#') && line.includes('=');
+    });
+
+    envVars.forEach(line => {
+      const [key, ...valueParts] = line.split('=');
+      const value = valueParts.join('=').replace(/^"|"$/g, '').trim();
+      if (key && value && !process.env[key]) {
+        process.env[key] = value;
+      }
+    });
+    console.log('✅ Environment variables loaded from .env\n');
+  }
+}
 
 // User Role enum
 const UserRole = {
@@ -109,11 +132,16 @@ function isValidEmail(email) {
 // Main function
 async function createAdmin() {
   try {
+    // Load .env file first
+    loadEnvFile();
+
     console.log('🚀 MFU Learn AI - Admin Creation Script');
     console.log('=====================================\n');
 
     // Get MongoDB connection string
+    // Try different MongoDB environment variable names
     const mongoUri = process.env.MONGODB_URI ||
+                    process.env.DATABASE_URL ||
                     await askQuestion('📍 MongoDB URI (default: mongodb://root:1234@localhost:27017/mfu_chatbot?authSource=admin): ') ||
                     'mongodb://root:1234@localhost:27017/mfu_chatbot?authSource=admin';
 
