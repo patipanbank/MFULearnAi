@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const chatService_1 = require("../services/chatService");
 const auth_1 = require("../middleware/auth");
+const adminMiddleware_1 = require("../middleware/adminMiddleware");
 const router = express_1.default.Router();
 router.get('/', auth_1.authenticateJWT, async (req, res) => {
     try {
@@ -240,14 +241,8 @@ router.delete('/:chatId', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.get('/memory/stats', auth_1.authenticateJWT, async (req, res) => {
+router.get('/memory/stats', auth_1.authenticateJWT, adminMiddleware_1.superAdminMiddleware, async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied'
-            });
-        }
         const stats = chatService_1.chatService.getStats();
         return res.json({
             success: true,
@@ -262,14 +257,8 @@ router.get('/memory/stats', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
-router.get('/stats/overview', auth_1.authenticateJWT, async (req, res) => {
+router.get('/stats/overview', auth_1.authenticateJWT, adminMiddleware_1.superAdminMiddleware, async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied'
-            });
-        }
         const stats = chatService_1.chatService.getStats();
         return res.json({
             success: true,

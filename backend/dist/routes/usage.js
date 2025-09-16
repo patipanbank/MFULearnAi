@@ -22,7 +22,7 @@ router.get('/me', auth_1.authenticateJWT, async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
-router.get('/user/:userId', auth_1.authenticateJWT, adminMiddleware_1.adminMiddleware, async (req, res) => {
+router.get('/user/:userId', auth_1.authenticateJWT, adminMiddleware_1.superAdminMiddleware, async (req, res) => {
     try {
         const { userId } = req.params;
         const quotaInfo = await usageService_1.usageService.getUserQuotaInfo(userId);
@@ -33,7 +33,7 @@ router.get('/user/:userId', auth_1.authenticateJWT, adminMiddleware_1.adminMiddl
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-router.get('/system', auth_1.authenticateJWT, adminMiddleware_1.adminMiddleware, async (req, res) => {
+router.get('/system', auth_1.authenticateJWT, adminMiddleware_1.superAdminMiddleware, async (req, res) => {
     try {
         const totalUsage = await usageService_1.usageService.getTotalUsage();
         res.json(totalUsage);
@@ -43,7 +43,7 @@ router.get('/system', auth_1.authenticateJWT, adminMiddleware_1.adminMiddleware,
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-router.put('/user/:userId/quota', auth_1.authenticateJWT, adminMiddleware_1.adminMiddleware, async (req, res) => {
+router.put('/user/:userId/quota', auth_1.authenticateJWT, adminMiddleware_1.superAdminMiddleware, async (req, res) => {
     try {
         const { userId } = req.params;
         const { tokenQuota, dailyTokenLimit } = req.body;
@@ -56,7 +56,7 @@ router.put('/user/:userId/quota', auth_1.authenticateJWT, adminMiddleware_1.admi
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-router.post('/user/:userId/reset', auth_1.authenticateJWT, adminMiddleware_1.adminMiddleware, async (req, res) => {
+router.post('/user/:userId/reset', auth_1.authenticateJWT, adminMiddleware_1.superAdminMiddleware, async (req, res) => {
     try {
         const { userId } = req.params;
         await usageService_1.usageService.resetUserUsage(userId);

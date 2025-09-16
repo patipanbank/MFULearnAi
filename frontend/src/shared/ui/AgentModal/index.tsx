@@ -146,7 +146,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
       setFormData(normalizedAgent);
     } else {
       // Reset to default for new agent creation
-      const defaultPermission = availablePermissions.length > 0 ? availablePermissions[0].value : 'PRIVATE';
+      const defaultPermission = availablePermissions.length > 0 ? availablePermissions[0].value as 'PUBLIC' | 'DEPARTMENT' | 'PRIVATE' : 'PRIVATE';
       setFormData({
         name: '',
         description: '',

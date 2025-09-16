@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const queueService_1 = require("../services/queueService");
 const auth_1 = require("../middleware/auth");
+const adminMiddleware_1 = require("../middleware/adminMiddleware");
 const router = express_1.default.Router();
 router.use(auth_1.authenticateJWT, auth_1.requireAnyRole);
 router.get('/status/:jobId', async (req, res) => {
@@ -41,12 +42,8 @@ router.get('/user/jobs', async (req, res) => {
         return res.status(500).json({ error: 'Failed to get user jobs' });
     }
 });
-router.get('/stats', async (req, res) => {
+router.get('/stats', auth_1.authenticateJWT, adminMiddleware_1.superAdminMiddleware, async (req, res) => {
     try {
-        const user = req.user;
-        if (user.role !== 'Admin' && user.role !== 'SuperAdmin') {
-            return res.status(403).json({ error: 'Admin access required' });
-        }
         const stats = await queueService_1.queueService.getQueueStats();
         return res.json(stats);
     }
@@ -55,12 +52,8 @@ router.get('/stats', async (req, res) => {
         return res.status(500).json({ error: 'Failed to get queue stats' });
     }
 });
-router.post('/cleanup', async (req, res) => {
+router.post('/cleanup', auth_1.authenticateJWT, adminMiddleware_1.superAdminMiddleware, async (req, res) => {
     try {
-        const user = req.user;
-        if (user.role !== 'Admin' && user.role !== 'SuperAdmin') {
-            return res.status(403).json({ error: 'Admin access required' });
-        }
         await queueService_1.queueService.cleanupOldJobs();
         return res.json({ message: 'Cleanup completed successfully' });
     }

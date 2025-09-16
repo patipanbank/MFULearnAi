@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AgentExecutionModel = exports.AgentTemplateModel = exports.AgentModel = exports.AgentExecutionStatus = exports.AgentToolType = void 0;
+exports.AgentExecutionModel = exports.AgentTemplateModel = exports.AgentModel = exports.AgentPermission = exports.AgentExecutionStatus = exports.AgentToolType = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 var AgentToolType;
 (function (AgentToolType) {
@@ -53,6 +53,12 @@ var AgentExecutionStatus;
     AgentExecutionStatus["RESPONDING"] = "responding";
     AgentExecutionStatus["ERROR"] = "error";
 })(AgentExecutionStatus || (exports.AgentExecutionStatus = AgentExecutionStatus = {}));
+var AgentPermission;
+(function (AgentPermission) {
+    AgentPermission["PUBLIC"] = "PUBLIC";
+    AgentPermission["PRIVATE"] = "PRIVATE";
+    AgentPermission["DEPARTMENT"] = "DEPARTMENT";
+})(AgentPermission || (exports.AgentPermission = AgentPermission = {}));
 const AgentToolSchema = new mongoose_1.Schema({
     id: { type: String, required: true },
     name: { type: String, required: true },
@@ -93,6 +99,12 @@ const AgentSchema = new mongoose_1.Schema({
     tools: { type: [AgentToolSchema], default: [] },
     temperature: { type: Number, default: 0.7 },
     maxTokens: { type: Number, default: 4000 },
+    permission: {
+        type: String,
+        enum: Object.values(AgentPermission),
+        default: AgentPermission.PRIVATE
+    },
+    department: { type: String },
     isPublic: { type: Boolean, default: false },
     tags: { type: [String], default: [] },
     createdBy: { type: String, required: true },

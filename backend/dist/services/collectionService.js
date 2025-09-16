@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.collectionService = exports.CollectionService = void 0;
 const collection_1 = require("../models/collection");
+const user_1 = require("../models/user");
 class CollectionService {
     constructor() {
         this.model = collection_1.Collection;
@@ -22,19 +23,38 @@ class CollectionService {
         return this.model.findById(collectionId).exec();
     }
     canUserModifyCollection(user, collection) {
+        if (!collection || !user) {
+            return false;
+        }
+        if (collection.createdBy === user.username) {
+            return true;
+        }
+        if (collection.permission === 'DEPARTMENT') {
+            return (collection.createdBy === user.username &&
+                (user.role === user_1.UserRole.STAFFS || user.role === user_1.UserRole.ADMIN || user.role === user_1.UserRole.SUPER_ADMIN));
+        }
+        if (collection.permission === 'PUBLIC') {
+            return (collection.createdBy === user.username &&
+                (user.role === user_1.UserRole.ADMIN || user.role === user_1.UserRole.SUPER_ADMIN));
+        }
         if (collection.permission === 'PRIVATE') {
             return collection.createdBy === user.username;
         }
-        if (collection.permission === 'PUBLIC') {
-            return user.role === 'Admin' || user.role === 'SuperAdmin';
-        }
-        if (collection.permission === 'DEPARTMENT') {
-            return collection.createdBy === user.username;
-        }
-        if (user.role === 'Admin' || user.role === 'SuperAdmin') {
-            return true;
-        }
         return false;
+    }
+    canUserCreateCollection(user, permission) {
+        if (!user)
+            return false;
+        switch (permission) {
+            case 'PRIVATE':
+                return true;
+            case 'DEPARTMENT':
+                return user.role === user_1.UserRole.STAFFS || user.role === user_1.UserRole.ADMIN || user.role === user_1.UserRole.SUPER_ADMIN;
+            case 'PUBLIC':
+                return user.role === user_1.UserRole.ADMIN || user.role === user_1.UserRole.SUPER_ADMIN;
+            default:
+                return false;
+        }
     }
     canUserAccessCollection(user, collection) {
         if (collection.permission === 'PUBLIC') {
@@ -47,7 +67,7 @@ class CollectionService {
             return (collection.createdBy === user.username ||
                 user.department === collection.department);
         }
-        if (user.role === 'Admin' || user.role === 'SuperAdmin') {
+        if (user.role === user_1.UserRole.ADMIN || user.role === user_1.UserRole.SUPER_ADMIN) {
             return true;
         }
         return false;
@@ -56,6 +76,12 @@ class CollectionService {
         return this.model.find({}).exec();
     }
     async createCollection(name, permission, user, modelId) {
+        if (!this.canUserCreateCollection(user, permission)) {
+            throw new Error(`You don't have permission to create ${permission} collections`);
+        }
+        if (permission === 'DEPARTMENT' && !user.department) {
+            throw new Error('User must have a department to create department collections');
+        }
         if (!name || typeof name !== 'string' || !name.trim()) {
             throw new Error('Collection name cannot be empty');
         }
@@ -73,10 +99,12 @@ class CollectionService {
             name: trimmed,
             permission,
             createdBy: user.username,
-            department: user.department,
             createdAt: new Date(),
             updatedAt: new Date()
         };
+        if (permission === 'DEPARTMENT') {
+            doc.department = user.department;
+        }
         if (modelId)
             doc.modelId = modelId;
         const collection = new this.model(doc);
@@ -89,7 +117,7 @@ class CollectionService {
                 if (!existingCollection) {
                     return null;
                 }
-                const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
+                const isAdmin = user.role === user_1.UserRole.ADMIN || user.role === user_1.UserRole.SUPER_ADMIN;
                 if (existingCollection.permission === 'PRIVATE') {
                     if (existingCollection.createdBy !== user.username && !isAdmin) {
                         return null;
@@ -139,7 +167,7 @@ class CollectionService {
                 if (!existingCollection) {
                     return false;
                 }
-                const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
+                const isAdmin = user.role === user_1.UserRole.ADMIN || user.role === user_1.UserRole.SUPER_ADMIN;
                 if (existingCollection.permission === 'PRIVATE') {
                     if (existingCollection.createdBy !== user.username && !isAdmin) {
                         return false;
@@ -263,7 +291,7 @@ class CollectionService {
             if (collection.permission === 'PUBLIC') {
                 return true;
             }
-            if (user && (user.role === 'Admin' || user.role === 'SuperAdmin')) {
+            if (user && (user.role === user_1.UserRole.ADMIN || user.role === user_1.UserRole.SUPER_ADMIN)) {
                 return true;
             }
             if (user && collection.createdBy === user.username) {

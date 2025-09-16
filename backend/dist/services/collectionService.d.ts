@@ -17,6 +17,7 @@ export declare class CollectionService {
         __v: number;
     }) | null>;
     canUserModifyCollection(user: any, collection: any): boolean;
+    canUserCreateCollection(user: any, permission: string): boolean;
     canUserAccessCollection(user: any, collection: any): boolean;
     getAllCollections(): Promise<ICollection[]>;
     createCollection(name: string, permission: string, user: any, modelId?: string): Promise<import("mongoose").Document<unknown, {}, ICollection, {}> & ICollection & Required<{

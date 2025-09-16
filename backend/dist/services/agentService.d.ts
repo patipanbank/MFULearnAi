@@ -1,10 +1,13 @@
 import { AgentTemplate } from '../models/agent';
 export declare class AgentService {
     constructor();
+    canUserCreateAgent(user: any, permission: string): boolean;
+    canUserAccessAgent(user: any, agent: any): boolean;
+    canUserModifyAgent(user: any, agent: any): boolean;
     getAllAgents(userId?: string): Promise<any[]>;
     getAgentById(agentId: string): Promise<any | null>;
     private getDefaultAgent;
-    createAgent(agentData: any): Promise<any>;
+    createAgent(agentData: any, user?: any): Promise<any>;
     updateAgent(agentId: string, updates: any, userId?: string): Promise<any | null>;
     deleteAgent(agentId: string, userId?: string): Promise<boolean>;
     getAgentTemplates(): Promise<AgentTemplate[]>;

@@ -38,6 +38,11 @@ export interface AgentExecution {
     endTime?: Date;
     tokenUsage: TokenUsage;
 }
+export declare enum AgentPermission {
+    PUBLIC = "PUBLIC",
+    PRIVATE = "PRIVATE",
+    DEPARTMENT = "DEPARTMENT"
+}
 export interface Agent extends Document {
     id: string;
     name: string;
@@ -48,6 +53,8 @@ export interface Agent extends Document {
     tools: AgentTool[];
     temperature: number;
     maxTokens: number;
+    permission: AgentPermission;
+    department?: string;
     isPublic: boolean;
     tags: string[];
     createdBy: string;
