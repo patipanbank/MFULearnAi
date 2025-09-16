@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiUsers, FiPlus, FiEdit, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { FiUsers, FiPlus, FiEdit, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 import { useUIStore } from '../stores';
 import { api } from '../lib/api';
+import UniversalModal from './UniversalModal';
 
 interface Department {
   _id: string;
@@ -172,63 +173,57 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
     dept.displayName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <FiUsers className="h-6 w-6 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Department Management</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
-          >
-            <FiX className="h-5 w-5" />
-          </button>
-        </div>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="department-management"
+      title="Department Management"
+      subtitle="Manage organizational departments and user distribution"
+      headerIcon={<FiUsers className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
+    >
 
-        <div className="flex h-[calc(90vh-120px)]">
-          {/* Department List */}
-          <div className="flex-1 flex flex-col">
-            {/* Controls */}
-            <div className="p-6 border-b border-border">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <div className="flex-1 max-w-md">
-                  <input
-                    type="text"
-                    placeholder="Search departments..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="input w-full"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleRecalculate}
-                    disabled={loading}
-                    className="btn-ghost flex items-center space-x-2"
-                    title="Recalculate user counts for all departments"
-                  >
-                    <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    <span>Sync Counts</span>
-                  </button>
-                  <button
-                    onClick={() => setShowCreateForm(true)}
-                    className="btn-primary flex items-center space-x-2"
-                  >
-                    <FiPlus className="h-4 w-4" />
-                    <span>Add Department</span>
-                  </button>
-                </div>
+      <div className="flex h-full">
+        {/* Department List */}
+        <div className="flex-1 flex flex-col">
+          {/* Controls */}
+          <div className="p-6 border-b border-border">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex-1 max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search departments..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="input w-full"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRecalculate}
+                  disabled={loading}
+                  className="btn-ghost flex items-center space-x-2"
+                  title="Recalculate user counts for all departments"
+                >
+                  <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span>Sync Counts</span>
+                </button>
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="btn-primary flex items-center space-x-2"
+                >
+                  <FiPlus className="h-4 w-4" />
+                  <span>Add Department</span>
+                </button>
               </div>
             </div>
+          </div>
 
-            {/* Department List */}
-            <div className="flex-1 overflow-y-auto p-6">
+          {/* Department List */}
+          <div className="flex-1 overflow-y-auto p-6">
               {loading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -305,7 +300,6 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
                   ))}
                 </div>
               )}
-            </div>
           </div>
 
           {/* Create/Edit Form */}
@@ -384,7 +378,7 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
           )}
         </div>
       </div>
-    </div>
+    </UniversalModal>
   );
 };
 

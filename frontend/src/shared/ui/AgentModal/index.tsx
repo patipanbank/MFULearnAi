@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiX, FiPlus, FiTrash2, FiGlobe, FiLock, FiUsers } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiGlobe, FiLock, FiUsers, FiSettings } from 'react-icons/fi';
 import { useAgentStore, useAuthStore } from '../../stores';
 import { api } from '../../lib/api';
+import UniversalModal from '../UniversalModal';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
 
 interface AgentModalProps {
@@ -232,25 +233,20 @@ const AgentModal: React.FC<AgentModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content max-w-4xl w-full max-h-90vh overflow-y-auto">
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="agent-config"
+      title={isEditing ? "Edit Agent" : "Create Agent"}
+      subtitle="Configure AI agent with tools and knowledge"
+      headerIcon={<FiSettings className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
+    >
         <form onSubmit={handleSubmit}>
-          {/* Header */}
-          <div className="p-6 border-b border-border flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-primary">
-              {isEditing ? 'Edit Agent' : 'Create New Agent'}
-            </h2>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="btn-ghost p-2"
-            >
-              <FiX className="h-5 w-5" />
-            </button>
-          </div>
 
           {/* Content */}
           <div className="p-6 space-y-6">
@@ -576,8 +572,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </UniversalModal>
   );
 };
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiBarChart, FiUsers, FiTrendingUp, FiActivity, FiRefreshCw } from 'react-icons/fi';
+import { FiBarChart, FiUsers, FiTrendingUp, FiActivity, FiRefreshCw } from 'react-icons/fi';
 import { useUIStore } from '../stores';
 import { api } from '../lib/api';
+import UniversalModal from './UniversalModal';
 
 interface UserStats {
   total: number;
@@ -96,40 +97,24 @@ const AdminAnalyticsModal: React.FC<AnalyticsModalProps> = ({ isOpen, onClose })
     { id: 'activity', name: 'Activity', icon: FiActivity }
   ];
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <FiBarChart className="h-6 w-6 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">System Analytics</h2>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={fetchAnalytics}
-              disabled={loading}
-              className="btn-ghost flex items-center space-x-2"
-            >
-              <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
-            >
-              <FiX className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="analytics"
+      title="System Analytics"
+      subtitle="View system statistics and usage data"
+      headerIcon={<FiBarChart className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
+    >
 
-        <div className="flex h-[calc(90vh-120px)]">
-          {/* Sidebar */}
-          <div className="w-48 border-r border-border bg-muted/30">
-            <nav className="p-4 space-y-2">
-              {tabs.map((tab) => {
+      <div className="flex h-full">
+        {/* Sidebar */}
+        <div className="w-48 border-r border-border bg-muted/30 flex-shrink-0">
+          <nav className="p-4 space-y-2">
+            {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
@@ -151,15 +136,27 @@ const AdminAnalyticsModal: React.FC<AnalyticsModalProps> = ({ isOpen, onClose })
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-primary">Analytics Dashboard</h3>
+                <button
+                  onClick={fetchAnalytics}
+                  disabled={loading}
+                  className="btn-ghost flex items-center space-x-2"
+                >
+                  <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Data</span>
+                </button>
               </div>
-            ) : (
-              <div className="p-6">
-                {activeTab === 'overview' && (
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-semibold text-primary">System Overview</h3>
+
+              {loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <div>
+                  {activeTab === 'overview' && (
+                    <div className="space-y-6">
 
                     {/* Key Metrics */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -420,13 +417,13 @@ const AdminAnalyticsModal: React.FC<AnalyticsModalProps> = ({ isOpen, onClose })
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+    </UniversalModal>
   );
 };
 

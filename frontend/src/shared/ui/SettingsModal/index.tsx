@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiSettings, FiX, FiDownload, FiUpload, FiDatabase, FiUser, FiEdit, FiCopy, FiTrash2, FiPlus, FiKey, FiShield } from 'react-icons/fi';
+import { FiSettings, FiDownload, FiUpload, FiDatabase, FiUser, FiEdit, FiCopy, FiTrash2, FiPlus, FiKey, FiShield } from 'react-icons/fi';
 import { useSettingsStore, useUIStore, useAuthStore } from '../../stores';
 import { api } from '../../lib/api';
+import UniversalModal from '../UniversalModal';
 import PreferencesModal from '../PreferencesModal';
 import AdminUserModal from '../AdminUserModal';
 import AdminAnalyticsModal from '../AdminAnalyticsModal';
@@ -183,19 +184,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content max-w-4xl w-full max-h-[90vh] overflow-hidden flex">
-        {/* Sidebar */}
-        <div className="w-64 sidebar border-r border-border p-4">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-primary">Settings</h2>
-            <button
-              onClick={onClose}
-              className="btn-ghost p-1"
-            >
-              <FiX className="h-5 w-5" />
-            </button>
-          </div>
+    <>
+      <UniversalModal
+        isOpen={isOpen}
+        onClose={onClose}
+        modalType="settings"
+        title="Settings"
+        subtitle="Manage your preferences and system configuration"
+        headerIcon={<FiSettings className="h-6 w-6 text-primary" />}
+        closeOnOutsideClick={true}
+        closeOnEscape={true}
+        blur={true}
+      >
+        <div className="flex h-full">
+          {/* Sidebar */}
+          <div className="w-64 sidebar border-r border-border p-4">
           
           <nav className="space-y-1">
             {tabs.map((tab) => {
@@ -578,8 +581,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           )}
         </div>
       </div>
+      </UniversalModal>
 
-      {/* Admin Modals */}
+      {/* Nested Modals */}
+      <PreferencesModal
+        isOpen={showPreferencesModal}
+        onClose={() => setShowPreferencesModal(false)}
+      />
+
       <AdminUserModal
         isOpen={showUserModal}
         onClose={() => setShowUserModal(false)}
@@ -589,7 +598,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         isOpen={showAnalyticsModal}
         onClose={() => setShowAnalyticsModal(false)}
       />
-    </div>
+    </>
   );
 };
 

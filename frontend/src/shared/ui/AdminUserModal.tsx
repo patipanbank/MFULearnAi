@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiX, FiUsers, FiSearch, FiEdit, FiTrash2, FiPlus, FiChevronLeft, FiChevronRight, FiRefreshCw } from 'react-icons/fi';
+import { FiUsers, FiSearch, FiEdit, FiTrash2, FiPlus, FiChevronLeft, FiChevronRight, FiRefreshCw } from 'react-icons/fi';
 import { useUIStore } from '../stores';
 import { api } from '../lib/api';
+import UniversalModal from './UniversalModal';
 
 interface User {
   _id: string;
@@ -230,36 +231,25 @@ const AdminUserModal: React.FC<UserModalProps> = ({ isOpen, onClose }) => {
     Students: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background rounded-lg shadow-xl max-w-7xl w-full max-h-[95vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <FiUsers className="h-6 w-6 text-primary" />
-            <div>
-              <h2 className="text-xl font-semibold text-primary">User Management</h2>
-              <p className="text-sm text-secondary">
-                {pagination.total.toLocaleString()} total users
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
-          >
-            <FiX className="h-5 w-5" />
-          </button>
-        </div>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="user-management"
+      title="User Management"
+      subtitle={`${pagination.total.toLocaleString()} total users`}
+      headerIcon={<FiUsers className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
+    >
 
-        <div className="flex h-[calc(95vh-120px)]">
-          {/* User List */}
-          <div className="flex-1 flex flex-col">
-            {/* Filters and Controls */}
-            <div className="p-6 border-b border-border bg-muted/30">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+      <div className="flex h-full">
+        {/* User List */}
+        <div className="flex-1 flex flex-col">
+          {/* Filters and Controls */}
+          <div className="p-6 border-b border-border bg-muted/30">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 {/* Search */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-primary mb-1">
@@ -590,8 +580,7 @@ const AdminUserModal: React.FC<UserModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </UniversalModal>
   );
 };
 
