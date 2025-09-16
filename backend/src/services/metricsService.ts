@@ -100,9 +100,9 @@ export interface HealthMetrics {
 }
 
 class MetricsService extends EventEmitter {
-  private performanceMetrics: PerformanceMetrics;
-  private businessMetrics: BusinessMetrics;
-  private healthMetrics: HealthMetrics;
+  private performanceMetrics!: PerformanceMetrics;
+  private businessMetrics!: BusinessMetrics;
+  private healthMetrics!: HealthMetrics;
   private metricsInterval: NodeJS.Timeout | null = null;
   private healthCheckInterval: NodeJS.Timeout | null = null;
 
