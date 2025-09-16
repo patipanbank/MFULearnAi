@@ -322,7 +322,7 @@ const UniversalModal: React.FC<UniversalModalProps> = ({
         {/* Content */}
         <div
           className={`
-            flex-1 overflow-hidden
+            flex-1 overflow-y-auto
             ${finalHeight === 'auto' ? '' : 'flex flex-col'}
           `}
           id={ariaDescribedBy || 'modal-content'}
