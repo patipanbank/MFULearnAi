@@ -2,25 +2,18 @@ import { ChatModel, Chat, ChatMessage } from '../models/chat';
 import { wsManager } from '../utils/websocketManager';
 import { agentService } from './agentService';
 import { usageService } from './usageService';
-import { getLLM } from '../agent/llmFactory';
-import { toolRegistry, createMemoryTool, createRetrievalTools, ToolFunction } from '../agent/toolRegistry';
-import { createPromptTemplate } from '../agent/promptFactory';
-import { createAgent } from '../agent/agentFactory';
-import { redis } from '../lib/redis';
+import { agentCacheManager, AgentConfig } from './agentCacheManager';
 import { smartMemoryService } from './smartMemoryService';
 import { chromaService } from './chromaService';
 import { storageService } from './storageService';
+import { createServiceErrorHandler } from '../utils/serviceError';
 
 export class ChatService {
+  private errorHandler = createServiceErrorHandler('ChatService');
+
   constructor() {
     console.log('✅ Chat service initialized');
   }
-
-  // Cache agent executors per session/config to reduce recreation overhead
-  private agentCache: Map<string, {
-    signature: string;
-    executor: any; // AgentExecutor compatible
-  }> = new Map();
 
   public async createChat(userId: string, name: string, agentId?: string): Promise<Chat> {
     const chat = new ChatModel({
@@ -38,24 +31,33 @@ export class ChatService {
     return chat;
   }
 
-  public async getChat(chatId: string, userId: string): Promise<Chat | null> {
-    console.log(`🔍 Looking for chat: ${chatId} for user: ${userId}`);
-    
-    const chat = await ChatModel.findOne({ _id: chatId, userId });
-    
+  public async getChat(chatId: string, userId: string, includeDeleted: boolean = false): Promise<Chat | null> {
+    console.log(`🔍 Looking for chat: ${chatId} for user: ${userId} (includeDeleted: ${includeDeleted})`);
+
+    const query: any = { _id: chatId, userId };
+    if (!includeDeleted) {
+      query.isDeleted = { $ne: true };
+    }
+
+    const chat = await ChatModel.findOne(query);
+
     if (chat) {
-      console.log(`✅ Found chat: ${chatId}`);
+      console.log(`✅ Found chat: ${chatId} ${chat.isDeleted ? '(deleted)' : ''}`);
     } else {
       console.log(`❌ Chat not found: ${chatId}`);
-      // Let's also check if the chat exists without user filter
+      // Let's also check if the chat exists without user filter or is deleted
       const chatWithoutUser = await ChatModel.findById(chatId);
       if (chatWithoutUser) {
-        console.log(`⚠️ Chat exists but belongs to user: ${chatWithoutUser.userId}`);
+        if (chatWithoutUser.userId !== userId) {
+          console.log(`⚠️ Chat exists but belongs to user: ${chatWithoutUser.userId}`);
+        } else if (chatWithoutUser.isDeleted && !includeDeleted) {
+          console.log(`⚠️ Chat exists but is deleted`);
+        }
       } else {
         console.log(`❌ Chat doesn't exist in database: ${chatId}`);
       }
     }
-    
+
     return chat;
   }
 
@@ -295,42 +297,18 @@ export class ChatService {
         }
       }
 
-      // Create/reuse LangChain agent using existing system
-      console.log(`🔧 Setting up LangChain agent...`);
-      const llm = getLLM(modelId, {
+      // Get agent from cache using smart caching strategy
+      console.log(`🔧 Getting agent from cache manager...`);
+      const agentCacheConfig: AgentConfig = {
+        modelId,
         temperature,
         maxTokens,
-        streaming: true
-      });
+        systemPrompt,
+        collectionNames,
+        sessionId: chatId
+      };
 
-      // Setup tools using existing system
-      const sessionTools = createMemoryTool(chatId);
-      const allTools: { [name: string]: ToolFunction } = {};
-
-      // Add registry tools
-      for (const [k, v] of Object.entries(toolRegistry)) {
-        allTools[k] = v.func;
-      }
-
-      // Add session tools
-      for (const [k, v] of Object.entries(sessionTools)) {
-        allTools[k] = v.func;
-      }
-
-      // Add retrieval tools if collections specified
-      if (collectionNames && collectionNames.length > 0) {
-        const retrievalTools = createRetrievalTools(collectionNames);
-        for (const [name, tool] of Object.entries(retrievalTools)) {
-          allTools[name] = (tool as any).func;
-        }
-      }
-
-      const agent = await createAgent(llm, allTools, systemPrompt, {
-        modelId,
-        sessionId: chatId,
-        temperature,
-        maxTokens
-      });
+      const agent = await agentCacheManager.getAgent(agentCacheConfig);
 
       // Get chat history for context
       const chatHistory = chat.messages.map(msg => ({
@@ -460,32 +438,106 @@ export class ChatService {
     );
   }
 
-  public async getUserChats(userId: string): Promise<Chat[]> {
-    const chats = await ChatModel.find({ userId })
+  public async getUserChats(userId: string, includeDeleted: boolean = false): Promise<Chat[]> {
+    const query: any = { userId };
+
+    if (!includeDeleted) {
+      query.isDeleted = { $ne: true }; // Only get non-deleted chats
+    }
+
+    const chats = await ChatModel.find(query)
       .sort({ updatedAt: -1 })
       .exec();
 
     return chats;
   }
 
+  /**
+   * Get user's deleted chats (for trash/recovery functionality)
+   */
+  public async getUserDeletedChats(userId: string): Promise<Chat[]> {
+    const chats = await ChatModel.find({
+      userId,
+      isDeleted: true
+    })
+      .sort({ deletedAt: -1 })
+      .exec();
+
+    return chats;
+  }
+
+  /**
+   * Soft delete a chat (move to trash)
+   */
   public async deleteChat(chatId: string, userId: string): Promise<boolean> {
+    const result = await ChatModel.findOneAndUpdate(
+      { _id: chatId, userId, isDeleted: { $ne: true } }, // Don't soft delete already deleted chats
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: userId,
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+
+    const success = !!result;
+
+    if (success) {
+      console.log(`🗑️ Soft deleted chat ${chatId} for user ${userId}`);
+      // Note: Don't clear memory immediately for soft delete - allow for recovery
+    } else {
+      console.log(`❌ Failed to soft delete chat ${chatId} for user ${userId}`);
+    }
+
+    return success;
+  }
+
+  /**
+   * Permanently delete a chat (hard delete)
+   */
+  public async permanentlyDeleteChat(chatId: string, userId: string): Promise<boolean> {
     const result = await ChatModel.deleteOne({ _id: chatId, userId });
     const success = result.deletedCount > 0;
-    
+
     if (success) {
-      console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
-      // Also clear associated memory (Redis + Chroma vectorstore)
+      console.log(`💀 Permanently deleted chat ${chatId} for user ${userId}`);
+      // Clear associated memory for permanent deletion
       try {
         await smartMemoryService.clearSession(chatId);
-        console.log(`🧹 Cleared memory for deleted chat ${chatId}`);
+        console.log(`🧹 Cleared memory for permanently deleted chat ${chatId}`);
       } catch (err) {
-        console.warn(`⚠️ Failed to clear memory for deleted chat ${chatId}:`, err);
+        console.warn(`⚠️ Failed to clear memory for permanently deleted chat ${chatId}:`, err);
       }
     } else {
-      console.log(`❌ Failed to delete chat ${chatId} for user ${userId}`);
+      console.log(`❌ Failed to permanently delete chat ${chatId} for user ${userId}`);
     }
-    
+
     return success;
+  }
+
+  /**
+   * Restore a soft-deleted chat
+   */
+  public async restoreChat(chatId: string, userId: string): Promise<Chat | null> {
+    const chat = await ChatModel.findOneAndUpdate(
+      { _id: chatId, userId, isDeleted: true },
+      {
+        isDeleted: false,
+        deletedAt: undefined,
+        deletedBy: undefined,
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (chat) {
+      console.log(`♻️ Restored chat ${chatId} for user ${userId}`);
+    } else {
+      console.log(`❌ Failed to restore chat ${chatId} for user ${userId}`);
+    }
+
+    return chat;
   }
 
   public async updateChatName(chatId: string, userId: string, name: string): Promise<Chat | null> {
@@ -513,6 +565,83 @@ export class ChatService {
       console.log(`📌 Updated pin status for session ${chatId}: ${isPinned}`);
     }
     
+    return chat;
+  }
+
+  /**
+   * Soft delete a specific message in a chat
+   */
+  public async deleteMessage(chatId: string, messageId: string, userId: string): Promise<boolean> {
+    const result = await ChatModel.updateOne(
+      {
+        _id: chatId,
+        userId,
+        isDeleted: { $ne: true }, // Chat must not be deleted
+        'messages.id': messageId,
+        'messages.isDeleted': { $ne: true } // Message must not already be deleted
+      },
+      {
+        $set: {
+          'messages.$.isDeleted': true,
+          'messages.$.deletedAt': new Date(),
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    const success = result.modifiedCount > 0;
+
+    if (success) {
+      console.log(`🗑️ Soft deleted message ${messageId} in chat ${chatId}`);
+    } else {
+      console.log(`❌ Failed to soft delete message ${messageId} in chat ${chatId}`);
+    }
+
+    return success;
+  }
+
+  /**
+   * Restore a soft-deleted message
+   */
+  public async restoreMessage(chatId: string, messageId: string, userId: string): Promise<boolean> {
+    const result = await ChatModel.updateOne(
+      {
+        _id: chatId,
+        userId,
+        'messages.id': messageId,
+        'messages.isDeleted': true
+      },
+      {
+        $set: {
+          'messages.$.isDeleted': false,
+          'messages.$.deletedAt': undefined,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    const success = result.modifiedCount > 0;
+
+    if (success) {
+      console.log(`♻️ Restored message ${messageId} in chat ${chatId}`);
+    } else {
+      console.log(`❌ Failed to restore message ${messageId} in chat ${chatId}`);
+    }
+
+    return success;
+  }
+
+  /**
+   * Get chat with filtered messages (exclude deleted messages)
+   */
+  public async getChatWithActiveMessages(chatId: string, userId: string): Promise<Chat | null> {
+    const chat = await this.getChat(chatId, userId);
+
+    if (chat) {
+      // Filter out deleted messages
+      chat.messages = chat.messages.filter(msg => !msg.isDeleted);
+    }
+
     return chat;
   }
 
@@ -544,11 +673,32 @@ export class ChatService {
   }
 
   public getStats(): any {
+    const cacheStats = agentCacheManager.getStats();
     return {
       totalChats: 0, // TODO: Implement actual stats
       activeSessions: 0, // TODO: Implement active session count
-      totalMessages: 0
+      totalMessages: 0,
+      agentCache: {
+        totalAgents: cacheStats.totalEntries,
+        maxCacheSize: cacheStats.maxSize,
+        ttlHours: cacheStats.ttlMs / (60 * 60 * 1000),
+        topAgents: cacheStats.entries.slice(0, 5) // Top 5 most used agents
+      }
     };
+  }
+
+  /**
+   * Get detailed agent cache statistics
+   */
+  public getAgentCacheStats() {
+    return agentCacheManager.getStats();
+  }
+
+  /**
+   * Clear agent cache (useful for development/debugging)
+   */
+  public clearAgentCache(): void {
+    agentCacheManager.clearCache();
   }
 }
 

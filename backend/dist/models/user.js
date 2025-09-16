@@ -61,5 +61,16 @@ const userSchema = new mongoose_1.Schema({
     created: { type: Date, default: Date.now },
     updated: { type: Date, default: Date.now }
 });
+userSchema.index({ username: 1 });
+userSchema.index({ email: 1 });
+userSchema.index({ nameID: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ department: 1, role: 1 });
+userSchema.index({ created: -1 });
+userSchema.index({ updated: -1 });
+userSchema.pre('save', function (next) {
+    this.updated = new Date();
+    next();
+});
 exports.User = mongoose_1.default.model('User', userSchema);
 //# sourceMappingURL=user.js.map

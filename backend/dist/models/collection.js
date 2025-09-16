@@ -60,8 +60,22 @@ collectionSchema.set('toJSON', {
         return ret;
     }
 });
-collectionSchema.index({ permission: 1 });
-collectionSchema.index({ department: 1 });
-collectionSchema.index({ createdBy: 1 });
+collectionSchema.index({ permission: 1, updatedAt: -1 });
+collectionSchema.index({ createdBy: 1, updatedAt: -1 });
+collectionSchema.index({ department: 1, permission: 1 });
+collectionSchema.index({ permission: 1, department: 1 });
+collectionSchema.index({ createdBy: 1, permission: 1 });
+collectionSchema.index({ createdAt: -1 });
+collectionSchema.index({ updatedAt: -1 });
+collectionSchema.index({ modelId: 1 });
+collectionSchema.index({
+    name: 'text'
+}, {
+    name: 'collection_name_search'
+});
+collectionSchema.pre('save', function (next) {
+    this.updatedAt = new Date();
+    next();
+});
 exports.Collection = mongoose_1.default.model('Collection', collectionSchema);
 //# sourceMappingURL=collection.js.map

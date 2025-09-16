@@ -5,14 +5,13 @@ const chat_1 = require("../models/chat");
 const websocketManager_1 = require("../utils/websocketManager");
 const agentService_1 = require("./agentService");
 const usageService_1 = require("./usageService");
-const llmFactory_1 = require("../agent/llmFactory");
-const toolRegistry_1 = require("../agent/toolRegistry");
-const agentFactory_1 = require("../agent/agentFactory");
-const memoryService_1 = require("./memoryService");
+const agentCacheManager_1 = require("./agentCacheManager");
+const smartMemoryService_1 = require("./smartMemoryService");
 const storageService_1 = require("./storageService");
+const serviceError_1 = require("../utils/serviceError");
 class ChatService {
     constructor() {
-        this.agentCache = new Map();
+        this.errorHandler = (0, serviceError_1.createServiceErrorHandler)('ChatService');
         console.log('✅ Chat service initialized');
     }
     async createChat(userId, name, agentId) {
@@ -29,17 +28,26 @@ class ChatService {
         console.log(`✅ Created chat session ${chat._id} for user ${userId}`);
         return chat;
     }
-    async getChat(chatId, userId) {
-        console.log(`🔍 Looking for chat: ${chatId} for user: ${userId}`);
-        const chat = await chat_1.ChatModel.findOne({ _id: chatId, userId });
+    async getChat(chatId, userId, includeDeleted = false) {
+        console.log(`🔍 Looking for chat: ${chatId} for user: ${userId} (includeDeleted: ${includeDeleted})`);
+        const query = { _id: chatId, userId };
+        if (!includeDeleted) {
+            query.isDeleted = { $ne: true };
+        }
+        const chat = await chat_1.ChatModel.findOne(query);
         if (chat) {
-            console.log(`✅ Found chat: ${chatId}`);
+            console.log(`✅ Found chat: ${chatId} ${chat.isDeleted ? '(deleted)' : ''}`);
         }
         else {
             console.log(`❌ Chat not found: ${chatId}`);
             const chatWithoutUser = await chat_1.ChatModel.findById(chatId);
             if (chatWithoutUser) {
-                console.log(`⚠️ Chat exists but belongs to user: ${chatWithoutUser.userId}`);
+                if (chatWithoutUser.userId !== userId) {
+                    console.log(`⚠️ Chat exists but belongs to user: ${chatWithoutUser.userId}`);
+                }
+                else if (chatWithoutUser.isDeleted && !includeDeleted) {
+                    console.log(`⚠️ Chat exists but is deleted`);
+                }
             }
             else {
                 console.log(`❌ Chat doesn't exist in database: ${chatId}`);
@@ -218,32 +226,16 @@ class ChatService {
                     console.warn(`⚠️ Failed to get agent config:`, error);
                 }
             }
-            console.log(`🔧 Setting up LangChain agent...`);
-            const llm = (0, llmFactory_1.getLLM)(modelId, {
+            console.log(`🔧 Getting agent from cache manager...`);
+            const agentCacheConfig = {
+                modelId,
                 temperature,
                 maxTokens,
-                streaming: true
-            });
-            const sessionTools = (0, toolRegistry_1.createMemoryTool)(chatId);
-            const allTools = {};
-            for (const [k, v] of Object.entries(toolRegistry_1.toolRegistry)) {
-                allTools[k] = v.func;
-            }
-            for (const [k, v] of Object.entries(sessionTools)) {
-                allTools[k] = v.func;
-            }
-            if (collectionNames && collectionNames.length > 0) {
-                const retrievalTools = (0, toolRegistry_1.createRetrievalTools)(collectionNames);
-                for (const [name, tool] of Object.entries(retrievalTools)) {
-                    allTools[name] = tool.func;
-                }
-            }
-            const agent = await (0, agentFactory_1.createAgent)(llm, allTools, systemPrompt, {
-                modelId,
-                sessionId: chatId,
-                temperature,
-                maxTokens
-            });
+                systemPrompt,
+                collectionNames,
+                sessionId: chatId
+            };
+            const agent = await agentCacheManager_1.agentCacheManager.getAgent(agentCacheConfig);
             const chatHistory = chat.messages.map(msg => ({
                 role: msg.role,
                 content: msg.content,
@@ -334,356 +326,73 @@ class ChatService {
             }
         });
     }
-    async processWithAILegacy(chatId, userMessage, images, config, userId) {
-        try {
-            console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
-            console.log(`🤖 User message: ${userMessage.substring(0, 100)}...`);
-            console.log(`🤖 Images: ${images?.length || 0}`);
-            console.log(`🤖 Config:`, config);
-            const chat = await chat_1.ChatModel.findById(chatId);
-            if (!chat) {
-                throw new Error('Chat not found');
-            }
-            const messageCount = chat.messages.length;
-            const shouldUseMemoryTool = this.shouldUseMemoryTool(messageCount);
-            const shouldUseRedisMemory = this.shouldUseRedisMemory(messageCount);
-            const shouldEmbedMessages = this.shouldEmbedMessages(messageCount);
-            console.log(`🧠 Memory Management: messageCount=${messageCount}, useMemoryTool=${shouldUseMemoryTool}, useRedisMemory=${shouldUseRedisMemory}, shouldEmbed=${shouldEmbedMessages}`);
-            if (shouldEmbedMessages && chat.messages.length > 0) {
-                console.log(`📚 Embedding messages for chat ${chatId} (message count: ${messageCount})`);
-            }
-            const defaultSystemPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
-            const finalSystemPrompt = (config?.systemPrompt || defaultSystemPrompt);
-            const signaturePayload = {
-                modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-                temperature: config?.temperature ?? 0.7,
-                maxTokens: config?.maxTokens ?? 4000,
-                systemPrompt: finalSystemPrompt,
-                collections: (config?.collectionNames || []).slice().sort(),
-                agentId: config?.agentId || null
-            };
-            const signature = JSON.stringify(signaturePayload);
-            let cached = this.agentCache.get(chatId);
-            let agent;
-            if (cached && cached.signature === signature) {
-                console.log(`⚡ Reusing cached agent for chat ${chatId}`);
-                agent = cached.executor;
-            }
-            else {
-                console.log(`🤖 Creating LLM/Agent for chat ${chatId}`);
-                const llm = (0, llmFactory_1.getLLM)(signaturePayload.modelId, {
-                    temperature: signaturePayload.temperature,
-                    maxTokens: signaturePayload.maxTokens,
-                    streaming: true
-                });
-                const sessionTools = (0, toolRegistry_1.createMemoryTool)(chatId);
-                const allTools = {};
-                for (const [k, v] of Object.entries(toolRegistry_1.toolRegistry))
-                    allTools[k] = v.func;
-                for (const [k, v] of Object.entries(sessionTools))
-                    allTools[k] = v.func;
-                if (signaturePayload.collections && signaturePayload.collections.length > 0) {
-                    const retrievalTools = (0, toolRegistry_1.createRetrievalTools)(signaturePayload.collections);
-                    for (const [name, tool] of Object.entries(retrievalTools)) {
-                        allTools[name] = tool.func;
-                        console.log(`🔧 Added retrieval tool: ${name}`);
-                    }
-                }
-                agent = await (0, agentFactory_1.createAgent)(llm, allTools, finalSystemPrompt, {
-                    modelId: signaturePayload.modelId,
-                    sessionId: chatId,
-                    temperature: signaturePayload.temperature,
-                    maxTokens: signaturePayload.maxTokens
-                });
-                this.agentCache.set(chatId, { signature, executor: agent });
-            }
-            const chatFromDb = await chat_1.ChatModel.findById(chatId);
-            if (!chatFromDb)
-                throw new Error(`Chat session ${chatId} not found during AI processing`);
-            let messages = chatFromDb.messages.map(msg => {
-                let enrichedContent = msg.content;
-                if (msg.role === 'user' && Array.isArray(msg.images) && msg.images.length > 0) {
-                    const imagesDesc = msg.images
-                        .map((im, idx) => `#${idx + 1} (${im.mediaType}): ${im.url}`)
-                        .join('\n');
-                    enrichedContent = `${enrichedContent}\n\n[Attached images]\n${imagesDesc}`;
-                }
-                return {
-                    role: msg.role,
-                    content: enrichedContent,
-                    id: msg.id,
-                    timestamp: msg.timestamp
-                };
-            });
-            if (!messages.length || messages[messages.length - 1].role !== 'user') {
-                const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
-                messages.push(userMsg);
-            }
-            const currentMessageCount = messages.length;
-            const useMemoryTool = this.shouldUseMemoryTool(currentMessageCount);
-            const useRedisMemory = this.shouldUseRedisMemory(currentMessageCount);
-            const shouldEmbed = this.shouldEmbedMessages(currentMessageCount);
-            console.log(`🧠 Memory Management: messageCount=${currentMessageCount}, useMemoryTool=${useMemoryTool}, useRedisMemory=${useRedisMemory}, shouldEmbed=${shouldEmbed}`);
-            let preparedImages = [];
-            if (images && images.length > 0) {
-                console.log(`🖼️ Preparing ${images.length} images for multimodal processing...`);
-                preparedImages = await this.prepareImagesForMultimodal(images);
-                const successCount = preparedImages.filter(img => img.base64Data).length;
-                console.log(`✅ Prepared ${successCount}/${images.length} images for multimodal processing`);
-                if (successCount < images.length) {
-                    const failedCount = images.length - successCount;
-                    const failedImages = preparedImages.filter(img => !img.base64Data);
-                    let toastMessage;
-                    if (failedCount === images.length) {
-                        toastMessage = `Unable to process ${failedCount} image${failedCount > 1 ? 's' : ''}. Responding with text only.`;
-                    }
-                    else {
-                        toastMessage = `${failedCount} of ${images.length} images couldn't be processed. Continuing with ${successCount}.`;
-                    }
-                    const errorReasons = failedImages.map(img => img.error).filter(Boolean);
-                    const primaryReason = errorReasons[0];
-                    if (primaryReason) {
-                        if (primaryReason.includes('too large')) {
-                            toastMessage += ' Try using smaller images (max 10MB).';
-                        }
-                        else if (primaryReason.includes('Unsupported format')) {
-                            toastMessage += ' Use JPEG, PNG, GIF, or WebP formats.';
-                        }
-                        else if (primaryReason.includes('Failed to load')) {
-                            toastMessage += ' Some images could not be loaded from storage.';
-                        }
-                    }
-                    if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                            type: 'image_processing_error',
-                            data: {
-                                message: toastMessage,
-                                failedCount,
-                                totalCount: images.length,
-                                successCount,
-                                errors: errorReasons,
-                                timestamp: new Date().toISOString()
-                            }
-                        }));
-                    }
-                }
-            }
-            if (userId) {
-                const quotaCheck = await usageService_1.usageService.checkQuotaAndUsage(userId, 0, 100);
-                if (!quotaCheck.canUse) {
-                    console.warn(`⚠️ Pre-chat quota check failed for user ${userId}: ${quotaCheck.reason}`);
-                    if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                            type: 'quota_exceeded',
-                            data: {
-                                reason: quotaCheck.reason,
-                                timestamp: new Date().toISOString()
-                            }
-                        }));
-                    }
-                    throw new Error(`Token quota exceeded: ${quotaCheck.reason}`);
-                }
-            }
-            console.log(`🤖 Starting agent.run with ${messages.length} messages`);
-            console.log(`🤖 Last message: ${messages[messages.length - 1].content.substring(0, 50)}...`);
-            console.log(`🤖 Images for multimodal: ${preparedImages.filter(img => img.base64Data).length}`);
-            let fullContent = '';
-            let inputTokens = 0;
-            let outputTokens = 0;
-            let assistantMessageId = null;
-            await agent.run(messages, {
-                images: preparedImages.filter(img => img.base64Data),
-                onEvent: async (event) => {
-                    console.log(`🤖 Agent event: ${event.type}`, event.data);
-                    if (event.type === 'chunk') {
-                        const chunkContent = typeof event.data === 'string' ? event.data :
-                            typeof event.data === 'object' && event.data !== null ? JSON.stringify(event.data) :
-                                String(event.data || '');
-                        fullContent += chunkContent;
-                        if (fullContent === chunkContent) {
-                            console.log(`🤖 First chunk received, creating assistant message...`);
-                            const assistantMessage = await this.addMessage(chatId, {
-                                role: 'assistant',
-                                content: chunkContent,
-                            });
-                            assistantMessageId = assistantMessage.id;
-                            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                    type: 'assistant_created',
-                                    data: {
-                                        messageId: assistantMessage.id,
-                                        content: chunkContent
-                                    }
-                                }));
-                            }
-                        }
-                        if (assistantMessageId) {
-                            await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': assistantMessageId }, {
-                                $set: {
-                                    'messages.$.content': fullContent,
-                                    updatedAt: new Date()
-                                }
-                            });
-                            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                    type: 'chunk',
-                                    data: {
-                                        messageId: assistantMessageId,
-                                        delta: chunkContent
-                                    }
-                                }));
-                            }
-                        }
-                    }
-                    else if (event.type === 'tool_start') {
-                        console.log(`🔧 Tool started: ${event.data.tool_name}`);
-                        console.log(`🔧 Tool input: ${event.data.tool_input}`);
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            const toolInput = typeof event.data.tool_input === 'string' ? event.data.tool_input :
-                                typeof event.data.tool_input === 'object' && event.data.tool_input !== null ? JSON.stringify(event.data.tool_input) :
-                                    String(event.data.tool_input || '');
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'tool_start',
-                                data: {
-                                    tool_name: event.data.tool_name,
-                                    tool_input: toolInput
-                                }
-                            }));
-                        }
-                    }
-                    else if (event.type === 'tool_result') {
-                        const output = event.data.output || 'No output available';
-                        console.log(`🔧 Tool completed: ${event.data.tool_name} with result: ${output.substring(0, 100)}...`);
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'tool_result',
-                                data: {
-                                    tool_name: event.data.tool_name,
-                                    output: output
-                                }
-                            }));
-                        }
-                    }
-                    else if (event.type === 'tool_error') {
-                        console.error(`❌ Tool error: ${event.data.error}`);
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'tool_error',
-                                data: {
-                                    tool_name: event.data.tool_name,
-                                    error: event.data.error
-                                }
-                            }));
-                        }
-                    }
-                    else if (event.type === 'assistant_created') {
-                        console.log(`🤖 Assistant message created`, event.data);
-                        const assistantMsg = {
-                            id: event.data.messageId,
-                            role: 'assistant',
-                            content: event.data.content,
-                            timestamp: new Date(),
-                            isStreaming: true,
-                            isComplete: false
-                        };
-                        await this.addMessage(chatId, assistantMsg);
-                    }
-                    else if (event.type === 'end') {
-                        const finalAnswer = typeof event.data.answer === 'string' ? event.data.answer :
-                            typeof event.data.answer === 'object' && event.data.answer !== null ? JSON.stringify(event.data.answer) :
-                                String(event.data.answer || '');
-                        console.log(`🤖 Agent finished with answer: ${finalAnswer.substring(0, 50)}...`);
-                        const chatFromDb = await chat_1.ChatModel.findById(chatId);
-                        if (chatFromDb && chatFromDb.messages.length > 0) {
-                            const lastMessage = chatFromDb.messages[chatFromDb.messages.length - 1];
-                            if (lastMessage.role === 'assistant') {
-                                await chat_1.ChatModel.updateOne({ _id: chatId, 'messages.id': lastMessage.id }, {
-                                    $set: {
-                                        'messages.$.content': finalAnswer,
-                                        updatedAt: new Date()
-                                    }
-                                });
-                                console.log(`🤖 Updated assistant message ${lastMessage.id} with final content`);
-                                if (!assistantMessageId) {
-                                    assistantMessageId = lastMessage.id;
-                                }
-                            }
-                        }
-                        try {
-                            const updated = await chat_1.ChatModel.findById(chatId);
-                            if (updated) {
-                                console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
-                                await memoryService_1.memoryService.setupHybridMemory(chatId, updated.messages);
-                            }
-                        }
-                        catch (memErr) {
-                            console.warn('⚠️ Hybrid memory setup failed:', memErr);
-                        }
-                        if (event.data.inputTokens || event.data.outputTokens) {
-                            inputTokens = event.data.inputTokens || 0;
-                            outputTokens = event.data.outputTokens || 0;
-                            if (userId && (inputTokens > 0 || outputTokens > 0)) {
-                                const updateResult = await usageService_1.usageService.updateUsage(userId, inputTokens, outputTokens);
-                                if (!updateResult.success) {
-                                    console.warn(`⚠️ Usage update failed for user ${userId}: ${updateResult.reason}`);
-                                    if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                                        websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                            type: 'quota_exceeded',
-                                            data: {
-                                                reason: updateResult.reason,
-                                                timestamp: new Date().toISOString()
-                                            }
-                                        }));
-                                    }
-                                }
-                            }
-                        }
-                        if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                            websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({
-                                type: 'end',
-                                data: {
-                                    messageId: assistantMessageId,
-                                    answer: finalAnswer,
-                                    inputTokens,
-                                    outputTokens
-                                }
-                            }));
-                        }
-                    }
-                },
-                maxSteps: 5
-            });
+    async getUserChats(userId, includeDeleted = false) {
+        const query = { userId };
+        if (!includeDeleted) {
+            query.isDeleted = { $ne: true };
         }
-        catch (error) {
-            console.error('❌ Error in processWithAILegacy:', error);
-            if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
-                websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
-            }
-        }
-    }
-    async getUserChats(userId) {
-        const chats = await chat_1.ChatModel.find({ userId })
+        const chats = await chat_1.ChatModel.find(query)
             .sort({ updatedAt: -1 })
             .exec();
         return chats;
     }
+    async getUserDeletedChats(userId) {
+        const chats = await chat_1.ChatModel.find({
+            userId,
+            isDeleted: true
+        })
+            .sort({ deletedAt: -1 })
+            .exec();
+        return chats;
+    }
     async deleteChat(chatId, userId) {
+        const result = await chat_1.ChatModel.findOneAndUpdate({ _id: chatId, userId, isDeleted: { $ne: true } }, {
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: userId,
+            updatedAt: new Date()
+        }, { new: true });
+        const success = !!result;
+        if (success) {
+            console.log(`🗑️ Soft deleted chat ${chatId} for user ${userId}`);
+        }
+        else {
+            console.log(`❌ Failed to soft delete chat ${chatId} for user ${userId}`);
+        }
+        return success;
+    }
+    async permanentlyDeleteChat(chatId, userId) {
         const result = await chat_1.ChatModel.deleteOne({ _id: chatId, userId });
         const success = result.deletedCount > 0;
         if (success) {
-            console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
+            console.log(`💀 Permanently deleted chat ${chatId} for user ${userId}`);
             try {
-                await memoryService_1.memoryService.clearAllMemory(chatId);
-                console.log(`🧹 Cleared memory for deleted chat ${chatId}`);
+                await smartMemoryService_1.smartMemoryService.clearSession(chatId);
+                console.log(`🧹 Cleared memory for permanently deleted chat ${chatId}`);
             }
             catch (err) {
-                console.warn(`⚠️ Failed to clear memory for deleted chat ${chatId}:`, err);
+                console.warn(`⚠️ Failed to clear memory for permanently deleted chat ${chatId}:`, err);
             }
         }
         else {
-            console.log(`❌ Failed to delete chat ${chatId} for user ${userId}`);
+            console.log(`❌ Failed to permanently delete chat ${chatId} for user ${userId}`);
         }
         return success;
+    }
+    async restoreChat(chatId, userId) {
+        const chat = await chat_1.ChatModel.findOneAndUpdate({ _id: chatId, userId, isDeleted: true }, {
+            isDeleted: false,
+            deletedAt: undefined,
+            deletedBy: undefined,
+            updatedAt: new Date()
+        }, { new: true });
+        if (chat) {
+            console.log(`♻️ Restored chat ${chatId} for user ${userId}`);
+        }
+        else {
+            console.log(`❌ Failed to restore chat ${chatId} for user ${userId}`);
+        }
+        return chat;
     }
     async updateChatName(chatId, userId, name) {
         const chat = await chat_1.ChatModel.findOneAndUpdate({ _id: chatId, userId }, { name, updatedAt: new Date() }, { new: true });
@@ -699,9 +408,61 @@ class ChatService {
         }
         return chat;
     }
+    async deleteMessage(chatId, messageId, userId) {
+        const result = await chat_1.ChatModel.updateOne({
+            _id: chatId,
+            userId,
+            isDeleted: { $ne: true },
+            'messages.id': messageId,
+            'messages.isDeleted': { $ne: true }
+        }, {
+            $set: {
+                'messages.$.isDeleted': true,
+                'messages.$.deletedAt': new Date(),
+                updatedAt: new Date()
+            }
+        });
+        const success = result.modifiedCount > 0;
+        if (success) {
+            console.log(`🗑️ Soft deleted message ${messageId} in chat ${chatId}`);
+        }
+        else {
+            console.log(`❌ Failed to soft delete message ${messageId} in chat ${chatId}`);
+        }
+        return success;
+    }
+    async restoreMessage(chatId, messageId, userId) {
+        const result = await chat_1.ChatModel.updateOne({
+            _id: chatId,
+            userId,
+            'messages.id': messageId,
+            'messages.isDeleted': true
+        }, {
+            $set: {
+                'messages.$.isDeleted': false,
+                'messages.$.deletedAt': undefined,
+                updatedAt: new Date()
+            }
+        });
+        const success = result.modifiedCount > 0;
+        if (success) {
+            console.log(`♻️ Restored message ${messageId} in chat ${chatId}`);
+        }
+        else {
+            console.log(`❌ Failed to restore message ${messageId} in chat ${chatId}`);
+        }
+        return success;
+    }
+    async getChatWithActiveMessages(chatId, userId) {
+        const chat = await this.getChat(chatId, userId);
+        if (chat) {
+            chat.messages = chat.messages.filter(msg => !msg.isDeleted);
+        }
+        return chat;
+    }
     async clearChatMemory(chatId) {
         try {
-            await memoryService_1.memoryService.clearAllMemory(chatId);
+            await smartMemoryService_1.smartMemoryService.clearSession(chatId);
             console.log(`✅ Memory cleared for chat ${chatId}`);
         }
         catch (error) {
@@ -718,11 +479,24 @@ class ChatService {
         return messageCount % 10 === 0;
     }
     getStats() {
+        const cacheStats = agentCacheManager_1.agentCacheManager.getStats();
         return {
             totalChats: 0,
             activeSessions: 0,
-            totalMessages: 0
+            totalMessages: 0,
+            agentCache: {
+                totalAgents: cacheStats.totalEntries,
+                maxCacheSize: cacheStats.maxSize,
+                ttlHours: cacheStats.ttlMs / (60 * 60 * 1000),
+                topAgents: cacheStats.entries.slice(0, 5)
+            }
         };
+    }
+    getAgentCacheStats() {
+        return agentCacheManager_1.agentCacheManager.getStats();
+    }
+    clearAgentCache() {
+        agentCacheManager_1.agentCacheManager.clearCache();
     }
 }
 exports.ChatService = ChatService;

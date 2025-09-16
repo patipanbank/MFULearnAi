@@ -4,7 +4,8 @@ import { FiCopy, FiEdit3, FiTrash2, FiMoreHorizontal } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useChatStore, useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
+import { useAgentStore, useUIStore, useAuthStore } from '../../shared/stores';
+import { useChatOptimized, useChatHistory, useChatMessages, useChatActions } from '../../shared/hooks/useChatOptimized';
 import ResponsiveChatInput from '../../shared/ui/ResponsiveChatInput';
 import { ToolUsageDisplay } from '../../shared/ui/ToolUsageDisplay';
 import { api } from '../../shared/lib/api';
@@ -14,19 +15,20 @@ import dindinNp from '../../assets/dindin_np.PNG';
 import { useWebSocket } from '../../shared/hooks/useWebSocket';
 import { useChatNavigation } from '../../shared/hooks/useChatNavigation';
 import { useChatInput } from '../../shared/hooks/useChatInput';
+import { VirtualChatList } from '../../shared/components/VirtualChatList';
+import { PerformanceMonitor } from '../../shared/components/PerformanceMonitor';
 
 const ChatPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
 
-  const currentSession = useChatStore((state) => state.currentSession);
-  const addMessage = useChatStore((state) => state.addMessage);
-  const updateMessage = useChatStore((state) => state.updateMessage);
-  const wsStatus = useChatStore((state) => state.wsStatus);
-  const isTyping = useChatStore((state) => state.isTyping);
-  const setIsTyping = useChatStore((state) => state.setIsTyping);
-  const setChatHistory = useChatStore((state) => state.setChatHistory);
-  const isLoading = useChatStore((state) => state.isLoading);
+  // Use optimized hooks for better performance
+  const currentSession = useChatOptimized().currentSession;
+  const wsStatus = useChatOptimized().wsStatus;
+  const isTyping = useChatOptimized().isTyping;
+
+  const { addMessage, updateMessage, setIsTyping, setChatHistory } = useChatActions();
+  const messages = useChatMessages();
 
   // Message actions state
   const [activeMessageMenu, setActiveMessageMenu] = useState<string | null>(null);
@@ -37,6 +39,7 @@ const ChatPage: React.FC = () => {
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
   
   const setLoading = useUIStore((state) => state.setLoading);
+  const isLoading = useUIStore((state) => state.isLoading);
   const addToast = useUIStore((state) => state.addToast);
   
   // Navigation
@@ -49,13 +52,10 @@ const ChatPage: React.FC = () => {
 
   // Custom hooks
   const {
-    wsRef,
-    pendingFirstRef,
-    pendingQueueRef,
     connectWebSocket,
-    isTokenExpired,
-    tryRefreshToken,
-    sendMessage: wsSendMessage
+    sendMessage: wsSendMessage,
+    wsManager,
+    pendingFirstRef
   } = useWebSocket({ chatId, isInChatRoom });
 
   // Chat navigation is handled by useChatNavigation hook
@@ -65,8 +65,7 @@ const ChatPage: React.FC = () => {
     message,
     setMessage,
     images,
-    setImages,
-    messagesEndRef
+    setImages
   } = useChatInput();
 
   // File upload state
@@ -75,16 +74,15 @@ const ChatPage: React.FC = () => {
   // Debug function to test WebSocket connection
   const debugWebSocket = useCallback(() => {
     console.log('=== WebSocket Debug Info ===');
-    console.log('WebSocket ref:', wsRef.current);
-    console.log('WebSocket readyState:', wsRef.current?.readyState);
+    console.log('WebSocket Manager:', wsManager);
+    console.log('WebSocket Status:', wsStatus);
     console.log('Is in chat room:', isInChatRoom);
     console.log('Chat ID:', chatId);
     console.log('Current session:', currentSession);
     console.log('Selected agent:', selectedAgent);
-    console.log('Pending queue:', pendingQueueRef.current);
     console.log('Pending first:', pendingFirstRef.current);
     console.log('===========================');
-  }, [wsRef, isInChatRoom, chatId, currentSession, selectedAgent, pendingQueueRef, pendingFirstRef]);
+  }, [wsManager, wsStatus, isInChatRoom, chatId, currentSession, selectedAgent, pendingFirstRef]);
 
   // Initialize data on mount
   useEffect(() => {
@@ -95,8 +93,8 @@ const ChatPage: React.FC = () => {
         await fetchAgents();
         console.log('ChatPage: Agents loaded successfully');
         // Filter chat history only once on mount, not on every chatHistory change
-        const currentChatHistory = useChatStore.getState().chatHistory;
-        setChatHistory(currentChatHistory.filter((c) => c.id && c.id.length === 24));
+        const chatHistory = useChatHistory();
+        setChatHistory(chatHistory.filter((c) => c.id && c.id.length === 24));
         console.log('ChatPage: Chat history filtered');
       } catch (error) {
         console.error('Failed to initialize data:', error);
@@ -115,24 +113,9 @@ const ChatPage: React.FC = () => {
   // Auto-reconnect when disconnected (but only if token is still valid)
   useEffect(() => {
     let reconnectTimer: number;
-    
+
     const handleReconnect = async () => {
       if (wsStatus === 'disconnected' && token && currentSession && isInChatRoom) {
-        // Check if token is still valid before attempting reconnect
-        if (isTokenExpired(token)) {
-          console.log('Token expired, attempting refresh...');
-          const refreshSuccess = await tryRefreshToken();
-          if (!refreshSuccess) {
-            addToast({
-              type: 'warning',
-              title: 'Session Expired',
-              message: 'Your session has expired. Please log in again to continue chatting.',
-              duration: 0
-            });
-            return;
-          }
-        }
-        
         // Try to reconnect after 3 seconds
         reconnectTimer = window.setTimeout(() => {
           console.log('Attempting to reconnect...');
@@ -140,15 +123,15 @@ const ChatPage: React.FC = () => {
         }, 3000);
       }
     };
-    
+
     handleReconnect();
-    
+
     return () => {
       if (reconnectTimer) {
         window.clearTimeout(reconnectTimer);
       }
     };
-  }, [wsStatus, token, currentSession, isInChatRoom, isTokenExpired, addToast, connectWebSocket, tryRefreshToken]);
+  }, [wsStatus, token, currentSession, isInChatRoom, addToast, connectWebSocket]);
 
   // Handle room creation (when first message is sent)
   const handleRoomCreatedWithNavigate = useCallback((roomId: string) => {
@@ -174,29 +157,7 @@ const ChatPage: React.FC = () => {
 
     console.log('ChatPage: Sending message', { message: message.trim(), agentId: selectedAgent.id, isInChatRoom, chatId });
 
-    // ตรวจสอบ WebSocket connection
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      console.log('ChatPage: WebSocket not ready, attempting to connect...');
-      connectWebSocket();
-      
-      // รอสักครู่แล้วลองใหม่
-      setTimeout(() => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          console.log('ChatPage: WebSocket connected, retrying send...');
-          sendMessage();
-        } else {
-          addToast({
-            type: 'error',
-            title: 'Connection Error',
-            message: 'Unable to connect to chat service. Please try again.',
-            duration: 5000
-          });
-        }
-      }, 1000);
-      return;
-    }
-
-    // Clear input immediately (no local message creation)
+    // Clear input immediately
     const messageToSend = message.trim();
     const imagesToSend = [...images];
     setMessage('');
@@ -205,48 +166,23 @@ const ChatPage: React.FC = () => {
     // Show processing state
     setIsTyping(true);
 
-    // Note: messagePayload is no longer used since we use wsSendMessage function
-
-    // Check if we're in a chat room
-    if (isInChatRoom && chatId && chatId.length === 24) {
-      console.log('ChatPage: Sending to existing room', chatId);
-      // Send to existing room
+    try {
+      // Use the WebSocket send message function
       wsSendMessage(messageToSend, imagesToSend, selectedAgent?.id);
-    } else {
-      console.log('ChatPage: Creating new room');
-      // Create new room
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        // Store first message for when room is created
-        pendingFirstRef.current = {
-          text: messageToSend,
-          images: imagesToSend,
-          agentId: selectedAgent.id
-        };
-
-        // Send create room request
-        const createRoomPayload = {
-          type: 'create_room',
-          agent_id: selectedAgent.id
-        };
-        console.log('ChatPage: WebSocket ready, creating room', createRoomPayload);
-        wsRef.current.send(JSON.stringify(createRoomPayload));
-      } else {
-        console.log('ChatPage: WebSocket not ready, queuing create room request');
-        // Queue create room request
-        pendingQueueRef.current.push({
-          type: 'create_room',
-          agent_id: selectedAgent.id
-        });
-
-        // Store first message for when room is created
-        pendingFirstRef.current = {
-          text: messageToSend,
-          images: imagesToSend,
-          agentId: selectedAgent.id
-        };
-      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      addToast({
+        type: 'error',
+        title: 'Send Failed',
+        message: 'Failed to send message. Please try again.',
+        duration: 5000
+      });
+      // Restore message if sending failed
+      setMessage(messageToSend);
+      setImages(imagesToSend);
+      setIsTyping(false);
     }
-  }, [message, images, selectedAgent, addMessage, setMessage, setImages, isInChatRoom, chatId, wsRef, pendingQueueRef, pendingFirstRef, addToast, connectWebSocket, wsSendMessage]);
+  }, [message, images, selectedAgent, setMessage, setImages, setIsTyping, addToast, wsSendMessage, isInChatRoom, chatId]);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -623,8 +559,197 @@ const ChatPage: React.FC = () => {
     );
   }
 
+  // Render message component for VirtualChatList
+  const renderMessage = useCallback((message: any, _index: number, style: React.CSSProperties) => (
+    <div style={style}>
+      <div
+        className={`flex ${
+          message.role === 'user'
+            ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[230px] 2xl:mr-[485px]'
+            : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[245px] 2xl:ml-[500px]'
+        } items-end space-x-2 px-1 sm:px-2 group animate-fade-in`}
+      >
+        {message.role !== 'user' && (
+          <div className="flex-shrink-0 ml-1 sm:ml-0">
+            <img
+              src={dindinAvatar}
+              alt="DINDIN AI"
+              className="w-8 h-8 sm:w-8 sm:h-8 rounded-full shadow-md"
+            />
+          </div>
+        )}
+        <div className="flex flex-col max-w-[75%] sm:max-w-[65%] md:max-w-[60%] lg:max-w-[55%] 2xl:max-w-[50%] relative">
+          {/* Timestamp */}
+          <div className={`text-[10px] sm:text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
+            message.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
+          }`}>
+            {message.role === 'user'
+              ? (() => { const d = new Date(message.timestamp); d.setHours(d.getHours() + 7); return d.toLocaleTimeString(); })()
+              : message.timestamp.toLocaleTimeString()}
+          </div>
+
+          {/* Message Actions Menu */}
+          <div className={`absolute top-0 ${
+            message.role === 'user' ? '-left-10' : '-right-10'
+          } opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+            <div className="relative">
+              <button
+                onClick={() => setActiveMessageMenu(activeMessageMenu === message.id ? null : message.id)}
+                className="p-1 hover:bg-secondary rounded-lg transition-colors"
+                aria-label="Message actions"
+              >
+                <FiMoreHorizontal className="h-4 w-4 text-muted" />
+              </button>
+
+              {/* Actions Dropdown */}
+              {activeMessageMenu === message.id && (
+                <div className={`absolute top-8 ${
+                  message.role === 'user' ? 'right-0' : 'left-0'
+                } bg-card border border-border rounded-lg shadow-lg py-1 z-50 min-w-[120px]`}>
+                  <button
+                    onClick={() => handleCopyMessage(message.content)}
+                    className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
+                  >
+                    <FiCopy className="h-3 w-3" />
+                    <span>Copy</span>
+                  </button>
+                  {message.role === 'user' && (
+                    <>
+                      <button
+                        onClick={() => handleEditMessage(message.id, message.content)}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
+                      >
+                        <FiEdit3 className="h-3 w-3" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMessage(message.id)}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-red-50 hover:text-red-600 transition-colors text-left"
+                      >
+                        <FiTrash2 className="h-3 w-3" />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div
+            className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md ${
+              message.role === 'user'
+                ? 'bg-blue-600 text-white rounded-br-sm hover:bg-blue-700'
+                : 'card text-primary rounded-bl-sm hover:border-border-hover'
+            }`}
+          >
+            {/* Images */}
+            {message.images && message.images.length > 0 && (
+              <div className="mb-3">
+                <div className={`grid gap-2 sm:gap-3 ${
+                  message.images.length === 1 ? 'grid-cols-1' :
+                  message.images.length === 2 ? 'grid-cols-2' :
+                  'grid-cols-2 md:grid-cols-3'
+                }`}>
+                  {message.images.map((img: any, idx: number) => (
+                    <div key={idx} className="relative group">
+                      <img
+                        src={img.url}
+                        alt={`Image ${idx + 1}`}
+                        className="rounded-lg w-full h-auto max-h-64 object-cover shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer border border-primary"
+                        onClick={() => window.open(img.url, '_blank')}
+                        onError={(e) => {
+                          console.error('Chat image failed to load:', img.url);
+                          addToast({
+                            type: 'error',
+                            title: 'Image Error',
+                            message: `Failed to load image: ${img.url.split('/').pop()}`
+                          });
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        loading="lazy"
+                        style={{
+                          display: 'block',
+                          minHeight: '80px',
+                          backgroundColor: 'rgb(var(--color-card))'
+                        }}
+                      />
+                      <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        {img.mediaType?.split('/')[1]?.toUpperCase() || 'IMG'}
+                      </div>
+                      <div className="absolute inset-0 bg-secondary rounded-lg animate-pulse opacity-30"
+                           style={{ zIndex: -1 }} />
+                    </div>
+                  ))}
+                </div>
+                {message.images.length > 1 && (
+                  <div className="mt-2 text-xs text-muted">
+                    {message.images.length} images attached
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Message Content */}
+            {editingMessage === message.id ? (
+              <div className="space-y-2">
+                <textarea
+                  value={editingContent}
+                  onChange={(e) => setEditingContent(e.target.value)}
+                  className={`w-full min-h-[60px] p-2 rounded-lg border resize-none ${
+                    message.role === 'user'
+                      ? 'bg-blue-500 text-white border-blue-400 placeholder-blue-200'
+                      : 'bg-card text-primary border-border'
+                  }`}
+                  placeholder="Edit message..."
+                  autoFocus
+                />
+                <div className="flex space-x-2 justify-end">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-3 py-1 text-xs rounded-md hover:bg-secondary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleSaveEdit(message.id)}
+                    className="px-3 py-1 text-xs bg-accent text-white rounded-md hover:bg-accent/80 transition-colors"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <React.Suspense fallback={<div className="text-muted">Loading...</div>}>
+                  <MessageContent content={message.content} role={message.role} />
+                </React.Suspense>
+                {message.isStreaming && (
+                  <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
+                )}
+              </div>
+            )}
+
+            {/* Tool Usage Display */}
+            {message.toolUsage && message.toolUsage.length > 0 && (
+              <ToolUsageDisplay toolUsage={message.toolUsage} />
+            )}
+          </div>
+        </div>
+        {message.role === 'user' && (
+          <div className="flex-shrink-0">
+            <div className="h-8 w-8 sm:h-8 sm:w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm sm:text-sm font-medium shadow-md">
+              {getInitials()}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  ), [activeMessageMenu, editingMessage, editingContent, addToast, handleCopyMessage, handleEditMessage, handleDeleteMessage, handleSaveEdit, handleCancelEdit, getInitials]);
+
   return (
-    <div className="flex h-full bg-primary relative">
+    <PerformanceMonitor componentName="ChatPage">
+      <div className="flex h-full bg-primary relative">
       {/* Add a subtle background pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="w-full h-full" style={{
@@ -635,223 +760,39 @@ const ChatPage: React.FC = () => {
       
       {/* Chat Area - Full width */}
       <div className="flex-1 flex flex-col w-full relative h-full overflow-hidden">
-        {/* Messages */}
+        {/* Messages with Virtual Scrolling */}
         {hasMessages ? (
-        <div className="flex-1 overflow-y-auto px-0 sm:px-4 py-4 pb-32 space-y-4 h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 dark:hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
-          {currentSession?.messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${
-                msg.role === 'user'
-                  ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[230px] 2xl:mr-[485px]'
-                  : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[245px] 2xl:ml-[500px]'
-              } items-end space-x-2 px-1 sm:px-2 group animate-fade-in`}
-            >
-              {msg.role !== 'user' && (
-                <div className="flex-shrink-0 ml-1 sm:ml-0">
-                  <img 
-                    src={dindinAvatar} 
-                    alt="DINDIN AI" 
-                    className="w-8 h-8 sm:w-8 sm:h-8 rounded-full shadow-md"
-                  />
-                </div>
-              )}
-              <div className="flex flex-col max-w-[75%] sm:max-w-[65%] md:max-w-[60%] lg:max-w-[55%] 2xl:max-w-[50%] relative">
-                {/* Timestamp */}
-                <div className={`text-[10px] sm:text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
-                  msg.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
-                }`}>
-                  {msg.role === 'user'
-                    ? (() => { const d = new Date(msg.timestamp); d.setHours(d.getHours() + 7); return d.toLocaleTimeString(); })()
-                    : msg.timestamp.toLocaleTimeString()}
-                </div>
+          <div className="flex-1 relative">
+            <VirtualChatList
+              messages={messages || []}
+              height={window.innerHeight - 200} // Adjust based on header/input height
+              renderMessage={renderMessage}
+              autoScroll={true}
+              className="px-0 sm:px-4 py-4"
+            />
 
-                {/* Message Actions Menu */}
-                <div className={`absolute top-0 ${
-                  msg.role === 'user' ? '-left-10' : '-right-10'
-                } opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
-                  <div className="relative">
-                    <button
-                      onClick={() => setActiveMessageMenu(activeMessageMenu === msg.id ? null : msg.id)}
-                      className="p-1 hover:bg-secondary rounded-lg transition-colors"
-                      aria-label="Message actions"
-                    >
-                      <FiMoreHorizontal className="h-4 w-4 text-muted" />
-                    </button>
-
-                    {/* Actions Dropdown */}
-                    {activeMessageMenu === msg.id && (
-                      <div className={`absolute top-8 ${
-                        msg.role === 'user' ? 'right-0' : 'left-0'
-                      } bg-card border border-border rounded-lg shadow-lg py-1 z-50 min-w-[120px]`}>
-                        <button
-                          onClick={() => handleCopyMessage(msg.content)}
-                          className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
-                        >
-                          <FiCopy className="h-3 w-3" />
-                          <span>Copy</span>
-                        </button>
-                        {msg.role === 'user' && (
-                          <>
-                            <button
-                              onClick={() => handleEditMessage(msg.id, msg.content)}
-                              className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
-                            >
-                              <FiEdit3 className="h-3 w-3" />
-                              <span>Edit</span>
-                            </button>
-                            <button
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-red-50 hover:text-red-600 transition-colors text-left"
-                            >
-                              <FiTrash2 className="h-3 w-3" />
-                              <span>Delete</span>
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+            {/* Typing indicator overlay */}
+            {isTyping && (
+              <div className="absolute bottom-4 left-4 sm:left-8 md:left-12 lg:left-[245px] 2xl:left-[500px] z-10">
+                <div className="flex items-end space-x-2">
+                  <div className="flex-shrink-0">
+                    <img
+                      src={dindinAvatar}
+                      alt="DINDIN AI"
+                      className="w-8 h-8 rounded-full shadow-md opacity-50"
+                    />
+                  </div>
+                  <div className="card px-4 py-2 rounded-2xl rounded-bl-sm shadow-sm">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
                   </div>
                 </div>
-
-                <div
-                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md ${
-                    msg.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-sm hover:bg-blue-700'
-                      : 'card text-primary rounded-bl-sm hover:border-border-hover'
-                  }`}
-                >
-                  {/* Images */}
-                  {msg.images && msg.images.length > 0 && (
-                    <div className="mb-3">
-                      <div className={`grid gap-2 sm:gap-3 ${
-                        msg.images.length === 1 ? 'grid-cols-1' :
-                        msg.images.length === 2 ? 'grid-cols-2' :
-                        'grid-cols-2 md:grid-cols-3'
-                      }`}>
-                        {msg.images.map((img, idx) => (
-                          <div key={idx} className="relative group">
-                            <img
-                              src={img.url}
-                              alt={`Image ${idx + 1}`}
-                              className="rounded-lg w-full h-auto max-h-64 object-cover shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer border border-primary"
-                              onClick={() => window.open(img.url, '_blank')}
-                              onError={(e) => {
-                                console.error('Chat image failed to load:', img.url);
-                                addToast({
-                                  type: 'error',
-                                  title: 'Image Error',
-                                  message: `Failed to load image: ${img.url.split('/').pop()}`
-                                });
-                                e.currentTarget.style.display = 'none';
-                              }}
-                              onLoad={() => {
-                                console.log('Chat image loaded successfully:', img.url);
-                              }}
-                              loading="lazy"
-                              style={{
-                                display: 'block',
-                                minHeight: '80px',
-                                backgroundColor: 'rgb(var(--color-card))'
-                              }}
-                            />
-                            {/* Image overlay info */}
-                            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                              {img.mediaType?.split('/')[1]?.toUpperCase() || 'IMG'}
-                            </div>
-                            {/* Loading placeholder while image loads */}
-                            <div className="absolute inset-0 bg-secondary rounded-lg animate-pulse opacity-30"
-                                 style={{ zIndex: -1 }} />
-                          </div>
-                        ))}
-                      </div>
-                      {/* Image count indicator */}
-                      {msg.images.length > 1 && (
-                        <div className="mt-2 text-xs text-muted">
-                          {msg.images.length} images attached
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Message Content */}
-                  {editingMessage === msg.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={editingContent}
-                        onChange={(e) => setEditingContent(e.target.value)}
-                        className={`w-full min-h-[60px] p-2 rounded-lg border resize-none ${
-                          msg.role === 'user'
-                            ? 'bg-blue-500 text-white border-blue-400 placeholder-blue-200'
-                            : 'bg-card text-primary border-border'
-                        }`}
-                        placeholder="Edit message..."
-                        autoFocus
-                      />
-                      <div className="flex space-x-2 justify-end">
-                        <button
-                          onClick={handleCancelEdit}
-                          className="px-3 py-1 text-xs rounded-md hover:bg-secondary transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => handleSaveEdit(msg.id)}
-                          className="px-3 py-1 text-xs bg-accent text-white rounded-md hover:bg-accent/80 transition-colors"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      {/* Wrap MessageContent in error boundary */}
-                      <React.Suspense fallback={<div className="text-muted">Loading...</div>}>
-                        <MessageContent content={msg.content} role={msg.role} />
-                      </React.Suspense>
-                      {msg.isStreaming && (
-                        <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Tool Usage Display */}
-                  {msg.toolUsage && msg.toolUsage.length > 0 && (
-                    <ToolUsageDisplay toolUsage={msg.toolUsage} />
-                  )}
-                </div>
               </div>
-              {msg.role === 'user' && (
-                <div className="flex-shrink-0">
-                  <div className="h-8 w-8 sm:h-8 sm:w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm sm:text-sm font-medium shadow-md">
-                    {getInitials()}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          
-          {isTyping && (
-            <div className="flex justify-start items-end space-x-2">
-              <div className="flex-shrink-0">
-                <img 
-                  src={dindinAvatar} 
-                  alt="DINDIN AI" 
-                  className="w-8 h-8 rounded-full shadow-md opacity-50"
-                />
-              </div>
-              <div className="card px-4 py-2 rounded-2xl rounded-bl-sm shadow-sm">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                  <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
+            )}
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
@@ -900,8 +841,9 @@ const ChatPage: React.FC = () => {
             />
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </PerformanceMonitor>
   );
 };
 

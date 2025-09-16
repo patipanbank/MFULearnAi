@@ -10,6 +10,7 @@ import LogoutSuccessPage from '../pages/LogoutSuccessPage';
 import ChatPage from '../pages/ChatPage';
 import AgentPage from '../pages/AgentPage';
 import SearchPage from '../pages/SearchPage';
+import MetricsDashboard from '../pages/MetricsDashboard';
 import Toast from '../shared/ui/Toast';
 import Loading from '../shared/ui/Loading';
 import { useSettingsStore } from '../shared/stores/settingsStore';
@@ -81,6 +82,7 @@ function App() {
               <Route path="/knowledgebase" element={<KnowledgePage />} />
               <Route path="/agent" element={<AgentPage />} />
               <Route path="/search" element={<SearchPage />} />
+              <Route path="/metrics" element={<MetricsDashboard />} />
               {/* Fallback */}
               <Route path="*" element={<ChatPage />} />
             </Routes>

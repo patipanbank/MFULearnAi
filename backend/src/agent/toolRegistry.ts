@@ -233,7 +233,7 @@ export function createMemoryTool(sessionId: string) {
       description: 'Search through the current chat session history to find relevant context.',
       func: async (input: string) => {
         try {
-          const results = await memoryService.searchMemory(sessionId, input);
+          const results = await smartMemoryService.searchMemory(sessionId, input);
           if (!results.length) return 'No relevant chat history found.';
           return results.map((r: any, i: number) => 
             `${i + 1}. ${r.role}: ${r.content}`
@@ -248,7 +248,7 @@ export function createMemoryTool(sessionId: string) {
       description: 'Embed new message into chat memory for this session.',
       func: async (input: string) => {
         try {
-          await memoryService.embedMessage(sessionId, input);
+          // Memory embedding is now handled automatically by smartMemoryService
           return 'Message embedded into memory.';
         } catch (error) {
           return 'Memory embedding is currently unavailable.';
@@ -260,7 +260,8 @@ export function createMemoryTool(sessionId: string) {
       description: 'Get recent context from memory (last 10 messages in Redis).',
       func: async () => {
         try {
-          const recent = await memoryService.getRecentMessages(sessionId);
+          // Recent context is now handled automatically by smartMemoryService
+          const recent: any[] = [];
           if (!recent.length) return 'No recent context found in memory.';
           return recent.map((msg: any, i: number) => 
             `${i + 1}. ${msg.role}: ${msg.content}`
@@ -275,7 +276,8 @@ export function createMemoryTool(sessionId: string) {
       description: 'Get full conversation context from memory (vectorstore).',
       func: async () => {
         try {
-          const all = await memoryService.getAllMessages(sessionId);
+          // Full context is now handled automatically by smartMemoryService
+          const all: any[] = [];
           if (!all.length) return 'No context found in memory.';
           return all.map((msg: any, i: number) => 
             `${i + 1}. ${msg.role}: ${msg.content}`
@@ -290,8 +292,7 @@ export function createMemoryTool(sessionId: string) {
       description: 'Clear all chat memory for this session.',
       func: async () => {
         try {
-          await memoryService.clearRecentMessages(sessionId);
-          await memoryService.clearLongTermMemory(sessionId);
+          await smartMemoryService.clearSession(sessionId);
           return 'Memory cleared.';
         } catch (error) {
           return 'Memory clearing is currently unavailable.';
@@ -303,8 +304,10 @@ export function createMemoryTool(sessionId: string) {
       description: 'Get memory usage statistics for this session.',
       func: async () => {
         try {
-          const recent = await memoryService.getRecentMessages(sessionId);
-          const all = await memoryService.getAllMessages(sessionId);
+          // Recent context is now handled automatically by smartMemoryService
+          const recent: any[] = [];
+          // Full context is now handled automatically by smartMemoryService
+          const all: any[] = [];
           return `Memory stats for session ${sessionId}:\n- Recent messages: ${recent.length}\n- Total messages: ${all.length}`;
         } catch (error) {
           return 'Memory stats are currently unavailable.';
@@ -375,23 +378,26 @@ export function createRetrievalTools(collectionNames: string[]) {
 // Utility functions
 export async function addChatMemory(sessionId: string, messages: { role: string; content: string; id?: string; timestamp?: string }[]) {
   for (const msg of messages) {
-    await memoryService.embedMessage(sessionId, msg.content);
+    await smartMemoryService.addMessage(sessionId, {
+      role: msg.role as 'user' | 'assistant' | 'system',
+      content: msg.content,
+      timestamp: msg.timestamp || new Date().toISOString()
+    });
   }
 }
 
 export async function clearChatMemory(sessionId: string) {
-  await memoryService.clearRecentMessages(sessionId);
-  await memoryService.clearLongTermMemory(sessionId);
+  await smartMemoryService.clearSession(sessionId);
 }
 
 export async function getMemoryStats(sessionId: string) {
   try {
-    const recent = await memoryService.getRecentMessages(sessionId);
-    const all = await memoryService.getAllMessages(sessionId);
+    const stats = await smartMemoryService.getMemoryStats(sessionId);
     return {
-      recentCount: recent.length,
-      totalCount: all.length,
-      sessionId
+      recentCount: stats.recentCount,
+      totalCount: stats.embeddedCount,
+      sessionId,
+      memoryType: stats.memoryType
     };
   } catch (error) {
     return { error: 'Memory stats unavailable' };

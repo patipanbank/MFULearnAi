@@ -19,6 +19,20 @@ const UsageSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
+// Performance indexes for usage analytics
+UsageSchema.index({ userId: 1 }); // Primary lookup (also unique)
+UsageSchema.index({ lastUsed: -1 }); // Recent activity queries
+UsageSchema.index({ totalTokens: -1 }); // Heavy users queries
+UsageSchema.index({ 'dailyUsage.date': -1 }); // Daily usage reports
+UsageSchema.index({ createdAt: -1 }); // New users tracking
+UsageSchema.index({ chatCount: -1 }); // Most active users by chat count
+
+// Update the updatedAt field before saving
+UsageSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
 const UsageModel = mongoose.model('Usage', UsageSchema);
 
 interface UsageStats {

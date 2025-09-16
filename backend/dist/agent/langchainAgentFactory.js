@@ -8,7 +8,7 @@ const prompts_1 = require("@langchain/core/prompts");
 const messages_1 = require("@langchain/core/messages");
 const tools_1 = require("@langchain/core/tools");
 const redis_1 = require("../lib/redis");
-const memoryService_1 = require("../services/memoryService");
+const smartMemoryService_1 = require("../services/smartMemoryService");
 async function createLangChainAgent(config) {
     console.log(`🤖 Creating LangChain Agent with model: ${config.modelId}`);
     const llm = createLLM(config.modelId, {
@@ -141,7 +141,12 @@ async function setupHybridMemory(sessionId, messages) {
                 timestamp: new Date().toISOString()
             }));
             for (const msg of messagesForEmbedding) {
-                await memoryService_1.memoryService.embedMessage(sessionId, msg.content);
+                await smartMemoryService_1.smartMemoryService.addMessage(sessionId, {
+                    role: msg.role,
+                    content: msg.content,
+                    timestamp: new Date().toISOString(),
+                    metadata: { embedded: true }
+                });
             }
             console.log(`📚 Embedded ${messagesForEmbedding.length} messages to vectorstore`);
         }

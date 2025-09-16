@@ -11,6 +11,8 @@ export interface ChatMessage {
     images?: ImagePayload[];
     isStreaming?: boolean;
     isComplete?: boolean;
+    isDeleted?: boolean;
+    deletedAt?: Date;
 }
 export interface Chat extends Document {
     userId: string;
@@ -20,6 +22,9 @@ export interface Chat extends Document {
     modelId?: string;
     collectionNames?: string[];
     isPinned: boolean;
+    isDeleted: boolean;
+    deletedAt?: Date;
+    deletedBy?: string;
     createdAt: Date;
     updatedAt: Date;
 }

@@ -111,11 +111,37 @@ const AgentTemplateSchema = new mongoose_1.Schema({
     recommendedCollections: { type: [String], default: [] },
     tags: { type: [String], default: [] }
 });
-AgentSchema.index({ createdBy: 1, isPublic: 1 });
+AgentSchema.index({ createdBy: 1, updatedAt: -1 });
 AgentSchema.index({ isPublic: 1, usageCount: -1 });
-AgentSchema.index({ tags: 1 });
-AgentTemplateSchema.index({ category: 1 });
+AgentSchema.index({ isPublic: 1, rating: -1 });
+AgentSchema.index({ isPublic: 1, createdAt: -1 });
+AgentSchema.index({ tags: 1, isPublic: 1 });
+AgentSchema.index({ modelId: 1, isPublic: 1 });
+AgentSchema.index({ name: 1, isPublic: 1 });
+AgentSchema.index({ 'collectionNames': 1, isPublic: 1 });
+AgentSchema.index({ usageCount: -1 });
+AgentSchema.index({ rating: -1 });
+AgentSchema.index({ createdAt: -1 });
+AgentSchema.index({
+    name: 'text',
+    description: 'text'
+}, {
+    name: 'agent_text_search',
+    weights: { name: 10, description: 5 }
+});
+AgentTemplateSchema.index({ category: 1, name: 1 });
 AgentTemplateSchema.index({ tags: 1 });
+AgentTemplateSchema.index({
+    name: 'text',
+    description: 'text',
+    category: 'text'
+}, {
+    name: 'template_text_search'
+});
+AgentExecutionSchema.index({ agentId: 1, startTime: -1 });
+AgentExecutionSchema.index({ sessionId: 1, startTime: -1 });
+AgentExecutionSchema.index({ status: 1, startTime: -1 });
+AgentExecutionSchema.index({ startTime: -1 });
 AgentSchema.pre('save', function (next) {
     this.updatedAt = new Date();
     next();

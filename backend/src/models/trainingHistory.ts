@@ -46,9 +46,30 @@ const trainingHistorySchema = new mongoose.Schema<ITrainingHistory>({
   collection: 'training_history'
 });
 
-// Indexes for better query performance
-trainingHistorySchema.index({ userId: 1, timestamp: -1 });
-trainingHistorySchema.index({ collectionName: 1, timestamp: -1 });
-trainingHistorySchema.index({ action: 1, timestamp: -1 });
+// Comprehensive indexes for training history queries
+
+// Primary user queries
+trainingHistorySchema.index({ userId: 1, timestamp: -1 }); // User's training history
+trainingHistorySchema.index({ username: 1, timestamp: -1 }); // Training history by username
+
+// Collection-based queries
+trainingHistorySchema.index({ collectionName: 1, timestamp: -1 }); // Collection activity history
+trainingHistorySchema.index({ collectionName: 1, action: 1, timestamp: -1 }); // Collection actions
+
+// Action-based analytics
+trainingHistorySchema.index({ action: 1, timestamp: -1 }); // Filter by action type
+trainingHistorySchema.index({ action: 1, userId: 1, timestamp: -1 }); // User actions
+
+// Admin and analytics queries
+trainingHistorySchema.index({ timestamp: -1 }); // Recent activity across all users
+trainingHistorySchema.index({ userId: 1, action: 1 }); // User activity summary
+trainingHistorySchema.index({ collectionName: 1, userId: 1 }); // User activity per collection
+
+// Document-level queries
+trainingHistorySchema.index({ documentName: 1, collectionName: 1 }); // Document history
+trainingHistorySchema.index({ 'details.modelId': 1, timestamp: -1 }); // Activity by model
+
+// Error tracking
+trainingHistorySchema.index({ 'details.error': 1, timestamp: -1 }); // Failed operations tracking
 
 export const TrainingHistory = mongoose.model<ITrainingHistory>('TrainingHistory', trainingHistorySchema);

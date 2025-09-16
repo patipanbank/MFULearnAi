@@ -140,7 +140,7 @@ export class SmartMemoryService {
           return null;
         }
       })
-      .filter(Boolean)
+      .filter((item): item is ConversationMessage => item !== null)
       .reverse(); // Chronological order
   }
 
