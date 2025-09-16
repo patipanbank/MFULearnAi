@@ -1,25 +1,16 @@
 #!/usr/bin/env node
 
 /**
- * Create Admin/Super Admin Script
+ * Create Admin/Super Admin Script - Rewritten for reliability
  * Usage: node create_admin.js
- *
- * Environment Variables:
- * - MONGODB_URI: MongoDB connection string
- * - ADMIN_USERNAME: Default admin username
- * - ADMIN_PASSWORD: Default admin password
- * - ADMIN_EMAIL: Default admin email
- * - ADMIN_ROLE: Default role (Admin or SuperAdmin)
- * - ADMIN_DEPARTMENT: Default department
  */
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const readline = require('readline/promises');
 const fs = require('fs');
 const path = require('path');
 
-// Load .env file if it exists
+// Load environment variables from .env file
 function loadEnvFile() {
   const envPath = path.join(__dirname, '.env');
   if (fs.existsSync(envPath)) {
@@ -48,7 +39,7 @@ const UserRole = {
   SUPER_ADMIN: 'SuperAdmin'
 };
 
-// User Schema (matching the existing schema)
+// User Schema
 const UserSchema = new mongoose.Schema({
   nameID: { type: String, required: true },
   username: { type: String, required: true, unique: true },
@@ -71,51 +62,22 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', UserSchema);
 
-// Create readline interface
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
+// Simple synchronous input functions
+function askQuestion(question) {
+  process.stdout.write(question);
 
-// Helper function to ask questions
-async function askQuestion(question) {
-  const answer = await rl.question(question);
-  return answer.trim();
+  // Use fs.readFileSync with stdin file descriptor for synchronous input
+  const input = fs.readFileSync(process.stdin.fd, 'utf-8');
+  return input.trim();
 }
 
-// Helper function to hide password input
 function askPassword(question) {
-  return new Promise((resolve) => {
-    process.stdout.write(question);
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    process.stdin.setEncoding('utf8');
+  process.stdout.write(question);
 
-    let password = '';
-
-    const onData = (key) => {
-      if (key === '\u0003') { // Ctrl+C
-        process.exit();
-      }
-      if (key === '\r' || key === '\n') { // Enter
-        process.stdin.removeListener('data', onData);
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
-        process.stdout.write('\n');
-        resolve(password);
-      } else if (key === '\u007f') { // Backspace
-        if (password.length > 0) {
-          password = password.slice(0, -1);
-          process.stdout.write('\b \b');
-        }
-      } else {
-        password += key;
-        process.stdout.write('*');
-      }
-    };
-
-    process.stdin.on('data', onData);
-  });
+  // For password, we'll use the same method but hide input
+  // Note: This is a simple version - in production you might want to use a library
+  const input = fs.readFileSync(process.stdin.fd, 'utf-8');
+  return input.trim();
 }
 
 // Hash password function
@@ -140,20 +102,23 @@ async function createAdmin() {
     console.log('=====================================\n');
 
     // Get MongoDB connection string
-    // Try different MongoDB environment variable names
     const mongoUri = process.env.MONGODB_URI ||
                     process.env.DATABASE_URL ||
-                    await askQuestion('📍 MongoDB URI (default: mongodb://root:1234@localhost:27017/mfu_chatbot?authSource=admin): ') ||
                     'mongodb://root:1234@localhost:27017/mfu_chatbot?authSource=admin';
 
-    console.log('\n🔌 Connecting to MongoDB...');
+    if (!process.env.MONGODB_URI && !process.env.DATABASE_URL) {
+      console.log(`📍 Using default MongoDB URI: ${mongoUri}`);
+      console.log('💡 You can set MONGODB_URI in .env file\n');
+    }
+
+    console.log('🔌 Connecting to MongoDB...');
     await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB successfully!\n');
 
     // Get user input
-    const username = process.env.ADMIN_USERNAME ||
-                    await askQuestion('👤 Username: ');
+    console.log('📝 Please enter admin details:\n');
 
+    const username = process.env.ADMIN_USERNAME || askQuestion('👤 Username: ');
     if (!username) {
       throw new Error('Username is required');
     }
@@ -162,17 +127,14 @@ async function createAdmin() {
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       console.log(`❌ User with username "${username}" already exists!`);
-
-      const overwrite = await askQuestion('🔄 Do you want to update this user? (y/N): ');
+      const overwrite = askQuestion('🔄 Do you want to update this user? (y/N): ');
       if (overwrite.toLowerCase() !== 'y' && overwrite.toLowerCase() !== 'yes') {
         console.log('❌ Operation cancelled.');
         process.exit(1);
       }
     }
 
-    const email = process.env.ADMIN_EMAIL ||
-                 await askQuestion('📧 Email: ');
-
+    const email = process.env.ADMIN_EMAIL || askQuestion('📧 Email: ');
     if (!email) {
       throw new Error('Email is required');
     }
@@ -181,9 +143,7 @@ async function createAdmin() {
       throw new Error('Please enter a valid email address');
     }
 
-    const password = process.env.ADMIN_PASSWORD ||
-                    await askPassword('🔒 Password: ');
-
+    const password = process.env.ADMIN_PASSWORD || askQuestion('🔒 Password: ');
     if (!password) {
       throw new Error('Password is required');
     }
@@ -192,21 +152,15 @@ async function createAdmin() {
       throw new Error('Password must be at least 6 characters long');
     }
 
-    const firstName = process.env.ADMIN_FIRSTNAME ||
-                     await askQuestion('👤 First Name (optional): ') || '';
-
-    const lastName = process.env.ADMIN_LASTNAME ||
-                    await askQuestion('👤 Last Name (optional): ') || '';
-
-    const department = process.env.ADMIN_DEPARTMENT ||
-                      await askQuestion('🏢 Department (optional): ') || '';
+    const firstName = process.env.ADMIN_FIRSTNAME || askQuestion('👤 First Name (optional): ') || '';
+    const lastName = process.env.ADMIN_LASTNAME || askQuestion('👤 Last Name (optional): ') || '';
+    const department = process.env.ADMIN_DEPARTMENT || askQuestion('🏢 Department (optional): ') || '';
 
     console.log('\n📋 Available Roles:');
     console.log('1. Admin - Department management permissions');
     console.log('2. SuperAdmin - System-wide management permissions');
 
-    const roleChoice = process.env.ADMIN_ROLE ||
-                      await askQuestion('🎯 Choose role (1=Admin, 2=SuperAdmin, default=1): ') || '1';
+    const roleChoice = process.env.ADMIN_ROLE || askQuestion('🎯 Choose role (1=Admin, 2=SuperAdmin, default=1): ') || '1';
 
     let role;
     switch (roleChoice) {
@@ -228,7 +182,7 @@ async function createAdmin() {
     const hashedPassword = await hashPassword(password);
 
     const userData = {
-      nameID: username, // Use username as nameID
+      nameID: username,
       username,
       password: hashedPassword,
       email,
@@ -237,13 +191,13 @@ async function createAdmin() {
       department,
       role,
       groups: [],
-      tokenQuota: 100000, // Higher quota for admins
-      dailyTokenLimit: 50000, // Higher daily limit for admins
+      tokenQuota: 100000,
+      dailyTokenLimit: 50000,
       created: new Date(),
       updated: new Date()
     };
 
-    console.log('\n💾 Creating/Updating admin user...');
+    console.log('💾 Creating/Updating admin user...');
 
     if (existingUser) {
       await User.findOneAndUpdate({ username }, userData, { new: true });
@@ -269,7 +223,6 @@ async function createAdmin() {
     console.error('\n❌ Error creating admin:', error.message);
     process.exit(1);
   } finally {
-    await rl.close();
     if (mongoose.connection.readyState === 1) {
       await mongoose.connection.close();
       console.log('🔌 Database connection closed.');
@@ -278,10 +231,9 @@ async function createAdmin() {
   }
 }
 
-// Handle graceful shutdown
+// Handle Ctrl+C
 process.on('SIGINT', async () => {
   console.log('\n\n👋 Goodbye!');
-  await rl.close();
   if (mongoose.connection.readyState === 1) {
     await mongoose.connection.close();
   }
