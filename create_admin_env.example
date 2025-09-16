@@ -1,0 +1,28 @@
+# MFU Learn AI - Admin Creation Environment Variables
+# Copy this file to .env or export these variables before running the script
+
+# Database Configuration
+MONGODB_URI=mongodb://root:1234@localhost:27017/mfu_chatbot?authSource=admin
+
+# Admin User Configuration
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_secure_password_here
+ADMIN_EMAIL=admin@mfu.ac.th
+ADMIN_FIRSTNAME=System
+ADMIN_LASTNAME=Administrator
+ADMIN_DEPARTMENT=IT
+ADMIN_ROLE=SuperAdmin
+
+# Usage Examples:
+# 1. Copy this file: cp create_admin_env.example .env
+# 2. Edit the values above
+# 3. Source the file: source .env
+# 4. Run the script: ./create_admin.sh
+
+# Or export manually:
+# export MONGODB_URI="mongodb://root:1234@localhost:27017/mfu_chatbot?authSource=admin"
+# export ADMIN_USERNAME="admin"
+# export ADMIN_PASSWORD="your_secure_password"
+# export ADMIN_EMAIL="admin@mfu.ac.th"
+# export ADMIN_ROLE="SuperAdmin"
+# ./create_admin.sh
