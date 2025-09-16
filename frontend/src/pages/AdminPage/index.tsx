@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiBarChart, FiSettings, FiDatabase, FiShield, FiArrowLeft, FiBuilding, FiRefreshCw, FiTrendingUp, FiActivity } from 'react-icons/fi';
+import { FiUsers, FiBarChart, FiSettings, FiShield, FiArrowLeft, FiTrendingUp, FiActivity } from 'react-icons/fi';
 import { useAuthStore, useUIStore } from '../../shared/stores';
 import AdminUserModal from '../../shared/ui/AdminUserModal';
 import AdminAnalyticsModal from '../../shared/ui/AdminAnalyticsModal';
@@ -48,7 +48,6 @@ const AdminPage: React.FC = () => {
   });
   const [departmentStats, setDepartmentStats] = useState<DepartmentStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Check if user is SuperAdmin
   const isSuperAdmin = user?.role === 'SuperAdmin';
@@ -108,7 +107,7 @@ const AdminPage: React.FC = () => {
       id: 'departments',
       title: 'Department Management',
       description: 'Manage organizational departments and user distribution',
-      icon: FiBuilding,
+      icon: FiUsers,
       color: 'bg-green-500',
       count: stats.activeDepartments,
       countLabel: 'Active Departments',
@@ -227,7 +226,7 @@ const AdminPage: React.FC = () => {
           <div className="card p-6">
             <div className="flex items-center space-x-3">
               <div className="h-10 w-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                <FiBuilding className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <FiUsers className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <p className="text-sm text-secondary">Active Departments</p>

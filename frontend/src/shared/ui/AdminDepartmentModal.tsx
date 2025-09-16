@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiBuilding, FiUsers, FiPlus, FiEdit, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { FiX, FiUsers, FiPlus, FiEdit, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 import { useUIStore } from '../stores';
 import { api } from '../lib/api';
 
@@ -180,7 +180,7 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center space-x-3">
-            <FiBuilding className="h-6 w-6 text-primary" />
+            <FiUsers className="h-6 w-6 text-primary" />
             <h2 className="text-xl font-semibold text-primary">Department Management</h2>
           </div>
           <button
@@ -241,7 +241,7 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
                           <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
                             department.isActive ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-900/30'
                           }`}>
-                            <FiBuilding className={`h-5 w-5 ${
+                            <FiUsers className={`h-5 w-5 ${
                               department.isActive ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'
                             }`} />
                           </div>

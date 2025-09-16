@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiX, FiUsers, FiSearch, FiFilter, FiEdit, FiTrash2, FiPlus, FiChevronLeft, FiChevronRight, FiRefreshCw } from 'react-icons/fi';
+import { FiX, FiUsers, FiSearch, FiEdit, FiTrash2, FiPlus, FiChevronLeft, FiChevronRight, FiRefreshCw } from 'react-icons/fi';
 import { useUIStore } from '../stores';
 import { api } from '../lib/api';
 
