@@ -28,6 +28,8 @@ const AdminLoginPage: React.FC = () => {
       });
 
       // Update authStore and redirect immediately (same pattern as AuthCallbackPage)
+      console.log('AdminLogin: Received token from server:', response.data.token?.substring(0, 20) + '...');
+      console.log('AdminLogin: Setting token and navigating to /chat');
       setToken(response.data.token);
       navigate('/chat', { replace: true });
     } catch (error: unknown) {

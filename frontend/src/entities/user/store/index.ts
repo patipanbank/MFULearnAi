@@ -26,8 +26,11 @@ export const useAuthStore = create<AuthState>((set, get) => {
     fetchError: null,
 
     setToken: (token: string) => {
+      console.log('setToken: Setting new token and triggering fetchUser');
       localStorage.setItem('auth_token', token);
       set({ token, status: 'loading' }); // Set status to loading, then fetch user
+      // Immediately fetch user after setting token
+      get().fetchUser();
     },
 
     fetchUser: async () => {
@@ -48,8 +51,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
       try {
         // api object now handles base URL, token and returns data directly
+        console.log('fetchUser: Making API call to /auth/me with token:', token?.substring(0, 20) + '...');
         const userData = await api.get<User>('/auth/me');
         console.log('fetchUser: Successfully fetched user data:', userData);
+        console.log('fetchUser: Setting status to authenticated');
         set({ status: 'authenticated', user: userData, fetchError: null });
       } catch (error) {
         console.error('fetchUser: Failed to fetch user data.', error);
