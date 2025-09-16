@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { config } from '../../config/config';
+import { useAuthStore } from '../../shared/stores';
 import { FiEye, FiEyeOff, FiLock, FiUser, FiShield, FiArrowLeft } from 'react-icons/fi';
 
 const AdminLoginPage: React.FC = () => {
@@ -11,7 +12,17 @@ const AdminLoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordError, setIsPasswordError] = useState(false);
   const [isUsernameError, setIsUsernameError] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const navigate = useNavigate();
+  const { setToken, status } = useAuthStore();
+
+  // Watch for authentication status change and redirect when authenticated
+  useEffect(() => {
+    if (shouldRedirect && status === 'authenticated') {
+      navigate('/chat');
+      setShouldRedirect(false);
+    }
+  }, [status, shouldRedirect, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +36,11 @@ const AdminLoginPage: React.FC = () => {
         password
       });
 
-      localStorage.setItem('auth_token', response.data.token);
-      localStorage.setItem('user_data', JSON.stringify(response.data.user));
-      
-      navigate('/chat'); // Redirect to chat instead of mfuchatbot
+      // Update authStore to trigger re-authentication
+      setToken(response.data.token);
+
+      // Set flag to redirect once authentication completes
+      setShouldRedirect(true);
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data?.detail) {
         if (error.response.data.detail.toLowerCase().includes('not found')) {

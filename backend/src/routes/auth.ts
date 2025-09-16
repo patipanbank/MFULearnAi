@@ -435,7 +435,25 @@ router.post('/admin/login', async (req: Request, res: Response) => {
 router.get('/me', authenticateJWT, requireAnyRole, (req: Request, res: Response) => {
   // user ถูก decode จาก JWT แล้วใน middleware
   const user = (req as any).user;
-  return res.json(user);
+
+  // Format user data to match frontend expectations
+  const userResponse = {
+    _id: { $oid: user.sub || user._id },
+    nameID: user.nameID,
+    username: user.username,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    department: user.department,
+    role: user.role,
+    groups: user.groups || [],
+    tokenQuota: user.tokenQuota || 100000,
+    dailyTokenLimit: user.dailyTokenLimit || 50000,
+    created: user.created || new Date(),
+    updated: user.updated || new Date()
+  };
+
+  return res.json(userResponse);
 });
 
 // Refresh Token (JWT) - เหมือน FastAPI /refresh
