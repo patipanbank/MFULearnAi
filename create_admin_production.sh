@@ -50,11 +50,15 @@ check_env_file() {
 get_mongodb_uri() {
     print_info "Detecting MongoDB configuration..."
 
-    # Try to extract from docker-compose.yml first
+    # Try to extract from docker-compose.yml first (but convert docker hostnames)
     if [ -f "docker-compose.yml" ]; then
-        MONGODB_URI=$(grep "MONGODB_URI=" docker-compose.yml | head -1 | cut -d'=' -f2- | sed 's/^[ \t]*//' | sed 's/[ \t]*$//')
-        if [ ! -z "$MONGODB_URI" ]; then
-            print_success "Found MongoDB URI from docker-compose.yml"
+        DOCKER_MONGODB_URI=$(grep "MONGODB_URI=" docker-compose.yml | head -1 | cut -d'=' -f2- | sed 's/^[ \t]*//' | sed 's/[ \t]*$//')
+        if [ ! -z "$DOCKER_MONGODB_URI" ]; then
+            # Convert Docker hostname 'db' to 'localhost' for external access
+            MONGODB_URI=$(echo "$DOCKER_MONGODB_URI" | sed 's/@db:/@localhost:/')
+            print_success "Found MongoDB URI from docker-compose.yml (converted for external access)"
+            print_info "Original: $DOCKER_MONGODB_URI"
+            print_info "Converted: $MONGODB_URI"
             export MONGODB_URI
             return 0
         fi
@@ -70,7 +74,7 @@ get_mongodb_uri() {
         fi
     fi
 
-    # Default MongoDB URI for production
+    # Default MongoDB URI for production (external access)
     export MONGODB_URI="mongodb://root:1234@localhost:27017/mfu_chatbot?authSource=admin"
     print_warning "Using default MongoDB URI: $MONGODB_URI"
 }
@@ -149,9 +153,49 @@ EOF
     fi
 }
 
+# Test MongoDB connection
+test_mongodb_connection() {
+    print_info "Testing MongoDB connection..."
+
+    # Check if MongoDB port is accessible
+    if command -v nc >/dev/null; then
+        if nc -z localhost 27017; then
+            print_success "MongoDB port 27017 is accessible"
+        else
+            print_error "Cannot connect to MongoDB on localhost:27017"
+            print_info "Please ensure MongoDB is running and accessible"
+            print_info "Try: docker ps | grep mongo"
+            return 1
+        fi
+    elif command -v telnet >/dev/null; then
+        if timeout 3 telnet localhost 27017 </dev/null >/dev/null 2>&1; then
+            print_success "MongoDB port 27017 is accessible"
+        else
+            print_error "Cannot connect to MongoDB on localhost:27017"
+            return 1
+        fi
+    else
+        print_warning "Cannot test MongoDB connection (nc/telnet not available)"
+        print_info "Proceeding anyway..."
+    fi
+
+    return 0
+}
+
 # Run the admin creation script
 run_admin_creation() {
     print_info "Running admin creation script..."
+
+    # Test MongoDB connection first
+    if ! test_mongodb_connection; then
+        print_error "MongoDB connection test failed"
+        print_info "Suggestions:"
+        echo "  1. Check if MongoDB container is running: docker ps | grep mongo"
+        echo "  2. Start MongoDB: docker-compose up -d db"
+        echo "  3. Check MongoDB logs: docker logs mfulearnai_db"
+        echo "  4. Verify port forwarding: docker port mfulearnai_db"
+        return 1
+    fi
 
     # Make sure the script is executable
     chmod +x create_admin.js 2>/dev/null || true
