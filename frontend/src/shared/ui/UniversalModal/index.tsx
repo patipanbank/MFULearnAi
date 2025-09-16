@@ -61,7 +61,7 @@ const MODAL_CONFIGS: Record<ModalType, { size: ModalSize; height: ModalHeight; m
   'edit-collection': { size: 'sm', height: 'auto' },
 
   // Configuration modals (medium-large)
-  'agent-config': { size: 'xl', height: 'lg', mobileFullHeight: true },
+  'agent-config': { size: 'xl', height: 'full', mobileFullHeight: true },
   'settings': { size: 'xl', height: 'lg', mobileFullHeight: true },
   'advanced-settings': { size: 'lg', height: 'md' },
   'account': { size: 'lg', height: 'md' },
@@ -271,7 +271,7 @@ const UniversalModal: React.FC<UniversalModalProps> = ({
         ref={modalRef}
         className={`
           universal-modal-content
-          rounded-lg overflow-hidden
+          rounded-lg
           ${getModalClasses()}
           ${className}
           ${isMobile && mobileSlideUp ? 'animate-slide-up mobile-full-height' : 'animate-fade-in'}
