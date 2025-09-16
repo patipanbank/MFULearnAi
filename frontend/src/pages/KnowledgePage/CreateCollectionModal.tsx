@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { FiX, FiGlobe, FiUsers, FiLock } from 'react-icons/fi';
+import { FiGlobe, FiUsers, FiLock, FiPlus } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore, useAuthStore } from '../../shared/stores';
+import UniversalModal from '../../shared/ui/UniversalModal';
 import type { Collection } from '../../shared/types';
 
 interface CreateCollectionModalProps {
@@ -125,14 +126,18 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
   };
 
   return (
-    <div className="modal-overlay flex items-center justify-center z-40">
-      <div className="modal-content w-full max-w-md bg-primary p-6 rounded-xl relative shadow-xl">
-        {/* Close button */}
-        <button className="absolute top-4 right-4 btn-ghost p-1" onClick={onClose}>
-          <FiX className="h-5 w-5" />
-        </button>
-        <h2 className="text-2xl font-semibold text-primary mb-1">Create New Collection</h2>
-        <p className="text-secondary mb-6">Create a new collection to organize your training documents.</p>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="create-collection"
+      title="Create Collection"
+      subtitle="Create a new knowledge collection"
+      headerIcon={<FiPlus className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
+    >
+        <div className="p-6">
 
         <label className="block text-sm font-medium text-primary mb-2">Collection Name</label>
         <input
@@ -202,8 +207,8 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
         </button>
 
         <button onClick={onClose} className="btn-ghost w-full">Cancel</button>
-      </div>
-    </div>
+        </div>
+    </UniversalModal>
   );
 };
 

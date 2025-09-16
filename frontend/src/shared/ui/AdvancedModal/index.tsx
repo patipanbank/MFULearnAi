@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { FiX, FiDownload, FiUpload, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { FiDownload, FiUpload, FiTrash2, FiRefreshCw, FiSliders } from 'react-icons/fi';
 import { useSettingsStore, useUIStore } from '../../stores';
-import useLayoutStore from '../../stores/layoutStore';
+import UniversalModal from '../UniversalModal';
 
 interface AdvancedModalProps {
   isOpen: boolean;
@@ -15,26 +15,6 @@ const AdvancedModal: React.FC<AdvancedModalProps> = ({ isOpen, onClose }) => {
   
   const { exportSettings, importSettings, resetSettings } = useSettingsStore();
   const { addToast } = useUIStore();
-  const { isMobile } = useLayoutStore();
-  
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-  
-  const handleKeyDown = React.useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  }, [onClose]);
-  
-  React.useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, handleKeyDown]);
 
   const handleExportData = async () => {
     setIsExporting(true);
@@ -143,29 +123,18 @@ const AdvancedModal: React.FC<AdvancedModalProps> = ({ isOpen, onClose }) => {
     }
   };
   
-  if (!isOpen) return null;
-  
   return (
-    <div 
-      className="modal-overlay"
-      onClick={handleBackdropClick}
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="advanced-settings"
+      title="Advanced Settings"
+      subtitle="Export, import, and reset your settings"
+      headerIcon={<FiSliders className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
     >
-      <div className={`modal-content max-w-2xl w-full max-h-[90vh] overflow-hidden ${isMobile ? 'animate-slide-up-from-bottom' : ''}`}>
-        {/* Header */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-primary">Advanced Settings</h2>
-              <p className="text-sm text-secondary mt-1">Import, export, and manage your data</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="btn-ghost p-2"
-            >
-              <FiX className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
         
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] space-y-6">
@@ -307,8 +276,7 @@ const AdvancedModal: React.FC<AdvancedModalProps> = ({ isOpen, onClose }) => {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </UniversalModal>
   );
 };
 

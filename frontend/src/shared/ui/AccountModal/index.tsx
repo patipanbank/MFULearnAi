@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiSave, FiUser, FiShield, FiDownload, FiTrash2, FiKey } from 'react-icons/fi';
+import { FiSave, FiUser, FiShield, FiDownload, FiTrash2, FiKey } from 'react-icons/fi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useAuthStore } from '../../stores/index';
 import { useUIStore } from '../../stores/uiStore';
-import useLayoutStore from '../../stores/layoutStore';
+import UniversalModal from '../UniversalModal';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -22,7 +22,6 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
   
   const { user } = useAuthStore();
   const { addToast } = useUIStore();
-  const { isMobile } = useLayoutStore();
   
   const [localProfile, setLocalProfile] = useState(profile);
   const [localPrivacy, setLocalPrivacy] = useState(privacy);
@@ -156,25 +155,19 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className={`modal-content ${isMobile ? 'animate-slide-up-from-bottom' : ''}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h2 className="text-xl font-semibold text-primary">Account Settings</h2>
-            <p className="text-sm text-secondary mt-1">Manage your account and privacy settings</p>
-          </div>
-          <button
-            onClick={handleCancel}
-            className="btn-ghost p-2"
-          >
-            <FiX className="h-5 w-5" />
-          </button>
-        </div>
-
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="account"
+      title="Account Settings"
+      subtitle="Manage your profile and privacy preferences"
+      headerIcon={<FiUser className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
+    >
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] space-y-6">
           {/* Profile Section */}
@@ -406,8 +399,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose }) => {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </UniversalModal>
   );
 };
 

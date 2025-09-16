@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiSave, FiSun, FiMessageSquare } from 'react-icons/fi';
+import { FiSave, FiSun, FiMessageSquare } from 'react-icons/fi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUIStore } from '../../stores/uiStore';
-import { cn } from '../../lib/utils';
 import ThemeToggle from '../ThemeToggle';
+import UniversalModal from '../UniversalModal';
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -35,24 +35,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     setHasChanges(changed);
   }, [localPreferences, preferences]);
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      handleCancel();
-    }
-  };
-
-  const handleKeyDown = React.useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      handleCancel();
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, handleKeyDown]);
 
   const handleSave = async () => {
     try {
@@ -86,32 +68,18 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div 
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center md:p-4"
-      onClick={handleBackdropClick}
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="preferences"
+      title="Preferences"
+      subtitle="Customize your experience and interface"
+      headerIcon={<FiSun className="h-6 w-6 text-primary" />}
+      closeOnOutsideClick={true}
+      closeOnEscape={true}
+      blur={true}
     >
-      <div className={cn(
-        "relative w-full bg-primary flex flex-col max-h-[100vh] md:max-h-[90vh] md:w-auto md:min-w-[500px] md:max-w-2xl md:rounded-2xl overflow-hidden",
-        "animate-in fade-in duration-200",
-        "md:animate-in md:slide-in-from-bottom-2 md:duration-200"
-      )}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 md:p-6 border-b border-border">
-          <div>
-            <h2 className="text-xl font-semibold text-primary">Preferences</h2>
-            <p className="text-sm text-secondary mt-1">Customize your DINDIN AI experience</p>
-          </div>
-          <button
-            onClick={handleCancel}
-            className="btn-ghost p-2"
-          >
-            <FiX className="h-5 w-5" />
-          </button>
-        </div>
-
         {/* Content - Scrollable Area */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
           {/* Theme Settings */}
@@ -207,8 +175,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </UniversalModal>
   );
 };
 
