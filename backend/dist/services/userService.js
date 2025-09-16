@@ -59,9 +59,10 @@ class UserService {
         if (!username) {
             throw new Error('Username is required from SAML profile');
         }
-        const department_name = profile.department?.toLowerCase() || '';
+        const department_name = profile.department?.toLowerCase().trim() || '';
+        let departmentCreated = null;
         if (department_name) {
-            await departmentService_1.departmentService.ensureDepartmentExists(department_name);
+            departmentCreated = await departmentService_1.departmentService.ensureDepartmentExists(department_name, profile.department?.trim());
         }
         let groups = profile.groups || [];
         if (!Array.isArray(groups)) {
@@ -86,12 +87,21 @@ class UserService {
             updated: new Date()
         };
         const clean_data = Object.fromEntries(Object.entries(user_data_to_update).filter(([_, v]) => v !== undefined));
+        const existingUser = await db.collection('users').findOne({ username });
         const result = await db.collection('users').findOneAndUpdate({ username }, {
             $set: clean_data,
             $setOnInsert: { created: new Date() }
         }, { upsert: true, returnDocument: 'after' });
         if (result && result._id) {
             result._id = result._id.toString();
+        }
+        if (department_name) {
+            if (!existingUser) {
+                await departmentService_1.departmentService.onUserCreated(department_name);
+            }
+            else if (existingUser.department !== department_name) {
+                await departmentService_1.departmentService.onUserDepartmentChanged(existingUser.department, department_name);
+            }
         }
         return new user_1.User(result);
     }

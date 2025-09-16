@@ -211,9 +211,10 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
                     onClick={handleRecalculate}
                     disabled={loading}
                     className="btn-ghost flex items-center space-x-2"
+                    title="Recalculate user counts for all departments"
                   >
                     <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    <span>Recalculate</span>
+                    <span>Sync Counts</span>
                   </button>
                   <button
                     onClick={() => setShowCreateForm(true)}
@@ -289,6 +290,17 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
                           {department.description}
                         </p>
                       )}
+
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="flex items-center justify-between text-xs text-muted">
+                          <span>Created: {new Date(department.created).toLocaleDateString()}</span>
+                          {department.level === 0 && (
+                            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                              Auto-created
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

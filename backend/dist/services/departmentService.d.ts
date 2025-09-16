@@ -1,7 +1,7 @@
 import { IDepartment } from '../models/Department';
 import mongoose from 'mongoose';
 declare class DepartmentService {
-    ensureDepartmentExists(departmentName: string): Promise<IDepartment | null>;
+    ensureDepartmentExists(departmentName: string, displayName?: string): Promise<IDepartment | null>;
     getAllDepartments(includeInactive?: boolean): Promise<(mongoose.FlattenMaps<IDepartment> & Required<{
         _id: mongoose.FlattenMaps<unknown>;
     }> & {

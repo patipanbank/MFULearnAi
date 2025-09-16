@@ -61,9 +61,10 @@ class UserService {
       throw new Error('Username is required from SAML profile');
     }
 
-    const department_name = profile.department?.toLowerCase() || '';
+    const department_name = profile.department?.toLowerCase().trim() || '';
+    let departmentCreated = null;
     if (department_name) {
-      await departmentService.ensureDepartmentExists(department_name);
+      departmentCreated = await departmentService.ensureDepartmentExists(department_name, profile.department?.trim());
     }
     
     let groups = profile.groups || [];
@@ -100,6 +101,9 @@ class UserService {
       Object.entries(user_data_to_update).filter(([_, v]) => v !== undefined)
     );
 
+    // Get existing user to check for department changes
+    const existingUser = await db.collection('users').findOne({ username });
+
     const result = await db.collection('users').findOneAndUpdate(
       { username },
       {
@@ -108,11 +112,22 @@ class UserService {
       },
       { upsert: true, returnDocument: 'after' }
     );
-    
+
     if (result && result._id) {
       (result as any)._id = result._id.toString();
     }
-    
+
+    // Handle department count changes
+    if (department_name) {
+      if (!existingUser) {
+        // New user - increment count
+        await departmentService.onUserCreated(department_name);
+      } else if (existingUser.department !== department_name) {
+        // Department changed - update counts
+        await departmentService.onUserDepartmentChanged(existingUser.department, department_name);
+      }
+    }
+
     return new User(result);
   }
 }

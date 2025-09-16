@@ -374,8 +374,17 @@ const AdminUserModal: React.FC<UserModalProps> = ({ isOpen, onClose }) => {
                               {user.role}
                             </span>
                           </td>
-                          <td className="p-4 text-secondary">
-                            {user.department || '-'}
+                          <td className="p-4">
+                            {user.department ? (
+                              <div className="flex items-center space-x-2">
+                                <span className="text-secondary">{user.department}</span>
+                                <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs">
+                                  Active
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted italic">No Department</span>
+                            )}
                           </td>
                           <td className="p-4 text-secondary">
                             {new Date(user.created).toLocaleDateString()}

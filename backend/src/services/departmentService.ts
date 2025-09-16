@@ -3,7 +3,7 @@ import { getDatabase } from '../lib/mongodb';
 import mongoose from 'mongoose';
 
 class DepartmentService {
-  async ensureDepartmentExists(departmentName: string): Promise<IDepartment | null> {
+  async ensureDepartmentExists(departmentName: string, displayName?: string): Promise<IDepartment | null> {
     if (!departmentName || typeof departmentName !== 'string') {
       return null;
     }
@@ -13,7 +13,13 @@ class DepartmentService {
 
     try {
       // Use the static method from the model
-      return await Department.findOrCreate(cleanName, departmentName.trim());
+      const department = await Department.findOrCreate(cleanName, displayName || departmentName.trim());
+
+      if (department) {
+        console.log(`📁 Department ensured: ${cleanName} (${department.displayName})`);
+      }
+
+      return department;
     } catch (error) {
       console.error(`DepartmentService: Failed to ensure department exists: ${cleanName}`, error);
       return null;
@@ -202,10 +208,13 @@ class DepartmentService {
 
     try {
       // Ensure department exists
-      await this.ensureDepartmentExists(departmentName);
+      const department = await this.ensureDepartmentExists(departmentName);
 
-      // Increment user count
-      await Department.incrementUserCount(departmentName);
+      if (department) {
+        // Increment user count
+        await Department.incrementUserCount(departmentName);
+        console.log(`📊 User count incremented for department: ${departmentName}`);
+      }
     } catch (error) {
       console.error(`DepartmentService: Failed to handle user creation for department: ${departmentName}`, error);
     }
@@ -216,6 +225,7 @@ class DepartmentService {
 
     try {
       await Department.decrementUserCount(departmentName);
+      console.log(`📊 User count decremented for department: ${departmentName}`);
     } catch (error) {
       console.error(`DepartmentService: Failed to handle user deletion for department: ${departmentName}`, error);
     }
@@ -223,13 +233,19 @@ class DepartmentService {
 
   async onUserDepartmentChanged(oldDepartment: string, newDepartment: string) {
     try {
-      if (oldDepartment) {
+      if (oldDepartment && oldDepartment !== newDepartment) {
         await Department.decrementUserCount(oldDepartment);
+        console.log(`📊 User count decremented for old department: ${oldDepartment}`);
       }
 
-      if (newDepartment) {
+      if (newDepartment && oldDepartment !== newDepartment) {
         await this.ensureDepartmentExists(newDepartment);
         await Department.incrementUserCount(newDepartment);
+        console.log(`📊 User count incremented for new department: ${newDepartment}`);
+      }
+
+      if (oldDepartment !== newDepartment) {
+        console.log(`🔄 User department changed: ${oldDepartment || 'none'} → ${newDepartment || 'none'}`);
       }
     } catch (error) {
       console.error(`DepartmentService: Failed to handle department change from ${oldDepartment} to ${newDepartment}`, error);
