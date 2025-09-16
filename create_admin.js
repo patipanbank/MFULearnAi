@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Create Admin/Super Admin Script - Rewritten for reliability
+ * Create Admin/Super Admin Script - Simple and reliable version
  * Usage: node create_admin.js
  */
 
@@ -62,22 +62,38 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', UserSchema);
 
-// Simple synchronous input functions
+// Synchronous input function using child_process
 function askQuestion(question) {
-  process.stdout.write(question);
+  const { execSync } = require('child_process');
 
-  // Use fs.readFileSync with stdin file descriptor for synchronous input
-  const input = fs.readFileSync(process.stdin.fd, 'utf-8');
-  return input.trim();
-}
+  try {
+    // Use bash read command for reliable input
+    const cmd = process.platform === 'win32'
+      ? `set /p "input=${question}" && echo %input%`
+      : `read -p "${question}" input && echo $input`;
 
-function askPassword(question) {
-  process.stdout.write(question);
+    const result = execSync(cmd, {
+      stdio: ['inherit', 'pipe', 'inherit'],
+      encoding: 'utf8'
+    });
 
-  // For password, we'll use the same method but hide input
-  // Note: This is a simple version - in production you might want to use a library
-  const input = fs.readFileSync(process.stdin.fd, 'utf-8');
-  return input.trim();
+    return result.trim();
+  } catch (error) {
+    // Fallback: use simple prompt
+    process.stdout.write(question);
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    return new Promise((resolve) => {
+      rl.question('', (answer) => {
+        rl.close();
+        resolve(answer.trim());
+      });
+    });
+  }
 }
 
 // Hash password function
@@ -115,10 +131,10 @@ async function createAdmin() {
     await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB successfully!\n');
 
-    // Get user input
+    // Get user input - use pre-set values if available
     console.log('📝 Please enter admin details:\n');
 
-    const username = process.env.ADMIN_USERNAME || askQuestion('👤 Username: ');
+    const username = process.env.ADMIN_USERNAME || await askQuestion('👤 Username: ');
     if (!username) {
       throw new Error('Username is required');
     }
@@ -127,14 +143,14 @@ async function createAdmin() {
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       console.log(`❌ User with username "${username}" already exists!`);
-      const overwrite = askQuestion('🔄 Do you want to update this user? (y/N): ');
+      const overwrite = await askQuestion('🔄 Do you want to update this user? (y/N): ');
       if (overwrite.toLowerCase() !== 'y' && overwrite.toLowerCase() !== 'yes') {
         console.log('❌ Operation cancelled.');
         process.exit(1);
       }
     }
 
-    const email = process.env.ADMIN_EMAIL || askQuestion('📧 Email: ');
+    const email = process.env.ADMIN_EMAIL || await askQuestion('📧 Email: ');
     if (!email) {
       throw new Error('Email is required');
     }
@@ -143,7 +159,7 @@ async function createAdmin() {
       throw new Error('Please enter a valid email address');
     }
 
-    const password = process.env.ADMIN_PASSWORD || askQuestion('🔒 Password: ');
+    const password = process.env.ADMIN_PASSWORD || await askQuestion('🔒 Password: ');
     if (!password) {
       throw new Error('Password is required');
     }
@@ -152,15 +168,15 @@ async function createAdmin() {
       throw new Error('Password must be at least 6 characters long');
     }
 
-    const firstName = process.env.ADMIN_FIRSTNAME || askQuestion('👤 First Name (optional): ') || '';
-    const lastName = process.env.ADMIN_LASTNAME || askQuestion('👤 Last Name (optional): ') || '';
-    const department = process.env.ADMIN_DEPARTMENT || askQuestion('🏢 Department (optional): ') || '';
+    const firstName = process.env.ADMIN_FIRSTNAME || await askQuestion('👤 First Name (optional): ') || '';
+    const lastName = process.env.ADMIN_LASTNAME || await askQuestion('👤 Last Name (optional): ') || '';
+    const department = process.env.ADMIN_DEPARTMENT || await askQuestion('🏢 Department (optional): ') || '';
 
     console.log('\n📋 Available Roles:');
     console.log('1. Admin - Department management permissions');
     console.log('2. SuperAdmin - System-wide management permissions');
 
-    const roleChoice = process.env.ADMIN_ROLE || askQuestion('🎯 Choose role (1=Admin, 2=SuperAdmin, default=1): ') || '1';
+    const roleChoice = process.env.ADMIN_ROLE || await askQuestion('🎯 Choose role (1=Admin, 2=SuperAdmin, default=1): ') || '1';
 
     let role;
     switch (roleChoice) {
