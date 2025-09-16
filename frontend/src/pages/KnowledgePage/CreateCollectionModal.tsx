@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { FiX } from 'react-icons/fi';
+import React, { useState, useMemo } from 'react';
+import { FiX, FiGlobe, FiUsers, FiLock } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
-import { useUIStore } from '../../shared/stores';
+import { useUIStore, useAuthStore } from '../../shared/stores';
 import type { Collection } from '../../shared/types';
 
 interface CreateCollectionModalProps {
@@ -12,9 +12,36 @@ interface CreateCollectionModalProps {
 
 const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, onClose, onCreated }) => {
   const [name, setName] = useState('');
-  const [permission, setPermission] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
+  const [permission, setPermission] = useState<'PUBLIC' | 'DEPARTMENT' | 'PRIVATE'>('PRIVATE');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToast } = useUIStore();
+  const { user } = useAuthStore();
+
+  // Get available permission options based on user role
+  const availablePermissions = useMemo(() => {
+    if (!user) return [{ value: 'PRIVATE', label: 'Private', icon: FiLock, description: 'Only you can access' }];
+
+    const permissions = [{ value: 'PRIVATE', label: 'Private', icon: FiLock, description: 'Only you can access' }];
+
+    // Staff, Admin, SuperAdmin can create department collections
+    if (['Staffs', 'Admin', 'SuperAdmin'].includes(user.role)) {
+      permissions.push({ value: 'DEPARTMENT', label: 'Department', icon: FiUsers, description: `Accessible by ${user.department || 'your department'} members` });
+    }
+
+    // Only Admin and SuperAdmin can create public collections
+    if (['Admin', 'SuperAdmin'].includes(user.role)) {
+      permissions.push({ value: 'PUBLIC', label: 'Public', icon: FiGlobe, description: 'Anyone can access' });
+    }
+
+    return permissions;
+  }, [user]);
+
+  // Set default permission to first available option
+  React.useEffect(() => {
+    if (availablePermissions.length > 0) {
+      setPermission(availablePermissions[0].value as 'PUBLIC' | 'DEPARTMENT' | 'PRIVATE');
+    }
+  }, [availablePermissions]);
 
   if (!isOpen) return null;
 
@@ -117,14 +144,54 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
         />
 
         <label className="block text-sm font-medium text-primary mb-2">Permission</label>
-        <select
-          className="input w-full mb-6"
-          value={permission}
-          onChange={(e) => setPermission(e.target.value as 'PUBLIC' | 'PRIVATE')}
-        >
-          <option value="PRIVATE">Private - Only you can access</option>
-          <option value="PUBLIC">Public - Anyone can access</option>
-        </select>
+        <div className="space-y-3 mb-6">
+          {availablePermissions.map((permOption) => {
+            const IconComponent = permOption.icon;
+            const isSelected = permission === permOption.value;
+            return (
+              <div
+                key={permOption.value}
+                className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200 hover:shadow-md ${
+                  isSelected
+                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500 ring-opacity-20 dark:bg-blue-900/20 dark:border-blue-400'
+                    : 'border-border bg-card hover:border-border-hover'
+                }`}
+                onClick={() => setPermission(permOption.value as 'PUBLIC' | 'DEPARTMENT' | 'PRIVATE')}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className={`flex-shrink-0 p-2 rounded-lg ${
+                    isSelected
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-secondary text-muted'
+                  }`}>
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className={`font-medium text-sm ${
+                      isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-primary'
+                    }`}>
+                      {permOption.label}
+                    </div>
+                    <div className={`text-xs mt-1 ${
+                      isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-secondary'
+                    }`}>
+                      {permOption.description}
+                    </div>
+                  </div>
+                  <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-500'
+                      : 'border-border'
+                  }`}>
+                    {isSelected && (
+                      <div className="w-full h-full rounded-full bg-white transform scale-50"></div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         <button
           onClick={handleSubmit}

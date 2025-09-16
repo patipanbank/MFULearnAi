@@ -23,7 +23,10 @@ export interface AgentConfig {
   tools: AgentTool[];
   temperature: number;
   maxTokens: number;
-  isPublic: boolean;
+  permission: 'PUBLIC' | 'DEPARTMENT' | 'PRIVATE';
+  department?: string;
+  // Keep isPublic for backward compatibility - will be computed from permission
+  isPublic?: boolean;
   tags: string[];
   createdBy: string;
   createdAt: string;
@@ -161,19 +164,29 @@ const useAgentStore = create<AgentStore>()(
           if (currentState.isLoadingAgents) {
             return;
           }
-          
+
           set({ isLoadingAgents: true });
           try {
             const response = await api.get<any>('/agents/');
             // รองรับทั้งกรณี response เป็น { success, data } และ array ตรง ๆ
-            let agents: AgentConfig[] = [];
+            let rawAgents: any[] = [];
             if (Array.isArray(response)) {
-              agents = response;
+              rawAgents = response;
             } else if (response && Array.isArray(response.data)) {
-              agents = response.data;
+              rawAgents = response.data;
             } else {
-              agents = [];
+              rawAgents = [];
             }
+
+            // Normalize agents to handle both old and new permission systems
+            const agents: AgentConfig[] = rawAgents.map(agent => ({
+              ...agent,
+              // Convert isPublic to permission for backward compatibility
+              permission: agent.permission || (agent.isPublic ? 'PUBLIC' : 'PRIVATE'),
+              // Keep isPublic for components that still use it
+              isPublic: agent.isPublic !== undefined ? agent.isPublic : agent.permission === 'PUBLIC'
+            }));
+
             set(state => {
               const newState: Partial<AgentStore> = { agents, isLoadingAgents: false };
               // Only set selectedAgent if none is currently selected
@@ -205,7 +218,8 @@ const useAgentStore = create<AgentStore>()(
             tools: [],
             temperature: 0.7,
             maxTokens: 4000,
-            isPublic: true,
+            permission: 'PUBLIC',
+            isPublic: true, // backward compatibility
             tags: ['general', 'assistant'],
             createdBy: 'system',
             createdAt: new Date().toISOString(),
@@ -218,7 +232,23 @@ const useAgentStore = create<AgentStore>()(
 
         createAgent: async (config) => {
           try {
-            const newAgent = await api.post<AgentConfig>('/agents/', config);
+            // Convert permission to isPublic for backend compatibility
+            const backendConfig = {
+              ...config,
+              isPublic: config.permission === 'PUBLIC',
+              // Send both for flexibility
+              permission: config.permission
+            };
+
+            const rawAgent = await api.post<any>('/agents/', backendConfig);
+
+            // Normalize response from backend
+            const newAgent: AgentConfig = {
+              ...rawAgent,
+              permission: rawAgent.permission || (rawAgent.isPublic ? 'PUBLIC' : 'PRIVATE'),
+              isPublic: rawAgent.isPublic !== undefined ? rawAgent.isPublic : rawAgent.permission === 'PUBLIC'
+            };
+
             set(state => ({
               agents: [...state.agents, newAgent]
             }));
@@ -233,9 +263,26 @@ const useAgentStore = create<AgentStore>()(
 
         updateAgent: async (id, updates) => {
           try {
-            const updatedAgent = await api.put<AgentConfig>(`/agents/${id}`, updates);
+            // Convert permission to isPublic for backend compatibility
+            const backendUpdates = {
+              ...updates,
+              ...(updates.permission && {
+                isPublic: updates.permission === 'PUBLIC',
+                permission: updates.permission
+              })
+            };
+
+            const rawUpdatedAgent = await api.put<any>(`/agents/${id}`, backendUpdates);
+
+            // Normalize response from backend
+            const updatedAgent: AgentConfig = {
+              ...rawUpdatedAgent,
+              permission: rawUpdatedAgent.permission || (rawUpdatedAgent.isPublic ? 'PUBLIC' : 'PRIVATE'),
+              isPublic: rawUpdatedAgent.isPublic !== undefined ? rawUpdatedAgent.isPublic : rawUpdatedAgent.permission === 'PUBLIC'
+            };
+
             set(state => ({
-              agents: state.agents.map(agent => 
+              agents: state.agents.map(agent =>
                 agent.id === id ? { ...agent, ...updatedAgent } : agent
               ),
               ...(state.selectedAgent?.id === id && { selectedAgent: { ...state.selectedAgent, ...updatedAgent } })
@@ -289,7 +336,7 @@ const useAgentStore = create<AgentStore>()(
             tools: [], // Implement tool mapping based on recommendedTools
             temperature: 0.7,
             maxTokens: 4000,
-            isPublic: false,
+            permission: 'PRIVATE', // Default to private for template-created agents
             tags: template.tags,
             createdBy: 'current-user',
           };

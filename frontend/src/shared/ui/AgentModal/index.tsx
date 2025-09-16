@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { FiX, FiPlus, FiTrash2, FiGlobe, FiLock } from 'react-icons/fi';
-import { useAgentStore } from '../../stores';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FiX, FiPlus, FiTrash2, FiGlobe, FiLock, FiUsers } from 'react-icons/fi';
+import { useAgentStore, useAuthStore } from '../../stores';
 import { api } from '../../lib/api';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
 
@@ -51,10 +51,31 @@ const AgentModal: React.FC<AgentModalProps> = ({
     tools: [],
     temperature: 0.7,
     maxTokens: 4000,
-    isPublic: false,
+    permission: 'PRIVATE', // Changed from isPublic to permission
     tags: [],
     createdBy: 'current-user'
   });
+
+  const { user } = useAuthStore();
+
+  // Get available permission options based on user role
+  const availablePermissions = useMemo(() => {
+    if (!user) return [{ value: 'PRIVATE', label: 'Private', icon: FiLock, description: 'Only you can access' }];
+
+    const permissions = [{ value: 'PRIVATE', label: 'Private', icon: FiLock, description: 'Only you can access' }];
+
+    // Staff, Admin, SuperAdmin can create department agents
+    if (['Staffs', 'Admin', 'SuperAdmin'].includes(user.role)) {
+      permissions.push({ value: 'DEPARTMENT', label: 'Department', icon: FiUsers, description: `Accessible by ${user.department || 'your department'} members` });
+    }
+
+    // Only Admin and SuperAdmin can create public agents
+    if (['Admin', 'SuperAdmin'].includes(user.role)) {
+      permissions.push({ value: 'PUBLIC', label: 'Public', icon: FiGlobe, description: 'Anyone can access' });
+    }
+
+    return permissions;
+  }, [user]);
 
   const [newTag, setNewTag] = useState('');
 
@@ -117,9 +138,15 @@ const AgentModal: React.FC<AgentModalProps> = ({
     if (!isOpen) return;
 
     if (isEditing && selectedAgent) {
-      setFormData(selectedAgent);
+      // Normalize agent data to ensure permission field exists
+      const normalizedAgent = {
+        ...selectedAgent,
+        permission: selectedAgent.permission || (selectedAgent.isPublic ? 'PUBLIC' : 'PRIVATE')
+      };
+      setFormData(normalizedAgent);
     } else {
       // Reset to default for new agent creation
+      const defaultPermission = availablePermissions.length > 0 ? availablePermissions[0].value : 'PRIVATE';
       setFormData({
         name: '',
         description: '',
@@ -129,12 +156,12 @@ const AgentModal: React.FC<AgentModalProps> = ({
         tools: [],
         temperature: 0.7,
         maxTokens: 4000,
-        isPublic: false,
+        permission: defaultPermission,
         tags: [],
         createdBy: 'current-user'
       });
     }
-  }, [isEditing, selectedAgent, isOpen]);
+  }, [isEditing, selectedAgent, isOpen, availablePermissions]);
 
   const handleInputChange = (field: keyof AgentConfig, value: any) => {
     setFormData(prev => ({
@@ -352,23 +379,57 @@ const AgentModal: React.FC<AgentModalProps> = ({
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-primary mb-2">
-                  Visibility
+                <label className="block text-sm font-medium text-primary mb-3">
+                  Permission
                 </label>
-                <button
-                  type="button"
-                  onClick={() => handleInputChange('isPublic', !formData.isPublic)}
-                  className="flex items-center space-x-2 p-2 rounded-lg border border-border hover:bg-secondary transition-colors"
-                >
-                  {formData.isPublic ? (
-                    <FiGlobe className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <FiLock className="h-5 w-5 text-muted" />
-                  )}
-                  <span className="text-sm">
-                    {formData.isPublic ? 'Public' : 'Private'}
-                  </span>
-                </button>
+                <div className="space-y-3">
+                  {availablePermissions.map((permOption) => {
+                    const IconComponent = permOption.icon;
+                    const isSelected = formData.permission === permOption.value;
+                    return (
+                      <div
+                        key={permOption.value}
+                        className={`relative cursor-pointer rounded-xl border-2 p-3 transition-all duration-200 hover:shadow-sm ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500 ring-opacity-20 dark:bg-blue-900/20 dark:border-blue-400'
+                            : 'border-border bg-card hover:border-border-hover'
+                        }`}
+                        onClick={() => handleInputChange('permission', permOption.value)}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div className={`flex-shrink-0 p-1.5 rounded-lg ${
+                            isSelected
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-secondary text-muted'
+                          }`}>
+                            <IconComponent className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-medium text-sm ${
+                              isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-primary'
+                            }`}>
+                              {permOption.label}
+                            </div>
+                            <div className={`text-xs mt-0.5 leading-relaxed ${
+                              isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-secondary'
+                            }`}>
+                              {permOption.description}
+                            </div>
+                          </div>
+                          <div className={`flex-shrink-0 w-4 h-4 rounded-full border-2 transition-all ${
+                            isSelected
+                              ? 'border-blue-500 bg-blue-500'
+                              : 'border-border'
+                          }`}>
+                            {isSelected && (
+                              <div className="w-full h-full rounded-full bg-white transform scale-50"></div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 

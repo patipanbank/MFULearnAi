@@ -61,11 +61,13 @@ const AgentCard: React.FC<AgentCardProps> = ({
             <h3 className="font-semibold text-primary truncate">{agent.name}</h3>
             <div className="flex items-center space-x-2 mt-1">
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm ${
-                agent.isPublic 
-                  ? 'bg-card border border-green-500 text-green-800' 
+                agent.permission === 'PUBLIC'
+                  ? 'bg-card border border-green-500 text-green-800'
+                  : agent.permission === 'DEPARTMENT'
+                  ? 'bg-card border border-blue-500 text-blue-800'
                   : 'bg-card border border-secondary text-secondary'
               }`}>
-                {agent.isPublic ? 'Public' : 'Private'}
+                {agent.permission === 'PUBLIC' ? 'Public' : agent.permission === 'DEPARTMENT' ? 'Department' : 'Private'}
               </span>
               {agent.rating > 0 && (
                 <div className="flex items-center space-x-1">

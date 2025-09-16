@@ -69,10 +69,26 @@ const AgentSelector: React.FC = () => {
     }
   };
 
-  const getAgentTypeColor = (isPublic: boolean) => {
-    return isPublic 
-      ? 'bg-card border border-green-500 text-green-800 shadow-sm'
-      : 'bg-card border border-blue-500 text-blue-800 shadow-sm';
+  const getAgentTypeColor = (permission: string) => {
+    switch (permission) {
+      case 'PUBLIC':
+        return 'bg-card border border-green-500 text-green-800 shadow-sm';
+      case 'DEPARTMENT':
+        return 'bg-card border border-blue-500 text-blue-800 shadow-sm';
+      default:
+        return 'bg-card border border-secondary text-secondary shadow-sm';
+    }
+  };
+
+  const getAgentTypeLabel = (permission: string) => {
+    switch (permission) {
+      case 'PUBLIC':
+        return 'Public';
+      case 'DEPARTMENT':
+        return 'Department';
+      default:
+        return 'Private';
+    }
   };
 
   // Error fallback
@@ -195,8 +211,8 @@ const AgentSelector: React.FC = () => {
                           <h4 className="text-xs md:text-sm font-medium text-primary truncate">
                             {agent.name}
                           </h4>
-                          <span className={`inline-flex items-center px-1 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium ${getAgentTypeColor(agent.isPublic)}`}>
-                            {agent.isPublic ? 'Public' : 'Private'}
+                          <span className={`inline-flex items-center px-1 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium ${getAgentTypeColor(agent.permission || (agent.isPublic ? 'PUBLIC' : 'PRIVATE'))}`}>
+                            {getAgentTypeLabel(agent.permission || (agent.isPublic ? 'PUBLIC' : 'PRIVATE'))}
                           </span>
                           {agent.rating > 0 && (
                             <div className="flex items-center space-x-0.5 md:space-x-1">
