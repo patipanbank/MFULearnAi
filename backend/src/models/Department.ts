@@ -148,7 +148,7 @@ departmentSchema.statics.recalculateUserCounts = async function() {
     const userCounts = await User.aggregate([
       {
         $match: {
-          department: { $exists: true, $ne: null, $ne: '' }
+          department: { $exists: true, $nin: [null, ''] }
         }
       },
       {
@@ -176,4 +176,12 @@ departmentSchema.statics.recalculateUserCounts = async function() {
   }
 };
 
-export const Department = mongoose.model<IDepartment>('Department', departmentSchema);
+// Define interface for static methods
+interface IDepartmentModel extends mongoose.Model<IDepartment> {
+  findOrCreate(departmentName: string, displayName?: string): Promise<IDepartment | null>;
+  incrementUserCount(departmentName: string): Promise<void>;
+  decrementUserCount(departmentName: string): Promise<void>;
+  recalculateUserCounts(): Promise<boolean>;
+}
+
+export const Department = mongoose.model<IDepartment, IDepartmentModel>('Department', departmentSchema);

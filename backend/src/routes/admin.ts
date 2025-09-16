@@ -272,10 +272,10 @@ router.get('/departments/:id', async (req: SuperAdminRequest, res: Response) => 
     if (!department) {
       return res.status(404).json({ error: 'Department not found' });
     }
-    res.json(department);
+    return res.json(department);
   } catch (error) {
     console.error('Error fetching department:', error);
-    res.status(500).json({ error: 'Failed to fetch department' });
+    return res.status(500).json({ error: 'Failed to fetch department' });
   }
 });
 
@@ -300,10 +300,10 @@ router.put('/departments/:id', async (req: SuperAdminRequest, res: Response) => 
     if (!department) {
       return res.status(404).json({ error: 'Department not found' });
     }
-    res.json(department);
+    return res.json(department);
   } catch (error) {
     console.error('Error updating department:', error);
-    res.status(500).json({ error: 'Failed to update department' });
+    return res.status(500).json({ error: 'Failed to update department' });
   }
 });
 

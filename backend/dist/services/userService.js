@@ -61,7 +61,7 @@ class UserService {
         }
         const department_name = profile.department?.toLowerCase() || '';
         if (department_name) {
-            await (0, departmentService_1.ensure_department_exists)(department_name);
+            await departmentService_1.departmentService.ensureDepartmentExists(department_name);
         }
         let groups = profile.groups || [];
         if (!Array.isArray(groups)) {
