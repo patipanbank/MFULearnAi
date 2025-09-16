@@ -12,17 +12,8 @@ const AdminLoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordError, setIsPasswordError] = useState(false);
   const [isUsernameError, setIsUsernameError] = useState(false);
-  const [shouldRedirect, setShouldRedirect] = useState(false);
   const navigate = useNavigate();
-  const { setToken, status } = useAuthStore();
-
-  // Watch for authentication status change and redirect when authenticated
-  useEffect(() => {
-    if (shouldRedirect && status === 'authenticated') {
-      navigate('/chat');
-      setShouldRedirect(false);
-    }
-  }, [status, shouldRedirect, navigate]);
+  const { setToken } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +27,9 @@ const AdminLoginPage: React.FC = () => {
         password
       });
 
-      // Update authStore to trigger re-authentication
+      // Update authStore and redirect immediately (same pattern as AuthCallbackPage)
       setToken(response.data.token);
-
-      // Set flag to redirect once authentication completes
-      setShouldRedirect(true);
+      navigate('/chat', { replace: true });
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data?.detail) {
         if (error.response.data.detail.toLowerCase().includes('not found')) {
