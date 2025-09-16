@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FiSettings, FiX, FiDownload, FiUpload, FiDatabase, FiUser, FiEdit, FiCopy, FiTrash2, FiPlus, FiKey } from 'react-icons/fi';
-import { useSettingsStore, useUIStore } from '../../stores';
+import { FiSettings, FiX, FiDownload, FiUpload, FiDatabase, FiUser, FiEdit, FiCopy, FiTrash2, FiPlus, FiKey, FiShield } from 'react-icons/fi';
+import { useSettingsStore, useUIStore, useAuthStore } from '../../stores';
 import { api } from '../../lib/api';
 import PreferencesModal from '../PreferencesModal';
+import AdminUserModal from '../AdminUserModal';
+import AdminAnalyticsModal from '../AdminAnalyticsModal';
 import type { Collection } from '../../types';
 
 interface SettingsModalProps {
@@ -11,22 +13,28 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'knowledge' | 'agent' | 'preferences' | 'advanced'>('knowledge');
+  const [activeTab, setActiveTab] = useState<'knowledge' | 'agent' | 'preferences' | 'advanced' | 'admin'>('knowledge');
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   
   // Local state for collections
   const [collections, setCollections] = useState<Collection[]>([]);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
   
-  const { 
+  const {
     preferences,
-    exportSettings, 
+    exportSettings,
     importSettings,
     resetSettings
   } = useSettingsStore();
-  
+
   const { addToast } = useUIStore();
+  const { user } = useAuthStore();
+
+  // Check if user is SuperAdmin
+  const isSuperAdmin = user?.role === 'SuperAdmin';
 
   // Fetch collections using robust API utility
   const fetchCollections = async () => {
@@ -87,7 +95,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     { id: 'knowledge', label: 'Knowledge Base', icon: FiDatabase },
     { id: 'agent', label: 'AI Agents', icon: FiUser },
     { id: 'preferences', label: 'Preferences', icon: FiSettings },
-    { id: 'advanced', label: 'Advanced', icon: FiKey }
+    { id: 'advanced', label: 'Advanced', icon: FiKey },
+    ...(isSuperAdmin ? [{ id: 'admin', label: 'System Admin', icon: FiShield }] : [])
   ] as const;
 
   const handleExportSettings = () => {
@@ -194,7 +203,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => setActiveTab(tab.id as any)}
                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
                     activeTab === tab.id
                       ? 'btn-primary'
@@ -370,9 +379,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           )}
           
           {/* Preferences Modal */}
-          <PreferencesModal 
-            isOpen={showPreferencesModal} 
-            onClose={() => setShowPreferencesModal(false)} 
+          <PreferencesModal
+            isOpen={showPreferencesModal}
+            onClose={() => setShowPreferencesModal(false)}
           />
 
           {/* Advanced Tab */}
@@ -395,7 +404,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         <FiDownload className="h-4 w-4" />
                         <span>Export Settings</span>
                       </button>
-                      
+
                       <label className="btn-ghost flex items-center space-x-2 cursor-pointer">
                         <FiUpload className="h-4 w-4" />
                         <span>Import Settings</span>
@@ -430,8 +439,156 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
           )}
+
+          {/* System Admin Tab - Only visible to SuperAdmin */}
+          {activeTab === 'admin' && isSuperAdmin && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-primary mb-2">System Administration</h3>
+                <p className="text-secondary">Manage users, system analytics, and configuration</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* User Management Card */}
+                <div className="card card-hover p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <FiUser className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-primary">User Management</h4>
+                      <p className="text-sm text-secondary">Manage users and roles</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowUserModal(true)}
+                    className="w-full btn-primary text-sm"
+                  >
+                    Open User Manager
+                  </button>
+                </div>
+
+                {/* System Analytics Card */}
+                <div className="card card-hover p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="h-10 w-10 bg-green-500 rounded-lg flex items-center justify-center">
+                      <FiDatabase className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-primary">System Analytics</h4>
+                      <p className="text-sm text-secondary">View usage statistics</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowAnalyticsModal(true)}
+                    className="w-full btn-primary text-sm"
+                  >
+                    View Analytics
+                  </button>
+                </div>
+
+                {/* Department Management Card */}
+                <div className="card card-hover p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="h-10 w-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                      <FiSettings className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-primary">Departments</h4>
+                      <p className="text-sm text-secondary">Manage departments</p>
+                    </div>
+                  </div>
+                  <button className="w-full btn-primary text-sm">
+                    Manage Departments
+                  </button>
+                </div>
+
+                {/* System Configuration Card */}
+                <div className="card card-hover p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="h-10 w-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                      <FiKey className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-primary">System Config</h4>
+                      <p className="text-sm text-secondary">Global settings</p>
+                    </div>
+                  </div>
+                  <button className="w-full btn-primary text-sm">
+                    Configure System
+                  </button>
+                </div>
+
+                {/* Collection Management Card */}
+                <div className="card card-hover p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="h-10 w-10 bg-red-500 rounded-lg flex items-center justify-center">
+                      <FiDatabase className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-primary">Collections</h4>
+                      <p className="text-sm text-secondary">Manage all collections</p>
+                    </div>
+                  </div>
+                  <button className="w-full btn-primary text-sm">
+                    Manage Collections
+                  </button>
+                </div>
+
+                {/* Agent Management Card */}
+                <div className="card card-hover p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="h-10 w-10 bg-indigo-500 rounded-lg flex items-center justify-center">
+                      <FiUser className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-primary">AI Agents</h4>
+                      <p className="text-sm text-secondary">Manage system agents</p>
+                    </div>
+                  </div>
+                  <button className="w-full btn-primary text-sm">
+                    Manage Agents
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="mt-8 pt-6 border-t border-border">
+                <h4 className="text-lg font-medium text-primary mb-4">Quick Overview</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-secondary rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-primary">-</div>
+                    <div className="text-sm text-secondary">Total Users</div>
+                  </div>
+                  <div className="bg-secondary rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-primary">-</div>
+                    <div className="text-sm text-secondary">Collections</div>
+                  </div>
+                  <div className="bg-secondary rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-primary">-</div>
+                    <div className="text-sm text-secondary">Documents</div>
+                  </div>
+                  <div className="bg-secondary rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-primary">-</div>
+                    <div className="text-sm text-secondary">Active Sessions</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Admin Modals */}
+      <AdminUserModal
+        isOpen={showUserModal}
+        onClose={() => setShowUserModal(false)}
+      />
+
+      <AdminAnalyticsModal
+        isOpen={showAnalyticsModal}
+        onClose={() => setShowAnalyticsModal(false)}
+      />
     </div>
   );
 };
