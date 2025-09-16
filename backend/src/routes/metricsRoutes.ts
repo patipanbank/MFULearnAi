@@ -123,10 +123,10 @@ router.post('/metrics/alert', (req: Request, res: Response) => {
       timestamp: new Date(),
     });
 
-    return res.json({ success: true, message: 'Alert created successfully' });
+    res.json({ success: true, message: 'Alert created successfully' });
   } catch (error) {
     console.error('Error creating alert:', error);
-    return res.status(500).json({ error: 'Failed to create alert' });
+    res.status(500).json({ error: 'Failed to create alert' });
   }
 });
 
