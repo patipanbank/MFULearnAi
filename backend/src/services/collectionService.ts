@@ -1,4 +1,5 @@
 import { Collection, ICollection, CollectionPermission } from '../models/collection';
+import { UserRole } from '../models/user';
 
 export class CollectionService {
   public model = Collection;
@@ -27,20 +28,55 @@ export class CollectionService {
 
   // สำหรับ route: canUserModifyCollection(user, collection)
   canUserModifyCollection(user: any, collection: any) {
+    if (!collection || !user) {
+      return false;
+    }
+
+    // All users can modify their own collections
+    if (collection.createdBy === user.username) {
+      return true;
+    }
+
+    // Department collections: STAFF/ADMIN/SUPER_ADMIN can modify department collections they created
+    if (collection.permission === 'DEPARTMENT') {
+      return (collection.createdBy === user.username &&
+              (user.role === UserRole.STAFFS || user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN));
+    }
+
+    // Public collections: only ADMIN/SUPER_ADMIN can modify if they created them
+    if (collection.permission === 'PUBLIC') {
+      return (collection.createdBy === user.username &&
+              (user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN));
+    }
+
+    // Private collections: only creator can modify
     if (collection.permission === 'PRIVATE') {
       return collection.createdBy === user.username;
     }
-    if (collection.permission === 'PUBLIC') {
-      return user.role === 'Admin' || user.role === 'SuperAdmin';
-    }
-    if (collection.permission === 'DEPARTMENT') {
-      return collection.createdBy === user.username;
-    }
-    // Admin and Super Admin can modify all collections
-    if (user.role === 'Admin' || user.role === 'SuperAdmin') {
-      return true;
-    }
+
     return false;
+  }
+
+  // Check if user can create collection with specific permission
+  canUserCreateCollection(user: any, permission: string) {
+    if (!user) return false;
+
+    switch (permission) {
+      case 'PRIVATE':
+        // All users can create private collections
+        return true;
+
+      case 'DEPARTMENT':
+        // STAFF, ADMIN, SUPER_ADMIN can create department collections
+        return user.role === UserRole.STAFFS || user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+
+      case 'PUBLIC':
+        // Only ADMIN and SUPER_ADMIN can create public collections
+        return user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+
+      default:
+        return false;
+    }
   }
 
   // สำหรับ route: canUserAccessCollection(user, collection)
@@ -62,7 +98,7 @@ export class CollectionService {
     }
     
     // Admin and Super Admin can access all collections
-    if (user.role === 'Admin' || user.role === 'SuperAdmin') {
+    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN) {
       return true;
     }
     
@@ -81,6 +117,16 @@ export class CollectionService {
    * Create collection with validation
    */
   async createCollection(name: string, permission: string, user: any, modelId?: string) {
+    // Check if user can create collection with this permission
+    if (!this.canUserCreateCollection(user, permission)) {
+      throw new Error(`You don't have permission to create ${permission} collections`);
+    }
+
+    // Department collections must be created with user's department
+    if (permission === 'DEPARTMENT' && !user.department) {
+      throw new Error('User must have a department to create department collections');
+    }
+
     // Validation ชื่อ collection ตาม legacy
     if (!name || typeof name !== 'string' || !name.trim()) {
       throw new Error('Collection name cannot be empty');
@@ -91,14 +137,20 @@ export class CollectionService {
     if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmed)) throw new Error('Collection name can only contain letters, numbers, spaces, hyphens, and underscores');
     const existing = await this.model.findOne({ name: { $regex: `^${trimmed}$`, $options: 'i' } }).exec();
     if (existing) throw new Error('Collection name already exists');
+
     const doc: any = {
       name: trimmed,
       permission,
       createdBy: user.username,
-      department: user.department,
       createdAt: new Date(),
       updatedAt: new Date()
     };
+
+    // Set department for department collections
+    if (permission === 'DEPARTMENT') {
+      doc.department = user.department;
+    }
+
     if (modelId) doc.modelId = modelId;
     const collection = new this.model(doc);
     return await collection.save();
@@ -115,7 +167,7 @@ export class CollectionService {
         if (!existingCollection) {
           return null;
         }
-        const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
+        const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
         // Logic ตาม legacy
         if (existingCollection.permission === 'PRIVATE') {
           if (existingCollection.createdBy !== user.username && !isAdmin) {
@@ -171,7 +223,7 @@ export class CollectionService {
         if (!existingCollection) {
           return false;
         }
-        const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
+        const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
         // Logic ตาม legacy
         if (existingCollection.permission === 'PRIVATE') {
           if (existingCollection.createdBy !== user.username && !isAdmin) {
@@ -330,7 +382,7 @@ export class CollectionService {
       }
       
       // Admin/SuperAdmin can access all collections
-      if (user && (user.role === 'Admin' || user.role === 'SuperAdmin')) {
+      if (user && (user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN)) {
         return true;
       }
       

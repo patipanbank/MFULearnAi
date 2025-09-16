@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { queueService } from '../services/queueService';
 import { authenticateJWT, requireAnyRole } from '../middleware/auth';
+import { superAdminMiddleware } from '../middleware/adminMiddleware';
 import { IUser } from '../models/user';
 
 const router = express.Router();
@@ -50,16 +51,9 @@ router.get('/user/jobs', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/queue/stats - Get queue statistics (admin only)
-router.get('/stats', async (req: Request, res: Response) => {
+// GET /api/queue/stats - Get queue statistics (Super Admin only)
+router.get('/stats', authenticateJWT, superAdminMiddleware, async (req: Request, res: Response) => {
   try {
-    const user = req.user as IUser;
-    
-    // Check if user is admin
-    if (user.role !== 'Admin' && user.role !== 'SuperAdmin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    
     const stats = await queueService.getQueueStats();
     return res.json(stats);
   } catch (error: any) {
@@ -68,15 +62,9 @@ router.get('/stats', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/queue/cleanup - Cleanup old jobs (admin only)
-router.post('/cleanup', async (req: Request, res: Response) => {
+// POST /api/queue/cleanup - Cleanup old jobs (Super Admin only)
+router.post('/cleanup', authenticateJWT, superAdminMiddleware, async (req: Request, res: Response) => {
   try {
-    const user = req.user as IUser;
-    
-    // Check if user is admin
-    if (user.role !== 'Admin' && user.role !== 'SuperAdmin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
     
     await queueService.cleanupOldJobs();
     return res.json({ message: 'Cleanup completed successfully' });

@@ -1,9 +1,17 @@
-import { AgentModel, AgentTemplateModel, Agent, AgentTemplate, AgentTool, AgentToolType } from '../models/agent';
+import { AgentModel, AgentTemplateModel, Agent, AgentTemplate, AgentTool, AgentToolType, AgentPermission } from '../models/agent';
+import { UserRole } from '../models/user';
 import { v4 as uuidv4 } from 'uuid';
 
 function normalizeAgent(agent: any) {
   // ถ้า agent เป็น Mongoose Document ให้แปลงเป็น plain object ก่อน
   const obj = (typeof agent.toObject === 'function') ? agent.toObject() : agent;
+
+  // Handle backward compatibility for permission
+  let permission = obj.permission || AgentPermission.PRIVATE;
+  if (obj.isPublic && !obj.permission) {
+    permission = AgentPermission.PUBLIC;
+  }
+
   return {
     id: obj.id || obj._id?.toString() || '',
     name: typeof obj.name === 'string' ? obj.name : '',
@@ -14,7 +22,9 @@ function normalizeAgent(agent: any) {
     tools: Array.isArray(obj.tools) ? obj.tools : [],
     temperature: typeof obj.temperature === 'number' ? obj.temperature : 0.7,
     maxTokens: typeof obj.maxTokens === 'number' ? obj.maxTokens : 4000,
-    isPublic: typeof obj.isPublic === 'boolean' ? obj.isPublic : false,
+    permission: permission,
+    department: typeof obj.department === 'string' ? obj.department : undefined,
+    isPublic: typeof obj.isPublic === 'boolean' ? obj.isPublic : (permission === AgentPermission.PUBLIC),
     tags: Array.isArray(obj.tags) ? obj.tags : [],
     createdBy: typeof obj.createdBy === 'string' ? obj.createdBy : '',
     createdAt: obj.createdAt ? new Date(obj.createdAt) : new Date(),
@@ -27,6 +37,66 @@ function normalizeAgent(agent: any) {
 export class AgentService {
   constructor() {
     console.log('✅ Agent service initialized');
+  }
+
+  // Check if user can create agent with specific permission
+  canUserCreateAgent(user: any, permission: string) {
+    if (!user) return false;
+
+    switch (permission) {
+      case AgentPermission.PRIVATE:
+        // All users can create private agents
+        return true;
+
+      case AgentPermission.DEPARTMENT:
+        // STAFF, ADMIN, SUPER_ADMIN can create department agents
+        return user.role === UserRole.STAFFS || user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+
+      case AgentPermission.PUBLIC:
+        // Only ADMIN and SUPER_ADMIN can create public agents
+        return user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+
+      default:
+        return false;
+    }
+  }
+
+  // Check if user can access agent
+  canUserAccessAgent(user: any, agent: any) {
+    if (!agent) return false;
+
+    // Public agents can be accessed by anyone
+    if (agent.permission === AgentPermission.PUBLIC || agent.isPublic) {
+      return true;
+    }
+
+    // Private agents can only be accessed by creator
+    if (agent.permission === AgentPermission.PRIVATE) {
+      return agent.createdBy === user.username;
+    }
+
+    // Department agents can be accessed by same department users
+    if (agent.permission === AgentPermission.DEPARTMENT) {
+      return (agent.createdBy === user.username ||
+             user.department === agent.department);
+    }
+
+    return false;
+  }
+
+  // Check if user can modify agent
+  canUserModifyAgent(user: any, agent: any) {
+    if (!agent || !user) {
+      return false;
+    }
+
+    // Users can modify their own agents
+    if (agent.createdBy === user.username) {
+      return true;
+    }
+
+    // No one else can modify agents (even admins can't modify others' agents per requirement)
+    return false;
   }
 
   public async getAllAgents(userId?: string): Promise<any[]> {
@@ -87,8 +157,22 @@ export class AgentService {
     });
   }
 
-  public async createAgent(agentData: any): Promise<any> {
+  public async createAgent(agentData: any, user?: any): Promise<any> {
     try {
+      // Determine permission - use new permission field or fallback to isPublic
+      const permission = agentData.permission ||
+                        (agentData.isPublic ? AgentPermission.PUBLIC : AgentPermission.PRIVATE);
+
+      // Check if user can create agent with this permission
+      if (user && !this.canUserCreateAgent(user, permission)) {
+        throw new Error(`You don't have permission to create ${permission} agents`);
+      }
+
+      // Department agents must be created with user's department
+      if (permission === AgentPermission.DEPARTMENT && user && !user.department) {
+        throw new Error('User must have a department to create department agents');
+      }
+
       // Validation ชื่อ agent
       if (!agentData.name || typeof agentData.name !== 'string' || !agentData.name.trim()) {
         throw new Error('Agent name cannot be empty');
@@ -108,7 +192,8 @@ export class AgentService {
       if (existingAgent) {
         throw new Error('Agent name already exists');
       }
-      const agent = new AgentModel({
+
+      const agentDoc: any = {
         name: agentData.name,
         description: agentData.description ?? '',
         systemPrompt: agentData.systemPrompt ?? '',
@@ -117,14 +202,22 @@ export class AgentService {
         tools: agentData.tools ?? [],
         temperature: agentData.temperature ?? 0.7,
         maxTokens: agentData.maxTokens ?? 4000,
-        isPublic: agentData.isPublic ?? false,
+        permission: permission,
+        isPublic: permission === AgentPermission.PUBLIC, // Maintain backward compatibility
         tags: agentData.tags ?? [],
-        createdBy: agentData.createdBy ?? '',
+        createdBy: agentData.createdBy ?? (user ? user.username : ''),
         createdAt: new Date(),
         updatedAt: new Date(),
         usageCount: 0,
         rating: 0.0
-      });
+      };
+
+      // Set department for department agents
+      if (permission === AgentPermission.DEPARTMENT && user) {
+        agentDoc.department = user.department;
+      }
+
+      const agent = new AgentModel(agentDoc);
 
       await agent.save();
       console.log(`✅ Created agent: ${agent.name}`);
@@ -137,7 +230,7 @@ export class AgentService {
 
   public async updateAgent(agentId: string, updates: any, userId?: string): Promise<any | null> {
     try {
-      // Check ownership/role if userId provided
+      // Check ownership if userId provided
       if (userId) {
         const existingAgent = await AgentModel.findById(agentId);
         if (!existingAgent) {
@@ -149,8 +242,9 @@ export class AgentService {
         if (!user) {
           throw new Error('User not found');
         }
-        const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
-        if (existingAgent.createdBy !== user.username && !isAdmin) {
+
+        // Use new permission check - only creator can modify
+        if (!this.canUserModifyAgent(user, existingAgent)) {
           throw new Error('You can only update your own agents');
         }
       }
@@ -196,7 +290,7 @@ export class AgentService {
 
   public async deleteAgent(agentId: string, userId?: string): Promise<boolean> {
     try {
-      // Check ownership/role if userId provided
+      // Check ownership if userId provided
       if (userId) {
         const existingAgent = await AgentModel.findById(agentId);
         if (!existingAgent) {
@@ -208,8 +302,9 @@ export class AgentService {
         if (!user) {
           throw new Error('User not found');
         }
-        const isAdmin = user.role === 'Admin' || user.role === 'SuperAdmin';
-        if (existingAgent.createdBy !== user.username && !isAdmin) {
+
+        // Use new permission check - only creator can delete
+        if (!this.canUserModifyAgent(user, existingAgent)) {
           throw new Error('You can only delete your own agents');
         }
       }

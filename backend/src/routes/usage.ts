@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { usageService } from '../services/usageService';
 import { authenticateJWT, AuthenticatedRequest } from '../middleware/auth';
-import { adminMiddleware } from '../middleware/adminMiddleware';
+import { superAdminMiddleware } from '../middleware/adminMiddleware';
 
 const router = express.Router();
 
@@ -21,8 +21,8 @@ router.get('/me', authenticateJWT, async (req: AuthenticatedRequest, res: Respon
   }
 });
 
-// Get specific user's usage (admin only)
-router.get('/user/:userId', authenticateJWT, adminMiddleware, async (req: Request, res: Response) => {
+// Get specific user's usage (Super Admin only)
+router.get('/user/:userId', authenticateJWT, superAdminMiddleware, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const quotaInfo = await usageService.getUserQuotaInfo(userId);
@@ -33,8 +33,8 @@ router.get('/user/:userId', authenticateJWT, adminMiddleware, async (req: Reques
   }
 });
 
-// Get total system usage statistics (admin only)
-router.get('/system', authenticateJWT, adminMiddleware, async (req: Request, res: Response) => {
+// Get total system usage statistics (Super Admin only)
+router.get('/system', authenticateJWT, superAdminMiddleware, async (req: Request, res: Response) => {
   try {
     const totalUsage = await usageService.getTotalUsage();
     res.json(totalUsage);
@@ -44,8 +44,8 @@ router.get('/system', authenticateJWT, adminMiddleware, async (req: Request, res
   }
 });
 
-// Update user quota (admin only)
-router.put('/user/:userId/quota', authenticateJWT, adminMiddleware, async (req: Request, res: Response) => {
+// Update user quota (Super Admin only)
+router.put('/user/:userId/quota', authenticateJWT, superAdminMiddleware, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { tokenQuota, dailyTokenLimit } = req.body;
@@ -60,8 +60,8 @@ router.put('/user/:userId/quota', authenticateJWT, adminMiddleware, async (req: 
   }
 });
 
-// Reset user usage (admin only)
-router.post('/user/:userId/reset', authenticateJWT, adminMiddleware, async (req: Request, res: Response) => {
+// Reset user usage (Super Admin only)
+router.post('/user/:userId/reset', authenticateJWT, superAdminMiddleware, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     await usageService.resetUserUsage(userId);

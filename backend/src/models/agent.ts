@@ -44,6 +44,12 @@ export interface AgentExecution {
   tokenUsage: TokenUsage;
 }
 
+export enum AgentPermission {
+  PUBLIC = 'PUBLIC',
+  PRIVATE = 'PRIVATE',
+  DEPARTMENT = 'DEPARTMENT',
+}
+
 export interface Agent extends Document {
   id: string;
   name: string;
@@ -54,7 +60,9 @@ export interface Agent extends Document {
   tools: AgentTool[];
   temperature: number;
   maxTokens: number;
-  isPublic: boolean;
+  permission: AgentPermission;  // New field
+  department?: string;          // New field
+  isPublic: boolean;           // Keep for backward compatibility
   tags: string[];
   createdBy: string;
   createdAt: Date;
@@ -118,7 +126,13 @@ const AgentSchema = new Schema<Agent>({
   tools: { type: [AgentToolSchema], default: [] },
   temperature: { type: Number, default: 0.7 },
   maxTokens: { type: Number, default: 4000 },
-  isPublic: { type: Boolean, default: false },
+  permission: {
+    type: String,
+    enum: Object.values(AgentPermission),
+    default: AgentPermission.PRIVATE
+  },
+  department: { type: String },
+  isPublic: { type: Boolean, default: false }, // Keep for backward compatibility
   tags: { type: [String], default: [] }, // Ensure tags is an array of strings with a default empty array
   createdBy: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },

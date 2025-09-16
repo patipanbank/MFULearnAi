@@ -1,6 +1,8 @@
 import express from 'express';
 import { chatService } from '../services/chatService';
 import { authenticateJWT } from '../middleware/auth';
+import { superAdminMiddleware } from '../middleware/adminMiddleware';
+import { UserRole } from '../models/user';
 
 const router = express.Router();
 
@@ -286,16 +288,9 @@ router.delete('/:chatId', authenticateJWT, async (req: any, res) => {
   }
 });
 
-// Get memory statistics (admin only)
-router.get('/memory/stats', authenticateJWT, async (req: any, res) => {
+// Get memory statistics (Super Admin only)
+router.get('/memory/stats', authenticateJWT, superAdminMiddleware, async (req: any, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied'
-      });
-    }
     
     const stats = chatService.getStats();
     
@@ -312,16 +307,9 @@ router.get('/memory/stats', authenticateJWT, async (req: any, res) => {
   }
 });
 
-// Get chat statistics (admin only)
-router.get('/stats/overview', authenticateJWT, async (req: any, res) => {
+// Get chat statistics (Super Admin only)
+router.get('/stats/overview', authenticateJWT, superAdminMiddleware, async (req: any, res) => {
   try {
-    // Check if user is admin (you can implement role-based access control here)
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied'
-      });
-    }
     
     const stats = chatService.getStats();
     
