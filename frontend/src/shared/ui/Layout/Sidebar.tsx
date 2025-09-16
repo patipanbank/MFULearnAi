@@ -14,6 +14,7 @@ import {
 import { useLayoutStore, useUIStore, useChatStore } from '../../stores';
 import { cn, formatDate } from '../../lib/utils';
 import PreferencesModal from '../PreferencesModal';
+import SettingsModal from '../SettingsModal';
 
 // Add custom icon styles
 const iconBaseStyle = "transition-colors duration-200";
@@ -51,6 +52,7 @@ const Sidebar: React.FC = () => {
 
   // Modal states
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   const settingsDropdownId = 'settings-dropdown';
   const isSettingsOpen = openDropdowns.includes(settingsDropdownId);
@@ -73,29 +75,37 @@ const Sidebar: React.FC = () => {
   }, [closeDropdown, settingsDropdownId]);
 
   const settingsItems = [
-    { 
-      id: 'knowledge', 
-      label: 'Knowledge Base', 
-      icon: FiDatabase, 
-      description: 'Manage your collections', 
-      type: 'route', 
+    {
+      id: 'knowledge',
+      label: 'Knowledge Base',
+      icon: FiDatabase,
+      description: 'Manage your collections',
+      type: 'route',
       path: '/knowledgebase',
       iconColor: iconColors.database
     },
-    { 
-      id: 'agents', 
-      label: 'AI Agents', 
-      icon: FiUser, 
-      description: 'Create and manage agents', 
-      type: 'route', 
+    {
+      id: 'agents',
+      label: 'AI Agents',
+      icon: FiUser,
+      description: 'Create and manage agents',
+      type: 'route',
       path: '/agent',
       iconColor: iconColors.user
     },
-    { 
-      id: 'preferences', 
-      label: 'Preferences', 
-      icon: FiSliders, 
-      description: 'App settings and theme', 
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: FiSettings,
+      description: 'App settings and preferences',
+      type: 'modal',
+      iconColor: iconColors.settings
+    },
+    {
+      id: 'preferences',
+      label: 'Quick Preferences',
+      icon: FiSliders,
+      description: 'Theme and display options',
       type: 'modal',
       iconColor: iconColors.preferences
     }
@@ -110,6 +120,9 @@ const Sidebar: React.FC = () => {
       
       // Open appropriate modal
       switch (item.id) {
+        case 'settings':
+          setSettingsModalOpen(true);
+          break;
         case 'preferences':
           setPreferencesModalOpen(true);
           break;
@@ -397,9 +410,13 @@ const Sidebar: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <PreferencesModal 
-        isOpen={preferencesModalOpen} 
-        onClose={() => setPreferencesModalOpen(false)} 
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+      />
+      <PreferencesModal
+        isOpen={preferencesModalOpen}
+        onClose={() => setPreferencesModalOpen(false)}
       />
     </>
   );
