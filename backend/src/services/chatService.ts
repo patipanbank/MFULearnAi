@@ -7,7 +7,7 @@ import { toolRegistry, createMemoryTool, createRetrievalTools, ToolFunction } fr
 import { createPromptTemplate } from '../agent/promptFactory';
 import { createAgent } from '../agent/agentFactory';
 import { redis } from '../lib/redis';
-import { smartMemoryService } from './smartMemoryService';
+import { memoryService } from './memoryService';
 import { chromaService } from './chromaService';
 import { storageService } from './storageService';
 
@@ -460,6 +460,414 @@ export class ChatService {
     );
   }
 
+  private async processWithAILegacy(chatId: string, userMessage: string, images?: Array<{ url: string; mediaType: string }>, config?: {
+    modelId?: string | null;
+    collectionNames?: string[];
+    systemPrompt?: string | null;
+    temperature?: number;
+    maxTokens?: number;
+    agentId?: string;
+  }, userId?: string): Promise<void> {
+    try {
+      console.log(`🤖 processWithAILegacy called for chat ${chatId}`);
+      console.log(`🤖 User message: ${userMessage.substring(0, 100)}...`);
+      console.log(`🤖 Images: ${images?.length || 0}`);
+      console.log(`🤖 Config:`, config);
+
+      // 1. Get chat history
+      const chat = await ChatModel.findById(chatId);
+      if (!chat) {
+        throw new Error('Chat not found');
+      }
+
+      // 2. Smart Memory Management (เหมือน Legacy)
+      const messageCount = chat.messages.length;
+      const shouldUseMemoryTool = this.shouldUseMemoryTool(messageCount);
+      const shouldUseRedisMemory = this.shouldUseRedisMemory(messageCount);
+      const shouldEmbedMessages = this.shouldEmbedMessages(messageCount);
+
+      console.log(`🧠 Memory Management: messageCount=${messageCount}, useMemoryTool=${shouldUseMemoryTool}, useRedisMemory=${shouldUseRedisMemory}, shouldEmbed=${shouldEmbedMessages}`);
+
+      // 3. Embed messages if needed (เหมือน Legacy)
+      if (shouldEmbedMessages && chat.messages.length > 0) {
+        console.log(`📚 Embedding messages for chat ${chatId} (message count: ${messageCount})`);
+        // Embedding is now handled by hybrid memory management
+      }
+
+      // 4. Setup hybrid memory management: handled later once messages are finalized
+
+      // 5-8. เตรียม/รีใช้ LLM + Tools + AgentExecutor จาก cache ตาม signature
+      const defaultSystemPrompt = "You are a helpful assistant. You have access to a number of tools and must use them when appropriate. Always focus on answering the current user's question. Use chat history as context to provide better responses, but do not repeat or respond to previous questions in the history.";
+      const finalSystemPrompt = (config?.systemPrompt || defaultSystemPrompt);
+
+      const signaturePayload = {
+        modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        temperature: config?.temperature ?? 0.7,
+        maxTokens: config?.maxTokens ?? 4000,
+        systemPrompt: finalSystemPrompt,
+        collections: (config?.collectionNames || []).slice().sort(),
+        agentId: config?.agentId || null
+      };
+      const signature = JSON.stringify(signaturePayload);
+
+      let cached = this.agentCache.get(chatId);
+      let agent: any;
+
+      if (cached && cached.signature === signature) {
+        console.log(`⚡ Reusing cached agent for chat ${chatId}`);
+        agent = cached.executor;
+      } else {
+        console.log(`🤖 Creating LLM/Agent for chat ${chatId}`);
+        const llm = getLLM(signaturePayload.modelId, {
+          temperature: signaturePayload.temperature,
+          maxTokens: signaturePayload.maxTokens,
+          streaming: true
+        });
+
+        // Prepare tools
+        const sessionTools = createMemoryTool(chatId);
+        const allTools: { [name: string]: ToolFunction } = {};
+        for (const [k, v] of Object.entries(toolRegistry)) allTools[k] = v.func;
+        for (const [k, v] of Object.entries(sessionTools)) allTools[k] = v.func;
+        if (signaturePayload.collections && signaturePayload.collections.length > 0) {
+          const retrievalTools = createRetrievalTools(signaturePayload.collections);
+          for (const [name, tool] of Object.entries(retrievalTools)) {
+            allTools[name] = (tool as any).func;
+            console.log(`🔧 Added retrieval tool: ${name}`);
+          }
+        }
+
+        agent = await createAgent(llm, allTools, finalSystemPrompt, {
+          modelId: signaturePayload.modelId,
+          sessionId: chatId,
+          temperature: signaturePayload.temperature,
+          maxTokens: signaturePayload.maxTokens
+        });
+
+        this.agentCache.set(chatId, { signature, executor: agent });
+      }
+
+      // 9. ดึงข้อความทั้งหมดจากฐานข้อมูลมาเป็นบริบท (เหมือน Legacy)
+      const chatFromDb = await ChatModel.findById(chatId);
+      if (!chatFromDb) throw new Error(`Chat session ${chatId} not found during AI processing`);
+      let messages: ChatMessage[] = chatFromDb.messages.map(msg => {
+        let enrichedContent = msg.content;
+        if (msg.role === 'user' && Array.isArray((msg as any).images) && (msg as any).images.length > 0) {
+          const imagesDesc = (msg as any).images
+            .map((im: any, idx: number) => `#${idx + 1} (${im.mediaType}): ${im.url}`)
+            .join('\n');
+          enrichedContent = `${enrichedContent}\n\n[Attached images]\n${imagesDesc}`;
+        }
+        return {
+          role: msg.role,
+          content: enrichedContent,
+          id: msg.id,
+          timestamp: msg.timestamp
+        } as any;
+      });
+
+      // เพิ่ม user message ล่าสุด (ถ้ายังไม่มี)
+      if (!messages.length || messages[messages.length - 1].role !== 'user') {
+        const userMsg = await this.addMessage(chatId, { role: 'user', content: userMessage });
+        messages.push(userMsg);
+      }
+
+      // ตรวจสอบ memory management (เหมือน Legacy)
+      const currentMessageCount = messages.length;
+      const useMemoryTool = this.shouldUseMemoryTool(currentMessageCount);
+      const useRedisMemory = this.shouldUseRedisMemory(currentMessageCount);
+      const shouldEmbed = this.shouldEmbedMessages(currentMessageCount);
+      
+      console.log(`🧠 Memory Management: messageCount=${currentMessageCount}, useMemoryTool=${useMemoryTool}, useRedisMemory=${useRedisMemory}, shouldEmbed=${shouldEmbed}`);
+      
+      // จัดการ memory หลังจากได้ผลลัพธ์สุดท้าย เพื่อ embed เฉพาะข้อความใหม่จริงๆ
+
+      // 10. เตรียมรูปภาพสำหรับ multimodal API
+      let preparedImages: Array<{ url: string; mediaType: string; base64Data?: string }> = [];
+      if (images && images.length > 0) {
+        console.log(`🖼️ Preparing ${images.length} images for multimodal processing...`);
+        preparedImages = await this.prepareImagesForMultimodal(images);
+        const successCount = preparedImages.filter(img => img.base64Data).length;
+        console.log(`✅ Prepared ${successCount}/${images.length} images for multimodal processing`);
+
+        // Send vision processing status via WebSocket instead of chat message
+        if (successCount < images.length) {
+          const failedCount = images.length - successCount;
+          const failedImages = preparedImages.filter(img => !img.base64Data);
+
+          // Create detailed error message
+          let toastMessage: string;
+          if (failedCount === images.length) {
+            toastMessage = `Unable to process ${failedCount} image${failedCount > 1 ? 's' : ''}. Responding with text only.`;
+          } else {
+            toastMessage = `${failedCount} of ${images.length} images couldn't be processed. Continuing with ${successCount}.`;
+          }
+
+          // Get primary error reason for better user guidance
+          const errorReasons = failedImages.map(img => (img as any).error).filter(Boolean);
+          const primaryReason = errorReasons[0];
+          if (primaryReason) {
+            if (primaryReason.includes('too large')) {
+              toastMessage += ' Try using smaller images (max 10MB).';
+            } else if (primaryReason.includes('Unsupported format')) {
+              toastMessage += ' Use JPEG, PNG, GIF, or WebP formats.';
+            } else if (primaryReason.includes('Failed to load')) {
+              toastMessage += ' Some images could not be loaded from storage.';
+            }
+          }
+
+          // Send toast notification instead of chat message
+          if (wsManager.getSessionConnectionCount(chatId) > 0) {
+            wsManager.broadcastToSession(chatId, JSON.stringify({
+              type: 'image_processing_error',
+              data: {
+                message: toastMessage,
+                failedCount,
+                totalCount: images.length,
+                successCount,
+                errors: errorReasons,
+                timestamp: new Date().toISOString()
+              }
+            }));
+          }
+        }
+      }
+
+      // 11. Check quota before starting agent processing
+      if (userId) {
+        const quotaCheck = await usageService.checkQuotaAndUsage(userId, 0, 100); // Pre-check with estimated tokens
+        if (!quotaCheck.canUse) {
+          console.warn(`⚠️ Pre-chat quota check failed for user ${userId}: ${quotaCheck.reason}`);
+          
+          // Send quota exceeded message to frontend
+          if (wsManager.getSessionConnectionCount(chatId) > 0) {
+            wsManager.broadcastToSession(chatId, JSON.stringify({
+              type: 'quota_exceeded',
+              data: {
+                reason: quotaCheck.reason,
+                timestamp: new Date().toISOString()
+              }
+            }));
+          }
+          
+          throw new Error(`Token quota exceeded: ${quotaCheck.reason}`);
+        }
+      }
+
+      // 12. เรียก agent.run พร้อม onEvent สำหรับ stream event
+      console.log(`🤖 Starting agent.run with ${messages.length} messages`);
+      console.log(`🤖 Last message: ${messages[messages.length - 1].content.substring(0, 50)}...`);
+      console.log(`🤖 Images for multimodal: ${preparedImages.filter(img => img.base64Data).length}`);
+      
+      let fullContent = '';
+      let inputTokens = 0;
+      let outputTokens = 0;
+      
+      let assistantMessageId: string | null = null;
+
+      await agent.run(messages, {
+        images: preparedImages.filter(img => img.base64Data), // ส่ง prepared images ที่พร้อมใช้งาน
+        onEvent: async (event: { type: string; data?: any }) => {
+          console.log(`🤖 Agent event: ${event.type}`, event.data);
+          if (event.type === 'chunk') {
+            // Ensure event.data is properly converted to string
+            const chunkContent = typeof event.data === 'string' ? event.data :
+                                typeof event.data === 'object' && event.data !== null ? JSON.stringify(event.data) :
+                                String(event.data || '');
+
+            fullContent += chunkContent;
+
+            // สร้าง assistant message เมื่อได้รับ chunk แรก
+            if (fullContent === chunkContent) {
+              console.log(`🤖 First chunk received, creating assistant message...`);
+
+              const assistantMessage = await this.addMessage(chatId, {
+                role: 'assistant',
+                content: chunkContent, // เริ่มต้นด้วย chunk แรก
+              });
+              assistantMessageId = assistantMessage.id;
+
+              // ส่ง event แจ้ง frontend ว่าสร้าง assistant message ใหม่
+              if (wsManager.getSessionConnectionCount(chatId) > 0) {
+                wsManager.broadcastToSession(chatId, JSON.stringify({
+                  type: 'assistant_created',
+                  data: {
+                    messageId: assistantMessage.id,
+                    content: chunkContent
+                  }
+                }));
+              }
+            }
+            
+            // ส่ง streaming ไปยัง frontend และ update database
+            if (assistantMessageId) {
+              // Update message content in database
+              await ChatModel.updateOne(
+                { _id: chatId, 'messages.id': assistantMessageId },
+                {
+                  $set: {
+                    'messages.$.content': fullContent,
+                    updatedAt: new Date()
+                  }
+                }
+              );
+
+              // Send to frontend
+              if (wsManager.getSessionConnectionCount(chatId) > 0) {
+                wsManager.broadcastToSession(chatId, JSON.stringify({
+                  type: 'chunk',
+                  data: {
+                    messageId: assistantMessageId,
+                    delta: chunkContent
+                  }
+                }));
+              }
+            }
+          } else if (event.type === 'tool_start') {
+            console.log(`🔧 Tool started: ${event.data.tool_name}`);
+            console.log(`🔧 Tool input: ${event.data.tool_input}`);
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              // Ensure tool_input is properly stringified if it's an object
+              const toolInput = typeof event.data.tool_input === 'string' ? event.data.tool_input :
+                               typeof event.data.tool_input === 'object' && event.data.tool_input !== null ? JSON.stringify(event.data.tool_input) :
+                               String(event.data.tool_input || '');
+
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'tool_start',
+                data: {
+                  tool_name: event.data.tool_name,
+                  tool_input: toolInput
+                }
+              }));
+            }
+          } else if (event.type === 'tool_result') {
+            const output = event.data.output || 'No output available';
+            console.log(`🔧 Tool completed: ${event.data.tool_name} with result: ${output.substring(0, 100)}...`);
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({ 
+                type: 'tool_result', 
+                data: {
+                  tool_name: event.data.tool_name,
+                  output: output
+                }
+              }));
+            }
+          } else if (event.type === 'tool_error') {
+            console.error(`❌ Tool error: ${event.data.error}`);
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({ 
+                type: 'tool_error', 
+                data: {
+                  tool_name: event.data.tool_name,
+                  error: event.data.error
+                }
+              }));
+            }
+          } else if (event.type === 'assistant_created') {
+            console.log(`🤖 Assistant message created`, event.data);
+            // Backend สร้าง assistant message ใหม่แล้ว
+            const assistantMsg: ChatMessage = {
+              id: event.data.messageId,
+              role: 'assistant',
+              content: event.data.content,
+              timestamp: new Date(),
+              isStreaming: true,
+              isComplete: false
+            };
+            await this.addMessage(chatId, assistantMsg);
+          } else if (event.type === 'end') {
+            // Ensure answer is properly converted to string
+            const finalAnswer = typeof event.data.answer === 'string' ? event.data.answer :
+                               typeof event.data.answer === 'object' && event.data.answer !== null ? JSON.stringify(event.data.answer) :
+                               String(event.data.answer || '');
+
+            console.log(`🤖 Agent finished with answer: ${finalAnswer.substring(0, 50)}...`);
+
+            // อัปเดต assistant message ที่สร้างไว้แล้วด้วย content สุดท้าย
+            const chatFromDb = await ChatModel.findById(chatId);
+            if (chatFromDb && chatFromDb.messages.length > 0) {
+              const lastMessage = chatFromDb.messages[chatFromDb.messages.length - 1];
+              if (lastMessage.role === 'assistant') {
+                // อัปเดต content ของ assistant message ล่าสุด
+                await ChatModel.updateOne(
+                  { _id: chatId, 'messages.id': lastMessage.id },
+                  {
+                    $set: {
+                      'messages.$.content': finalAnswer,
+                      updatedAt: new Date()
+                    }
+                  }
+                );
+                console.log(`🤖 Updated assistant message ${lastMessage.id} with final content`);
+                if (!assistantMessageId) {
+                  assistantMessageId = lastMessage.id;
+                }
+              }
+            }
+            
+            // จัดการ hybrid memory ณ จุดสิ้นสุด เพื่อ embed เฉพาะชุดล่าสุด
+            try {
+              const updated = await ChatModel.findById(chatId);
+              if (updated) {
+                console.log(`💾 Setting up hybrid memory for chat ${chatId}`);
+                await memoryService.setupHybridMemory(chatId, updated.messages);
+              }
+            } catch (memErr) {
+              console.warn('⚠️ Hybrid memory setup failed:', memErr);
+            }
+
+            // Update usage statistics
+            if (event.data.inputTokens || event.data.outputTokens) {
+              inputTokens = event.data.inputTokens || 0;
+              outputTokens = event.data.outputTokens || 0;
+              if (userId && (inputTokens > 0 || outputTokens > 0)) {
+                const updateResult = await usageService.updateUsage(userId, inputTokens, outputTokens);
+                if (!updateResult.success) {
+                  console.warn(`⚠️ Usage update failed for user ${userId}: ${updateResult.reason}`);
+                  
+                  // Send quota exceeded message to frontend
+                  if (wsManager.getSessionConnectionCount(chatId) > 0) {
+                    wsManager.broadcastToSession(chatId, JSON.stringify({
+                      type: 'quota_exceeded',
+                      data: {
+                        reason: updateResult.reason,
+                        timestamp: new Date().toISOString()
+                      }
+                    }));
+                  }
+                }
+              }
+            }
+            
+            // ส่ง end event หลังจาก streaming เสร็จแล้ว
+            if (wsManager.getSessionConnectionCount(chatId) > 0) {
+              wsManager.broadcastToSession(chatId, JSON.stringify({
+                type: 'end',
+                data: {
+                  messageId: assistantMessageId,
+                  answer: finalAnswer,
+                  inputTokens,
+                  outputTokens
+                }
+              }));
+            }
+          }
+        },
+        maxSteps: 5
+      });
+    } catch (error) {
+      console.error('❌ Error in processWithAILegacy:', error);
+      if (wsManager.getSessionConnectionCount(chatId) > 0) {
+        wsManager.broadcastToSession(chatId, JSON.stringify({ type: 'error', data: 'Failed to process message' }));
+      }
+    }
+  }
+
+
+
+
+
+
   public async getUserChats(userId: string): Promise<Chat[]> {
     const chats = await ChatModel.find({ userId })
       .sort({ updatedAt: -1 })
@@ -476,7 +884,7 @@ export class ChatService {
       console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
       // Also clear associated memory (Redis + Chroma vectorstore)
       try {
-        await smartMemoryService.clearSession(chatId);
+        await memoryService.clearAllMemory(chatId);
         console.log(`🧹 Cleared memory for deleted chat ${chatId}`);
       } catch (err) {
         console.warn(`⚠️ Failed to clear memory for deleted chat ${chatId}:`, err);
@@ -518,8 +926,8 @@ export class ChatService {
 
   public async clearChatMemory(chatId: string): Promise<void> {
     try {
-      // Clear all memory using smart approach
-      await smartMemoryService.clearSession(chatId);
+      // Clear all memory using hybrid approach (เหมือน Legacy)
+      await memoryService.clearAllMemory(chatId);
       
       
       console.log(`✅ Memory cleared for chat ${chatId}`);
