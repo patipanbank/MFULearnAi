@@ -16,6 +16,8 @@ export interface AgentExecutor {
             base64Data?: string;
         }>;
     }) => Promise<string>;
+    getState?: () => any;
+    visualize?: () => string;
 }
 export declare function createAgent(llm: LLM, tools: {
     [name: string]: ToolFunction;

@@ -1,6 +1,6 @@
 import { LLM } from './llmFactory';
 import { ToolFunction } from '../services/toolRegistry';
-import { createLangChainAgent, LangChainAgentConfig } from './langchainAgentFactory';
+import { createSimpleLangGraphAgent, SimpleLangGraphConfig } from './simpleLanggraphAgent';
 import { unifiedToolRegistry, ToolExecutionContext, ToolConfig } from '../services/unifiedToolRegistry';
 import { createLangMemTools, createLegacyLangMemTools } from '../services/langmemTools';
 
@@ -13,13 +13,16 @@ export interface AgentExecutor {
       images?: Array<{ url: string; mediaType: string; base64Data?: string }>;
     }
   ) => Promise<string>;
+  getState?: () => any;
+  visualize?: () => string;
 }
 
 /**
  * createAgent (agentFactory): สร้าง AgentExecutor สำหรับ orchestrate LLM + tools + prompt
- * - ใช้ LangChain Agent framework เต็มรูปแบบ
+ * - ใช้ LangGraph framework สำหรับ stateful workflow
  * - ยังคง API interface เดิมไว้
  * - เพิ่มการรองรับ multimodal (รูปภาพ)
+ * - เพิ่ม state management และ better debugging
  */
 export async function createAgent(
   llm: LLM,
@@ -36,7 +39,7 @@ export async function createAgent(
     allowedTools?: string[]; // รายการ tools ที่ agent ใช้ได้
   }
 ): Promise<AgentExecutor> {
-  console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
+  console.log(`🤖 Creating LangGraph Agent with prompt: ${prompt.substring(0, 50)}...`);
 
   // Setup execution context for unified tool registry
   const toolContext: ToolExecutionContext = {
@@ -47,21 +50,10 @@ export async function createAgent(
     config: config
   };
 
-  // Get available tools from unified registry
-  let availableTools = unifiedToolRegistry.getAvailableTools(toolContext);
-
-  // Filter tools based on agent configuration
-  if (config?.allowedTools && config.allowedTools.length > 0) {
-    console.log(`🔧 Filtering tools to allowed list: ${config.allowedTools.join(', ')}`);
-    availableTools = availableTools.filter(tool =>
-      config.allowedTools!.includes(tool.id) ||
-      config.allowedTools!.includes(tool.name.toLowerCase().replace(/\s+/g, '_'))
-    );
-  }
-
   // Create session-specific tools if sessionId provided
   if (config?.sessionId) {
     unifiedToolRegistry.createSessionTools(config.sessionId);
+    await unifiedToolRegistry.createMemorySearchToolsIfNeeded(config.sessionId);
   }
 
   // Create collection-specific tools if collections provided
@@ -69,118 +61,68 @@ export async function createAgent(
     unifiedToolRegistry.createCollectionTools(config.collectionNames);
   }
 
-  // Convert unified tools to legacy format for compatibility
-  const unifiedTools = convertUnifiedToolsToLegacy(availableTools, toolContext);
+  console.log(`🔧 Tool filtering: ${config?.allowedTools ? config.allowedTools.join(', ') : 'All tools allowed'}`);
 
-  // Create LangMem memory tools
-  const langmemTools = createLangMemTools({
-    sessionId: config?.sessionId || 'default',
-    userId: config?.userId,
-    agentId: config?.agentId,
-    namespace: config?.agentId || 'default'
-  });
-
-  // Create legacy memory tools for backward compatibility
-  const legacyMemoryTools = config?.sessionId
-    ? createLegacyLangMemTools(config.sessionId)
-    : {};
-
-  // Merge with existing tools (legacy compatibility) - also filter legacy tools
-  let filteredLegacyTools = tools;
-  if (config?.allowedTools && config.allowedTools.length > 0) {
-    filteredLegacyTools = {};
-    for (const [toolName, toolFunc] of Object.entries(tools)) {
-      if (config.allowedTools.includes(toolName) ||
-          config.allowedTools.includes(toolName.toLowerCase().replace(/\s+/g, '_'))) {
-        filteredLegacyTools[toolName] = toolFunc;
-      }
-    }
-  }
-
-  const allTools = {
-    ...filteredLegacyTools,
-    ...unifiedTools,
-    ...langmemTools,
-    ...legacyMemoryTools
-  };
-
-  console.log(`🔧 Total tools available: ${Object.keys(allTools).length}`);
-  console.log(`🔧 Tools: ${Object.keys(allTools).join(', ')}`);
-
-  if (config?.allowedTools && config.allowedTools.length > 0) {
-    console.log(`✅ Tools are filtered by agent configuration`);
-  } else {
-    console.log(`⚠️ No tool filtering applied - agent will have access to ALL tools`);
-  }
-
-  // สร้าง LangChain Agent config
-  const agentConfig: LangChainAgentConfig = {
+  // Create Simple LangGraph Agent config
+  const agentConfig: SimpleLangGraphConfig = {
     modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
     systemPrompt: prompt,
     temperature: config?.temperature || 0.7,
     maxTokens: config?.maxTokens || 4000,
-    tools: allTools,
-    sessionId: config?.sessionId
+    sessionId: config?.sessionId,
+    userId: config?.userId,
+    agentId: config?.agentId,
+    collectionNames: config?.collectionNames || [],
+    allowedTools: config?.allowedTools,
+    maxIterations: 5
   };
-  
-  // สร้าง LangChain Agent
-  const langchainAgent = await createLangChainAgent(agentConfig);
+
+  // Create Simple LangGraph Agent
+  const langgraphAgent = await createSimpleLangGraphAgent(agentConfig);
   
   return {
-    async run(messages: { role: string; content: string }[], options?: { 
-      onEvent?: (event: { type: string; data?: any }) => void; 
+    async run(messages: { role: string; content: string }[], options?: {
+      onEvent?: (event: { type: string; data?: any }) => void;
       maxSteps?: number;
       images?: Array<{ url: string; mediaType: string; base64Data?: string }>;
     }): Promise<string> {
-      console.log(`🤖 LangChain Agent.run called with ${messages.length} messages`);
+      console.log(`🤖 LangGraph Agent.run called with ${messages.length} messages`);
       console.log(`🤖 Last message: ${messages[messages.length - 1]?.content.substring(0, 50)}...`);
       console.log(`🤖 Images for multimodal: ${options?.images?.length || 0}`);
-      
+
       try {
-        // ตรวจสอบว่าต้องใช้ multimodal หรือไม่
+        // Handle multimodal case with direct LLM call
         if (options?.images && options.images.length > 0 && options.images.some(img => img.base64Data)) {
           console.log(`🤖 Using multimodal approach with ${options.images.length} images`);
 
-          // ใช้ multimodal LLM โดยตรงพร้อม streaming events
           const lastUserMessage = messages.slice().reverse().find((msg: { role: string; content: string }) => msg.role === 'user');
           if (lastUserMessage) {
-            // สร้าง messageId ที่จะใช้ตลอดการ stream
             const messageId = Math.random().toString(36).substr(2, 9);
 
-            // ส่ง assistant_created event ก่อน
             if (options.onEvent) {
               options.onEvent({
                 type: 'assistant_created',
-                data: {
-                  messageId: messageId,
-                  content: ''
-                }
+                data: { messageId, content: '' }
               });
             }
 
             const response = await llm.generate(lastUserMessage.content, options.images);
 
-            // จำลอง streaming โดยส่งทีละคำ
             if (options.onEvent && response) {
               const words = response.split(' ');
               for (let i = 0; i < words.length; i++) {
                 const chunk = (i > 0 ? ' ' : '') + words[i];
                 options.onEvent({
                   type: 'chunk',
-                  data: {
-                    messageId: messageId,
-                    delta: chunk
-                  }
+                  data: { messageId, delta: chunk }
                 });
-                // เพิ่ม delay เล็กน้อยเพื่อให้ดู streaming
                 await new Promise(resolve => setTimeout(resolve, 30));
               }
 
-              // ส่ง end event
               options.onEvent({
                 type: 'end',
                 data: {
-                  messageId: messageId,
+                  messageId,
                   answer: response,
                   inputTokens: 0,
                   outputTokens: 0
@@ -191,51 +133,22 @@ export async function createAgent(
             return response;
           }
         }
-        
-        // ใช้ LangChain Agent แบบเดิม
-        return await langchainAgent.run(messages, options);
+
+        // Use LangGraph Agent for standard workflow
+        return await langgraphAgent.run(messages, options);
       } catch (error) {
-        console.error('❌ Error in LangChain Agent:', error);
+        console.error('❌ Error in LangGraph Agent:', error);
         throw error;
       } finally {
-        // Cleanup session tools if this was the final execution
-        if (config?.sessionId) {
-          // Note: In production, you might want to cleanup tools when session ends
-          // unifiedToolRegistry.cleanupSessionTools(config.sessionId);
-        }
+        // Cleanup handled by LangGraph state management
+        console.log('🧹 LangGraph Agent execution completed');
       }
-    }
+    },
+
+    // Additional LangGraph specific methods
+    getState: () => langgraphAgent.getState(),
+    visualize: () => langgraphAgent.visualize()
   };
 }
 
-/**
- * Convert unified tools to legacy format for backward compatibility
- */
-function convertUnifiedToolsToLegacy(
-  toolConfigs: ToolConfig[],
-  context: ToolExecutionContext
-): { [name: string]: ToolFunction } {
-  const legacyTools: { [name: string]: ToolFunction } = {};
-
-  for (const config of toolConfigs) {
-    legacyTools[config.id] = async (input: string, sessionId?: string, legacyConfig?: any): Promise<string> => {
-      try {
-        const result = await unifiedToolRegistry.executeTool(config.id, input, {
-          ...context,
-          sessionId: sessionId || context.sessionId,
-          config: { ...context.config, ...legacyConfig }
-        });
-
-        if (result.success) {
-          return result.result;
-        } else {
-          return result.error || 'Tool execution failed';
-        }
-      } catch (error) {
-        return `Tool error: ${(error as Error).message}`;
-      }
-    };
-  }
-
-  return legacyTools;
-} 
+ 

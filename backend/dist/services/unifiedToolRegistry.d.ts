@@ -66,12 +66,14 @@ export declare class UnifiedToolRegistry {
     private tools;
     private toolFunctions;
     private activeTools;
+    private memoryToolsCreated;
     private constructor();
     static getInstance(): UnifiedToolRegistry;
     registerTool(config: ToolConfig, func: ToolFunction): void;
     getAvailableTools(context: ToolExecutionContext): ToolConfig[];
     executeTool(toolId: string, input: string, context: ToolExecutionContext): Promise<ToolExecutionResult>;
     createSessionTools(sessionId: string): ToolConfig[];
+    createMemorySearchToolsIfNeeded(sessionId: string): Promise<ToolConfig[]>;
     createCollectionTools(collectionNames: string[]): ToolConfig[];
     cleanupSessionTools(sessionId: string): void;
     getToolStatistics(): Record<string, any>;

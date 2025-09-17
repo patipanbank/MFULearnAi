@@ -31,6 +31,7 @@ class UnifiedToolRegistry {
         this.tools = new Map();
         this.toolFunctions = new Map();
         this.activeTools = new Map();
+        this.memoryToolsCreated = new Set();
         this.initializeCorTools();
     }
     static getInstance() {
@@ -131,58 +132,79 @@ class UnifiedToolRegistry {
     }
     createSessionTools(sessionId) {
         const sessionTools = [];
-        const memoryToolConfigs = [
-            {
-                id: `search_memory_${sessionId}`,
-                name: 'Search Chat Memory',
-                description: 'Search through conversation history for this session',
-                version: '1.0.0',
-                category: ToolCategory.MEMORY,
-                type: ToolType.SESSION_SPECIFIC,
-                enabled: true,
-                config: { sessionId },
-                metadata: {
-                    tags: ['memory', 'search', 'session'],
-                    lastUpdated: new Date(),
-                    usage_count: 0
+        const embedMemoryConfig = {
+            id: `embed_memory_${sessionId}`,
+            name: 'Embed to Memory',
+            description: 'Store information in conversation memory',
+            version: '1.0.0',
+            category: ToolCategory.MEMORY,
+            type: ToolType.SESSION_SPECIFIC,
+            enabled: true,
+            config: { sessionId },
+            metadata: {
+                tags: ['memory', 'embed', 'session'],
+                lastUpdated: new Date(),
+                usage_count: 0
+            }
+        };
+        this.registerTool(embedMemoryConfig, this.createMemoryToolFunction(embedMemoryConfig.id, sessionId));
+        sessionTools.push(embedMemoryConfig);
+        return sessionTools;
+    }
+    async createMemorySearchToolsIfNeeded(sessionId) {
+        const memoryTools = [];
+        try {
+            const recentMessages = await langmemService_1.langmemService.getRecentMessages(sessionId);
+            const hasMemory = recentMessages && recentMessages.length > 0;
+            if (hasMemory) {
+                const memoryToolConfigs = [
+                    {
+                        id: `search_memory_${sessionId}`,
+                        name: 'Search Chat Memory',
+                        description: 'Search through conversation history for this session',
+                        version: '1.0.0',
+                        category: ToolCategory.MEMORY,
+                        type: ToolType.SESSION_SPECIFIC,
+                        enabled: true,
+                        config: { sessionId },
+                        metadata: {
+                            tags: ['memory', 'search', 'session'],
+                            lastUpdated: new Date(),
+                            usage_count: 0
+                        }
+                    },
+                    {
+                        id: `get_recent_context_${sessionId}`,
+                        name: 'Get Recent Context',
+                        description: 'Get recent conversation context',
+                        version: '1.0.0',
+                        category: ToolCategory.MEMORY,
+                        type: ToolType.SESSION_SPECIFIC,
+                        enabled: true,
+                        config: { sessionId },
+                        metadata: {
+                            tags: ['memory', 'context', 'session'],
+                            lastUpdated: new Date(),
+                            usage_count: 0
+                        }
+                    }
+                ];
+                for (const config of memoryToolConfigs) {
+                    if (!this.tools.has(config.id)) {
+                        this.registerTool(config, this.createMemoryToolFunction(config.id, sessionId));
+                        memoryTools.push(config);
+                    }
                 }
-            },
-            {
-                id: `embed_memory_${sessionId}`,
-                name: 'Embed to Memory',
-                description: 'Store information in conversation memory',
-                version: '1.0.0',
-                category: ToolCategory.MEMORY,
-                type: ToolType.SESSION_SPECIFIC,
-                enabled: true,
-                config: { sessionId },
-                metadata: {
-                    tags: ['memory', 'embed', 'session'],
-                    lastUpdated: new Date(),
-                    usage_count: 0
-                }
-            },
-            {
-                id: `get_recent_context_${sessionId}`,
-                name: 'Get Recent Context',
-                description: 'Get recent conversation context',
-                version: '1.0.0',
-                category: ToolCategory.MEMORY,
-                type: ToolType.SESSION_SPECIFIC,
-                enabled: true,
-                config: { sessionId },
-                metadata: {
-                    tags: ['memory', 'context', 'session'],
-                    lastUpdated: new Date(),
-                    usage_count: 0
+                if (memoryTools.length > 0 && !this.memoryToolsCreated.has(sessionId)) {
+                    this.memoryToolsCreated.add(sessionId);
+                    console.log(`🧠 Memory search tools activated for session ${sessionId}`);
                 }
             }
-        ];
-        for (const config of memoryToolConfigs) {
-            this.registerTool(config, this.createMemoryToolFunction(config.id, sessionId));
-            sessionTools.push(config);
         }
-        return sessionTools;
+        catch (error) {
+            console.error(`❌ Error checking memory for session ${sessionId}:`, error);
+        }
+        return memoryTools;
     }
     createCollectionTools(collectionNames) {
         const collectionTools = [];
