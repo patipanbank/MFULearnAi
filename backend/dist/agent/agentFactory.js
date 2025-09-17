@@ -12,7 +12,12 @@ async function createAgent(llm, tools, prompt, config) {
         collectionNames: config?.collectionNames || [],
         config: config
     };
-    const availableTools = unifiedToolRegistry_1.unifiedToolRegistry.getAvailableTools(toolContext);
+    let availableTools = unifiedToolRegistry_1.unifiedToolRegistry.getAvailableTools(toolContext);
+    if (config?.allowedTools && config.allowedTools.length > 0) {
+        console.log(`🔧 Filtering tools to allowed list: ${config.allowedTools.join(', ')}`);
+        availableTools = availableTools.filter(tool => config.allowedTools.includes(tool.id) ||
+            config.allowedTools.includes(tool.name.toLowerCase().replace(/\s+/g, '_')));
+    }
     if (config?.sessionId) {
         unifiedToolRegistry_1.unifiedToolRegistry.createSessionTools(config.sessionId);
     }
@@ -20,9 +25,25 @@ async function createAgent(llm, tools, prompt, config) {
         unifiedToolRegistry_1.unifiedToolRegistry.createCollectionTools(config.collectionNames);
     }
     const unifiedTools = convertUnifiedToolsToLegacy(availableTools, toolContext);
-    const allTools = { ...tools, ...unifiedTools };
+    let filteredLegacyTools = tools;
+    if (config?.allowedTools && config.allowedTools.length > 0) {
+        filteredLegacyTools = {};
+        for (const [toolName, toolFunc] of Object.entries(tools)) {
+            if (config.allowedTools.includes(toolName) ||
+                config.allowedTools.includes(toolName.toLowerCase().replace(/\s+/g, '_'))) {
+                filteredLegacyTools[toolName] = toolFunc;
+            }
+        }
+    }
+    const allTools = { ...filteredLegacyTools, ...unifiedTools };
     console.log(`🔧 Total tools available: ${Object.keys(allTools).length}`);
     console.log(`🔧 Tools: ${Object.keys(allTools).join(', ')}`);
+    if (config?.allowedTools && config.allowedTools.length > 0) {
+        console.log(`✅ Tools are filtered by agent configuration`);
+    }
+    else {
+        console.log(`⚠️ No tool filtering applied - agent will have access to ALL tools`);
+    }
     const agentConfig = {
         modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
         systemPrompt: prompt,

@@ -15,7 +15,8 @@ import { unifiedToolRegistry, ToolExecutionContext } from './unifiedToolRegistry
 import { createAgent } from '../agent/agentFactory';
 import { getLLM } from '../agent/llmFactory';
 import { toolRegistry, createMemoryTool, createRetrievalTools, ToolFunction } from '../agent/toolRegistry';
-import { AgentExecutionStatus, TokenUsage } from '../models/agent';
+import { AgentExecutionStatus, TokenUsage, AgentTool } from '../models/agent';
+import { agentService } from './agentService';
 
 export interface ExecutionRequest {
   id: string;
@@ -178,6 +179,43 @@ export class AgentExecutionService extends EventEmitter {
     if (!agent || this.isAgentExpired(agent)) {
       console.log(`🤖 Creating agent for execution ${request.id}`);
 
+      // Get agent configuration to respect tool settings
+      let agentConfig = null;
+      let allowedTools: string[] = [];
+
+      if (agentId) {
+        try {
+          agentConfig = await agentService.getAgentById(agentId);
+          if (agentConfig && agentConfig.tools) {
+            // Extract tool IDs/types from agent configuration
+            allowedTools = agentConfig.tools
+              .filter((tool: AgentTool) => tool.enabled)
+              .map((tool: AgentTool) => {
+                // Map AgentToolType enum to actual tool names
+                const typeMap: { [key: string]: string } = {
+                  'web_search': 'web_search',
+                  'calculator': 'calculator',
+                  'current_date': 'current_date',
+                  'memory_search': 'memory_search',
+                  'memory_embed': 'memory_embed'
+                };
+                return typeMap[tool.type] || tool.type || tool.id;
+              });
+
+            // Always allow collection search tools if collections are configured
+            if (context?.collectionNames && context.collectionNames.length > 0) {
+              context.collectionNames.forEach((collectionName: string) => {
+                allowedTools.push(`search_${collectionName}`);
+              });
+            }
+
+            console.log(`🔧 Agent ${agentId} allows tools: ${allowedTools.join(', ')}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to get agent config for ${agentId}:`, error);
+        }
+      }
+
       // Create tool context
       const toolContext: ToolExecutionContext = {
         sessionId: chatId,
@@ -186,9 +224,6 @@ export class AgentExecutionService extends EventEmitter {
         collectionNames: context?.collectionNames || [],
         config: context
       };
-
-      // Get available tools
-      const availableTools = unifiedToolRegistry.getAvailableTools(toolContext);
 
       // Create session and collection tools
       if (chatId) {
@@ -234,7 +269,8 @@ export class AgentExecutionService extends EventEmitter {
         maxTokens: context?.maxTokens,
         collectionNames: context?.collectionNames,
         userId,
-        agentId
+        agentId,
+        allowedTools: allowedTools.length > 0 ? allowedTools : undefined // Pass allowed tools
       });
 
       agent = {

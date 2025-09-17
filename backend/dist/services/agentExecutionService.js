@@ -7,6 +7,7 @@ const unifiedToolRegistry_1 = require("./unifiedToolRegistry");
 const agentFactory_1 = require("../agent/agentFactory");
 const llmFactory_1 = require("../agent/llmFactory");
 const toolRegistry_1 = require("../agent/toolRegistry");
+const agentService_1 = require("./agentService");
 var ExecutionPriority;
 (function (ExecutionPriority) {
     ExecutionPriority[ExecutionPriority["LOW"] = 0] = "LOW";
@@ -93,6 +94,36 @@ class AgentExecutionService extends events_1.EventEmitter {
         let agent = this.agentCache.get(cacheKey);
         if (!agent || this.isAgentExpired(agent)) {
             console.log(`🤖 Creating agent for execution ${request.id}`);
+            let agentConfig = null;
+            let allowedTools = [];
+            if (agentId) {
+                try {
+                    agentConfig = await agentService_1.agentService.getAgentById(agentId);
+                    if (agentConfig && agentConfig.tools) {
+                        allowedTools = agentConfig.tools
+                            .filter((tool) => tool.enabled)
+                            .map((tool) => {
+                            const typeMap = {
+                                'web_search': 'web_search',
+                                'calculator': 'calculator',
+                                'current_date': 'current_date',
+                                'memory_search': 'memory_search',
+                                'memory_embed': 'memory_embed'
+                            };
+                            return typeMap[tool.type] || tool.type || tool.id;
+                        });
+                        if (context?.collectionNames && context.collectionNames.length > 0) {
+                            context.collectionNames.forEach((collectionName) => {
+                                allowedTools.push(`search_${collectionName}`);
+                            });
+                        }
+                        console.log(`🔧 Agent ${agentId} allows tools: ${allowedTools.join(', ')}`);
+                    }
+                }
+                catch (error) {
+                    console.warn(`⚠️ Failed to get agent config for ${agentId}:`, error);
+                }
+            }
             const toolContext = {
                 sessionId: chatId,
                 userId,
@@ -100,7 +131,6 @@ class AgentExecutionService extends events_1.EventEmitter {
                 collectionNames: context?.collectionNames || [],
                 config: context
             };
-            const availableTools = unifiedToolRegistry_1.unifiedToolRegistry.getAvailableTools(toolContext);
             if (chatId) {
                 unifiedToolRegistry_1.unifiedToolRegistry.createSessionTools(chatId);
             }
@@ -133,7 +163,8 @@ class AgentExecutionService extends events_1.EventEmitter {
                 maxTokens: context?.maxTokens,
                 collectionNames: context?.collectionNames,
                 userId,
-                agentId
+                agentId,
+                allowedTools: allowedTools.length > 0 ? allowedTools : undefined
             });
             agent = {
                 executor: agentExecutor,

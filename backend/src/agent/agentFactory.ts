@@ -32,6 +32,7 @@ export async function createAgent(
     collectionNames?: string[];
     userId?: string;
     agentId?: string;
+    allowedTools?: string[]; // รายการ tools ที่ agent ใช้ได้
   }
 ): Promise<AgentExecutor> {
   console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
@@ -46,7 +47,16 @@ export async function createAgent(
   };
 
   // Get available tools from unified registry
-  const availableTools = unifiedToolRegistry.getAvailableTools(toolContext);
+  let availableTools = unifiedToolRegistry.getAvailableTools(toolContext);
+
+  // Filter tools based on agent configuration
+  if (config?.allowedTools && config.allowedTools.length > 0) {
+    console.log(`🔧 Filtering tools to allowed list: ${config.allowedTools.join(', ')}`);
+    availableTools = availableTools.filter(tool =>
+      config.allowedTools!.includes(tool.id) ||
+      config.allowedTools!.includes(tool.name.toLowerCase().replace(/\s+/g, '_'))
+    );
+  }
 
   // Create session-specific tools if sessionId provided
   if (config?.sessionId) {
@@ -61,12 +71,29 @@ export async function createAgent(
   // Convert unified tools to legacy format for compatibility
   const unifiedTools = convertUnifiedToolsToLegacy(availableTools, toolContext);
 
-  // Merge with existing tools (legacy compatibility)
-  const allTools = { ...tools, ...unifiedTools };
+  // Merge with existing tools (legacy compatibility) - also filter legacy tools
+  let filteredLegacyTools = tools;
+  if (config?.allowedTools && config.allowedTools.length > 0) {
+    filteredLegacyTools = {};
+    for (const [toolName, toolFunc] of Object.entries(tools)) {
+      if (config.allowedTools.includes(toolName) ||
+          config.allowedTools.includes(toolName.toLowerCase().replace(/\s+/g, '_'))) {
+        filteredLegacyTools[toolName] = toolFunc;
+      }
+    }
+  }
+
+  const allTools = { ...filteredLegacyTools, ...unifiedTools };
 
   console.log(`🔧 Total tools available: ${Object.keys(allTools).length}`);
   console.log(`🔧 Tools: ${Object.keys(allTools).join(', ')}`);
-  
+
+  if (config?.allowedTools && config.allowedTools.length > 0) {
+    console.log(`✅ Tools are filtered by agent configuration`);
+  } else {
+    console.log(`⚠️ No tool filtering applied - agent will have access to ALL tools`);
+  }
+
   // สร้าง LangChain Agent config
   const agentConfig: LangChainAgentConfig = {
     modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
