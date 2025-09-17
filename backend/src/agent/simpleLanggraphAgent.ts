@@ -98,6 +98,11 @@ export async function createSimpleLangGraphAgent(config: SimpleLangGraphConfig):
         const langchainMessages = convertMessagesToLangChain(messages);
         currentState.messages = langchainMessages;
 
+        console.log(`🤖 Converted ${messages.length} input messages to ${langchainMessages.length} valid LangChain messages`);
+        langchainMessages.forEach((msg, i) => {
+          console.log(`🤖 Message ${i}: ${msg.constructor.name} - "${msg.content?.toString().substring(0, 50)}..."`);
+        });
+
         // Emit start event
         if (onEvent) {
           onEvent({
@@ -257,8 +262,16 @@ export async function createSimpleLangGraphAgent(config: SimpleLangGraphConfig):
 
     const systemMessage = new SystemMessage(enhancedSystemPrompt);
 
+    // Filter out empty messages and ensure content is valid
+    const validMessages = currentState.messages.filter(msg => {
+      const content = msg.content?.toString().trim();
+      return content && content.length > 0;
+    });
+
+    console.log(`🤖 Sending ${validMessages.length + 1} messages to LLM (including system)`);
+
     // Invoke LLM
-    const response = await llm.invoke([systemMessage, ...currentState.messages]);
+    const response = await llm.invoke([systemMessage, ...validMessages]);
 
     currentState.reasoning.push(`Agent responded - checking for tool calls`);
     return response as AIMessage;
@@ -422,11 +435,13 @@ function convertToLangChainTools(
 }
 
 function convertMessagesToLangChain(messages: { role: string; content: string }[]): BaseMessage[] {
-  return messages.map(msg => {
-    if (msg.role === 'user') {
-      return new HumanMessage(msg.content);
-    } else {
-      return new AIMessage(msg.content);
-    }
-  });
+  return messages
+    .filter(msg => msg.content && msg.content.trim().length > 0) // Filter out empty messages
+    .map(msg => {
+      if (msg.role === 'user') {
+        return new HumanMessage(msg.content);
+      } else {
+        return new AIMessage(msg.content);
+      }
+    });
 }

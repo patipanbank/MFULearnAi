@@ -45,6 +45,10 @@ async function createSimpleLangGraphAgent(config) {
             try {
                 const langchainMessages = convertMessagesToLangChain(messages);
                 currentState.messages = langchainMessages;
+                console.log(`🤖 Converted ${messages.length} input messages to ${langchainMessages.length} valid LangChain messages`);
+                langchainMessages.forEach((msg, i) => {
+                    console.log(`🤖 Message ${i}: ${msg.constructor.name} - "${msg.content?.toString().substring(0, 50)}..."`);
+                });
                 if (onEvent) {
                     onEvent({
                         type: 'assistant_created',
@@ -157,7 +161,12 @@ async function createSimpleLangGraphAgent(config) {
         }
         enhancedSystemPrompt += `\n\nAvailable Tools: ${tools.map(t => `${t.name}: ${t.description}`).join(', ')}`;
         const systemMessage = new messages_1.SystemMessage(enhancedSystemPrompt);
-        const response = await llm.invoke([systemMessage, ...currentState.messages]);
+        const validMessages = currentState.messages.filter(msg => {
+            const content = msg.content?.toString().trim();
+            return content && content.length > 0;
+        });
+        console.log(`🤖 Sending ${validMessages.length + 1} messages to LLM (including system)`);
+        const response = await llm.invoke([systemMessage, ...validMessages]);
         currentState.reasoning.push(`Agent responded - checking for tool calls`);
         return response;
     }
@@ -290,7 +299,9 @@ function convertToLangChainTools(toolConfigs, context) {
     }));
 }
 function convertMessagesToLangChain(messages) {
-    return messages.map(msg => {
+    return messages
+        .filter(msg => msg.content && msg.content.trim().length > 0)
+        .map(msg => {
         if (msg.role === 'user') {
             return new messages_1.HumanMessage(msg.content);
         }
