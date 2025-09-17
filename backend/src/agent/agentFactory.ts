@@ -2,6 +2,7 @@ import { LLM } from './llmFactory';
 import { ToolFunction } from '../services/toolRegistry';
 import { createLangChainAgent, LangChainAgentConfig } from './langchainAgentFactory';
 import { unifiedToolRegistry, ToolExecutionContext, ToolConfig } from '../services/unifiedToolRegistry';
+import { createLangMemTools, createLegacyLangMemTools } from '../services/langmemTools';
 
 export interface AgentExecutor {
   run: (
@@ -71,6 +72,19 @@ export async function createAgent(
   // Convert unified tools to legacy format for compatibility
   const unifiedTools = convertUnifiedToolsToLegacy(availableTools, toolContext);
 
+  // Create LangMem memory tools
+  const langmemTools = createLangMemTools({
+    sessionId: config?.sessionId || 'default',
+    userId: config?.userId,
+    agentId: config?.agentId,
+    namespace: config?.agentId || 'default'
+  });
+
+  // Create legacy memory tools for backward compatibility
+  const legacyMemoryTools = config?.sessionId
+    ? createLegacyLangMemTools(config.sessionId)
+    : {};
+
   // Merge with existing tools (legacy compatibility) - also filter legacy tools
   let filteredLegacyTools = tools;
   if (config?.allowedTools && config.allowedTools.length > 0) {
@@ -83,7 +97,12 @@ export async function createAgent(
     }
   }
 
-  const allTools = { ...filteredLegacyTools, ...unifiedTools };
+  const allTools = {
+    ...filteredLegacyTools,
+    ...unifiedTools,
+    ...langmemTools,
+    ...legacyMemoryTools
+  };
 
   console.log(`🔧 Total tools available: ${Object.keys(allTools).length}`);
   console.log(`🔧 Tools: ${Object.keys(allTools).join(', ')}`);

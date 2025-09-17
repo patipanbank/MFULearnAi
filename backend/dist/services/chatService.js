@@ -6,7 +6,7 @@ const websocketManager_1 = require("../utils/websocketManager");
 const agentService_1 = require("./agentService");
 const usageService_1 = require("./usageService");
 const agentExecutionService_1 = require("./agentExecutionService");
-const memoryService_1 = require("./memoryService");
+const langmemService_1 = require("./langmemService");
 const storageService_1 = require("./storageService");
 class ChatService {
     constructor() {
@@ -355,7 +355,7 @@ class ChatService {
         if (success) {
             console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
             try {
-                await memoryService_1.memoryService.clearAllMemory(chatId);
+                await langmemService_1.langmemService.clearAllMemory(chatId);
                 console.log(`🧹 Cleared memory for deleted chat ${chatId}`);
             }
             catch (err) {
@@ -383,7 +383,7 @@ class ChatService {
     }
     async clearChatMemory(chatId) {
         try {
-            await memoryService_1.memoryService.clearAllMemory(chatId);
+            await langmemService_1.langmemService.clearAllMemory(chatId);
             console.log(`✅ Memory cleared for chat ${chatId}`);
         }
         catch (error) {

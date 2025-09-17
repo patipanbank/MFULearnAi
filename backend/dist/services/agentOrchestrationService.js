@@ -5,7 +5,7 @@ const events_1 = require("events");
 const perf_hooks_1 = require("perf_hooks");
 const uuid_1 = require("uuid");
 const agentExecutionService_1 = require("./agentExecutionService");
-const memoryService_1 = require("./memoryService");
+const langmemService_1 = require("./langmemService");
 var TaskPriority;
 (function (TaskPriority) {
     TaskPriority[TaskPriority["LOW"] = 0] = "LOW";
@@ -284,8 +284,8 @@ class AgentOrchestrationService extends events_1.EventEmitter {
     async executeRetrievalStep(step, previousResults, task) {
         switch (step.operation) {
             case 'retrieve_conversation_context':
-                const context = await memoryService_1.memoryService.getConversationContext(step.inputs.sessionId, step.inputs.query);
-                const relevantMemories = await memoryService_1.memoryService.searchMemory(step.inputs.sessionId, step.inputs.query, 5);
+                const context = await langmemService_1.langmemService.getConversationContext(step.inputs.sessionId, step.inputs.query);
+                const relevantMemories = await langmemService_1.langmemService.searchMemory(step.inputs.sessionId, step.inputs.query, 5);
                 return { context, relevantMemories };
             case 'search_knowledge_base':
                 const searchResults = [];
@@ -333,7 +333,7 @@ class AgentOrchestrationService extends events_1.EventEmitter {
         switch (step.operation) {
             case 'update_memory':
                 if (step.inputs.sessionId) {
-                    await memoryService_1.memoryService.addMessage(step.inputs.sessionId, {
+                    await langmemService_1.langmemService.addMessage(step.inputs.sessionId, {
                         role: 'assistant',
                         content: 'Conversation processed',
                         timestamp: new Date().toISOString()

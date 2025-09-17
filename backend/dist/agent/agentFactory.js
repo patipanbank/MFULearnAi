@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAgent = createAgent;
 const langchainAgentFactory_1 = require("./langchainAgentFactory");
 const unifiedToolRegistry_1 = require("../services/unifiedToolRegistry");
+const langmemTools_1 = require("../services/langmemTools");
 async function createAgent(llm, tools, prompt, config) {
     console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
     const toolContext = {
@@ -25,6 +26,15 @@ async function createAgent(llm, tools, prompt, config) {
         unifiedToolRegistry_1.unifiedToolRegistry.createCollectionTools(config.collectionNames);
     }
     const unifiedTools = convertUnifiedToolsToLegacy(availableTools, toolContext);
+    const langmemTools = (0, langmemTools_1.createLangMemTools)({
+        sessionId: config?.sessionId || 'default',
+        userId: config?.userId,
+        agentId: config?.agentId,
+        namespace: config?.agentId || 'default'
+    });
+    const legacyMemoryTools = config?.sessionId
+        ? (0, langmemTools_1.createLegacyLangMemTools)(config.sessionId)
+        : {};
     let filteredLegacyTools = tools;
     if (config?.allowedTools && config.allowedTools.length > 0) {
         filteredLegacyTools = {};
@@ -35,7 +45,12 @@ async function createAgent(llm, tools, prompt, config) {
             }
         }
     }
-    const allTools = { ...filteredLegacyTools, ...unifiedTools };
+    const allTools = {
+        ...filteredLegacyTools,
+        ...unifiedTools,
+        ...langmemTools,
+        ...legacyMemoryTools
+    };
     console.log(`🔧 Total tools available: ${Object.keys(allTools).length}`);
     console.log(`🔧 Tools: ${Object.keys(allTools).join(', ')}`);
     if (config?.allowedTools && config.allowedTools.length > 0) {

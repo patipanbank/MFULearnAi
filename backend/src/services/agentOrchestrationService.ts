@@ -9,7 +9,7 @@ import { EventEmitter } from 'events';
 import { performance } from 'perf_hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { agentExecutionService, ExecutionRequest, ExecutionResult, ExecutionPriority } from './agentExecutionService';
-import { memoryService } from './memoryService';
+import { langmemService } from './langmemService';
 import { WebSocketService } from './websocketService';
 
 // ===== INTERFACES =====
@@ -517,11 +517,11 @@ export class AgentOrchestrationService extends EventEmitter {
   ): Promise<any> {
     switch (step.operation) {
       case 'retrieve_conversation_context':
-        const context = await memoryService.getConversationContext(
+        const context = await langmemService.getConversationContext(
           step.inputs.sessionId,
           step.inputs.query
         );
-        const relevantMemories = await memoryService.searchMemory(
+        const relevantMemories = await langmemService.searchMemory(
           step.inputs.sessionId,
           step.inputs.query,
           5
@@ -595,7 +595,7 @@ export class AgentOrchestrationService extends EventEmitter {
     switch (step.operation) {
       case 'update_memory':
         if (step.inputs.sessionId) {
-          await memoryService.addMessage(step.inputs.sessionId, {
+          await langmemService.addMessage(step.inputs.sessionId, {
             role: 'assistant',
             content: 'Conversation processed',
             timestamp: new Date().toISOString()
