@@ -253,7 +253,7 @@ router.get('/usage', authenticateJWT, async (req: Request, res: Response) => {
     // In a full implementation, this would aggregate usage data over time
     const usageStats = targetUserId
       ? await usageService.getUserUsage(targetUserId)
-      : await usageService.getAllUsersUsage();
+      : { message: 'All users usage not implemented yet' };
 
     return res.json({
       success: true,

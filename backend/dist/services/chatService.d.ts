@@ -1,7 +1,6 @@
 import { Chat, ChatMessage } from '../models/chat';
 export declare class ChatService {
     constructor();
-    private agentCache;
     createChat(userId: string, name: string, agentId?: string): Promise<Chat>;
     getChat(chatId: string, userId: string): Promise<Chat | null>;
     addMessage(chatId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage>;
@@ -11,9 +10,8 @@ export declare class ChatService {
         mediaType: string;
     }>): Promise<void>;
     private broadcastToChat;
-    private processWithAISimple;
+    private processWithExecutionService;
     private updateMessageContent;
-    private processWithAILegacy;
     getUserChats(userId: string): Promise<Chat[]>;
     deleteChat(chatId: string, userId: string): Promise<boolean>;
     updateChatName(chatId: string, userId: string, name: string): Promise<Chat | null>;

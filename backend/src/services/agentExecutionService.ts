@@ -475,7 +475,9 @@ export class AgentExecutionService extends EventEmitter {
     // Keep only recent history (last 1000 executions)
     if (this.executionHistory.size > 1000) {
       const oldestKey = this.executionHistory.keys().next().value;
-      this.executionHistory.delete(oldestKey);
+      if (oldestKey) {
+        this.executionHistory.delete(oldestKey);
+      }
     }
   }
 
