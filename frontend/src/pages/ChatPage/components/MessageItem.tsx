@@ -190,11 +190,15 @@ const MessageItem: React.FC<MessageItemProps> = ({
         />
 
         <div
-          className={`bubble-hybrid ${message.role} ${isEditing ? 'editing' : ''}`}
+          className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md ${
+            message.role === 'user'
+              ? 'bg-blue-600 text-white rounded-br-sm hover:bg-blue-700'
+              : 'card text-primary rounded-bl-sm hover:border-border-hover'
+          }`}
         >
           {/* Images */}
           {message.images && message.images.length > 0 && (
-            <div className="message-images">
+            <div className="mb-3">
               <div className={`grid gap-2 sm:gap-3 ${
                 message.images.length === 1 ? 'grid-cols-1' :
                 message.images.length === 2 ? 'grid-cols-2' :
@@ -251,7 +255,11 @@ const MessageItem: React.FC<MessageItemProps> = ({
               <textarea
                 value={editingContent}
                 onChange={(e) => onEditingContentChange(e.target.value)}
-                className={`w-full min-h-[60px] p-3 rounded-xl border-none resize-none bg-transparent text-current placeholder-current placeholder-opacity-60 focus:outline-none`}
+                className={`w-full min-h-[60px] p-2 rounded-lg border resize-none ${
+                  message.role === 'user'
+                    ? 'bg-blue-500 text-white border-blue-400 placeholder-blue-200'
+                    : 'bg-card text-primary border-border'
+                }`}
                 placeholder="Edit message..."
                 autoFocus
               />
@@ -271,7 +279,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
               </div>
             </div>
           ) : (
-            <div className="message-content">
+            <div>
               {/* Wrap MessageContent in error boundary */}
               <React.Suspense fallback={<div className="text-muted">Loading...</div>}>
                 <MessageContent content={message.content} role={message.role} />
@@ -284,9 +292,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
           {/* Tool Usage Display */}
           {message.toolUsage && message.toolUsage.length > 0 && (
-            <div className="tool-usage">
-              <ToolUsageDisplay toolUsage={message.toolUsage} />
-            </div>
+            <ToolUsageDisplay toolUsage={message.toolUsage} />
           )}
         </div>
       </div>
