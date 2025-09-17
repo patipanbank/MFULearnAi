@@ -332,7 +332,7 @@ const ProgressiveStreamingMessage: React.FC<ProgressiveStreamingProps> = ({
 
   const startTypingAnimation = useCallback((content: string) => {
     if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
+      window.clearTimeout(typingTimeoutRef.current);
     }
 
     let currentIndex = 0;
@@ -341,7 +341,7 @@ const ProgressiveStreamingMessage: React.FC<ProgressiveStreamingProps> = ({
         setCurrentTypingChunk(content.substring(0, currentIndex + 1));
         currentIndex++;
 
-        typingTimeoutRef.current = setTimeout(typeNextCharacter, typingSpeed);
+        typingTimeoutRef.current = window.setTimeout(typeNextCharacter, typingSpeed);
       } else {
         setCurrentTypingChunk('');
       }
