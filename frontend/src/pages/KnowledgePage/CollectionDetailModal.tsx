@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { FiUpload, FiX, FiSearch, FiEye, FiTrash2, FiFile, FiFileText, FiImage, FiGrid } from 'react-icons/fi';
+import { FiUpload, FiSearch, FiEye, FiTrash2, FiFile, FiFileText, FiImage, FiGrid } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
 import { useUploadProgress } from '../../shared/hooks/useUploadProgress';
 import UploadProgressTracker from '../../shared/ui/UploadProgressTracker';
+import UniversalModal from '../../shared/ui/UniversalModal';
 import type { Collection } from '../../shared/types';
 
 interface CollectionDocument {
@@ -474,21 +475,17 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
   if (!isOpen || !collection) return null;
 
   return (
-    <div className="modal-overlay flex items-center justify-center z-40">
-      <div className="modal-content w-full max-w-6xl bg-primary p-6 rounded-xl relative shadow-xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Close */}
-        <button className="absolute top-4 right-4 btn-ghost p-1" onClick={onClose}>
-          <FiX className="h-5 w-5" />
-        </button>
-
-        {/* Header */}
-        <h2 className="text-2xl font-semibold text-primary mb-1 flex items-center">
-          {collection.name}
-        </h2>
-        <p className="text-secondary mb-6">Manage documents and settings for this collection</p>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="collection-detail"
+      title={collection.name}
+      subtitle="Manage documents and settings for this collection"
+    >
+      <div className="flex flex-col h-full">
 
         {/* Upload Section */}
-        <div className="mb-6">
+        <div className="p-6 mb-6">
           <h3 className="text-lg font-semibold text-primary mb-4">Upload Documents</h3>
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
@@ -525,7 +522,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
 
         {/* File List */}
         {files.length > 0 && (
-          <div className="mb-6">
+          <div className="px-6 mb-6">
             <h3 className="text-lg font-medium text-primary mb-3">Selected Files</h3>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {files.map((fileWithStatus, index) => (
@@ -573,7 +570,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
 
         {/* Upload Progress Tracker */}
         {isAnyUploading && (
-          <div className="mb-6">
+          <div className="px-6 mb-6">
             <UploadProgressTracker className="border-0 shadow-none bg-transparent" />
           </div>
         )}
@@ -581,7 +578,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
 
 
         {/* Search Section */}
-        <div className="mb-6">
+        <div className="px-6 mb-6">
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted h-4 w-4" />
             <input
@@ -595,7 +592,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-hidden flex px-6">
           {/* Documents List */}
           <div className="w-1/2 pr-4 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
@@ -718,7 +715,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
 
         {/* Action Buttons */}
         {files.length > 0 && (
-          <div className="flex space-x-3 mt-6 pt-4 border-t border-border">
+          <div className="flex space-x-3 mt-6 pt-4 border-t border-border px-6">
             <button
               onClick={handleUpload}
               disabled={files.length === 0 || isUploading}
@@ -736,7 +733,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
           </div>
         )}
       </div>
-    </div>
+    </UniversalModal>
   );
 };
 

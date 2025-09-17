@@ -14,6 +14,9 @@ export declare class AgentService {
     private getDefaultTemplates;
     createAgentFromTemplate(templateId: string, customizations: any): Promise<any>;
     private createToolsFromRecommendations;
+    getAvailableTools(): any[];
+    private mapUnifiedTypeToAgentType;
+    getToolStatistics(): any;
     incrementUsageCount(agentId: string): Promise<void>;
     updateAgentRating(agentId: string, rating: number): Promise<void>;
     getPopularAgents(limit?: number): Promise<any[]>;

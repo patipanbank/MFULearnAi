@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { agentService } from '../services/agentService';
 import { authenticateJWT } from '../middleware/auth';
 
@@ -241,6 +241,58 @@ router.post('/:agentId/rate', authenticateJWT, async (req: any, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to rate agent'
+    });
+  }
+});
+
+/**
+ * GET /api/agents/tools
+ * Get available tools for agent creation
+ */
+router.get('/tools', async (req: Request, res: Response) => {
+  try {
+    const availableTools = agentService.getAvailableTools();
+
+    return res.json({
+      success: true,
+      tools: availableTools
+    });
+  } catch (error) {
+    console.error('Error fetching available tools:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch available tools'
+    });
+  }
+});
+
+/**
+ * GET /api/agents/tools/statistics
+ * Get tool usage statistics
+ */
+router.get('/tools/statistics', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+
+    // Only allow admin users to see tool statistics
+    if (!user || !['Admin', 'SuperAdmin'].includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions'
+      });
+    }
+
+    const statistics = agentService.getToolStatistics();
+
+    return res.json({
+      success: true,
+      statistics
+    });
+  } catch (error) {
+    console.error('Error fetching tool statistics:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tool statistics'
     });
   }
 });

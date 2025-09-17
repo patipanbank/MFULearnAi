@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiRefreshCw, FiUsers, FiDatabase, FiActivity, FiBarChart } from 'react-icons/fi';
+import { FiRefreshCw, FiUsers, FiDatabase, FiActivity, FiBarChart } from 'react-icons/fi';
 import { useUIStore } from '../../stores';
 import { api } from '../../lib/api';
+import UniversalModal from '../UniversalModal';
 
 interface AdminAnalyticsModalProps {
   isOpen: boolean;
@@ -94,30 +95,23 @@ const AdminAnalyticsModal: React.FC<AdminAnalyticsModalProps> = ({ isOpen, onClo
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h2 className="text-xl font-semibold text-primary">System Analytics</h2>
-            <p className="text-sm text-secondary mt-1">Overview of system usage and statistics</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={fetchAnalytics}
-              className="btn-ghost p-2"
-              disabled={loading}
-            >
-              <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button onClick={onClose} className="btn-ghost p-2">
-              <FiX className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="analytics"
+      title="System Analytics"
+      subtitle="Overview of system usage and statistics"
+      headerIcon={
+        <button
+          onClick={fetchAnalytics}
+          className="btn-ghost p-2"
+          disabled={loading}
+        >
+          <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      }
+    >
+      <div className="p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -286,9 +280,8 @@ const AdminAnalyticsModal: React.FC<AdminAnalyticsModalProps> = ({ isOpen, onClo
               <p className="text-muted mt-2">No analytics data available</p>
             </div>
           )}
-        </div>
       </div>
-    </div>
+    </UniversalModal>
   );
 };
 

@@ -18,6 +18,8 @@ import trainingRouter from './routes/training';
 import queueRouter from './routes/queue';
 import usageRouter from './routes/usage';
 import adminRouter from './routes/admin';
+import toolsRouter from './routes/tools';
+import monitoringRouter from './routes/monitoring';
 import { WebSocketService } from './services/websocketService';
 import { queueService } from './services/queueService';
 import { connectDB } from './lib/mongodb';
@@ -85,6 +87,12 @@ apiRouter.use('/usage', usageRouter);
 
 // Mount admin routes under API router
 apiRouter.use('/admin', adminRouter);
+
+// Mount tools routes under API router
+apiRouter.use('/tools', toolsRouter);
+
+// Mount monitoring routes under API router
+apiRouter.use('/monitoring', monitoringRouter);
 
 // Mount API router under /api prefix
 app.use('/api', apiRouter);

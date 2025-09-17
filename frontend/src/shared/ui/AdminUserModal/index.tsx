@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiSearch, FiEdit, FiTrash2, FiEye, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiEdit, FiTrash2, FiEye, FiRefreshCw } from 'react-icons/fi';
 import { useUIStore } from '../../stores';
 import { api } from '../../lib/api';
 import type { User } from '../../types';
+import UniversalModal from '../UniversalModal';
 
 interface AdminUserModalProps {
   isOpen: boolean;
@@ -122,18 +123,14 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h2 className="text-xl font-semibold text-primary">User Management</h2>
-            <p className="text-sm text-secondary mt-1">Manage users, roles, and permissions</p>
-          </div>
-          <button onClick={onClose} className="btn-ghost p-2">
-            <FiX className="h-5 w-5" />
-          </button>
-        </div>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      modalType="user-management"
+      title="User Management"
+      subtitle="Manage users, roles, and permissions"
+    >
+      <div className="flex flex-col h-full">
 
         {/* Filters and Search */}
         <div className="p-6 border-b border-border bg-secondary">
@@ -327,7 +324,7 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ isOpen, onClose }) => {
           onSave={handleUpdateUser}
         />
       )}
-    </div>
+    </UniversalModal>
   );
 };
 
@@ -353,16 +350,14 @@ const UserEditModal: React.FC<{
   };
 
   return (
-    <div className="modal-overlay z-50">
-      <div className="modal-content max-w-lg w-full">
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h3 className="text-lg font-semibold text-primary">Edit User</h3>
-          <button onClick={onClose} className="btn-ghost p-1">
-            <FiX className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <UniversalModal
+      isOpen={true}
+      onClose={onClose}
+      title="Edit User"
+      size="lg"
+      height="auto"
+    >
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-primary mb-1">First Name</label>
@@ -449,8 +444,7 @@ const UserEditModal: React.FC<{
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </UniversalModal>
   );
 };
 

@@ -224,6 +224,15 @@ class ChatService {
                 maxTokens,
                 streaming: true
             });
+            const toolContext = {
+                sessionId: chatId,
+                userId: userId,
+                collectionNames: collectionNames || [],
+                config: {
+                    temperature,
+                    maxTokens
+                }
+            };
             const sessionTools = (0, toolRegistry_1.createMemoryTool)(chatId);
             const allTools = {};
             for (const [k, v] of Object.entries(toolRegistry_1.toolRegistry)) {
@@ -242,7 +251,9 @@ class ChatService {
                 modelId,
                 sessionId: chatId,
                 temperature,
-                maxTokens
+                maxTokens,
+                collectionNames: collectionNames || [],
+                userId: userId
             });
             const chatHistory = chat.messages.map(msg => ({
                 role: msg.role,

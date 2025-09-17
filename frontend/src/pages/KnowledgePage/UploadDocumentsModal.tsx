@@ -294,22 +294,13 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
       onClose={onClose}
       modalType="upload-documents"
       title="Upload Documents"
-      subtitle={`Add documents to ${collection.name}`}
+      subtitle={`Add documents to ${collection?.name || 'collection'}`}
       headerIcon={<FiUpload className="h-6 w-6 text-primary" />}
       closeOnOutsideClick={true}
       closeOnEscape={true}
       blur={true}
     >
-      <div className="modal-content w-full max-w-2xl bg-primary p-6 rounded-xl relative shadow-xl max-h-[90vh] overflow-y-auto">
-        {/* Close button */}
-        <button className="absolute top-4 right-4 btn-ghost p-1" onClick={onClose}>
-          <FiX className="h-5 w-5" />
-        </button>
-
-        <h2 className="text-2xl font-semibold text-primary mb-1">Upload Documents</h2>
-        <p className="text-secondary mb-6">
-          Upload documents to {collection?.name || 'selected collection'}
-        </p>
+      <div className="p-6">
 
         {/* File Upload Area */}
         <div className="mb-6">
@@ -407,6 +398,7 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
             Cancel
           </button>
         </div>
+      </div>
     </UniversalModal>
   );
 };

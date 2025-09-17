@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSave, FiDatabase, FiEdit } from 'react-icons/fi';
+import { FiSave, FiEdit } from 'react-icons/fi';
 import { api } from '../../shared/lib/api';
 import { useUIStore } from '../../shared/stores';
 import UniversalModal from '../../shared/ui/UniversalModal';

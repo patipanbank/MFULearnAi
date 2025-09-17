@@ -4,6 +4,7 @@ exports.agentService = exports.AgentService = void 0;
 const agent_1 = require("../models/agent");
 const user_1 = require("../models/user");
 const uuid_1 = require("uuid");
+const unifiedToolRegistry_1 = require("./unifiedToolRegistry");
 function normalizeAgent(agent) {
     const obj = (typeof agent.toObject === 'function') ? agent.toObject() : agent;
     let permission = obj.permission || agent_1.AgentPermission.PRIVATE;
@@ -341,20 +342,45 @@ class AgentService {
         }
     }
     createToolsFromRecommendations(recommendedTools) {
+        const availableUnifiedTools = unifiedToolRegistry_1.unifiedToolRegistry.getAvailableTools({});
         const toolMap = {
             web_search: {
                 id: (0, uuid_1.v4)(),
                 name: 'Web Search',
-                description: 'Search the web for current information',
+                description: 'Search the web for current information using Google Search API or DuckDuckGo fallback',
                 type: agent_1.AgentToolType.WEB_SEARCH,
-                config: {},
+                config: { providers: ['google', 'duckduckgo'], timeout: 7000 },
                 enabled: true
             },
             calculator: {
                 id: (0, uuid_1.v4)(),
                 name: 'Calculator',
-                description: 'Perform mathematical calculations',
+                description: 'Perform mathematical calculations and expressions safely',
                 type: agent_1.AgentToolType.CALCULATOR,
+                config: { allowedOperations: ['+', '-', '*', '/', '(', ')', '.'] },
+                enabled: true
+            },
+            current_date: {
+                id: (0, uuid_1.v4)(),
+                name: 'Current Date',
+                description: 'Get current date and time with timezone support',
+                type: agent_1.AgentToolType.CURRENT_DATE,
+                config: { defaultTimezone: 'Asia/Bangkok' },
+                enabled: true
+            },
+            memory_search: {
+                id: (0, uuid_1.v4)(),
+                name: 'Memory Search',
+                description: 'Search through chat memory for relevant context',
+                type: agent_1.AgentToolType.MEMORY_SEARCH,
+                config: {},
+                enabled: true
+            },
+            memory_embed: {
+                id: (0, uuid_1.v4)(),
+                name: 'Memory Embed',
+                description: 'Embed new information into chat memory',
+                type: agent_1.AgentToolType.MEMORY_EMBED,
                 config: {},
                 enabled: true
             }
@@ -362,6 +388,37 @@ class AgentService {
         return recommendedTools
             .map(toolName => toolMap[toolName])
             .filter(tool => tool !== undefined);
+    }
+    getAvailableTools() {
+        const unifiedTools = unifiedToolRegistry_1.unifiedToolRegistry.getAvailableTools({});
+        return unifiedTools.map(tool => ({
+            id: tool.id,
+            name: tool.name,
+            description: tool.description,
+            category: tool.category,
+            type: this.mapUnifiedTypeToAgentType(tool.category),
+            enabled: tool.enabled,
+            version: tool.version,
+            config: tool.config,
+            tags: tool.metadata.tags,
+            examples: tool.metadata.examples
+        }));
+    }
+    mapUnifiedTypeToAgentType(category) {
+        const mapping = {
+            [unifiedToolRegistry_1.ToolCategory.SEARCH]: agent_1.AgentToolType.WEB_SEARCH,
+            [unifiedToolRegistry_1.ToolCategory.CALCULATION]: agent_1.AgentToolType.CALCULATOR,
+            [unifiedToolRegistry_1.ToolCategory.UTILITY]: agent_1.AgentToolType.CURRENT_DATE,
+            [unifiedToolRegistry_1.ToolCategory.MEMORY]: agent_1.AgentToolType.MEMORY_SEARCH,
+            [unifiedToolRegistry_1.ToolCategory.RETRIEVAL]: agent_1.AgentToolType.RETRIEVER,
+            [unifiedToolRegistry_1.ToolCategory.CORE]: agent_1.AgentToolType.FUNCTION,
+            [unifiedToolRegistry_1.ToolCategory.INTEGRATION]: agent_1.AgentToolType.FUNCTION,
+            [unifiedToolRegistry_1.ToolCategory.CUSTOM]: agent_1.AgentToolType.FUNCTION
+        };
+        return mapping[category] || agent_1.AgentToolType.FUNCTION;
+    }
+    getToolStatistics() {
+        return unifiedToolRegistry_1.unifiedToolRegistry.getToolStatistics();
     }
     async incrementUsageCount(agentId) {
         try {

@@ -1,6 +1,7 @@
 import { LLM } from './llmFactory';
 import { ToolFunction } from '../services/toolRegistry';
 import { createLangChainAgent, LangChainAgentConfig } from './langchainAgentFactory';
+import { unifiedToolRegistry, ToolExecutionContext, ToolConfig } from '../services/unifiedToolRegistry';
 
 export interface AgentExecutor {
   run: (
@@ -28,9 +29,43 @@ export async function createAgent(
     sessionId?: string;
     temperature?: number;
     maxTokens?: number;
+    collectionNames?: string[];
+    userId?: string;
+    agentId?: string;
   }
 ): Promise<AgentExecutor> {
   console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
+
+  // Setup execution context for unified tool registry
+  const toolContext: ToolExecutionContext = {
+    sessionId: config?.sessionId,
+    userId: config?.userId,
+    agentId: config?.agentId,
+    collectionNames: config?.collectionNames || [],
+    config: config
+  };
+
+  // Get available tools from unified registry
+  const availableTools = unifiedToolRegistry.getAvailableTools(toolContext);
+
+  // Create session-specific tools if sessionId provided
+  if (config?.sessionId) {
+    unifiedToolRegistry.createSessionTools(config.sessionId);
+  }
+
+  // Create collection-specific tools if collections provided
+  if (config?.collectionNames && config.collectionNames.length > 0) {
+    unifiedToolRegistry.createCollectionTools(config.collectionNames);
+  }
+
+  // Convert unified tools to legacy format for compatibility
+  const unifiedTools = convertUnifiedToolsToLegacy(availableTools, toolContext);
+
+  // Merge with existing tools (legacy compatibility)
+  const allTools = { ...tools, ...unifiedTools };
+
+  console.log(`🔧 Total tools available: ${Object.keys(allTools).length}`);
+  console.log(`🔧 Tools: ${Object.keys(allTools).join(', ')}`);
   
   // สร้าง LangChain Agent config
   const agentConfig: LangChainAgentConfig = {
@@ -38,7 +73,7 @@ export async function createAgent(
     systemPrompt: prompt,
     temperature: config?.temperature || 0.7,
     maxTokens: config?.maxTokens || 4000,
-    tools,
+    tools: allTools,
     sessionId: config?.sessionId
   };
   
@@ -116,7 +151,45 @@ export async function createAgent(
       } catch (error) {
         console.error('❌ Error in LangChain Agent:', error);
         throw error;
+      } finally {
+        // Cleanup session tools if this was the final execution
+        if (config?.sessionId) {
+          // Note: In production, you might want to cleanup tools when session ends
+          // unifiedToolRegistry.cleanupSessionTools(config.sessionId);
+        }
       }
     }
   };
+}
+
+/**
+ * Convert unified tools to legacy format for backward compatibility
+ */
+function convertUnifiedToolsToLegacy(
+  toolConfigs: ToolConfig[],
+  context: ToolExecutionContext
+): { [name: string]: ToolFunction } {
+  const legacyTools: { [name: string]: ToolFunction } = {};
+
+  for (const config of toolConfigs) {
+    legacyTools[config.id] = async (input: string, sessionId?: string, legacyConfig?: any): Promise<string> => {
+      try {
+        const result = await unifiedToolRegistry.executeTool(config.id, input, {
+          ...context,
+          sessionId: sessionId || context.sessionId,
+          config: { ...context.config, ...legacyConfig }
+        });
+
+        if (result.success) {
+          return result.result;
+        } else {
+          return result.error || 'Tool execution failed';
+        }
+      } catch (error) {
+        return `Tool error: ${(error as Error).message}`;
+      }
+    };
+  }
+
+  return legacyTools;
 } 

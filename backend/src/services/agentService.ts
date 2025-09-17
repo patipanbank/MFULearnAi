@@ -1,6 +1,7 @@
 import { AgentModel, AgentTemplateModel, Agent, AgentTemplate, AgentTool, AgentToolType, AgentPermission } from '../models/agent';
 import { UserRole } from '../models/user';
 import { v4 as uuidv4 } from 'uuid';
+import { unifiedToolRegistry, ToolCategory } from './unifiedToolRegistry';
 
 function normalizeAgent(agent: any) {
   // ถ้า agent เป็น Mongoose Document ให้แปลงเป็น plain object ก่อน
@@ -408,20 +409,47 @@ export class AgentService {
   }
 
   private createToolsFromRecommendations(recommendedTools: string[]): AgentTool[] {
+    // Get tools from unified registry to ensure consistency
+    const availableUnifiedTools = unifiedToolRegistry.getAvailableTools({});
+
     const toolMap: Record<string, AgentTool> = {
       web_search: {
         id: uuidv4(),
         name: 'Web Search',
-        description: 'Search the web for current information',
+        description: 'Search the web for current information using Google Search API or DuckDuckGo fallback',
         type: AgentToolType.WEB_SEARCH,
-        config: {},
+        config: { providers: ['google', 'duckduckgo'], timeout: 7000 },
         enabled: true
       },
       calculator: {
         id: uuidv4(),
         name: 'Calculator',
-        description: 'Perform mathematical calculations',
+        description: 'Perform mathematical calculations and expressions safely',
         type: AgentToolType.CALCULATOR,
+        config: { allowedOperations: ['+', '-', '*', '/', '(', ')', '.'] },
+        enabled: true
+      },
+      current_date: {
+        id: uuidv4(),
+        name: 'Current Date',
+        description: 'Get current date and time with timezone support',
+        type: AgentToolType.CURRENT_DATE,
+        config: { defaultTimezone: 'Asia/Bangkok' },
+        enabled: true
+      },
+      memory_search: {
+        id: uuidv4(),
+        name: 'Memory Search',
+        description: 'Search through chat memory for relevant context',
+        type: AgentToolType.MEMORY_SEARCH,
+        config: {},
+        enabled: true
+      },
+      memory_embed: {
+        id: uuidv4(),
+        name: 'Memory Embed',
+        description: 'Embed new information into chat memory',
+        type: AgentToolType.MEMORY_EMBED,
         config: {},
         enabled: true
       }
@@ -430,6 +458,51 @@ export class AgentService {
     return recommendedTools
       .map(toolName => toolMap[toolName])
       .filter(tool => tool !== undefined);
+  }
+
+  /**
+   * Get available tools for frontend
+   */
+  public getAvailableTools(): any[] {
+    const unifiedTools = unifiedToolRegistry.getAvailableTools({});
+
+    return unifiedTools.map(tool => ({
+      id: tool.id,
+      name: tool.name,
+      description: tool.description,
+      category: tool.category,
+      type: this.mapUnifiedTypeToAgentType(tool.category),
+      enabled: tool.enabled,
+      version: tool.version,
+      config: tool.config,
+      tags: tool.metadata.tags,
+      examples: tool.metadata.examples
+    }));
+  }
+
+  /**
+   * Map unified tool categories to agent tool types
+   */
+  private mapUnifiedTypeToAgentType(category: ToolCategory): AgentToolType {
+    const mapping: Record<ToolCategory, AgentToolType> = {
+      [ToolCategory.SEARCH]: AgentToolType.WEB_SEARCH,
+      [ToolCategory.CALCULATION]: AgentToolType.CALCULATOR,
+      [ToolCategory.UTILITY]: AgentToolType.CURRENT_DATE,
+      [ToolCategory.MEMORY]: AgentToolType.MEMORY_SEARCH,
+      [ToolCategory.RETRIEVAL]: AgentToolType.RETRIEVER,
+      [ToolCategory.CORE]: AgentToolType.FUNCTION,
+      [ToolCategory.INTEGRATION]: AgentToolType.FUNCTION,
+      [ToolCategory.CUSTOM]: AgentToolType.FUNCTION
+    };
+
+    return mapping[category] || AgentToolType.FUNCTION;
+  }
+
+  /**
+   * Get tool statistics for admin dashboard
+   */
+  public getToolStatistics(): any {
+    return unifiedToolRegistry.getToolStatistics();
   }
 
   public async incrementUsageCount(agentId: string): Promise<void> {

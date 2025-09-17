@@ -2,14 +2,33 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAgent = createAgent;
 const langchainAgentFactory_1 = require("./langchainAgentFactory");
+const unifiedToolRegistry_1 = require("../services/unifiedToolRegistry");
 async function createAgent(llm, tools, prompt, config) {
     console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
+    const toolContext = {
+        sessionId: config?.sessionId,
+        userId: config?.userId,
+        agentId: config?.agentId,
+        collectionNames: config?.collectionNames || [],
+        config: config
+    };
+    const availableTools = unifiedToolRegistry_1.unifiedToolRegistry.getAvailableTools(toolContext);
+    if (config?.sessionId) {
+        unifiedToolRegistry_1.unifiedToolRegistry.createSessionTools(config.sessionId);
+    }
+    if (config?.collectionNames && config.collectionNames.length > 0) {
+        unifiedToolRegistry_1.unifiedToolRegistry.createCollectionTools(config.collectionNames);
+    }
+    const unifiedTools = convertUnifiedToolsToLegacy(availableTools, toolContext);
+    const allTools = { ...tools, ...unifiedTools };
+    console.log(`🔧 Total tools available: ${Object.keys(allTools).length}`);
+    console.log(`🔧 Tools: ${Object.keys(allTools).join(', ')}`);
     const agentConfig = {
         modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
         systemPrompt: prompt,
         temperature: config?.temperature || 0.7,
         maxTokens: config?.maxTokens || 4000,
-        tools,
+        tools: allTools,
         sessionId: config?.sessionId
     };
     const langchainAgent = await (0, langchainAgentFactory_1.createLangChainAgent)(agentConfig);
@@ -66,7 +85,35 @@ async function createAgent(llm, tools, prompt, config) {
                 console.error('❌ Error in LangChain Agent:', error);
                 throw error;
             }
+            finally {
+                if (config?.sessionId) {
+                }
+            }
         }
     };
+}
+function convertUnifiedToolsToLegacy(toolConfigs, context) {
+    const legacyTools = {};
+    for (const config of toolConfigs) {
+        legacyTools[config.id] = async (input, sessionId, legacyConfig) => {
+            try {
+                const result = await unifiedToolRegistry_1.unifiedToolRegistry.executeTool(config.id, input, {
+                    ...context,
+                    sessionId: sessionId || context.sessionId,
+                    config: { ...context.config, ...legacyConfig }
+                });
+                if (result.success) {
+                    return result.result;
+                }
+                else {
+                    return result.error || 'Tool execution failed';
+                }
+            }
+            catch (error) {
+                return `Tool error: ${error.message}`;
+            }
+        };
+    }
+    return legacyTools;
 }
 //# sourceMappingURL=agentFactory.js.map

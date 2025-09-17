@@ -24,5 +24,8 @@ export declare function createAgent(llm: LLM, tools: {
     sessionId?: string;
     temperature?: number;
     maxTokens?: number;
+    collectionNames?: string[];
+    userId?: string;
+    agentId?: string;
 }): Promise<AgentExecutor>;
 //# sourceMappingURL=agentFactory.d.ts.map

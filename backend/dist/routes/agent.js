@@ -216,5 +216,44 @@ router.post('/:agentId/rate', auth_1.authenticateJWT, async (req, res) => {
         });
     }
 });
+router.get('/tools', async (req, res) => {
+    try {
+        const availableTools = agentService_1.agentService.getAvailableTools();
+        return res.json({
+            success: true,
+            tools: availableTools
+        });
+    }
+    catch (error) {
+        console.error('Error fetching available tools:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch available tools'
+        });
+    }
+});
+router.get('/tools/statistics', auth_1.authenticateJWT, async (req, res) => {
+    try {
+        const user = req.user;
+        if (!user || !['Admin', 'SuperAdmin'].includes(user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Insufficient permissions'
+            });
+        }
+        const statistics = agentService_1.agentService.getToolStatistics();
+        return res.json({
+            success: true,
+            statistics
+        });
+    }
+    catch (error) {
+        console.error('Error fetching tool statistics:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch tool statistics'
+        });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=agent.js.map
