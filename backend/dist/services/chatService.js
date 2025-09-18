@@ -3,12 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.chatService = exports.ChatService = void 0;
 const chat_1 = require("../models/chat");
 const websocketManager_1 = require("../utils/websocketManager");
-const agentService_1 = require("./agentService");
-const usageService_1 = require("./usageService");
-const unifiedToolRegistry_1 = require("./unifiedToolRegistry");
-const agentExecutionService_1 = require("./agentExecutionService");
 const langmemService_1 = require("./langmemService");
 const storageService_1 = require("./storageService");
+const modernChatService_1 = require("../core/modernChatService");
 class ChatService {
     constructor() {
         console.log('✅ Chat service initialized');
@@ -172,8 +169,8 @@ class ChatService {
                     }
                 }
             });
-            console.log(`🤖 Step 5: Processing with AI using execution service...`);
-            await this.processWithExecutionService(chatId, assistantMessage.id, content, images, userId);
+            console.log(`🤖 Step 5: Processing with Modern AI System...`);
+            await modernChatService_1.modernChatService.processMessage(chatId, userId, content, images);
         }
         catch (error) {
             console.error('❌ Error in processMessage:', error);
@@ -186,155 +183,6 @@ class ChatService {
     broadcastToChat(chatId, data) {
         if (websocketManager_1.wsManager.getSessionConnectionCount(chatId) > 0) {
             websocketManager_1.wsManager.broadcastToSession(chatId, JSON.stringify(data));
-        }
-    }
-    async processWithExecutionService(chatId, assistantMessageId, userContent, images, userId) {
-        try {
-            console.log(`🚀 processWithExecutionService: chatId=${chatId}, assistantId=${assistantMessageId}`);
-            const chat = await chat_1.ChatModel.findById(chatId);
-            if (!chat) {
-                throw new Error(`Chat not found: ${chatId}`);
-            }
-            let agentConfig = null;
-            let modelId = 'anthropic.claude-3-5-sonnet-20240620-v1:0';
-            let collectionNames = [];
-            let systemPrompt = "You are a helpful assistant. Use tools when appropriate.";
-            let temperature = 0.7;
-            let maxTokens = 4000;
-            if (chat.agentId) {
-                try {
-                    agentConfig = await agentService_1.agentService.getAgentById(chat.agentId);
-                    if (agentConfig) {
-                        modelId = agentConfig.modelId;
-                        collectionNames = agentConfig.collectionNames || [];
-                        systemPrompt = agentConfig.systemPrompt || systemPrompt;
-                        temperature = agentConfig.temperature || 0.7;
-                        maxTokens = agentConfig.maxTokens || 4000;
-                    }
-                }
-                catch (error) {
-                    console.warn(`⚠️ Failed to get agent config:`, error);
-                }
-            }
-            let preparedImages = [];
-            if (images && images.length > 0) {
-                console.log(`🖼️ Preparing ${images.length} images...`);
-                preparedImages = await this.prepareImagesForMultimodal(images);
-            }
-            const executionRequest = {
-                id: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                chatId,
-                userId: userId || 'unknown',
-                agentId: chat.agentId,
-                prompt: systemPrompt,
-                context: {
-                    userContent,
-                    images: preparedImages.filter(img => img.base64Data),
-                    modelId,
-                    temperature,
-                    maxTokens,
-                    collectionNames,
-                    chatHistory: chat.messages.map(msg => ({
-                        role: msg.role,
-                        content: msg.content,
-                        id: msg.id,
-                        timestamp: msg.timestamp
-                    }))
-                },
-                priority: agentExecutionService_1.ExecutionPriority.NORMAL,
-                timeout: 60000,
-                createdAt: new Date()
-            };
-            let fullContent = '';
-            const onExecutionEvent = async (event) => {
-                if (event.executionId !== executionRequest.id)
-                    return;
-                const agentEvent = event.event;
-                console.log(`📡 Agent event: ${agentEvent.type}`);
-                if (agentEvent.type === 'chunk') {
-                    const chunkContent = String(agentEvent.data || '');
-                    fullContent += chunkContent;
-                    await this.updateMessageContent(chatId, assistantMessageId, fullContent);
-                    this.broadcastToChat(chatId, {
-                        type: 'message_updated',
-                        data: {
-                            messageId: assistantMessageId,
-                            content: fullContent,
-                            isStreaming: true
-                        }
-                    });
-                }
-                else if (agentEvent.type === 'tool_start') {
-                    this.broadcastToChat(chatId, {
-                        type: 'tool_start',
-                        data: {
-                            messageId: assistantMessageId,
-                            toolName: agentEvent.data.tool_name,
-                            toolInput: agentEvent.data.tool_input
-                        }
-                    });
-                }
-                else if (agentEvent.type === 'tool_result') {
-                    this.broadcastToChat(chatId, {
-                        type: 'tool_result',
-                        data: {
-                            messageId: assistantMessageId,
-                            toolName: agentEvent.data.tool_name,
-                            result: agentEvent.data.output
-                        }
-                    });
-                }
-                else if (agentEvent.type === 'end') {
-                    const finalContent = String(agentEvent.data.answer || fullContent);
-                    await this.updateMessageContent(chatId, assistantMessageId, finalContent);
-                    this.broadcastToChat(chatId, {
-                        type: 'message_completed',
-                        data: {
-                            messageId: assistantMessageId,
-                            content: finalContent
-                        }
-                    });
-                    if (userId && (agentEvent.data.inputTokens || agentEvent.data.outputTokens)) {
-                        await usageService_1.usageService.updateUsage(userId, agentEvent.data.inputTokens || 0, agentEvent.data.outputTokens || 0);
-                    }
-                    console.log(`✅ AI processing completed for message ${assistantMessageId}`);
-                }
-            };
-            agentExecutionService_1.agentExecutionService.on('execution_event', onExecutionEvent);
-            try {
-                const result = await agentExecutionService_1.agentExecutionService.executeAgent(executionRequest);
-                if (result.success) {
-                    console.log(`✅ Execution completed successfully in ${result.metrics.duration.toFixed(2)}ms`);
-                    console.log(`📊 Metrics: ${result.metrics.toolCount} tools, ${result.metrics.tokenUsage.input + result.metrics.tokenUsage.output} tokens`);
-                }
-                else {
-                    console.error(`❌ Execution failed: ${result.error}`);
-                    await this.updateMessageContent(chatId, assistantMessageId, `[Error: ${result.error}]`);
-                    this.broadcastToChat(chatId, {
-                        type: 'message_error',
-                        data: {
-                            messageId: assistantMessageId,
-                            error: result.error
-                        }
-                    });
-                }
-            }
-            finally {
-                agentExecutionService_1.agentExecutionService.off('execution_event', onExecutionEvent);
-                await this.checkAndCreateMemorySearchTools(chatId);
-            }
-        }
-        catch (error) {
-            console.error('❌ Error in processWithExecutionService:', error);
-            const errorMessage = error instanceof Error ? error.message : 'AI processing failed';
-            await this.updateMessageContent(chatId, assistantMessageId, `[Error: ${errorMessage}]`);
-            this.broadcastToChat(chatId, {
-                type: 'message_error',
-                data: {
-                    messageId: assistantMessageId,
-                    error: errorMessage
-                }
-            });
         }
     }
     async updateMessageContent(chatId, messageId, content) {
@@ -397,17 +245,6 @@ class ChatService {
     }
     shouldUseRedisMemory(messageCount) {
         return true;
-    }
-    async checkAndCreateMemorySearchTools(chatId) {
-        try {
-            const messages = await langmemService_1.langmemService.getRecentMessages(chatId);
-            if (messages && messages.length >= 3) {
-                await unifiedToolRegistry_1.unifiedToolRegistry.createMemorySearchToolsIfNeeded(chatId);
-            }
-        }
-        catch (error) {
-            console.error(`❌ Error checking memory tools for session ${chatId}:`, error);
-        }
     }
     shouldEmbedMessages(messageCount) {
         return messageCount % 10 === 0;

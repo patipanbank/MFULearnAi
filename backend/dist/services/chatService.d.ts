@@ -10,7 +10,6 @@ export declare class ChatService {
         mediaType: string;
     }>): Promise<void>;
     private broadcastToChat;
-    private processWithExecutionService;
     private updateMessageContent;
     getUserChats(userId: string): Promise<Chat[]>;
     deleteChat(chatId: string, userId: string): Promise<boolean>;
@@ -19,7 +18,6 @@ export declare class ChatService {
     clearChatMemory(chatId: string): Promise<void>;
     private shouldUseMemoryTool;
     private shouldUseRedisMemory;
-    private checkAndCreateMemorySearchTools;
     private shouldEmbedMessages;
     getStats(): any;
 }

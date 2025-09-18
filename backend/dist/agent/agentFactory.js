@@ -40,7 +40,7 @@ async function createAgent(llm, tools, prompt, config) {
             console.log(`🤖 Images for multimodal: ${options?.images?.length || 0}`);
             try {
                 if (options?.images && options.images.length > 0 && options.images.some(img => img.base64Data)) {
-                    console.log(`🤖 Using multimodal approach with ${options.images.length} images`);
+                    console.log(`🤖 Using multimodal streaming approach with ${options.images.length} images`);
                     const lastUserMessage = messages.slice().reverse().find((msg) => msg.role === 'user');
                     if (lastUserMessage) {
                         const messageId = Math.random().toString(36).substr(2, 9);
@@ -50,28 +50,53 @@ async function createAgent(llm, tools, prompt, config) {
                                 data: { messageId, content: '' }
                             });
                         }
-                        const response = await llm.generate(lastUserMessage.content, options.images);
-                        if (options.onEvent && response) {
-                            const words = response.split(' ');
-                            for (let i = 0; i < words.length; i++) {
-                                const chunk = (i > 0 ? ' ' : '') + words[i];
+                        let fullResponse = '';
+                        let inputTokens = 0;
+                        let outputTokens = 0;
+                        try {
+                            const stream = llm.stream(lastUserMessage.content, options.images);
+                            for await (const chunk of stream) {
+                                if (chunk && options.onEvent) {
+                                    fullResponse += chunk;
+                                    options.onEvent({
+                                        type: 'chunk',
+                                        data: { messageId, delta: chunk }
+                                    });
+                                }
+                            }
+                            if (options.onEvent) {
+                                options.onEvent({
+                                    type: 'end',
+                                    data: {
+                                        messageId,
+                                        answer: fullResponse,
+                                        inputTokens,
+                                        outputTokens
+                                    }
+                                });
+                            }
+                            return fullResponse;
+                        }
+                        catch (error) {
+                            console.error('❌ Multimodal streaming failed, falling back to generate:', error);
+                            const response = await llm.generate(lastUserMessage.content, options.images);
+                            if (options.onEvent && response) {
                                 options.onEvent({
                                     type: 'chunk',
-                                    data: { messageId, delta: chunk }
+                                    data: { messageId, delta: response }
                                 });
-                                await new Promise(resolve => setTimeout(resolve, 30));
+                                options.onEvent({
+                                    type: 'end',
+                                    data: {
+                                        messageId,
+                                        answer: response,
+                                        inputTokens: 0,
+                                        outputTokens: 0
+                                    }
+                                });
                             }
-                            options.onEvent({
-                                type: 'end',
-                                data: {
-                                    messageId,
-                                    answer: response,
-                                    inputTokens: 0,
-                                    outputTokens: 0
-                                }
-                            });
+                            return response;
                         }
-                        return response;
                     }
                 }
                 return await langgraphAgent.run(messages, options);

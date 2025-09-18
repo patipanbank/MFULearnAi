@@ -244,14 +244,21 @@ export class UnifiedToolRegistry {
   }
 
   /**
-   * Create session-specific tools
+   * Create session-specific tools (optimized with caching)
    */
   public createSessionTools(sessionId: string): ToolConfig[] {
+    const toolId = `embed_memory_${sessionId}`;
+
+    // Check if tool already exists
+    if (this.tools.has(toolId)) {
+      return [this.tools.get(toolId)!];
+    }
+
     const sessionTools: ToolConfig[] = [];
 
     // Always create embed memory tool for storing new information
     const embedMemoryConfig = {
-      id: `embed_memory_${sessionId}`,
+      id: toolId,
       name: 'Embed to Memory',
       description: 'Store information in conversation memory',
       version: '1.0.0',
@@ -338,14 +345,22 @@ export class UnifiedToolRegistry {
   }
 
   /**
-   * Create collection-specific search tools
+   * Create collection-specific search tools (optimized with caching)
    */
   public createCollectionTools(collectionNames: string[]): ToolConfig[] {
     const collectionTools: ToolConfig[] = [];
 
     for (const collectionName of collectionNames) {
+      const toolId = `search_${collectionName}`;
+
+      // Check if tool already exists
+      if (this.tools.has(toolId)) {
+        collectionTools.push(this.tools.get(toolId)!);
+        continue;
+      }
+
       const toolConfig: ToolConfig = {
-        id: `search_${collectionName}`,
+        id: toolId,
         name: `Search ${collectionName}`,
         description: `Search and retrieve information from the ${collectionName} knowledge base`,
         version: '1.0.0',

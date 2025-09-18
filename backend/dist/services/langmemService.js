@@ -352,6 +352,17 @@ class LangMemService {
             timestamp: memory.metadata.timestamp
         }));
     }
+    async hasMemoryForSession(sessionId) {
+        try {
+            const namespace = ['memories', sessionId];
+            const results = await this.memoryStore.search(namespace);
+            return results.length > 0;
+        }
+        catch (error) {
+            console.warn('Warning: Error checking memory existence:', error);
+            return false;
+        }
+    }
     async searchMemory(sessionId, query, k = 3) {
         const context = { sessionId, namespace: 'legacy' };
         const memories = await this.searchMemories(query, context, { limit: k });

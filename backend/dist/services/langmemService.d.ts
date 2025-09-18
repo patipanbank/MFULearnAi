@@ -65,6 +65,7 @@ export declare class LangMemService {
     private generateMemoryId;
     addRecentMessage(sessionId: string, message: any): Promise<void>;
     getRecentMessages(sessionId: string): Promise<any[]>;
+    hasMemoryForSession(sessionId: string): Promise<boolean>;
     searchMemory(sessionId: string, query: string, k?: number): Promise<any[]>;
     embedMessage(sessionId: string, message: string): Promise<void>;
     clearRecentMessages(sessionId: string): Promise<void>;
