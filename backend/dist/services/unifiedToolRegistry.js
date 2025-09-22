@@ -131,13 +131,9 @@ class UnifiedToolRegistry {
         }
     }
     createSessionTools(sessionId) {
-        const toolId = `embed_memory_${sessionId}`;
-        if (this.tools.has(toolId)) {
-            return [this.tools.get(toolId)];
-        }
         const sessionTools = [];
         const embedMemoryConfig = {
-            id: toolId,
+            id: `embed_memory_${sessionId}`,
             name: 'Embed to Memory',
             description: 'Store information in conversation memory',
             version: '1.0.0',
@@ -213,13 +209,8 @@ class UnifiedToolRegistry {
     createCollectionTools(collectionNames) {
         const collectionTools = [];
         for (const collectionName of collectionNames) {
-            const toolId = `search_${collectionName}`;
-            if (this.tools.has(toolId)) {
-                collectionTools.push(this.tools.get(toolId));
-                continue;
-            }
             const toolConfig = {
-                id: toolId,
+                id: `search_${collectionName}`,
                 name: `Search ${collectionName}`,
                 description: `Search and retrieve information from the ${collectionName} knowledge base`,
                 version: '1.0.0',

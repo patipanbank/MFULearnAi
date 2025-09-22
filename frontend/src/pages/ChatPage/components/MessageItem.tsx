@@ -4,7 +4,6 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FiCopy } from 'react-icons/fi';
 import { ToolUsageDisplay } from '../../../shared/ui/ToolUsageDisplay';
-import ThinkingDisplay from '../../../shared/ui/ThinkingDisplay';
 import { useUIStore } from '../../../shared/stores';
 import MessageActions from './MessageActions';
 import dindinAvatar from '../../../assets/dindin.png';
@@ -26,8 +25,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
 }) => {
   const addToast = useUIStore((state) => state.addToast);
 
-  // Note: separateThinkingContent function removed as thinking is now handled in dedicated fields
-
   // Enhanced Message Content Component with Markdown support
   const MessageContent: React.FC<{ content: string; role: 'user' | 'assistant' | 'system' }> = ({ content, role }) => {
     // Check for JSON delta patterns and extract only the delta content
@@ -40,13 +37,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
       } catch (error) {
         console.error('Failed to parse JSON delta:', error);
       }
-    }
-
-    // For assistant messages, prioritize finalAnswer over content if available
-    if (role === 'assistant') {
-      // No need to separate thinking - it should be in dedicated field now
-      // Just clean any remaining thinking tags from content as fallback
-      content = content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
     }
 
     // For assistant messages that are streaming, show loading indicator instead of "Thinking..."
@@ -199,16 +189,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
           onClose={onToggleActionsMenu}
         />
 
-        {/* Thinking Display for Assistant Messages - Use dedicated thinkingContent field */}
-        {message.role === 'assistant' && message.thinkingContent && (
-          <ThinkingDisplay
-            content={message.thinkingContent}
-            isStreaming={message.isThinkingStreaming || false}
-            isVisible={true}
-            className="mb-2"
-          />
-        )}
-
         <div
           className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md ${
             message.role === 'user'
@@ -300,16 +280,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
             </div>
           ) : (
             <div>
-              {/* Wrap MessageContent in error boundary - Use finalAnswer for assistants */}
+              {/* Wrap MessageContent in error boundary */}
               <React.Suspense fallback={<div className="text-muted">Loading...</div>}>
-                <MessageContent
-                  content={
-                    message.role === 'assistant' && message.finalAnswer
-                      ? message.finalAnswer
-                      : message.content
-                  }
-                  role={message.role}
-                />
+                <MessageContent content={message.content} role={message.role} />
               </React.Suspense>
               {message.isStreaming && (
                 <span className="inline-block w-2 sm:w-2 h-5 sm:h-5 bg-current animate-pulse ml-1" />

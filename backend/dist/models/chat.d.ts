@@ -11,10 +11,6 @@ export interface ChatMessage {
     images?: ImagePayload[];
     isStreaming?: boolean;
     isComplete?: boolean;
-    thinkingContent?: string;
-    finalAnswer?: string;
-    isThinkingStreaming?: boolean;
-    isThinkingComplete?: boolean;
 }
 export interface Chat extends Document {
     userId: string;

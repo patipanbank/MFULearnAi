@@ -48,12 +48,6 @@
     --color-agent-card-hover: 248 250 252; /* Subtle hover for agent cards */
     --color-knowledge-section: 248 250 252; /* Knowledge base section background */
     --color-knowledge-card: 255 255 255; /* Knowledge item backgrounds */
-
-    /* Reasoning box specific colors */
-    --color-reasoning-bg: 239 246 255; /* Blue-50 - Light reasoning background */
-    --color-reasoning-border: 191 219 254; /* Blue-200 - Reasoning border */
-    --color-reasoning-text: 30 64 175; /* Blue-800 - Reasoning text */
-    --color-reasoning-icon: 37 99 235; /* Blue-600 - Reasoning icon */
     --color-code-background: 248 250 252; /* Code block backgrounds */
     --color-highlight: 254 249 195; /* Yellow-100 - Text highlights */
   }
@@ -95,12 +89,6 @@
     --color-toast-warning: 251 191 36; /* Amber-400 */
     --color-toast-info: 129 140 248; /* Indigo-400 */
     --color-popover: 24 24 27; /* Zinc-900 */
-
-    /* Reasoning box specific colors for dark mode */
-    --color-reasoning-bg: 15 23 42; /* Blue-950/30 - Dark reasoning background */
-    --color-reasoning-border: 30 58 138; /* Blue-800 - Dark reasoning border */
-    --color-reasoning-text: 191 219 254; /* Blue-200 - Dark reasoning text */
-    --color-reasoning-icon: 147 197 253; /* Blue-400 - Dark reasoning icon */
   }
   
   /* Apply theme colors to body */
@@ -131,33 +119,6 @@
   
   .card-hover {
     @apply transition-all duration-200;
-  }
-
-  /* Reasoning box components */
-  .reasoning-box {
-    background-color: rgb(var(--color-reasoning-bg));
-    border-color: rgb(var(--color-reasoning-border));
-    @apply border rounded-lg shadow-sm;
-  }
-
-  .reasoning-step {
-    @apply text-sm leading-relaxed;
-  }
-
-  .reasoning-step .step-number {
-    background-color: rgb(var(--color-reasoning-bg));
-    color: rgb(var(--color-reasoning-text));
-    @apply w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium;
-  }
-
-  .reasoning-step .step-title {
-    color: rgb(var(--color-reasoning-text));
-    @apply font-medium text-sm mb-1;
-  }
-
-  .reasoning-step .step-content {
-    color: rgb(var(--color-reasoning-text));
-    @apply text-sm leading-relaxed;
   }
   
   .card-hover:hover {

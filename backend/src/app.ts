@@ -9,6 +9,7 @@ import { createServer } from 'http';
 import authRouter from './routes/auth';
 import chatRouter from './routes/chat';
 import agentRouter from './routes/agent';
+import bedrockRouter from './routes/bedrock';
 import chromaRouter from './routes/chroma';
 import embeddingRouter from './routes/embedding';
 import uploadRouter from './routes/upload';
@@ -19,7 +20,6 @@ import usageRouter from './routes/usage';
 import adminRouter from './routes/admin';
 import toolsRouter from './routes/tools';
 import monitoringRouter from './routes/monitoring';
-import modernRouter from './routes/modern';
 import { WebSocketService } from './services/websocketService';
 import { queueService } from './services/queueService';
 import { connectDB } from './lib/mongodb';
@@ -61,6 +61,8 @@ apiRouter.use('/chat', chatRouter);
 // Mount agent routes under API router
 apiRouter.use('/agents', agentRouter);
 
+// Mount bedrock routes under API router
+apiRouter.use('/bedrock', bedrockRouter);
 
 // Mount chroma routes under API router
 apiRouter.use('/chroma', chromaRouter);
@@ -91,9 +93,6 @@ apiRouter.use('/tools', toolsRouter);
 
 // Mount monitoring routes under API router
 apiRouter.use('/monitoring', monitoringRouter);
-
-// Mount modern routes under API router
-apiRouter.use('/modern', modernRouter);
 
 // Mount API router under /api prefix
 app.use('/api', apiRouter);

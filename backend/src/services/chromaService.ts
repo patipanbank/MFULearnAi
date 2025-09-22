@@ -1,32 +1,24 @@
 import { ChromaClient, Collection, EmbeddingFunction } from 'chromadb';
-import { realEmbeddingService } from '../core/realEmbeddingService';
 
-// Real embedding function using AWS Bedrock
-class RealEmbeddingFunction implements EmbeddingFunction {
+// Custom embedding function that doesn't require @chroma-core/default-embed
+class CustomEmbeddingFunction implements EmbeddingFunction {
   constructor() {}
 
   async generate(texts: string[]): Promise<number[][]> {
-    try {
-      console.log(`🔧 Generating real embeddings for ${texts.length} texts`);
-      return await realEmbeddingService.embedBatch(texts);
-    } catch (error) {
-      console.error('❌ Failed to generate embeddings:', error);
-      // Fallback to zero vectors only if absolutely necessary
-      console.warn('⚠️ Using zero vectors as fallback');
-      return texts.map(() => new Array(1536).fill(0));
-    }
+    // Return dummy embeddings for now
+    // TODO: Implement actual embedding generation
+    return texts.map(() => new Array(384).fill(0));
   }
 }
 
 export class ChromaService {
   private client: ChromaClient;
-  private embeddingFunction: RealEmbeddingFunction;
+  private embeddingFunction: CustomEmbeddingFunction;
 
   constructor() {
     const url = process.env.CHROMA_URL || 'http://localhost:8000';
     this.client = new ChromaClient({ path: url });
-    this.embeddingFunction = new RealEmbeddingFunction();
-    console.log('🚀 ChromaService initialized with real embeddings');
+    this.embeddingFunction = new CustomEmbeddingFunction();
   }
 
   async getOrCreateCollection(name: string): Promise<Collection> {
