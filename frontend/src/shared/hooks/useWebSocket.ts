@@ -378,48 +378,13 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
             content: data.data.content,
             isStreaming: data.data.isStreaming || false
           });
-        } else if (data.type === 'thinking_chunk') {
-          console.log('WebSocket: Thinking chunk', data.data);
-          // Update thinking content for assistant message
-          updateMessage(data.data.messageId, {
-            thinkingContent: data.data.thinkingContent || data.data.content,
-            isThinkingStreaming: data.data.isThinkingStreaming !== false
-          });
-        } else if (data.type === 'thinking_start') {
-          console.log('WebSocket: Thinking started', data.data);
-          // Update thinking content when thinking starts
-          updateMessage(data.data.messageId, {
-            thinkingContent: data.data.thinkingContent || '',
-            isThinkingStreaming: true,
-            isThinkingComplete: false
-          });
-        } else if (data.type === 'thinking_complete') {
-          console.log('WebSocket: Thinking completed', data.data);
-          // Mark thinking as complete
-          updateMessage(data.data.messageId, {
-            thinkingContent: data.data.thinkingContent || '',
-            isThinkingStreaming: false,
-            isThinkingComplete: true
-          });
-        } else if (data.type === 'answer_chunk') {
-          console.log('WebSocket: Answer chunk', data.data);
-          // Update final answer content
-          updateMessage(data.data.messageId, {
-            finalAnswer: data.data.finalAnswer,
-            content: data.data.finalAnswer, // Keep content in sync for backward compatibility
-            isStreaming: data.data.isStreaming !== false
-          });
         } else if (data.type === 'message_completed') {
           console.log('WebSocket: Message completed', data.data);
-          // Mark message as completed with all reasoning data
+          // Mark message as completed
           updateMessage(data.data.messageId, {
-            content: data.data.finalAnswer || data.data.content,
-            finalAnswer: data.data.finalAnswer,
-            thinkingContent: data.data.thinkingContent,
+            content: data.data.content,
             isStreaming: false,
-            isComplete: true,
-            isThinkingStreaming: false,
-            isThinkingComplete: true
+            isComplete: true
           });
         } else if (data.type === 'message_error') {
           console.log('WebSocket: Message error', data.data);

@@ -3,11 +3,11 @@ import { wsManager } from '../utils/websocketManager';
 import { agentService } from './agentService';
 import { usageService } from './usageService';
 import { unifiedToolRegistry, ToolExecutionContext } from './unifiedToolRegistry';
+import { agentExecutionService, ExecutionRequest, ExecutionPriority } from './agentExecutionService';
 import { redis } from '../lib/redis';
 import { langmemService } from './langmemService';
 import { chromaService } from './chromaService';
 import { storageService } from './storageService';
-import { modernChatService } from '../core/modernChatService';
 
 export class ChatService {
   constructor() {
@@ -221,9 +221,9 @@ export class ChatService {
         }
       });
 
-      // Step 5: Process with Modern AI System
-      console.log(`🤖 Step 5: Processing with Modern AI System...`);
-      await modernChatService.processMessage(chatId, userId, content, images);
+      // Step 5: Process with AI (using Execution Service)
+      console.log(`🤖 Step 5: Processing with AI using execution service...`);
+      await this.processWithExecutionService(chatId, assistantMessage.id, content, images, userId);
 
     } catch (error) {
       console.error('❌ Error in processMessage:', error);
@@ -243,6 +243,217 @@ export class ChatService {
     }
   }
 
+  /**
+   * AI Processing with Execution Service
+   * - ใช้ Agent Execution Service
+   * - Performance monitoring และ metrics
+   * - Queue management และ error recovery
+   */
+  private async processWithExecutionService(
+    chatId: string,
+    assistantMessageId: string,
+    userContent: string,
+    images?: Array<{ url: string; mediaType: string }>,
+    userId?: string
+  ): Promise<void> {
+    try {
+      console.log(`🚀 processWithExecutionService: chatId=${chatId}, assistantId=${assistantMessageId}`);
+
+      // Get chat and agent configuration
+      const chat = await ChatModel.findById(chatId);
+      if (!chat) {
+        throw new Error(`Chat not found: ${chatId}`);
+      }
+
+      // Prepare agent configuration
+      let agentConfig = null;
+      let modelId = 'anthropic.claude-3-5-sonnet-20240620-v1:0';
+      let collectionNames: string[] = [];
+      let systemPrompt = "You are a helpful assistant. Use tools when appropriate.";
+      let temperature = 0.7;
+      let maxTokens = 4000;
+
+      if (chat.agentId) {
+        try {
+          agentConfig = await agentService.getAgentById(chat.agentId);
+          if (agentConfig) {
+            modelId = agentConfig.modelId;
+            collectionNames = agentConfig.collectionNames || [];
+            systemPrompt = agentConfig.systemPrompt || systemPrompt;
+            temperature = agentConfig.temperature || 0.7;
+            maxTokens = agentConfig.maxTokens || 4000;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to get agent config:`, error);
+        }
+      }
+
+      // Prepare images if any
+      let preparedImages: Array<{ url: string; mediaType: string; base64Data?: string }> = [];
+      if (images && images.length > 0) {
+        console.log(`🖼️ Preparing ${images.length} images...`);
+        preparedImages = await this.prepareImagesForMultimodal(images);
+      }
+
+      // Create execution request for advanced service
+      const executionRequest: ExecutionRequest = {
+        id: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        chatId,
+        userId: userId || 'unknown',
+        agentId: chat.agentId,
+        prompt: systemPrompt,
+        context: {
+          userContent,
+          images: preparedImages.filter(img => img.base64Data),
+          modelId,
+          temperature,
+          maxTokens,
+          collectionNames,
+          chatHistory: chat.messages.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            id: msg.id,
+            timestamp: msg.timestamp
+          }))
+        },
+        priority: ExecutionPriority.NORMAL,
+        timeout: 60000, // 60 seconds timeout
+        createdAt: new Date()
+      };
+
+      // Track streaming content
+      let fullContent = '';
+
+      // Setup event handlers for real-time updates
+      const onExecutionEvent = async (event: { executionId: string; event: any }) => {
+        if (event.executionId !== executionRequest.id) return;
+
+        const agentEvent = event.event;
+        console.log(`📡 Agent event: ${agentEvent.type}`);
+
+        if (agentEvent.type === 'chunk') {
+          const chunkContent = String(agentEvent.data || '');
+          fullContent += chunkContent;
+
+          // Update database in real-time
+          await this.updateMessageContent(chatId, assistantMessageId, fullContent);
+
+          // Broadcast streaming update
+          this.broadcastToChat(chatId, {
+            type: 'message_updated',
+            data: {
+              messageId: assistantMessageId,
+              content: fullContent,
+              isStreaming: true
+            }
+          });
+
+        } else if (agentEvent.type === 'tool_start') {
+          this.broadcastToChat(chatId, {
+            type: 'tool_start',
+            data: {
+              messageId: assistantMessageId,
+              toolName: agentEvent.data.tool_name,
+              toolInput: agentEvent.data.tool_input
+            }
+          });
+
+        } else if (agentEvent.type === 'tool_result') {
+          this.broadcastToChat(chatId, {
+            type: 'tool_result',
+            data: {
+              messageId: assistantMessageId,
+              toolName: agentEvent.data.tool_name,
+              result: agentEvent.data.output
+            }
+          });
+
+        } else if (agentEvent.type === 'end') {
+          const finalContent = String(agentEvent.data.answer || fullContent);
+
+          // Final update to database
+          await this.updateMessageContent(chatId, assistantMessageId, finalContent);
+
+          // Mark as completed
+          this.broadcastToChat(chatId, {
+            type: 'message_completed',
+            data: {
+              messageId: assistantMessageId,
+              content: finalContent
+            }
+          });
+
+          // Update usage if provided
+          if (userId && (agentEvent.data.inputTokens || agentEvent.data.outputTokens)) {
+            await usageService.updateUsage(
+              userId,
+              agentEvent.data.inputTokens || 0,
+              agentEvent.data.outputTokens || 0
+            );
+          }
+
+          console.log(`✅ AI processing completed for message ${assistantMessageId}`);
+        }
+      };
+
+      // Register event listener
+      agentExecutionService.on('execution_event', onExecutionEvent);
+
+      try {
+        // Execute with advanced service
+        const result = await agentExecutionService.executeAgent(executionRequest);
+
+        // Handle execution result
+        if (result.success) {
+          console.log(`✅ Execution completed successfully in ${result.metrics.duration.toFixed(2)}ms`);
+          console.log(`📊 Metrics: ${result.metrics.toolCount} tools, ${result.metrics.tokenUsage.input + result.metrics.tokenUsage.output} tokens`);
+        } else {
+          console.error(`❌ Execution failed: ${result.error}`);
+
+          // Handle execution failure
+          await this.updateMessageContent(
+            chatId,
+            assistantMessageId,
+            `[Error: ${result.error}]`
+          );
+
+          this.broadcastToChat(chatId, {
+            type: 'message_error',
+            data: {
+              messageId: assistantMessageId,
+              error: result.error
+            }
+          });
+        }
+
+      } finally {
+        // Remove event listener
+        agentExecutionService.off('execution_event', onExecutionEvent);
+
+        // After successful AI response, check if we need to create memory search tools
+        await this.checkAndCreateMemorySearchTools(chatId);
+      }
+
+    } catch (error) {
+      console.error('❌ Error in processWithExecutionService:', error);
+      const errorMessage = error instanceof Error ? error.message : 'AI processing failed';
+
+      // Mark message as failed
+      await this.updateMessageContent(
+        chatId,
+        assistantMessageId,
+        `[Error: ${errorMessage}]`
+      );
+
+      this.broadcastToChat(chatId, {
+        type: 'message_error',
+        data: {
+          messageId: assistantMessageId,
+          error: errorMessage
+        }
+      });
+    }
+  }
 
 
   /**
@@ -344,6 +555,20 @@ export class ChatService {
     return true;
   }
 
+  /**
+   * Check if we need to create memory search tools after message processing
+   */
+  private async checkAndCreateMemorySearchTools(chatId: string): Promise<void> {
+    try {
+      // Check if this session now has enough messages to warrant memory search tools
+      const messages = await langmemService.getRecentMessages(chatId);
+      if (messages && messages.length >= 3) { // Enable memory search after 3+ messages
+        await unifiedToolRegistry.createMemorySearchToolsIfNeeded(chatId);
+      }
+    } catch (error) {
+      console.error(`❌ Error checking memory tools for session ${chatId}:`, error);
+    }
+  }
 
   private shouldEmbedMessages(messageCount: number): boolean {
     // Embed messages every 10 messages (10, 20, 30, etc.) - เหมือน Legacy

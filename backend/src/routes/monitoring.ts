@@ -10,6 +10,7 @@
 
 import express, { Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { agentExecutionService } from '../services/agentExecutionService';
 import { unifiedToolRegistry } from '../services/unifiedToolRegistry';
 import { usageService } from '../services/usageService';
 
@@ -28,10 +29,10 @@ router.get('/health', async (req: Request, res: Response) => {
       memory: process.memoryUsage(),
       version: process.env.npm_package_version || '1.0.0',
       services: {
-        modernSystem: {
+        agentExecution: {
           status: 'operational',
-          activeExecutions: 0,
-          queueSize: 0
+          activeExecutions: agentExecutionService.getQueueStatus().activeExecutions,
+          queueSize: agentExecutionService.getQueueStatus().queueSize
         },
         toolRegistry: {
           status: 'operational',
@@ -80,11 +81,8 @@ router.get('/metrics', authenticateJWT, async (req: Request, res: Response) => {
         uptime: process.uptime(),
         timestamp: new Date().toISOString()
       },
-      modernSystem: {
-        executions: 0,
-        averageTime: 0,
-        successRate: 100
-      },
+      agentExecution: agentExecutionService.getMetrics(),
+      queueStatus: agentExecutionService.getQueueStatus(),
       toolRegistry: unifiedToolRegistry.getToolStatistics()
     };
 
@@ -118,20 +116,29 @@ router.get('/executions', authenticateJWT, async (req: Request, res: Response) =
       });
     }
 
-    // Modern system doesn't have execution history yet
-    const mockHistory: any[] = [];
+    const history = agentExecutionService.getExecutionHistory(Number(limit));
+
+    // Filter by status if specified
+    let filteredHistory = history;
+    if (status) {
+      filteredHistory = history.filter(h =>
+        h.success === (status === 'completed')
+      );
+    }
+
+    // Calculate statistics
     const stats = {
-      total: 0,
-      successful: 0,
-      failed: 0,
-      averageDuration: 0,
-      totalTokens: 0,
-      averageToolsPerExecution: 0
+      total: history.length,
+      successful: history.filter(h => h.success).length,
+      failed: history.filter(h => !h.success).length,
+      averageDuration: history.reduce((sum, h) => sum + h.metrics.duration, 0) / history.length,
+      totalTokens: history.reduce((sum, h) => sum + h.metrics.tokenUsage.input + h.metrics.tokenUsage.output, 0),
+      averageToolsPerExecution: history.reduce((sum, h) => sum + h.metrics.toolCount, 0) / history.length
     };
 
     return res.json({
       success: true,
-      executions: [],
+      executions: filteredHistory,
       statistics: stats
     });
 
@@ -162,8 +169,48 @@ router.get('/tools/performance', authenticateJWT, async (req: Request, res: Resp
     const toolStats = unifiedToolRegistry.getToolStatistics();
 
     // Get detailed tool performance from execution history
-    // Modern system doesn't have execution history yet
-    const performanceArray: any[] = [];
+    const executionHistory = agentExecutionService.getExecutionHistory(1000);
+    const toolPerformance = new Map<string, {
+      executionCount: number;
+      totalDuration: number;
+      successCount: number;
+      failureCount: number;
+      averageDuration: number;
+      successRate: number;
+    }>();
+
+    // Analyze tool performance from execution history
+    for (const execution of executionHistory) {
+      for (const toolExec of execution.toolExecutions) {
+        const existing = toolPerformance.get(toolExec.toolId) || {
+          executionCount: 0,
+          totalDuration: 0,
+          successCount: 0,
+          failureCount: 0,
+          averageDuration: 0,
+          successRate: 0
+        };
+
+        existing.executionCount++;
+        existing.totalDuration += toolExec.duration;
+
+        if (toolExec.success) {
+          existing.successCount++;
+        } else {
+          existing.failureCount++;
+        }
+
+        existing.averageDuration = existing.totalDuration / existing.executionCount;
+        existing.successRate = existing.successCount / existing.executionCount;
+
+        toolPerformance.set(toolExec.toolId, existing);
+      }
+    }
+
+    // Convert to array and sort by usage
+    const performanceArray = Array.from(toolPerformance.entries())
+      .map(([toolId, stats]) => ({ toolId, ...stats }))
+      .sort((a, b) => b.executionCount - a.executionCount);
 
     return res.json({
       success: true,
@@ -239,6 +286,8 @@ router.get('/alerts', authenticateJWT, async (req: Request, res: Response) => {
     }
 
     const alerts = [];
+    const metrics = agentExecutionService.getMetrics();
+    const queueStatus = agentExecutionService.getQueueStatus();
     const memory = process.memoryUsage();
 
     // Memory usage alerts
@@ -250,6 +299,43 @@ router.get('/alerts', authenticateJWT, async (req: Request, res: Response) => {
         message: `High memory usage: ${memoryUsagePercent.toFixed(1)}%`,
         timestamp: new Date(),
         data: { memoryUsagePercent, memory }
+      });
+    }
+
+    // Queue size alerts
+    if (queueStatus.queueSize > 10) {
+      alerts.push({
+        level: 'warning',
+        type: 'large_queue_size',
+        message: `Large execution queue: ${queueStatus.queueSize} items`,
+        timestamp: new Date(),
+        data: { queueSize: queueStatus.queueSize }
+      });
+    }
+
+    // Failure rate alerts
+    const totalExecutions = metrics.successfulExecutions + metrics.failedExecutions;
+    if (totalExecutions > 10) {
+      const failureRate = (metrics.failedExecutions / totalExecutions) * 100;
+      if (failureRate > 10) {
+        alerts.push({
+          level: 'error',
+          type: 'high_failure_rate',
+          message: `High execution failure rate: ${failureRate.toFixed(1)}%`,
+          timestamp: new Date(),
+          data: { failureRate, totalExecutions, failedExecutions: metrics.failedExecutions }
+        });
+      }
+    }
+
+    // Performance alerts
+    if (metrics.averageExecutionTime > 30000) { // 30 seconds
+      alerts.push({
+        level: 'warning',
+        type: 'slow_executions',
+        message: `Slow average execution time: ${(metrics.averageExecutionTime / 1000).toFixed(1)}s`,
+        timestamp: new Date(),
+        data: { averageExecutionTime: metrics.averageExecutionTime }
       });
     }
 

@@ -13,11 +13,6 @@ export interface ChatMessage {
   images?: ImagePayload[];
   isStreaming?: boolean;
   isComplete?: boolean;
-  // New fields for improved reasoning flow
-  thinkingContent?: string;
-  finalAnswer?: string;
-  isThinkingStreaming?: boolean;
-  isThinkingComplete?: boolean;
 }
 
 export interface Chat extends Document {
@@ -41,13 +36,13 @@ const ImagePayloadSchema = new Schema<ImagePayload>({
 
 const ChatMessageSchema = new Schema<ChatMessage>({
   id: { type: String, required: true },
-  role: {
-    type: String,
-    enum: ['user', 'assistant'],
-    required: true
+  role: { 
+    type: String, 
+    enum: ['user', 'assistant'], 
+    required: true 
   },
-  content: {
-    type: String,
+  content: { 
+    type: String, 
     required: false,
     default: '',
     validate: {
@@ -60,12 +55,7 @@ const ChatMessageSchema = new Schema<ChatMessage>({
   timestamp: { type: Date, default: Date.now },
   images: [ImagePayloadSchema],
   isStreaming: Boolean,
-  isComplete: Boolean,
-  // New fields for improved reasoning flow
-  thinkingContent: { type: String, default: '' },
-  finalAnswer: { type: String, default: '' },
-  isThinkingStreaming: Boolean,
-  isThinkingComplete: Boolean
+  isComplete: Boolean
 });
 
 const ChatSchema = new Schema<Chat>({

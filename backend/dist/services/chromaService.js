@@ -2,27 +2,17 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chromaService = exports.ChromaService = void 0;
 const chromadb_1 = require("chromadb");
-const realEmbeddingService_1 = require("../core/realEmbeddingService");
-class RealEmbeddingFunction {
+class CustomEmbeddingFunction {
     constructor() { }
     async generate(texts) {
-        try {
-            console.log(`🔧 Generating real embeddings for ${texts.length} texts`);
-            return await realEmbeddingService_1.realEmbeddingService.embedBatch(texts);
-        }
-        catch (error) {
-            console.error('❌ Failed to generate embeddings:', error);
-            console.warn('⚠️ Using zero vectors as fallback');
-            return texts.map(() => new Array(1536).fill(0));
-        }
+        return texts.map(() => new Array(384).fill(0));
     }
 }
 class ChromaService {
     constructor() {
         const url = process.env.CHROMA_URL || 'http://localhost:8000';
         this.client = new chromadb_1.ChromaClient({ path: url });
-        this.embeddingFunction = new RealEmbeddingFunction();
-        console.log('🚀 ChromaService initialized with real embeddings');
+        this.embeddingFunction = new CustomEmbeddingFunction();
     }
     async getOrCreateCollection(name) {
         try {

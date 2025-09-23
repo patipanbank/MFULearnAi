@@ -17,11 +17,6 @@ export interface ChatMessage {
     error?: string;
     timestamp: Date;
   }>;
-  // Enhanced fields for new reasoning flow
-  thinkingContent?: string;
-  finalAnswer?: string;
-  isThinkingStreaming?: boolean;
-  isThinkingComplete?: boolean;
 }
 
 export interface ChatSession {
