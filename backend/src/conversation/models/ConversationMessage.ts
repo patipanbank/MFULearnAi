@@ -204,7 +204,7 @@ ConversationMessageSchema.methods.updateToolCall = function(
 ) {
   if (!this.toolCalls) return false;
 
-  const toolCall = this.toolCalls.find(tc => tc.id === toolCallId);
+  const toolCall = this.toolCalls.find((tc: any) => tc.id === toolCallId);
   if (!toolCall) return false;
 
   Object.assign(toolCall, updates);
@@ -358,7 +358,7 @@ ConversationMessageSchema.post('save', function(doc) {
 
 // ============= MODEL EXPORT =============
 
-export interface ConversationMessageDocument extends IConversationMessage, Document {
+export interface ConversationMessageDocument extends Document {
   updateStatus(status: MessageStatus, error?: ErrorDetails): void;
   addToolCall(toolCall: Omit<ToolCall, 'id'>): string;
   updateToolCall(toolCallId: string, updates: Partial<ToolCall>): boolean;

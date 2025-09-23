@@ -1,0 +1,275 @@
+import { Document } from '@langchain/core/documents';
+export declare enum ConversationStatus {
+    ACTIVE = "active",
+    PAUSED = "paused",
+    COMPLETED = "completed",
+    ERROR = "error",
+    ARCHIVED = "archived"
+}
+export declare enum MessageRole {
+    USER = "user",
+    ASSISTANT = "assistant",
+    SYSTEM = "system",
+    TOOL = "tool"
+}
+export declare enum MessageStatus {
+    PENDING = "pending",
+    PROCESSING = "processing",
+    STREAMING = "streaming",
+    COMPLETED = "completed",
+    FAILED = "failed",
+    RETRYING = "retrying"
+}
+export declare enum WorkflowNodeType {
+    MEMORY = "memory",
+    TOOL = "tool",
+    LLM = "llm",
+    ROUTER = "router",
+    AGGREGATOR = "aggregator"
+}
+export interface ConversationMessage {
+    id: string;
+    conversationId: string;
+    role: MessageRole;
+    content: string;
+    status: MessageStatus;
+    metadata: MessageMetadata;
+    attachments?: MessageAttachment[];
+    toolCalls?: ToolCall[];
+    createdAt: Date;
+    updatedAt: Date;
+}
+export interface MessageMetadata {
+    userId: string;
+    agentId?: string;
+    modelId?: string;
+    tokenUsage?: TokenUsage;
+    processingTime?: number;
+    retryCount: number;
+    errorDetails?: ErrorDetails;
+    sourceNode?: string;
+}
+export interface MessageAttachment {
+    id: string;
+    type: 'image' | 'document' | 'audio' | 'video';
+    url: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    metadata?: Record<string, any>;
+}
+export interface ToolCall {
+    id: string;
+    name: string;
+    input: Record<string, any>;
+    output?: any;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    startTime: Date;
+    endTime?: Date;
+    error?: string;
+}
+export interface Conversation {
+    id: string;
+    userId: string;
+    title: string;
+    status: ConversationStatus;
+    agentId?: string;
+    modelId: string;
+    systemPrompt?: string;
+    configuration: ConversationConfiguration;
+    metadata: ConversationMetadata;
+    createdAt: Date;
+    updatedAt: Date;
+    lastMessageAt?: Date;
+}
+export interface ConversationConfiguration {
+    temperature: number;
+    maxTokens: number;
+    collectionNames: string[];
+    enabledTools: string[];
+    memorySettings: MemorySettings;
+    streamingEnabled: boolean;
+    autoSave: boolean;
+    timeoutMs: number;
+}
+export interface ConversationMetadata {
+    messageCount: number;
+    totalTokens: number;
+    averageResponseTime: number;
+    errorCount: number;
+    lastError?: ErrorDetails;
+    tags: string[];
+    isPinned: boolean;
+    isArchived: boolean;
+}
+export interface MemorySettings {
+    shortTermEnabled: boolean;
+    longTermEnabled: boolean;
+    embeddingEnabled: boolean;
+    maxShortTermMessages: number;
+    embeddingThreshold: number;
+    contextWindow: number;
+}
+export interface WorkflowState {
+    conversationId: string;
+    messages: ConversationMessage[];
+    currentMessage?: ConversationMessage;
+    memory: MemoryState;
+    tools: ToolState;
+    config: ConversationConfiguration;
+    metadata: WorkflowMetadata;
+}
+export interface WorkflowMetadata {
+    stepCount: number;
+    startTime: Date;
+    lastStepTime: Date;
+    totalTokens: number;
+    errors: ErrorDetails[];
+    nodeHistory: string[];
+}
+export interface MemoryState {
+    shortTerm: ConversationMessage[];
+    longTerm: Document[];
+    context: string;
+    embeddings: EmbeddingState[];
+    lastUpdate: Date;
+}
+export interface EmbeddingState {
+    id: string;
+    content: string;
+    embedding: number[];
+    metadata: Record<string, any>;
+    createdAt: Date;
+}
+export interface ToolState {
+    availableTools: string[];
+    executionHistory: ToolExecution[];
+    currentExecution?: ToolExecution;
+}
+export interface ToolExecution {
+    id: string;
+    toolName: string;
+    input: Record<string, any>;
+    output?: any;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    startTime: Date;
+    endTime?: Date;
+    duration?: number;
+    error?: ErrorDetails;
+}
+export interface StreamingEvent {
+    type: StreamingEventType;
+    conversationId: string;
+    messageId?: string;
+    data: any;
+    timestamp: Date;
+}
+export declare enum StreamingEventType {
+    CONVERSATION_STARTED = "conversation_started",
+    CONVERSATION_ENDED = "conversation_ended",
+    MESSAGE_STARTED = "message_started",
+    MESSAGE_CHUNK = "message_chunk",
+    MESSAGE_COMPLETED = "message_completed",
+    MESSAGE_FAILED = "message_failed",
+    TOOL_STARTED = "tool_started",
+    TOOL_COMPLETED = "tool_completed",
+    TOOL_FAILED = "tool_failed",
+    WORKFLOW_STEP = "workflow_step",
+    WORKFLOW_ERROR = "workflow_error",
+    CONNECTION_STATUS = "connection_status",
+    ERROR = "error",
+    HEARTBEAT = "heartbeat"
+}
+export interface ErrorDetails {
+    code: string;
+    message: string;
+    details?: Record<string, any>;
+    stack?: string;
+    timestamp: Date;
+    retryable: boolean;
+}
+export declare enum ErrorCode {
+    CONNECTION_FAILED = "CONNECTION_FAILED",
+    CONNECTION_TIMEOUT = "CONNECTION_TIMEOUT",
+    WEBSOCKET_ERROR = "WEBSOCKET_ERROR",
+    AUTH_FAILED = "AUTH_FAILED",
+    TOKEN_EXPIRED = "TOKEN_EXPIRED",
+    PERMISSION_DENIED = "PERMISSION_DENIED",
+    INVALID_INPUT = "INVALID_INPUT",
+    MISSING_REQUIRED_FIELD = "MISSING_REQUIRED_FIELD",
+    INVALID_FORMAT = "INVALID_FORMAT",
+    LLM_ERROR = "LLM_ERROR",
+    TOOL_ERROR = "TOOL_ERROR",
+    MEMORY_ERROR = "MEMORY_ERROR",
+    WORKFLOW_ERROR = "WORKFLOW_ERROR",
+    DATABASE_ERROR = "DATABASE_ERROR",
+    STORAGE_ERROR = "STORAGE_ERROR",
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+}
+export interface CreateConversationRequest {
+    title?: string;
+    agentId?: string;
+    modelId?: string;
+    configuration?: Partial<ConversationConfiguration>;
+}
+export interface SendMessageRequest {
+    content: string;
+    attachments?: MessageAttachment[];
+    metadata?: Partial<MessageMetadata>;
+}
+export interface ConversationResponse {
+    conversation: Conversation;
+    messages?: ConversationMessage[];
+}
+export interface MessageResponse {
+    message: ConversationMessage;
+    workflow?: WorkflowMetadata;
+}
+export interface WebSocketMessage {
+    type: string;
+    conversationId?: string;
+    messageId?: string;
+    data: any;
+    requestId?: string;
+    timestamp: string;
+}
+export interface WebSocketResponse {
+    type: string;
+    conversationId?: string;
+    messageId?: string;
+    data: any;
+    requestId?: string;
+    success: boolean;
+    error?: ErrorDetails;
+    timestamp: string;
+}
+export interface TokenUsage {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+}
+export interface PaginationOptions {
+    page: number;
+    limit: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+}
+export interface SearchOptions {
+    query?: string;
+    status?: ConversationStatus;
+    userId?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    tags?: string[];
+}
+export interface ConversationStats {
+    totalConversations: number;
+    activeConversations: number;
+    totalMessages: number;
+    averageMessagesPerConversation: number;
+    totalTokensUsed: number;
+    averageResponseTime: number;
+    errorRate: number;
+}
+//# sourceMappingURL=types.d.ts.map

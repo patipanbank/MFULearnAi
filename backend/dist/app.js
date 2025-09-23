@@ -12,7 +12,6 @@ const express_session_1 = __importDefault(require("express-session"));
 const passport_1 = __importDefault(require("passport"));
 const http_1 = require("http");
 const auth_1 = __importDefault(require("./routes/auth"));
-const chat_1 = __importDefault(require("./routes/chat"));
 const agent_1 = __importDefault(require("./routes/agent"));
 const bedrock_1 = __importDefault(require("./routes/bedrock"));
 const chroma_1 = __importDefault(require("./routes/chroma"));
@@ -25,7 +24,7 @@ const usage_1 = __importDefault(require("./routes/usage"));
 const admin_1 = __importDefault(require("./routes/admin"));
 const tools_1 = __importDefault(require("./routes/tools"));
 const monitoring_1 = __importDefault(require("./routes/monitoring"));
-const websocketService_1 = require("./services/websocketService");
+const LangGraphWebSocketService_1 = require("./conversation/LangGraphWebSocketService");
 const queueService_1 = require("./services/queueService");
 const mongodb_1 = require("./lib/mongodb");
 dotenv_1.default.config();
@@ -50,7 +49,6 @@ app.use(passport_1.default.initialize());
 app.use(passport_1.default.session());
 const apiRouter = express_1.default.Router();
 apiRouter.use('/auth', auth_1.default);
-apiRouter.use('/chat', chat_1.default);
 apiRouter.use('/agents', agent_1.default);
 apiRouter.use('/bedrock', bedrock_1.default);
 apiRouter.use('/chroma', chroma_1.default);
@@ -73,7 +71,7 @@ app.use((err, req, res, next) => {
 });
 const PORT = process.env.PORT || 3001;
 const server = (0, http_1.createServer)(app);
-const wsService = new websocketService_1.WebSocketService(server);
+const langGraphConversationWS = new LangGraphWebSocketService_1.LangGraphWebSocketService(server);
 const startServer = async () => {
     try {
         await (0, mongodb_1.connectDB)();
@@ -90,7 +88,7 @@ const startServer = async () => {
 process.on('SIGTERM', async () => {
     console.log('🛑 SIGTERM received, shutting down gracefully...');
     await queueService_1.queueService.shutdown();
-    wsService.stop();
+    await langGraphConversationWS.shutdown();
     server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);
@@ -99,7 +97,7 @@ process.on('SIGTERM', async () => {
 process.on('SIGINT', async () => {
     console.log('🛑 SIGINT received, shutting down gracefully...');
     await queueService_1.queueService.shutdown();
-    wsService.stop();
+    await langGraphConversationWS.shutdown();
     server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);
