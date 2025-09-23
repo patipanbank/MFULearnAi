@@ -8,7 +8,6 @@ const ws_1 = require("ws");
 const url_1 = require("url");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const uuid_1 = require("uuid");
-const mongodb_1 = require("mongodb");
 const LangGraphConversation_1 = require("./LangGraphConversation");
 class LangGraphWebSocketService {
     constructor(server) {
@@ -117,9 +116,6 @@ class LangGraphWebSocketService {
                     break;
                 case 'get_workflow_state':
                     this.handleGetWorkflowState(connectionId, data);
-                    break;
-                case 'create_room':
-                    await this.handleCreateRoom(connectionId, data, user);
                     break;
                 default:
                     console.warn(`⚠️ Unknown LangGraph message type: ${data.type}`);
@@ -289,29 +285,6 @@ class LangGraphWebSocketService {
                 }
             }
         });
-    }
-    async handleCreateRoom(connectionId, data, user) {
-        const agentId = data.agent_id;
-        if (!agentId) {
-            this.sendError(connectionId, 'Agent ID is required for room creation');
-            return;
-        }
-        try {
-            console.log(`🏗️ Creating new chat room for user ${user.id} with agent ${agentId}`);
-            const roomId = new mongodb_1.ObjectId().toString();
-            this.sendMessage(connectionId, {
-                type: 'room_created',
-                data: {
-                    chatId: roomId,
-                    agentId
-                }
-            });
-            console.log(`✅ Room created successfully: ${roomId}`);
-        }
-        catch (error) {
-            console.error('❌ Error creating room:', error);
-            this.sendError(connectionId, 'Failed to create room');
-        }
     }
     sendMessage(connectionId, message) {
         const connection = this.connections.get(connectionId);

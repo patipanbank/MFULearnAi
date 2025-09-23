@@ -12,7 +12,6 @@ export declare class LangGraphWebSocketService {
     private handleJoinRoom;
     private handleLeaveRoom;
     private handleGetWorkflowState;
-    private handleCreateRoom;
     private sendMessage;
     private sendError;
     private startPingInterval;

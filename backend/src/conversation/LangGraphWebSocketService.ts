@@ -9,7 +9,6 @@ import { IncomingMessage } from 'http';
 import { URL } from 'url';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { ObjectId } from 'mongodb';
 import { langGraphConversationService, LangGraphConversationConfig } from './LangGraphConversation';
 
 interface WebSocketMessage {
@@ -175,10 +174,6 @@ export class LangGraphWebSocketService {
 
         case 'get_workflow_state':
           this.handleGetWorkflowState(connectionId, data);
-          break;
-
-        case 'create_room':
-          await this.handleCreateRoom(connectionId, data, user);
           break;
 
         default:
@@ -385,36 +380,6 @@ export class LangGraphWebSocketService {
         }
       }
     });
-  }
-
-  private async handleCreateRoom(connectionId: string, data: WebSocketMessage, user: AuthenticatedUser): Promise<void> {
-    const agentId = data.agent_id;
-
-    if (!agentId) {
-      this.sendError(connectionId, 'Agent ID is required for room creation');
-      return;
-    }
-
-    try {
-      console.log(`🏗️ Creating new chat room for user ${user.id} with agent ${agentId}`);
-
-      // Generate new room ID (MongoDB ObjectId format)
-      const roomId = new ObjectId().toString();
-
-      // Send room created event
-      this.sendMessage(connectionId, {
-        type: 'room_created',
-        data: {
-          chatId: roomId,
-          agentId
-        }
-      });
-
-      console.log(`✅ Room created successfully: ${roomId}`);
-    } catch (error) {
-      console.error('❌ Error creating room:', error);
-      this.sendError(connectionId, 'Failed to create room');
-    }
   }
 
   private sendMessage(connectionId: string, message: any): void {
