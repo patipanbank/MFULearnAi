@@ -60,7 +60,11 @@ const ChatMessageSchema = new mongoose_1.Schema({
     timestamp: { type: Date, default: Date.now },
     images: [ImagePayloadSchema],
     isStreaming: Boolean,
-    isComplete: Boolean
+    isComplete: Boolean,
+    thinkingContent: { type: String, default: '' },
+    finalAnswer: { type: String, default: '' },
+    isThinkingStreaming: Boolean,
+    isThinkingComplete: Boolean
 });
 const ChatSchema = new mongoose_1.Schema({
     userId: { type: String, required: true, index: true },

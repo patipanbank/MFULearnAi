@@ -1,17 +1,19 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.embeddingService = exports.EmbeddingService = void 0;
-const bedrockService_1 = require("./bedrockService");
+const realEmbeddingService_1 = require("../core/realEmbeddingService");
 class EmbeddingService {
     async getTextEmbeddings(input, model = 'amazon.titan-embed-text-v1') {
-        return bedrockService_1.bedrockService.createBatchTextEmbeddings(input);
+        return realEmbeddingService_1.realEmbeddingService.embedBatch(input, { model });
     }
     async embed(text, model = 'amazon.titan-embed-text-v1') {
-        const embeddings = await this.getTextEmbeddings([text], model);
-        return embeddings && embeddings.length > 0 ? embeddings[0] : [];
+        return realEmbeddingService_1.realEmbeddingService.embed(text, { model });
     }
     async embedBatch(texts, model = 'amazon.titan-embed-text-v1') {
-        return this.getTextEmbeddings(texts, model);
+        return realEmbeddingService_1.realEmbeddingService.embedBatch(texts, { model });
+    }
+    async healthCheck() {
+        return realEmbeddingService_1.realEmbeddingService.healthCheck();
     }
 }
 exports.EmbeddingService = EmbeddingService;

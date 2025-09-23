@@ -11,7 +11,8 @@ async function createSimpleLangGraphAgent(config) {
     console.log(`🤖 Creating Simple LangGraph Agent with model: ${config.modelId}`);
     const llm = createLLM(config.modelId, {
         temperature: config.temperature || 0.7,
-        maxTokens: config.maxTokens || 4000
+        maxTokens: config.maxTokens || 4000,
+        streaming: true
     });
     const toolContext = {
         sessionId: config.sessionId,
@@ -64,32 +65,18 @@ async function createSimpleLangGraphAgent(config) {
                 while (iterations < maxSteps) {
                     iterations++;
                     console.log(`🔄 Agent iteration ${iterations}/${maxSteps}`);
-                    const agentResponse = await agentReasoningStep();
-                    const toolCalls = extractToolCalls(agentResponse);
-                    if (toolCalls.length === 0) {
+                    const { response: agentResponse, hasToolCalls } = await agentReasoningStepWithStreaming(onEvent);
+                    if (!hasToolCalls) {
                         finalAnswer = agentResponse.content.toString();
                         break;
                     }
+                    const toolCalls = extractToolCalls(agentResponse);
                     for (const toolCall of toolCalls) {
                         await executeToolStep(toolCall, onEvent);
                     }
                     currentState.messages.push(agentResponse);
                 }
                 await memoryUpdateStep();
-                if (onEvent && finalAnswer) {
-                    const words = finalAnswer.split(' ');
-                    for (let i = 0; i < words.length; i++) {
-                        const chunk = (i > 0 ? ' ' : '') + words[i];
-                        onEvent({
-                            type: 'chunk',
-                            data: {
-                                messageId: Math.random().toString(36).substr(2, 9),
-                                delta: chunk
-                            }
-                        });
-                        await new Promise(resolve => setTimeout(resolve, 20));
-                    }
-                }
                 if (onEvent) {
                     onEvent({
                         type: 'end',
@@ -150,7 +137,7 @@ async function createSimpleLangGraphAgent(config) {
         }
     }
     async function agentReasoningStep() {
-        console.log('🤖 Agent Reasoning Step');
+        console.log('🤖 Agent Reasoning Step (Non-streaming)');
         let enhancedSystemPrompt = config.systemPrompt;
         if (currentState.memoryContext) {
             enhancedSystemPrompt += `\n\nConversation Context: ${JSON.stringify(currentState.memoryContext.context)}`;
@@ -170,6 +157,91 @@ async function createSimpleLangGraphAgent(config) {
         currentState.reasoning.push(`Agent responded - checking for tool calls`);
         return response;
     }
+    async function agentReasoningStepWithStreaming(onEvent) {
+        console.log('🤖 Agent Reasoning Step with Real-time Streaming');
+        let enhancedSystemPrompt = config.systemPrompt;
+        if (currentState.memoryContext) {
+            enhancedSystemPrompt += `\n\nConversation Context: ${JSON.stringify(currentState.memoryContext.context)}`;
+            enhancedSystemPrompt += `\nRelevant Memories: ${JSON.stringify(currentState.memoryContext.relevantMemories)}`;
+        }
+        if (Object.keys(currentState.toolResults).length > 0) {
+            enhancedSystemPrompt += `\n\nTool Results: ${JSON.stringify(currentState.toolResults)}`;
+        }
+        enhancedSystemPrompt += `\n\nAvailable Tools: ${tools.map(t => `${t.name}: ${t.description}`).join(', ')}`;
+        const systemMessage = new messages_1.SystemMessage(enhancedSystemPrompt);
+        const validMessages = currentState.messages.filter(msg => {
+            const content = msg.content?.toString().trim();
+            return content && content.length > 0;
+        });
+        console.log(`🤖 Streaming ${validMessages.length + 1} messages to LLM (including system)`);
+        let fullContent = '';
+        let inputTokens = 0;
+        let outputTokens = 0;
+        try {
+            const stream = await llm.stream([systemMessage, ...validMessages]);
+            for await (const chunk of stream) {
+                const content = chunk.content?.toString() || '';
+                if (content) {
+                    fullContent += content;
+                    if (onEvent) {
+                        onEvent({
+                            type: 'chunk',
+                            data: {
+                                messageId: Math.random().toString(36).substr(2, 9),
+                                delta: content
+                            }
+                        });
+                    }
+                }
+                if (chunk.usage) {
+                    inputTokens = chunk.usage.input_tokens || 0;
+                    outputTokens = chunk.usage.output_tokens || 0;
+                }
+            }
+            const response = new messages_1.AIMessage(fullContent);
+            const hasToolCalls = extractToolCalls(response).length > 0;
+            if (!hasToolCalls && onEvent) {
+                onEvent({
+                    type: 'end',
+                    data: {
+                        messageId: Math.random().toString(36).substr(2, 9),
+                        answer: fullContent,
+                        inputTokens,
+                        outputTokens,
+                        reasoning: currentState.reasoning
+                    }
+                });
+            }
+            currentState.reasoning.push(`Agent streamed response - ${hasToolCalls ? 'found tool calls' : 'final answer'}`);
+            return { response, hasToolCalls };
+        }
+        catch (error) {
+            console.error('❌ Streaming failed, falling back to non-streaming:', error);
+            const response = await llm.invoke([systemMessage, ...validMessages]);
+            const hasToolCalls = extractToolCalls(response).length > 0;
+            if (onEvent && !hasToolCalls) {
+                const content = response.content?.toString() || '';
+                onEvent({
+                    type: 'chunk',
+                    data: {
+                        messageId: Math.random().toString(36).substr(2, 9),
+                        delta: content
+                    }
+                });
+                onEvent({
+                    type: 'end',
+                    data: {
+                        messageId: Math.random().toString(36).substr(2, 9),
+                        answer: content,
+                        inputTokens: 0,
+                        outputTokens: 0,
+                        reasoning: currentState.reasoning
+                    }
+                });
+            }
+            return { response: response, hasToolCalls };
+        }
+    }
     function extractToolCalls(message) {
         const content = message.content.toString();
         const toolCalls = [];
@@ -180,12 +252,30 @@ async function createSimpleLangGraphAgent(config) {
             }));
         }
         for (const tool of tools) {
-            const pattern = new RegExp(`use ${tool.name}\\(([^)]+)\\)`, 'i');
-            const match = content.match(pattern);
-            if (match) {
+            const usePattern = new RegExp(`use ${tool.name}\\(([^)]+)\\)`, 'i');
+            const useMatch = content.match(usePattern);
+            if (useMatch) {
                 toolCalls.push({
                     name: tool.name,
-                    input: match[1]
+                    input: useMatch[1]
+                });
+                continue;
+            }
+            const toolPattern = new RegExp(`Tool:\\s*${tool.name}[\\s\\S]*?(?:Query|Input):\\s*(.+?)(?=\\n|$)`, 'i');
+            const toolMatch = content.match(toolPattern);
+            if (toolMatch) {
+                toolCalls.push({
+                    name: tool.name,
+                    input: toolMatch[1].trim()
+                });
+                continue;
+            }
+            const simplePattern = new RegExp(`${tool.name}[\\s\\S]*?(?:query|search|input)[:\\s]+(.+?)(?=\\n|$)`, 'i');
+            const simpleMatch = content.match(simplePattern);
+            if (simpleMatch) {
+                toolCalls.push({
+                    name: tool.name,
+                    input: simpleMatch[1].trim()
                 });
             }
         }
@@ -263,7 +353,8 @@ function createLLM(modelId, config) {
             model: modelId,
             temperature: config.temperature,
             maxTokens: config.maxTokens,
-            region: process.env.AWS_REGION || 'us-east-1'
+            region: process.env.AWS_REGION || 'us-east-1',
+            streaming: config.streaming || true
         });
     }
     else if (modelId.includes('gpt') || modelId.includes('openai')) {
@@ -271,7 +362,8 @@ function createLLM(modelId, config) {
             modelName: modelId,
             temperature: config.temperature,
             maxTokens: config.maxTokens,
-            openAIApiKey: process.env.OPENAI_API_KEY
+            openAIApiKey: process.env.OPENAI_API_KEY,
+            streaming: config.streaming || true
         });
     }
     else {
