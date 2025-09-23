@@ -292,35 +292,12 @@ export async function createSimpleLangGraphAgent(config: SimpleLangGraphConfig):
 
     // Fallback: parse tool mentions from text
     for (const tool of tools) {
-      // Pattern 1: use tool_name(args) format
-      const usePattern = new RegExp(`use ${tool.name}\\(([^)]+)\\)`, 'i');
-      const useMatch = content.match(usePattern);
-      if (useMatch) {
+      const pattern = new RegExp(`use ${tool.name}\\(([^)]+)\\)`, 'i');
+      const match = content.match(pattern);
+      if (match) {
         toolCalls.push({
           name: tool.name,
-          input: useMatch[1]
-        });
-        continue;
-      }
-
-      // Pattern 2: Tool: tool_name followed by Query: or Input:
-      const toolPattern = new RegExp(`Tool:\\s*${tool.name}[\\s\\S]*?(?:Query|Input):\\s*(.+?)(?=\\n|$)`, 'i');
-      const toolMatch = content.match(toolPattern);
-      if (toolMatch) {
-        toolCalls.push({
-          name: tool.name,
-          input: toolMatch[1].trim()
-        });
-        continue;
-      }
-
-      // Pattern 3: Simple tool_name mention with context
-      const simplePattern = new RegExp(`${tool.name}[\\s\\S]*?(?:query|search|input)[:\\s]+(.+?)(?=\\n|$)`, 'i');
-      const simpleMatch = content.match(simplePattern);
-      if (simpleMatch) {
-        toolCalls.push({
-          name: tool.name,
-          input: simpleMatch[1].trim()
+          input: match[1]
         });
       }
     }
