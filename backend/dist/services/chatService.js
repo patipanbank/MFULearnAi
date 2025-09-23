@@ -5,7 +5,6 @@ const chat_1 = require("../models/chat");
 const websocketManager_1 = require("../utils/websocketManager");
 const agentService_1 = require("./agentService");
 const usageService_1 = require("./usageService");
-const unifiedToolRegistry_1 = require("./unifiedToolRegistry");
 const agentExecutionService_1 = require("./agentExecutionService");
 const langmemService_1 = require("./langmemService");
 const storageService_1 = require("./storageService");
@@ -321,7 +320,6 @@ class ChatService {
             }
             finally {
                 agentExecutionService_1.agentExecutionService.off('execution_event', onExecutionEvent);
-                await this.checkAndCreateMemorySearchTools(chatId);
             }
         }
         catch (error) {
@@ -397,17 +395,6 @@ class ChatService {
     }
     shouldUseRedisMemory(messageCount) {
         return true;
-    }
-    async checkAndCreateMemorySearchTools(chatId) {
-        try {
-            const messages = await langmemService_1.langmemService.getRecentMessages(chatId);
-            if (messages && messages.length >= 3) {
-                await unifiedToolRegistry_1.unifiedToolRegistry.createMemorySearchToolsIfNeeded(chatId);
-            }
-        }
-        catch (error) {
-            console.error(`❌ Error checking memory tools for session ${chatId}:`, error);
-        }
     }
     shouldEmbedMessages(messageCount) {
         return messageCount % 10 === 0;

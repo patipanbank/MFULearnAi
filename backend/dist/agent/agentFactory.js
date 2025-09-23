@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAgent = createAgent;
-const simpleLanggraphAgent_1 = require("./simpleLanggraphAgent");
+const langchainAgentFactory_1 = require("./langchainAgentFactory");
 const unifiedToolRegistry_1 = require("../services/unifiedToolRegistry");
+const langmemTools_1 = require("../services/langmemTools");
 async function createAgent(llm, tools, prompt, config) {
-    console.log(`🤖 Creating LangGraph Agent with prompt: ${prompt.substring(0, 50)}...`);
+    console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
     const toolContext = {
         sessionId: config?.sessionId,
         userId: config?.userId,
@@ -12,30 +13,64 @@ async function createAgent(llm, tools, prompt, config) {
         collectionNames: config?.collectionNames || [],
         config: config
     };
+    let availableTools = unifiedToolRegistry_1.unifiedToolRegistry.getAvailableTools(toolContext);
+    if (config?.allowedTools && config.allowedTools.length > 0) {
+        console.log(`🔧 Filtering tools to allowed list: ${config.allowedTools.join(', ')}`);
+        availableTools = availableTools.filter(tool => config.allowedTools.includes(tool.id) ||
+            config.allowedTools.includes(tool.name.toLowerCase().replace(/\s+/g, '_')));
+    }
     if (config?.sessionId) {
         unifiedToolRegistry_1.unifiedToolRegistry.createSessionTools(config.sessionId);
-        await unifiedToolRegistry_1.unifiedToolRegistry.createMemorySearchToolsIfNeeded(config.sessionId);
     }
     if (config?.collectionNames && config.collectionNames.length > 0) {
         unifiedToolRegistry_1.unifiedToolRegistry.createCollectionTools(config.collectionNames);
     }
-    console.log(`🔧 Tool filtering: ${config?.allowedTools ? config.allowedTools.join(', ') : 'All tools allowed'}`);
+    const unifiedTools = convertUnifiedToolsToLegacy(availableTools, toolContext);
+    const langmemTools = (0, langmemTools_1.createLangMemTools)({
+        sessionId: config?.sessionId || 'default',
+        userId: config?.userId,
+        agentId: config?.agentId,
+        namespace: config?.agentId || 'default'
+    });
+    const legacyMemoryTools = config?.sessionId
+        ? (0, langmemTools_1.createLegacyLangMemTools)(config.sessionId)
+        : {};
+    let filteredLegacyTools = tools;
+    if (config?.allowedTools && config.allowedTools.length > 0) {
+        filteredLegacyTools = {};
+        for (const [toolName, toolFunc] of Object.entries(tools)) {
+            if (config.allowedTools.includes(toolName) ||
+                config.allowedTools.includes(toolName.toLowerCase().replace(/\s+/g, '_'))) {
+                filteredLegacyTools[toolName] = toolFunc;
+            }
+        }
+    }
+    const allTools = {
+        ...filteredLegacyTools,
+        ...unifiedTools,
+        ...langmemTools,
+        ...legacyMemoryTools
+    };
+    console.log(`🔧 Total tools available: ${Object.keys(allTools).length}`);
+    console.log(`🔧 Tools: ${Object.keys(allTools).join(', ')}`);
+    if (config?.allowedTools && config.allowedTools.length > 0) {
+        console.log(`✅ Tools are filtered by agent configuration`);
+    }
+    else {
+        console.log(`⚠️ No tool filtering applied - agent will have access to ALL tools`);
+    }
     const agentConfig = {
         modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
         systemPrompt: prompt,
         temperature: config?.temperature || 0.7,
         maxTokens: config?.maxTokens || 4000,
-        sessionId: config?.sessionId,
-        userId: config?.userId,
-        agentId: config?.agentId,
-        collectionNames: config?.collectionNames || [],
-        allowedTools: config?.allowedTools,
-        maxIterations: 5
+        tools: allTools,
+        sessionId: config?.sessionId
     };
-    const langgraphAgent = await (0, simpleLanggraphAgent_1.createSimpleLangGraphAgent)(agentConfig);
+    const langchainAgent = await (0, langchainAgentFactory_1.createLangChainAgent)(agentConfig);
     return {
         async run(messages, options) {
-            console.log(`🤖 LangGraph Agent.run called with ${messages.length} messages`);
+            console.log(`🤖 LangChain Agent.run called with ${messages.length} messages`);
             console.log(`🤖 Last message: ${messages[messages.length - 1]?.content.substring(0, 50)}...`);
             console.log(`🤖 Images for multimodal: ${options?.images?.length || 0}`);
             try {
@@ -47,7 +82,10 @@ async function createAgent(llm, tools, prompt, config) {
                         if (options.onEvent) {
                             options.onEvent({
                                 type: 'assistant_created',
-                                data: { messageId, content: '' }
+                                data: {
+                                    messageId: messageId,
+                                    content: ''
+                                }
                             });
                         }
                         const response = await llm.generate(lastUserMessage.content, options.images);
@@ -57,14 +95,17 @@ async function createAgent(llm, tools, prompt, config) {
                                 const chunk = (i > 0 ? ' ' : '') + words[i];
                                 options.onEvent({
                                     type: 'chunk',
-                                    data: { messageId, delta: chunk }
+                                    data: {
+                                        messageId: messageId,
+                                        delta: chunk
+                                    }
                                 });
                                 await new Promise(resolve => setTimeout(resolve, 30));
                             }
                             options.onEvent({
                                 type: 'end',
                                 data: {
-                                    messageId,
+                                    messageId: messageId,
                                     answer: response,
                                     inputTokens: 0,
                                     outputTokens: 0
@@ -74,18 +115,41 @@ async function createAgent(llm, tools, prompt, config) {
                         return response;
                     }
                 }
-                return await langgraphAgent.run(messages, options);
+                return await langchainAgent.run(messages, options);
             }
             catch (error) {
-                console.error('❌ Error in LangGraph Agent:', error);
+                console.error('❌ Error in LangChain Agent:', error);
                 throw error;
             }
             finally {
-                console.log('🧹 LangGraph Agent execution completed');
+                if (config?.sessionId) {
+                }
             }
-        },
-        getState: () => langgraphAgent.getState(),
-        visualize: () => langgraphAgent.visualize()
+        }
     };
+}
+function convertUnifiedToolsToLegacy(toolConfigs, context) {
+    const legacyTools = {};
+    for (const config of toolConfigs) {
+        legacyTools[config.id] = async (input, sessionId, legacyConfig) => {
+            try {
+                const result = await unifiedToolRegistry_1.unifiedToolRegistry.executeTool(config.id, input, {
+                    ...context,
+                    sessionId: sessionId || context.sessionId,
+                    config: { ...context.config, ...legacyConfig }
+                });
+                if (result.success) {
+                    return result.result;
+                }
+                else {
+                    return result.error || 'Tool execution failed';
+                }
+            }
+            catch (error) {
+                return `Tool error: ${error.message}`;
+            }
+        };
+    }
+    return legacyTools;
 }
 //# sourceMappingURL=agentFactory.js.map

@@ -429,9 +429,6 @@ export class ChatService {
       } finally {
         // Remove event listener
         agentExecutionService.off('execution_event', onExecutionEvent);
-
-        // After successful AI response, check if we need to create memory search tools
-        await this.checkAndCreateMemorySearchTools(chatId);
       }
 
     } catch (error) {
@@ -553,21 +550,6 @@ export class ChatService {
   private shouldUseRedisMemory(messageCount: number): boolean {
     // Always use Redis memory for recent conversations (เหมือน Legacy)
     return true;
-  }
-
-  /**
-   * Check if we need to create memory search tools after message processing
-   */
-  private async checkAndCreateMemorySearchTools(chatId: string): Promise<void> {
-    try {
-      // Check if this session now has enough messages to warrant memory search tools
-      const messages = await langmemService.getRecentMessages(chatId);
-      if (messages && messages.length >= 3) { // Enable memory search after 3+ messages
-        await unifiedToolRegistry.createMemorySearchToolsIfNeeded(chatId);
-      }
-    } catch (error) {
-      console.error(`❌ Error checking memory tools for session ${chatId}:`, error);
-    }
   }
 
   private shouldEmbedMessages(messageCount: number): boolean {
