@@ -1,21 +1,19 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  FiSearch,
-  FiUser,
+import { 
+  FiSearch, 
+  FiUser, 
   FiSettings,
   FiMenu,
   FiPlus,
   FiDatabase,
   FiSliders,
   FiBookmark,
-  FiTrash2,
-  FiClock
+  FiTrash2
 } from 'react-icons/fi';
 import { useLayoutStore, useUIStore, useChatStore, useAuthStore } from '../../stores';
 import { cn, formatDate } from '../../lib/utils';
 import PreferencesModal from '../PreferencesModal';
-import ChatHistoryModal from '../ChatHistoryModal';
 
 // Add custom icon styles
 const iconBaseStyle = "transition-colors duration-200";
@@ -28,8 +26,7 @@ const iconColors = {
   database: "text-amber-500 hover:text-amber-600",
   user: "text-indigo-500 hover:text-indigo-600",
   bookmark: "text-rose-500 hover:text-rose-600",
-  trash: "text-red-500 hover:text-red-600",
-  clock: "text-orange-500 hover:text-orange-600"
+  trash: "text-red-500 hover:text-red-600"
 };
 
 const Sidebar: React.FC = () => {
@@ -55,7 +52,6 @@ const Sidebar: React.FC = () => {
 
   // Modal states
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false);
-  const [chatHistoryModalOpen, setChatHistoryModalOpen] = useState(false);
 
   const settingsDropdownId = 'settings-dropdown';
   const isSettingsOpen = openDropdowns.includes(settingsDropdownId);
@@ -293,18 +289,9 @@ const Sidebar: React.FC = () => {
               "px-4 pb-4 transition-all duration-200",
               sidebarHovered && "animate-fade-in"
             )}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
-                  --- Latest chat ---
-                </h3>
-                <button
-                  onClick={() => setChatHistoryModalOpen(true)}
-                  className="btn-ghost px-2 py-1 text-xs"
-                  title="View All Chat History"
-                >
-                  <FiClock className={cn("h-3 w-3", iconBaseStyle, iconColors.clock)} />
-                </button>
-              </div>
+              <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                --- Latest chat ---
+              </h3>
               <div className="space-y-1">
                 {sortedChats.length === 0 ? (
                   <div className="text-sm text-muted text-center py-4">
@@ -426,10 +413,6 @@ const Sidebar: React.FC = () => {
       <PreferencesModal
         isOpen={preferencesModalOpen}
         onClose={() => setPreferencesModalOpen(false)}
-      />
-      <ChatHistoryModal
-        isOpen={chatHistoryModalOpen}
-        onClose={() => setChatHistoryModalOpen(false)}
       />
     </>
   );

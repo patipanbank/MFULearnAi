@@ -1,2 +1,2 @@
-export { default as ConversationHttpRoutes } from './ConversationHttpRoutes';
+export * from './ConversationRoutes';
 //# sourceMappingURL=index.d.ts.map
