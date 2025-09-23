@@ -7,7 +7,7 @@ import session from 'express-session';
 import passport from 'passport';
 import { createServer } from 'http';
 import authRouter from './routes/auth';
-// Conversation system (LangGraph)
+import chatRouter from './routes/chat';
 import agentRouter from './routes/agent';
 import bedrockRouter from './routes/bedrock';
 import chromaRouter from './routes/chroma';
@@ -20,10 +20,7 @@ import usageRouter from './routes/usage';
 import adminRouter from './routes/admin';
 import toolsRouter from './routes/tools';
 import monitoringRouter from './routes/monitoring';
-
-// New LangGraph Conversation System
-import { LangGraphWebSocketService } from './conversation/LangGraphWebSocketService';
-
+import { WebSocketService } from './services/websocketService';
 import { queueService } from './services/queueService';
 import { connectDB } from './lib/mongodb';
 
@@ -58,8 +55,8 @@ const apiRouter = express.Router();
 // Mount auth routes under API router
 apiRouter.use('/auth', authRouter);
 
-// Mount conversation routes under API router (replaces old chat routes)
-// Chat routes removed - using legacy system
+// Mount chat routes under API router
+apiRouter.use('/chat', chatRouter);
 
 // Mount agent routes under API router
 apiRouter.use('/agents', agentRouter);
@@ -115,9 +112,8 @@ const PORT = process.env.PORT || 3001;
 // Create HTTP server
 const server = createServer(app);
 
-// Initialize LangGraph Conversation System
-const langGraphConversationWS = new LangGraphWebSocketService(server);
-
+// Initialize WebSocket service
+const wsService = new WebSocketService(server);
 
 // Connect to MongoDB and start server
 const startServer = async () => {
@@ -136,13 +132,13 @@ const startServer = async () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
-
+  
   // Stop queue service
   await queueService.shutdown();
-
-  // Stop conversation system
-  await langGraphConversationWS.shutdown();
-
+  
+  // Stop WebSocket service
+  wsService.stop();
+  
   // Close HTTP server
   server.close(() => {
     console.log('✅ Server closed');
@@ -152,13 +148,13 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
-
+  
   // Stop queue service
   await queueService.shutdown();
-
-  // Stop conversation system
-  await langGraphConversationWS.shutdown();
-
+  
+  // Stop WebSocket service
+  wsService.stop();
+  
   // Close HTTP server
   server.close(() => {
     console.log('✅ Server closed');

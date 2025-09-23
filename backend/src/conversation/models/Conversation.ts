@@ -310,7 +310,7 @@ ConversationSchema.post('save', function(doc) {
 
 // ============= MODEL EXPORT =============
 
-export interface ConversationDocument extends Document {
+export interface ConversationDocument extends IConversation, Document {
   updateStats(stats: {
     messageCount?: number;
     tokenUsage?: number;
