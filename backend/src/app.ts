@@ -23,6 +23,7 @@ import monitoringRouter from './routes/monitoring';
 
 // New LangGraph Conversation System
 import { LangGraphWebSocketService } from './conversation/LangGraphWebSocketService';
+import { ConversationHttpRoutes } from './conversation/routes';
 
 import { queueService } from './services/queueService';
 import { connectDB } from './lib/mongodb';
@@ -59,7 +60,7 @@ const apiRouter = express.Router();
 apiRouter.use('/auth', authRouter);
 
 // Mount conversation routes under API router (replaces old chat routes)
-// Chat routes removed - using legacy system
+apiRouter.use('/chat', ConversationHttpRoutes);
 
 // Mount agent routes under API router
 apiRouter.use('/agents', agentRouter);
