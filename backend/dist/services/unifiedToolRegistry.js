@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.unifiedToolRegistry = exports.UnifiedToolRegistry = exports.ToolType = exports.ToolCategory = void 0;
 const chromaService_1 = require("./chromaService");
 const embeddingService_1 = require("./embeddingService");
-const langmemService_1 = require("./langmemService");
+const memoryService_1 = require("./memoryService");
 const axios_1 = __importDefault(require("axios"));
 var ToolCategory;
 (function (ToolCategory) {
@@ -458,7 +458,7 @@ class UnifiedToolRegistry {
         return async (input, context) => {
             try {
                 if (toolId.includes('search_memory')) {
-                    const results = await langmemService_1.langmemService.searchMemory(sessionId, input);
+                    const results = await memoryService_1.memoryService.searchMemory(sessionId, input);
                     if (!results.length) {
                         return {
                             success: true,
@@ -476,7 +476,7 @@ class UnifiedToolRegistry {
                     };
                 }
                 else if (toolId.includes('embed_memory')) {
-                    await langmemService_1.langmemService.embedMessage(sessionId, input);
+                    await memoryService_1.memoryService.embedMessage(sessionId, input);
                     return {
                         success: true,
                         result: 'Message embedded into memory successfully',
@@ -485,7 +485,7 @@ class UnifiedToolRegistry {
                     };
                 }
                 else if (toolId.includes('get_recent_context')) {
-                    const recent = await langmemService_1.langmemService.getRecentMessages(sessionId);
+                    const recent = await memoryService_1.memoryService.getRecentMessages(sessionId);
                     if (!recent.length) {
                         return {
                             success: true,

@@ -1,5 +1,5 @@
 import { toolRegistry as serviceToolRegistry, ToolFunction as ServiceToolFunction } from '../services/toolRegistry';
-import { langmemService } from '../services/langmemService';
+import { memoryService } from '../services/memoryService';
 import { chromaService } from '../services/chromaService';
 import { embeddingService } from '../services/embeddingService';
 import axios from 'axios';
@@ -64,7 +64,7 @@ export const toolRegistry: Record<string, ToolMeta> = {
      */
     func: async (input: string, sessionId?: string) => {
       if (!sessionId) return 'No sessionId provided.';
-      const results = await langmemService.searchMemory(sessionId, input);
+      const results = await memoryService.searchMemory(sessionId, input);
       if (!results.length) return 'No relevant chat history found.';
       return results.map((r: { role: string; content: string }) => `${r.role}: ${r.content}`).join('\n');
     }
@@ -77,7 +77,7 @@ export const toolRegistry: Record<string, ToolMeta> = {
      */
     func: async (input: string, sessionId?: string) => {
       if (!sessionId) return 'No sessionId provided.';
-      await langmemService.embedMessage(sessionId, input);
+      await memoryService.embedMessage(sessionId, input);
       return 'Message embedded into memory.';
     }
   }
@@ -228,7 +228,7 @@ export function createMemoryTool(sessionId: string) {
       description: 'Search through the current chat session history to find relevant context.',
       func: async (input: string) => {
         try {
-          const results = await langmemService.searchMemory(sessionId, input);
+          const results = await memoryService.searchMemory(sessionId, input);
           if (!results.length) return 'No relevant chat history found.';
           return results.map((r: any, i: number) => 
             `${i + 1}. ${r.role}: ${r.content}`
@@ -243,7 +243,7 @@ export function createMemoryTool(sessionId: string) {
       description: 'Embed new message into chat memory for this session.',
       func: async (input: string) => {
         try {
-          await langmemService.embedMessage(sessionId, input);
+          await memoryService.embedMessage(sessionId, input);
           return 'Message embedded into memory.';
         } catch (error) {
           return 'Memory embedding is currently unavailable.';
@@ -255,7 +255,7 @@ export function createMemoryTool(sessionId: string) {
       description: 'Get recent context from memory (last 10 messages in Redis).',
       func: async () => {
         try {
-          const recent = await langmemService.getRecentMessages(sessionId);
+          const recent = await memoryService.getRecentMessages(sessionId);
           if (!recent.length) return 'No recent context found in memory.';
           return recent.map((msg: any, i: number) => 
             `${i + 1}. ${msg.role}: ${msg.content}`
@@ -270,7 +270,7 @@ export function createMemoryTool(sessionId: string) {
       description: 'Get full conversation context from memory (vectorstore).',
       func: async () => {
         try {
-          const all = await langmemService.getAllMessages(sessionId);
+          const all = await memoryService.getAllMessages(sessionId);
           if (!all.length) return 'No context found in memory.';
           return all.map((msg: any, i: number) => 
             `${i + 1}. ${msg.role}: ${msg.content}`
@@ -285,8 +285,8 @@ export function createMemoryTool(sessionId: string) {
       description: 'Clear all chat memory for this session.',
       func: async () => {
         try {
-          await langmemService.clearRecentMessages(sessionId);
-          await langmemService.clearLongTermMemory(sessionId);
+          await memoryService.clearRecentMessages(sessionId);
+          await memoryService.clearLongTermMemory(sessionId);
           return 'Memory cleared.';
         } catch (error) {
           return 'Memory clearing is currently unavailable.';
@@ -298,8 +298,8 @@ export function createMemoryTool(sessionId: string) {
       description: 'Get memory usage statistics for this session.',
       func: async () => {
         try {
-          const recent = await langmemService.getRecentMessages(sessionId);
-          const all = await langmemService.getAllMessages(sessionId);
+          const recent = await memoryService.getRecentMessages(sessionId);
+          const all = await memoryService.getAllMessages(sessionId);
           return `Memory stats for session ${sessionId}:\n- Recent messages: ${recent.length}\n- Total messages: ${all.length}`;
         } catch (error) {
           return 'Memory stats are currently unavailable.';
@@ -370,19 +370,19 @@ export function createRetrievalTools(collectionNames: string[]) {
 // Utility functions
 export async function addChatMemory(sessionId: string, messages: { role: string; content: string; id?: string; timestamp?: string }[]) {
   for (const msg of messages) {
-    await langmemService.embedMessage(sessionId, msg.content);
+    await memoryService.embedMessage(sessionId, msg.content);
   }
 }
 
 export async function clearChatMemory(sessionId: string) {
-  await langmemService.clearRecentMessages(sessionId);
-  await langmemService.clearLongTermMemory(sessionId);
+  await memoryService.clearRecentMessages(sessionId);
+  await memoryService.clearLongTermMemory(sessionId);
 }
 
 export async function getMemoryStats(sessionId: string) {
   try {
-    const recent = await langmemService.getRecentMessages(sessionId);
-    const all = await langmemService.getAllMessages(sessionId);
+    const recent = await memoryService.getRecentMessages(sessionId);
+    const all = await memoryService.getAllMessages(sessionId);
     return {
       recentCount: recent.length,
       totalCount: all.length,

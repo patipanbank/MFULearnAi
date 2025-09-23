@@ -8,7 +8,7 @@ import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { ToolFunction } from '../services/toolRegistry';
 import { redis } from '../lib/redis';
-import { langmemService } from '../services/langmemService';
+import { memoryService } from '../services/memoryService';
 
 export interface LangChainAgentConfig {
   modelId: string;
@@ -180,24 +180,37 @@ export async function createLangChainAgent(config: LangChainAgentConfig): Promis
 }
 
 /**
- * Setup LangMem memory management
+ * Setup hybrid memory management (Redis + Vectorstore) - เหมือน Legacy
  */
-async function setupLangMemMemory(sessionId: string, messages: { role: string; content: string }[]) {
+async function setupHybridMemory(sessionId: string, messages: { role: string; content: string }[]) {
   try {
-    console.log(`🧠 Setting up LangMem memory for session ${sessionId}`);
-
-    if (messages.length > 0) {
-      const context = {
-        sessionId,
-        namespace: 'langchain_agent'
-      };
-
-      await langmemService.processMessages(messages, context);
-      console.log(`💾 Processed ${messages.length} messages with LangMem`);
+    console.log(`🧠 Setting up hybrid memory for session ${sessionId}`);
+    
+    // 1. Redis memory for recent messages (last 10)
+    const recentMessages = messages.slice(-10);
+    if (recentMessages.length > 0) {
+      await redis.set(`chat:recent:${sessionId}`, JSON.stringify(recentMessages), 'EX', 86400);
+      console.log(`💾 Stored ${recentMessages.length} recent messages in Redis`);
     }
-
+    
+    // 2. Vectorstore memory for long-term storage (every 10 messages)
+    if (messages.length % 10 === 0 && messages.length > 0) {
+      const messagesForEmbedding = messages.map(msg => ({
+        content: msg.content,
+        role: msg.role,
+        timestamp: new Date().toISOString()
+      }));
+      
+      // Embed messages into vectorstore
+      for (const msg of messagesForEmbedding) {
+        await memoryService.embedMessage(sessionId, msg.content);
+      }
+      
+      console.log(`📚 Embedded ${messagesForEmbedding.length} messages to vectorstore`);
+    }
+    
   } catch (error) {
-    console.error(`❌ Error setting up LangMem memory: ${error}`);
+    console.error(`❌ Error setting up hybrid memory: ${error}`);
   }
 }
 

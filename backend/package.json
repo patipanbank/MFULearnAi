@@ -49,8 +49,6 @@
     "ioredis": "^5.7.0",
     "jsonwebtoken": "^9.0.2",
     "langchain": "^0.3.30",
-    "langmem": "^0.1.12",
-    "@langchain/langgraph": "^0.2.34",
     "mammoth": "^1.10.0",
     "mongoose": "^8.16.4",
     "morgan": "^1.10.0",

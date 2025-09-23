@@ -7,7 +7,8 @@ const aws_1 = require("@langchain/aws");
 const prompts_1 = require("@langchain/core/prompts");
 const messages_1 = require("@langchain/core/messages");
 const tools_1 = require("@langchain/core/tools");
-const langmemService_1 = require("../services/langmemService");
+const redis_1 = require("../lib/redis");
+const memoryService_1 = require("../services/memoryService");
 async function createLangChainAgent(config) {
     console.log(`🤖 Creating LangChain Agent with model: ${config.modelId}`);
     const llm = createLLM(config.modelId, {
@@ -125,20 +126,28 @@ async function createLangChainAgent(config) {
         }
     };
 }
-async function setupLangMemMemory(sessionId, messages) {
+async function setupHybridMemory(sessionId, messages) {
     try {
-        console.log(`🧠 Setting up LangMem memory for session ${sessionId}`);
-        if (messages.length > 0) {
-            const context = {
-                sessionId,
-                namespace: 'langchain_agent'
-            };
-            await langmemService_1.langmemService.processMessages(messages, context);
-            console.log(`💾 Processed ${messages.length} messages with LangMem`);
+        console.log(`🧠 Setting up hybrid memory for session ${sessionId}`);
+        const recentMessages = messages.slice(-10);
+        if (recentMessages.length > 0) {
+            await redis_1.redis.set(`chat:recent:${sessionId}`, JSON.stringify(recentMessages), 'EX', 86400);
+            console.log(`💾 Stored ${recentMessages.length} recent messages in Redis`);
+        }
+        if (messages.length % 10 === 0 && messages.length > 0) {
+            const messagesForEmbedding = messages.map(msg => ({
+                content: msg.content,
+                role: msg.role,
+                timestamp: new Date().toISOString()
+            }));
+            for (const msg of messagesForEmbedding) {
+                await memoryService_1.memoryService.embedMessage(sessionId, msg.content);
+            }
+            console.log(`📚 Embedded ${messagesForEmbedding.length} messages to vectorstore`);
         }
     }
     catch (error) {
-        console.error(`❌ Error setting up LangMem memory: ${error}`);
+        console.error(`❌ Error setting up hybrid memory: ${error}`);
     }
 }
 function createLLM(modelId, config) {
