@@ -23,7 +23,13 @@ export const authenticateJWT = (req: AuthenticatedRequest, res: Response, next: 
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET) as any;
     console.log('🔐 JWT decoded:', JSON.stringify(decoded, null, 2));
-    req.user = decoded;
+
+    // Map JWT fields to user object to ensure consistent access
+    req.user = {
+      ...decoded,
+      id: decoded.sub || decoded.userId || decoded.id, // Map sub to id for consistency
+      userId: decoded.sub || decoded.userId || decoded.id
+    };
     return next();
   } catch (error) {
     console.error('❌ JWT verification failed:', error);

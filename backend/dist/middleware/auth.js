@@ -22,7 +22,11 @@ const authenticateJWT = (req, res, next) => {
     try {
         const decoded = jsonwebtoken_1.default.verify(token, config_1.default.JWT_SECRET);
         console.log('🔐 JWT decoded:', JSON.stringify(decoded, null, 2));
-        req.user = decoded;
+        req.user = {
+            ...decoded,
+            id: decoded.sub || decoded.userId || decoded.id,
+            userId: decoded.sub || decoded.userId || decoded.id
+        };
         return next();
     }
     catch (error) {
