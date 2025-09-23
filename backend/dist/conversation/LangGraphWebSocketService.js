@@ -121,6 +121,9 @@ class LangGraphWebSocketService {
                 case 'create_room':
                     await this.handleCreateRoom(connectionId, data, user);
                     break;
+                case 'pong':
+                    console.log('WebSocket: Received pong from client');
+                    break;
                 default:
                     console.warn(`⚠️ Unknown LangGraph message type: ${data.type}`);
                     this.sendError(connectionId, `Unknown message type: ${data.type}`);

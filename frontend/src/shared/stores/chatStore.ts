@@ -29,16 +29,61 @@ export interface ChatSession {
   isPinned?: boolean;
 }
 
+interface ChatHistoryFilters {
+  search?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  agentId?: string;
+  pinned?: boolean;
+}
+
+interface ChatHistoryPagination {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+interface ChatAnalytics {
+  summary: {
+    totalConversations: number;
+    activeConversations: number;
+    pinnedConversations: number;
+    totalMessages: number;
+    totalTokens: number;
+    averageResponseTime: number;
+    averageMessagesPerConversation: number;
+  };
+  trends: any[];
+  agents: any[];
+  models: any[];
+  period: {
+    from?: string;
+    to?: string;
+  };
+}
+
 interface ChatState {
   // Current chat session
   currentSession: ChatSession | null;
   setCurrentSession: (session: ChatSession | null) => void;
-  
+
   // Chat history
   chatHistory: ChatSession[];
   setChatHistory: (history: ChatSession[]) => void;
   addChatToHistory: (chat: ChatSession) => void;
   removeChatFromHistory: (chatId: string) => void;
+
+  // Enhanced history management
+  historyFilters: ChatHistoryFilters;
+  setHistoryFilters: (filters: ChatHistoryFilters) => void;
+  historyPagination: ChatHistoryPagination;
+  setHistoryPagination: (pagination: ChatHistoryPagination) => void;
+
+  // Analytics
+  analytics: ChatAnalytics | null;
+  setAnalytics: (analytics: ChatAnalytics | null) => void;
   
   // Messages
   addMessage: (message: ChatMessage) => void;
@@ -83,13 +128,20 @@ interface ChatState {
   fetchChatHistory: (force?: boolean) => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
   pinChat: (chatId: string, pinned: boolean) => void;
+
+  // Enhanced history actions
+  fetchChatHistoryFiltered: (filters?: ChatHistoryFilters, page?: number, limit?: number) => Promise<void>;
+  searchConversations: (query: string) => Promise<any[]>;
+  exportConversations: (conversationIds: string[], format?: 'json' | 'csv' | 'markdown') => Promise<void>;
+  bulkOperations: (action: 'delete' | 'archive' | 'pin' | 'unpin', conversationIds: string[]) => Promise<void>;
+  fetchAnalytics: (dateFrom?: string, dateTo?: string, agentId?: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
   // Current session
   currentSession: null,
   setCurrentSession: (session) => set({ currentSession: session }),
-  
+
   // Chat history
   chatHistory: [],
   setChatHistory: (history) => set({ chatHistory: history }),
@@ -99,6 +151,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   removeChatFromHistory: (chatId) => set((state) => ({
     chatHistory: state.chatHistory.filter(chat => chat.id !== chatId)
   })),
+
+  // Enhanced history management
+  historyFilters: {},
+  setHistoryFilters: (filters) => set({ historyFilters: filters }),
+  historyPagination: { page: 1, limit: 50, total: 0, pages: 0 },
+  setHistoryPagination: (pagination) => set({ historyPagination: pagination }),
+
+  // Analytics
+  analytics: null,
+  setAnalytics: (analytics) => set({ analytics }),
   
   // Messages
   addMessage: (message) => {
@@ -342,19 +404,165 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       // Update pin state in backend
       await api.post(`/chat/${chatId}/pin`, { isPinned: pinned });
-      
+
       // Update local state
       set((state) => ({
         chatHistory: state.chatHistory.map(chat =>
           chat.id === chatId ? { ...chat, isPinned: pinned } : chat
         ),
         // Also update current session if it's the same chat
-        currentSession: state.currentSession?.id === chatId 
+        currentSession: state.currentSession?.id === chatId
           ? { ...state.currentSession, isPinned: pinned }
           : state.currentSession
       }));
     } catch (error) {
       console.error('Failed to pin chat:', error);
+    }
+  },
+
+  // Enhanced history actions
+  fetchChatHistoryFiltered: async (filters = {}, page = 1, limit = 50) => {
+    try {
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+        )
+      });
+
+      const response = await api.get<{
+        conversations: ChatSession[];
+        pagination: ChatHistoryPagination;
+        filters: ChatHistoryFilters;
+      }>(`/chat/history?${queryParams}`);
+
+      const chatSessions: ChatSession[] = response.conversations.map((chat: any) => ({
+        ...chat,
+        id: chat.id || chat._id,
+        createdAt: new Date(chat.createdAt),
+        updatedAt: new Date(chat.updatedAt),
+        messages: (chat.messages || []).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }))
+      }));
+
+      set({
+        chatHistory: chatSessions,
+        historyPagination: response.pagination,
+        historyFilters: filters
+      });
+    } catch (error) {
+      console.error('Failed to fetch filtered chat history:', error);
+    }
+  },
+
+  searchConversations: async (query: string) => {
+    try {
+      const response = await api.get<{
+        messages: any[];
+        query: string;
+        total: number;
+      }>(`/chat/search?query=${encodeURIComponent(query)}&limit=20`);
+
+      return response.messages;
+    } catch (error) {
+      console.error('Failed to search conversations:', error);
+      return [];
+    }
+  },
+
+  exportConversations: async (conversationIds: string[], format = 'json') => {
+    try {
+      const response = await fetch('/api/chat/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ conversationIds, format })
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      // Get the filename from headers
+      const contentDisposition = response.headers.get('content-disposition');
+      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || `conversations.${format}`;
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to export conversations:', error);
+      throw error;
+    }
+  },
+
+  bulkOperations: async (action: 'delete' | 'archive' | 'pin' | 'unpin', conversationIds: string[]) => {
+    try {
+      await api.post('/chat/bulk', {
+        action,
+        conversationIds
+      });
+
+      // Update local state based on action
+      set((state) => {
+        let updatedHistory = [...state.chatHistory];
+
+        switch (action) {
+          case 'delete':
+            updatedHistory = updatedHistory.filter(chat => !conversationIds.includes(chat.id));
+            break;
+          case 'pin':
+            updatedHistory = updatedHistory.map(chat =>
+              conversationIds.includes(chat.id) ? { ...chat, isPinned: true } : chat
+            );
+            break;
+          case 'unpin':
+            updatedHistory = updatedHistory.map(chat =>
+              conversationIds.includes(chat.id) ? { ...chat, isPinned: false } : chat
+            );
+            break;
+          case 'archive':
+            // For now, just remove from current view
+            updatedHistory = updatedHistory.filter(chat => !conversationIds.includes(chat.id));
+            break;
+        }
+
+        return {
+          chatHistory: updatedHistory,
+          currentSession: action === 'delete' && conversationIds.includes(state.currentSession?.id || '')
+            ? null
+            : state.currentSession
+        };
+      });
+    } catch (error) {
+      console.error(`Failed to perform bulk ${action}:`, error);
+      throw error;
+    }
+  },
+
+  fetchAnalytics: async (dateFrom?: string, dateTo?: string, agentId?: string) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (dateFrom) queryParams.set('dateFrom', dateFrom);
+      if (dateTo) queryParams.set('dateTo', dateTo);
+      if (agentId) queryParams.set('agentId', agentId);
+
+      const analytics = await api.get<ChatAnalytics>(`/chat/analytics?${queryParams}`);
+      set({ analytics });
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
     }
   }
 }));
