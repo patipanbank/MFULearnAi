@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
 import { langGraphConversationService, LangGraphConversationConfig } from './LangGraphConversation';
+import { ConversationModel } from './models/Conversation';
 
 interface WebSocketMessage {
   type: string;
@@ -405,6 +406,30 @@ export class LangGraphWebSocketService {
 
       // Generate new room ID (MongoDB ObjectId format)
       const roomId = new ObjectId().toString();
+
+      // Create conversation record in database
+      const conversation = new ConversationModel({
+        _id: new ObjectId(roomId),
+        id: roomId,
+        userId: user.id,
+        title: 'New Chat',
+        agentId: agentId,
+        status: 'active',
+        modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        metadata: {
+          messageCount: 0,
+          totalTokens: 0,
+          averageResponseTime: 0,
+          errorCount: 0,
+          isPinned: false,
+          isArchived: false
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      await conversation.save();
+      console.log(`💾 Conversation record created: ${roomId}`);
 
       // Send room created event
       this.sendMessage(connectionId, {

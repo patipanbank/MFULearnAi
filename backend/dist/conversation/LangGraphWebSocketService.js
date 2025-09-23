@@ -10,6 +10,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const uuid_1 = require("uuid");
 const mongodb_1 = require("mongodb");
 const LangGraphConversation_1 = require("./LangGraphConversation");
+const Conversation_1 = require("./models/Conversation");
 class LangGraphWebSocketService {
     constructor(server) {
         this.connections = new Map();
@@ -302,6 +303,27 @@ class LangGraphWebSocketService {
         try {
             console.log(`🏗️ Creating new chat room for user ${user.id} with agent ${agentId}`);
             const roomId = new mongodb_1.ObjectId().toString();
+            const conversation = new Conversation_1.ConversationModel({
+                _id: new mongodb_1.ObjectId(roomId),
+                id: roomId,
+                userId: user.id,
+                title: 'New Chat',
+                agentId: agentId,
+                status: 'active',
+                modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                metadata: {
+                    messageCount: 0,
+                    totalTokens: 0,
+                    averageResponseTime: 0,
+                    errorCount: 0,
+                    isPinned: false,
+                    isArchived: false
+                },
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+            await conversation.save();
+            console.log(`💾 Conversation record created: ${roomId}`);
             this.sendMessage(connectionId, {
                 type: 'room_created',
                 data: {
