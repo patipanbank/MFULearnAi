@@ -58,23 +58,9 @@ interface ChatState {
   // UI states
   isTyping: boolean;
   setIsTyping: (typing: boolean) => void;
-
+  
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-
-  // Workflow state
-  workflowState: {
-    isActive: boolean;
-    currentNode?: string;
-    workflowEngine?: string;
-    features?: {
-      stateManagement?: boolean;
-      conditionalRouting?: boolean;
-      toolIntegration?: boolean;
-      memoryPersistence?: boolean;
-    };
-  } | null;
-  setWorkflowState: (state: ChatState['workflowState']) => void;
   
   // Chat actions
   createNewChat: () => ChatSession;
@@ -194,10 +180,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   isLoading: false,
   setIsLoading: (loading) => set({ isLoading: loading }),
-
-  // Workflow state
-  workflowState: null,
-  setWorkflowState: (state) => set({ workflowState: state }),
   
   // Actions
   createNewChat: () => {

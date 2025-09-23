@@ -11,7 +11,6 @@ import { useMessageActions } from './hooks/useMessageActions';
 import { useFileUpload } from './hooks/useFileUpload';
 import ChatMessages from './components/ChatMessages';
 import WelcomeScreen from './components/WelcomeScreen';
-import WorkflowStatus from '../../shared/components/WorkflowStatus';
 
 const ChatPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -24,7 +23,6 @@ const ChatPage: React.FC = () => {
   const setIsTyping = useChatStore((state) => state.setIsTyping);
   const setChatHistory = useChatStore((state) => state.setChatHistory);
   const isLoading = useChatStore((state) => state.isLoading);
-  const workflowState = useChatStore((state) => state.workflowState);
 
   const selectedAgent = useAgentStore((state) => state.selectedAgent);
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
@@ -48,8 +46,7 @@ const ChatPage: React.FC = () => {
     connectWebSocket,
     isTokenExpired,
     tryRefreshToken,
-    sendMessage: wsSendMessage,
-    getWorkflowState
+    sendMessage: wsSendMessage
   } = useWebSocket({ chatId, isInChatRoom });
 
   // Chat navigation is handled by useChatNavigation hook
@@ -95,13 +92,7 @@ const ChatPage: React.FC = () => {
     console.log('Pending queue:', pendingQueueRef.current);
     console.log('Pending first:', pendingFirstRef.current);
     console.log('===========================');
-
-    // Get workflow state if in a chat room
-    if (chatId && chatId.length === 24) {
-      console.log('Requesting workflow state for:', chatId);
-      getWorkflowState(chatId);
-    }
-  }, [wsRef, isInChatRoom, chatId, currentSession, selectedAgent, pendingQueueRef, pendingFirstRef, getWorkflowState]);
+  }, [wsRef, isInChatRoom, chatId, currentSession, selectedAgent, pendingQueueRef, pendingFirstRef]);
 
   // Initialize data on mount
   useEffect(() => {
@@ -225,18 +216,8 @@ const ChatPage: React.FC = () => {
     // Check if we're in a chat room
     if (isInChatRoom && chatId && chatId.length === 24) {
       console.log('ChatPage: Sending to existing room', chatId);
-      // Send to existing room with agent configuration
-      wsSendMessage(
-        messageToSend,
-        imagesToSend,
-        selectedAgent?.id,
-        selectedAgent?.modelId,
-        selectedAgent?.temperature,
-        selectedAgent?.maxTokens,
-        selectedAgent?.systemPrompt,
-        selectedAgent?.enableTools || (selectedAgent?.tools && selectedAgent.tools.length > 0),
-        selectedAgent?.tools?.map(tool => tool.name) || []
-      );
+      // Send to existing room
+      wsSendMessage(messageToSend, imagesToSend, selectedAgent?.id);
     } else {
       console.log('ChatPage: Creating new room');
       // Create new room
@@ -417,18 +398,6 @@ const ChatPage: React.FC = () => {
         {/* Input Area - Fixed at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary via-primary to-transparent pt-6">
           <div className="px-4 pb-6">
-            {/* Workflow Status - only show if active */}
-            {workflowState && (
-              <div className="mb-3 px-3 py-2 bg-background/80 backdrop-blur-sm rounded-lg border">
-                <WorkflowStatus
-                  isActive={workflowState.isActive}
-                  currentNode={workflowState.currentNode}
-                  workflowEngine={workflowState.workflowEngine}
-                  features={workflowState.features}
-                />
-              </div>
-            )}
-
             {/* Debug button - only show in development */}
             {import.meta.env.DEV && (
               <button

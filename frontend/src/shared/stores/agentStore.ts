@@ -33,7 +33,6 @@ export interface AgentConfig {
   updatedAt: string;
   usageCount: number;
   rating: number;
-  enableTools?: boolean;
 }
 
 export interface AgentExecution {

@@ -24,7 +24,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
   const setCurrentSession = useChatStore((state) => state.setCurrentSession);
   const setChatHistory = useChatStore((state) => state.setChatHistory);
   const chatHistory = useChatStore((state) => state.chatHistory);
-  const setWorkflowState = useChatStore((state) => state.setWorkflowState);
   
   const addToast = useUIStore((state) => state.addToast);
   
@@ -276,7 +275,7 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
         } else if (data.type === 'room_created') {
           console.log('WebSocket: Room created', data.data.chatId);
           handleRoomCreated(data.data.chatId);
-
+          
           // ส่งข้อความแรกทันทีก่อน redirect
           if (pendingFirstRef.current) {
             const { text, images: pImages, agentId: pAgentId } = pendingFirstRef.current;
@@ -292,33 +291,12 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
             wsRef.current?.send(JSON.stringify(msgPayload));
             pendingFirstRef.current = null;
           }
-
+          
           // ใช้ setTimeout เพื่อให้ข้อความถูกส่งก่อน redirect
           setTimeout(() => {
             // ใช้ navigate แทน window.location.href เพื่อป้องกันกรณี chatId ไม่มีอยู่จริง
             navigate(`/chat/${data.data.chatId}`, { replace: true });
           }, 200);
-        } else if (data.type === 'connected') {
-          console.log('WebSocket: Connected to LangGraph service', data.data);
-          // LangGraph WebSocket connection established
-        } else if (data.type === 'ping') {
-          console.log('WebSocket: Received ping, sending pong');
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ type: 'pong' }));
-          }
-        } else if (data.type === 'pong') {
-          console.log('WebSocket: Received pong');
-          // Keep-alive response from server
-        } else if (data.type === 'workflow_state') {
-          console.log('WebSocket: Workflow state update', data.data);
-          // Handle workflow state updates from LangGraph
-          const { isActive, currentNode, workflowEngine, features } = data.data;
-          setWorkflowState({
-            isActive,
-            currentNode,
-            workflowEngine,
-            features
-          });
         } else if (data.type === 'tool_start') {
           console.log('WebSocket: Tool started', data.data);
           const session = currentSessionRef.current;
@@ -493,59 +471,23 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     };
   }, []);
 
-  const sendMessage = useCallback((message: string, images?: Array<{ url: string; mediaType: string }>, agentId?: string, modelId?: string, temperature?: number, maxTokens?: number, systemPrompt?: string, enableTools?: boolean, tools?: string[]) => {
+  const sendMessage = useCallback((message: string, images?: Array<{ url: string; mediaType: string }>, agentId?: string) => {
     console.log('sendMessage called', { message: message.substring(0, 50) + '...', images: images?.length || 0, chatId, agentId });
-
+    
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.log('sendMessage: WebSocket not connected, queuing message');
-      pendingQueueRef.current.push({
-        type: 'message',
-        text: message,
-        images,
-        chatId,
-        agent_id: agentId,
-        modelId,
-        temperature,
-        maxTokens,
-        systemPrompt,
-        enableTools,
-        tools
-      });
+      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId, agent_id: agentId });
       return;
     }
-
+    
     try {
-      const payload = {
-        type: 'message',
-        text: message,
-        images,
-        chatId,
-        agent_id: agentId,
-        modelId,
-        temperature,
-        maxTokens,
-        systemPrompt,
-        enableTools,
-        tools
-      };
+      const payload = { type: 'message', text: message, images, chatId, agent_id: agentId };
       console.log('sendMessage: Sending payload', payload);
       wsRef.current.send(JSON.stringify(payload));
     } catch (error) {
       console.error('sendMessage: Failed to send message', error);
       // เก็บไว้ใน queue เพื่อส่งใหม่เมื่อ reconnect
-      pendingQueueRef.current.push({
-        type: 'message',
-        text: message,
-        images,
-        chatId,
-        agent_id: agentId,
-        modelId,
-        temperature,
-        maxTokens,
-        systemPrompt,
-        enableTools,
-        tools
-      });
+      pendingQueueRef.current.push({ type: 'message', text: message, images, chatId, agent_id: agentId });
       addToast({
         type: 'error',
         title: 'Send Failed',
@@ -554,27 +496,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
       });
     }
   }, [addToast, chatId]);
-
-  // Join room function
-  const joinRoom = useCallback((roomId: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'join_room', chatId: roomId }));
-    }
-  }, []);
-
-  // Leave room function
-  const leaveRoom = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'leave_room' }));
-    }
-  }, []);
-
-  // Get workflow state function
-  const getWorkflowState = useCallback((conversationId: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'get_workflow_state', conversationId }));
-    }
-  }, []);
 
   return {
     wsRef,
@@ -585,9 +506,6 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     isTokenExpired,
     tryRefreshToken,
     sendMessage,
-    joinRoom,
-    leaveRoom,
-    getWorkflowState,
     isConnected
   };
 }; 
