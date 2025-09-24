@@ -5,7 +5,7 @@ import { usageService } from './usageService';
 import { unifiedToolRegistry, ToolExecutionContext } from './unifiedToolRegistry';
 import { agentExecutionService, ExecutionRequest, ExecutionPriority } from './agentExecutionService';
 import { redis } from '../lib/redis';
-import { memoryService } from './memoryService';
+import { langMemService } from './langmemService';
 import { chromaService } from './chromaService';
 import { storageService } from './storageService';
 
@@ -490,7 +490,7 @@ export class ChatService {
       console.log(`✅ Deleted chat ${chatId} for user ${userId}`);
       // Also clear associated memory (Redis + Chroma vectorstore)
       try {
-        await memoryService.clearAllMemory(chatId);
+        await langMemService.clearMemory(chatId);
         console.log(`🧹 Cleared memory for deleted chat ${chatId}`);
       } catch (err) {
         console.warn(`⚠️ Failed to clear memory for deleted chat ${chatId}:`, err);

@@ -8,7 +8,7 @@ import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { ToolFunction } from '../services/toolRegistry';
 import { redis } from '../lib/redis';
-import { memoryService } from '../services/memoryService';
+import { langMemService } from '../services/langmemService';
 
 export interface LangChainAgentConfig {
   modelId: string;
@@ -203,7 +203,7 @@ async function setupHybridMemory(sessionId: string, messages: { role: string; co
       
       // Embed messages into vectorstore
       for (const msg of messagesForEmbedding) {
-        await memoryService.embedMessage(sessionId, msg.content);
+        await langMemService.embedMessage(sessionId, msg.content);
       }
       
       console.log(`📚 Embedded ${messagesForEmbedding.length} messages to vectorstore`);
