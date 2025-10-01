@@ -11,7 +11,7 @@
 
 import { chromaService } from './chromaService';
 import { embeddingService } from './embeddingService';
-import { langMemService } from './langmemService';
+import { memoryService } from './memoryService';
 import { bedrockService } from './bedrockService';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
@@ -631,7 +631,7 @@ export class UnifiedToolRegistry {
     return async (input: string, context: ToolExecutionContext): Promise<ToolExecutionResult> => {
       try {
         if (toolId.includes('search_memory')) {
-          const results = await langMemService.searchMemory(sessionId, input, 5);
+          const results = await memoryService.searchMemory(sessionId, input);
           if (!results.length) {
             return {
               success: true,
@@ -653,7 +653,7 @@ export class UnifiedToolRegistry {
           } as ToolExecutionResult;
 
         } else if (toolId.includes('embed_memory')) {
-          await langMemService.embedMessage(sessionId, input);
+          await memoryService.embedMessage(sessionId, input);
           return {
             success: true,
             result: 'Message embedded into memory successfully',
@@ -662,7 +662,7 @@ export class UnifiedToolRegistry {
           } as ToolExecutionResult;
 
         } else if (toolId.includes('get_recent_context')) {
-          const recent = await langMemService.getRecentMessages(sessionId);
+          const recent = await memoryService.getRecentMessages(sessionId);
           if (!recent.length) {
             return {
               success: true,
