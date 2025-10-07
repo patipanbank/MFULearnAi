@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  namespace: mfulearnai
+  labels:
+    app: auth-service
+data:
+  jwt-algorithm: "HS256"
+  access-token-expire-minutes: "10080"
+  frontend-url: "https://mfulearnai.mfu.ac.th"
+  allowed-origins: "https://mfulearnai.mfu.ac.th"
+  saml-sp-entity-id: "https://mfulearnai.mfu.ac.th/api/auth/metadata"
+  saml-sp-acs-url: "https://mfulearnai.mfu.ac.th/api/auth/saml/callback"
+  saml-identifier-format: "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
