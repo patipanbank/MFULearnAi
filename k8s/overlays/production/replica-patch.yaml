@@ -1,0 +1,33 @@
+---
+# Higher replicas for production
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: mfulearnai-services
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: department-service
+  namespace: mfulearnai-services
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: mfulearnai-gateway
+spec:
+  replicas: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: mfulearnai-core
+spec:
+  replicas: 2  # Redis with sentinel in production

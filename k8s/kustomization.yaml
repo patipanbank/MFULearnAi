@@ -1,0 +1,43 @@
+# Kustomization for base deployment
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Namespaces
+  - namespaces/namespaces.yaml
+
+  # Infrastructure
+  - infrastructure/mongodb/mongodb-statefulset.yaml
+  - infrastructure/mongodb/mongodb-secret.yaml
+  - infrastructure/redis/redis-deployment.yaml
+  - infrastructure/chromadb/chromadb-deployment.yaml
+  - infrastructure/minio/minio-deployment.yaml
+
+  # Services
+  - services/auth-service/deployment.yaml
+  - services/auth-service/secret.yaml
+  - services/department-service/deployment.yaml
+
+  # Gateway
+  - gateway/api-gateway/deployment.yaml
+  - gateway/ingress/ingress.yaml
+
+  # Monitoring
+  - monitoring/mongodb-exporter.yaml
+  - monitoring/redis-exporter.yaml
+  - monitoring/prometheus/prometheus-config.yaml
+  - monitoring/prometheus/prometheus-deployment.yaml
+  - monitoring/grafana/grafana-deployment.yaml
+
+  # Configuration
+  - configmaps.yaml
+
+# Common labels for all resources
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: mfulearnai
+
+# Common annotations
+commonAnnotations:
+  project: "mfulearnai"
+  team: "mfu-it"

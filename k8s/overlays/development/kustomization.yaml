@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mfulearnai-dev
+
+bases:
+  - ../../
+
+commonLabels:
+  environment: development
+
+# Patches for development
+patchesStrategicMerge:
+  - replica-patch.yaml
+  - resource-patch.yaml
+
+# ConfigMap generator for environment-specific config
+configMapGenerator:
+  - name: env-config
+    literals:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=debug
+      - DEBUG=true
+
+# Name suffix for all resources
+nameSuffix: -dev
+
+# Images with dev tags
+images:
+  - name: mfulearnai/auth-service
+    newTag: dev
+  - name: mfulearnai/department-service
+    newTag: dev
+  - name: mfulearnai/api-gateway
+    newTag: dev

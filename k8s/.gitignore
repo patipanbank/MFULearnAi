@@ -1,0 +1,49 @@
+# Kubernetes Secrets
+secrets.yaml
+*-secret.yaml
+*.secret.yaml
+
+# Environment files with sensitive data
+.env.prod
+.env.prod.backup
+*.backup
+
+# Kubeconfig files
+kubeconfig
+*.kubeconfig
+config
+
+# Terraform state (if using Terraform)
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Helm values with secrets
+values-prod.yaml
+values-secret.yaml
+
+# Certificate files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Backup files
+*.bak
+*~
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
