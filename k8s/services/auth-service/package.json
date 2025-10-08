@@ -1,0 +1,38 @@
+{
+  "name": "auth-service",
+  "version": "1.0.0",
+  "description": "Authentication & User Management Microservice",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mongoose": "^8.16.4",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
+    "passport": "^0.7.0",
+    "passport-saml": "^3.2.4",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^3.0.2",
+    "express-session": "^1.18.1",
+    "axios": "^1.10.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.14",
+    "@types/cors": "^2.8.19",
+    "@types/morgan": "^1.9.10",
+    "@types/passport": "^1.0.17",
+    "@types/passport-saml": "^1.1.7",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express-session": "^1.18.2",
+    "typescript": "^5.8.3",
+    "ts-node": "^10.9.2"
+  }
+}

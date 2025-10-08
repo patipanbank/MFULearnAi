@@ -1,0 +1,1 @@
+# Models package for Bedrock API Gateway 

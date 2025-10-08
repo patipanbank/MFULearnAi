@@ -1,0 +1,31 @@
+{
+  "name": "storage-service",
+  "version": "1.0.0",
+  "description": "Storage Management Microservice",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "@aws-sdk/client-s3": "^3.654.0",
+    "uuid": "^11.0.5",
+    "multer": "^1.4.5-lts.1",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.14",
+    "@types/cors": "^2.8.19",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^1.4.12",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.8.3",
+    "ts-node": "^10.9.2"
+  }
+}
