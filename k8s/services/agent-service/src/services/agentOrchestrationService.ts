@@ -9,6 +9,7 @@ import { EventEmitter } from 'events';
 import { performance } from 'perf_hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { agentExecutionService, ExecutionRequest, ExecutionResult, ExecutionPriority } from './agentExecutionService';
+// Legacy imports - stubs for backwards compatibility
 import { memoryService } from './memoryService';
 import { WebSocketService } from './websocketService';
 

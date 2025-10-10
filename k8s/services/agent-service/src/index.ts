@@ -42,10 +42,10 @@ app.get('/ready', async (req: Request, res: Response) => {
       service: 'agent-service',
       timestamp: new Date().toISOString()
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(503).json({
       status: 'not ready',
-      error: error.message
+      error: error?.message || 'Unknown error'
     });
   }
 });

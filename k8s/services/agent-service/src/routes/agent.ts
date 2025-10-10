@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { agentService } from '../services/agentService';
+import { langGraphExecutionService } from '../services/langGraphExecutionService';
 
 const router = express.Router();
 
@@ -59,9 +60,9 @@ router.post('/', extractUser, async (req: any, res) => {
     const agent = await agentService.createAgent(agentData, req.user);
 
     return res.status(201).json(agent);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating agent:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error?.message || 'Unknown error' });
   }
 });
 
@@ -79,9 +80,9 @@ router.put('/:agentId', extractUser, async (req: any, res) => {
     }
 
     return res.json(agent);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating agent:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error?.message || 'Unknown error' });
   }
 });
 
@@ -196,6 +197,82 @@ router.get('/tools/statistics', extractUser, async (req: Request, res: Response)
       success: false,
       error: 'Failed to fetch tool statistics'
     });
+  }
+});
+
+// Execute agent with LangGraph (SSE streaming)
+router.post('/execute', extractUser, async (req: any, res: Response) => {
+  try {
+    console.log('📨 Received execution request:', {
+      chatId: req.body.chatId,
+      agentId: req.body.agentId,
+      userContent: req.body.userContent?.substring(0, 50)
+    });
+
+    const executionRequest = {
+      chatId: req.body.chatId,
+      userId: req.user.sub,
+      agentId: req.body.agentId,
+      userContent: req.body.userContent,
+      images: req.body.images,
+      modelId: req.body.modelId,
+      temperature: req.body.temperature,
+      maxTokens: req.body.maxTokens,
+      collectionNames: req.body.collectionNames,
+      systemPrompt: req.body.systemPrompt,
+      chatHistory: req.body.chatHistory
+    };
+
+    // Setup SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+    // Send initial connection message
+    res.write('data: {"type":"connected"}\n\n');
+
+    // Execute agent with streaming callbacks
+    await langGraphExecutionService.executeAgent(
+      executionRequest,
+      (event) => {
+        try {
+          if (event.type === 'chunk') {
+            res.write(`data: ${JSON.stringify({ type: 'chunk', data: event.data })}\n\n`);
+          } else if (event.type === 'tool_start') {
+            res.write(`data: ${JSON.stringify({ type: 'tool_start', data: event.data })}\n\n`);
+          } else if (event.type === 'tool_result') {
+            res.write(`data: ${JSON.stringify({ type: 'tool_result', data: event.data })}\n\n`);
+          } else if (event.type === 'end') {
+            res.write(`data: ${JSON.stringify({ type: 'end', data: event.data })}\n\n`);
+          } else if (event.type === 'error') {
+            res.write(`data: ${JSON.stringify({ type: 'error', data: event.data })}\n\n`);
+          }
+        } catch (streamError) {
+          console.error('❌ Error writing to stream:', streamError);
+        }
+      }
+    );
+
+    // Close connection
+    res.end();
+    console.log('✅ Execution completed and stream closed');
+
+  } catch (error: any) {
+    console.error('❌ Execution endpoint error:', error);
+
+    try {
+      res.write(`data: ${JSON.stringify({
+        type: 'error',
+        data: { error: error?.message || 'Unknown error' }
+      })}\n\n`);
+      res.end();
+    } catch (streamError) {
+      console.error('❌ Error writing error to stream:', streamError);
+      if (!res.headersSent) {
+        res.status(500).json({ error: error?.message || 'Unknown error' });
+      }
+    }
   }
 });
 

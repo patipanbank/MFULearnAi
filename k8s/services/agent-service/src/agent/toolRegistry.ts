@@ -1,4 +1,5 @@
 import { toolRegistry as serviceToolRegistry, ToolFunction as ServiceToolFunction } from '../services/toolRegistry';
+// Legacy imports - stubs for backwards compatibility
 import { ragClient, storageClient, bedrockClient } from '../services/httpClients';
 import axios from 'axios';
 

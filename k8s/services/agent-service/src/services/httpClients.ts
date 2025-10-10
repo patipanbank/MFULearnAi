@@ -73,4 +73,10 @@ export const storageClient = {
   }
 };
 
-// Note: Bedrock Gateway has been removed. Use AWS SDK directly if needed.
+// Bedrock Client stub - Use AWS SDK directly via ChatBedrockConverse in LangGraph
+export const bedrockClient = {
+  async invoke(params: any) {
+    console.warn('bedrockClient stub - use ChatBedrockConverse instead');
+    return {};
+  }
+};

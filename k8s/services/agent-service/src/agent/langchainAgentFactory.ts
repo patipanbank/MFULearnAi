@@ -7,6 +7,7 @@ import { DynamicTool } from '@langchain/core/tools';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { ToolFunction } from '../services/toolRegistry';
+// Legacy imports - stubs for backwards compatibility
 import { redis } from '../lib/redis';
 import { memoryService } from '../services/memoryService';
 

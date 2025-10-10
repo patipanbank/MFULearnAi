@@ -1,6 +1,7 @@
+// Legacy imports - stubs for backwards compatibility
 import { chromaService } from './chromaService';
 import axios from 'axios';
-import { bedrockService } from './bedrockService'; // เพิ่ม import นี้
+import { bedrockService } from './bedrockService';
 
 export type ToolFunction = (input: string, sessionId: string, config?: any) => Promise<string>;
 
@@ -29,7 +30,7 @@ const staticTools: Record<string, ToolFunction> = {
     try {
       // Generate embedding for the query text
       const queryEmbedding = await bedrockService.createTextEmbedding(input); // ใช้ bedrockService
-      if (!queryEmbedding || queryEmbedding.length === 0) {
+      if (!queryEmbedding || !queryEmbedding.embedding || queryEmbedding.embedding.length === 0) {
         return 'Failed to generate embedding for query.';
       }
 
@@ -55,7 +56,7 @@ const staticTools: Record<string, ToolFunction> = {
       
       // Generate embedding for the input text
       const embedding = await bedrockService.createTextEmbedding(input); // ใช้ bedrockService
-      if (!embedding || embedding.length === 0) {
+      if (!embedding || !embedding.embedding || embedding.embedding.length === 0) {
         return 'Failed to generate embedding for content.';
       }
 
@@ -64,7 +65,7 @@ const staticTools: Record<string, ToolFunction> = {
       if (existing.documents.some((doc: any) => Buffer.from(doc.document).toString('base64') === hash)) {
         return 'Already embedded.';
       }
-      await chromaService.addToCollection(`chat_memory_${sessionId}`, [input], [embedding], [{}], [Date.now().toString()]); // ส่ง embedding
+      await chromaService.addToCollection(`chat_memory_${sessionId}`, [input], [embedding.embedding], [Date.now().toString()]); // ส่ง embedding
       return 'Memory embedded.';
     } catch (e) {
       return `Memory embed error: ${(e as Error).message}`;

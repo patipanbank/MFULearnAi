@@ -9,6 +9,7 @@
  * - Memory management และ cleanup
  */
 
+// Legacy imports - stubs for backwards compatibility
 import { ragClient, storageClient, bedrockClient } from './httpClients';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
