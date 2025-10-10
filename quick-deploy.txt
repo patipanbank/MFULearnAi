@@ -1,0 +1,78 @@
+=======================================================
+🚀 QUICK DEPLOYMENT - Copy & Paste Commands
+=======================================================
+
+วิธีใช้: Copy คำสั่งทั้งหมดด้านล่างนี้ไปรันใน SSH terminal
+
+=======================================================
+STEP 1: SSH เข้า Server
+=======================================================
+ssh mfulearnai@10.1.44.204
+
+=======================================================
+STEP 2: Run Deployment (Copy ทั้งหมด)
+=======================================================
+
+cd MFULearnAi && \
+echo "📥 Pulling latest code..." && \
+git fetch origin kubernetes && \
+git reset --hard origin/kubernetes && \
+echo "✅ Code updated" && \
+echo "" && \
+echo "📦 Installing dependencies..." && \
+cd k8s/services/agent-service && \
+npm install --production && \
+echo "✅ Dependencies installed" && \
+echo "" && \
+echo "🔨 Building TypeScript..." && \
+npm run build && \
+echo "✅ Build completed" && \
+echo "" && \
+echo "🔄 Restarting agent-service..." && \
+cd ~/MFULearnAi && \
+docker-compose stop agent-service && \
+docker-compose rm -f agent-service && \
+docker-compose up -d agent-service && \
+echo "✅ Service restarted" && \
+echo "" && \
+echo "⏳ Waiting for service to start..." && \
+sleep 10 && \
+echo "" && \
+echo "🔍 Checking status..." && \
+docker ps | grep agent-service && \
+echo "" && \
+echo "✅ Deployment completed!" && \
+echo "" && \
+echo "📋 To view logs, run: docker logs -f agent-service"
+
+=======================================================
+VERIFICATION COMMANDS (Optional)
+=======================================================
+
+# Check health
+curl http://localhost:3003/health
+
+# View logs
+docker logs -f agent-service
+
+# Check LangGraph is active
+docker logs agent-service | grep -i "langgraph"
+
+# Check container status
+docker ps | grep agent-service
+
+# Check recent logs for errors
+docker logs agent-service --tail 50 | grep -i error
+
+=======================================================
+ROLLBACK (If needed)
+=======================================================
+
+cd MFULearnAi && \
+git checkout HEAD~1 && \
+cd k8s/services/agent-service && \
+npm install && npm run build && \
+cd ~/MFULearnAi && \
+docker-compose up -d agent-service
+
+=======================================================
