@@ -187,10 +187,11 @@ export class ChromaService {
   async queryCollection(collectionName: string, queryEmbeddings: number[][], nResults: number = 5) {
     try {
       const collection = await this.getOrCreateCollection(collectionName);
+      const includeFields = ["metadatas", "documents", "distances"] as const;
       const result = await collection.query({
         queryEmbeddings,
         nResults,
-        include: ["metadatas" as const, "documents" as const, "distances" as const],
+        include: includeFields,
       });
 
       // ตรวจสอบและปรับปรุง response format
