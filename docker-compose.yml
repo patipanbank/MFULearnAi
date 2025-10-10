@@ -48,17 +48,13 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3001"
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 3001
       MONGODB_URI: mongodb://root:${MONGO_PASSWORD:-changeme123}@db:27017/mfu_chatbot?authSource=admin
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      SESSION_SECRET: ${SESSION_SECRET:-your-super-secret-session-key-change-in-production}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-3-5-sonnet-20241022}
-      ANTHROPIC_MAX_TOKENS: ${ANTHROPIC_MAX_TOKENS:-4096}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://localhost:80}
     depends_on:
       db:
         condition: service_healthy
