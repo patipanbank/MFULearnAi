@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import config from '../config/config';
-import { User } from '../models/user';
+import { IUser } from '../models/user';
 
 export interface JwtPayload {
   sub: string;
@@ -19,9 +19,9 @@ class JwtService {
   /**
    * สร้าง JWT token สำหรับ SAML login (7 วัน)
    */
-  createSamlToken(user: User): string {
+  createSamlToken(user: IUser): string {
     const payload: JwtPayload = {
-      sub: user._id,
+      sub: (user._id as any).toString(),
       nameID: user.nameID,
       username: user.username,
       email: user.email,
@@ -41,9 +41,9 @@ class JwtService {
   /**
    * สร้าง JWT token สำหรับ Admin login (1 วัน)
    */
-  createAdminToken(user: User): string {
+  createAdminToken(user: IUser): string {
     const payload: JwtPayload = {
-      sub: user._id,
+      sub: (user._id as any).toString(),
       nameID: user.nameID,
       username: user.username,
       email: user.email,

@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import session from 'express-session';
 import passport from 'passport';
 import { createServer } from 'http';
-import authRouter from './routes/auth';
+import authRouter from './routes/authRoutes';
 import { connectDB } from './lib/mongodb';
 
 dotenv.config();

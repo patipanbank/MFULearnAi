@@ -1,7 +1,7 @@
 import { samlService, SamlUserProfile } from './samlService';
 import { userService } from './userService';
 import { jwtService } from './jwtService';
-import { User } from '../models/user';
+import { User, IUser } from '../models/user';
 
 class AuthService {
   /**
@@ -10,7 +10,7 @@ class AuthService {
    * - Create/update user
    * - Generate JWT token
    */
-  async handleSamlLogin(samlProfile: any): Promise<{ token: string; user: User }> {
+  async handleSamlLogin(samlProfile: any): Promise<{ token: string; user: IUser }> {
     // 1. Map SAML profile to user profile
     const userProfile: SamlUserProfile = samlService.mapSamlProfile(samlProfile);
 
@@ -29,7 +29,7 @@ class AuthService {
    * - Verify credentials
    * - Generate JWT token
    */
-  async handleAdminLogin(username: string, password: string): Promise<{ token: string; user: User }> {
+  async handleAdminLogin(username: string, password: string): Promise<{ token: string; user: IUser }> {
     // 1. Find admin user
     const user = await userService.find_admin_by_username(username);
     if (!user || !user.password) {
